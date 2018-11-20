@@ -397,8 +397,7 @@ public class TextIOWriteTest {
         numShards,
         baseFilename,
         firstNonNull(
-            write.getShardTemplate(),
-            DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
+            write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
   }
 
   private static void assertOutputFiles(
@@ -421,7 +420,7 @@ public class TextIOWriteTest {
         expectedFiles.add(
             new File(
                 DefaultFilenamePolicy.constructName(
-                    outputPrefix, shardNameTemplate, "", i, numShards, null, null)
+                        outputPrefix, shardNameTemplate, "", i, numShards, null, null)
                     .toString()));
       }
     }
@@ -627,6 +626,7 @@ public class TextIOWriteTest {
   /** Options for testing. */
   public interface RuntimeTestOptions extends PipelineOptions {
     ValueProvider<String> getOutput();
+
     void setOutput(ValueProvider<String> value);
   }
 

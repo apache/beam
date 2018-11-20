@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -40,10 +40,11 @@ public class BeamSqlArrayItemExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    List<Object> array = opValueEvaluated(0, inputRow, window, correlateEnv);
-    Integer index = opValueEvaluated(1, inputRow, window, correlateEnv);
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    List<Object> array = (List) opValueEvaluated(0, inputRow, window, env);
+    Integer index = (Integer) opValueEvaluated(1, inputRow, window, env);
 
-    return BeamSqlPrimitive.of(outputType, array.get(index));
+    // SQL array indexing is 1 based
+    return BeamSqlPrimitive.of(outputType, array.get(index - 1));
   }
 }

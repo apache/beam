@@ -54,8 +54,8 @@ import org.apache.beam.sdk.util.CombineFnUtil;
 import org.joda.time.Instant;
 
 /**
- * In-memory implementation of {@link StateInternals}. Used in {@code BatchModeExecutionContext}
- * and for running tests that need state.
+ * In-memory implementation of {@link StateInternals}. Used in {@code BatchModeExecutionContext} and
+ * for running tests that need state.
  */
 @Experimental(Kind.STATE)
 public class InMemoryStateInternals<K> implements StateInternals {
@@ -81,23 +81,25 @@ public class InMemoryStateInternals<K> implements StateInternals {
    */
   public interface InMemoryState<T extends InMemoryState<T>> {
     boolean isCleared();
+
     T copy();
   }
 
-  protected final StateTable inMemoryState = new StateTable() {
-    @Override
-    protected StateBinder binderForNamespace(StateNamespace namespace, StateContext<?> c) {
-      return new InMemoryStateBinder(c);
-    }
-  };
+  protected final StateTable inMemoryState =
+      new StateTable() {
+        @Override
+        protected StateBinder binderForNamespace(StateNamespace namespace, StateContext<?> c) {
+          return new InMemoryStateBinder(c);
+        }
+      };
 
   public void clear() {
     inMemoryState.clear();
   }
 
   /**
-   * Return true if the given state is empty. This is used by the test framework to make sure
-   * that the state has been properly cleaned up.
+   * Return true if the given state is empty. This is used by the test framework to make sure that
+   * the state has been properly cleaned up.
    */
   protected boolean isEmptyForTesting(State state) {
     return ((InMemoryState<?>) state).isCleared();
@@ -109,9 +111,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
     return inMemoryState.get(namespace, address, c);
   }
 
-  /**
-   * A {@link StateBinder} that returns In Memory {@link State} objects.
-   */
+  /** A {@link StateBinder} that returns In Memory {@link State} objects. */
   public static class InMemoryStateBinder implements StateBinder {
     private final StateContext<?> c;
 
@@ -120,14 +120,12 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public <T> ValueState<T> bindValue(
-        StateTag<ValueState<T>> address, Coder<T> coder) {
+    public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
       return new InMemoryValue<>(coder);
     }
 
     @Override
-    public <T> BagState<T> bindBag(
-        final StateTag<BagState<T>> address, Coder<T> elemCoder) {
+    public <T> BagState<T> bindBag(final StateTag<BagState<T>> address, Coder<T> elemCoder) {
       return new InMemoryBag<>(elemCoder);
     }
 
@@ -139,29 +137,28 @@ public class InMemoryStateInternals<K> implements StateInternals {
     @Override
     public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
         StateTag<MapState<KeyT, ValueT>> spec,
-        Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
+        Coder<KeyT> mapKeyCoder,
+        Coder<ValueT> mapValueCoder) {
       return new InMemoryMap<>(mapKeyCoder, mapValueCoder);
     }
 
     @Override
-    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
-        bindCombiningValue(
-            StateTag<CombiningState<InputT, AccumT, OutputT>> address,
-            Coder<AccumT> accumCoder,
-            final CombineFn<InputT, AccumT, OutputT> combineFn) {
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+        StateTag<CombiningState<InputT, AccumT, OutputT>> address,
+        Coder<AccumT> accumCoder,
+        final CombineFn<InputT, AccumT, OutputT> combineFn) {
       return new InMemoryCombiningState<>(combineFn, accumCoder);
     }
 
     @Override
     public WatermarkHoldState bindWatermark(
-        StateTag<WatermarkHoldState> address,
-        TimestampCombiner timestampCombiner) {
+        StateTag<WatermarkHoldState> address, TimestampCombiner timestampCombiner) {
       return new InMemoryWatermarkHold(timestampCombiner);
     }
 
     @Override
-    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
-        bindCombiningValueWithContext(
+    public <InputT, AccumT, OutputT>
+        CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
             StateTag<CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
@@ -169,9 +166,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
   }
 
-  /**
-   * An {@link InMemoryState} implementation of {@link ValueState}.
-   */
+  /** An {@link InMemoryState} implementation of {@link ValueState}. */
   public static final class InMemoryValue<T>
       implements ValueState<T>, InMemoryState<InMemoryValue<T>> {
     private final Coder<T> coder;
@@ -223,16 +218,13 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
   }
 
-  /**
-   * An {@link InMemoryState} implementation of {@link WatermarkHoldState}.
-   */
+  /** An {@link InMemoryState} implementation of {@link WatermarkHoldState}. */
   public static final class InMemoryWatermarkHold<W extends BoundedWindow>
       implements WatermarkHoldState, InMemoryState<InMemoryWatermarkHold<W>> {
 
     private final TimestampCombiner timestampCombiner;
 
-    @Nullable
-    private Instant combinedHold = null;
+    @Nullable private Instant combinedHold = null;
 
     public InMemoryWatermarkHold(TimestampCombiner timestampCombiner) {
       this.timestampCombiner = timestampCombiner;
@@ -258,9 +250,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
     @Override
     public void add(Instant outputTime) {
       combinedHold =
-          combinedHold == null
-              ? outputTime
-              : timestampCombiner.combine(combinedHold, outputTime);
+          combinedHold == null ? outputTime : timestampCombiner.combine(combinedHold, outputTime);
     }
 
     @Override
@@ -275,6 +265,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
         public ReadableState<Boolean> readLater() {
           return this;
         }
+
         @Override
         public Boolean read() {
           return combinedHold == null;
@@ -294,16 +285,13 @@ public class InMemoryStateInternals<K> implements StateInternals {
 
     @Override
     public InMemoryWatermarkHold<W> copy() {
-      InMemoryWatermarkHold<W> that =
-          new InMemoryWatermarkHold<>(timestampCombiner);
+      InMemoryWatermarkHold<W> that = new InMemoryWatermarkHold<>(timestampCombiner);
       that.combinedHold = this.combinedHold;
       return that;
     }
   }
 
-  /**
-   * An {@link InMemoryState} implementation of {@link CombiningState}.
-   */
+  /** An {@link InMemoryState} implementation of {@link CombiningState}. */
   public static final class InMemoryCombiningState<InputT, AccumT, OutputT>
       implements CombiningState<InputT, AccumT, OutputT>,
           InMemoryState<InMemoryCombiningState<InputT, AccumT, OutputT>> {
@@ -356,6 +344,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
         public ReadableState<Boolean> readLater() {
           return this;
         }
+
         @Override
         public Boolean read() {
           return isCleared;
@@ -391,9 +380,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
   }
 
-  /**
-   * An {@link InMemoryState} implementation of {@link BagState}.
-   */
+  /** An {@link InMemoryState} implementation of {@link BagState}. */
   public static final class InMemoryBag<T> implements BagState<T>, InMemoryState<InMemoryBag<T>> {
     private final Coder<T> elemCoder;
     private List<T> contents = new ArrayList<>();
@@ -459,9 +446,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
   }
 
-  /**
-   * An {@link InMemoryState} implementation of {@link SetState}.
-   */
+  /** An {@link InMemoryState} implementation of {@link SetState}. */
   public static final class InMemorySet<T> implements SetState<T>, InMemoryState<InMemorySet<T>> {
     private final Coder<T> elemCoder;
     private Set<T> contents = new HashSet<>();
@@ -537,11 +522,9 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
   }
 
-  /**
-   * An {@link InMemoryState} implementation of {@link MapState}.
-   */
-  public static final class InMemoryMap<K, V> implements
-      MapState<K, V>, InMemoryState<InMemoryMap<K, V>> {
+  /** An {@link InMemoryState} implementation of {@link MapState}. */
+  public static final class InMemoryMap<K, V>
+      implements MapState<K, V>, InMemoryState<InMemoryMap<K, V>> {
     private final Coder<K> keyCoder;
     private final Coder<V> valueCoder;
 

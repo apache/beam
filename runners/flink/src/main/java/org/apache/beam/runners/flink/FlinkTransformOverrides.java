@@ -22,32 +22,38 @@ import java.util.List;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
 
-/**
- * {@link PTransform} overrides for Flink runner.
- */
+/** {@link PTransform} overrides for Flink runner. */
 public class FlinkTransformOverrides {
   public static List<PTransformOverride> getDefaultOverrides(boolean streaming) {
+    ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
+    builder
+        // TODO: [BEAM-5359] Support @RequiresStableInput on Flink runner
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.requiresStableInputParDoMulti(),
+                UnsupportedOverrideFactory.withMessage(
+                    "Flink runner currently doesn't support @RequiresStableInput annotation.")))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.splittableParDo(), new SplittableParDo.OverrideFactory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.urnEqualTo(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
+                streaming
+                    ? new SplittableParDoViaKeyedWorkItems.OverrideFactory()
+                    : new SplittableParDoNaiveBounded.OverrideFactory()));
     if (streaming) {
-      return ImmutableList.<PTransformOverride>builder()
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.splittableParDo(),
-                  new FlinkStreamingPipelineTranslator.SplittableParDoOverrideFactory()))
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.urnEqualTo(
-                      PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
-                  new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
-                  new CreateStreamingFlinkView.Factory()))
-          .build();
-    } else {
-      return ImmutableList.of();
+      builder.add(
+          PTransformOverride.of(
+              PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
+              new CreateStreamingFlinkView.Factory()));
     }
+    return builder.build();
   }
 }

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.fn.test;
 
-import io.grpc.ManagedChannel;
-import io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.inprocess.InProcessChannelBuilder;
 
 /**
  * A {@link ManagedChannelFactory} that uses in-process channels.
@@ -35,7 +35,7 @@ public class InProcessManagedChannelFactory extends ManagedChannelFactory {
   private InProcessManagedChannelFactory() {}
 
   @Override
-  public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {
-    return InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+  public ManagedChannelBuilder<?> builderFor(ApiServiceDescriptor apiServiceDescriptor) {
+    return InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl());
   }
 }

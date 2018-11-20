@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.TimeUnitUtils.timeUnitInternalMultiplier;
@@ -24,9 +23,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.Arrays;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -95,7 +94,8 @@ public class BeamSqlIntervalMultiplyExpressionTest {
         newMultiplyExpression(SQL_INTERVAL_DAY, SQL_INTEGER_FOUR);
 
     BeamSqlPrimitive multiplicationResult =
-        multiplyExpression.evaluate(NULL_INPUT_ROW, NULL_WINDOW, ImmutableMap.of());
+        multiplyExpression.evaluate(
+            NULL_INPUT_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty());
 
     BigDecimal expectedResult =
         DECIMAL_FOUR.multiply(timeUnitInternalMultiplier(SqlTypeName.INTERVAL_DAY));

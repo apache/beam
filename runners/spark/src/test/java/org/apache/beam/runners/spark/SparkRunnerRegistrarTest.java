@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.assertEquals;
@@ -30,9 +29,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test {@link SparkRunnerRegistrar}.
- */
+/** Test {@link SparkRunnerRegistrar}. */
 @RunWith(JUnit4.class)
 public class SparkRunnerRegistrarTest {
   @Test
@@ -44,7 +41,8 @@ public class SparkRunnerRegistrarTest {
 
   @Test
   public void testRunners() {
-    assertEquals(ImmutableList.of(SparkRunner.class, TestSparkRunner.class),
+    assertEquals(
+        ImmutableList.of(SparkRunner.class, TestSparkRunner.class),
         new SparkRunnerRegistrar.Runner().getPipelineRunners());
   }
 

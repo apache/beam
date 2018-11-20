@@ -15,12 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.windowing;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.io.ByteStreams;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,11 +26,12 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 
 /**
- * An encoded {@link BoundedWindow} used within Runners to track window information without
- * needing to decode the window.
+ * An encoded {@link BoundedWindow} used within Runners to track window information without needing
+ * to decode the window.
  *
  * <p>This allows for Runners to not need to know window format during execution.
  */
@@ -46,21 +45,21 @@ public abstract class EncodedBoundedWindow extends BoundedWindow {
 
   @Override
   public Instant maxTimestamp() {
-    throw new UnsupportedOperationException("TODO: Add support for reading the timestamp from "
-        + "the encoded window.");
+    throw new UnsupportedOperationException(
+        "TODO: Add support for reading the timestamp from " + "the encoded window.");
   }
 
   /**
    * An {@link Coder} for {@link EncodedBoundedWindow}s.
    *
-   * <p>This is a copy of {@code ByteStringCoder} to prevent a dependency on
-   * {@code beam-java-sdk-extensions-protobuf}.
+   * <p>This is a copy of {@code ByteStringCoder} to prevent a dependency on {@code
+   * beam-java-sdk-extensions-protobuf}.
    */
   public static class Coder extends AtomicCoder<EncodedBoundedWindow> {
     public static final Coder INSTANCE = new Coder();
 
     // prevent instantiation
-    private Coder() { }
+    private Coder() {}
 
     @Override
     public void encode(EncodedBoundedWindow value, OutputStream outStream)
@@ -89,7 +88,7 @@ public abstract class EncodedBoundedWindow extends BoundedWindow {
     @Override
     protected long getEncodedElementByteSize(EncodedBoundedWindow value) throws Exception {
       return (long) VarInt.getLength(value.getEncodedWindow().size())
-        + value.getEncodedWindow().size();
+          + value.getEncodedWindow().size();
     }
   }
 }

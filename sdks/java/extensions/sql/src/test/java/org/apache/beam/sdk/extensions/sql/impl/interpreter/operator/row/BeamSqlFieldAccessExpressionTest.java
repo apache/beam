@@ -19,9 +19,9 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.row;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -48,7 +48,10 @@ public class BeamSqlFieldAccessExpressionTest {
         new BeamSqlFieldAccessExpression(targetArray, 1, SqlTypeName.VARCHAR);
 
     assertEquals(
-        "bbb", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+        "bbb",
+        arrayExpression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
@@ -68,7 +71,10 @@ public class BeamSqlFieldAccessExpressionTest {
         new BeamSqlFieldAccessExpression(targetRow, 1, SqlTypeName.VARCHAR);
 
     assertEquals(
-        "bb", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+        "bb",
+        arrayExpression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
@@ -79,7 +85,7 @@ public class BeamSqlFieldAccessExpressionTest {
     thrown.expectMessage("unsupported type");
 
     new BeamSqlFieldAccessExpression(targetRow, 1, SqlTypeName.VARCHAR)
-        .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of())
+        .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
         .getValue();
   }
 }

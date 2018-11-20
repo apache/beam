@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -26,9 +25,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CounterCell}.
- */
+/** Tests for {@link CounterCell}. */
 @RunWith(JUnit4.class)
 public class CounterCellTest {
 

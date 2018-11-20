@@ -33,13 +33,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link StaticWindows}.
- */
+/** Tests for {@link StaticWindows}. */
 @RunWith(JUnit4.class)
 public class StaticWindowsTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   private final IntervalWindow first = new IntervalWindow(new Instant(0), new Instant(100_000L));
   private final IntervalWindow second =

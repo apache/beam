@@ -28,9 +28,9 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * A result of {@link SpannerIO#write()} transform. Use {@link #getFailedMutations} to access
- * failed Mutations. {@link #getOutput()} can be used as a completion signal with the
- * {@link org.apache.beam.sdk.transforms.Wait} transform.
+ * A result of {@link SpannerIO#write()} transform. Use {@link #getFailedMutations()} to access
+ * failed Mutations. {@link #getOutput()} can be used as a completion signal with the {@link
+ * org.apache.beam.sdk.transforms.Wait Wait} transform.
  */
 public class SpannerWriteResult implements POutput {
   private final Pipeline pipeline;
@@ -38,8 +38,11 @@ public class SpannerWriteResult implements POutput {
   private final PCollection<MutationGroup> failedMutations;
   private final TupleTag<MutationGroup> failedMutationsTag;
 
-  public SpannerWriteResult(Pipeline pipeline, PCollection<Void> output,
-      PCollection<MutationGroup> failedMutations, TupleTag<MutationGroup> failedMutationsTag) {
+  public SpannerWriteResult(
+      Pipeline pipeline,
+      PCollection<Void> output,
+      PCollection<MutationGroup> failedMutations,
+      TupleTag<MutationGroup> failedMutationsTag) {
     this.pipeline = pipeline;
     this.output = output;
     this.failedMutations = failedMutations;
@@ -65,8 +68,6 @@ public class SpannerWriteResult implements POutput {
   }
 
   @Override
-  public void finishSpecifyingOutput(String transformName, PInput input,
-      PTransform<?, ?> transform) {
-
-  }
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {}
 }

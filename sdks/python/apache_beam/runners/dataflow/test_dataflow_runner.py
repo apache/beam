@@ -16,6 +16,8 @@
 #
 
 """Wrapper of Beam runners that's built for running and verifying e2e tests."""
+
+from __future__ import absolute_import
 from __future__ import print_function
 
 import logging
@@ -30,7 +32,9 @@ from apache_beam.runners.runner import PipelineState
 
 __all__ = ['TestDataflowRunner']
 
-WAIT_TIMEOUT = 2 * 60
+# Dataflow take up to 10mins for the long tail of starting/stopping worker
+# pool.
+WAIT_IN_STATE_TIMEOUT = 10 * 60
 
 
 class TestDataflowRunner(DataflowRunner):
@@ -49,7 +53,7 @@ class TestDataflowRunner(DataflowRunner):
     if self.result.has_job:
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.
-      print('Found: %s.' % self.build_console_url(pipeline.options))
+      print('Found: %s.' % self.build_console_url(options))
 
     try:
       self.wait_until_in_state(PipelineState.RUNNING)
@@ -64,7 +68,7 @@ class TestDataflowRunner(DataflowRunner):
     finally:
       if not self.result.is_in_terminal_state():
         self.result.cancel()
-        self.wait_until_in_state(PipelineState.CANCELLED, timeout=300)
+        self.wait_until_in_state(PipelineState.CANCELLED)
 
     return self.result
 
@@ -77,8 +81,8 @@ class TestDataflowRunner(DataflowRunner):
         'https://console.cloud.google.com/dataflow/jobsDetail/locations'
         '/%s/jobs/%s?project=%s' % (region_id, job_id, project))
 
-  def wait_until_in_state(self, expected_state, timeout=WAIT_TIMEOUT):
-    """Wait until Dataflow pipeline terminate or enter RUNNING state."""
+  def wait_until_in_state(self, expected_state, timeout=WAIT_IN_STATE_TIMEOUT):
+    """Wait until Dataflow pipeline enters a certain state."""
     if not self.result.has_job:
       raise IOError('Failed to get the Dataflow job id.')
 
@@ -91,5 +95,5 @@ class TestDataflowRunner(DataflowRunner):
 
     raise RuntimeError('Timeout after %d seconds while waiting for job %s '
                        'enters expected state %s. Current state is %s.' %
-                       (WAIT_TIMEOUT, self.result.job_id,
+                       (timeout, self.result.job_id(),
                         expected_state, self.result.state))

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
 import java.util.List;
@@ -23,12 +22,10 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 
-/**
- * CreateGearpumpPCollectionView bridges input stream to down stream
- * transforms.
- */
-public class CreateGearpumpPCollectionViewTranslator<ElemT, ViewT> implements
-    TransformTranslator<CreateStreamingGearpumpView.CreateGearpumpPCollectionView<ElemT, ViewT>> {
+/** CreateGearpumpPCollectionView bridges input stream to down stream transforms. */
+public class CreateGearpumpPCollectionViewTranslator<ElemT, ViewT>
+    implements TransformTranslator<
+        CreateStreamingGearpumpView.CreateGearpumpPCollectionView<ElemT, ViewT>> {
 
   private static final long serialVersionUID = -3955521308055056034L;
 
@@ -36,8 +33,7 @@ public class CreateGearpumpPCollectionViewTranslator<ElemT, ViewT> implements
   public void translate(
       CreateStreamingGearpumpView.CreateGearpumpPCollectionView<ElemT, ViewT> transform,
       TranslationContext context) {
-    JavaStream<WindowedValue<List<ElemT>>> inputStream =
-        context.getInputStream(context.getInput());
+    JavaStream<WindowedValue<List<ElemT>>> inputStream = context.getInputStream(context.getInput());
     PCollectionView<ViewT> view = transform.getView();
     context.setOutputStream(view, inputStream);
   }

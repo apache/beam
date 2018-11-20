@@ -24,8 +24,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.google.protobuf.ByteString;
-import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CompletableFuture;
@@ -33,6 +31,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,11 +48,9 @@ public class GrpcStateServiceTest {
 
   private GrpcStateService stateService;
 
-  @Mock
-  private StreamObserver<BeamFnApi.StateResponse> responseObserver;
+  @Mock private StreamObserver<BeamFnApi.StateResponse> responseObserver;
 
-  @Mock
-  private StateRequestHandler handler;
+  @Mock private StateRequestHandler handler;
 
   @Before
   public void setUp() throws Exception {
@@ -61,10 +59,10 @@ public class GrpcStateServiceTest {
   }
 
   /**
-   * After a handler has been registered with
-   * {@link GrpcStateService#registerForProcessBundleInstructionId(String, StateRequestHandler)},
-   * the {@link GrpcStateService} should delegate requests through
-   * {@link GrpcStateService#state(StreamObserver)} to the registered handler.
+   * After a handler has been registered with {@link
+   * GrpcStateService#registerForProcessBundleInstructionId(String, StateRequestHandler)}, the
+   * {@link GrpcStateService} should delegate requests through {@link
+   * GrpcStateService#state(StreamObserver)} to the registered handler.
    */
   @Test
   public void testStateRequestsHandledByRegisteredHandlers() throws Exception {
@@ -91,11 +89,10 @@ public class GrpcStateServiceTest {
         ByteString.copyFrom("EXPECTED_RESPONSE_DATA", StandardCharsets.UTF_8);
     String bundleInstructionId = "EXPECTED_BUNDLE_INSTRUCTION_ID";
     BeamFnApi.StateResponse.Builder expectedBuilder =
-        BeamFnApi.StateResponse
-            .newBuilder()
+        BeamFnApi.StateResponse.newBuilder()
             .setGet(BeamFnApi.StateGetResponse.newBuilder().setData(expectedResponseData));
     StateRequestHandler dummyHandler =
-        (request) -> {
+        request -> {
           CompletableFuture<BeamFnApi.StateResponse.Builder> response = new CompletableFuture<>();
           response.complete(expectedBuilder);
           return response;
@@ -104,9 +101,7 @@ public class GrpcStateServiceTest {
     // define observer behavior
     BlockingDeque<BeamFnApi.StateResponse> responses = new LinkedBlockingDeque<>();
     StreamObserver<BeamFnApi.StateResponse> recordingResponseObserver =
-        TestStreams
-            .withOnNext(responses::add)
-            .build();
+        TestStreams.withOnNext(responses::add).build();
     recordingResponseObserver = Mockito.spy(recordingResponseObserver);
 
     // register handler

@@ -57,22 +57,16 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link DataflowMetrics}.
- */
+/** Tests for {@link DataflowMetrics}. */
 @RunWith(JUnit4.class)
 public class DataflowMetricsTest {
   private static final String PROJECT_ID = "some-project";
   private static final String JOB_ID = "1234";
 
-  @Mock
-  private Dataflow mockWorkflowClient;
-  @Mock
-  private Dataflow.Projects mockProjects;
-  @Mock
-  private Dataflow.Projects.Locations mockLocations;
-  @Mock
-  private Dataflow.Projects.Locations.Jobs mockJobs;
+  @Mock private Dataflow mockWorkflowClient;
+  @Mock private Dataflow.Projects mockProjects;
+  @Mock private Dataflow.Projects.Locations mockLocations;
+  @Mock private Dataflow.Projects.Locations.Jobs mockJobs;
 
   private TestDataflowPipelineOptions options;
 
@@ -141,14 +135,13 @@ public class DataflowMetricsTest {
     verify(dataflowClient, times(1)).getJobMetrics(JOB_ID);
   }
 
-  private MetricUpdate setStructuredName(MetricUpdate update, String name, String namespace,
-      String step, boolean tentative) {
+  private MetricUpdate setStructuredName(
+      MetricUpdate update, String name, String namespace, String step, boolean tentative) {
     MetricStructuredName structuredName = new MetricStructuredName();
     structuredName.setName(name);
     structuredName.setOrigin("user");
-    ImmutableMap.Builder contextBuilder = new ImmutableMap.Builder<String, String>();
-    contextBuilder.put("step", step)
-        .put("namespace", namespace);
+    ImmutableMap.Builder contextBuilder = new ImmutableMap.Builder<>();
+    contextBuilder.put("step", step).put("namespace", namespace);
     if (tentative) {
       contextBuilder.put("tentative", "true");
     }
@@ -157,8 +150,15 @@ public class DataflowMetricsTest {
     return update;
   }
 
-  private MetricUpdate makeDistributionMetricUpdate(String name, String namespace, String step,
-      Long sum, Long count, Long min, Long max, boolean tentative) {
+  private MetricUpdate makeDistributionMetricUpdate(
+      String name,
+      String namespace,
+      String step,
+      Long sum,
+      Long count,
+      Long min,
+      Long max,
+      boolean tentative) {
     MetricUpdate update = new MetricUpdate();
     ArrayMap<String, BigDecimal> distribution = ArrayMap.create();
     distribution.add("count", new BigDecimal(count));
@@ -170,12 +170,11 @@ public class DataflowMetricsTest {
     return setStructuredName(update, name, namespace, step, tentative);
   }
 
-  private MetricUpdate makeCounterMetricUpdate(String name, String namespace, String step,
-      long scalar, boolean tentative) {
+  private MetricUpdate makeCounterMetricUpdate(
+      String name, String namespace, String step, long scalar, boolean tentative) {
     MetricUpdate update = new MetricUpdate();
     update.setScalar(new BigDecimal(scalar));
     return setStructuredName(update, name, namespace, step, tentative);
-
   }
 
   @Test
@@ -199,20 +198,24 @@ public class DataflowMetricsTest {
 
     // The parser relies on the fact that one tentative and one committed metric update exist in
     // the job metrics results.
-    MetricUpdate mu1 = makeCounterMetricUpdate("counterName", "counterNamespace",
-        "s2", 1234L, false);
-    MetricUpdate mu1Tentative = makeCounterMetricUpdate("counterName",
-        "counterNamespace", "s2", 1233L, true);
+    MetricUpdate mu1 =
+        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1234L, false);
+    MetricUpdate mu1Tentative =
+        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, true);
     jobMetrics.setMetrics(ImmutableList.of(mu1, mu1Tentative));
     DataflowClient dataflowClient = mock(DataflowClient.class);
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
-    assertThat(result.getCounters(), containsInAnyOrder(
-        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1234L)));
-    assertThat(result.getCounters(), containsInAnyOrder(
-        committedMetricsResult("counterNamespace", "counterName", "myStepName", 1234L)));
+    assertThat(
+        result.getCounters(),
+        containsInAnyOrder(
+            attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1234L)));
+    assertThat(
+        result.getCounters(),
+        containsInAnyOrder(
+            committedMetricsResult("counterNamespace", "counterName", "myStepName", 1234L)));
   }
 
   @Test
@@ -234,18 +237,23 @@ public class DataflowMetricsTest {
 
     // The parser relies on the fact that one tentative and one committed metric update exist in
     // the job metrics results.
-    jobMetrics.setMetrics(ImmutableList.of(
-        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, false),
-        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, true),
-        makeCounterMetricUpdate("otherCounter[MIN]", "otherNamespace", "s2", 0L, false),
-        makeCounterMetricUpdate("otherCounter[MIN]", "otherNamespace", "s2", 0L, true)));
+    jobMetrics.setMetrics(
+        ImmutableList.of(
+            makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, false),
+            makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, true),
+            makeCounterMetricUpdate("otherCounter[MIN]", "otherNamespace", "s2", 0L, false),
+            makeCounterMetricUpdate("otherCounter[MIN]", "otherNamespace", "s2", 0L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
-    assertThat(result.getCounters(), containsInAnyOrder(
-        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L)));
-    assertThat(result.getCounters(), containsInAnyOrder(
-        committedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L)));
+    assertThat(
+        result.getCounters(),
+        containsInAnyOrder(
+            attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L)));
+    assertThat(
+        result.getCounters(),
+        containsInAnyOrder(
+            committedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L)));
   }
 
   @Test
@@ -267,20 +275,31 @@ public class DataflowMetricsTest {
 
     // The parser relies on the fact that one tentative and one committed metric update exist in
     // the job metrics results.
-    jobMetrics.setMetrics(ImmutableList.of(
-        makeDistributionMetricUpdate("distributionName", "distributionNamespace", "s2",
-            18L, 2L, 2L, 16L, false),
-        makeDistributionMetricUpdate("distributionName", "distributionNamespace", "s2",
-            18L, 2L, 2L, 16L, true)));
+    jobMetrics.setMetrics(
+        ImmutableList.of(
+            makeDistributionMetricUpdate(
+                "distributionName", "distributionNamespace", "s2", 18L, 2L, 2L, 16L, false),
+            makeDistributionMetricUpdate(
+                "distributionName", "distributionNamespace", "s2", 18L, 2L, 2L, 16L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
-    assertThat(result.getDistributions(), contains(
-        attemptedMetricsResult("distributionNamespace", "distributionName", "myStepName",
-            DistributionResult.create(18, 2, 2, 16))));
-    assertThat(result.getDistributions(), contains(
-        committedMetricsResult("distributionNamespace", "distributionName", "myStepName",
-            DistributionResult.create(18, 2, 2, 16))));
+    assertThat(
+        result.getDistributions(),
+        contains(
+            attemptedMetricsResult(
+                "distributionNamespace",
+                "distributionName",
+                "myStepName",
+                DistributionResult.create(18, 2, 2, 16))));
+    assertThat(
+        result.getDistributions(),
+        contains(
+            committedMetricsResult(
+                "distributionNamespace",
+                "distributionName",
+                "myStepName",
+                DistributionResult.create(18, 2, 2, 16))));
   }
 
   @Test
@@ -302,11 +321,12 @@ public class DataflowMetricsTest {
 
     // The parser relies on the fact that one tentative and one committed metric update exist in
     // the job metrics results.
-    jobMetrics.setMetrics(ImmutableList.of(
-        makeDistributionMetricUpdate("distributionName", "distributionNamespace", "s2",
-            18L, 2L, 2L, 16L, false),
-        makeDistributionMetricUpdate("distributionName", "distributionNamespace", "s2",
-            18L, 2L, 2L, 16L, true)));
+    jobMetrics.setMetrics(
+        ImmutableList.of(
+            makeDistributionMetricUpdate(
+                "distributionName", "distributionNamespace", "s2", 18L, 2L, 2L, 16L, false),
+            makeDistributionMetricUpdate(
+                "distributionName", "distributionNamespace", "s2", 18L, 2L, 2L, 16L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
@@ -314,13 +334,20 @@ public class DataflowMetricsTest {
       result.getDistributions().iterator().next().getCommitted();
       fail("Expected UnsupportedOperationException");
     } catch (UnsupportedOperationException expected) {
-      assertThat(expected.getMessage(),
-          containsString("This runner does not currently support committed"
-              + " metrics results. Please use 'attempted' instead."));
+      assertThat(
+          expected.getMessage(),
+          containsString(
+              "This runner does not currently support committed"
+                  + " metrics results. Please use 'attempted' instead."));
     }
-    assertThat(result.getDistributions(), contains(
-        attemptedMetricsResult("distributionNamespace", "distributionName", "myStepName",
-            DistributionResult.create(18, 2, 2, 16))));
+    assertThat(
+        result.getDistributions(),
+        contains(
+            attemptedMetricsResult(
+                "distributionNamespace",
+                "distributionName",
+                "myStepName",
+                DistributionResult.create(18, 2, 2, 16))));
   }
 
   @Test
@@ -346,30 +373,34 @@ public class DataflowMetricsTest {
     when(myStep4.getFullName()).thenReturn("myStepName4");
     job.transformStepNames.put(myStep4, "s4");
 
-
     // The parser relies on the fact that one tentative and one committed metric update exist in
     // the job metrics results.
-    jobMetrics.setMetrics(ImmutableList.of(
-        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, false),
-        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1234L, true),
-        makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, false),
-        makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, true),
-        makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1200L, false),
-        makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1233L, true),
-        // The following counter can not have its name translated thus it won't appear.
-        makeCounterMetricUpdate("lostName", "otherNamespace", "s5", 1200L, false),
-        makeCounterMetricUpdate("lostName", "otherNamespace", "s5", 1200L, true)));
+    jobMetrics.setMetrics(
+        ImmutableList.of(
+            makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, false),
+            makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1234L, true),
+            makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, false),
+            makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, true),
+            makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1200L, false),
+            makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1233L, true),
+            // The following counter can not have its name translated thus it won't appear.
+            makeCounterMetricUpdate("lostName", "otherNamespace", "s5", 1200L, false),
+            makeCounterMetricUpdate("lostName", "otherNamespace", "s5", 1200L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
-    assertThat(result.getCounters(), containsInAnyOrder(
-        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
-        attemptedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
-        attemptedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));
-    assertThat(result.getCounters(), containsInAnyOrder(
-        committedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
-        committedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
-        committedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));
+    assertThat(
+        result.getCounters(),
+        containsInAnyOrder(
+            attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
+            attemptedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
+            attemptedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));
+    assertThat(
+        result.getCounters(),
+        containsInAnyOrder(
+            committedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
+            committedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
+            committedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));
   }
 
   @Test
@@ -397,13 +428,14 @@ public class DataflowMetricsTest {
 
     // The parser relies on the fact that one tentative and one committed metric update exist in
     // the job metrics results.
-    jobMetrics.setMetrics(ImmutableList.of(
-        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, false),
-        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1234L, true),
-        makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, false),
-        makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, true),
-        makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1200L, false),
-        makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1233L, true)));
+    jobMetrics.setMetrics(
+        ImmutableList.of(
+            makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, false),
+            makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1234L, true),
+            makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, false),
+            makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, true),
+            makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1200L, false),
+            makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1233L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
@@ -411,13 +443,17 @@ public class DataflowMetricsTest {
       result.getCounters().iterator().next().getCommitted();
       fail("Expected UnsupportedOperationException");
     } catch (UnsupportedOperationException expected) {
-      assertThat(expected.getMessage(),
-          containsString("This runner does not currently support committed"
-              + " metrics results. Please use 'attempted' instead."));
+      assertThat(
+          expected.getMessage(),
+          containsString(
+              "This runner does not currently support committed"
+                  + " metrics results. Please use 'attempted' instead."));
     }
-    assertThat(result.getCounters(), containsInAnyOrder(
-        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
-        attemptedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
-        attemptedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));
+    assertThat(
+        result.getCounters(),
+        containsInAnyOrder(
+            attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
+            attemptedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
+            attemptedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));
   }
 }

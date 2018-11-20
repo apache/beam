@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.subprocess;
 
-
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -25,9 +24,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation.Required;
 
-/**
- * Options for running a sub process within a DoFn.
- */
+/** Options for running a sub process within a DoFn. */
 public interface SubProcessPipelineOptions extends PipelineOptions {
 
   @Description("Source GCS directory where the C++ library is located gs://bucket/tests")
@@ -65,11 +62,8 @@ public interface SubProcessPipelineOptions extends PipelineOptions {
 
   void setSubProcessConfiguration(SubProcessConfiguration configuration);
 
-  /**
-   * Confirm Configuration and return a configuration object used in pipeline.
-   */
-  class SubProcessConfigurationFactory
-      implements DefaultValueFactory<SubProcessConfiguration> {
+  /** Confirm Configuration and return a configuration object used in pipeline. */
+  class SubProcessConfigurationFactory implements DefaultValueFactory<SubProcessConfiguration> {
     @Override
     public SubProcessConfiguration create(PipelineOptions options) {
 
@@ -91,7 +85,6 @@ public interface SubProcessPipelineOptions extends PipelineOptions {
       configuration.concurrency = subProcessPipelineOptions.getConcurrency();
 
       return configuration;
-
     }
   }
 }

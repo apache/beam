@@ -18,8 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import com.google.common.base.Utf8;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
+import com.google.common.io.ByteStreams;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,9 +31,8 @@ import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link Coder} that encodes {@link String Strings} in UTF-8 encoding.
- * If in a nested context, prefixes the string with an integer length field,
- * encoded via a {@link VarIntCoder}.
+ * A {@link Coder} that encodes {@link String Strings} in UTF-8 encoding. If in a nested context,
+ * prefixes the string with an integer length field, encoded via a {@link VarIntCoder}.
  */
 public class StringUtf8Coder extends AtomicCoder<String> {
 
@@ -47,34 +45,31 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   private static final StringUtf8Coder INSTANCE = new StringUtf8Coder();
   private static final TypeDescriptor<String> TYPE_DESCRIPTOR = new TypeDescriptor<String>() {};
 
-  private static void writeString(String value, DataOutputStream dos)
-      throws IOException {
+  private static void writeString(String value, OutputStream dos) throws IOException {
     byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
     VarInt.encode(bytes.length, dos);
     dos.write(bytes);
   }
 
-  private static String readString(DataInputStream dis) throws IOException {
+  private static String readString(InputStream dis) throws IOException {
     int len = VarInt.decodeInt(dis);
     if (len < 0) {
       throw new CoderException("Invalid encoded string length: " + len);
     }
     byte[] bytes = new byte[len];
-    dis.readFully(bytes);
+    ByteStreams.readFully(dis, bytes);
     return new String(bytes, StandardCharsets.UTF_8);
   }
 
   private StringUtf8Coder() {}
 
   @Override
-  public void encode(String value, OutputStream outStream)
-      throws IOException {
+  public void encode(String value, OutputStream outStream) throws IOException {
     encode(value, outStream, Context.NESTED);
   }
 
   @Override
-  public void encode(String value, OutputStream outStream, Context context)
-      throws IOException {
+  public void encode(String value, OutputStream outStream, Context context) throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null String");
     }
@@ -86,7 +81,7 @@ public class StringUtf8Coder extends AtomicCoder<String> {
         outStream.write(bytes);
       }
     } else {
-      writeString(value, new DataOutputStream(outStream));
+      writeString(value, outStream);
     }
   }
 
@@ -96,14 +91,13 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   }
 
   @Override
-  public String decode(InputStream inStream, Context context)
-      throws IOException {
+  public String decode(InputStream inStream, Context context) throws IOException {
     if (context.isWholeStream) {
-      byte[] bytes = StreamUtils.getBytes(inStream);
+      byte[] bytes = StreamUtils.getBytesWithoutClosing(inStream);
       return new String(bytes, StandardCharsets.UTF_8);
     } else {
       try {
-        return readString(new DataInputStream(inStream));
+        return readString(inStream);
       } catch (EOFException | UTFDataFormatException exn) {
         // These exceptions correspond to decoding problems, so change
         // what kind of exception they're branded as.
@@ -133,12 +127,11 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   /**
    * {@inheritDoc}
    *
-   * @return the byte size of the UTF-8 encoding of the a string or, in a nested context,
-   * the byte size of the encoding plus the encoded length prefix.
+   * @return the byte size of the UTF-8 encoding of the a string or, in a nested context, the byte
+   *     size of the encoding plus the encoded length prefix.
    */
   @Override
-  public long getEncodedElementByteSize(String value)
-      throws Exception {
+  public long getEncodedElementByteSize(String value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null String");
     }

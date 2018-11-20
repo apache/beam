@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMess
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 
 import com.alibaba.fastjson.JSONObject;
+import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.schemas.Schema;
  */
 @Internal
 @Experimental
+@AutoService(TableProvider.class)
 public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
   @Override

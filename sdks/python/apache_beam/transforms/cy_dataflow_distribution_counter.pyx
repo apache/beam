@@ -76,9 +76,9 @@ cdef class DataflowDistributionCounter(object):
 
   cdef int64_t _fast_calculate_bucket_index(self, int64_t element):
     """Calculate the bucket index for the given element.
-    
-    Declare calculate_bucket_index as cdef in order to improve performance, 
-    since cpdef will have significant overhead.    
+
+    Declare calculate_bucket_index as cdef in order to improve performance,
+    since cpdef will have significant overhead.
     """
     if element == 0:
       return 0
@@ -95,10 +95,10 @@ cdef class DataflowDistributionCounter(object):
 
   cpdef void translate_to_histogram(self, histogram):
     """Translate buckets into Histogram.
-    
+
     Args:
       histogram: apache_beam.runners.dataflow.internal.clents.dataflow.Histogram
-      Ideally, only call this function when reporting counter to 
+      Ideally, only call this function when reporting counter to
       dataflow service.
     """
     cdef int first_bucket_offset = 0
@@ -119,7 +119,7 @@ cdef class DataflowDistributionCounter(object):
 
   cpdef bint add_inputs_for_test(self, elements) except -1:
     """Used for performance microbenchmark.
-    
+
     During runtime, add_input will be called through c-call, so we want to have
     the same calling routine when running microbenchmark as application runtime.
     Directly calling cpdef from def will cause significant overhead.
@@ -129,7 +129,10 @@ cdef class DataflowDistributionCounter(object):
 
   cpdef int64_t calculate_bucket_index(self, int64_t element):
     """Used for unit tests.
-    
+
     cdef calculate_bucket_index cannot be called directly from def.
     """
     return self._fast_calculate_bucket_index(element)
+
+  cpdef merge(self, accumulators):
+    raise NotImplementedError()

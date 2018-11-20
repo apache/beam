@@ -29,7 +29,7 @@ job('beam_SeedJob') {
   label('beam')
 
   logRotator {
-    daysToKeep(14)
+    daysToKeep(30)
   }
 
   scm {
@@ -70,7 +70,7 @@ job('beam_SeedJob') {
 
   triggers {
     // Run once per day
-    cron('0 */6 * * *')
+    cron('H */6 * * *')
 
     githubPullRequest {
       admins(['asfbot'])
@@ -97,9 +97,8 @@ job('beam_SeedJob') {
     }
   }
 
-  // If anything goes wrong, mail the main dev list, because it is a big deal
   publishers {
-    mailer('dev@beam.apache.org', false, true)
+    mailer('builds@beam.apache.org', false, true)
   }
 
   steps {

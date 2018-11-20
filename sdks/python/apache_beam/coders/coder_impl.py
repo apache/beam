@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
+
 """Coder implementations.
 
 The actual encode/decode implementations are split off from coders to
@@ -32,9 +34,11 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 from __future__ import division
 
-import sys
 from builtins import chr
 from builtins import object
+
+from past.builtins import long
+from past.builtins import unicode
 
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
@@ -48,6 +52,8 @@ try:
   from .stream import OutputStream as create_OutputStream
   from .stream import ByteCountingOutputStream
   from .stream import get_varint_size
+  # Make it possible to import create_InputStream and other cdef-classes
+  # from apache_beam.coders.coder_impl when Cython codepath is used.
   globals()['create_InputStream'] = create_InputStream
   globals()['create_OutputStream'] = create_OutputStream
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
@@ -56,14 +62,13 @@ except ImportError:
   from .slow_stream import OutputStream as create_OutputStream
   from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
+  if False:  # pylint: disable=using-constant-test
+    # This clause is interpreted by the compiler.
+    from cython import compiled as is_compiled
+  else:
+    is_compiled = False
+    fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
-
-try:                # Python 2
-  long              # pylint: disable=long-builtin
-  unicode           # pylint: disable=unicode-builtin
-except NameError:   # Python 3
-  long = int
-  unicode = str
 
 
 class CoderImpl(object):
@@ -95,7 +100,9 @@ class CoderImpl(object):
 
   def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
-    return self._get_nested_size(len(self.encode(value)), nested)
+    out = ByteCountingOutputStream()
+    self.encode_to_stream(value, out, nested)
+    return out.get_count()
 
   def _get_nested_size(self, inner_size, nested):
     if not nested:
@@ -196,6 +203,10 @@ class CallbackCoderImpl(CoderImpl):
 
     return self.estimate_size(value, nested), []
 
+  def __repr__(self):
+    return 'CallbackCoderImpl[encoder=%s, decoder=%s]' % (
+        self._encoder, self._decoder)
+
 
 class DeterministicFastPrimitivesCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
@@ -288,8 +299,22 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     if value is None:
       stream.write_byte(NONE_TYPE)
     elif t is int:
-      stream.write_byte(INT_TYPE)
-      stream.write_var_int64(value)
+      # In Python 3, an int may be larger than 64 bits.
+      # We need to check whether value fits into a 64 bit integer before
+      # writing the marker byte.
+      try:
+        # In Cython-compiled code this will throw an overflow error
+        # when value does not fit into int64.
+        int_value = value
+        # If Cython is not used, we must do a (slower) check ourselves.
+        if not is_compiled:
+          if not fits_in_64_bits(value):
+            raise OverflowError()
+        stream.write_byte(INT_TYPE)
+        stream.write_var_int64(int_value)
+      except OverflowError:
+        stream.write_byte(UNKNOWN_TYPE)
+        self.fallback_coder_impl.encode_to_stream(value, stream, nested)
     elif t is float:
       stream.write_byte(FLOAT_TYPE)
       stream.write_bigendian_double(value)
@@ -310,13 +335,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
       stream.write_var_int64(len(dict_value))
-      # Use iteritems() on Python 2 instead of future.builtins.iteritems to
-      # avoid performance regression in Cython compiled code.
-      if sys.version_info[0] == 2:
-        items = dict_value.iteritems()  # pylint: disable=dict-iter-method
-      else:
-        items = dict_value.items()
-      for k, v in items:
+      for k, v in dict_value.items():
         self.encode_to_stream(k, stream, True)
         self.encode_to_stream(v, stream, True)
     elif t is bool:
@@ -355,8 +374,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return v
     elif t == BOOL_TYPE:
       return not not stream.read_byte()
-
-    return self.fallback_coder_impl.decode_from_stream(stream, nested)
+    elif t == UNKNOWN_TYPE:
+      return self.fallback_coder_impl.decode_from_stream(stream, nested)
+    else:
+      raise ValueError('Unknown type tag %x' % t)
 
 
 class BytesCoderImpl(CoderImpl):
@@ -438,6 +459,24 @@ class TimestampCoderImpl(StreamCoderImpl):
     # A Timestamp is encoded as a 64-bit integer in 8 bytes, regardless of
     # nesting.
     return 8
+
+
+class TimerCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def __init__(self, payload_coder_impl):
+    self._timestamp_coder_impl = TimestampCoderImpl()
+    self._payload_coder_impl = payload_coder_impl
+
+  def encode_to_stream(self, value, out, nested):
+    self._timestamp_coder_impl.encode_to_stream(value['timestamp'], out, True)
+    self._payload_coder_impl.encode_to_stream(value.get('payload'), out, True)
+
+  def decode_from_stream(self, in_stream, nested):
+    # TODO(robertwb): Consider using a concrete class rather than a dict here.
+    return dict(
+        timestamp=self._timestamp_coder_impl.decode_from_stream(
+            in_stream, True),
+        payload=self._payload_coder_impl.decode_from_stream(in_stream, True))
 
 
 small_ints = [chr(_).encode('latin-1') for _ in range(128)]

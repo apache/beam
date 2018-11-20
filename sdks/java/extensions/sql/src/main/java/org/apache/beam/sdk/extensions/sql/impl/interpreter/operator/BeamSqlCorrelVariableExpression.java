@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-import static com.google.common.base.Preconditions.checkState;
-
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -41,15 +39,9 @@ public class BeamSqlCorrelVariableExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
 
-    Object correlateValue = correlateEnv.get(correlationId);
-
-    checkState(
-        correlateValue != null,
-        "Correlation variables %s not found in environment %s",
-        correlationId,
-        correlateEnv);
+    Row correlateValue = env.getCorrelVariable(correlationId);
 
     return BeamSqlPrimitive.of(getOutputType(), correlateValue);
   }

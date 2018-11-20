@@ -28,9 +28,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * Utils to handle late data.
- */
+/** Utils to handle late data. */
 public class LateDataUtils {
   private LateDataUtils() {}
 

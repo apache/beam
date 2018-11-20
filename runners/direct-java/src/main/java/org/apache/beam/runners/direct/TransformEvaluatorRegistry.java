@@ -36,7 +36,6 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
@@ -130,11 +129,6 @@ class TransformEvaluatorRegistry {
               TransformPayloadTranslator.NotSerializable.forUrn(SPLITTABLE_PROCESS_URN))
           .build();
     }
-
-    @Override
-    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
-    }
   }
 
   /**
@@ -159,22 +153,19 @@ class TransformEvaluatorRegistry {
   private final AtomicBoolean finished = new AtomicBoolean(false);
 
   private TransformEvaluatorRegistry(
-      @SuppressWarnings("rawtypes")
-      Map<String, TransformEvaluatorFactory> factories) {
+      @SuppressWarnings("rawtypes") Map<String, TransformEvaluatorFactory> factories) {
     this.factories = factories;
   }
 
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
-      throws Exception {
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
 
     String urn = PTransformTranslation.urnForTransform(application.getTransform());
 
     TransformEvaluatorFactory factory =
-        checkNotNull(
-            factories.get(urn), "No evaluator for PTransform \"%s\"", urn);
+        checkNotNull(factories.get(urn), "No evaluator for PTransform \"%s\"", urn);
     return factory.forApplication(application, inputBundle);
   }
 

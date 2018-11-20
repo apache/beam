@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -29,8 +28,8 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 /**
  * Tracks the current value (and delta) for a Distribution metric.
  *
- * <p>This class generally shouldn't be used directly. The only exception is within a runner where
- * a distribution is being reported for a specific step (rather than the distribution in the current
+ * <p>This class generally shouldn't be used directly. The only exception is within a runner where a
+ * distribution is being reported for a specific step (rather than the distribution in the current
  * context). In that case retrieving the underlying cell and reporting directly to it avoids a step
  * of indirection.
  */
@@ -43,9 +42,9 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
   private final MetricName name;
 
   /**
-   * Generally, runners should construct instances using the methods in
-   * {@link MetricsContainerImpl}, unless they need to define their own version of
-   * {@link MetricsContainer}. These constructors are *only* public so runners can instantiate.
+   * Generally, runners should construct instances using the methods in {@link
+   * MetricsContainerImpl}, unless they need to define their own version of {@link
+   * MetricsContainer}. These constructors are *only* public so runners can instantiate.
    */
   @Internal
   public DistributionCell(MetricName name) {
@@ -81,4 +80,3 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
     return name;
   }
 }
-

@@ -17,9 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-/**
- * Common aggregator names for {@link GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow}.
- */
+/** Common aggregator names for {@link GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow}. */
 public abstract class GroupAlsoByWindowsAggregators {
   public static final String DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER = "DroppedDueToClosedWindow";
   public static final String DROPPED_DUE_TO_LATENESS_COUNTER = "DroppedDueToLateness";

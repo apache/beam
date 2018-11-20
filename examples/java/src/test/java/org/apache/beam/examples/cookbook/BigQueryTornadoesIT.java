@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.examples.cookbook;
 
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
@@ -29,34 +28,47 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * End-to-end tests of BigQueryTornadoes.
+ * An end-to-end test for {@link org.apache.beam.examples.cookbook.BigQueryTornadoes}.
+ *
+ * <p>This test reads the public samples of weather data from BigQuery, counts the number of
+ * tornadoes that occur in each month, and writes the results to BigQuery. It requires
+ * "BigQueryTornadoesIT" BigQuery dataset to be created before running.
+ *
+ * <p>Running instructions:
+ *
+ * <pre>
+ *  ./gradlew integrationTest -p examples/java/ -DintegrationTestPipelineOptions='[
+ *  "--tempLocation=gs://your-location/"]'
+ *  --tests org.apache.beam.examples.cookbook.BigQueryTornadoesIT
+ *  -DintegrationTestRunner=direct
+ * </pre>
+ *
+ * <p>Check {@link org.apache.beam.examples.cookbook.BigQueryTornadoes} form more configuration
+ * options via PipelineOptions.
  */
 @RunWith(JUnit4.class)
 public class BigQueryTornadoesIT {
 
   private static final String DEFAULT_OUTPUT_CHECKSUM = "1ab4c7ec460b94bbb3c3885b178bf0e6bed56e1f";
 
-  /**
-   * Options for the BigQueryTornadoes Integration Test.
-   */
+  /** Options for the BigQueryTornadoes Integration Test. */
   public interface BigQueryTornadoesITOptions
-      extends TestPipelineOptions, BigQueryTornadoes.Options, BigQueryOptions {
-  }
+      extends TestPipelineOptions, BigQueryTornadoes.Options, BigQueryOptions {}
 
   @BeforeClass
   public static void setUp() {
-    PipelineOptionsFactory.register(TestPipelineOptions.class);
+    PipelineOptionsFactory.register(BigQueryTornadoesITOptions.class);
   }
 
   @Test
   public void testE2EBigQueryTornadoes() throws Exception {
     BigQueryTornadoesITOptions options =
         TestPipeline.testingPipelineOptions().as(BigQueryTornadoesITOptions.class);
-    options.setOutput(String.format("%s.%s",
-        "BigQueryTornadoesIT", "monthly_tornadoes_" + System.currentTimeMillis()));
+    options.setOutput(
+        String.format(
+            "%s.%s", "BigQueryTornadoesIT", "monthly_tornadoes_" + System.currentTimeMillis()));
 
-    String query =
-        String.format("SELECT month, tornado_count FROM [%s]", options.getOutput());
+    String query = String.format("SELECT month, tornado_count FROM [%s]", options.getOutput());
     options.setOnSuccessMatcher(
         new BigqueryMatcher(
             options.getAppName(), options.getProject(), query, DEFAULT_OUTPUT_CHECKSUM));

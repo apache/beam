@@ -46,8 +46,7 @@ import org.joda.time.format.ISODateTimeFormat;
 public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone> {
   private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.hourMinute();
   private String filenamePrefix;
-  @Nullable
-  private Integer numShards;
+  @Nullable private Integer numShards;
 
   public WriteOneFilePerWindow(String filenamePrefix, Integer numShards) {
     this.filenamePrefix = filenamePrefix;
@@ -85,16 +84,17 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
     public String filenamePrefixForWindow(IntervalWindow window) {
       String prefix =
           baseFilename.isDirectory() ? "" : firstNonNull(baseFilename.getFilename(), "");
-      return String.format("%s-%s-%s",
-          prefix, FORMATTER.print(window.start()), FORMATTER.print(window.end()));
+      return String.format(
+          "%s-%s-%s", prefix, FORMATTER.print(window.start()), FORMATTER.print(window.end()));
     }
 
     @Override
-    public ResourceId windowedFilename(int shardNumber,
-                                       int numShards,
-                                       BoundedWindow window,
-                                       PaneInfo paneInfo,
-                                       OutputFileHints outputFileHints) {
+    public ResourceId windowedFilename(
+        int shardNumber,
+        int numShards,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        OutputFileHints outputFileHints) {
       IntervalWindow intervalWindow = (IntervalWindow) window;
       String filename =
           String.format(

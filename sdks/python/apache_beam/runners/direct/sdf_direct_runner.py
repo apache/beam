@@ -18,6 +18,9 @@
 """This module contains Splittable DoFn logic that is specific to DirectRunner.
 """
 
+from __future__ import absolute_import
+
+from builtins import object
 from threading import Lock
 from threading import Timer
 

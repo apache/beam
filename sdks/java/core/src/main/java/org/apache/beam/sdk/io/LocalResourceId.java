@@ -32,9 +32,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.commons.lang3.SystemUtils;
 
-/**
- * {@link ResourceId} implementation for local files.
- */
+/** {@link ResourceId} implementation for local files. */
 class LocalResourceId implements ResourceId {
 
   private final String pathString;
@@ -49,25 +47,23 @@ class LocalResourceId implements ResourceId {
   }
 
   private LocalResourceId(Path path, boolean isDirectory) {
-    this.pathString = path.toAbsolutePath().normalize().toString()
-        + (isDirectory ? File.separatorChar : "");
+    this.pathString =
+        path.toAbsolutePath().normalize().toString() + (isDirectory ? File.separatorChar : "");
     this.isDirectory = isDirectory;
   }
 
   @Override
   public LocalResourceId resolve(String other, ResolveOptions resolveOptions) {
-    checkState(
-        isDirectory,
-        "Expected the path is a directory, but had [%s].",
-        pathString);
+    checkState(isDirectory, "Expected the path is a directory, but had [%s].", pathString);
     checkArgument(
         resolveOptions.equals(StandardResolveOptions.RESOLVE_FILE)
             || resolveOptions.equals(StandardResolveOptions.RESOLVE_DIRECTORY),
-        "ResolveOptions: [%s] is not supported.", resolveOptions);
+        "ResolveOptions: [%s] is not supported.",
+        resolveOptions);
     checkArgument(
-        !(resolveOptions.equals(StandardResolveOptions.RESOLVE_FILE)
-            && other.endsWith("/")),
-        "The resolved file: [%s] should not end with '/'.", other);
+        !(resolveOptions.equals(StandardResolveOptions.RESOLVE_FILE) && other.endsWith("/")),
+        "The resolved file: [%s] should not end with '/'.",
+        other);
     if (SystemUtils.IS_OS_WINDOWS) {
       return resolveLocalPathWindowsOS(other, resolveOptions);
     } else {
@@ -85,26 +81,21 @@ class LocalResourceId implements ResourceId {
       if (parent == null && path.getNameCount() == 1) {
         parent = Paths.get(".");
       }
-      checkState(
-          parent != null,
-          "Failed to get the current directory for path: [%s].",
-          pathString);
-      return fromPath(
-          parent,
-          true /* isDirectory */);
+      checkState(parent != null, "Failed to get the current directory for path: [%s].", pathString);
+      return fromPath(parent, true /* isDirectory */);
     }
   }
 
   @Override
-  @Nullable public String getFilename() {
+  @Nullable
+  public String getFilename() {
     Path fileName = getPath().getFileName();
     return fileName == null ? null : fileName.toString();
   }
 
   private LocalResourceId resolveLocalPath(String other, ResolveOptions resolveOptions) {
     return new LocalResourceId(
-        getPath().resolve(other),
-        resolveOptions.equals(StandardResolveOptions.RESOLVE_DIRECTORY));
+        getPath().resolve(other), resolveOptions.equals(StandardResolveOptions.RESOLVE_DIRECTORY));
   }
 
   private LocalResourceId resolveLocalPathWindowsOS(String other, ResolveOptions resolveOptions) {
@@ -114,7 +105,8 @@ class LocalResourceId implements ResourceId {
 
     return new LocalResourceId(
         Paths.get(
-            pathAsterisksReplaced.resolve(otherAsterisksReplaced)
+            pathAsterisksReplaced
+                .resolve(otherAsterisksReplaced)
                 .toString()
                 .replaceAll(uuid, "\\*")),
         resolveOptions.equals(StandardResolveOptions.RESOLVE_DIRECTORY));
@@ -148,8 +140,7 @@ class LocalResourceId implements ResourceId {
       return false;
     }
     LocalResourceId other = (LocalResourceId) obj;
-    return this.pathString.equals(other.pathString)
-        && this.isDirectory == other.isDirectory;
+    return this.pathString.equals(other.pathString) && this.isDirectory == other.isDirectory;
   }
 
   @Override

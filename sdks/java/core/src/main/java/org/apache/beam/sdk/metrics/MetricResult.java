@@ -21,9 +21,7 @@ import com.fasterxml.jackson.annotation.JsonFilter;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * The results of a single current metric.
- */
+/** The results of a single current metric. */
 @Experimental(Kind.METRICS)
 @JsonFilter("committedMetrics")
 public interface MetricResult<T> {
@@ -40,8 +38,6 @@ public interface MetricResult<T> {
    */
   T getCommitted();
 
-  /**
-   * Return the value of this metric across all attempts of executing all parts of the pipeline.
-   */
+  /** Return the value of this metric across all attempts of executing all parts of the pipeline. */
   T getAttempted();
 }

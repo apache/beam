@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -79,7 +78,7 @@ public class JavaReadViaImpulseTest {
                  * This should produce some small number of bundles, but more than one.
                  */
                 ParDo.of(new SplitBoundedSourceFn<>(CountingSource.upTo(1_000_000L), 300_000L)))
-                .setCoder(new JavaReadViaImpulse.BoundedSourceCoder<>());
+            .setCoder(new JavaReadViaImpulse.BoundedSourceCoder<>());
 
     PAssert.that(splits)
         .satisfies(
@@ -96,10 +95,9 @@ public class JavaReadViaImpulseTest {
   public void testReadFromSourceFn() {
     BoundedSource<Long> source = CountingSource.upTo(10L);
     PCollection<BoundedSource<Long>> sourcePC =
-          p.apply(Create.of(source)
-              .withCoder(new JavaReadViaImpulse.BoundedSourceCoder<>()));
-    PCollection<Long> elems = sourcePC.apply(ParDo.of(new ReadFromBoundedSourceFn<>()))
-        .setCoder(VarLongCoder.of());
+        p.apply(Create.of(source).withCoder(new JavaReadViaImpulse.BoundedSourceCoder<>()));
+    PCollection<Long> elems =
+        sourcePC.apply(ParDo.of(new ReadFromBoundedSourceFn<>())).setCoder(VarLongCoder.of());
 
     PAssert.that(elems).containsInAnyOrder(0L, 9L, 8L, 1L, 2L, 7L, 6L, 3L, 4L, 5L);
     p.run();
@@ -113,30 +111,31 @@ public class JavaReadViaImpulseTest {
     PCollection<Long> input = p.apply(Read.from(source));
     PAssert.that(input).containsInAnyOrder(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L);
     p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
-    p.traverseTopologically(new Pipeline.PipelineVisitor() {
-      @Override
-      public void enterPipeline(Pipeline p) {}
+    p.traverseTopologically(
+        new Pipeline.PipelineVisitor() {
+          @Override
+          public void enterPipeline(Pipeline p) {}
 
-      @Override
-      public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-        assertNotReadTransform(node.getTransform());
-        return CompositeBehavior.ENTER_TRANSFORM;
-      }
+          @Override
+          public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+            assertNotReadTransform(node.getTransform());
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
 
-      @Override
-      public void leaveCompositeTransform(TransformHierarchy.Node node) {}
+          @Override
+          public void leaveCompositeTransform(TransformHierarchy.Node node) {}
 
-      @Override
-      public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-        assertNotReadTransform(node.getTransform());
-      }
+          @Override
+          public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+            assertNotReadTransform(node.getTransform());
+          }
 
-      @Override
-      public void visitValue(PValue value, TransformHierarchy.Node producer) {}
+          @Override
+          public void visitValue(PValue value, TransformHierarchy.Node producer) {}
 
-      @Override
-      public void leavePipeline(Pipeline pipeline) {}
-    });
+          @Override
+          public void leavePipeline(Pipeline pipeline) {}
+        });
     p.run();
   }
 

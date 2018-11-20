@@ -16,22 +16,20 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 // This job runs the Beam Python performance tests on PerfKit Benchmarker.
 job('beam_PerformanceTests_Python'){
   // Set default Beam job properties.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Run job in postcommit every 6 hours, don't trigger every push.
-  common_job_properties.setPostCommit(
+  commonJobProperties.setAutoJob(
       delegate,
-      '0 */6 * * *',
-      false,
-      'commits@beam.apache.org')
+      'H */6 * * *')
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Python SDK Performance Test',
       'Run Python Performance Test')
@@ -49,13 +47,16 @@ job('beam_PerformanceTests_Python'){
   def pipelineArgsJoined = pipelineArgList.join(',')
 
   def argMap = [
-      beam_sdk : 'python',
-      benchmarks: 'beam_integration_benchmark',
-      beam_it_args: pipelineArgsJoined
+      beam_sdk                 : 'python',
+      benchmarks               : 'beam_integration_benchmark',
+      bigquery_table           : 'beam_performance.wordcount_py_pkb_results',
+      beam_it_class            : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
+      beam_prebuilt            : 'true',  // skip beam prebuild
+      beam_python_sdk_location : 'build/apache-beam.tar.gz',
+      beam_runner              : 'TestDataflowRunner',
+      beam_it_timeout          : '1200',
+      beam_it_args             : pipelineArgsJoined,
   ]
 
-  common_job_properties.buildPerformanceTest(delegate, argMap)
-
-  // [BEAM-3809] Python performance tests are failing.
-  disabled()
+  commonJobProperties.buildPerformanceTest(delegate, argMap, 'PYTHON')
 }

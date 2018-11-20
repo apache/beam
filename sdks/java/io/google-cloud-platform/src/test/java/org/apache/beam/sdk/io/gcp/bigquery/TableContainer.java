@@ -22,14 +22,13 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Encapsulates a BigQuery Table, and it's contents.
- */
+/** Encapsulates a BigQuery Table, and it's contents. */
 class TableContainer {
   Table table;
   List<TableRow> rows;
   List<String> ids;
   Long sizeBytes;
+
   TableContainer(Table table) {
     this.table = table;
 
@@ -41,7 +40,7 @@ class TableContainer {
   long addRow(TableRow row, String id) {
     rows.add(row);
     ids.add(id);
-    long rowSize =  row.toString().length();
+    long rowSize = row.toString().length();
     Long tableSize = table.getNumBytes();
     if (tableSize == null) {
       table.setNumBytes(rowSize);
@@ -54,7 +53,6 @@ class TableContainer {
   Table getTable() {
     return table;
   }
-
 
   List<TableRow> getRows() {
     return rows;

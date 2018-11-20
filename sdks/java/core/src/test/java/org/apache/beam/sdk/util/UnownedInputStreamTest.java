@@ -37,7 +37,7 @@ public class UnownedInputStreamTest {
 
   @Before
   public void setup() {
-    bais = new ByteArrayInputStream(new byte[]{ 1, 2, 3 });
+    bais = new ByteArrayInputStream(new byte[] {1, 2, 3});
     os = new UnownedInputStream(bais);
   }
 

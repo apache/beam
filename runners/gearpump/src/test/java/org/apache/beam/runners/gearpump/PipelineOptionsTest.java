@@ -32,9 +32,7 @@ import org.apache.gearpump.cluster.ClusterConfig;
 import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
 import org.junit.Test;
 
-/**
- * Tests for {@link GearpumpPipelineOptions}.
- */
+/** Tests for {@link GearpumpPipelineOptions}. */
 public class PipelineOptionsTest {
 
   @Test
@@ -42,8 +40,8 @@ public class PipelineOptionsTest {
     String appName = "forTest";
     Map<String, String> serializers = Maps.newHashMap();
     serializers.put("classA", "SerializerA");
-    GearpumpPipelineOptions options = PipelineOptionsFactory.create()
-      .as(GearpumpPipelineOptions.class);
+    GearpumpPipelineOptions options =
+        PipelineOptionsFactory.create().as(GearpumpPipelineOptions.class);
     Config config = ClusterConfig.master(null);
     EmbeddedCluster cluster = new EmbeddedCluster(config);
     options.setSerializers(serializers);
@@ -52,8 +50,10 @@ public class PipelineOptionsTest {
     options.setParallelism(10);
 
     byte[] serializedOptions = serialize(options);
-    GearpumpPipelineOptions deserializedOptions = new ObjectMapper()
-      .readValue(serializedOptions, PipelineOptions.class).as(GearpumpPipelineOptions.class);
+    GearpumpPipelineOptions deserializedOptions =
+        new ObjectMapper()
+            .readValue(serializedOptions, PipelineOptions.class)
+            .as(GearpumpPipelineOptions.class);
 
     assertNull(deserializedOptions.getEmbeddedCluster());
     assertNull(deserializedOptions.getSerializers());

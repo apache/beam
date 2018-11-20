@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -43,13 +42,15 @@ import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
+import org.apache.beam.runners.fnexecution.control.SingleEnvironmentInstanceJobBundleFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
+import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
-import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -95,19 +96,22 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
 
     EnvironmentFactory environmentFactory =
-        InProcessEnvironmentFactory.create(
+        EmbeddedEnvironmentFactory.create(
             PipelineOptionsFactory.create(),
             loggingServer,
             controlServer,
             (workerId, timeout) -> clientPool.take());
     executor = Executors.newCachedThreadPool();
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+        GrpcFnServer.allocatePortAndCreateFor(
+            GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+            serverFactory);
     stateServer = GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
     bundleFactory = ImmutableListBundleFactory.create();
     JobBundleFactory jobBundleFactory =
-        DirectJobBundleFactory.create(environmentFactory, dataServer, stateServer);
+        SingleEnvironmentInstanceJobBundleFactory.create(
+            environmentFactory, dataServer, stateServer);
     factory = new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory);
   }
 

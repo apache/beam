@@ -17,13 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -44,27 +46,27 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-    @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      RelNode input = getInput();
-      String stageName = BeamSqlRelUtils.getStageName(BeamUncollectRel.this);
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
-      PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      checkArgument(
+          pinput.size() == 1,
+          "Wrong number of inputs for %s: %s",
+          BeamUncollectRel.class.getSimpleName(),
+          pinput);
+      PCollection<Row> upstream = pinput.get(0);
 
       // Each row of the input contains a single array of things to be emitted; Calcite knows
       // what the row looks like
-      Schema outputSchema = CalciteUtils.toBeamSchema(getRowType());
+      Schema outputSchema = CalciteUtils.toSchema(getRowType());
 
       PCollection<Row> uncollected =
-          upstream
-              .apply(stageName, ParDo.of(new UncollectDoFn(outputSchema)))
-              .setCoder(outputSchema.getRowCoder());
+          upstream.apply(ParDo.of(new UncollectDoFn(outputSchema))).setRowSchema(outputSchema);
 
       return uncollected;
     }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -35,8 +34,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -47,6 +46,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -70,16 +71,28 @@ public class GreedyPipelineFuserTest {
             .putTransforms(
                 "impulse",
                 PTransform.newBuilder()
+                    .setUniqueName("Impulse")
                     .putOutputs("output", "impulse.out")
                     .setSpec(
                         FunctionSpec.newBuilder()
                             .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN))
                     .build())
-            .putPcollections(
-                "impulse.out", PCollection.newBuilder().setUniqueName("impulse.out").build())
-            .putEnvironments("go", Environment.newBuilder().setUrl("go").build())
-            .putEnvironments("py", Environment.newBuilder().setUrl("py").build())
+            .putPcollections("impulse.out", pc("impulse.out"))
+            .putEnvironments("go", Environments.createDockerEnvironment("go"))
+            .putEnvironments("py", Environments.createDockerEnvironment("py"))
+            .putCoders("coder", Coder.newBuilder().build())
+            .putCoders("windowCoder", Coder.newBuilder().build())
+            .putWindowingStrategies(
+                "ws", WindowingStrategy.newBuilder().setWindowCoderId("windowCoder").build())
             .build();
+  }
+
+  private static PCollection pc(String name) {
+    return PCollection.newBuilder()
+        .setUniqueName(name)
+        .setCoderId("coder")
+        .setWindowingStrategyId("ws")
+        .build();
   }
 
   /*
@@ -89,12 +102,14 @@ public class GreedyPipelineFuserTest {
    */
   @Test
   public void singleEnvironmentBecomesASingleStage() {
+    String name = "read.out";
     Components components =
         partialComponents
             .toBuilder()
             .putTransforms(
                 "read",
                 PTransform.newBuilder()
+                    .setUniqueName("Read")
                     .putInputs("input", "impulse.out")
                     .putOutputs("output", "read.out")
                     .setSpec(
@@ -106,10 +121,11 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections("read.out", PCollection.newBuilder().setUniqueName("read.out").build())
+            .putPcollections("read.out", pc(name))
             .putTransforms(
                 "parDo",
                 PTransform.newBuilder()
+                    .setUniqueName("ParDo")
                     .putInputs("input", "read.out")
                     .putOutputs("output", "parDo.out")
                     .setSpec(
@@ -121,11 +137,11 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections(
-                "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+            .putPcollections("parDo.out", pc("parDo.out"))
             .putTransforms(
                 "window",
                 PTransform.newBuilder()
+                    .setUniqueName("Window")
                     .putInputs("input", "parDo.out")
                     .putOutputs("output", "window.out")
                     .setSpec(
@@ -138,8 +154,7 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections(
-                "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
+            .putPcollections("window.out", pc("window.out"))
             .build();
     FusedPipeline fused =
         GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
@@ -162,28 +177,32 @@ public class GreedyPipelineFuserTest {
    * becomes all runner-executed
    */
   @Test
-  public void unknownTransformsNoEnvironmentBecomeRunnerExecuted() {
+  public void transformsWithNoEnvironmentBecomeRunnerExecuted() {
     Components components =
         partialComponents
             .toBuilder()
             .putTransforms(
                 "mystery",
                 PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN))
+                    .setUniqueName("Mystery")
                     .putInputs("input", "impulse.out")
                     .putOutputs("output", "mystery.out")
-                    .setSpec(FunctionSpec.newBuilder().setUrn("beam:transform:mystery:v1.4"))
                     .build())
-            .putPcollections(
-                "mystery.out", PCollection.newBuilder().setUniqueName("mystery.out").build())
+            .putPcollections("mystery.out", pc("mystery.out"))
             .putTransforms(
                 "enigma",
                 PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN))
+                    .setUniqueName("Enigma")
                     .putInputs("input", "impulse.out")
                     .putOutputs("output", "enigma.out")
-                    .setSpec(FunctionSpec.newBuilder().setUrn("beam:transform:enigma:v1"))
                     .build())
-            .putPcollections(
-                "enigma.out", PCollection.newBuilder().setUniqueName("enigma.out").build())
+            .putPcollections("enigma.out", pc("enigma.out"))
             .build();
     FusedPipeline fused =
         GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
@@ -211,6 +230,7 @@ public class GreedyPipelineFuserTest {
             .putTransforms(
                 "read",
                 PTransform.newBuilder()
+                    .setUniqueName("Read")
                     .putInputs("input", "impulse.out")
                     .putOutputs("output", "read.out")
                     .setSpec(
@@ -222,21 +242,22 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections("read.out", PCollection.newBuilder().setUniqueName("read.out").build())
+            .putPcollections("read.out", pc("read.out"))
             .putTransforms(
                 "groupByKey",
                 PTransform.newBuilder()
+                    .setUniqueName("GroupByKey")
                     .putInputs("input", "read.out")
                     .putOutputs("output", "groupByKey.out")
                     .setSpec(
                         FunctionSpec.newBuilder()
                             .setUrn(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN))
                     .build())
-            .putPcollections(
-                "groupByKey.out", PCollection.newBuilder().setUniqueName("groupByKey.out").build())
+            .putPcollections("groupByKey.out", pc("groupByKey.out"))
             .putTransforms(
                 "parDo",
                 PTransform.newBuilder()
+                    .setUniqueName("ParDo")
                     .putInputs("input", "groupByKey.out")
                     .putOutputs("output", "parDo.out")
                     .setSpec(
@@ -248,8 +269,7 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections(
-                "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+            .putPcollections("parDo.out", pc("parDo.out"))
             .build();
     FusedPipeline fused =
         GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
@@ -286,6 +306,7 @@ public class GreedyPipelineFuserTest {
             .putTransforms(
                 "read",
                 PTransform.newBuilder()
+                    .setUniqueName("Read")
                     .putInputs("input", "impulse.out")
                     .putOutputs("output", "read.out")
                     .setSpec(
@@ -297,10 +318,11 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections("read.out", PCollection.newBuilder().setUniqueName("read.out").build())
+            .putPcollections("read.out", pc("read.out"))
             .putTransforms(
                 "goTransform",
                 PTransform.newBuilder()
+                    .setUniqueName("GoTransform")
                     .putInputs("input", "read.out")
                     .putOutputs("output", "go.out")
                     .setSpec(
@@ -312,10 +334,11 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections("go.out", PCollection.newBuilder().setUniqueName("go.out").build())
+            .putPcollections("go.out", pc("go.out"))
             .putTransforms(
                 "pyTransform",
                 PTransform.newBuilder()
+                    .setUniqueName("PyTransform")
                     .putInputs("input", "read.out")
                     .putOutputs("output", "py.out")
                     .setSpec(
@@ -328,7 +351,7 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections("py.out", PCollection.newBuilder().setUniqueName("py.out").build())
+            .putPcollections("py.out", pc("py.out"))
             .build();
     FusedPipeline fused =
         GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
@@ -366,19 +389,24 @@ public class GreedyPipelineFuserTest {
   public void flattenWithHeterogenousInputsAndOutputsEntirelyMaterialized() {
     Components components =
         Components.newBuilder()
+            .putCoders("coder", Coder.newBuilder().build())
+            .putCoders("windowCoder", Coder.newBuilder().build())
+            .putWindowingStrategies(
+                "ws", WindowingStrategy.newBuilder().setWindowCoderId("windowCoder").build())
             .putTransforms(
                 "pyImpulse",
                 PTransform.newBuilder()
+                    .setUniqueName("PyImpulse")
                     .putOutputs("output", "pyImpulse.out")
                     .setSpec(
                         FunctionSpec.newBuilder()
                             .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN))
                     .build())
-            .putPcollections(
-                "pyImpulse.out", PCollection.newBuilder().setUniqueName("pyImpulse.out").build())
+            .putPcollections("pyImpulse.out", pc("pyImpulse.out"))
             .putTransforms(
                 "pyRead",
                 PTransform.newBuilder()
+                    .setUniqueName("PyRead")
                     .putInputs("input", "pyImpulse.out")
                     .putOutputs("output", "pyRead.out")
                     .setSpec(
@@ -390,21 +418,21 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections(
-                "pyRead.out", PCollection.newBuilder().setUniqueName("pyRead.out").build())
+            .putPcollections("pyRead.out", pc("pyRead.out"))
             .putTransforms(
                 "goImpulse",
                 PTransform.newBuilder()
+                    .setUniqueName("GoImpulse")
                     .putOutputs("output", "goImpulse.out")
                     .setSpec(
                         FunctionSpec.newBuilder()
                             .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN))
                     .build())
-            .putPcollections(
-                "goImpulse.out", PCollection.newBuilder().setUniqueName("goImpulse.out").build())
+            .putPcollections("goImpulse.out", pc("goImpulse.out"))
             .putTransforms(
                 "goRead",
                 PTransform.newBuilder()
+                    .setUniqueName("GoRead")
                     .putInputs("input", "goImpulse.out")
                     .putOutputs("output", "goRead.out")
                     .setSpec(
@@ -416,11 +444,11 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections(
-                "goRead.out", PCollection.newBuilder().setUniqueName("goRead.out").build())
+            .putPcollections("goRead.out", pc("goRead.out"))
             .putTransforms(
                 "flatten",
                 PTransform.newBuilder()
+                    .setUniqueName("Flatten")
                     .putInputs("goReadInput", "goRead.out")
                     .putInputs("pyReadInput", "pyRead.out")
                     .putOutputs("output", "flatten.out")
@@ -428,11 +456,11 @@ public class GreedyPipelineFuserTest {
                         FunctionSpec.newBuilder()
                             .setUrn(PTransformTranslation.FLATTEN_TRANSFORM_URN))
                     .build())
-            .putPcollections(
-                "flatten.out", PCollection.newBuilder().setUniqueName("flatten.out").build())
+            .putPcollections("flatten.out", pc("flatten.out"))
             .putTransforms(
                 "pyParDo",
                 PTransform.newBuilder()
+                    .setUniqueName("PyParDo")
                     .putInputs("input", "flatten.out")
                     .putOutputs("output", "pyParDo.out")
                     .setSpec(
@@ -444,11 +472,11 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections(
-                "pyParDo.out", PCollection.newBuilder().setUniqueName("pyParDo.out").build())
+            .putPcollections("pyParDo.out", pc("pyParDo.out"))
             .putTransforms(
                 "goParDo",
                 PTransform.newBuilder()
+                    .setUniqueName("GoParDo")
                     .putInputs("input", "flatten.out")
                     .putOutputs("output", "goParDo.out")
                     .setSpec(
@@ -460,10 +488,9 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections(
-                "goParDo.out", PCollection.newBuilder().setUniqueName("goParDo.out").build())
-            .putEnvironments("go", Environment.newBuilder().setUrl("go").build())
-            .putEnvironments("py", Environment.newBuilder().setUrl("py").build())
+            .putPcollections("goParDo.out", pc("goParDo.out"))
+            .putEnvironments("go", Environments.createDockerEnvironment("go"))
+            .putEnvironments("py", Environments.createDockerEnvironment("py"))
             .build();
     FusedPipeline fused =
         GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
@@ -537,19 +564,24 @@ public class GreedyPipelineFuserTest {
   public void flattenWithHeterogeneousInputsSingleEnvOutputPartiallyMaterialized() {
     Components components =
         Components.newBuilder()
+            .putCoders("coder", Coder.newBuilder().build())
+            .putCoders("windowCoder", Coder.newBuilder().build())
+            .putWindowingStrategies(
+                "ws", WindowingStrategy.newBuilder().setWindowCoderId("windowCoder").build())
             .putTransforms(
                 "pyImpulse",
                 PTransform.newBuilder()
+                    .setUniqueName("PyImpulse")
                     .putOutputs("output", "pyImpulse.out")
                     .setSpec(
                         FunctionSpec.newBuilder()
                             .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN))
                     .build())
-            .putPcollections(
-                "pyImpulse.out", PCollection.newBuilder().setUniqueName("pyImpulse.out").build())
+            .putPcollections("pyImpulse.out", pc("pyImpulse.out"))
             .putTransforms(
                 "pyRead",
                 PTransform.newBuilder()
+                    .setUniqueName("PyRead")
                     .putInputs("input", "pyImpulse.out")
                     .putOutputs("output", "pyRead.out")
                     .setSpec(
@@ -561,21 +593,21 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections(
-                "pyRead.out", PCollection.newBuilder().setUniqueName("pyRead.out").build())
+            .putPcollections("pyRead.out", pc("pyRead.out"))
             .putTransforms(
                 "goImpulse",
                 PTransform.newBuilder()
+                    .setUniqueName("GoImpulse")
                     .putOutputs("output", "goImpulse.out")
                     .setSpec(
                         FunctionSpec.newBuilder()
                             .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN))
                     .build())
-            .putPcollections(
-                "goImpulse.out", PCollection.newBuilder().setUniqueName("goImpulse.out").build())
+            .putPcollections("goImpulse.out", pc("goImpulse.out"))
             .putTransforms(
                 "goRead",
                 PTransform.newBuilder()
+                    .setUniqueName("GoRead")
                     .putInputs("input", "goImpulse.out")
                     .putOutputs("output", "goRead.out")
                     .setSpec(
@@ -587,11 +619,11 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections(
-                "goRead.out", PCollection.newBuilder().setUniqueName("goRead.out").build())
+            .putPcollections("goRead.out", pc("goRead.out"))
             .putTransforms(
                 "flatten",
                 PTransform.newBuilder()
+                    .setUniqueName("Flatten")
                     .putInputs("goReadInput", "goRead.out")
                     .putInputs("pyReadInput", "pyRead.out")
                     .putOutputs("output", "flatten.out")
@@ -599,11 +631,11 @@ public class GreedyPipelineFuserTest {
                         FunctionSpec.newBuilder()
                             .setUrn(PTransformTranslation.FLATTEN_TRANSFORM_URN))
                     .build())
-            .putPcollections(
-                "flatten.out", PCollection.newBuilder().setUniqueName("flatten.out").build())
+            .putPcollections("flatten.out", pc("flatten.out"))
             .putTransforms(
                 "goParDo",
                 PTransform.newBuilder()
+                    .setUniqueName("GoParDo")
                     .putInputs("input", "flatten.out")
                     .putOutputs("output", "goParDo.out")
                     .setSpec(
@@ -615,10 +647,9 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections(
-                "goParDo.out", PCollection.newBuilder().setUniqueName("goParDo.out").build())
-            .putEnvironments("go", Environment.newBuilder().setUrl("go").build())
-            .putEnvironments("py", Environment.newBuilder().setUrl("py").build())
+            .putPcollections("goParDo.out", pc("goParDo.out"))
+            .putEnvironments("go", Environments.createDockerEnvironment("go"))
+            .putEnvironments("py", Environments.createDockerEnvironment("py"))
             .build();
     FusedPipeline fused =
         GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
@@ -653,42 +684,55 @@ public class GreedyPipelineFuserTest {
    */
   @Test
   public void flattenAfterNoEnvDoesNotFuse() {
-    Components components = partialComponents.toBuilder()
-        .putTransforms("flatten",
-            PTransform.newBuilder()
-                .putInputs("impulseInput", "impulse.out")
-                .putOutputs("output", "flatten.out")
-                .setSpec(FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.FLATTEN_TRANSFORM_URN)
+    Components components =
+        partialComponents
+            .toBuilder()
+            .putTransforms(
+                "flatten",
+                PTransform.newBuilder()
+                    .setUniqueName("Flatten")
+                    .putInputs("impulseInput", "impulse.out")
+                    .putOutputs("output", "flatten.out")
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.FLATTEN_TRANSFORM_URN)
+                            .build())
                     .build())
-                .build())
-        .putPcollections("flatten.out",
-            PCollection.newBuilder().setUniqueName("flatten.out").build())
-        .putTransforms("read",
-            PTransform.newBuilder()
-                .putInputs("input", "flatten.out")
-                .putOutputs("output", "read.out")
-                .setSpec(FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
-                    .setPayload(ParDoPayload.newBuilder()
-                        .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
-                        .build()
-                        .toByteString()))
-                .build())
-        .putPcollections("read.out", PCollection.newBuilder().setUniqueName("read.out").build())
-        .putTransforms("parDo",
-            PTransform.newBuilder()
-                .putInputs("input", "read.out")
-                .putOutputs("output", "parDo.out")
-                .setSpec(FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
-                    .setPayload(ParDoPayload.newBuilder()
-                        .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py").build())
-                        .build()
-                        .toByteString()))
-                .build())
-        .putPcollections("parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
-        .build();
+            .putPcollections("flatten.out", pc("flatten.out"))
+            .putTransforms(
+                "read",
+                PTransform.newBuilder()
+                    .setUniqueName("Read")
+                    .putInputs("input", "flatten.out")
+                    .putOutputs("output", "read.out")
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                            .setPayload(
+                                ParDoPayload.newBuilder()
+                                    .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                                    .build()
+                                    .toByteString()))
+                    .build())
+            .putPcollections("read.out", pc("read.out"))
+            .putTransforms(
+                "parDo",
+                PTransform.newBuilder()
+                    .setUniqueName("ParDo")
+                    .putInputs("input", "read.out")
+                    .putOutputs("output", "parDo.out")
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                            .setPayload(
+                                ParDoPayload.newBuilder()
+                                    .setDoFn(
+                                        SdkFunctionSpec.newBuilder().setEnvironmentId("py").build())
+                                    .build()
+                                    .toByteString()))
+                    .build())
+            .putPcollections("parDo.out", pc("parDo.out"))
+            .build();
     FusedPipeline fused =
         GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
 
@@ -724,20 +768,24 @@ public class GreedyPipelineFuserTest {
   public void sideInputRootsNewStage() {
     Components components =
         Components.newBuilder()
+            .putCoders("coder", Coder.newBuilder().build())
+            .putCoders("windowCoder", Coder.newBuilder().build())
+            .putWindowingStrategies(
+                "ws", WindowingStrategy.newBuilder().setWindowCoderId("windowCoder").build())
             .putTransforms(
                 "mainImpulse",
                 PTransform.newBuilder()
+                    .setUniqueName("MainImpulse")
                     .putOutputs("output", "mainImpulse.out")
                     .setSpec(
                         FunctionSpec.newBuilder()
                             .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN))
                     .build())
-            .putPcollections(
-                "mainImpulse.out",
-                PCollection.newBuilder().setUniqueName("mainImpulse.out").build())
+            .putPcollections("mainImpulse.out", pc("mainImpulse.out"))
             .putTransforms(
                 "read",
                 PTransform.newBuilder()
+                    .setUniqueName("Read")
                     .putInputs("input", "mainImpulse.out")
                     .putOutputs("output", "read.out")
                     .setSpec(
@@ -749,21 +797,21 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections("read.out", PCollection.newBuilder().setUniqueName("read.out").build())
+            .putPcollections("read.out", pc("read.out"))
             .putTransforms(
                 "sideImpulse",
                 PTransform.newBuilder()
+                    .setUniqueName("SideImpulse")
                     .putOutputs("output", "sideImpulse.out")
                     .setSpec(
                         FunctionSpec.newBuilder()
                             .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN))
                     .build())
-            .putPcollections(
-                "sideImpulse.out",
-                PCollection.newBuilder().setUniqueName("sideImpulse.out").build())
+            .putPcollections("sideImpulse.out", pc("sideImpulse.out"))
             .putTransforms(
                 "sideRead",
                 PTransform.newBuilder()
+                    .setUniqueName("SideRead")
                     .putInputs("input", "sideImpulse.out")
                     .putOutputs("output", "sideRead.out")
                     .setSpec(
@@ -775,11 +823,11 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections(
-                "sideRead.out", PCollection.newBuilder().setUniqueName("sideRead.out").build())
+            .putPcollections("sideRead.out", pc("sideRead.out"))
             .putTransforms(
                 "leftParDo",
                 PTransform.newBuilder()
+                    .setUniqueName("LeftParDo")
                     .putInputs("main", "read.out")
                     .putOutputs("output", "leftParDo.out")
                     .setSpec(
@@ -792,11 +840,11 @@ public class GreedyPipelineFuserTest {
                                     .toByteString())
                             .build())
                     .build())
-            .putPcollections(
-                "leftParDo.out", PCollection.newBuilder().setUniqueName("leftParDo.out").build())
+            .putPcollections("leftParDo.out", pc("leftParDo.out"))
             .putTransforms(
                 "rightParDo",
                 PTransform.newBuilder()
+                    .setUniqueName("RightParDo")
                     .putInputs("main", "read.out")
                     .putOutputs("output", "rightParDo.out")
                     .setSpec(
@@ -809,11 +857,11 @@ public class GreedyPipelineFuserTest {
                                     .toByteString())
                             .build())
                     .build())
-            .putPcollections(
-                "rightParDo.out", PCollection.newBuilder().setUniqueName("rightParDo.out").build())
+            .putPcollections("rightParDo.out", pc("rightParDo.out"))
             .putTransforms(
                 "sideParDo",
                 PTransform.newBuilder()
+                    .setUniqueName("SideParDo")
                     .putInputs("main", "read.out")
                     .putInputs("side", "sideRead.out")
                     .putOutputs("output", "sideParDo.out")
@@ -828,9 +876,8 @@ public class GreedyPipelineFuserTest {
                                     .toByteString())
                             .build())
                     .build())
-            .putPcollections(
-                "sideParDo.out", PCollection.newBuilder().setUniqueName("sideParDo.out").build())
-            .putEnvironments("py", Environment.newBuilder().setUrl("py").build())
+            .putPcollections("sideParDo.out", pc("sideParDo.out"))
+            .putEnvironments("py", Environments.createDockerEnvironment("py"))
             .build();
 
     FusedPipeline fused =
@@ -860,7 +907,7 @@ public class GreedyPipelineFuserTest {
                 .withNoOutputs()
                 .withTransforms("sideParDo"),
             ExecutableStageMatcher.withInput("sideImpulse.out")
-                .withNoOutputs()
+                .withOutputs("sideRead.out")
                 .withTransforms("sideRead")));
   }
 
@@ -877,6 +924,7 @@ public class GreedyPipelineFuserTest {
     // stateful has a state spec which prevents it from fusing with an upstream ParDo
     PTransform parDoTransform =
         PTransform.newBuilder()
+            .setUniqueName("ParDo")
             .putInputs("input", "impulse.out")
             .putOutputs("output", "parDo.out")
             .setSpec(
@@ -890,6 +938,7 @@ public class GreedyPipelineFuserTest {
             .build();
     PTransform statefulTransform =
         PTransform.newBuilder()
+            .setUniqueName("StatefulParDo")
             .putInputs("input", "parDo.out")
             .putOutputs("output", "stateful.out")
             .setSpec(
@@ -907,12 +956,10 @@ public class GreedyPipelineFuserTest {
         partialComponents
             .toBuilder()
             .putTransforms("parDo", parDoTransform)
-            .putPcollections(
-                "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+            .putPcollections("parDo.out", pc("parDo.out"))
             .putTransforms("stateful", statefulTransform)
-            .putPcollections(
-                "stateful.out", PCollection.newBuilder().setUniqueName("stateful.out").build())
-            .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+            .putPcollections("stateful.out", pc("stateful.out"))
+            .putEnvironments("common", Environments.createDockerEnvironment("common"))
             .build();
     FusedPipeline fused =
         GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
@@ -945,6 +992,7 @@ public class GreedyPipelineFuserTest {
     // timer has a timer spec which prevents it from fusing with an upstream ParDo
     PTransform parDoTransform =
         PTransform.newBuilder()
+            .setUniqueName("ParDo")
             .putInputs("input", "impulse.out")
             .putOutputs("output", "parDo.out")
             .setSpec(
@@ -958,8 +1006,11 @@ public class GreedyPipelineFuserTest {
             .build();
     PTransform timerTransform =
         PTransform.newBuilder()
+            .setUniqueName("TimerParDo")
             .putInputs("input", "parDo.out")
-            .putOutputs("output", "timer.out")
+            .putInputs("timer", "timer.out")
+            .putOutputs("timer", "timer.out")
+            .putOutputs("output", "output.out")
             .setSpec(
                 FunctionSpec.newBuilder()
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
@@ -975,12 +1026,11 @@ public class GreedyPipelineFuserTest {
         partialComponents
             .toBuilder()
             .putTransforms("parDo", parDoTransform)
-            .putPcollections(
-                "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+            .putPcollections("parDo.out", pc("parDo.out"))
             .putTransforms("timer", timerTransform)
-            .putPcollections(
-                "timer.out", PCollection.newBuilder().setUniqueName("timer.out").build())
-            .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+            .putPcollections("timer.out", pc("timer.out"))
+            .putPcollections("output.out", pc("output.out"))
+            .putEnvironments("common", Environments.createDockerEnvironment("common"))
             .build();
 
     FusedPipeline fused =
@@ -996,7 +1046,56 @@ public class GreedyPipelineFuserTest {
             ExecutableStageMatcher.withInput("impulse.out")
                 .withOutputs("parDo.out")
                 .withTransforms("parDo"),
-            ExecutableStageMatcher.withInput("parDo.out")
+            ExecutableStageMatcher.withInput("parDo.out").withNoOutputs().withTransforms("timer")));
+  }
+
+  /*
+   * Tests that parDo with state and timers is fused correctly and can be queried
+   * impulse -> .out -> timer -> .out
+   * becomes
+   * (impulse.out) -> timer
+   */
+  @Test
+  public void parDoWithStateAndTimerRootsStage() {
+    PTransform timerTransform =
+        PTransform.newBuilder()
+            .setUniqueName("TimerParDo")
+            .putInputs("input", "impulse.out")
+            .putInputs("timer", "timer.out")
+            .putOutputs("timer", "timer.out")
+            .putOutputs("output", "output.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .putStateSpecs("state", StateSpec.getDefaultInstance())
+                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .build()
+                            .toByteString()))
+            .build();
+
+    Components components =
+        partialComponents
+            .toBuilder()
+            .putTransforms("timer", timerTransform)
+            .putPcollections("timer.out", pc("timer.out"))
+            .putPcollections("output.out", pc("output.out"))
+            .putEnvironments("common", Environments.createDockerEnvironment("common"))
+            .build();
+
+    FusedPipeline fused =
+        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+
+    assertThat(
+        fused.getRunnerExecutedTransforms(),
+        containsInAnyOrder(
+            PipelineNode.pTransform("impulse", components.getTransformsOrThrow("impulse"))));
+    assertThat(
+        fused.getFusedStages(),
+        contains(
+            ExecutableStageMatcher.withInput("impulse.out")
                 .withNoOutputs()
                 .withTransforms("timer")));
   }
@@ -1017,6 +1116,7 @@ public class GreedyPipelineFuserTest {
             .putTransforms(
                 "read",
                 PTransform.newBuilder()
+                    .setUniqueName("Read")
                     .putInputs("input", "impulse.out")
                     .putOutputs("output", "read.out")
                     .setSpec(
@@ -1028,10 +1128,11 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections("read.out", PCollection.newBuilder().setUniqueName("read.out").build())
+            .putPcollections("read.out", pc("read.out"))
             .putTransforms(
                 "goTransform",
                 PTransform.newBuilder()
+                    .setUniqueName("GoTransform")
                     .putInputs("input", "read.out")
                     .putOutputs("output", "go.out")
                     .setSpec(
@@ -1043,10 +1144,11 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections("go.out", PCollection.newBuilder().setUniqueName("go.out").build())
+            .putPcollections("go.out", pc("go.out"))
             .putTransforms(
                 "pyTransform",
                 PTransform.newBuilder()
+                    .setUniqueName("PyTransform")
                     .putInputs("input", "read.out")
                     .putOutputs("output", "py.out")
                     .setSpec(
@@ -1059,10 +1161,11 @@ public class GreedyPipelineFuserTest {
                                     .build()
                                     .toByteString()))
                     .build())
-            .putPcollections("py.out", PCollection.newBuilder().setUniqueName("py.out").build())
+            .putPcollections("py.out", pc("py.out"))
             .putTransforms(
                 "compositeMultiLang",
                 PTransform.newBuilder()
+                    .setUniqueName("CompositeMultiLang")
                     .putInputs("input", "impulse.out")
                     .putOutputs("pyOut", "py.out")
                     .putOutputs("goOut", "go.out")
@@ -1094,5 +1197,136 @@ public class GreedyPipelineFuserTest {
             ExecutableStageMatcher.withInput("read.out")
                 .withNoOutputs()
                 .withTransforms("goTransform")));
+  }
+
+  @Test
+  public void sanitizedTransforms() throws Exception {
+
+    PCollection flattenOutput = pc("flatten.out");
+    PCollection read1Output = pc("read1.out");
+    PCollection read2Output = pc("read2.out");
+    PCollection impulse1Output = pc("impulse1.out");
+    PCollection impulse2Output = pc("impulse2.out");
+    PTransform flattenTransform =
+        PTransform.newBuilder()
+            .setUniqueName("Flatten")
+            .putInputs(read1Output.getUniqueName(), read1Output.getUniqueName())
+            .putInputs(read2Output.getUniqueName(), read2Output.getUniqueName())
+            .putOutputs(flattenOutput.getUniqueName(), flattenOutput.getUniqueName())
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.FLATTEN_TRANSFORM_URN)
+                    .setPayload(
+                        WindowIntoPayload.newBuilder()
+                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .build()
+                            .toByteString()))
+            .build();
+
+    PTransform read1Transform =
+        PTransform.newBuilder()
+            .setUniqueName("read1")
+            .putInputs(impulse1Output.getUniqueName(), impulse1Output.getUniqueName())
+            .putOutputs(read1Output.getUniqueName(), read1Output.getUniqueName())
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        WindowIntoPayload.newBuilder()
+                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .build()
+                            .toByteString()))
+            .build();
+    PTransform read2Transform =
+        PTransform.newBuilder()
+            .setUniqueName("read2")
+            .putInputs(impulse2Output.getUniqueName(), impulse2Output.getUniqueName())
+            .putOutputs(read2Output.getUniqueName(), read2Output.getUniqueName())
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        WindowIntoPayload.newBuilder()
+                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .build()
+                            .toByteString()))
+            .build();
+
+    PTransform impulse1Transform =
+        PTransform.newBuilder()
+            .setUniqueName("impulse1")
+            .putOutputs(impulse1Output.getUniqueName(), impulse1Output.getUniqueName())
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN)
+                    .setPayload(
+                        WindowIntoPayload.newBuilder()
+                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .build()
+                            .toByteString()))
+            .build();
+    PTransform impulse2Transform =
+        PTransform.newBuilder()
+            .setUniqueName("impulse2")
+            .putOutputs(impulse2Output.getUniqueName(), impulse2Output.getUniqueName())
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN)
+                    .setPayload(
+                        WindowIntoPayload.newBuilder()
+                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                            .build()
+                            .toByteString()))
+            .build();
+    Pipeline impulse =
+        Pipeline.newBuilder()
+            .addRootTransformIds(impulse1Transform.getUniqueName())
+            .addRootTransformIds(impulse2Transform.getUniqueName())
+            .addRootTransformIds(flattenTransform.getUniqueName())
+            .setComponents(
+                Components.newBuilder()
+                    .putCoders("coder", Coder.newBuilder().build())
+                    .putCoders("windowCoder", Coder.newBuilder().build())
+                    .putWindowingStrategies(
+                        "ws",
+                        WindowingStrategy.newBuilder().setWindowCoderId("windowCoder").build())
+                    .putEnvironments("py", Environments.createDockerEnvironment("py"))
+                    .putPcollections(flattenOutput.getUniqueName(), flattenOutput)
+                    .putTransforms(flattenTransform.getUniqueName(), flattenTransform)
+                    .putPcollections(read1Output.getUniqueName(), read1Output)
+                    .putTransforms(read1Transform.getUniqueName(), read1Transform)
+                    .putPcollections(read2Output.getUniqueName(), read2Output)
+                    .putTransforms(read2Transform.getUniqueName(), read2Transform)
+                    .putPcollections(impulse1Output.getUniqueName(), impulse1Output)
+                    .putTransforms(impulse1Transform.getUniqueName(), impulse1Transform)
+                    .putPcollections(impulse2Output.getUniqueName(), impulse2Output)
+                    .putTransforms(impulse2Transform.getUniqueName(), impulse2Transform)
+                    .build())
+            .build();
+    FusedPipeline fused = GreedyPipelineFuser.fuse(impulse);
+
+    assertThat(fused.getRunnerExecutedTransforms(), hasSize(2));
+    assertThat(fused.getFusedStages(), hasSize(2));
+
+    assertThat(
+        fused.getFusedStages(),
+        containsInAnyOrder(
+            ExecutableStageMatcher.withInput(impulse1Output.getUniqueName())
+                .withTransforms(flattenTransform.getUniqueName(), read1Transform.getUniqueName()),
+            ExecutableStageMatcher.withInput(impulse2Output.getUniqueName())
+                .withTransforms(flattenTransform.getUniqueName(), read2Transform.getUniqueName())));
+    assertThat(
+        fused
+            .getFusedStages()
+            .stream()
+            .flatMap(
+                s ->
+                    s.getComponents()
+                        .getTransformsOrThrow(flattenTransform.getUniqueName())
+                        .getInputsMap()
+                        .values()
+                        .stream())
+            .collect(Collectors.toList()),
+        containsInAnyOrder(read1Output.getUniqueName(), read2Output.getUniqueName()));
   }
 }

@@ -31,9 +31,9 @@ import org.joda.time.Instant;
 
 /**
  * Determine the timing and other properties of a new pane for a given computation, key and window.
- * Incorporates any previous pane, whether the pane has been produced because an
- * on-time {@link AfterWatermark} trigger firing, and the relation between the element's timestamp
- * and the current output watermark.
+ * Incorporates any previous pane, whether the pane has been produced because an on-time {@link
+ * AfterWatermark} trigger firing, and the relation between the element's timestamp and the current
+ * output watermark.
  */
 public class PaneInfoTracker {
   private TimerInternals timerInternals;
@@ -58,8 +58,8 @@ public class PaneInfoTracker {
    * Return a ({@link ReadableState} for) the pane info appropriate for {@code context}. The pane
    * info includes the timing for the pane, who's calculation is quite subtle.
    *
-   * @param isFinal should be {@code true} only if the triggering machinery can guarantee
-   * no further firings for the
+   * @param isFinal should be {@code true} only if the triggering machinery can guarantee no further
+   *     firings for the
    */
   public ReadableState<PaneInfo> getNextPaneInfo(
       ReduceFn<?, ?, ?, ?>.Context context, final boolean isFinal) {
@@ -126,8 +126,14 @@ public class PaneInfoTracker {
 
     WindowTracing.debug(
         "describePane: {} pane (prev was {}) for key:{}; windowMaxTimestamp:{}; "
-        + "inputWatermark:{}; outputWatermark:{}; isLateForOutput:{}",
-        timing, previousTiming, key, windowMaxTimestamp, inputWM, outputWM, isLateForOutput);
+            + "inputWatermark:{}; outputWatermark:{}; isLateForOutput:{}",
+        timing,
+        previousTiming,
+        key,
+        windowMaxTimestamp,
+        inputWM,
+        outputWM,
+        isLateForOutput);
 
     if (previousPane != null) {
       // Timing transitions should follow EARLY* ON_TIME? LATE*
@@ -135,11 +141,11 @@ public class PaneInfoTracker {
         case EARLY:
           checkState(
               timing == Timing.EARLY || timing == Timing.ON_TIME || timing == Timing.LATE,
-              "EARLY cannot transition to %s", timing);
+              "EARLY cannot transition to %s",
+              timing);
           break;
         case ON_TIME:
-          checkState(
-              timing == Timing.LATE, "ON_TIME cannot transition to %s", timing);
+          checkState(timing == Timing.LATE, "ON_TIME cannot transition to %s", timing);
           break;
         case LATE:
           checkState(timing == Timing.LATE, "LATE cannot transtion to %s", timing);

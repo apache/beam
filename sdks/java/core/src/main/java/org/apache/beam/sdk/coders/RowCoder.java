@@ -17,38 +17,43 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 
-/**
- *  A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly.
- */
+/** A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly. */
 @Experimental
 public class RowCoder extends CustomCoder<Row> {
-  private static final ImmutableMap<TypeName, Coder> CODER_MAP =
+  // This contains a map of primitive types to their coders.
+  static final ImmutableMap<TypeName, Coder> CODER_MAP =
       ImmutableMap.<TypeName, Coder>builder()
-      .put(TypeName.BYTE, ByteCoder.of())
-      .put(TypeName.INT16, BigEndianShortCoder.of())
-      .put(TypeName.INT32, BigEndianIntegerCoder.of())
-      .put(TypeName.INT64, BigEndianLongCoder.of())
-      .put(TypeName.DECIMAL, BigDecimalCoder.of())
-      .put(TypeName.FLOAT, FloatCoder.of())
-      .put(TypeName.DOUBLE, DoubleCoder.of())
-      .put(TypeName.STRING, StringUtf8Coder.of())
-      .put(TypeName.DATETIME, InstantCoder.of())
-      .put(TypeName.BOOLEAN, BooleanCoder.of())
-      .build();
+          .put(TypeName.BYTE, ByteCoder.of())
+          .put(TypeName.BYTES, ByteArrayCoder.of())
+          .put(TypeName.INT16, BigEndianShortCoder.of())
+          .put(TypeName.INT32, VarIntCoder.of())
+          .put(TypeName.INT64, VarLongCoder.of())
+          .put(TypeName.DECIMAL, BigDecimalCoder.of())
+          .put(TypeName.FLOAT, FloatCoder.of())
+          .put(TypeName.DOUBLE, DoubleCoder.of())
+          .put(TypeName.STRING, StringUtf8Coder.of())
+          .put(TypeName.DATETIME, InstantCoder.of())
+          .put(TypeName.BOOLEAN, BooleanCoder.of())
+          .build();
 
   private static final ImmutableMap<TypeName, Integer> ESTIMATED_FIELD_SIZES =
       ImmutableMap.<TypeName, Integer>builder()
@@ -63,20 +68,97 @@ public class RowCoder extends CustomCoder<Row> {
           .put(TypeName.DATETIME, Long.BYTES)
           .build();
 
-  private static final BitSetCoder nullListCoder = BitSetCoder.of();
+  private final Schema schema;
+  private final UUID id;
+  @Nullable private transient Coder<Row> delegateCoder = null;
 
-  private Schema schema;
-
-  /**
-   * Returns the coder used for a given primitive type.
-   */
-  public static <T> Coder<T> coderForPrimitiveType(TypeName typeName) {
-    return (Coder<T>) CODER_MAP.get(typeName);
+  public static RowCoder of(Schema schema) {
+    UUID id = (schema.getUUID() == null) ? UUID.randomUUID() : schema.getUUID();
+    return new RowCoder(schema, id);
   }
 
-  /**
-   * Return the estimated serialized size of a give row object.
-   */
+  private RowCoder(Schema schema, UUID id) {
+    if (schema.getUUID() != null) {
+      checkArgument(
+          schema.getUUID().equals(id),
+          "Schema has a UUID that doesn't match argument to constructor. %s v.s. %s",
+          schema.getUUID(),
+          id);
+    } else {
+      schema = SerializableUtils.clone(schema);
+      schema.setUUID(id);
+    }
+    this.schema = schema;
+    this.id = id;
+  }
+
+  // Return the generated coder class for this schema.
+  private Coder<Row> getDelegateCoder() {
+    if (delegateCoder == null) {
+      // RowCoderGenerator caches based on id, so if a new instance of this RowCoder is
+      // deserialized, we don't need to run ByteBuddy again to construct the class.
+      delegateCoder = RowCoderGenerator.generate(schema, id);
+    }
+    return delegateCoder;
+  }
+
+  @Override
+  public void encode(Row value, OutputStream outStream) throws IOException {
+    getDelegateCoder().encode(value, outStream);
+  }
+
+  @Override
+  public Row decode(InputStream inStream) throws IOException {
+    return getDelegateCoder().decode(inStream);
+  }
+
+  public Schema getSchema() {
+    return schema;
+  }
+
+  @Override
+  public void verifyDeterministic()
+      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+    verifyDeterministic(schema);
+  }
+
+  private void verifyDeterministic(Schema schema)
+      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+
+    List<Coder<?>> coders =
+        schema
+            .getFields()
+            .stream()
+            .map(Field::getType)
+            .map(RowCoder::coderForFieldType)
+            .collect(Collectors.toList());
+
+    Coder.verifyDeterministic(this, "All fields must have deterministic encoding", coders);
+  }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
+  /** Returns the coder used for a given primitive type. */
+  public static <T> Coder<T> coderForFieldType(FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case ROW:
+        return (Coder<T>) RowCoder.of(fieldType.getRowSchema());
+      case ARRAY:
+        return (Coder<T>) ListCoder.of(coderForFieldType(fieldType.getCollectionElementType()));
+      case MAP:
+        return (Coder<T>)
+            MapCoder.of(
+                coderForFieldType(fieldType.getMapKeyType()),
+                coderForFieldType(fieldType.getMapValueType()));
+      default:
+        return (Coder<T>) CODER_MAP.get(fieldType.getTypeName());
+    }
+  }
+
+  /** Return the estimated serialized size of a give row object. */
   public static long estimatedSizeBytes(Row row) {
     Schema schema = row.getSchema();
     int fieldCount = schema.getFieldCount();
@@ -100,6 +182,9 @@ public class RowCoder extends CustomCoder<Row> {
           listSizeBytes += estimatedSizeBytes(typeDescriptor.getCollectionElementType(), elem);
         }
         return 4 + listSizeBytes;
+      case BYTES:
+        byte[] bytes = (byte[]) value;
+        return 4L + bytes.length;
       case MAP:
         Map<Object, Object> map = (Map<Object, Object>) value;
         long mapSizeBytes = 0;
@@ -117,79 +202,5 @@ public class RowCoder extends CustomCoder<Row> {
       default:
         return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getTypeName());
     }
-  }
-
-  private RowCoder(Schema schema) {
-    this.schema = schema;
-  }
-
-  public static RowCoder of(Schema schema) {
-    return new RowCoder(schema);
-  }
-
-  public Schema getSchema() {
-    return schema;
-  }
-
-  Coder getCoder(FieldType fieldType) {
-    if (TypeName.ARRAY.equals(fieldType.getTypeName())) {
-      return ListCoder.of(getCoder(fieldType.getCollectionElementType()));
-    } else if (TypeName.MAP.equals(fieldType.getTypeName())) {
-      return MapCoder.of(
-          coderForPrimitiveType(fieldType.getMapKeyType().getTypeName()),
-          getCoder(fieldType.getMapValueType()));
-    } else if (TypeName.ROW.equals((fieldType.getTypeName()))) {
-      return RowCoder.of(fieldType.getRowSchema());
-    } else {
-      return coderForPrimitiveType(fieldType.getTypeName());
-    }
-  }
-
-  @Override
-  public void encode(Row value, OutputStream outStream) throws IOException {
-    nullListCoder.encode(scanNullFields(value), outStream);
-
-    for (int idx = 0; idx < value.getFieldCount(); ++idx) {
-      Schema.Field field = schema.getField(idx);
-      if (value.getValue(idx) == null) {
-        continue;
-      }
-      Coder coder = getCoder(field.getType());
-      coder.encode(value.getValue(idx), outStream);
-    }
-  }
-
-  @Override
-  public Row decode(InputStream inStream) throws IOException {
-    BitSet nullFields = nullListCoder.decode(inStream);
-    List<Object> fieldValues = new ArrayList<>(schema.getFieldCount());
-    for (int idx = 0; idx < schema.getFieldCount(); ++idx) {
-      if (nullFields.get(idx)) {
-        fieldValues.add(null);
-      } else {
-        Coder coder = getCoder(schema.getField(idx).getType());
-        Object value = coder.decode(inStream);
-        fieldValues.add(value);
-      }
-    }
-    return Row.withSchema(schema).addValues(fieldValues).build();
-  }
-
-  /**
-   * Scan {@link Row} to find fields with a NULL value.
-   */
-  private BitSet scanNullFields(Row row) {
-    BitSet nullFields = new BitSet(row.getFieldCount());
-    for (int idx = 0; idx < row.getFieldCount(); ++idx) {
-      if (row.getValue(idx) == null) {
-        nullFields.set(idx);
-      }
-    }
-    return nullFields;
-  }
-
-  @Override
-  public void verifyDeterministic()
-      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
   }
 }

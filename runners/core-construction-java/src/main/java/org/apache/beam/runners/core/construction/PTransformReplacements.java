@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -29,8 +28,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
-/**
- */
+/** */
 public class PTransformReplacements {
   /**
    * Gets the singleton input of an {@link AppliedPTransform}, ignoring any additional inputs
@@ -70,6 +68,6 @@ public class PTransformReplacements {
 
   public static <T> PCollection<T> getSingletonMainOutput(
       AppliedPTransform<?, PCollection<T>, ? extends PTransform<?, PCollection<T>>> transform) {
-    return ((PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values()));
+    return (PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values());
   }
 }

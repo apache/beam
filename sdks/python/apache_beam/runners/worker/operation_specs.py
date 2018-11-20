@@ -21,6 +21,8 @@ Each MapTask represents a sequence of ParallelInstruction(s): read from a
 source, write to a sink, parallel do, etc.
 """
 
+from __future__ import absolute_import
+
 import collections
 
 from apache_beam import coders
@@ -56,7 +58,7 @@ def worker_printable_fields(workerproto):
   return ['%s=%s' % (name, value)
           # _asdict is the only way and cannot subclass this generated class
           # pylint: disable=protected-access
-          for name, value in workerproto._asdict().iteritems()
+          for name, value in workerproto._asdict().items()
           # want to output value 0 but not None nor []
           if (value or value == 0)
           and name not in
@@ -337,6 +339,10 @@ def get_coder_from_spec(coder_spec):
     assert ('component_encodings' not in coder_spec
             or not coder_spec['component_encodings'])
     return coders.coders.GlobalWindowCoder()
+  elif coder_spec['@type'] == 'kind:varint':
+    assert ('component_encodings' not in coder_spec
+            or len(coder_spec['component_encodings'] == 0))
+    return coders.coders.VarIntCoder()
   elif coder_spec['@type'] == 'kind:length_prefix':
     assert len(coder_spec['component_encodings']) == 1
     return coders.coders.LengthPrefixCoder(
@@ -372,9 +378,9 @@ class MapTask(object):
                step_names=None,
                original_names=None,
                name_contexts=None):
+    # TODO(BEAM-4028): Remove arguments other than name_contexts.
     self.operations = operations
     self.stage_name = stage_name
-    # TODO(BEAM-4028): Remove arguments other than name_contexts.
     self.name_contexts = name_contexts or self._make_name_contexts(
         original_names, step_names, system_names)
 

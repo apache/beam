@@ -26,8 +26,8 @@ import org.joda.time.Instant;
 /**
  * A {@link WindowFn} that assigns all data to the same window.
  *
- * <p>This is the {@link WindowFn} used for data coming from a source, before a
- * {@link Window} transform has been applied.
+ * <p>This is the {@link WindowFn} used for data coming from a source, before a {@link Window}
+ * transform has been applied.
  */
 public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
 

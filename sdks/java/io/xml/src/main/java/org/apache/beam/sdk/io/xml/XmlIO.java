@@ -105,8 +105,9 @@ public class XmlIO {
   public static <T> Read<T> read() {
     return new AutoValue_XmlIO_Read.Builder<T>()
         .setConfiguration(
-            new AutoValue_XmlIO_MappingConfiguration.Builder<T>().setCharset(
-                StandardCharsets.UTF_8.name()).build())
+            new AutoValue_XmlIO_MappingConfiguration.Builder<T>()
+                .setCharset(StandardCharsets.UTF_8.name())
+                .build())
         .setMinBundleSize(1L)
         .setCompression(Compression.AUTO)
         .build();
@@ -134,16 +135,17 @@ public class XmlIO {
   public static <T> ReadFiles<T> readFiles() {
     return new AutoValue_XmlIO_ReadFiles.Builder<T>()
         .setConfiguration(
-            new AutoValue_XmlIO_MappingConfiguration.Builder<T>().setCharset(
-                StandardCharsets.UTF_8.name()).build())
+            new AutoValue_XmlIO_MappingConfiguration.Builder<T>()
+                .setCharset(StandardCharsets.UTF_8.name())
+                .build())
         .build();
   }
 
   /**
    * Writes all elements in the input {@link PCollection} to a single XML file using {@link #sink}.
    *
-   * <p>For more configurable usage, use {@link #sink} directly with {@link FileIO#write} or
-   * {@link FileIO#writeDynamic}.
+   * <p>For more configurable usage, use {@link #sink} directly with {@link FileIO#write} or {@link
+   * FileIO#writeDynamic}.
    */
   public static <T> Write<T> write() {
     return new AutoValue_XmlIO_Write.Builder<T>().setCharset(StandardCharsets.UTF_8.name()).build();
@@ -151,20 +153,33 @@ public class XmlIO {
 
   @AutoValue
   abstract static class MappingConfiguration<T> implements HasDisplayData, Serializable {
-    @Nullable abstract String getRootElement();
-    @Nullable abstract String getRecordElement();
-    @Nullable abstract Class<T> getRecordClass();
-    @Nullable abstract String getCharset();
-    @Nullable abstract ValidationEventHandler getValidationEventHandler();
+    @Nullable
+    abstract String getRootElement();
+
+    @Nullable
+    abstract String getRecordElement();
+
+    @Nullable
+    abstract Class<T> getRecordClass();
+
+    @Nullable
+    abstract String getCharset();
+
+    @Nullable
+    abstract ValidationEventHandler getValidationEventHandler();
 
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setRootElement(String rootElement);
+
       abstract Builder<T> setRecordElement(String recordElement);
+
       abstract Builder<T> setRecordClass(Class<T> recordClass);
+
       abstract Builder<T> setCharset(String charset);
+
       abstract Builder<T> setValidationEventHandler(ValidationEventHandler validationEventHandler);
 
       abstract MappingConfiguration<T> build();
@@ -215,8 +230,12 @@ public class XmlIO {
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     abstract MappingConfiguration<T> getConfiguration();
-    @Nullable abstract String getFileOrPatternSpec();
+
+    @Nullable
+    abstract String getFileOrPatternSpec();
+
     abstract Compression getCompression();
+
     abstract long getMinBundleSize();
 
     abstract Builder<T> toBuilder();
@@ -224,8 +243,11 @@ public class XmlIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setConfiguration(MappingConfiguration<T> configuration);
+
       abstract Builder<T> setFileOrPatternSpec(String fileOrPatternSpec);
+
       abstract Builder<T> setCompression(Compression compression);
+
       abstract Builder<T> setMinBundleSize(long minBundleSize);
 
       abstract Read<T> build();
@@ -322,9 +344,7 @@ public class XmlIO {
       return toBuilder().setCompression(compression).build();
     }
 
-    /**
-     * Sets the XML file charset.
-     */
+    /** Sets the XML file charset. */
     public Read<T> withCharset(Charset charset) {
       return withConfiguration(getConfiguration().withCharset(charset));
     }
@@ -369,11 +389,13 @@ public class XmlIO {
   public abstract static class ReadFiles<T>
       extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
     abstract MappingConfiguration<T> getConfiguration();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setConfiguration(MappingConfiguration<T> configuration);
+
       abstract ReadFiles<T> build();
     }
 
@@ -523,8 +545,7 @@ public class XmlIO {
               DisplayData.item("rootElement", getRootElement()).withLabel("XML Root Element"))
           .addIfNotNull(
               DisplayData.item("recordClass", getRecordClass()).withLabel("XML Record Class"))
-          .addIfNotNull(
-              DisplayData.item("charset", getCharset()).withLabel("Charset"));
+          .addIfNotNull(DisplayData.item("charset", getCharset()).withLabel("Charset"));
     }
   }
 
@@ -594,7 +615,10 @@ public class XmlIO {
   @AutoValue
   public abstract static class Sink<T> implements FileIO.Sink<T> {
     abstract Class<T> getRecordClass();
-    @Nullable abstract String getRootElement();
+
+    @Nullable
+    abstract String getRootElement();
+
     abstract String getCharset();
 
     abstract Builder<T> toBuilder();
@@ -602,7 +626,9 @@ public class XmlIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setRecordClass(Class<T> clazz);
+
       abstract Builder<T> setRootElement(String rootElement);
+
       abstract Builder<T> setCharset(String charset);
 
       abstract Sink<T> build();
@@ -642,7 +668,7 @@ public class XmlIO {
       } catch (JAXBException e) {
         throw new IOException(e);
       }
-  }
+    }
 
     @Override
     public void flush() throws IOException {

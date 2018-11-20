@@ -49,7 +49,7 @@ public interface TransformTranslator<TransformT extends PTransform> {
   interface TranslationContext {
     default boolean isFnApi() {
       List<String> experiments = getPipelineOptions().getExperiments();
-      return (experiments != null && experiments.contains("beam_fn_api"));
+      return experiments != null && experiments.contains("beam_fn_api");
     }
 
     /** Returns the configured pipeline options. */
@@ -81,10 +81,14 @@ public interface TransformTranslator<TransformT extends PTransform> {
 
     AppliedPTransform<?, ?, ?> getCurrentTransform();
 
-    /**
-     * Get the {@link AppliedPTransform} that produced the provided {@link PValue}.
-     */
+    /** Get the {@link AppliedPTransform} that produced the provided {@link PValue}. */
     AppliedPTransform<?, ?, ?> getProducer(PValue value);
+
+    /**
+     * Gets the parent composite transform to the current transform, if one exists. Otherwise
+     * returns one null.
+     */
+    AppliedPTransform<?, ?, ?> getCurrentParent();
   }
 
   /** The interface for a {@link TransformTranslator} to build a Dataflow step. */
@@ -105,11 +109,10 @@ public interface TransformTranslator<TransformT extends PTransform> {
      * Adds an input with the given name to this Dataflow step, coming from the specified input
      * PValue.
      *
-     * <p>The input {@link PValue} must have already been produced by a step earlier in this
-     * {@link Pipeline}. If the input value has not yet been produced yet (by a call to either
-     * {@link StepTranslationContext#addOutput} or
-     * {@link StepTranslationContext#addCollectionToSingletonOutput})
-     * this method will throw an exception.
+     * <p>The input {@link PValue} must have already been produced by a step earlier in this {@link
+     * Pipeline}. If the input value has not yet been produced yet (by a call to either {@link
+     * StepTranslationContext#addOutput} or {@link
+     * StepTranslationContext#addCollectionToSingletonOutput}) this method will throw an exception.
      */
     void addInput(String name, PInput value);
 
@@ -121,9 +124,9 @@ public interface TransformTranslator<TransformT extends PTransform> {
 
     /**
      * Adds a primitive output to this Dataflow step with the given name as the local output name,
-     * producing the specified output {@code PValue}, including its {@code Coder} if a
-     * {@code TypedPValue}. If the {@code PValue} is a {@code PCollection}, wraps its coder
-     * inside a {@code WindowedValueCoder}.
+     * producing the specified output {@code PValue}, including its {@code Coder} if a {@code
+     * TypedPValue}. If the {@code PValue} is a {@code PCollection}, wraps its coder inside a {@code
+     * WindowedValueCoder}.
      */
     void addOutput(String name, PCollection<?> value);
 
@@ -132,7 +135,7 @@ public interface TransformTranslator<TransformT extends PTransform> {
      * input {@code PValue} and producing the specified output {@code PValue}. This step requires
      * special treatment for its output encoding. Returns a pipeline level unique id.
      */
-    void addCollectionToSingletonOutput(PCollection<?> inputValue,
-        String outputName, PCollectionView<?> outputValue);
+    void addCollectionToSingletonOutput(
+        PCollection<?> inputValue, String outputName, PCollectionView<?> outputValue);
   }
 }

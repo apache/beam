@@ -19,7 +19,5 @@ package org.apache.beam.sdk.testing;
 
 import org.apache.beam.sdk.transforms.ParDo;
 
-/**
- * Category tag for validation tests which utilize stateful {@link ParDo}.
- */
+/** Category tag for validation tests which utilize stateful {@link ParDo}. */
 public interface UsesStatefulParDo {}

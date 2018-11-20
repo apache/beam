@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.coders;
 
 /**
- * The exception thrown when a {@link CoderRegistry} or {@link CoderProvider} cannot
- * provide a {@link Coder} that has been requested.
+ * The exception thrown when a {@link CoderRegistry} or {@link CoderProvider} cannot provide a
+ * {@link Coder} that has been requested.
  */
 public class CannotProvideCoderException extends Exception {
   private final ReasonCode reason;
@@ -51,9 +51,7 @@ public class CannotProvideCoderException extends Exception {
     this.reason = reason;
   }
 
-  /**
-   * @return the reason that Coder inference failed.
-   */
+  /** @return the reason that Coder inference failed. */
   public ReasonCode getReason() {
     return reason;
   }
@@ -77,25 +75,23 @@ public class CannotProvideCoderException extends Exception {
     }
   }
 
-  /**
-   * Indicates the reason that {@link Coder} inference failed.
-   */
+  /** Indicates the reason that {@link Coder} inference failed. */
   public enum ReasonCode {
     /**
-     * The reason a coder could not be provided is unknown or does not have an established
-     * {@link ReasonCode}.
+     * The reason a coder could not be provided is unknown or does not have an established {@link
+     * ReasonCode}.
      */
     UNKNOWN,
 
     /**
-     * The reason a coder could not be provided is type erasure, for example when requesting
-     * coder inference for a {@code List<T>} where {@code T} is unknown.
+     * The reason a coder could not be provided is type erasure, for example when requesting coder
+     * inference for a {@code List<T>} where {@code T} is unknown.
      */
     TYPE_ERASURE,
 
     /**
-     * The reason a coder could not be provided is because the type variable {@code T} is
-     * over specified with multiple incompatible coders.
+     * The reason a coder could not be provided is because the type variable {@code T} is over
+     * specified with multiple incompatible coders.
      */
     OVER_SPECIFIED
   }

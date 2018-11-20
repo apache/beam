@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow;
 
 import java.util.ArrayList;
@@ -44,11 +43,10 @@ class StreamingViewOverrides {
       extends SingleInputOutputOverrideFactory<
           PCollection<ElemT>, PCollection<ElemT>, CreatePCollectionView<ElemT, ViewT>> {
     @Override
-    public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>>
-        getReplacementTransform(
-            AppliedPTransform<
-                    PCollection<ElemT>, PCollection<ElemT>, CreatePCollectionView<ElemT, ViewT>>
-                transform) {
+    public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>> getReplacementTransform(
+        AppliedPTransform<
+                PCollection<ElemT>, PCollection<ElemT>, CreatePCollectionView<ElemT, ViewT>>
+            transform) {
       StreamingCreatePCollectionView<ElemT, ViewT> streamingView =
           new StreamingCreatePCollectionView<>(transform.getTransform().getView());
       return PTransformReplacement.of(

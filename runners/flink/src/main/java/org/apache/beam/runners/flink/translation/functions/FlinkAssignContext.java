@@ -23,10 +23,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
-/**
- * {@link org.apache.beam.sdk.transforms.windowing.WindowFn.AssignContext} for
- * Flink functions.
- */
+/** {@link org.apache.beam.sdk.transforms.windowing.WindowFn.AssignContext} for Flink functions. */
 class FlinkAssignContext<InputT, W extends BoundedWindow>
     extends WindowFn<InputT, W>.AssignContext {
   private final WindowedValue<InputT> value;
@@ -58,5 +55,4 @@ class FlinkAssignContext<InputT, W extends BoundedWindow>
   public BoundedWindow window() {
     return Iterables.getOnlyElement(value.getWindows());
   }
-
 }

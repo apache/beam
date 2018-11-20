@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.metrics;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -25,36 +24,36 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.junit.Test;
 
-
-/**
- * Test SparkBeamMetric.
- */
+/** Test SparkBeamMetric. */
 public class SparkBeamMetricTest {
   @Test
   public void testRenderName() throws Exception {
-    MetricResult<Object> metricResult = new MetricResult<Object>() {
-      @Override
-      public MetricName getName() {
-        return MetricName.named("myNameSpace//", "myName()");
-      }
+    MetricResult<Object> metricResult =
+        new MetricResult<Object>() {
+          @Override
+          public MetricName getName() {
+            return MetricName.named("myNameSpace//", "myName()");
+          }
 
-      @Override
-      public String getStep() {
-        return "myStep.one.two(three)";
-      }
+          @Override
+          public String getStep() {
+            return "myStep.one.two(three)";
+          }
 
-      @Override
-      public Object getCommitted() {
-        return null;
-      }
+          @Override
+          public Object getCommitted() {
+            return null;
+          }
 
-      @Override
-      public Object getAttempted() {
-        return null;
-      }
-    };
+          @Override
+          public Object getAttempted() {
+            return null;
+          }
+        };
     String renderedName = new SparkBeamMetric().renderName(metricResult);
-    assertThat("Metric name was not rendered correctly", renderedName,
+    assertThat(
+        "Metric name was not rendered correctly",
+        renderedName,
         equalTo("myStep_one_two_three.myNameSpace__.myName__"));
   }
 }

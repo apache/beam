@@ -19,15 +19,14 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import java.io.DataOutputStream;
 
-/**
- * This interface is used to checkpoint key-groups state.
- */
-public interface KeyGroupCheckpointedOperator extends KeyGroupRestoringOperator{
+/** This interface is used to checkpoint key-groups state. */
+public interface KeyGroupCheckpointedOperator extends KeyGroupRestoringOperator {
   /**
    * Snapshots the state for a given {@code keyGroupIdx}.
    *
-   * <p>AbstractStreamOperator would call this hook in
-   * AbstractStreamOperator.snapshotState() while iterating over the key groups.
+   * <p>AbstractStreamOperator would call this hook in AbstractStreamOperator.snapshotState() while
+   * iterating over the key groups.
+   *
    * @param keyGroupIndex the id of the key-group to be put in the snapshot.
    * @param out the stream to write to.
    */

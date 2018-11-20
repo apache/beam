@@ -26,18 +26,16 @@ import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import org.apache.beam.sdk.util.SerializableUtils;
 
-/**
- * MatcherDeserializer is used with Jackson to enable deserialization of SerializableMatchers.
- */
+/** MatcherDeserializer is used with Jackson to enable deserialization of SerializableMatchers. */
 class MatcherDeserializer extends JsonDeserializer<SerializableMatcher<?>> {
   @Override
-  public SerializableMatcher<?> deserialize(JsonParser jsonParser,
-      DeserializationContext deserializationContext)
+  public SerializableMatcher<?> deserialize(
+      JsonParser jsonParser, DeserializationContext deserializationContext)
       throws IOException, JsonProcessingException {
     ObjectNode node = jsonParser.readValueAsTree();
     String matcher = node.get("matcher").asText();
     byte[] in = BaseEncoding.base64().decode(matcher);
-    return (SerializableMatcher<?>) SerializableUtils
-        .deserializeFromByteArray(in, "SerializableMatcher");
+    return (SerializableMatcher<?>)
+        SerializableUtils.deserializeFromByteArray(in, "SerializableMatcher");
   }
 }

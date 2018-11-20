@@ -37,9 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.joda.time.Instant;
 import org.junit.Test;
 
-/**
- * Tests for {@link ApexTimerInternals}.
- */
+/** Tests for {@link ApexTimerInternals}. */
 public class ApexTimerInternalsTest {
 
   @Test
@@ -57,31 +55,31 @@ public class ApexTimerInternalsTest {
     ApexTimerInternals<String> timerInternals = new ApexTimerInternals<>(timerDataCoder);
     timerInternals.setContext(key1, StringUtf8Coder.of(), Instant.now(), null);
 
-    TimerData timerData0 = TimerData.of("timerData0", StateNamespaces.global(),
-        instant0, TimeDomain.EVENT_TIME);
+    TimerData timerData0 =
+        TimerData.of("timerData0", StateNamespaces.global(), instant0, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData0);
 
-    TimerData timerData1 = TimerData.of("timerData1", StateNamespaces.global(),
-        instant1, TimeDomain.EVENT_TIME);
+    TimerData timerData1 =
+        TimerData.of("timerData1", StateNamespaces.global(), instant1, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData1);
 
     timerInternals.fireReadyTimers(instant0.getMillis(), timerProcessor, TimeDomain.EVENT_TIME);
     assertEquals(0, firedTimers.size());
     firedTimers.clear();
 
-    timerInternals.fireReadyTimers(instant1.getMillis(), timerProcessor,
-        TimeDomain.PROCESSING_TIME);
+    timerInternals.fireReadyTimers(
+        instant1.getMillis(), timerProcessor, TimeDomain.PROCESSING_TIME);
     assertEquals(0, firedTimers.size());
     timerInternals.fireReadyTimers(instant1.getMillis(), timerProcessor, TimeDomain.EVENT_TIME);
     assertEquals(1, firedTimers.size());
-    assertEquals(Sets.newHashSet(timerData0),
-        Sets.newHashSet(firedTimers.values().iterator().next()));
+    assertEquals(
+        Sets.newHashSet(timerData0), Sets.newHashSet(firedTimers.values().iterator().next()));
     firedTimers.clear();
 
     timerInternals.fireReadyTimers(instant2.getMillis(), timerProcessor, TimeDomain.EVENT_TIME);
     assertEquals(1, firedTimers.size());
-    assertEquals(Sets.newHashSet(timerData1),
-        Sets.newHashSet(firedTimers.values().iterator().next()));
+    assertEquals(
+        Sets.newHashSet(timerData1), Sets.newHashSet(firedTimers.values().iterator().next()));
     firedTimers.clear();
   }
 
@@ -95,12 +93,12 @@ public class ApexTimerInternalsTest {
     ApexTimerInternals<String> timerInternals = new ApexTimerInternals<>(timerDataCoder);
     timerInternals.setContext(key1, StringUtf8Coder.of(), Instant.now(), null);
 
-    TimerData timerData0 = TimerData.of("timerData0", StateNamespaces.global(),
-        instant0, TimeDomain.EVENT_TIME);
+    TimerData timerData0 =
+        TimerData.of("timerData0", StateNamespaces.global(), instant0, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData0);
 
-    TimerData timerData1 = TimerData.of("timerData1", StateNamespaces.global(),
-        instant1, TimeDomain.EVENT_TIME);
+    TimerData timerData1 =
+        TimerData.of("timerData1", StateNamespaces.global(), instant1, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData1);
 
     Map<?, Set<Slice>> timerMap = timerInternals.getTimerSet(TimeDomain.EVENT_TIME).getMap();
@@ -111,21 +109,22 @@ public class ApexTimerInternalsTest {
     assertEquals(1, timerMap.size());
     assertEquals(1, timerMap.values().iterator().next().size());
 
-    timerInternals.deleteTimer(timerData1.getNamespace(), timerData1.getTimerId(),
-        TimeDomain.PROCESSING_TIME);
+    timerInternals.deleteTimer(
+        timerData1.getNamespace(), timerData1.getTimerId(), TimeDomain.PROCESSING_TIME);
     assertEquals(1, timerMap.size());
     assertEquals(1, timerMap.values().iterator().next().size());
 
-    timerInternals.deleteTimer(timerData1.getNamespace(), timerData1.getTimerId(),
-        TimeDomain.EVENT_TIME);
+    timerInternals.deleteTimer(
+        timerData1.getNamespace(), timerData1.getTimerId(), TimeDomain.EVENT_TIME);
     assertEquals(0, timerMap.size());
   }
 
   @Test
   public void testSerialization() {
     TimerDataCoder timerDataCoder = TimerDataCoder.of(GlobalWindow.Coder.INSTANCE);
-    TimerData timerData = TimerData.of("arbitrary-id", StateNamespaces.global(),
-        new Instant(0), TimeDomain.EVENT_TIME);
+    TimerData timerData =
+        TimerData.of(
+            "arbitrary-id", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME);
     String key = "key";
     ApexTimerInternals<String> timerInternals = new ApexTimerInternals<>(timerDataCoder);
     timerInternals.setContext(key, StringUtf8Coder.of(), Instant.now(), null);
@@ -136,5 +135,4 @@ public class ApexTimerInternalsTest {
     Map<?, Set<Slice>> timers = cloned.getTimerSet(TimeDomain.EVENT_TIME).getMap();
     assertEquals(1, timers.size());
   }
-
 }

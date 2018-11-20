@@ -36,7 +36,7 @@ func (m *Multiplex) Up(ctx context.Context) error {
 	return nil
 }
 
-func (m *Multiplex) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (m *Multiplex) StartBundle(ctx context.Context, id string, data DataContext) error {
 	return MultiStartBundle(ctx, id, data, m.Out...)
 }
 

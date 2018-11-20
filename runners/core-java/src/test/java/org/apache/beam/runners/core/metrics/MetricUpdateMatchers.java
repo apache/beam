@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import java.util.Objects;
@@ -24,9 +23,7 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 
-/**
- * Matchers for {@link MetricUpdate}.
- */
+/** Matchers for {@link MetricUpdate}. */
 public class MetricUpdateMatchers {
 
   /**
@@ -45,8 +42,10 @@ public class MetricUpdateMatchers {
       @Override
       public void describeTo(Description description) {
         description
-            .appendText("MetricUpdate{name=").appendValue(name)
-            .appendText(", update=").appendValue(update)
+            .appendText("MetricUpdate{name=")
+            .appendValue(name)
+            .appendText(", update=")
+            .appendValue(update)
             .appendText("}");
       }
     };
@@ -71,10 +70,14 @@ public class MetricUpdateMatchers {
       @Override
       public void describeTo(Description description) {
         description
-            .appendText("MetricUpdate{inNamespace=").appendValue(namespace)
-            .appendText(", name=").appendValue(name)
-            .appendText(", step=").appendValue(step)
-            .appendText(", update=").appendValue(update)
+            .appendText("MetricUpdate{inNamespace=")
+            .appendValue(namespace)
+            .appendText(", name=")
+            .appendValue(name)
+            .appendText(", step=")
+            .appendValue(step)
+            .appendText(", update=")
+            .appendValue(update)
             .appendText("}");
       }
     };

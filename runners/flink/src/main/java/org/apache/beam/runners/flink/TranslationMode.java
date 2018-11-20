@@ -17,9 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-/**
- * The translation mode of the Beam Pipeline.
- */
+/** The translation mode of the Beam Pipeline. */
 enum TranslationMode {
 
   /** Uses the batch mode of Flink. */
@@ -27,5 +25,4 @@ enum TranslationMode {
 
   /** Uses the streaming mode of Flink. */
   STREAMING
-
 }

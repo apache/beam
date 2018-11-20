@@ -16,22 +16,20 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: true)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Redis"
 ext.summary ="IO to read and write on a Redis keystore."
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.findbugs_jsr305
   shadow "redis.clients:jedis:2.9.0"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile "com.github.kstyrc:embedded-redis:0.6"
-  testCompileOnly library.java.findbugs_annotations
 }

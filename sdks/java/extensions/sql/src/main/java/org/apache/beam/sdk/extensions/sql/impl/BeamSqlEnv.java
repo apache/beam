@@ -17,39 +17,77 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Map;
+import java.util.ServiceLoader;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
+import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.impl.ScalarFunctionImpl;
+import org.apache.calcite.sql.SqlExecutableStatement;
+import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.tools.ValidationException;
 
 /**
- * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
- *
- * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions, and a
- * {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
+ * Contains the metadata of tables/UDF functions, and exposes APIs to
+ * query/validate/optimize/translate SQL statements.
  */
+@Internal
+@Experimental
 public class BeamSqlEnv {
   final CalciteConnection connection;
   final SchemaPlus defaultSchema;
   final BeamQueryPlanner planner;
 
-  public BeamSqlEnv(TableProvider tableProvider) {
+  private BeamSqlEnv(TableProvider tableProvider) {
     connection = JdbcDriver.connect(tableProvider);
     defaultSchema = JdbcDriver.getDefaultSchema(connection);
     planner = new BeamQueryPlanner(connection);
   }
 
+  public static BeamSqlEnv readOnly(String tableType, Map<String, BeamSqlTable> tables) {
+    return withTableProvider(new ReadOnlyTableProvider(tableType, tables));
+  }
+
+  public static BeamSqlEnv withTableProvider(TableProvider tableProvider) {
+    return new BeamSqlEnv(tableProvider);
+  }
+
+  public static BeamSqlEnv inMemory(TableProvider... tableProviders) {
+    InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
+    for (TableProvider tableProvider : tableProviders) {
+      inMemoryMetaStore.registerProvider(tableProvider);
+    }
+
+    return withTableProvider(inMemoryMetaStore);
+  }
+
+  private void registerBuiltinUdf(Map<String, List<Method>> methods) {
+    for (Map.Entry<String, List<Method>> entry : methods.entrySet()) {
+      for (Method method : entry.getValue()) {
+        defaultSchema.add(entry.getKey(), UdfImpl.create(method));
+      }
+    }
+  }
+
   /** Register a UDF function which can be used in SQL expression. */
   public void registerUdf(String functionName, Class<?> clazz, String method) {
-    defaultSchema.add(functionName, ScalarFunctionImpl.create(clazz, method));
+    defaultSchema.add(functionName, UdfImpl.create(clazz, method));
   }
 
   /** Register a UDF function which can be used in SQL expression. */
@@ -73,11 +111,63 @@ public class BeamSqlEnv {
     defaultSchema.add(functionName, new UdafImpl(combineFn));
   }
 
-  public BeamQueryPlanner getPlanner() {
-    return planner;
+  /** Load all UDF/UDAF from {@link UdfUdafProvider}. */
+  public void loadUdfUdafFromProvider() {
+    ServiceLoader.<UdfUdafProvider>load(UdfUdafProvider.class)
+        .forEach(
+            ins -> {
+              ins.getBeamSqlUdfs().forEach((udfName, udfClass) -> registerUdf(udfName, udfClass));
+              ins.getSerializableFunctionUdfs()
+                  .forEach((udfName, udfFn) -> registerUdf(udfName, udfFn));
+              ins.getUdafs().forEach((udafName, udafFn) -> registerUdaf(udafName, udafFn));
+            });
+  }
+
+  public void loadBeamBuiltinFunctions() {
+    for (BeamBuiltinFunctionProvider provider :
+        ServiceLoader.load(BeamBuiltinFunctionProvider.class)) {
+      registerBuiltinUdf(provider.getBuiltinMethods());
+    }
+  }
+
+  public BeamRelNode parseQuery(String query) throws ParseException {
+    try {
+      return planner.convertToBeamRel(query);
+    } catch (ValidationException | RelConversionException | SqlParseException e) {
+      throw new ParseException(String.format("Unable to parse query %s", query), e);
+    }
+  }
+
+  public boolean isDdl(String sqlStatement) throws ParseException {
+    try {
+      return planner.parse(sqlStatement) instanceof SqlExecutableStatement;
+    } catch (SqlParseException e) {
+      throw new ParseException("Unable to parse statement", e);
+    }
+  }
+
+  public void executeDdl(String sqlStatement) throws ParseException {
+    try {
+      SqlExecutableStatement ddl = (SqlExecutableStatement) planner.parse(sqlStatement);
+      ddl.execute(getContext());
+    } catch (SqlParseException e) {
+      throw new ParseException("Unable to parse DDL statement", e);
+    }
   }
 
   public CalcitePrepare.Context getContext() {
     return connection.createPrepareContext();
+  }
+
+  public Map<String, String> getPipelineOptions() {
+    return ((BeamCalciteSchema) CalciteSchema.from(defaultSchema).schema).getPipelineOptions();
+  }
+
+  public String explain(String sqlString) throws ParseException {
+    try {
+      return RelOptUtil.toString(planner.convertToBeamRel(sqlString));
+    } catch (ValidationException | RelConversionException | SqlParseException e) {
+      throw new ParseException("Unable to parse statement", e);
+    }
   }
 }

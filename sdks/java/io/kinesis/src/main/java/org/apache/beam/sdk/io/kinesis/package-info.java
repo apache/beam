@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing from Amazon Kinesis.
- */
+/** Transforms for reading and writing from Amazon Kinesis. */
 package org.apache.beam.sdk.io.kinesis;

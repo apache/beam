@@ -17,8 +17,8 @@ package artifact
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/base64"
+	"crypto/sha256"
+	"encoding/hex"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -36,7 +36,8 @@ func TestRetrieve(t *testing.T) {
 
 	ctx := grpcx.WriteWorkerID(context.Background(), "idA")
 	keys := []string{"foo", "bar", "baz/baz/baz"}
-	artifacts := populate(ctx, cc, t, keys, 300)
+	st := "whatever"
+	rt, artifacts := populate(ctx, cc, t, keys, 300, st)
 
 	dst := makeTempDir(t)
 	defer os.RemoveAll(dst)
@@ -44,11 +45,11 @@ func TestRetrieve(t *testing.T) {
 	client := pb.NewArtifactRetrievalServiceClient(cc)
 	for _, a := range artifacts {
 		filename := makeFilename(dst, a.Name)
-		if err := Retrieve(ctx, client, a, dst); err != nil {
+		if err := Retrieve(ctx, client, a, rt, dst); err != nil {
 			t.Errorf("failed to retrieve %v: %v", a.Name, err)
 			continue
 		}
-		verifyMD5(t, filename, a.Md5)
+		verifySHA256(t, filename, a.Sha256)
 	}
 }
 
@@ -60,88 +61,56 @@ func TestMultiRetrieve(t *testing.T) {
 
 	ctx := grpcx.WriteWorkerID(context.Background(), "idB")
 	keys := []string{"1", "2", "3", "4", "a/5", "a/6", "a/7", "a/8", "a/a/9", "a/a/10", "a/b/11", "a/b/12"}
-	artifacts := populate(ctx, cc, t, keys, 300)
+	st := "whatever"
+	rt, artifacts := populate(ctx, cc, t, keys, 300, st)
 
 	dst := makeTempDir(t)
 	defer os.RemoveAll(dst)
 
 	client := pb.NewArtifactRetrievalServiceClient(cc)
-	if err := MultiRetrieve(ctx, client, 10, artifacts, dst); err != nil {
+	if err := MultiRetrieve(ctx, client, 10, artifacts, rt, dst); err != nil {
 		t.Errorf("failed to retrieve: %v", err)
 	}
 
 	for _, a := range artifacts {
-		verifyMD5(t, makeFilename(dst, a.Name), a.Md5)
+		verifySHA256(t, makeFilename(dst, a.Name), a.Sha256)
 	}
-}
-
-// TestDirtyRetrieve tests that we can successfully retrieve files in a
-// dirty setup with correct and incorrect pre-existing files.
-func TestDirtyRetrieve(t *testing.T) {
-	cc := startServer(t)
-	defer cc.Close()
-
-	ctx := grpcx.WriteWorkerID(context.Background(), "idC")
-	scl := pb.NewArtifactStagingServiceClient(cc)
-
-	list := []*pb.ArtifactMetadata{
-		stage(ctx, scl, t, "good", 500, 100),
-		stage(ctx, scl, t, "bad", 500, 100),
-	}
-	if _, err := Commit(ctx, scl, list); err != nil {
-		t.Fatalf("failed to commit: %v", err)
-	}
-
-	// Kill good file in server by re-staging conflicting content. That ensures
-	// we don't retrieve it.
-	stage(ctx, scl, t, "good", 100, 100)
-
-	dst := makeTempDir(t)
-	defer os.RemoveAll(dst)
-
-	good := filepath.Join(dst, "good")
-	bad := filepath.Join(dst, "bad")
-
-	makeTempFile(t, good, 500) // correct content. Do nothing.
-	makeTempFile(t, bad, 367)  // invalid content. Delete and retrieve.
-
-	rcl := pb.NewArtifactRetrievalServiceClient(cc)
-	if err := MultiRetrieve(ctx, rcl, 2, list, dst); err != nil {
-		t.Fatalf("failed to get retrieve: %v", err)
-	}
-
-	verifyMD5(t, good, list[0].Md5)
-	verifyMD5(t, bad, list[1].Md5)
 }
 
 // populate stages a set of artifacts with the given keys, each with
 // slightly different sizes and chucksizes.
-func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []string, size int) []*pb.ArtifactMetadata {
+func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []string, size int, st string) (string, []*pb.ArtifactMetadata) {
 	scl := pb.NewArtifactStagingServiceClient(cc)
 
 	var artifacts []*pb.ArtifactMetadata
 	for i, key := range keys {
-		a := stage(ctx, scl, t, key, size+7*i, 97+i)
+		a := stage(ctx, scl, t, key, size+7*i, 97+i, st)
 		artifacts = append(artifacts, a)
 	}
-	if _, err := Commit(ctx, scl, artifacts); err != nil {
+	token, err := Commit(ctx, scl, artifacts, st)
+	if err != nil {
 		t.Fatalf("failed to commit manifest: %v", err)
+		return "", nil
 	}
-	return artifacts
+	return token, artifacts
 }
 
 // stage stages an artifact with the given key, size and chuck size. The content is
 // always 'z's.
-func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.T, key string, size, chunkSize int) *pb.ArtifactMetadata {
+func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.T, key string, size, chunkSize int, st string) *pb.ArtifactMetadata {
 	data := make([]byte, size)
 	for i := 0; i < size; i++ {
 		data[i] = 'z'
 	}
 
-	md5W := md5.New()
-	md5W.Write(data)
-	hash := base64.StdEncoding.EncodeToString(md5W.Sum(nil))
+	sha256W := sha256.New()
+	sha256W.Write(data)
+	hash := hex.EncodeToString(sha256W.Sum(nil))
 	md := makeArtifact(key, hash)
+	pmd := &pb.PutArtifactMetadata{
+		Metadata:            md,
+		StagingSessionToken: st,
+	}
 
 	stream, err := scl.PutArtifact(ctx)
 	if err != nil {
@@ -149,7 +118,7 @@ func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.
 	}
 	header := &pb.PutArtifactRequest{
 		Content: &pb.PutArtifactRequest_Metadata{
-			Metadata: md,
+			Metadata: pmd,
 		},
 	}
 	if err := stream.Send(header); err != nil {
@@ -179,14 +148,14 @@ func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.
 	return md
 }
 
-func verifyMD5(t *testing.T, filename, hash string) {
-	actual, err := computeMD5(filename)
+func verifySHA256(t *testing.T, filename, hash string) {
+	actual, err := computeSHA256(filename)
 	if err != nil {
 		t.Errorf("failed to compute hash for %v: %v", filename, err)
 		return
 	}
 	if actual != hash {
-		t.Errorf("file %v has bad MD5: %v, want %v", filename, actual, hash)
+		t.Errorf("file %v has bad SHA256: %v, want %v", filename, actual, hash)
 	}
 }
 
@@ -199,12 +168,12 @@ func makeTempDir(t *testing.T) string {
 }
 
 func makeTempFiles(t *testing.T, dir string, keys []string, size int) []string {
-	var md5s []string
+	var sha256s []string
 	for i, key := range keys {
 		hash := makeTempFile(t, makeFilename(dir, key), size+i)
-		md5s = append(md5s, hash)
+		sha256s = append(sha256s, hash)
 	}
-	return md5s
+	return sha256s
 }
 
 func makeTempFile(t *testing.T, filename string, size int) string {
@@ -220,15 +189,15 @@ func makeTempFile(t *testing.T, filename string, size int) string {
 		t.Fatalf("cannot create file %s: %v", filename, err)
 	}
 
-	md5W := md5.New()
-	md5W.Write(data)
-	return base64.StdEncoding.EncodeToString(md5W.Sum(nil))
+	sha256W := sha256.New()
+	sha256W.Write(data)
+	return hex.EncodeToString(sha256W.Sum(nil))
 }
 
 func makeArtifact(key, hash string) *pb.ArtifactMetadata {
 	return &pb.ArtifactMetadata{
 		Name:        key,
-		Md5:         hash,
+		Sha256:      hash,
 		Permissions: 0644,
 	}
 }

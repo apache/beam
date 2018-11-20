@@ -62,11 +62,12 @@ import org.joda.time.Instant;
  * {@link org.apache.beam.sdk.transforms.windowing.Trigger triggers} to control when the results for
  * each window are emitted.
  *
- * <p>This example uses a portion of real traffic data from San Diego freeways. It contains
- * readings from sensor stations set up along each freeway. Each sensor reading includes a
- * calculation of the 'total flow' across all lanes in that freeway direction.
+ * <p>This example uses a portion of real traffic data from San Diego freeways. It contains readings
+ * from sensor stations set up along each freeway. Each sensor reading includes a calculation of the
+ * 'total flow' across all lanes in that freeway direction.
  *
  * <p>Concepts:
+ *
  * <pre>
  *   1. The default triggering behavior
  *   2. Late data with the default trigger
@@ -74,56 +75,52 @@ import org.joda.time.Instant;
  *   4. Combining late data and speculative estimates
  * </pre>
  *
- * <p>Before running this example, it will be useful to familiarize yourself with Beam triggers
- * and understand the concept of 'late data',
- * See: <a href="https://beam.apache.org/documentation/programming-guide/#triggers">
+ * <p>Before running this example, it will be useful to familiarize yourself with Beam triggers and
+ * understand the concept of 'late data', See: <a
+ * href="https://beam.apache.org/documentation/programming-guide/#triggers">
  * https://beam.apache.org/documentation/programming-guide/#triggers</a>
  *
  * <p>The example is configured to use the default BigQuery table from the example common package
- * (there are no defaults for a general Beam pipeline).
- * You can override them by using the {@code --bigQueryDataset}, and {@code --bigQueryTable}
- * options. If the BigQuery table do not exist, the example will try to create them.
+ * (there are no defaults for a general Beam pipeline). You can override them by using the {@code
+ * --bigQueryDataset}, and {@code --bigQueryTable} options. If the BigQuery table do not exist, the
+ * example will try to create them.
  *
- * <p>The pipeline outputs its results to a BigQuery table.
- * Here are some queries you can use to see interesting results:
- * Replace {@code <enter_table_name>} in the query below with the name of the BigQuery table.
- * Replace {@code <enter_window_interval>} in the query below with the window interval.
+ * <p>The pipeline outputs its results to a BigQuery table. Here are some queries you can use to see
+ * interesting results: Replace {@code <enter_table_name>} in the query below with the name of the
+ * BigQuery table. Replace {@code <enter_window_interval>} in the query below with the window
+ * interval.
  *
- * <p>To see the results of the default trigger,
- * Note: When you start up your pipeline, you'll initially see results from 'late' data. Wait after
- * the window duration, until the first pane of non-late data has been emitted, to see more
- * interesting results.
- * {@code SELECT * FROM enter_table_name WHERE trigger_type = "default" ORDER BY window DESC}
+ * <p>To see the results of the default trigger, Note: When you start up your pipeline, you'll
+ * initially see results from 'late' data. Wait after the window duration, until the first pane of
+ * non-late data has been emitted, to see more interesting results. {@code SELECT * FROM
+ * enter_table_name WHERE trigger_type = "default" ORDER BY window DESC}
  *
- * <p>To see the late data i.e. dropped by the default trigger,
- * {@code SELECT * FROM <enter_table_name> WHERE trigger_type = "withAllowedLateness" and
- * (timing = "LATE" or timing = "ON_TIME") and freeway = "5" ORDER BY window DESC, processing_time}
+ * <p>To see the late data i.e. dropped by the default trigger, {@code SELECT * FROM
+ * <enter_table_name> WHERE trigger_type = "withAllowedLateness" and (timing = "LATE" or timing =
+ * "ON_TIME") and freeway = "5" ORDER BY window DESC, processing_time}
  *
- * <p>To see the the difference between accumulation mode and discarding mode,
- * {@code SELECT * FROM <enter_table_name> WHERE (timing = "LATE" or timing = "ON_TIME") AND
- * (trigger_type = "withAllowedLateness" or trigger_type = "sequential") and freeway = "5" ORDER BY
- * window DESC, processing_time}
+ * <p>To see the the difference between accumulation mode and discarding mode, {@code SELECT * FROM
+ * <enter_table_name> WHERE (timing = "LATE" or timing = "ON_TIME") AND (trigger_type =
+ * "withAllowedLateness" or trigger_type = "sequential") and freeway = "5" ORDER BY window DESC,
+ * processing_time}
  *
- * <p>To see speculative results every minute,
- * {@code SELECT * FROM <enter_table_name> WHERE trigger_type = "speculative" and freeway = "5"
+ * <p>To see speculative results every minute, {@code SELECT * FROM <enter_table_name> WHERE
+ * trigger_type = "speculative" and freeway = "5" ORDER BY window DESC, processing_time}
+ *
+ * <p>To see speculative results every five minutes after the end of the window {@code SELECT * FROM
+ * <enter_table_name> WHERE trigger_type = "sequential" and timing != "EARLY" and freeway = "5"
  * ORDER BY window DESC, processing_time}
  *
- * <p>To see speculative results every five minutes after the end of the window
- * {@code SELECT * FROM <enter_table_name> WHERE trigger_type = "sequential" and timing != "EARLY"
- * and freeway = "5" ORDER BY window DESC, processing_time}
+ * <p>To see the first and the last pane for a freeway in a window for all the trigger types, {@code
+ * SELECT * FROM <enter_table_name> WHERE (isFirst = true or isLast = true) ORDER BY window}
  *
- * <p>To see the first and the last pane for a freeway in a window for all the trigger types,
- * {@code SELECT * FROM <enter_table_name> WHERE (isFirst = true or isLast = true) ORDER BY window}
- *
- * <p>To reduce the number of results for each query we can add additional where clauses.
- * For examples, To see the results of the default trigger,
- * {@code SELECT * FROM <enter_table_name> WHERE trigger_type = "default" AND freeway = "5" AND
- * window = "<enter_window_interval>"}
+ * <p>To reduce the number of results for each query we can add additional where clauses. For
+ * examples, To see the results of the default trigger, {@code SELECT * FROM <enter_table_name>
+ * WHERE trigger_type = "default" AND freeway = "5" AND window = "<enter_window_interval>"}
  *
  * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
  * and then exits.
  */
-
 public class TriggerExample {
   //Numeric value of fixed window duration, in minutes
   public static final int WINDOW_DURATION = 30;
@@ -138,33 +135,26 @@ public class TriggerExample {
 
   /**
    * This transform demonstrates using triggers to control when data is produced for each window
-   * Consider an example to understand the results generated by each type of trigger.
-   * The example uses "freeway" as the key. Event time is the timestamp associated with the data
-   * element and processing time is the time when the data element gets processed in the pipeline.
-   * For freeway 5, suppose there are 10 elements in the [10:00:00, 10:30:00) window.
-   * Key (freeway) | Value (total_flow) | event time | processing time
-   * 5             | 50                 | 10:00:03   | 10:00:47
-   * 5             | 30                 | 10:01:00   | 10:01:03
-   * 5             | 30                 | 10:02:00   | 11:07:00
-   * 5             | 20                 | 10:04:10   | 10:05:15
-   * 5             | 60                 | 10:05:00   | 11:03:00
-   * 5             | 20                 | 10:05:01   | 11.07:30
-   * 5             | 60                 | 10:15:00   | 10:27:15
-   * 5             | 40                 | 10:26:40   | 10:26:43
-   * 5             | 60                 | 10:27:20   | 10:27:25
-   * 5             | 60                 | 10:29:00   | 11:11:00
+   * Consider an example to understand the results generated by each type of trigger. The example
+   * uses "freeway" as the key. Event time is the timestamp associated with the data element and
+   * processing time is the time when the data element gets processed in the pipeline. For freeway
+   * 5, suppose there are 10 elements in the [10:00:00, 10:30:00) window. Key (freeway) | Value
+   * (total_flow) | event time | processing time 5 | 50 | 10:00:03 | 10:00:47 5 | 30 | 10:01:00 |
+   * 10:01:03 5 | 30 | 10:02:00 | 11:07:00 5 | 20 | 10:04:10 | 10:05:15 5 | 60 | 10:05:00 | 11:03:00
+   * 5 | 20 | 10:05:01 | 11.07:30 5 | 60 | 10:15:00 | 10:27:15 5 | 40 | 10:26:40 | 10:26:43 5 | 60 |
+   * 10:27:20 | 10:27:25 5 | 60 | 10:29:00 | 11:11:00
    *
-   * <p>Beam tracks a watermark which records up to what point in event time the data is
-   * complete. For the purposes of the example, we'll assume the watermark is approximately 15m
-   * behind the current processing time. In practice, the actual value would vary over time based
-   * on the systems knowledge of the current delay and contents of the backlog (data
-   * that has not yet been processed).
+   * <p>Beam tracks a watermark which records up to what point in event time the data is complete.
+   * For the purposes of the example, we'll assume the watermark is approximately 15m behind the
+   * current processing time. In practice, the actual value would vary over time based on the
+   * systems knowledge of the current delay and contents of the backlog (data that has not yet been
+   * processed).
    *
    * <p>If the watermark is 15m behind, then the window [10:00:00, 10:30:00) (in event time) would
    * close at 10:44:59, when the watermark passes 10:30:00.
    */
   static class CalculateTotalFlow
-  extends PTransform <PCollection<KV<String, Integer>>, PCollectionList<TableRow>> {
+      extends PTransform<PCollection<KV<String, Integer>>, PCollectionList<TableRow>> {
     private int windowDuration;
 
     CalculateTotalFlow(int windowDuration) {
@@ -194,21 +184,25 @@ public class TriggerExample {
       // result, when the data record with event time 10:05:00 arrives at 11:03:00, it is considered
       // late, and dropped.
 
-      PCollection<TableRow> defaultTriggerResults = flowInfo
-          .apply("Default", Window
-              // The default window duration values work well if you're running the default input
-              // file. You may want to adjust the window duration otherwise.
-              .<KV<String, Integer>>into(FixedWindows.of(Duration.standardMinutes(windowDuration)))
-              // The default trigger first emits output when the system's watermark passes the end
-              // of the window.
-              .triggering(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
-              // Late data is dropped
-              .withAllowedLateness(Duration.ZERO)
-              // Discard elements after emitting each pane.
-              // With no allowed lateness and the specified trigger there will only be a single
-              // pane, so this doesn't have a noticeable effect. See concept 2 for more details.
-              .discardingFiredPanes())
-          .apply(new TotalFlow("default"));
+      PCollection<TableRow> defaultTriggerResults =
+          flowInfo
+              .apply(
+                  "Default",
+                  Window
+                      // The default window duration values work well if you're running the default input
+                      // file. You may want to adjust the window duration otherwise.
+                      .<KV<String, Integer>>into(
+                          FixedWindows.of(Duration.standardMinutes(windowDuration)))
+                      // The default trigger first emits output when the system's watermark passes the end
+                      // of the window.
+                      .triggering(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
+                      // Late data is dropped
+                      .withAllowedLateness(Duration.ZERO)
+                      // Discard elements after emitting each pane.
+                      // With no allowed lateness and the specified trigger there will only be a single
+                      // pane, so this doesn't have a noticeable effect. See concept 2 for more details.
+                      .discardingFiredPanes())
+              .apply(new TotalFlow("default"));
 
       // Concept #2: Late data with the default trigger
       // This uses the same trigger as concept #1, but allows data that is up to ONE_DAY late. This
@@ -227,17 +221,20 @@ public class TriggerExample {
       // 5             | 30                 | 1                 | false   | false  | LATE
       // 5             | 20                 | 1                 | false   | false  | LATE
       // 5             | 60                 | 1                 | false   | false  | LATE
-      PCollection<TableRow> withAllowedLatenessResults = flowInfo
-          .apply("WithLateData", Window
-              .<KV<String, Integer>>into(FixedWindows.of(Duration.standardMinutes(windowDuration)))
-              // Late data is emitted as it arrives
-              .triggering(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
-              // Once the output is produced, the pane is dropped and we start preparing the next
-              // pane for the window
-              .discardingFiredPanes()
-              // Late data is handled up to one day
-              .withAllowedLateness(ONE_DAY))
-          .apply(new TotalFlow("withAllowedLateness"));
+      PCollection<TableRow> withAllowedLatenessResults =
+          flowInfo
+              .apply(
+                  "WithLateData",
+                  Window.<KV<String, Integer>>into(
+                          FixedWindows.of(Duration.standardMinutes(windowDuration)))
+                      // Late data is emitted as it arrives
+                      .triggering(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
+                      // Once the output is produced, the pane is dropped and we start preparing the next
+                      // pane for the window
+                      .discardingFiredPanes()
+                      // Late data is handled up to one day
+                      .withAllowedLateness(ONE_DAY))
+              .apply(new TotalFlow("withAllowedLateness"));
 
       // Concept #3: How to get speculative estimates
       // We can specify a trigger that fires independent of the watermark, for instance after
@@ -255,19 +252,24 @@ public class TriggerExample {
       // 5             | 320                | 7                 | false   | false  | LATE
       // 5             | 370                | 9                 | false   | false  | LATE
       // 5             | 430                | 10                | false   | false  | LATE
-      PCollection<TableRow> speculativeResults = flowInfo
-          .apply("Speculative" , Window
-              .<KV<String, Integer>>into(FixedWindows.of(Duration.standardMinutes(windowDuration)))
-              // Trigger fires every minute.
-              .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()
-                  // Speculative every ONE_MINUTE
-                  .plusDelayOf(ONE_MINUTE)))
-              // After emitting each pane, it will continue accumulating the elements so that each
-              // approximation includes all of the previous data in addition to the newly arrived
-              // data.
-              .accumulatingFiredPanes()
-              .withAllowedLateness(ONE_DAY))
-          .apply(new TotalFlow("speculative"));
+      PCollection<TableRow> speculativeResults =
+          flowInfo
+              .apply(
+                  "Speculative",
+                  Window.<KV<String, Integer>>into(
+                          FixedWindows.of(Duration.standardMinutes(windowDuration)))
+                      // Trigger fires every minute.
+                      .triggering(
+                          Repeatedly.forever(
+                              AfterProcessingTime.pastFirstElementInPane()
+                                  // Speculative every ONE_MINUTE
+                                  .plusDelayOf(ONE_MINUTE)))
+                      // After emitting each pane, it will continue accumulating the elements so that each
+                      // approximation includes all of the previous data in addition to the newly arrived
+                      // data.
+                      .accumulatingFiredPanes()
+                      .withAllowedLateness(ONE_DAY))
+              .apply(new TotalFlow("speculative"));
 
       // Concept #4: Combining late data and speculative estimates
       // We can put the previous concepts together to get EARLY estimates, an ON_TIME result,
@@ -291,26 +293,34 @@ public class TriggerExample {
       // 5             | 430                | 10                | false   | false  | LATE
 
       // For more possibilities of how to build advanced triggers, see {@link Trigger}.
-      PCollection<TableRow> sequentialResults = flowInfo
-          .apply("Sequential", Window
-              .<KV<String, Integer>>into(FixedWindows.of(Duration.standardMinutes(windowDuration)))
-              .triggering(AfterEach.inOrder(
-                  Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()
-                      // Speculative every ONE_MINUTE
-                      .plusDelayOf(ONE_MINUTE)).orFinally(AfterWatermark.pastEndOfWindow()),
-                  Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()
-                      // Late data every FIVE_MINUTES
-                      .plusDelayOf(FIVE_MINUTES))))
-              .accumulatingFiredPanes()
-              // For up to ONE_DAY
-              .withAllowedLateness(ONE_DAY))
-          .apply(new TotalFlow("sequential"));
+      PCollection<TableRow> sequentialResults =
+          flowInfo
+              .apply(
+                  "Sequential",
+                  Window.<KV<String, Integer>>into(
+                          FixedWindows.of(Duration.standardMinutes(windowDuration)))
+                      .triggering(
+                          AfterEach.inOrder(
+                              Repeatedly.forever(
+                                      AfterProcessingTime.pastFirstElementInPane()
+                                          // Speculative every ONE_MINUTE
+                                          .plusDelayOf(ONE_MINUTE))
+                                  .orFinally(AfterWatermark.pastEndOfWindow()),
+                              Repeatedly.forever(
+                                  AfterProcessingTime.pastFirstElementInPane()
+                                      // Late data every FIVE_MINUTES
+                                      .plusDelayOf(FIVE_MINUTES))))
+                      .accumulatingFiredPanes()
+                      // For up to ONE_DAY
+                      .withAllowedLateness(ONE_DAY))
+              .apply(new TotalFlow("sequential"));
 
       // Adds the results generated by each trigger type to a PCollectionList.
-      PCollectionList<TableRow> resultsList = PCollectionList.of(defaultTriggerResults)
-          .and(withAllowedLatenessResults)
-          .and(speculativeResults)
-          .and(sequentialResults);
+      PCollectionList<TableRow> resultsList =
+          PCollectionList.of(defaultTriggerResults)
+              .and(withAllowedLatenessResults)
+              .and(speculativeResults)
+              .and(sequentialResults);
 
       return resultsList;
     }
@@ -324,8 +334,8 @@ public class TriggerExample {
    * Calculate total flow and number of records for each freeway and format the results to TableRow
    * objects, to save to BigQuery.
    */
-  static class TotalFlow extends
-  PTransform <PCollection<KV<String, Integer>>, PCollection<TableRow>> {
+  static class TotalFlow
+      extends PTransform<PCollection<KV<String, Integer>>, PCollection<TableRow>> {
     private String triggerType;
 
     public TotalFlow(String triggerType) {
@@ -337,30 +347,32 @@ public class TriggerExample {
       PCollection<KV<String, Iterable<Integer>>> flowPerFreeway =
           flowInfo.apply(GroupByKey.create());
 
-      PCollection<KV<String, String>> results = flowPerFreeway.apply(ParDo.of(
-          new DoFn<KV<String, Iterable<Integer>>, KV<String, String>>() {
+      PCollection<KV<String, String>> results =
+          flowPerFreeway.apply(
+              ParDo.of(
+                  new DoFn<KV<String, Iterable<Integer>>, KV<String, String>>() {
 
-            @ProcessElement
-            public void processElement(ProcessContext c) throws Exception {
-              Iterable<Integer> flows = c.element().getValue();
-              Integer sum = 0;
-              Long numberOfRecords = 0L;
-              for (Integer value : flows) {
-                sum += value;
-                numberOfRecords++;
-              }
-              c.output(KV.of(c.element().getKey(), sum + "," + numberOfRecords));
-            }
-          }));
+                    @ProcessElement
+                    public void processElement(ProcessContext c) throws Exception {
+                      Iterable<Integer> flows = c.element().getValue();
+                      Integer sum = 0;
+                      Long numberOfRecords = 0L;
+                      for (Integer value : flows) {
+                        sum += value;
+                        numberOfRecords++;
+                      }
+                      c.output(KV.of(c.element().getKey(), sum + "," + numberOfRecords));
+                    }
+                  }));
       PCollection<TableRow> output = results.apply(ParDo.of(new FormatTotalFlow(triggerType)));
       return output;
     }
   }
 
   /**
-   * Format the results of the Total flow calculation to a TableRow, to save to BigQuery.
-   * Adds the triggerType, pane information, processing time and the window timestamp.
-   * */
+   * Format the results of the Total flow calculation to a TableRow, to save to BigQuery. Adds the
+   * triggerType, pane information, processing time and the window timestamp.
+   */
   static class FormatTotalFlow extends DoFn<KV<String, String>, TableRow> {
     private String triggerType;
 
@@ -370,35 +382,38 @@ public class TriggerExample {
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      String[] values = c.element().getValue().split(",");
-      TableRow row = new TableRow()
-          .set("trigger_type", triggerType)
-          .set("freeway", c.element().getKey())
-          .set("total_flow", Integer.parseInt(values[0]))
-          .set("number_of_records", Long.parseLong(values[1]))
-          .set("window", window.toString())
-          .set("isFirst", c.pane().isFirst())
-          .set("isLast", c.pane().isLast())
-          .set("timing", c.pane().getTiming().toString())
-          .set("event_time", c.timestamp().toString())
-          .set("processing_time", Instant.now().toString());
+      String[] values = c.element().getValue().split(",", -1);
+      TableRow row =
+          new TableRow()
+              .set("trigger_type", triggerType)
+              .set("freeway", c.element().getKey())
+              .set("total_flow", Integer.parseInt(values[0]))
+              .set("number_of_records", Long.parseLong(values[1]))
+              .set("window", window.toString())
+              .set("isFirst", c.pane().isFirst())
+              .set("isLast", c.pane().isLast())
+              .set("timing", c.pane().getTiming().toString())
+              .set("event_time", c.timestamp().toString())
+              .set("processing_time", Instant.now().toString());
       c.output(row);
     }
   }
 
   /**
-   * Extract the freeway and total flow in a reading.
-   * Freeway is used as key since we are calculating the total flow for each freeway.
+   * Extract the freeway and total flow in a reading. Freeway is used as key since we are
+   * calculating the total flow for each freeway.
    */
   static class ExtractFlowInfo extends DoFn<String, KV<String, Integer>> {
+    private static final int VALID_NUM_FIELDS = 50;
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      String[] laneInfo = c.element().split(",");
+      String[] laneInfo = c.element().split(",", -1);
       if ("timestamp".equals(laneInfo[0])) {
         // Header row
         return;
       }
-      if (laneInfo.length < 48) {
+      if (laneInfo.length < VALID_NUM_FIELDS) {
         //Skip the invalid input.
         return;
       }
@@ -409,32 +424,31 @@ public class TriggerExample {
       if (totalFlow == null || totalFlow <= 0) {
         return;
       }
-      c.output(KV.of(freeway,  totalFlow));
+      c.output(KV.of(freeway, totalFlow));
     }
   }
 
-  /**
-   * Inherits standard configuration options.
-   */
+  /** Inherits standard configuration options. */
   public interface TrafficFlowOptions
       extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
 
     @Description("Input file to read from")
-    @Default.String("gs://apache-beam-samples/traffic_sensor/"
-        + "Freeways-5Minaa2010-01-01_to_2010-02-15.csv")
+    @Default.String(
+        "gs://apache-beam-samples/traffic_sensor/" + "Freeways-5Minaa2010-01-01_to_2010-02-15.csv")
     String getInput();
+
     void setInput(String value);
 
     @Description("Numeric value of window duration for fixed windows, in minutes")
     @Default.Integer(WINDOW_DURATION)
     Integer getWindowDuration();
+
     void setWindowDuration(Integer value);
   }
 
   public static void main(String[] args) throws Exception {
-    TrafficFlowOptions options = PipelineOptionsFactory.fromArgs(args)
-        .withValidation()
-        .as(TrafficFlowOptions.class);
+    TrafficFlowOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficFlowOptions.class);
     options.setStreaming(true);
 
     options.setBigQuerySchema(getSchema());
@@ -444,19 +458,19 @@ public class TriggerExample {
 
     Pipeline pipeline = Pipeline.create(options);
 
-    TableReference tableRef = getTableReference(options.getProject(),
-        options.getBigQueryDataset(), options.getBigQueryTable());
+    TableReference tableRef =
+        getTableReference(
+            options.getProject(), options.getBigQueryDataset(), options.getBigQueryTable());
 
-    PCollectionList<TableRow> resultList = pipeline
-        .apply("ReadMyFile", TextIO.read().from(options.getInput()))
-        .apply("InsertRandomDelays", ParDo.of(new InsertDelays()))
-        .apply(ParDo.of(new ExtractFlowInfo()))
-        .apply(new CalculateTotalFlow(options.getWindowDuration()));
+    PCollectionList<TableRow> resultList =
+        pipeline
+            .apply("ReadMyFile", TextIO.read().from(options.getInput()))
+            .apply("InsertRandomDelays", ParDo.of(new InsertDelays()))
+            .apply(ParDo.of(new ExtractFlowInfo()))
+            .apply(new CalculateTotalFlow(options.getWindowDuration()));
 
     for (int i = 0; i < resultList.size(); i++) {
-      resultList.get(i).apply(BigQueryIO.writeTableRows()
-          .to(tableRef)
-          .withSchema(getSchema()));
+      resultList.get(i).apply(BigQueryIO.writeTableRows().to(tableRef).withSchema(getSchema()));
     }
 
     PipelineResult result = pipeline.run();
@@ -465,10 +479,7 @@ public class TriggerExample {
     exampleUtils.waitToFinish(result);
   }
 
-  /**
-   * Add current time to each record.
-   * Also insert a delay at random to demo the triggers.
-   */
+  /** Add current time to each record. Also insert a delay at random to demo the triggers. */
   public static class InsertDelays extends DoFn<String, String> {
     private static final double THRESHOLD = 0.001;
     // MIN_DELAY and MAX_DELAY in minutes.
@@ -488,7 +499,6 @@ public class TriggerExample {
       c.outputWithTimestamp(c.element(), timestamp);
     }
   }
-
 
   /** Sets the table reference. */
   private static TableReference getTableReference(String project, String dataset, String table) {

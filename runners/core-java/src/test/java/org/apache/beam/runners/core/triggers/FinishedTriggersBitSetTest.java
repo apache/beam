@@ -25,14 +25,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link FinishedTriggersBitSet}.
- */
+/** Tests for {@link FinishedTriggersBitSet}. */
 @RunWith(JUnit4.class)
 public class FinishedTriggersBitSetTest {
-  /**
-   * Tests that after a trigger is set to finished, it reads back as finished.
-   */
+  /** Tests that after a trigger is set to finished, it reads back as finished. */
   @Test
   public void testSetGet() {
     FinishedTriggersProperties.verifyGetAfterSet(FinishedTriggersBitSet.emptyWithCapacity(1));

@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql;
 
 import static org.apache.beam.sdk.extensions.sql.TestUtils.tuple;
 import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBoundedTest.ORDER_DETAILS1;
 import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBoundedTest.ORDER_DETAILS2;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
 import static org.hamcrest.Matchers.stringContainsInOrder;
 
 import java.util.Arrays;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -55,8 +54,6 @@ public class BeamSqlDslJoinTest {
           .addNullableField("price", Schema.FieldType.INT32)
           .build();
 
-  private static final RowCoder SOURCE_CODER = SOURCE_ROW_TYPE.getRowCoder();
-
   private static final Schema RESULT_ROW_TYPE =
       Schema.builder()
           .addNullableField("order_id", Schema.FieldType.INT32)
@@ -66,8 +63,6 @@ public class BeamSqlDslJoinTest {
           .addNullableField("site_id0", Schema.FieldType.INT32)
           .addNullableField("price0", Schema.FieldType.INT32)
           .build();
-
-  private static final RowCoder RESULT_CODER = RESULT_ROW_TYPE.getRowCoder();
 
   @Test
   public void testInnerJoin() throws Exception {
@@ -175,7 +170,7 @@ public class BeamSqlDslJoinTest {
             .apply("window", Window.into(FixedWindows.of(Duration.standardSeconds(50))));
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    PAssert.that(inputs.apply("sql", BeamSql.query(sql)))
+    PAssert.that(inputs.apply("sql", SqlTransform.query(sql)))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(RESULT_ROW_TYPE)
                 .addRows(1, 2, 2, 2, 2, 1, 1, 4, 3, 3, 3, 1)
@@ -208,7 +203,7 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -230,7 +225,7 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -259,7 +254,7 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
@@ -288,13 +283,13 @@ public class BeamSqlDslJoinTest {
     thrown.expectMessage(
         stringContainsInOrder(Arrays.asList("once per window", "default trigger")));
 
-    inputs.apply("sql", BeamSql.query(sql));
+    inputs.apply("sql", SqlTransform.query(sql));
 
     pipeline.run();
   }
 
   private PCollection<Row> ordersUnbounded() {
-    DateTime ts = new DateTime(2017, 1, 1, 1, 0, 0);
+    DateTime ts = parseTimestampWithoutTimeZone("2017-1-1 1:0:0");
 
     return TestUtils.rowsBuilderOf(
             Schema.builder()
@@ -332,9 +327,11 @@ public class BeamSqlDslJoinTest {
 
   private PCollection<Row> queryFromOrderTables(String sql) {
     return tuple(
-            "ORDER_DETAILS1", ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER),
-            "ORDER_DETAILS2", ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER))
-        .apply("join", BeamSql.query(sql))
-        .setCoder(RESULT_CODER);
+            "ORDER_DETAILS1",
+                ORDER_DETAILS1.buildIOReader(pipeline.begin()).setRowSchema(SOURCE_ROW_TYPE),
+            "ORDER_DETAILS2",
+                ORDER_DETAILS2.buildIOReader(pipeline.begin()).setRowSchema(SOURCE_ROW_TYPE))
+        .apply("join", SqlTransform.query(sql))
+        .setRowSchema(RESULT_ROW_TYPE);
   }
 }

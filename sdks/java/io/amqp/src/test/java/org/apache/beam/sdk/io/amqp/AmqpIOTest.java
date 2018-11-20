@@ -39,9 +39,7 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Tests on {@link AmqpIO}.
- */
+/** Tests on {@link AmqpIO}. */
 @RunWith(JUnit4.class)
 public class AmqpIOTest {
 
@@ -53,9 +51,11 @@ public class AmqpIOTest {
 
   @Test
   public void testRead() throws Exception {
-    PCollection<Message> output = pipeline.apply(AmqpIO.read()
-        .withMaxNumRecords(100)
-        .withAddresses(Collections.singletonList(broker.getQueueUri("testRead"))));
+    PCollection<Message> output =
+        pipeline.apply(
+            AmqpIO.read()
+                .withMaxNumRecords(100)
+                .withAddresses(Collections.singletonList(broker.getQueueUri("testRead"))));
     PAssert.thatSingleton(output.apply(Count.globally())).isEqualTo(100L);
 
     Messenger sender = Messenger.Factory.create();
@@ -119,5 +119,4 @@ public class AmqpIOTest {
       return getBrokerService().getDefaultSocketURIString() + "/" + queueName;
     }
   }
-
 }

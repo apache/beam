@@ -23,10 +23,11 @@
 def dependOnProjects = [":beam-model-pipeline", ":beam-model-fn-execution", ":beam-sdks-java-core",
                         ":beam-sdks-java-fn-execution",
                         ":beam-sdks-java-extensions-google-cloud-platform-core",
-                        ":beam-runners-core-java", ":beam-runners-core-construction-java"]
+                        ":beam-runners-core-java", ":beam-runners-core-construction-java",
+                        ":beam-vendor-grpc-v1_13_1",]
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE <<
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE <<
   // Create an uber jar without repackaging for the SDK harness
   // TODO: We have been releasing this in the past, consider not
   // releasing it since its typically bad practice to release 'all'
@@ -50,18 +51,14 @@ dependencies {
     compile project(path: it, configuration: "shadow")
   }
   compile library.java.jackson_databind
-  compile library.java.findbugs_jsr305
   compile library.java.guava
-  compile library.java.protobuf_java
-  compile library.java.grpc_core
-  compile library.java.grpc_netty
-  compile library.java.grpc_stub
-  compile library.java.netty_transport_native_epoll
   compile library.java.joda_time
   compile library.java.slf4j_api
   provided library.java.error_prone_annotations
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
 }

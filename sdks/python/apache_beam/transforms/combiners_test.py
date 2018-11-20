@@ -16,10 +16,15 @@
 #
 
 """Unit tests for our libraries of combine PTransforms."""
+from __future__ import absolute_import
+from __future__ import division
 
+import itertools
+import random
 import unittest
 
 import hamcrest as hc
+from future.builtins import range
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
@@ -107,6 +112,17 @@ class CombineTest(unittest.TestCase):
                 label='key:bot')
     assert_that(result_key_cmp, equal_to([('a', [9, 6, 6, 5, 3, 2])]),
                 label='key:cmp')
+    pipeline.run()
+
+  def test_sharded_top(self):
+    elements = list(range(100))
+    random.shuffle(elements)
+
+    pipeline = TestPipeline()
+    shards = [pipeline | 'Shard%s' % shard >> beam.Create(elements[shard::7])
+              for shard in range(7)]
+    assert_that(shards | beam.Flatten() | combine.Top.Largest(10),
+                equal_to([[99, 98, 97, 96, 95, 94, 93, 92, 91, 90]]))
     pipeline.run()
 
   def test_top_key(self):
@@ -284,7 +300,7 @@ class CombineTest(unittest.TestCase):
     def matcher():
       def match(actual):
         equal_to([1])([len(actual)])
-        equal_to(pairs)(actual[0].iteritems())
+        equal_to(pairs)(actual[0].items())
       return match
     assert_that(result, matcher())
     pipeline.run()
@@ -310,6 +326,37 @@ class CombineTest(unittest.TestCase):
       result2 = p | 'i2' >> Create([1, 2, 3, 4]) | 'c2' >> SideInputCombine()
       assert_that(result1, equal_to([0]), label='r1')
       assert_that(result2, equal_to([10]), label='r2')
+
+  def test_hot_key_fanout(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(itertools.product(['hot', 'cold'], range(10)))
+          | beam.CombinePerKey(combine.MeanCombineFn()).with_hot_key_fanout(
+              lambda key: (key == 'hot') * 5))
+      assert_that(result, equal_to([('hot', 4.5), ('cold', 4.5)]))
+
+  def test_hot_key_fanout_sharded(self):
+    # Lots of elements with the same key with varying/no fanout.
+    with TestPipeline() as p:
+      elements = [(None, e) for e in range(1000)]
+      random.shuffle(elements)
+      shards = [p | "Shard%s" % shard >> beam.Create(elements[shard::20])
+                for shard in range(20)]
+      result = (
+          shards
+          | beam.Flatten()
+          | beam.CombinePerKey(combine.MeanCombineFn()).with_hot_key_fanout(
+              lambda key: random.randrange(0, 5)))
+      assert_that(result, equal_to([(None, 499.5)]))
+
+  def test_global_fanout(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(range(100))
+          | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
+      assert_that(result, equal_to([49.5]))
 
 
 if __name__ == '__main__':

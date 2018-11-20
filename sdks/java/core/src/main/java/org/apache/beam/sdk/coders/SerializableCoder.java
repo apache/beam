@@ -25,7 +25,10 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.WeakHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -36,25 +39,31 @@ import org.slf4j.LoggerFactory;
  * A {@link Coder} for Java classes that implement {@link Serializable}.
  *
  * <p>To use, specify the coder type on a PCollection:
- * <pre>
- * {@code
- *   PCollection<MyRecord> records =
- *       foo.apply(...).setCoder(SerializableCoder.of(MyRecord.class));
- * }
- * </pre>
  *
- * <p>{@link SerializableCoder} does not guarantee a deterministic encoding, as Java
- * serialization may produce different binary encodings for two equivalent
- * objects.
+ * <pre>{@code
+ * PCollection<MyRecord> records =
+ *     foo.apply(...).setCoder(SerializableCoder.of(MyRecord.class));
+ * }</pre>
+ *
+ * <p>{@link SerializableCoder} does not guarantee a deterministic encoding, as Java serialization
+ * may produce different binary encodings for two equivalent objects.
  *
  * @param <T> the type of elements handled by this coder
  */
 public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
+  /*
+   * A thread safe set containing classes which we have warned about.
+   * Note that we specifically use a weak hash map to allow for classes to be unloaded.
+   */
+  private static final Set<Class<?>> MISSING_EQUALS_METHOD =
+      Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+
   private static final Logger LOG = LoggerFactory.getLogger(SerializableCoder.class);
 
   /**
    * Returns a {@link SerializableCoder} instance for the provided element type.
+   *
    * @param <T> the element type
    */
   public static <T extends Serializable> SerializableCoder<T> of(TypeDescriptor<T> type) {
@@ -79,6 +88,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
   /**
    * Returns a {@link SerializableCoder} instance for the provided element class.
+   *
    * @param <T> the element type
    */
   public static <T extends Serializable> SerializableCoder<T> of(Class<T> clazz) {
@@ -87,28 +97,33 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   private static <T extends Serializable> void checkEqualsMethodDefined(Class<T> clazz) {
-      boolean warn = clazz.isInterface();
-      if (!warn) {
-        Method method;
-        try {
-          method = clazz.getMethod("equals", Object.class);
-        } catch (NoSuchMethodException e) {
-          // All concrete classes have an equals method declared in their class hierarchy.
-          throw new AssertionError(String.format("Concrete class %s has no equals method", clazz));
-        }
-        // Check if not default Object#equals implementation.
-        warn = Object.class.equals(method.getDeclaringClass());
+    boolean warn = true;
+    if (!clazz.isInterface()) {
+      Method method;
+      try {
+        method = clazz.getMethod("equals", Object.class);
+      } catch (NoSuchMethodException e) {
+        // All concrete classes have an equals method declared in their class hierarchy.
+        throw new AssertionError(String.format("Concrete class %s has no equals method", clazz));
       }
-      if (warn) {
-        LOG.warn("Can't verify serialized elements of type {} have well defined equals method. "
-                + "This may produce incorrect results on some {}", clazz.getSimpleName(),
-            PipelineRunner.class.getSimpleName());
-      }
+      // Check if not default Object#equals implementation.
+      warn = Object.class.equals(method.getDeclaringClass());
+    }
+
+    // Note that the order of these checks is important since we want the
+    // "did we add the class to the set" check to happen last.
+    if (warn && MISSING_EQUALS_METHOD.add(clazz)) {
+      LOG.warn(
+          "Can't verify serialized elements of type {} have well defined equals method. "
+              + "This may produce incorrect results on some {}",
+          clazz.getSimpleName(),
+          PipelineRunner.class.getSimpleName());
+    }
   }
 
   /**
-   * Returns a {@link CoderProvider} which uses the {@link SerializableCoder} if possible for
-   * all types.
+   * Returns a {@link CoderProvider} which uses the {@link SerializableCoder} if possible for all
+   * types.
    *
    * <p>This method is invoked reflectively from {@link DefaultCoder}.
    */
@@ -135,13 +150,15 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
    */
   static class SerializableCoderProvider extends CoderProvider {
     @Override
-    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
-        List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+    public <T> Coder<T> coderFor(
+        TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
+        throws CannotProvideCoderException {
       if (Serializable.class.isAssignableFrom(typeDescriptor.getRawType())) {
         return SerializableCoder.of((TypeDescriptor) typeDescriptor);
       }
       throw new CannotProvideCoderException(
-          "Cannot provide SerializableCoder because " + typeDescriptor
+          "Cannot provide SerializableCoder because "
+              + typeDescriptor
               + " does not implement Serializable");
     }
   }
@@ -162,14 +179,13 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
   @Override
   public void encode(T value, OutputStream outStream) throws IOException {
-      ObjectOutputStream oos = new ObjectOutputStream(outStream);
-      oos.writeObject(value);
-      oos.flush();
+    ObjectOutputStream oos = new ObjectOutputStream(outStream);
+    oos.writeObject(value);
+    oos.flush();
   }
 
   @Override
-  public T decode(InputStream inStream)
-      throws IOException, CoderException {
+  public T decode(InputStream inStream) throws IOException, CoderException {
     try {
       ObjectInputStream ois = new ObjectInputStream(inStream);
       return type.cast(ois.readObject());
@@ -181,19 +197,18 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   /**
    * {@inheritDoc}
    *
-   * @throws NonDeterministicException always. Java serialization is not
-   *         deterministic with respect to {@link Object#equals} for all types.
+   * @throws NonDeterministicException always. Java serialization is not deterministic with respect
+   *     to {@link Object#equals} for all types.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    throw new NonDeterministicException(this,
-        "Java Serialization may be non-deterministic.");
+    throw new NonDeterministicException(this, "Java Serialization may be non-deterministic.");
   }
 
   @Override
   public boolean equals(Object other) {
     return !(other == null || getClass() != other.getClass())
-            && type == ((SerializableCoder<?>) other).type;
+        && type == ((SerializableCoder<?>) other).type;
   }
 
   @Override

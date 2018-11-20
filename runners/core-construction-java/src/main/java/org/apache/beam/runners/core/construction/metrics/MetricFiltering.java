@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.metrics;
 
 import com.google.common.base.Objects;
@@ -25,16 +24,18 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 
 /**
- * Implements matching for metrics filters. Specifically, matching for metric name,
- * namespace, and step name.
+ * Implements matching for metrics filters. Specifically, matching for metric name, namespace, and
+ * step name.
  */
 public class MetricFiltering {
 
-  private MetricFiltering() { }
+  private MetricFiltering() {}
 
-  /** Matching logic is implemented here rather than in MetricsFilter because we would like
-   *  MetricsFilter to act as a "dumb" value-object, with the possibility of replacing it with
-   *  a Proto/JSON/etc. schema object.
+  /**
+   * Matching logic is implemented here rather than in MetricsFilter because we would like
+   * MetricsFilter to act as a "dumb" value-object, with the possibility of replacing it with a
+   * Proto/JSON/etc. schema object.
+   *
    * @param filter {@link MetricsFilter} with the matching information of an actual metric
    * @param key {@link MetricKey} with the information of a metric
    * @return whether the filter matches the key or not
@@ -42,19 +43,19 @@ public class MetricFiltering {
   public static boolean matches(MetricsFilter filter, MetricKey key) {
     return filter == null
         || (matchesName(key.metricName(), filter.names())
-        && matchesScope(key.stepName(), filter.steps()));
+            && matchesScope(key.stepName(), filter.steps()));
   }
 
   /**
-   * {@code subPathMatches(haystack, needle)} returns true if {@code needle}
-   * represents a path within {@code haystack}. For example, "foo/bar" is in "a/foo/bar/b",
-   * but not "a/fool/bar/b" or "a/foo/bart/b".
+   * {@code subPathMatches(haystack, needle)} returns true if {@code needle} represents a path
+   * within {@code haystack}. For example, "foo/bar" is in "a/foo/bar/b", but not "a/fool/bar/b" or
+   * "a/foo/bart/b".
    */
   public static boolean subPathMatches(String haystack, String needle) {
     int location = haystack.indexOf(needle);
     int end = location + needle.length();
     if (location == -1) {
-      return false;  // needle not found
+      return false; // needle not found
     } else if (location != 0 && haystack.charAt(location - 1) != '/') {
       return false; // the first entry in needle wasn't exactly matched
     } else if (end != haystack.length() && haystack.charAt(end) != '/') {
@@ -65,10 +66,11 @@ public class MetricFiltering {
   }
 
   /**
-   * {@code matchesScope(actualScope, scopes)} returns true if the scope of a metric is matched
-   * by any of the filters in {@code scopes}. A metric scope is a path of type "A/B/D". A
-   * path is matched by a filter if the filter is equal to the path (e.g. "A/B/D", or
-   * if it represents a subpath within it (e.g. "A/B" or "B/D", but not "A/D"). */
+   * {@code matchesScope(actualScope, scopes)} returns true if the scope of a metric is matched by
+   * any of the filters in {@code scopes}. A metric scope is a path of type "A/B/D". A path is
+   * matched by a filter if the filter is equal to the path (e.g. "A/B/D", or if it represents a
+   * subpath within it (e.g. "A/B" or "B/D", but not "A/D").
+   */
   public static boolean matchesScope(String actualScope, Set<String> scopes) {
     if (scopes.isEmpty() || scopes.contains(actualScope)) {
       return true;
@@ -98,5 +100,4 @@ public class MetricFiltering {
     }
     return false;
   }
-
 }

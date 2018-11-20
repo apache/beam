@@ -37,21 +37,24 @@ import org.apache.beam.sdk.util.MimeTypes;
 class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, String> {
   @Nullable private final String header;
   @Nullable private final String footer;
+  private final char[] delimiter;
 
   TextSink(
       ValueProvider<ResourceId> baseOutputFilename,
       DynamicDestinations<UserT, DestinationT, String> dynamicDestinations,
+      char[] delimiter,
       @Nullable String header,
       @Nullable String footer,
       WritableByteChannelFactory writableByteChannelFactory) {
     super(baseOutputFilename, dynamicDestinations, writableByteChannelFactory);
     this.header = header;
     this.footer = footer;
+    this.delimiter = delimiter;
   }
 
   @Override
   public WriteOperation<DestinationT, String> createWriteOperation() {
-    return new TextWriteOperation<>(this, header, footer);
+    return new TextWriteOperation<>(this, delimiter, header, footer);
   }
 
   /** A {@link WriteOperation WriteOperation} for text files. */
@@ -59,16 +62,19 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, S
       extends WriteOperation<DestinationT, String> {
     @Nullable private final String header;
     @Nullable private final String footer;
+    private final char[] delimiter;
 
-    private TextWriteOperation(TextSink sink, @Nullable String header, @Nullable String footer) {
+    private TextWriteOperation(
+        TextSink sink, char[] delimiter, @Nullable String header, @Nullable String footer) {
       super(sink);
       this.header = header;
       this.footer = footer;
+      this.delimiter = delimiter;
     }
 
     @Override
     public Writer<DestinationT, String> createWriter() throws Exception {
-      return new TextWriter<>(this, header, footer);
+      return new TextWriter<>(this, delimiter, header, footer);
     }
   }
 
@@ -77,15 +83,18 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, S
     private static final String NEWLINE = "\n";
     @Nullable private final String header;
     @Nullable private final String footer;
+    private final char[] delimiter;
 
     // Initialized in prepareWrite
     @Nullable private OutputStreamWriter out;
 
     public TextWriter(
         WriteOperation<DestinationT, String> writeOperation,
+        char[] delimiter,
         @Nullable String header,
         @Nullable String footer) {
       super(writeOperation, MimeTypes.TEXT);
+      this.delimiter = delimiter;
       this.header = header;
       this.footer = footer;
     }
@@ -97,10 +106,10 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, S
       }
     }
 
-    /** Writes {@code value} followed by newline character. */
+    /** Writes {@code value} followed by the delimiter byte sequence. */
     private void writeLine(String value) throws IOException {
       out.write(value);
-      out.write(NEWLINE);
+      out.write(delimiter);
     }
 
     @Override

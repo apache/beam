@@ -35,14 +35,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link InMemoryStateInternals}. This is based on {@link StateInternalsTest}.
- */
+/** Tests for {@link InMemoryStateInternals}. This is based on {@link StateInternalsTest}. */
 public class InMemoryStateInternalsTest {
 
-  /**
-   * A standard StateInternals test.
-   */
+  /** A standard StateInternals test. */
   @RunWith(JUnit4.class)
   public static class StandardStateInternalsTests extends StateInternalsTest {
     @Override
@@ -51,9 +47,7 @@ public class InMemoryStateInternalsTest {
     }
   }
 
-  /**
-   * A specific test of InMemoryStateInternals.
-   */
+  /** A specific test of InMemoryStateInternals. */
   @RunWith(JUnit4.class)
   public static class OtherTests {
 
@@ -61,9 +55,8 @@ public class InMemoryStateInternalsTest {
 
     private static final StateTag<ValueState<String>> STRING_VALUE_ADDR =
         StateTags.value("stringValue", StringUtf8Coder.of());
-    private static final StateTag<CombiningState<Integer, int[], Integer>>
-        SUM_INTEGER_ADDR = StateTags.combiningValueFromInputInternal(
-        "sumInteger", VarIntCoder.of(), Sum.ofIntegers());
+    private static final StateTag<CombiningState<Integer, int[], Integer>> SUM_INTEGER_ADDR =
+        StateTags.combiningValueFromInputInternal("sumInteger", VarIntCoder.of(), Sum.ofIntegers());
     private static final StateTag<BagState<String>> STRING_BAG_ADDR =
         StateTags.bag("stringBag", StringUtf8Coder.of());
     private static final StateTag<SetState<String>> STRING_SET_ADDR =
@@ -90,9 +83,9 @@ public class InMemoryStateInternalsTest {
     }
 
     private <T extends State> void assertSameInstance(StateTag<T> address) {
-      assertThat(underTest.state(NAMESPACE, address),
+      assertThat(
+          underTest.state(NAMESPACE, address),
           Matchers.sameInstance(underTest.state(NAMESPACE, address)));
     }
   }
-
 }

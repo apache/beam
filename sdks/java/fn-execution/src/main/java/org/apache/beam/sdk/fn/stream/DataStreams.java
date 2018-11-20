@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingInputStream;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,11 +29,12 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 
 /**
  * {@link #inbound(Iterator)} treats multiple {@link ByteString}s as a single input stream and
- * {@link #outbound(OutputChunkConsumer)} treats a single {@link OutputStream} as multiple
- * {@link ByteString}s.
+ * {@link #outbound(OutputChunkConsumer)} treats a single {@link OutputStream} as multiple {@link
+ * ByteString}s.
  */
 public class DataStreams {
   public static final int DEFAULT_OUTBOUND_BUFFER_LIMIT_BYTES = 1_000_000;
@@ -42,8 +42,8 @@ public class DataStreams {
   /**
    * Converts multiple {@link ByteString}s into a single {@link InputStream}.
    *
-   * <p>The iterator is accessed lazily. The supplied {@link Iterator} should block until
-   * either it knows that no more values will be provided or it has the next {@link ByteString}.
+   * <p>The iterator is accessed lazily. The supplied {@link Iterator} should block until either it
+   * knows that no more values will be provided or it has the next {@link ByteString}.
    *
    * <p>Note that this {@link InputStream} follows the Beam Fn API specification for forcing values
    * that decode consuming zero bytes to consuming exactly one byte.
@@ -53,8 +53,8 @@ public class DataStreams {
   }
 
   /**
-   * Converts a single element delimited {@link OutputStream} into multiple
-   * {@link ByteString ByteStrings}.
+   * Converts a single element delimited {@link OutputStream} into multiple {@link ByteString
+   * ByteStrings}.
    *
    * <p>Note that users must call {@link ElementDelimitedOutputStream#delimitElement} after each
    * element.
@@ -67,8 +67,8 @@ public class DataStreams {
   }
 
   /**
-   * Converts a single element delimited {@link OutputStream} into multiple
-   * {@link ByteString ByteStrings} using the specified maximum chunk size.
+   * Converts a single element delimited {@link OutputStream} into multiple {@link ByteString
+   * ByteStrings} using the specified maximum chunk size.
    *
    * <p>Note that users must call {@link ElementDelimitedOutputStream#delimitElement} after each
    * element.
@@ -148,9 +148,7 @@ public class DataStreams {
       output.close();
     }
 
-    /**
-     * Can only be called if at least one byte has been written.
-     */
+    /** Can only be called if at least one byte has been written. */
     private void internalFlush() throws IOException {
       consumer.read(output.toByteString());
       output.reset();
@@ -163,25 +161,26 @@ public class DataStreams {
   /**
    * A callback which is invoked whenever the {@link #outbound} {@link OutputStream} becomes full.
    *
-   * {@link #outbound(OutputChunkConsumer)}.
+   * <p>{@link #outbound(OutputChunkConsumer)}.
    */
   public interface OutputChunkConsumer<T> {
     void read(T chunk) throws IOException;
   }
 
   /**
-   * An input stream which concatenates multiple {@link ByteString}s. Lazily accesses the
-   * first {@link Iterator} on first access of this input stream.
+   * An input stream which concatenates multiple {@link ByteString}s. Lazily accesses the first
+   * {@link Iterator} on first access of this input stream.
    *
    * <p>Closing this input stream has no effect.
    */
   private static class Inbound<T> extends InputStream {
-    private static final InputStream EMPTY_STREAM = new InputStream() {
-      @Override
-      public int read() throws IOException {
-        return -1;
-      }
-    };
+    private static final InputStream EMPTY_STREAM =
+        new InputStream() {
+          @Override
+          public int read() throws IOException {
+            return -1;
+          }
+        };
 
     private final Iterator<ByteString> bytes;
     private InputStream currentStream;
@@ -204,8 +203,9 @@ public class DataStreams {
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
       int remainingLen = len;
-      while ((remainingLen -= ByteStreams.read(
-          currentStream, b, off + len - remainingLen, remainingLen)) > 0) {
+      while ((remainingLen -=
+              ByteStreams.read(currentStream, b, off + len - remainingLen, remainingLen))
+          > 0) {
         if (bytes.hasNext()) {
           currentStream = bytes.next().newInput();
         } else {
@@ -229,13 +229,18 @@ public class DataStreams {
    */
   public static class DataStreamDecoder<T> implements Iterator<T> {
 
-    private enum State { READ_REQUIRED, HAS_NEXT, EOF }
+    private enum State {
+      READ_REQUIRED,
+      HAS_NEXT,
+      EOF
+    }
 
     private final CountingInputStream countingInputStream;
     private final PushbackInputStream pushbackInputStream;
     private final Coder<T> coder;
     private State currentState;
     private T next;
+
     public DataStreamDecoder(Coder<T> coder, InputStream inputStream) {
       this.currentState = State.READ_REQUIRED;
       this.coder = coder;
@@ -300,8 +305,7 @@ public class DataStreams {
    * <p>The order or values which are appended to this iterator is nondeterministic when multiple
    * threads call {@link #accept(Object)}.
    */
-  public static class BlockingQueueIterator<T>
-      implements AutoCloseable, Iterator<T> {
+  public static class BlockingQueueIterator<T> implements AutoCloseable, Iterator<T> {
     private static final Object POISION_PILL = new Object();
     private final BlockingQueue<T> queue;
 

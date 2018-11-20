@@ -37,11 +37,12 @@ import org.junit.runners.JUnit4;
 public class BitSetCoderTest {
   private static final Coder<BitSet> TEST_CODER = BitSetCoder.of();
 
-  private static final List<BitSet> TEST_VALUES = Arrays.asList(
-      BitSet.valueOf(new byte[]{0xa, 0xb, 0xc}),
-      BitSet.valueOf(new byte[]{0xd, 0x3}),
-      BitSet.valueOf(new byte[]{0xd, 0xe}),
-      BitSet.valueOf(new byte[]{}));
+  private static final List<BitSet> TEST_VALUES =
+      Arrays.asList(
+          BitSet.valueOf(new byte[] {0xa, 0xb, 0xc}),
+          BitSet.valueOf(new byte[] {0xd, 0x3}),
+          BitSet.valueOf(new byte[] {0xd, 0xe}),
+          BitSet.valueOf(new byte[] {}));
 
   @Test
   public void testDecodeEncodeEquals() throws Exception {
@@ -52,11 +53,13 @@ public class BitSetCoderTest {
 
   @Test
   public void testRegisterByteSizeObserver() throws Exception {
-    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.OUTER,
-        new byte[][]{{ 0xa, 0xb, 0xc }});
+    CoderProperties.testByteCount(
+        ByteArrayCoder.of(), Coder.Context.OUTER, new byte[][] {{0xa, 0xb, 0xc}});
 
-    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.NESTED,
-        new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
+    CoderProperties.testByteCount(
+        ByteArrayCoder.of(),
+        Coder.Context.NESTED,
+        new byte[][] {{0xa, 0xb, 0xc}, {}, {}, {0xd, 0xe}, {}});
   }
 
   @Test
@@ -71,22 +74,17 @@ public class BitSetCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "CgsM",
-      "DQM",
-      "DQ4",
-      "");
+  private static final List<String> TEST_ENCODINGS = Arrays.asList("CgsM", "DQM", "DQ4", "");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

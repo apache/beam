@@ -32,37 +32,30 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Keys transform.
- */
+/** Tests for Keys transform. */
 @RunWith(JUnit4.class)
 public class KeysTest {
   @SuppressWarnings({"rawtypes", "unchecked"})
-  static final KV<String, Integer>[] TABLE = new KV[] {
-    KV.of("one", 1),
-    KV.of("two", 2),
-    KV.of("three", 3),
-    KV.of("dup", 4),
-    KV.of("dup", 5)
-  };
+  static final KV<String, Integer>[] TABLE =
+      new KV[] {
+        KV.of("one", 1), KV.of("two", 2), KV.of("three", 3), KV.of("dup", 4), KV.of("dup", 5)
+      };
 
   @SuppressWarnings({"rawtypes", "unchecked"})
-  static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {
-  };
+  static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {};
 
-  @Rule
-  public final TestPipeline p = TestPipeline.create();
+  @Rule public final TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(ValidatesRunner.class)
   public void testKeys() {
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
-            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+        p.apply(
+            Create.of(Arrays.asList(TABLE))
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<String> output = input.apply(Keys.create());
-    PAssert.that(output)
-        .containsInAnyOrder("one", "two", "three", "dup", "dup");
+    PAssert.that(output).containsInAnyOrder("one", "two", "three", "dup", "dup");
 
     p.run();
   }
@@ -71,8 +64,9 @@ public class KeysTest {
   @Category(ValidatesRunner.class)
   public void testKeysEmpty() {
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
-            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+        p.apply(
+            Create.of(Arrays.asList(EMPTY_TABLE))
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<String> output = input.apply(Keys.create());
     PAssert.that(output).empty();

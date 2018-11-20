@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
@@ -35,7 +34,7 @@ public class BeamSqlCurrentTimeExpressionTest extends BeamSqlDateExpressionTestB
     assertEquals(
         SqlTypeName.TIME,
         new BeamSqlCurrentTimeExpression(operands)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getOutputType());
   }
 }

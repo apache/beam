@@ -41,10 +41,11 @@ from __future__ import absolute_import
 import calendar
 import inspect
 import json
+from builtins import object
 from datetime import datetime
 from datetime import timedelta
 
-import six
+from past.builtins import unicode
 
 __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 
@@ -169,7 +170,7 @@ class DisplayDataItem(object):
   display item belongs to.
   """
   typeDict = {str:'STRING',
-              six.text_type:'STRING',
+              unicode:'STRING',
               int:'INTEGER',
               float:'FLOAT',
               bool: 'BOOLEAN',
@@ -279,6 +280,7 @@ class DisplayDataItem(object):
     return False
 
   def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __hash__(self):

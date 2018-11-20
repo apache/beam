@@ -22,6 +22,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
@@ -41,24 +42,21 @@ type JobOptions struct {
 
 	// Worker is the worker binary override.
 	Worker string
-
-	// InternalJavaRunner is the class of the receiving Java runner. To be removed.
-	InternalJavaRunner string
 }
 
 // Prepare prepares a job to the given job service. It returns the preparation id
-// and artifact staging endpoint, if successful.
-func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline, opt *JobOptions) (id, endpoint string, err error) {
+// artifact staging endpoint, and staging token if successful.
+func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline, opt *JobOptions) (id, endpoint, stagingToken string, err error) {
+	hooks.SerializeHooksToOptions()
 	raw := runtime.RawOptionsWrapper{
 		Options:     beam.PipelineOptions.Export(),
-		Runner:      opt.InternalJavaRunner,
 		AppName:     opt.Name,
 		Experiments: append(opt.Experiments, "beam_fn_api"),
 	}
 
 	options, err := provision.OptionsToProto(raw)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to produce pipeline options: %v", err)
+		return "", "", "", fmt.Errorf("failed to produce pipeline options: %v", err)
 	}
 	req := &jobpb.PrepareJobRequest{
 		Pipeline:        p,
@@ -67,16 +65,16 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline,
 	}
 	resp, err := client.Prepare(ctx, req)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to connect to job service: %v", err)
+		return "", "", "", fmt.Errorf("failed to connect to job service: %v", err)
 	}
-	return resp.GetPreparationId(), resp.GetArtifactStagingEndpoint().GetUrl(), nil
+	return resp.GetPreparationId(), resp.GetArtifactStagingEndpoint().GetUrl(), resp.GetStagingSessionToken(), nil
 }
 
 // Submit submits a job to the given job service. It returns a jobID, if successful.
 func Submit(ctx context.Context, client jobpb.JobServiceClient, id, token string) (string, error) {
 	req := &jobpb.RunJobRequest{
-		PreparationId: id,
-		StagingToken:  token,
+		PreparationId:  id,
+		RetrievalToken: token,
 	}
 
 	resp, err := client.Run(ctx, req)

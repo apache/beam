@@ -71,7 +71,6 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -205,8 +204,8 @@ public class DataflowRunnerTest implements Serializable {
         .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_STAGING_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET))).thenReturn(true);
-    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET + "/staging/"))).
-        thenReturn(true);
+    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET + "/staging/")))
+        .thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_PROFILE_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(NON_EXISTENT_BUCKET))).thenReturn(false);
 
@@ -255,8 +254,8 @@ public class DataflowRunnerTest implements Serializable {
     Dataflow.Projects.Locations mockLocations = mock(Dataflow.Projects.Locations.class);
     Dataflow.Projects.Locations.Jobs.Create mockRequest =
         mock(Dataflow.Projects.Locations.Jobs.Create.class);
-    Dataflow.Projects.Locations.Jobs.List mockList = mock(
-        Dataflow.Projects.Locations.Jobs.List.class);
+    Dataflow.Projects.Locations.Jobs.List mockList =
+        mock(Dataflow.Projects.Locations.Jobs.List.class);
 
     when(mockDataflowClient.projects()).thenReturn(mockProjects);
     when(mockProjects.locations()).thenReturn(mockLocations);
@@ -301,7 +300,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setTempLocation(VALID_TEMP_BUCKET);
     options.setRegion(REGION_ID);
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
-    options.setFilesToStage(new LinkedList<>());
+    options.setFilesToStage(new ArrayList<>());
     options.setDataflowClient(buildMockDataflow());
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
@@ -314,12 +313,13 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testPathValidation() {
-    String[] args = new String[] {
-        "--runner=DataflowRunner",
-        "--tempLocation=/tmp/not/a/gs/path",
-        "--project=test-project",
-        "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
-    };
+    String[] args =
+        new String[] {
+          "--runner=DataflowRunner",
+          "--tempLocation=/tmp/not/a/gs/path",
+          "--project=test-project",
+          "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
+        };
 
     try {
       Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
@@ -333,12 +333,13 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testPathExistsValidation() {
-    String[] args = new String[] {
-        "--runner=DataflowRunner",
-        "--tempLocation=gs://does/not/exist",
-        "--project=test-project",
-        "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
-    };
+    String[] args =
+        new String[] {
+          "--runner=DataflowRunner",
+          "--tempLocation=gs://does/not/exist",
+          "--project=test-project",
+          "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
+        };
 
     try {
       Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
@@ -353,13 +354,14 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testPathValidatorOverride() {
-    String[] args = new String[] {
-        "--runner=DataflowRunner",
-        "--tempLocation=/tmp/testing",
-        "--project=test-project",
-        "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
-        "--pathValidatorClass=" + NoopPathValidator.class.getName(),
-    };
+    String[] args =
+        new String[] {
+          "--runner=DataflowRunner",
+          "--tempLocation=/tmp/testing",
+          "--project=test-project",
+          "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
+          "--pathValidatorClass=" + NoopPathValidator.class.getName(),
+        };
     // Should not crash, because gcpTempLocation should get set from tempLocation
     TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
   }
@@ -387,8 +389,8 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   /**
-   * Invasive mock-based test for checking that the JSON generated for the pipeline options has
-   * not had vital fields pruned.
+   * Invasive mock-based test for checking that the JSON generated for the pipeline options has not
+   * had vital fields pruned.
    */
   @Test
   public void testSettingOfSdkPipelineOptions() throws IOException {
@@ -418,8 +420,7 @@ public class DataflowRunnerTest implements Serializable {
     assertThat(optionsMap, hasEntry("runner", (Object) options.getRunner().getName()));
     assertThat(optionsMap, hasEntry("jobName", (Object) options.getJobName()));
     assertThat(optionsMap, hasEntry("tempLocation", (Object) options.getTempLocation()));
-    assertThat(
-        optionsMap, hasEntry("stagingLocation", (Object) options.getStagingLocation()));
+    assertThat(optionsMap, hasEntry("stagingLocation", (Object) options.getStagingLocation()));
     assertThat(
         optionsMap,
         hasEntry("stableUniqueNames", (Object) options.getStableUniqueNames().toString()));
@@ -433,6 +434,7 @@ public class DataflowRunnerTest implements Serializable {
   /** PipelineOptions used to test auto registration of Jackson modules. */
   public interface JacksonIncompatibleOptions extends PipelineOptions {
     JacksonIncompatible getJacksonIncompatible();
+
     void setJacksonIncompatible(JacksonIncompatible value);
   }
 
@@ -448,6 +450,7 @@ public class DataflowRunnerTest implements Serializable {
   /** A class which Jackson does not know how to serialize/deserialize. */
   public static class JacksonIncompatible {
     private final String value;
+
     public JacksonIncompatible(String value) {
       this.value = value;
     }
@@ -459,12 +462,13 @@ public class DataflowRunnerTest implements Serializable {
   public static final class JacksonIncompatibleMixin {}
 
   /** A Jackson deserializer for {@link JacksonIncompatible}. */
-  public static class JacksonIncompatibleDeserializer extends
-      JsonDeserializer<JacksonIncompatible> {
+  public static class JacksonIncompatibleDeserializer
+      extends JsonDeserializer<JacksonIncompatible> {
 
     @Override
-    public JacksonIncompatible deserialize(JsonParser jsonParser,
-        DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+    public JacksonIncompatible deserialize(
+        JsonParser jsonParser, DeserializationContext deserializationContext)
+        throws IOException, JsonProcessingException {
       return new JacksonIncompatible(jsonParser.readValueAs(String.class));
     }
   }
@@ -473,8 +477,11 @@ public class DataflowRunnerTest implements Serializable {
   public static class JacksonIncompatibleSerializer extends JsonSerializer<JacksonIncompatible> {
 
     @Override
-    public void serialize(JacksonIncompatible jacksonIncompatible, JsonGenerator jsonGenerator,
-        SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+    public void serialize(
+        JacksonIncompatible jacksonIncompatible,
+        JsonGenerator jsonGenerator,
+        SerializerProvider serializerProvider)
+        throws IOException, JsonProcessingException {
       jsonGenerator.writeString(jacksonIncompatible.value);
     }
   }
@@ -482,8 +489,9 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testSettingOfPipelineOptionsWithCustomUserType() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    options.as(JacksonIncompatibleOptions.class).setJacksonIncompatible(
-        new JacksonIncompatible("userCustomTypeTest"));
+    options
+        .as(JacksonIncompatibleOptions.class)
+        .setJacksonIncompatible(new JacksonIncompatible("userCustomTypeTest"));
 
     Pipeline p = Pipeline.create(options);
     p.run();
@@ -513,9 +521,11 @@ public class DataflowRunnerTest implements Serializable {
   /** Options for testing. */
   public interface RuntimeTestOptions extends PipelineOptions {
     ValueProvider<String> getInput();
+
     void setInput(ValueProvider<String> value);
 
     ValueProvider<String> getOutput();
+
     void setOutput(ValueProvider<String> value);
   }
 
@@ -524,14 +534,10 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions dataflowOptions = buildPipelineOptions();
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
-    p
-        .apply(TextIO.read().from(options.getInput()))
-        .apply(TextIO.write().to(options.getOutput()));
+    p.apply(TextIO.read().from(options.getInput())).apply(TextIO.write().to(options.getOutput()));
   }
 
-  /**
-   * Tests that all reads are consumed by at least one {@link PTransform}.
-   */
+  /** Tests that all reads are consumed by at least one {@link PTransform}. */
   @Test
   public void testUnconsumedReads() throws IOException {
     DataflowPipelineOptions dataflowOptions = buildPipelineOptions();
@@ -540,12 +546,13 @@ public class DataflowRunnerTest implements Serializable {
     p.apply(TextIO.read().from(options.getInput()));
     DataflowRunner.fromOptions(dataflowOptions).replaceTransforms(p);
     final AtomicBoolean unconsumedSeenAsInput = new AtomicBoolean();
-    p.traverseTopologically(new PipelineVisitor.Defaults() {
-      @Override
-      public void visitPrimitiveTransform(Node node) {
-        unconsumedSeenAsInput.set(true);
-      }
-    });
+    p.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            unconsumedSeenAsInput.set(true);
+          }
+        });
     assertThat(unconsumedSeenAsInput.get(), is(true));
   }
 
@@ -553,10 +560,13 @@ public class DataflowRunnerTest implements Serializable {
   public void testRunReturnDifferentRequestId() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     Dataflow mockDataflowClient = options.getDataflowClient();
-    Dataflow.Projects.Locations.Jobs.Create mockRequest = mock(
-        Dataflow.Projects.Locations.Jobs.Create.class);
-    when(mockDataflowClient.projects().locations().jobs()
-        .create(eq(PROJECT_ID), eq(REGION_ID), any(Job.class)))
+    Dataflow.Projects.Locations.Jobs.Create mockRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Create.class);
+    when(mockDataflowClient
+            .projects()
+            .locations()
+            .jobs()
+            .create(eq(PROJECT_ID), eq(REGION_ID), any(Job.class)))
         .thenReturn(mockRequest);
     Job resultJob = new Job();
     resultJob.setId("newid");
@@ -569,9 +579,11 @@ public class DataflowRunnerTest implements Serializable {
       p.run();
       fail("Expected DataflowJobAlreadyExistsException");
     } catch (DataflowJobAlreadyExistsException expected) {
-      assertThat(expected.getMessage(),
-          containsString("If you want to submit a second job, try again by setting a "
-              + "different name using --jobName."));
+      assertThat(
+          expected.getMessage(),
+          containsString(
+              "If you want to submit a second job, try again by setting a "
+                  + "different name using --jobName."));
       assertEquals(expected.getJob().getJobId(), resultJob.getId());
     }
   }
@@ -588,6 +600,24 @@ public class DataflowRunnerTest implements Serializable {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
+  }
+
+  @Test
+  public void testUploadGraph() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(Arrays.asList("upload_graph"));
+    Pipeline p = buildDataflowPipeline(options);
+    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+    assertValidJob(jobCaptor.getValue());
+    assertTrue(jobCaptor.getValue().getSteps().isEmpty());
+    assertTrue(
+        jobCaptor
+            .getValue()
+            .getStepsLocation()
+            .startsWith("gs://valid-bucket/temp/staging/dataflow_graph"));
   }
 
   @Test
@@ -608,10 +638,13 @@ public class DataflowRunnerTest implements Serializable {
     options.setUpdate(true);
     options.setJobName("oldJobName");
     Dataflow mockDataflowClient = options.getDataflowClient();
-    Dataflow.Projects.Locations.Jobs.Create mockRequest = mock(
-        Dataflow.Projects.Locations.Jobs.Create.class);
-    when(mockDataflowClient.projects().locations().jobs()
-        .create(eq(PROJECT_ID), eq(REGION_ID), any(Job.class)))
+    Dataflow.Projects.Locations.Jobs.Create mockRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Create.class);
+    when(mockDataflowClient
+            .projects()
+            .locations()
+            .jobs()
+            .create(eq(PROJECT_ID), eq(REGION_ID), any(Job.class)))
         .thenReturn(mockRequest);
     final Job resultJob = new Job();
     resultJob.setId("newid");
@@ -622,19 +655,21 @@ public class DataflowRunnerTest implements Serializable {
     Pipeline p = buildDataflowPipeline(options);
 
     thrown.expect(DataflowJobAlreadyUpdatedException.class);
-    thrown.expect(new TypeSafeMatcher<DataflowJobAlreadyUpdatedException>() {
-      @Override
-      public void describeTo(Description description) {
-        description.appendText("Expected job ID: " + resultJob.getId());
-      }
+    thrown.expect(
+        new TypeSafeMatcher<DataflowJobAlreadyUpdatedException>() {
+          @Override
+          public void describeTo(Description description) {
+            description.appendText("Expected job ID: " + resultJob.getId());
+          }
 
-      @Override
-      protected boolean matchesSafely(DataflowJobAlreadyUpdatedException item) {
-        return resultJob.getId().equals(item.getJob().getJobId());
-      }
-    });
-    thrown.expectMessage("The job named oldjobname with id: oldJobId has already been updated "
-        + "into job id: newid and cannot be updated again.");
+          @Override
+          protected boolean matchesSafely(DataflowJobAlreadyUpdatedException item) {
+            return resultJob.getId().equals(item.getJob().getJobId());
+          }
+        });
+    thrown.expectMessage(
+        "The job named oldjobname with id: oldJobId has already been updated "
+            + "into job id: newid and cannot be updated again.");
     p.run();
   }
 
@@ -652,13 +687,14 @@ public class DataflowRunnerTest implements Serializable {
     String overridePackageName = "alias.txt";
 
     when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
-        .thenReturn(ImmutableList.of(GcsUtil.StorageObjectOrIOException.create(
-            new FileNotFoundException("some/path"))));
+        .thenReturn(
+            ImmutableList.of(
+                GcsUtil.StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
 
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setFilesToStage(ImmutableList.of(
-        temp1.getAbsolutePath(),
-        overridePackageName + "=" + temp2.getAbsolutePath()));
+    options.setFilesToStage(
+        ImmutableList.of(
+            temp1.getAbsolutePath(), overridePackageName + "=" + temp2.getAbsolutePath()));
     options.setStagingLocation(VALID_STAGING_BUCKET);
     options.setTempLocation(VALID_TEMP_BUCKET);
     options.setTempDatasetId(cloudDataflowDataset);
@@ -688,9 +724,7 @@ public class DataflowRunnerTest implements Serializable {
     Job workflowJob = jobCaptor.getValue();
     assertValidJob(workflowJob);
 
-    assertEquals(
-        2,
-        workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().size());
+    assertEquals(2, workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().size());
     DataflowPackage workflowPackage1 =
         workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().get(0);
     assertThat(workflowPackage1.getName(), startsWith(temp1.getName()));
@@ -701,9 +735,7 @@ public class DataflowRunnerTest implements Serializable {
     assertEquals(
         GcsPath.fromUri(VALID_TEMP_BUCKET).toResourceName(),
         workflowJob.getEnvironment().getTempStoragePrefix());
-    assertEquals(
-        cloudDataflowDataset,
-        workflowJob.getEnvironment().getDataset());
+    assertEquals(cloudDataflowDataset, workflowJob.getEnvironment().getDataset());
     assertEquals(
         DataflowRunnerInfo.getDataflowRunnerInfo().getName(),
         workflowJob.getEnvironment().getUserAgent().get("name"));
@@ -805,8 +837,8 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcpTempLocation(NON_EXISTENT_BUCKET);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString(
-        "Output path does not exist or is not writeable: " + NON_EXISTENT_BUCKET));
+    thrown.expectMessage(
+        containsString("Output path does not exist or is not writeable: " + NON_EXISTENT_BUCKET));
     DataflowRunner.fromOptions(options);
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
@@ -820,8 +852,8 @@ public class DataflowRunnerTest implements Serializable {
     options.setStagingLocation(NON_EXISTENT_BUCKET);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString(
-        "Output path does not exist or is not writeable: " + NON_EXISTENT_BUCKET));
+    thrown.expectMessage(
+        containsString("Output path does not exist or is not writeable: " + NON_EXISTENT_BUCKET));
     DataflowRunner.fromOptions(options);
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
@@ -835,8 +867,8 @@ public class DataflowRunnerTest implements Serializable {
     options.setSaveProfilesToGcs(NON_EXISTENT_BUCKET);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString(
-        "Output path does not exist or is not writeable: " + NON_EXISTENT_BUCKET));
+    thrown.expectMessage(
+        containsString("Output path does not exist or is not writeable: " + NON_EXISTENT_BUCKET));
     DataflowRunner.fromOptions(options);
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
@@ -944,8 +976,9 @@ public class DataflowRunnerTest implements Serializable {
     options.setProject("foo-project");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("DataflowRunner requires gcpTempLocation, "
-        + "but failed to retrieve a value from PipelineOption");
+    thrown.expectMessage(
+        "DataflowRunner requires gcpTempLocation, "
+            + "but failed to retrieve a value from PipelineOption");
     DataflowRunner.fromOptions(options);
   }
 
@@ -983,14 +1016,9 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testInvalidJobName() throws IOException {
-    List<String> invalidNames = Arrays.asList(
-        "invalid_name",
-        "0invalid",
-        "invalid-");
-    List<String> expectedReason = Arrays.asList(
-        "JobName invalid",
-        "JobName invalid",
-        "JobName invalid");
+    List<String> invalidNames = Arrays.asList("invalid_name", "0invalid", "invalid-");
+    List<String> expectedReason =
+        Arrays.asList("JobName invalid", "JobName invalid", "JobName invalid");
 
     for (int i = 0; i < invalidNames.size(); ++i) {
       DataflowPipelineOptions options = buildPipelineOptions();
@@ -998,26 +1026,23 @@ public class DataflowRunnerTest implements Serializable {
 
       try {
         DataflowRunner.fromOptions(options);
-        fail("Expected IllegalArgumentException for jobName "
-            + options.getJobName());
+        fail("Expected IllegalArgumentException for jobName " + options.getJobName());
       } catch (IllegalArgumentException e) {
-        assertThat(e.getMessage(),
-            containsString(expectedReason.get(i)));
+        assertThat(e.getMessage(), containsString(expectedReason.get(i)));
       }
     }
   }
 
   @Test
   public void testValidJobName() throws IOException {
-    List<String> names = Arrays.asList("ok", "Ok", "A-Ok", "ok-123",
-        "this-one-is-fairly-long-01234567890123456789");
+    List<String> names =
+        Arrays.asList("ok", "Ok", "A-Ok", "ok-123", "this-one-is-fairly-long-01234567890123456789");
 
     for (String name : names) {
       DataflowPipelineOptions options = buildPipelineOptions();
       options.setJobName(name);
 
-      DataflowRunner runner = DataflowRunner
-          .fromOptions(options);
+      DataflowRunner runner = DataflowRunner.fromOptions(options);
       assertNotNull(runner);
     }
   }
@@ -1065,11 +1090,8 @@ public class DataflowRunnerTest implements Serializable {
         gcsUploadBufferSizeBytes, streamingOptions.getGcsUploadBufferSizeBytes().intValue());
   }
 
-  /**
-   * A fake PTransform for testing.
-   */
-  public static class TestTransform
-      extends PTransform<PCollection<Integer>, PCollection<Integer>> {
+  /** A fake PTransform for testing. */
+  public static class TestTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
     public boolean translated = false;
 
     @Override
@@ -1087,8 +1109,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = buildPipelineOptions();
     Pipeline p = Pipeline.create(options);
 
-    p.apply(Create.of(Arrays.asList(1, 2, 3)))
-        .apply(new TestTransform());
+    p.apply(Create.of(Arrays.asList(1, 2, 3))).apply(new TestTransform());
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(containsString("no translator registered"));
@@ -1110,13 +1131,12 @@ public class DataflowRunnerTest implements Serializable {
     p.apply(Create.of(Arrays.asList(1, 2, 3)).withCoder(BigEndianIntegerCoder.of()))
         .apply(transform);
 
-    DataflowPipelineTranslator translator = DataflowRunner
-        .fromOptions(options).getTranslator();
+    DataflowPipelineTranslator translator = DataflowRunner.fromOptions(options).getTranslator();
 
     DataflowPipelineTranslator.registerTransformTranslator(
         TestTransform.class,
-        (transform1, context) ->{
-            transform1.translated = true;
+        (transform1, context) -> {
+          transform1.translated = true;
 
           // Note: This is about the minimum needed to fake out a
           // translation. This obviously isn't a real translation.
@@ -1244,9 +1264,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setRunner(DataflowRunner.class);
-    assertEquals(
-        "DataflowRunner#testjobname",
-        DataflowRunner.fromOptions(options).toString());
+    assertEquals("DataflowRunner#testjobname", DataflowRunner.fromOptions(options).toString());
   }
 
   /**
@@ -1303,16 +1321,13 @@ public class DataflowRunnerTest implements Serializable {
     options.setWorkerHarnessContainerImage("gcr.io/IMAGE/foo");
     options.setExperiments(null);
     options.setStreaming(false);
-    assertThat(
-        getContainerImageForJob(options), equalTo("gcr.io/beam-java-batch/foo"));
+    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java-batch/foo"));
     // streaming, legacy
     options.setStreaming(true);
-    assertThat(
-        getContainerImageForJob(options), equalTo("gcr.io/beam-java-streaming/foo"));
+    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java-streaming/foo"));
     // streaming, fnapi
     options.setExperiments(ImmutableList.of("experiment1", "beam_fn_api"));
-    assertThat(
-        getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
+    assertThat(getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
   }
 
   @Test
@@ -1381,8 +1396,8 @@ public class DataflowRunnerTest implements Serializable {
 
     WriteFilesResult<Void> originalResult = objs.apply(original);
     WriteFilesResult<Void> replacementResult = objs.apply(replacement);
-    Map<PValue, ReplacementOutput> res = factory
-        .mapOutputs(originalResult.expand(), replacementResult);
+    Map<PValue, ReplacementOutput> res =
+        factory.mapOutputs(originalResult.expand(), replacementResult);
     assertEquals(1, res.size());
     assertEquals(
         originalResult.getPerDestinationOutputFilenames(),

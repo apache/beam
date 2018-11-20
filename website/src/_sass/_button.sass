@@ -1,0 +1,45 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+.button
+  -webkit-transition: background-color 0.3s
+  background-color: #fff
+  border-radius: 5px
+  box-shadow: $box-shadow
+  cursor: pointer
+  display: inline-block
+  font-weight: $font-weight-bold
+  padding: 13px 20px
+  position: relative
+  text-decoration: none
+  letter-spacing: 1px
+  text-transform: uppercase
+  transition: background-color 0.3s ease, box-shadow 0.25s ease
+  color: $color-dark
+
+  &--primary
+    background-color: $color-brand
+    color: #fff !important
+    &:hover
+      color: #fff !important
+
+  &:hover
+    text-decoration: none
+    box-shadow: 0 0 6px 0 rgba(0,0,0,0.12), 0 3px 6px 0 rgba(0,0,0,0.18)
+
+  & + .button
+    margin-left: $pad / 2

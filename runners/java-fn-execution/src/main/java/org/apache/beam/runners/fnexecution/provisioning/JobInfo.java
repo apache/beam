@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.provisioning;
 
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.Struct;
 import java.io.Serializable;
+import org.apache.beam.model.fnexecution.v1.ProvisionApi;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Struct;
 
 /**
  * A subset of {@link org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo} that
@@ -28,11 +28,25 @@ import java.io.Serializable;
  */
 @AutoValue
 public abstract class JobInfo implements Serializable {
-  public static JobInfo create(String jobId, String jobName, Struct pipelineOptions) {
-    return new AutoValue_JobInfo(jobId, jobName, pipelineOptions);
+  public static JobInfo create(
+      String jobId, String jobName, String retrievalToken, Struct pipelineOptions) {
+    return new AutoValue_JobInfo(jobId, jobName, retrievalToken, pipelineOptions);
   }
 
   public abstract String jobId();
+
   public abstract String jobName();
+
+  public abstract String retrievalToken();
+
   public abstract Struct pipelineOptions();
+
+  public ProvisionApi.ProvisionInfo toProvisionInfo() {
+    return ProvisionApi.ProvisionInfo.newBuilder()
+        .setJobId(jobId())
+        .setJobName(jobName())
+        .setRetrievalToken(retrievalToken())
+        .setPipelineOptions(pipelineOptions())
+        .build();
+  }
 }

@@ -17,6 +17,8 @@
 
 """Test for the estimate_pi example."""
 
+from __future__ import absolute_import
+
 import logging
 import unittest
 

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
+import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.apache.beam.sdk.io.common.TestRow.DeterministicallyConstructTestRowFn;
 import static org.apache.beam.sdk.io.common.TestRow.SelectNameFn;
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
@@ -26,11 +28,10 @@ import java.sql.SQLException;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -51,11 +52,12 @@ import org.junit.Test;
 import org.postgresql.ds.PGSimpleDataSource;
 
 /**
- * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO}
- * on an independent postgres instance.
+ * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO} on an independent
+ * postgres instance.
  *
  * <p>This test requires a running instance of Postgres. Pass in connection information using
  * PipelineOptions:
+ *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/hadoop/input-format/
  *   -DintegrationTestPipelineOptions='[
@@ -69,8 +71,8 @@ import org.postgresql.ds.PGSimpleDataSource;
  *  -DintegrationTestRunner=direct
  * </pre>
  *
- * <p>Please see 'build_rules.gradle' file for instructions regarding
- * running this test using Beam performance testing framework.</p>
+ * <p>Please see 'build_rules.gradle' file for instructions regarding running this test using Beam
+ * performance testing framework.
  */
 public class HadoopInputFormatIOIT {
 
@@ -79,35 +81,35 @@ public class HadoopInputFormatIOIT {
   private static String tableName;
   private static SerializableConfiguration hadoopConfiguration;
 
-  @Rule
-  public TestPipeline writePipeline = TestPipeline.create();
+  @Rule public TestPipeline writePipeline = TestPipeline.create();
 
-  @Rule
-  public TestPipeline readPipeline = TestPipeline.create();
+  @Rule public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void setUp() throws SQLException {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
-        .as(IOTestPipelineOptions.class);
+  public static void setUp() throws Exception {
+    PostgresIOTestPipelineOptions options =
+        readIOTestPipelineOptions(PostgresIOTestPipelineOptions.class);
 
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     numberOfRows = options.getNumberOfRecords();
     tableName = DatabaseTestHelper.getTestTableName("HadoopInputFormatIOIT");
 
-    DatabaseTestHelper.createTable(dataSource, tableName);
+    executeWithRetry(HadoopInputFormatIOIT::createTable);
     setupHadoopConfiguration(options);
   }
 
-  private static void setupHadoopConfiguration(IOTestPipelineOptions options) {
+  private static void createTable() throws SQLException {
+    DatabaseTestHelper.createTable(dataSource, tableName);
+  }
+
+  private static void setupHadoopConfiguration(PostgresIOTestPipelineOptions options) {
     Configuration conf = new Configuration();
     DBConfiguration.configureDB(
         conf,
         "org.postgresql.Driver",
         DatabaseTestHelper.getPostgresDBUrl(options),
         options.getPostgresUsername(),
-        options.getPostgresPassword()
-    );
+        options.getPostgresPassword());
     conf.set(DBConfiguration.INPUT_TABLE_NAME_PROPERTY, tableName);
     conf.setStrings(DBConfiguration.INPUT_FIELD_NAMES_PROPERTY, "id", "name");
     conf.set(DBConfiguration.INPUT_ORDER_BY_PROPERTY, "id ASC");
@@ -121,7 +123,11 @@ public class HadoopInputFormatIOIT {
   }
 
   @AfterClass
-  public static void tearDown() throws SQLException {
+  public static void tearDown() throws Exception {
+    executeWithRetry(HadoopInputFormatIOIT::deleteTable);
+  }
+
+  private static void deleteTable() throws SQLException {
     DatabaseTestHelper.deleteTable(dataSource, tableName);
   }
 
@@ -150,8 +156,7 @@ public class HadoopInputFormatIOIT {
             .apply("Values as string", ParDo.of(new SelectNameFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    PAssert.thatSingleton(consolidatedHashcode)
-        .isEqualTo(getExpectedHashForRowCount(numberOfRows));
+    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(getExpectedHashForRowCount(numberOfRows));
 
     readPipeline.run().waitUntilFinish();
   }

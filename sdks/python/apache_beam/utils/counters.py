@@ -23,7 +23,11 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import threading
+from builtins import hex
+from builtins import object
 from collections import namedtuple
 
 from apache_beam.transforms import cy_combiners
@@ -151,6 +155,9 @@ class Counter(object):
   def update(self, value):
     self.accumulator = self._add_input(self.accumulator, value)
 
+  def reset(self, value):
+    self.accumulator = self.combine_fn.create_accumulator()
+
   def value(self):
     return self.combine_fn.extract_output(self.accumulator)
 
@@ -171,10 +178,14 @@ class AccumulatorCombineFnCounter(Counter):
   def __init__(self, name, combine_fn):
     assert isinstance(combine_fn, cy_combiners.AccumulatorCombineFn)
     super(AccumulatorCombineFnCounter, self).__init__(name, combine_fn)
-    self._fast_add_input = self.accumulator.add_input
+    self.reset()
 
   def update(self, value):
     self._fast_add_input(value)
+
+  def reset(self):
+    self.accumulator = self.combine_fn.create_accumulator()
+    self._fast_add_input = self.accumulator.add_input
 
 
 class CounterFactory(object):
@@ -211,6 +222,12 @@ class CounterFactory(object):
         self.counters[name] = counter
       return counter
 
+  def reset(self):
+    # Counters are cached in state sampler states.
+    with self._lock:
+      for counter in self.counters.values():
+        counter.reset()
+
   def get_counters(self):
     """Returns the current set of counters.
 
@@ -221,4 +238,4 @@ class CounterFactory(object):
       this method returns hence the returned iterable may be stale.
     """
     with self._lock:
-      return self.counters.values()
+      return self.counters.values()  # pylint: disable=dict-values-not-iterating

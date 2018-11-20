@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -33,15 +32,15 @@ import org.junit.Test;
 public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
-  public static final MockedBoundedTable ORDER_DETAILS1 =
-      MockedBoundedTable.of(
+  public static final TestBoundedTable ORDER_DETAILS1 =
+      TestBoundedTable.of(
               Schema.FieldType.INT32, "order_id",
               Schema.FieldType.INT32, "site_id",
               Schema.FieldType.INT32, "price")
           .addRows(1, 2, 3, 2, 3, 3, 3, 4, 5);
 
-  public static final MockedBoundedTable ORDER_DETAILS2 =
-      MockedBoundedTable.of(
+  public static final TestBoundedTable ORDER_DETAILS2 =
+      TestBoundedTable.of(
               Schema.FieldType.INT32, "order_id",
               Schema.FieldType.INT32, "site_id",
               Schema.FieldType.INT32, "price")
@@ -66,12 +65,14 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.INT32, "price",
-                    Schema.FieldType.INT32, "order_id0",
-                    Schema.FieldType.INT32, "site_id0",
-                    Schema.FieldType.INT32, "price0")
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("site_id", Schema.FieldType.INT32)
+                        .addField("price", Schema.FieldType.INT32)
+                        .addField("order_id0", Schema.FieldType.INT32)
+                        .addField("site_id0", Schema.FieldType.INT32)
+                        .addField("price0", Schema.FieldType.INT32)
+                        .build())
                 .addRows(2, 3, 3, 1, 2, 3)
                 .getRows());
     pipeline.run();
@@ -91,12 +92,14 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.INT32, "price",
-                    Schema.FieldType.INT32, "order_id0",
-                    Schema.FieldType.INT32, "site_id0",
-                    Schema.FieldType.INT32, "price0")
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("site_id", Schema.FieldType.INT32)
+                        .addField("price", Schema.FieldType.INT32)
+                        .addNullableField("order_id0", Schema.FieldType.INT32)
+                        .addNullableField("site_id0", Schema.FieldType.INT32)
+                        .addNullableField("price0", Schema.FieldType.INT32)
+                        .build())
                 .addRows(1, 2, 3, null, null, null, 2, 3, 3, 1, 2, 3, 3, 4, 5, null, null, null)
                 .getRows());
     pipeline.run();
@@ -115,12 +118,14 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.INT32, "price",
-                    Schema.FieldType.INT32, "order_id0",
-                    Schema.FieldType.INT32, "site_id0",
-                    Schema.FieldType.INT32, "price0")
+                    Schema.builder()
+                        .addNullableField("order_id", Schema.FieldType.INT32)
+                        .addNullableField("site_id", Schema.FieldType.INT32)
+                        .addNullableField("price", Schema.FieldType.INT32)
+                        .addField("order_id0", Schema.FieldType.INT32)
+                        .addField("site_id0", Schema.FieldType.INT32)
+                        .addField("price0", Schema.FieldType.INT32)
+                        .build())
                 .addRows(2, 3, 3, 1, 2, 3, null, null, null, 2, 3, 3, null, null, null, 3, 4, 5)
                 .getRows());
     pipeline.run();
@@ -139,12 +144,14 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    Schema.FieldType.INT32, "order_id",
-                    Schema.FieldType.INT32, "site_id",
-                    Schema.FieldType.INT32, "price",
-                    Schema.FieldType.INT32, "order_id0",
-                    Schema.FieldType.INT32, "site_id0",
-                    Schema.FieldType.INT32, "price0")
+                    Schema.builder()
+                        .addNullableField("order_id", Schema.FieldType.INT32)
+                        .addNullableField("site_id", Schema.FieldType.INT32)
+                        .addNullableField("price", Schema.FieldType.INT32)
+                        .addNullableField("order_id0", Schema.FieldType.INT32)
+                        .addNullableField("site_id0", Schema.FieldType.INT32)
+                        .addNullableField("price0", Schema.FieldType.INT32)
+                        .build())
                 .addRows(
                     2, 3, 3, 1, 2, 3, 1, 2, 3, null, null, null, 3, 4, 5, null, null, null, null,
                     null, null, 2, 3, 3, null, null, null, 3, 4, 5)

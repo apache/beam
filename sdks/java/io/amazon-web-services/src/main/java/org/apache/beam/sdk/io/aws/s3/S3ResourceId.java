@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.aws.s3;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -39,17 +38,14 @@ class S3ResourceId implements ResourceId {
   private static final Pattern S3_URI =
       Pattern.compile("(?<SCHEME>[^:]+)://(?<BUCKET>[^/]+)(/(?<KEY>.*))?");
 
-  /**
-   * Matches a glob containing a wildcard, capturing the portion before the first wildcard.
-   */
+  /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
   private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
 
   private final String bucket;
   private final String key;
   private final Long size;
 
-  private S3ResourceId(
-      String bucket, String key, @Nullable Long size) {
+  private S3ResourceId(String bucket, String key, @Nullable Long size) {
     checkArgument(!Strings.isNullOrEmpty(bucket), "bucket");
     this.bucket = bucket;
     this.key = checkNotNull(key, "key");
@@ -119,8 +115,8 @@ class S3ResourceId implements ResourceId {
     }
 
     if (resolveOptions == StandardResolveOptions.RESOLVE_FILE) {
-      checkArgument(!other.endsWith("/"), "Cannot resolve a file with a directory path: [%s]",
-          other);
+      checkArgument(
+          !other.endsWith("/"), "Cannot resolve a file with a directory path: [%s]", other);
       checkArgument(!"..".equals(other), "Cannot resolve parent as file: [%s]", other);
       if (S3_URI.matcher(other).matches()) {
         return fromUri(other);

@@ -26,6 +26,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -41,9 +42,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A helper class for monitoring jobs submitted to the service.
- */
+/** A helper class for monitoring jobs submitted to the service. */
 public class MonitoringUtil {
 
   private static final String GCLOUD_DATAFLOW_PREFIX = "gcloud dataflow";
@@ -51,8 +50,7 @@ public class MonitoringUtil {
       "CLOUDSDK_API_ENDPOINT_OVERRIDES_DATAFLOW";
 
   private static final Map<String, State> DATAFLOW_STATE_TO_JOB_STATE =
-      ImmutableMap
-          .<String, State>builder()
+      ImmutableMap.<String, State>builder()
           .put("JOB_STATE_UNKNOWN", State.UNKNOWN)
           .put("JOB_STATE_STOPPED", State.STOPPED)
           .put("JOB_STATE_RUNNING", State.RUNNING)
@@ -74,8 +72,8 @@ public class MonitoringUtil {
   private final DataflowClient dataflowClient;
 
   /**
-   * An interface that can be used for defining callbacks to receive a list
-   * of JobMessages containing monitoring information.
+   * An interface that can be used for defining callbacks to receive a list of JobMessages
+   * containing monitoring information.
    */
   public interface JobMessagesHandler {
     /** Process the rows. */
@@ -94,8 +92,8 @@ public class MonitoringUtil {
         }
 
         @Nullable Instant time = fromCloudTime(message.getTime());
-        String logMessage = (time == null ? "UNKNOWN TIMESTAMP: " : time + ": ")
-            + message.getMessageText();
+        String logMessage =
+            (time == null ? "UNKNOWN TIMESTAMP: " : time + ": ") + message.getMessageText();
         switch (message.getMessageImportance()) {
           case JOB_MESSAGE_ERROR:
             LOG.error(logMessage);
@@ -122,10 +120,8 @@ public class MonitoringUtil {
     this.dataflowClient = dataflowClient;
   }
 
-  /**
-   * Comparator for sorting rows in increasing order based on timestamp.
-   */
-  public static class TimeStampComparator implements Comparator<JobMessage> {
+  /** Comparator for sorting rows in increasing order based on timestamp. */
+  public static class TimeStampComparator implements Comparator<JobMessage>, Serializable {
     @Override
     public int compare(JobMessage o1, JobMessage o2) {
       @Nullable Instant t1 = fromCloudTime(o1.getTime());
@@ -142,13 +138,12 @@ public class MonitoringUtil {
 
   /**
    * Return job messages sorted in ascending order by timestamp.
+   *
    * @param jobId The id of the job to get the messages for.
-   * @param startTimestampMs Return only those messages with a
-   *   timestamp greater than this value.
+   * @param startTimestampMs Return only those messages with a timestamp greater than this value.
    * @return collection of messages
    */
-  public List<JobMessage> getJobMessages(
-      String jobId, long startTimestampMs) throws IOException {
+  public List<JobMessage> getJobMessages(String jobId, long startTimestampMs) throws IOException {
     // TODO: Allow filtering messages by importance
     Instant startTimestamp = new Instant(startTimestampMs);
     ArrayList<JobMessage> allMessages = new ArrayList<>();
@@ -181,8 +176,8 @@ public class MonitoringUtil {
   }
 
   /**
-   * @deprecated this method defaults the region to "us-central1". Prefer using the overload with
-   * an explicit regionId parameter.
+   * @deprecated this method defaults the region to "us-central1". Prefer using the overload with an
+   *     explicit regionId parameter.
    */
   @Deprecated
   public static String getJobMonitoringPageURL(String projectName, String jobId) {
@@ -214,13 +209,16 @@ public class MonitoringUtil {
     }
 
     // Assemble cancel command from optional prefix and project/job parameters.
-    return String.format("%s%s jobs --project=%s cancel --region=%s %s",
-        dataflowApiOverridePrefix, GCLOUD_DATAFLOW_PREFIX, options.getProject(),
-        options.getRegion(), jobId);
+    return String.format(
+        "%s%s jobs --project=%s cancel --region=%s %s",
+        dataflowApiOverridePrefix,
+        GCLOUD_DATAFLOW_PREFIX,
+        options.getProject(),
+        options.getRegion(),
+        jobId);
   }
 
   public static State toState(String stateName) {
-    return MoreObjects.firstNonNull(DATAFLOW_STATE_TO_JOB_STATE.get(stateName),
-        State.UNKNOWN);
+    return MoreObjects.firstNonNull(DATAFLOW_STATE_TO_JOB_STATE.get(stateName), State.UNKNOWN);
   }
 }

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws.s3;
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
@@ -37,6 +38,15 @@ class S3TestUtils {
     return options;
   }
 
+  static S3Options s3OptionsWithCustomEndpointAndPathStyleAccessEnabled() {
+    S3Options options = PipelineOptionsFactory.as(S3Options.class);
+    options.setAwsServiceEndpoint("https://s3.custom.dns");
+    options.setAwsRegion("no-matter");
+    options.setS3UploadBufferSizeBytes(5_242_880);
+    options.setS3ClientFactoryClass(PathStyleAcccessS3ClientBuilderFactory.class);
+    return options;
+  }
+
   static S3Options s3OptionsWithSSEAlgorithm() {
     S3Options options = s3Options();
     options.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);
@@ -52,7 +62,7 @@ class S3TestUtils {
   static S3Options s3OptionsWithSSEAwsKeyManagementParams() {
     S3Options options = s3Options();
     String awsKmsKeyId =
-            "arn:aws:kms:eu-west-1:123456789012:key/dc123456-7890-ABCD-EF01-234567890ABC";
+        "arn:aws:kms:eu-west-1:123456789012:key/dc123456-7890-ABCD-EF01-234567890ABC";
     SSEAwsKeyManagementParams sseAwsKeyManagementParams =
         new SSEAwsKeyManagementParams(awsKmsKeyId);
     options.setSSEAwsKeyManagementParams(sseAwsKeyManagementParams);
@@ -66,8 +76,12 @@ class S3TestUtils {
   }
 
   static S3FileSystem buildMockedS3FileSystem(S3Options options) {
+    return buildMockedS3FileSystem(options, Mockito.mock(AmazonS3.class));
+  }
+
+  static S3FileSystem buildMockedS3FileSystem(S3Options options, AmazonS3 client) {
     S3FileSystem s3FileSystem = new S3FileSystem(options);
-    s3FileSystem.setAmazonS3Client(Mockito.mock(AmazonS3.class));
+    s3FileSystem.setAmazonS3Client(client);
     return s3FileSystem;
   }
 
@@ -78,5 +92,13 @@ class S3TestUtils {
       return Base64.encodeAsString(DigestUtils.md5(Base64.decode(sseCostumerKey.getKey())));
     }
     return null;
+  }
+
+  private static class PathStyleAcccessS3ClientBuilderFactory
+      extends DefaultS3ClientBuilderFactory {
+    @Override
+    public AmazonS3ClientBuilder createBuilder(S3Options s3Options) {
+      return super.createBuilder(s3Options).withPathStyleAccessEnabled(true);
+    }
   }
 }

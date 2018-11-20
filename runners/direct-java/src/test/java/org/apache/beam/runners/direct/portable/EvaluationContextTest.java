@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct.portable;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
@@ -39,7 +40,6 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.portable.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -93,13 +93,12 @@ public class EvaluationContextTest {
 
   @Test
   public void getExecutionContextSameStepSameKeyState() {
-    DirectExecutionContext fooContext =
-        context.getExecutionContext(createdProducer, StructuralKey.of("foo", StringUtf8Coder.of()));
+    StepStateAndTimers<String> fooContext =
+        context.getStateAndTimers(createdProducer, StructuralKey.of("foo", StringUtf8Coder.of()));
 
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
-    DirectStepContext stepContext = fooContext.getStepContext("s1");
-    stepContext.stateInternals().state(StateNamespaces.global(), intBag).add(1);
+    fooContext.stateInternals().state(StateNamespaces.global(), intBag).add(1);
 
     context.handleResult(
         ImmutableListBundleFactory.create()
@@ -107,68 +106,56 @@ public class EvaluationContextTest {
             .commit(Instant.now()),
         ImmutableList.of(),
         StepTransformResult.withoutHold(createdProducer)
-            .withState(stepContext.commitState())
+            .withState(fooContext.stateInternals().commit())
             .build());
 
-    DirectExecutionContext secondFooContext =
-        context.getExecutionContext(createdProducer, StructuralKey.of("foo", StringUtf8Coder.of()));
+    StepStateAndTimers secondFooContext =
+        context.getStateAndTimers(createdProducer, StructuralKey.of("foo", StringUtf8Coder.of()));
     assertThat(
-        secondFooContext
-            .getStepContext("s1")
-            .stateInternals()
-            .state(StateNamespaces.global(), intBag)
-            .read(),
+        secondFooContext.stateInternals().state(StateNamespaces.global(), intBag).read(),
         contains(1));
   }
 
   @Test
   public void getExecutionContextDifferentKeysIndependentState() {
-    DirectExecutionContext fooContext =
-        context.getExecutionContext(createdProducer, StructuralKey.of("foo", StringUtf8Coder.of()));
+    StepStateAndTimers fooContext =
+        context.getStateAndTimers(createdProducer, StructuralKey.of("foo", StringUtf8Coder.of()));
 
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
-    fooContext.getStepContext("s1").stateInternals().state(StateNamespaces.global(), intBag).add(1);
+    fooContext.stateInternals().state(StateNamespaces.global(), intBag).add(1);
 
-    DirectExecutionContext barContext =
-        context.getExecutionContext(createdProducer, StructuralKey.of("bar", StringUtf8Coder.of()));
+    StepStateAndTimers barContext =
+        context.getStateAndTimers(createdProducer, StructuralKey.of("bar", StringUtf8Coder.of()));
     assertThat(barContext, not(equalTo(fooContext)));
     assertThat(
-        barContext
-            .getStepContext("s1")
-            .stateInternals()
-            .state(StateNamespaces.global(), intBag)
-            .read(),
+        barContext.stateInternals().state(StateNamespaces.global(), intBag).read(),
         emptyIterable());
   }
 
   @Test
   public void getExecutionContextDifferentStepsIndependentState() {
     StructuralKey<?> myKey = StructuralKey.of("foo", StringUtf8Coder.of());
-    DirectExecutionContext fooContext = context.getExecutionContext(createdProducer, myKey);
+    StepStateAndTimers fooContext = context.getStateAndTimers(createdProducer, myKey);
 
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
-    fooContext.getStepContext("s1").stateInternals().state(StateNamespaces.global(), intBag).add(1);
+    fooContext.stateInternals().state(StateNamespaces.global(), intBag).add(1);
 
-    DirectExecutionContext barContext = context.getExecutionContext(downstreamProducer, myKey);
+    StepStateAndTimers barContext = context.getStateAndTimers(downstreamProducer, myKey);
     assertThat(
-        barContext
-            .getStepContext("s1")
-            .stateInternals()
-            .state(StateNamespaces.global(), intBag)
-            .read(),
+        barContext.stateInternals().state(StateNamespaces.global(), intBag).read(),
         emptyIterable());
   }
 
   @Test
   public void handleResultStoresState() {
-    StructuralKey<?> myKey = StructuralKey.of("foo".getBytes(), ByteArrayCoder.of());
-    DirectExecutionContext fooContext = context.getExecutionContext(downstreamProducer, myKey);
+    StructuralKey<?> myKey = StructuralKey.of("foo".getBytes(UTF_8), ByteArrayCoder.of());
+    StepStateAndTimers fooContext = context.getStateAndTimers(downstreamProducer, myKey);
 
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
-    CopyOnAccessInMemoryStateInternals<?> state = fooContext.getStepContext("s1").stateInternals();
+    CopyOnAccessInMemoryStateInternals<?> state = fooContext.stateInternals();
     BagState<Integer> bag = state.state(StateNamespaces.global(), intBag);
     bag.add(1);
     bag.add(2);
@@ -182,11 +169,9 @@ public class EvaluationContextTest {
         ImmutableList.of(),
         stateResult);
 
-    DirectExecutionContext afterResultContext =
-        context.getExecutionContext(downstreamProducer, myKey);
+    StepStateAndTimers afterResultContext = context.getStateAndTimers(downstreamProducer, myKey);
 
-    CopyOnAccessInMemoryStateInternals<?> afterResultState =
-        afterResultContext.getStepContext("s1").stateInternals();
+    CopyOnAccessInMemoryStateInternals<?> afterResultState = afterResultContext.stateInternals();
     assertThat(afterResultState.state(StateNamespaces.global(), intBag).read(), contains(1, 2, 4));
   }
 

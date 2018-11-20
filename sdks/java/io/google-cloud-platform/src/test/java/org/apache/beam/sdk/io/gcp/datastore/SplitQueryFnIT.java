@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.datastore;
 
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.NUM_QUERY_SPLITS_MIN;
@@ -36,13 +35,14 @@ import org.junit.runners.JUnit4;
  *
  * <p>It is hard to mock the exact behavior of Cloud Datastore, especially for the statistics
  * queries. Also the fact that DatastoreIO falls back gracefully when querying statistics fails,
- * makes it hard to catch these issues in production. This test here ensures we interact with
- * the Cloud Datastore directly, query the actual stats and verify that the SplitQueryFn generates
- * the expected number of query splits.
+ * makes it hard to catch these issues in production. This test here ensures we interact with the
+ * Cloud Datastore directly, query the actual stats and verify that the SplitQueryFn generates the
+ * expected number of query splits.
  *
- * <p>These tests are brittle as they rely on statistics data in Cloud Datastore. If the data
- * gets lost or changes then they will begin failing and this test should be disabled.
- * At the time of writing, the Cloud Datastore has the following statistics,
+ * <p>These tests are brittle as they rely on statistics data in Cloud Datastore. If the data gets
+ * lost or changes then they will begin failing and this test should be disabled. At the time of
+ * writing, the Cloud Datastore has the following statistics,
+ *
  * <ul>
  *   <li>kind = sort_1G, entity_bytes = 2130000000, count = 10000000
  *   <li>kind = shakespeare, entity_bytes = 26383451, count = 172948
@@ -50,9 +50,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class SplitQueryFnIT {
-  /**
-   * Tests {@link SplitQueryFn} to generate expected number of splits for a large dataset.
-   */
+  /** Tests {@link SplitQueryFn} to generate expected number of splits for a large dataset. */
   @Test
   public void testSplitQueryFnWithLargeDataset() throws Exception {
     String projectId = "apache-beam-testing";
@@ -64,9 +62,7 @@ public class SplitQueryFnIT {
     testSplitQueryFn(projectId, kind, namespace, expectedNumSplits);
   }
 
-  /**
-   * Tests {@link SplitQueryFn} to fallback to NUM_QUERY_SPLITS_MIN for a small dataset.
-   */
+  /** Tests {@link SplitQueryFn} to fallback to NUM_QUERY_SPLITS_MIN for a small dataset. */
   @Test
   public void testSplitQueryFnWithSmallDataset() throws Exception {
     String projectId = "apache-beam-testing";
@@ -76,16 +72,14 @@ public class SplitQueryFnIT {
     testSplitQueryFn(projectId, kind, namespace, expectedNumSplits);
   }
 
-  /**
-   * A helper method to test {@link SplitQueryFn} to generate the expected number of splits.
-   */
-  private void testSplitQueryFn(String projectId, String kind, @Nullable String namespace,
-      int expectedNumSplits) throws Exception {
+  /** A helper method to test {@link SplitQueryFn} to generate the expected number of splits. */
+  private void testSplitQueryFn(
+      String projectId, String kind, @Nullable String namespace, int expectedNumSplits)
+      throws Exception {
     Query.Builder query = Query.newBuilder();
     query.addKindBuilder().setName(kind);
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(
-        V1Options.from(projectId, namespace, null), 0);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V1Options.from(projectId, namespace, null), 0);
     DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
 
     List<Query> queries = doFnTester.processBundle(query.build());

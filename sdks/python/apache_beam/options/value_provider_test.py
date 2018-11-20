@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import logging
 import unittest
 
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -187,6 +188,8 @@ class ValueProviderTests(unittest.TestCase):
     self.assertEqual(options.vpt_vp_arg14.get(), 2)
 
   def test_experiments_setup(self):
+    self.assertFalse('feature_1' in RuntimeValueProvider.experiments)
+
     RuntimeValueProvider.set_runtime_options(
         {'experiments': ['feature_1', 'feature_2']}
     )
@@ -196,6 +199,13 @@ class ValueProviderTests(unittest.TestCase):
     # Clean up runtime_options after this test case finish, otherwise, it'll
     # affect other cases since runtime_options is static attr
     RuntimeValueProvider.set_runtime_options(None)
+
+  def test_experiments_options_setup(self):
+    options = PipelineOptions(['--experiments', 'a', '--experiments', 'b,c'])
+    options = options.view_as(DebugOptions)
+    self.assertIn('a', options.experiments)
+    self.assertIn('b,c', options.experiments)
+    self.assertNotIn('c', options.experiments)
 
 
 if __name__ == '__main__':

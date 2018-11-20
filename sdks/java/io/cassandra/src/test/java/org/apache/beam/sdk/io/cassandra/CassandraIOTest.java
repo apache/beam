@@ -59,9 +59,7 @@ public class CassandraIOTest implements Serializable {
 
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     CassandraIO.Read spec = CassandraIO.<Scientist>read().withCassandraService(service);
-    CassandraIO.CassandraSource source = new CassandraIO.CassandraSource(
-        spec,
-        null);
+    CassandraIO.CassandraSource source = new CassandraIO.CassandraSource(spec, null);
     long estimatedSizeBytes = source.getEstimatedSizeBytes(pipelineOptions);
     // the size is the sum of the bytes size of the String representation of a scientist in the map
     assertEquals(113890, estimatedSizeBytes);
@@ -72,14 +70,14 @@ public class CassandraIOTest implements Serializable {
     FakeCassandraService service = new FakeCassandraService();
     service.load();
 
-    PCollection<Scientist> output = pipeline.apply(CassandraIO
-        .<Scientist>read()
-        .withCassandraService(service)
-        .withKeyspace("beam")
-        .withTable("scientist")
-        .withCoder(SerializableCoder.of(Scientist.class))
-        .withEntity(Scientist.class)
-    );
+    PCollection<Scientist> output =
+        pipeline.apply(
+            CassandraIO.<Scientist>read()
+                .withCassandraService(service)
+                .withKeyspace("beam")
+                .withTable("scientist")
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(10000L);
 
@@ -118,9 +116,11 @@ public class CassandraIOTest implements Serializable {
 
     pipeline
         .apply(Create.of(data))
-        .apply(CassandraIO.<Scientist>write().withCassandraService(service)
-            .withKeyspace("beam")
-            .withEntity(Scientist.class));
+        .apply(
+            CassandraIO.<Scientist>write()
+                .withCassandraService(service)
+                .withKeyspace("beam")
+                .withEntity(Scientist.class));
     pipeline.run();
 
     assertEquals(1000, service.getTable().size());
@@ -129,25 +129,23 @@ public class CassandraIOTest implements Serializable {
     }
   }
 
-  /**
-   * A {@link CassandraService} implementation that stores the entity in memory.
-   */
+  /** A {@link CassandraService} implementation that stores the entity in memory. */
   private static class FakeCassandraService implements CassandraService<Scientist> {
     private static final Map<Integer, Scientist> table = new ConcurrentHashMap<>();
 
     void load() {
       table.clear();
       String[] scientists = {
-          "Lovelace",
-          "Franklin",
-          "Meitner",
-          "Hopper",
-          "Curie",
-          "Faraday",
-          "Newton",
-          "Bohr",
-          "Galilei",
-          "Maxwell"
+        "Lovelace",
+        "Franklin",
+        "Meitner",
+        "Hopper",
+        "Curie",
+        "Faraday",
+        "Newton",
+        "Bohr",
+        "Galilei",
+        "Maxwell"
       };
       for (int i = 0; i < 10000; i++) {
         int index = i % scientists.length;

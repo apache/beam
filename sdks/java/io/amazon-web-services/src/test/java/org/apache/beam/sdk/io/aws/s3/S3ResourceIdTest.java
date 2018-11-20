@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.aws.s3;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY;
@@ -41,14 +40,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests {@link S3ResourceId}.
- */
+/** Tests {@link S3ResourceId}. */
 @RunWith(JUnit4.class)
 public class S3ResourceIdTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   static final class TestCase {
 
@@ -57,7 +53,10 @@ public class S3ResourceIdTest {
     final StandardResolveOptions resolveOptions;
     final String expectedResult;
 
-    TestCase(String baseUri, String relativePath, StandardResolveOptions resolveOptions,
+    TestCase(
+        String baseUri,
+        String relativePath,
+        StandardResolveOptions resolveOptions,
         String expectedResult) {
       this.baseUri = baseUri;
       this.relativePath = relativePath;
@@ -70,13 +69,12 @@ public class S3ResourceIdTest {
   // Empty components result in a double slash.
   private static final List<TestCase> PATH_TEST_CASES =
       Arrays.asList(
-          new TestCase("s3://bucket/", "", RESOLVE_DIRECTORY,
-              "s3://bucket/"),
+          new TestCase("s3://bucket/", "", RESOLVE_DIRECTORY, "s3://bucket/"),
           new TestCase("s3://bucket", "", RESOLVE_DIRECTORY, "s3://bucket/"),
           new TestCase("s3://bucket", "path/to/dir", RESOLVE_DIRECTORY, "s3://bucket/path/to/dir/"),
           new TestCase("s3://bucket", "path/to/object", RESOLVE_FILE, "s3://bucket/path/to/object"),
-          new TestCase("s3://bucket/path/to/dir/", "..", RESOLVE_DIRECTORY, "s3://bucket/path/to/")
-      );
+          new TestCase(
+              "s3://bucket/path/to/dir/", "..", RESOLVE_DIRECTORY, "s3://bucket/path/to/"));
 
   @Test
   public void testResolve() {
@@ -89,8 +87,7 @@ public class S3ResourceIdTest {
     // Tests for common gcs paths.
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/tmp/aa"),
-        S3ResourceId.fromUri("s3://bucket/tmp/")
-            .resolve("aa", RESOLVE_FILE));
+        S3ResourceId.fromUri("s3://bucket/tmp/").resolve("aa", RESOLVE_FILE));
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/tmp/aa/bb/cc/"),
         S3ResourceId.fromUri("s3://bucket/tmp/")
@@ -101,20 +98,17 @@ public class S3ResourceIdTest {
     // Tests absolute path.
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/tmp/aa"),
-        S3ResourceId.fromUri("s3://bucket/tmp/bb/")
-            .resolve("s3://bucket/tmp/aa", RESOLVE_FILE));
+        S3ResourceId.fromUri("s3://bucket/tmp/bb/").resolve("s3://bucket/tmp/aa", RESOLVE_FILE));
 
     // Tests bucket with no ending '/'.
     assertEquals(
         S3ResourceId.fromUri("s3://my-bucket/tmp"),
-        S3ResourceId.fromUri("s3://my-bucket")
-            .resolve("tmp", RESOLVE_FILE));
+        S3ResourceId.fromUri("s3://my-bucket").resolve("tmp", RESOLVE_FILE));
 
     // Tests path with unicode
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/输出 目录/输出 文件01.txt"),
-        S3ResourceId.fromUri("s3://bucket/输出 目录/")
-            .resolve("输出 文件01.txt", RESOLVE_FILE));
+        S3ResourceId.fromUri("s3://bucket/输出 目录/").resolve("输出 文件01.txt", RESOLVE_FILE));
   }
 
   @Test
@@ -126,8 +120,7 @@ public class S3ResourceIdTest {
 
   @Test
   public void testResolveInvalidNotDirectory() {
-    ResourceId tmpDir = S3ResourceId.fromUri("s3://my_bucket/")
-        .resolve("tmp dir", RESOLVE_FILE);
+    ResourceId tmpDir = S3ResourceId.fromUri("s3://my_bucket/").resolve("tmp dir", RESOLVE_FILE);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(

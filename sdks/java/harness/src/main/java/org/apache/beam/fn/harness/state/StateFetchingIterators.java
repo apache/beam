@@ -18,7 +18,6 @@
 package org.apache.beam.fn.harness.state;
 
 import com.google.common.base.Throwables;
-import com.google.protobuf.ByteString;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
@@ -26,10 +25,11 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 
 /**
- * Adapters which convert a a logical series of chunks using continuation tokens over the Beam
- * Fn State API into an {@link Iterator} of {@link ByteString}s.
+ * Adapters which convert a a logical series of chunks using continuation tokens over the Beam Fn
+ * State API into an {@link Iterator} of {@link ByteString}s.
  */
 public class StateFetchingIterators {
 
@@ -38,29 +38,32 @@ public class StateFetchingIterators {
 
   /**
    * This adapter handles using the continuation token to provide iteration over all the chunks
-   * returned by the Beam Fn State API using the supplied state client and state request for
-   * the first chunk of the state stream.
+   * returned by the Beam Fn State API using the supplied state client and state request for the
+   * first chunk of the state stream.
    *
    * @param beamFnStateClient A client for handling state requests.
    * @param stateRequestForFirstChunk A fully populated state request for the first (and possibly
-   * only) chunk of a state stream. This state request will be populated with a continuation token
-   * to request further chunks of the stream if required.
+   *     only) chunk of a state stream. This state request will be populated with a continuation
+   *     token to request further chunks of the stream if required.
    */
   public static Iterator<ByteString> forFirstChunk(
-      BeamFnStateClient beamFnStateClient,
-      StateRequest stateRequestForFirstChunk) {
+      BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk) {
     return new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk);
   }
 
   /**
    * An {@link Iterator} which fetches {@link ByteString} chunks using the State API.
    *
-   * <p>This iterator will only request a chunk on first access. Also it does not eagerly
-   * pre-fetch any future chunks and blocks whenever required to fetch the next block.
+   * <p>This iterator will only request a chunk on first access. Also it does not eagerly pre-fetch
+   * any future chunks and blocks whenever required to fetch the next block.
    */
   static class LazyBlockingStateFetchingIterator implements Iterator<ByteString> {
 
-    private enum State { READ_REQUIRED, HAS_NEXT, EOF }
+    private enum State {
+      READ_REQUIRED,
+      HAS_NEXT,
+      EOF
+    }
 
     private final BeamFnStateClient beamFnStateClient;
     private final StateRequest stateRequestForFirstChunk;
@@ -69,8 +72,7 @@ public class StateFetchingIterators {
     private ByteString next;
 
     LazyBlockingStateFetchingIterator(
-        BeamFnStateClient beamFnStateClient,
-        StateRequest stateRequestForFirstChunk) {
+        BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk) {
       this.currentState = State.READ_REQUIRED;
       this.beamFnStateClient = beamFnStateClient;
       this.stateRequestForFirstChunk = stateRequestForFirstChunk;
@@ -85,8 +87,9 @@ public class StateFetchingIterators {
         case READ_REQUIRED:
           CompletableFuture<StateResponse> stateResponseFuture = new CompletableFuture<>();
           beamFnStateClient.handle(
-              stateRequestForFirstChunk.toBuilder().setGet(
-                  StateGetRequest.newBuilder().setContinuationToken(continuationToken)),
+              stateRequestForFirstChunk
+                  .toBuilder()
+                  .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)),
               stateResponseFuture);
           StateResponse stateResponse;
           try {

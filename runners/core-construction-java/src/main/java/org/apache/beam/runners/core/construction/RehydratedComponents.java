@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -44,11 +43,10 @@ public class RehydratedComponents {
   private final Components components;
 
   /**
-   * This class may be used in the context of a pipeline or not. If not, then it cannot
-   * rehydrated {@link PCollection PCollections}.
+   * This class may be used in the context of a pipeline or not. If not, then it cannot rehydrated
+   * {@link PCollection PCollections}.
    */
-  @Nullable
-  private final Pipeline pipeline;
+  @Nullable private final Pipeline pipeline;
 
   /**
    * A non-evicting cache, serving as a memo table for rehydrated {@link WindowingStrategy
@@ -102,11 +100,12 @@ public class RehydratedComponents {
                       PCollection.class.getSimpleName(),
                       Pipeline.class.getSimpleName());
                   return PCollectionTranslation.fromProto(
-                      components.getPcollectionsOrThrow(id), pipeline, RehydratedComponents.this)
+                          components.getPcollectionsOrThrow(id),
+                          pipeline,
+                          RehydratedComponents.this)
                       .setName(id);
                 }
               });
-
 
   /** Create a new {@link RehydratedComponents} from a Runner API {@link Components}. */
   public static RehydratedComponents forComponents(RunnerApi.Components components) {
@@ -166,10 +165,12 @@ public class RehydratedComponents {
     }
   }
 
-  /**
-   * Returns the {@link Environment} associated with the given ID.
-   */
+  /** Returns the {@link Environment} associated with the given ID. */
   public Environment getEnvironment(String environmentId) {
     return components.getEnvironmentsOrThrow(environmentId);
+  }
+
+  public Components getComponents() {
+    return components;
   }
 }

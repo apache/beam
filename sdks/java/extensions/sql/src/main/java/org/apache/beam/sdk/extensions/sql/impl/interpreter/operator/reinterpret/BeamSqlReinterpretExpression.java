@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -47,13 +47,24 @@ public class BeamSqlReinterpretExpression extends BeamSqlExpression {
 
   @Override
   public boolean accept() {
-    return getOperands().size() == 1 && REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
+    if (getOperands().size() != 1) {
+      return false;
+    }
+
+    // Interval types will be already converted into BIGINT after evaluation.
+    SqlTypeFamily opTypeFamily = opType(0).getFamily();
+    if (opTypeFamily.equals(SqlTypeFamily.INTERVAL_DAY_TIME)
+        || opTypeFamily.equals(SqlTypeFamily.INTERVAL_YEAR_MONTH)) {
+      return true;
+    }
+
+    return REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
   }
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     return REINTERPRETER.convert(
-        SqlTypeName.BIGINT, operands.get(0).evaluate(inputRow, window, correlateEnv));
+        SqlTypeName.BIGINT, operands.get(0).evaluate(inputRow, window, env));
   }
 }

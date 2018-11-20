@@ -17,6 +17,8 @@
 
 """Unit tests for testing utilities."""
 
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam import Create
@@ -35,6 +37,14 @@ class UtilTest(unittest.TestCase):
   def test_assert_that_passes(self):
     with TestPipeline() as p:
       assert_that(p | Create([1, 2, 3]), equal_to([1, 2, 3]))
+
+  def test_assert_that_passes_order_does_not_matter(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([1, 2, 3]), equal_to([2, 1, 3]))
+
+  def test_assert_that_passes_order_does_not_matter_with_negatives(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([1, -2, 3]), equal_to([-2, 1, 3]))
 
   def test_assert_that_passes_empty_equal_to(self):
     with TestPipeline() as p:

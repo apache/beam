@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Classes to interact with the portability framework data plane.
- */
+/** Classes to interact with the portability framework data plane. */
 package org.apache.beam.sdk.fn.data;

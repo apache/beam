@@ -18,9 +18,12 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import static java.util.stream.Collectors.toList;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.util.List;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
@@ -46,7 +49,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
   private void runSelectAll(PCollection<Row> input) throws Exception {
     String sql = "SELECT * FROM PCOLLECTION";
 
-    PCollection<Row> result = input.apply("testSelectAll", BeamSql.query(sql));
+    PCollection<Row> result = input.apply("testSelectAll", SqlTransform.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(0));
 
@@ -70,7 +73,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFields", BeamSql.query(sql));
+            .apply("testPartialFields", SqlTransform.query(sql));
 
     Schema resultType = Schema.builder().addInt32Field("f_int").addInt64Field("f_long").build();
 
@@ -98,7 +101,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
+            .apply("testPartialFieldsInMultipleRow", SqlTransform.query(sql));
 
     Schema resultType = Schema.builder().addInt32Field("f_int").addInt64Field("f_long").build();
 
@@ -133,7 +136,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFieldsInRows", BeamSql.query(sql));
+            .apply("testPartialFieldsInRows", SqlTransform.query(sql));
 
     Schema resultType = Schema.builder().addInt32Field("f_int").addInt64Field("f_long").build();
 
@@ -162,7 +165,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testLiteralField", BeamSql.query(sql));
+            .apply("testLiteralField", SqlTransform.query(sql));
 
     Schema resultType = Schema.builder().addInt32Field("literal_field").build();
 
@@ -175,15 +178,15 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
   @Test
   public void testProjectUnknownField() throws Exception {
-    exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage("Column 'f_int_na' not found in any table");
+    exceptions.expect(ParseException.class);
+    exceptions.expectCause(hasMessage(containsString("Column 'f_int_na' not found in any table")));
     pipeline.enableAbandonedNodeEnforcement(false);
 
     String sql = "SELECT f_int_na FROM TABLE_A";
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testProjectUnknownField", BeamSql.query(sql));
+            .apply("testProjectUnknownField", SqlTransform.query(sql));
 
     pipeline.run().waitUntilFinish();
   }

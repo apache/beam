@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -38,9 +37,9 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
  * that wishes to report the values since the start of the bundle (eg., for committed metrics).
  *
  * <p>This class is thread-safe. It is intended to be used with 1 (or more) threads are updating
- * metrics and at-most 1 thread is extracting updates by calling {@link #getUpdates} and
- * {@link #commitUpdates}. Outside of this it is still safe. Although races in the update extraction
- * may cause updates that don't actually have any changes, it will never lose an update.
+ * metrics and at-most 1 thread is extracting updates by calling {@link #getUpdates} and {@link
+ * #commitUpdates}. Outside of this it is still safe. Although races in the update extraction may
+ * cause updates that don't actually have any changes, it will never lose an update.
  *
  * <p>For consistency, all threads that update metrics should finish before getting the final
  * cumulative values/updates.
@@ -57,16 +56,14 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
-  /**
-   * Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}.
-   */
+  /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
   public MetricsContainerImpl(String stepName) {
     this.stepName = stepName;
   }
 
   /**
-   * Return a {@code CounterCell} named {@code metricName}. If it doesn't exist, create a
-   * {@code Metric} with the specified name.
+   * Return a {@code CounterCell} named {@code metricName}. If it doesn't exist, create a {@code
+   * Metric} with the specified name.
    */
   @Override
   public CounterCell getCounter(MetricName metricName) {
@@ -74,8 +71,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   /**
-   * Return a {@code CounterCell} named {@code metricName}. If it doesn't exist, return
-   * {@code null}.
+   * Return a {@code CounterCell} named {@code metricName}. If it doesn't exist, return {@code
+   * null}.
    */
   @Nullable
   public CounterCell tryGetCounter(MetricName metricName) {
@@ -92,8 +89,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   /**
-   * Return a {@code DistributionCell} named {@code metricName}. If it doesn't exist, return
-   * {@code null}.
+   * Return a {@code DistributionCell} named {@code metricName}. If it doesn't exist, return {@code
+   * null}.
    */
   @Nullable
   public DistributionCell tryGetDistribution(MetricName metricName) {
@@ -101,8 +98,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   /**
-   * Return a {@code GaugeCell} named {@code metricName}. If it doesn't exist, create a
-   * {@code Metric} with the specified name.
+   * Return a {@code GaugeCell} named {@code metricName}. If it doesn't exist, create a {@code
+   * Metric} with the specified name.
    */
   @Override
   public GaugeCell getGauge(MetricName metricName) {
@@ -110,8 +107,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   /**
-   * Return a {@code GaugeCell} named {@code metricName}. If it doesn't exist, return
-   * {@code null}.
+   * Return a {@code GaugeCell} named {@code metricName}. If it doesn't exist, return {@code null}.
    */
   @Nullable
   public GaugeCell tryGetGauge(MetricName metricName) {
@@ -119,12 +115,13 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   private <UpdateT, CellT extends MetricCell<UpdateT>>
-  ImmutableList<MetricUpdate<UpdateT>> extractUpdates(MetricsMap<MetricName, CellT> cells) {
+      ImmutableList<MetricUpdate<UpdateT>> extractUpdates(MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
       if (cell.getValue().getDirty().beforeCommit()) {
-        updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()),
-            cell.getValue().getCumulative()));
+        updates.add(
+            MetricUpdate.create(
+                MetricKey.create(stepName, cell.getKey()), cell.getValue().getCumulative()));
       }
     }
     return updates.build();
@@ -136,9 +133,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    */
   public MetricUpdates getUpdates() {
     return MetricUpdates.create(
-        extractUpdates(counters),
-        extractUpdates(distributions),
-        extractUpdates(gauges));
+        extractUpdates(counters), extractUpdates(distributions), extractUpdates(gauges));
   }
 
   private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
@@ -158,8 +153,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   private <UserT extends Metric, UpdateT, CellT extends MetricCell<UpdateT>>
-  ImmutableList<MetricUpdate<UpdateT>> extractCumulatives(
-      MetricsMap<MetricName, CellT> cells) {
+      ImmutableList<MetricUpdate<UpdateT>> extractCumulatives(MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
       UpdateT update = checkNotNull(cell.getValue().getCumulative());
@@ -179,9 +173,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         extractCumulatives(gauges));
   }
 
-  /**
-   * Update values of this {@link MetricsContainerImpl} by merging the value of another cell.
-   */
+  /** Update values of this {@link MetricsContainerImpl} by merging the value of another cell. */
   public void update(MetricsContainerImpl other) {
     updateCounters(counters, other.counters);
     updateDistributions(distributions, other.distributions);
@@ -189,8 +181,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   private void updateCounters(
-      MetricsMap<MetricName, CounterCell> current,
-      MetricsMap<MetricName, CounterCell> updates) {
+      MetricsMap<MetricName, CounterCell> current, MetricsMap<MetricName, CounterCell> updates) {
     for (Map.Entry<MetricName, CounterCell> counter : updates.entries()) {
       current.get(counter.getKey()).inc(counter.getValue().getCumulative());
     }
@@ -205,8 +196,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   private void updateGauges(
-      MetricsMap<MetricName, GaugeCell> current,
-      MetricsMap<MetricName, GaugeCell> updates) {
+      MetricsMap<MetricName, GaugeCell> current, MetricsMap<MetricName, GaugeCell> updates) {
     for (Map.Entry<MetricName, GaugeCell> counter : updates.entries()) {
       current.get(counter.getKey()).update(counter.getValue().getCumulative());
     }

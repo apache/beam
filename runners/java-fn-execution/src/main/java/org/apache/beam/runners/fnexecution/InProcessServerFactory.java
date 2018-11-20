@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution;
 
-import io.grpc.BindableService;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
-import io.grpc.inprocess.InProcessServerBuilder;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.inprocess.InProcessServerBuilder;
 
 /**
  * A {@link ServerFactory} which creates {@link Server servers} with the {@link

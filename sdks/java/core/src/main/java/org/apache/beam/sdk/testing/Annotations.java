@@ -15,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 package org.apache.beam.sdk.testing;
 
 import com.google.common.base.Predicate;
@@ -25,14 +23,10 @@ import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import org.junit.experimental.categories.Category;
 
-/**
- * A utility class for querying annotations.
- */
+/** A utility class for querying annotations. */
 class Annotations {
 
-  /**
-   * Annotation predicates.
-   */
+  /** Annotation predicates. */
   static class Predicates {
 
     static Predicate<Annotation> isAnnotationOfType(final Class<? extends Annotation> clazz) {

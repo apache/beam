@@ -26,9 +26,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * A {@link FloatCoder} encodes {@link Float} values in 8 bytes using Java serialization.
- */
+/** A {@link FloatCoder} encodes {@link Float} values in 8 bytes using Java serialization. */
 public class FloatCoder extends AtomicCoder<Float> {
 
   public static FloatCoder of() {
@@ -43,8 +41,7 @@ public class FloatCoder extends AtomicCoder<Float> {
   private FloatCoder() {}
 
   @Override
-  public void encode(Float value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(Float value, OutputStream outStream) throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Float");
     }
@@ -52,8 +49,7 @@ public class FloatCoder extends AtomicCoder<Float> {
   }
 
   @Override
-  public Float decode(InputStream inStream)
-      throws IOException, CoderException {
+  public Float decode(InputStream inStream) throws IOException, CoderException {
     try {
       return new DataInputStream(inStream).readFloat();
     } catch (EOFException | UTFDataFormatException exn) {
@@ -66,15 +62,14 @@ public class FloatCoder extends AtomicCoder<Float> {
   /**
    * {@inheritDoc}
    *
-   * @throws NonDeterministicException always.
-   *         Floating-point operations are not guaranteed to be deterministic, even
-   *         if the storage format might be, so floating point representations are not
-   *         recommended for use in operations that require deterministic inputs.
+   * @throws NonDeterministicException always. Floating-point operations are not guaranteed to be
+   *     deterministic, even if the storage format might be, so floating point representations are
+   *     not recommended for use in operations that require deterministic inputs.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    throw new NonDeterministicException(this,
-        "Floating point encodings are not guaranteed to be deterministic.");
+    throw new NonDeterministicException(
+        this, "Floating point encodings are not guaranteed to be deterministic.");
   }
 
   /**
@@ -108,8 +103,7 @@ public class FloatCoder extends AtomicCoder<Float> {
    * @return {@code 4}, the byte size of a {@link Float} encoded using Java serialization.
    */
   @Override
-  protected long getEncodedElementByteSize(Float value)
-      throws Exception {
+  protected long getEncodedElementByteSize(Float value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Float");
     }

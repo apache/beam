@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.data;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -32,9 +31,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link RemoteInputDestination}.
- */
+/** Tests for {@link RemoteInputDestination}. */
 @RunWith(JUnit4.class)
 public class RemoteInputDestinationTest {
 

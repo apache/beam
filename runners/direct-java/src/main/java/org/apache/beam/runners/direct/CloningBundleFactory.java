@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.local.StructuralKey;
@@ -39,6 +38,7 @@ class CloningBundleFactory implements BundleFactory {
   }
 
   private final ImmutableListBundleFactory underlying;
+
   private CloningBundleFactory() {
     this.underlying = ImmutableListBundleFactory.create();
   }
@@ -50,8 +50,7 @@ class CloningBundleFactory implements BundleFactory {
   }
 
   @Override
-  public <T> UncommittedBundle<T> createBundle(
-      PCollection<T> output) {
+  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
     return new CloningBundle<>(underlying.createBundle(output));
   }
 

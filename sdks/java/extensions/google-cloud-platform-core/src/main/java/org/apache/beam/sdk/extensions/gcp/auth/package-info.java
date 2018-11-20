@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 /**
- * Defines classes related to interacting with {@link com.google.auth.Credentials} for
- * pipeline creation and execution containing Google Cloud Platform components.
+ * Defines classes related to interacting with {@link com.google.auth.Credentials} for pipeline
+ * creation and execution containing Google Cloud Platform components.
  */
 package org.apache.beam.sdk.extensions.gcp.auth;

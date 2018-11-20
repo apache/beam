@@ -24,7 +24,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Before;
@@ -56,14 +56,17 @@ public class BeamSqlDslAggregationVarianceTest {
             .getRows();
 
     boundedInput =
-        PBegin.in(pipeline).apply(Create.of(rowsInTableB).withCoder(schema.getRowCoder()));
+        pipeline.apply(
+            Create.of(rowsInTableB)
+                .withSchema(
+                    schema, SerializableFunctions.identity(), SerializableFunctions.identity()));
   }
 
   @Test
   public void testPopulationVarianceDouble() {
     String sql = "SELECT VAR_POP(f_double) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert.that(boundedInput.apply(BeamSql.query(sql)))
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql)))
         .satisfies(matchesScalar(26.40816326, PRECISION));
 
     pipeline.run().waitUntilFinish();
@@ -73,7 +76,7 @@ public class BeamSqlDslAggregationVarianceTest {
   public void testPopulationVarianceInt() {
     String sql = "SELECT VAR_POP(f_int) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert.that(boundedInput.apply(BeamSql.query(sql))).satisfies(matchesScalar(26));
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(26));
 
     pipeline.run().waitUntilFinish();
   }
@@ -82,7 +85,7 @@ public class BeamSqlDslAggregationVarianceTest {
   public void testSampleVarianceDouble() {
     String sql = "SELECT VAR_SAMP(f_double) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert.that(boundedInput.apply(BeamSql.query(sql)))
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql)))
         .satisfies(matchesScalar(30.80952381, PRECISION));
 
     pipeline.run().waitUntilFinish();
@@ -92,7 +95,7 @@ public class BeamSqlDslAggregationVarianceTest {
   public void testSampleVarianceInt() {
     String sql = "SELECT VAR_SAMP(f_int) FROM PCOLLECTION GROUP BY f_int2";
 
-    PAssert.that(boundedInput.apply(BeamSql.query(sql))).satisfies(matchesScalar(30));
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(30));
 
     pipeline.run().waitUntilFinish();
   }

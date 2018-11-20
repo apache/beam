@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: true)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."
@@ -42,11 +42,9 @@ evaluationDependsOn(":beam-sdks-java-io-common")
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
   shadow library.java.slf4j_api
-  shadow library.java.findbugs_jsr305
   // Hive bundles without repackaging Jackson which is why we redeclare it here so that it appears
   // on the compile/test/runtime classpath before Hive.
   provided library.java.jackson_annotations
@@ -66,10 +64,10 @@ dependencies {
   testCompile library.java.commons_io_2x
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
   testCompile "org.apache.hive:hive-exec:$hive_version"
   testCompile "org.apache.hive:hive-common:$hive_version"
   testCompile "org.apache.hive:hive-cli:$hive_version"
-  testCompileOnly library.java.findbugs_annotations
 }
 

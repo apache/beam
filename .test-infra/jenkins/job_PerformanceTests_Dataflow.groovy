@@ -16,21 +16,18 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 // This job runs the Beam performance tests on PerfKit Benchmarker.
 job('beam_PerformanceTests_Dataflow'){
     // Set default Beam job properties.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
+    commonJobProperties.setTopLevelMainJobProperties(delegate)
 
     // Run job in postcommit every 6 hours, don't trigger every push, and
     // don't email individual committers.
-    common_job_properties.setPostCommit(
+    commonJobProperties.setAutoJob(
         delegate,
-        '0 */6 * * *',
-        false,
-        'commits@beam.apache.org',
-        false)
+        'H */6 * * *')
 
     def argMap = [
       benchmarks: 'dpb_wordcount_benchmark',
@@ -39,7 +36,7 @@ job('beam_PerformanceTests_Dataflow'){
       config_override: 'dpb_wordcount_benchmark.dpb_service.service_type=dataflow'
     ]
 
-    common_job_properties.buildPerformanceTest(delegate, argMap)
+    commonJobProperties.buildPerformanceTest(delegate, argMap)
 
     // [BEAM-2141] Perf tests do not pass.
     disabled()

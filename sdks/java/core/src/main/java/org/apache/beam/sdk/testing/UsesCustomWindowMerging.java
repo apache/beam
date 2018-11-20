@@ -17,7 +17,5 @@
  */
 package org.apache.beam.sdk.testing;
 
-/**
- * Category tag for validation tests which utilize custom window merging.
- */
+/** Category tag for validation tests which utilize custom window merging. */
 public interface UsesCustomWindowMerging {}

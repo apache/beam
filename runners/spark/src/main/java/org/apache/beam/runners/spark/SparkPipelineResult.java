@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
@@ -107,8 +106,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    return asAttemptedOnlyMetricResults(
-        MetricsAccumulator.getInstance().value());
+    return asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
   }
 
   @Override

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -161,8 +160,7 @@ public class PortableGraphTest implements Serializable {
 
     PTransformNode gbkNode =
         PipelineNode.pTransform("gbk", proto.getComponents().getTransformsOrThrow("gbk"));
-    Collection<PCollectionNode> gbkOutput =
-        graph.getProduced(gbkNode);
+    Collection<PCollectionNode> gbkOutput = graph.getProduced(gbkNode);
     assertThat(gbkOutput, hasSize(1));
     assertThat(graph.getProducer(getOnlyElement(gbkOutput)), equalTo(gbkNode));
 

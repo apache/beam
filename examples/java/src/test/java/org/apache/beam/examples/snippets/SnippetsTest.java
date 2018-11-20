@@ -37,15 +37,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-
-/**
- * Tests for Snippets.
- */
+/** Tests for Snippets. */
 @RunWith(JUnit4.class)
 public class SnippetsTest implements Serializable {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Test
   public void testModelBigQueryIO() {
@@ -57,8 +53,8 @@ public class SnippetsTest implements Serializable {
     boolean runLocally = false;
     if (runLocally) {
       String project = "my-project";
-      String dataset = "samples";  // this must already exist
-      String table = "modelBigQueryIO";  // this will be created if needed
+      String dataset = "samples"; // this must already exist
+      String table = "modelBigQueryIO"; // this will be created if needed
 
       BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
       options.setProject(project);
@@ -76,17 +72,19 @@ public class SnippetsTest implements Serializable {
   @Test
   public void testCoGroupByKeyTuple() throws IOException {
     // [START CoGroupByKeyTupleInputs]
-    final List<KV<String, String>> emailsList = Arrays.asList(
-        KV.of("amy", "amy@example.com"),
-        KV.of("carl", "carl@example.com"),
-        KV.of("julia", "julia@example.com"),
-        KV.of("carl", "carl@email.com"));
+    final List<KV<String, String>> emailsList =
+        Arrays.asList(
+            KV.of("amy", "amy@example.com"),
+            KV.of("carl", "carl@example.com"),
+            KV.of("julia", "julia@example.com"),
+            KV.of("carl", "carl@email.com"));
 
-    final List<KV<String, String>> phonesList = Arrays.asList(
-        KV.of("amy", "111-222-3333"),
-        KV.of("james", "222-333-4444"),
-        KV.of("amy", "333-444-5555"),
-        KV.of("carl", "444-555-6666"));
+    final List<KV<String, String>> phonesList =
+        Arrays.asList(
+            KV.of("amy", "111-222-3333"),
+            KV.of("james", "222-333-4444"),
+            KV.of("amy", "333-444-5555"),
+            KV.of("carl", "444-555-6666"));
 
     PCollection<KV<String, String>> emails = p.apply("CreateEmails", Create.of(emailsList));
     PCollection<KV<String, String>> phones = p.apply("CreatePhones", Create.of(phonesList));
@@ -96,35 +94,41 @@ public class SnippetsTest implements Serializable {
     final TupleTag<String> emailsTag = new TupleTag<>();
     final TupleTag<String> phonesTag = new TupleTag<>();
 
-    final List<KV<String, CoGbkResult>> expectedResults = Arrays.asList(
-        KV.of("amy", CoGbkResult
-          .of(emailsTag, Arrays.asList("amy@example.com"))
-          .and(phonesTag, Arrays.asList("111-222-3333", "333-444-5555"))),
-        KV.of("carl", CoGbkResult
-          .of(emailsTag, Arrays.asList("carl@email.com", "carl@example.com"))
-          .and(phonesTag, Arrays.asList("444-555-6666"))),
-        KV.of("james", CoGbkResult
-          .of(emailsTag, Arrays.asList())
-          .and(phonesTag, Arrays.asList("222-333-4444"))),
-        KV.of("julia", CoGbkResult
-          .of(emailsTag, Arrays.asList("julia@example.com"))
-          .and(phonesTag, Arrays.asList())));
+    final List<KV<String, CoGbkResult>> expectedResults =
+        Arrays.asList(
+            KV.of(
+                "amy",
+                CoGbkResult.of(emailsTag, Arrays.asList("amy@example.com"))
+                    .and(phonesTag, Arrays.asList("111-222-3333", "333-444-5555"))),
+            KV.of(
+                "carl",
+                CoGbkResult.of(emailsTag, Arrays.asList("carl@email.com", "carl@example.com"))
+                    .and(phonesTag, Arrays.asList("444-555-6666"))),
+            KV.of(
+                "james",
+                CoGbkResult.of(emailsTag, Arrays.asList())
+                    .and(phonesTag, Arrays.asList("222-333-4444"))),
+            KV.of(
+                "julia",
+                CoGbkResult.of(emailsTag, Arrays.asList("julia@example.com"))
+                    .and(phonesTag, Arrays.asList())));
     // [END CoGroupByKeyTupleOutputs]
 
     PCollection<String> actualFormattedResults =
         Snippets.coGroupByKeyTuple(emailsTag, phonesTag, emails, phones);
 
     // [START CoGroupByKeyTupleFormattedOutputs]
-    final List<String> formattedResults = Arrays.asList(
-        "amy; ['amy@example.com']; ['111-222-3333', '333-444-5555']",
-        "carl; ['carl@email.com', 'carl@example.com']; ['444-555-6666']",
-        "james; []; ['222-333-4444']",
-        "julia; ['julia@example.com']; []");
+    final List<String> formattedResults =
+        Arrays.asList(
+            "amy; ['amy@example.com']; ['111-222-3333', '333-444-5555']",
+            "carl; ['carl@email.com', 'carl@example.com']; ['444-555-6666']",
+            "james; []; ['222-333-4444']",
+            "julia; ['julia@example.com']; []");
     // [END CoGroupByKeyTupleFormattedOutputs]
 
     // Make sure that both 'expectedResults' and 'actualFormattedResults' match with the
     // 'formattedResults'. 'expectedResults' will have to be formatted before comparing
-    List<String> expectedFormattedResultsList = new ArrayList<String>(expectedResults.size());
+    List<String> expectedFormattedResultsList = new ArrayList<>(expectedResults.size());
     for (KV<String, CoGbkResult> e : expectedResults) {
       String name = e.getKey();
       Iterable<String> emailsIter = e.getValue().getAll(emailsTag);

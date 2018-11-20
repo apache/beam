@@ -133,6 +133,10 @@ class Metrics(object):
 
 
 class MetricResults(object):
+  COUNTERS = "counters"
+  DISTRIBUTIONS = "distributions"
+  GAUGES = "gauges"
+
   @staticmethod
   def _matches_name(filter, metric_key):
     if not filter.names and not filter.namespaces:
@@ -180,6 +184,20 @@ class MetricResults(object):
     return False
 
   def query(self, filter=None):
+    """Queries the runner for existing user metrics that match the filter.
+
+    It should return a dictionary, with lists of each kind of metric, and
+    each list contains the corresponding kind of MetricResult. Like so:
+
+        {
+          "counters": [MetricResult(counter_key, committed, attempted), ...],
+          "distributions": [MetricResult(dist_key, committed, attempted), ...],
+          "gauges": []  // Empty list if nothing matched the filter.
+        }
+
+    The committed / attempted values are DistributionResult / GaugeResult / int
+    objects.
+    """
     raise NotImplementedError
 
 

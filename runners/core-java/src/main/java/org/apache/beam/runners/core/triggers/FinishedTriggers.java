@@ -22,23 +22,15 @@ package org.apache.beam.runners.core.triggers;
  * finished.
  */
 public interface FinishedTriggers {
-  /**
-   * Returns {@code true} if the trigger is finished.
-   */
+  /** Returns {@code true} if the trigger is finished. */
   boolean isFinished(ExecutableTriggerStateMachine trigger);
 
-  /**
-   * Sets the fact that the trigger is finished.
-   */
+  /** Sets the fact that the trigger is finished. */
   void setFinished(ExecutableTriggerStateMachine trigger, boolean value);
 
-  /**
-   * Sets the trigger and all of its subtriggers to unfinished.
-   */
+  /** Sets the trigger and all of its subtriggers to unfinished. */
   void clearRecursively(ExecutableTriggerStateMachine trigger);
 
-  /**
-   * Create an independent copy of this mutable {@link FinishedTriggers}.
-   */
+  /** Create an independent copy of this mutable {@link FinishedTriggers}. */
   FinishedTriggers copy();
 }

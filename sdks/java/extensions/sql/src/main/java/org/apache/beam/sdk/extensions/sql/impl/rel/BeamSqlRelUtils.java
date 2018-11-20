@@ -17,36 +17,57 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.calcite.plan.RelOptUtil;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.sql.SqlExplainLevel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Utilities for {@code BeamRelNode}. */
-class BeamSqlRelUtils {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamSqlRelUtils.class);
+public class BeamSqlRelUtils {
 
-  private static final AtomicInteger sequence = new AtomicInteger(0);
-  private static final AtomicInteger classSequence = new AtomicInteger(0);
-
-  public static String getStageName(BeamRelNode relNode) {
-    return relNode.getClass().getSimpleName().toUpperCase()
-        + "_"
-        + relNode.getId()
-        + "_"
-        + sequence.getAndIncrement();
+  public static PCollection<Row> toPCollection(Pipeline pipeline, BeamRelNode node) {
+    return toPCollection(pipeline, node, new HashMap());
   }
 
-  public static String getClassName(BeamRelNode relNode) {
-    return "Generated_"
-        + relNode.getClass().getSimpleName().toUpperCase()
-        + "_"
-        + relNode.getId()
-        + "_"
-        + classSequence.getAndIncrement();
+  /** Transforms the inputs into a PInput. */
+  private static PCollectionList<Row> buildPCollectionList(
+      List<RelNode> inputRels, Pipeline pipeline, Map<Integer, PCollection<Row>> cache) {
+    if (inputRels.isEmpty()) {
+      return PCollectionList.empty(pipeline);
+    } else {
+      return PCollectionList.of(
+          inputRels
+              .stream()
+              .map(input -> BeamSqlRelUtils.toPCollection(pipeline, (BeamRelNode) input, cache))
+              .collect(Collectors.toList()));
+    }
+  }
+
+  /**
+   * A {@link BeamRelNode} is a recursive structure, the {@code BeamQueryPlanner} visits it with a
+   * DFS(Depth-First-Search) algorithm.
+   */
+  static PCollection<Row> toPCollection(
+      Pipeline pipeline, BeamRelNode node, Map<Integer, PCollection<Row>> cache) {
+    PCollection<Row> output = cache.get(node.getId());
+    if (output != null) {
+      return output;
+    }
+
+    String name = node.getClass().getSimpleName() + "_" + node.getId();
+    PCollectionList<Row> input = buildPCollectionList(node.getPCollectionInputs(), pipeline, cache);
+    PTransform<PCollectionList<Row>, PCollection<Row>> transform = node.buildPTransform();
+    output = Pipeline.applyTransform(name, input, transform);
+
+    cache.put(node.getId(), output);
+    return output;
   }
 
   public static BeamRelNode getBeamRelInput(RelNode input) {
@@ -55,25 +76,5 @@ class BeamSqlRelUtils {
       input = ((RelSubset) input).getBest();
     }
     return (BeamRelNode) input;
-  }
-
-  public static String explain(final RelNode rel) {
-    return explain(rel, SqlExplainLevel.EXPPLAN_ATTRIBUTES);
-  }
-
-  public static String explain(final RelNode rel, SqlExplainLevel detailLevel) {
-    String explain = "";
-    try {
-      explain = RelOptUtil.toString(rel);
-    } catch (StackOverflowError e) {
-      LOG.error(
-          "StackOverflowError occurred while extracting plan. "
-              + "Please report it to the dev@ mailing list.");
-      LOG.error("RelNode " + rel + " ExplainLevel " + detailLevel, e);
-      LOG.error(
-          "Forcing plan to empty string and continue... "
-              + "SQL Runner may not working properly after.");
-    }
-    return explain;
   }
 }

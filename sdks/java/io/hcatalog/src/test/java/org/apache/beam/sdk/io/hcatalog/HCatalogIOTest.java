@@ -73,8 +73,7 @@ import org.junit.runners.model.Statement;
 public class HCatalogIOTest implements Serializable {
   private static final PipelineOptions OPTIONS = PipelineOptionsFactory.create();
 
-  @ClassRule
-  public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
   @Rule public final transient TestPipeline defaultPipeline = TestPipeline.create();
 
@@ -114,12 +113,12 @@ public class HCatalogIOTest implements Serializable {
   private @interface NeedsEmptyTestTables {}
 
   @BeforeClass
-  public static void setupEmbeddedMetastoreService () throws IOException {
+  public static void setupEmbeddedMetastoreService() throws IOException {
     service = new EmbeddedMetastoreService(TMP_FOLDER.getRoot().getAbsolutePath());
   }
 
   @AfterClass
-  public static void shutdownEmbeddedMetastoreService () throws Exception {
+  public static void shutdownEmbeddedMetastoreService() throws Exception {
     service.executeQuery("drop table " + TEST_TABLE);
     service.close();
   }
@@ -139,21 +138,22 @@ public class HCatalogIOTest implements Serializable {
                 .withBatchSize(512L));
     defaultPipeline.run();
 
-    PCollection<String> output = readAfterWritePipeline
-        .apply(
-            HCatalogIO.read()
-                .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
-                .withDatabase(TEST_DATABASE)
-                .withTable(TEST_TABLE)
-                .withFilter(TEST_FILTER))
-        .apply(
-            ParDo.of(
-                new DoFn<HCatRecord, String>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    c.output(c.element().get(0).toString());
-                  }
-                }));
+    PCollection<String> output =
+        readAfterWritePipeline
+            .apply(
+                HCatalogIO.read()
+                    .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+                    .withDatabase(TEST_DATABASE)
+                    .withTable(TEST_TABLE)
+                    .withFilter(TEST_FILTER))
+            .apply(
+                ParDo.of(
+                    new DoFn<HCatRecord, String>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        c.output(c.element().get(0).toString());
+                      }
+                    }));
     PAssert.that(output).containsInAnyOrder(getExpectedRecords(TEST_RECORDS_COUNT));
     readAfterWritePipeline.run();
   }

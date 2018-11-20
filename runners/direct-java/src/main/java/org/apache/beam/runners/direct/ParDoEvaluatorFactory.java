@@ -143,6 +143,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           options,
           stepContext,
           application,
+          mainInput.getCoder(),
           mainInput.getWindowingStrategy(),
           fn,
           key,

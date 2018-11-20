@@ -35,20 +35,20 @@ import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * An example that verifies word counts in Shakespeare and includes Beam best practices.
  *
  * <p>This class, {@link DebuggingWordCount}, is the third in a series of four successively more
- * detailed 'word count' examples. You may first want to take a look at {@link MinimalWordCount}
- * and {@link WordCount}. After you've looked at this example, then see the
- * {@link WindowedWordCount} pipeline, for introduction of additional concepts.
+ * detailed 'word count' examples. You may first want to take a look at {@link MinimalWordCount} and
+ * {@link WordCount}. After you've looked at this example, then see the {@link WindowedWordCount}
+ * pipeline, for introduction of additional concepts.
  *
- * <p>Basic concepts, also in the MinimalWordCount and WordCount examples:
- * Reading text files; counting a PCollection; executing a Pipeline both locally
- * and using a selected runner; defining DoFns.
+ * <p>Basic concepts, also in the MinimalWordCount and WordCount examples: Reading text files;
+ * counting a PCollection; executing a Pipeline both locally and using a selected runner; defining
+ * DoFns.
  *
  * <p>New Concepts:
+ *
  * <pre>
  *   1. Logging using SLF4J, even in a distributed environment
  *   2. Creating a custom metric (runners have varying levels of support)
@@ -56,20 +56,19 @@ import org.slf4j.LoggerFactory;
  * </pre>
  *
  * <p>To execute this pipeline locally, specify general pipeline configuration:
+ *
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }
- * </pre>
+ * --project=YOUR_PROJECT_ID
+ * }</pre>
  *
  * <p>To change the runner, specify:
+ *
  * <pre>{@code
- *   --runner=YOUR_SELECTED_RUNNER
- * }
- * </pre>
+ * --runner=YOUR_SELECTED_RUNNER
+ * }</pre>
  *
- * <p>The input file defaults to a public data set containing the text of of King Lear,
- * by William Shakespeare. You can override it and choose your own input with {@code --inputFile}.
- *
+ * <p>The input file defaults to a public data set containing the text of of King Lear, by William
+ * Shakespeare. You can override it and choose your own input with {@code --inputFile}.
  */
 public class DebuggingWordCount {
   /** A DoFn that filters for a specific key based upon a regular expression. */
@@ -85,16 +84,17 @@ public class DebuggingWordCount {
     private static final Logger LOG = LoggerFactory.getLogger(FilterTextFn.class);
 
     private final Pattern filter;
+
     public FilterTextFn(String pattern) {
       filter = Pattern.compile(pattern);
     }
 
     /**
-     * Concept #2: A custom metric can track values in your pipeline as it runs. Each
-     * runner provides varying levels of support for metrics, and may expose them
-     * in a dashboard, etc.
+     * Concept #2: A custom metric can track values in your pipeline as it runs. Each runner
+     * provides varying levels of support for metrics, and may expose them in a dashboard, etc.
      */
     private final Counter matchedWords = Metrics.counter(FilterTextFn.class, "matchedWords");
+
     private final Counter unmatchedWords = Metrics.counter(FilterTextFn.class, "unmatchedWords");
 
     @ProcessElement
@@ -118,15 +118,17 @@ public class DebuggingWordCount {
   /**
    * Options supported by {@link DebuggingWordCount}.
    *
-   * <p>Inherits standard configuration options and all options defined in
-   * {@link WordCount.WordCountOptions}.
+   * <p>Inherits standard configuration options and all options defined in {@link
+   * WordCount.WordCountOptions}.
    */
   public interface WordCountOptions extends WordCount.WordCountOptions {
 
-    @Description("Regex filter pattern to use in DebuggingWordCount. "
-        + "Only words matching this pattern will be counted.")
+    @Description(
+        "Regex filter pattern to use in DebuggingWordCount. "
+            + "Only words matching this pattern will be counted.")
     @Default.String("Flourish|stomach")
     String getFilterPattern();
+
     void setFilterPattern(String value);
   }
 
@@ -135,10 +137,10 @@ public class DebuggingWordCount {
 
     PCollection<KV<String, Long>> filteredWords =
         p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
-         .apply(new WordCount.CountWords())
-         .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
+            .apply(new WordCount.CountWords())
+            .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
 
-    /**
+    /*
      * Concept #3: PAssert is a set of convenient PTransforms in the style of
      * Hamcrest's collection matchers that can be used when writing Pipeline level tests
      * to validate the contents of PCollections. PAssert is best used in unit tests
@@ -150,17 +152,16 @@ public class DebuggingWordCount {
      * https://beam.apache.org/documentation/pipelines/test-your-pipeline/ on how to test
      * your Pipeline and see {@link DebuggingWordCountTest} for an example unit test.
      */
-    List<KV<String, Long>> expectedResults = Arrays.asList(
-        KV.of("Flourish", 3L),
-        KV.of("stomach", 1L));
+    List<KV<String, Long>> expectedResults =
+        Arrays.asList(KV.of("Flourish", 3L), KV.of("stomach", 1L));
     PAssert.that(filteredWords).containsInAnyOrder(expectedResults);
 
     p.run().waitUntilFinish();
   }
 
   public static void main(String[] args) {
-    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-      .as(WordCountOptions.class);
+    WordCountOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(WordCountOptions.class);
 
     runDebuggingWordCount(options);
   }

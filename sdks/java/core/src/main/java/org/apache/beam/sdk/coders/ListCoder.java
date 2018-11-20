@@ -45,8 +45,8 @@ public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
   }
 
   /**
-   * List sizes are always known, so ListIterable may be deterministic while
-   * the general IterableLikeCoder is not.
+   * List sizes are always known, so ListIterable may be deterministic while the general
+   * IterableLikeCoder is not.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {

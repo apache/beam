@@ -47,9 +47,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Test for dependency resolution for pipeline execution on YARN.
- */
+/** Test for dependency resolution for pipeline execution on YARN. */
 public class ApexYarnLauncherTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -81,11 +79,11 @@ public class ApexYarnLauncherTest {
     launcher.launchApp(new MockApexYarnLauncherParams(dag, launchAttributes, configProperties));
   }
 
-  private static class MockApexYarnLauncherParams extends  ApexYarnLauncher.LaunchParams {
+  private static class MockApexYarnLauncherParams extends ApexYarnLauncher.LaunchParams {
     private static final long serialVersionUID = 1L;
 
-    public MockApexYarnLauncherParams(DAG dag, AttributeMap launchAttributes,
-        Properties properties) {
+    public MockApexYarnLauncherParams(
+        DAG dag, AttributeMap launchAttributes, Properties properties) {
       super(dag, launchAttributes, properties);
     }
 
@@ -93,8 +91,10 @@ public class ApexYarnLauncherTest {
     protected Launcher<?> getApexLauncher() {
       return new Launcher<AppHandle>() {
         @Override
-        public AppHandle launchApp(StreamingApplication application,
-            Configuration configuration, AttributeMap launchParameters)
+        public AppHandle launchApp(
+            StreamingApplication application,
+            Configuration configuration,
+            AttributeMap launchParameters)
             throws Launcher.LauncherException {
           EmbeddedAppLauncher<?> embeddedLauncher = Launcher.getLauncher(LaunchMode.EMBEDDED);
           DAG dag = embeddedLauncher.getDAG();
@@ -106,14 +106,13 @@ public class ApexYarnLauncherTest {
             public boolean isFinished() {
               return true;
             }
+
             @Override
-            public void shutdown(Launcher.ShutdownMode arg0) {
-            }
+            public void shutdown(Launcher.ShutdownMode arg0) {}
           };
         }
       };
     }
-
   }
 
   @Test

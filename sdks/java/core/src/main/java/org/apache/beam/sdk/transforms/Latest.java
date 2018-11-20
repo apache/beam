@@ -31,12 +31,14 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.joda.time.Instant;
 
 /**
- * {@link PTransform} and {@link Combine.CombineFn} for computing the latest element
- * in a {@link PCollection}.
+ * {@link PTransform} and {@link Combine.CombineFn} for computing the latest element in a {@link
+ * PCollection}.
  *
  * <p>Example: compute the latest value for each session:
+ *
  * <pre>{@code
  * PCollection<Long> input = ...;
  * PCollection<Long> sessioned = input
@@ -44,8 +46,8 @@ import org.apache.beam.sdk.values.TimestampedValue;
  * PCollection<Long> latestValues = sessioned.apply(Latest.<Long>globally());
  * }</pre>
  *
- * <p>{@link #combineFn} can also be used manually, in combination with state and with the
- * {@link Combine} transform.
+ * <p>{@link #combineFn} can also be used manually, in combination with state and with the {@link
+ * Combine} transform.
  *
  * <p>For elements with the same timestamp, the element chosen for output is arbitrary.
  */
@@ -59,9 +61,9 @@ public class Latest {
   }
 
   /**
-   * Returns a {@link PTransform} that takes as input a {@code PCollection<T>} and returns a
-   * {@code PCollection<T>} whose contents is the latest element according to its event time, or
-   * {@literal null} if there are no elements.
+   * Returns a {@link PTransform} that takes as input a {@code PCollection<T>} and returns a {@code
+   * PCollection<T>} whose contents is the latest element according to its event time, or {@literal
+   * null} if there are no elements.
    *
    * @param <T> The type of the elements being combined.
    */
@@ -88,8 +90,7 @@ public class Latest {
    * @see Latest
    */
   @VisibleForTesting
-  static class LatestFn<T>
-      extends Combine.CombineFn<TimestampedValue<T>, TimestampedValue<T>, T> {
+  static class LatestFn<T> extends Combine.CombineFn<TimestampedValue<T>, TimestampedValue<T>, T> {
     /** Construct a new {@link LatestFn} instance. */
     public LatestFn() {}
 
@@ -167,8 +168,11 @@ public class Latest {
               ParDo.of(
                   new DoFn<T, TimestampedValue<T>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      c.output(TimestampedValue.of(c.element(), c.timestamp()));
+                    public void processElement(
+                        @Element T element,
+                        @Timestamp Instant timestamp,
+                        OutputReceiver<TimestampedValue<T>> r) {
+                      r.output(TimestampedValue.of(element, timestamp));
                     }
                   }))
           .setCoder(TimestampedValue.TimestampedValueCoder.of(inputCoder))
@@ -183,8 +187,10 @@ public class Latest {
     @Override
     public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
       checkNotNull(input);
-      checkArgument(input.getCoder() instanceof KvCoder,
-          "Input specifiedCoder must be an instance of KvCoder, but was %s", input.getCoder());
+      checkArgument(
+          input.getCoder() instanceof KvCoder,
+          "Input specifiedCoder must be an instance of KvCoder, but was %s",
+          input.getCoder());
 
       @SuppressWarnings("unchecked")
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
@@ -194,11 +200,14 @@ public class Latest {
               ParDo.of(
                   new DoFn<KV<K, V>, KV<K, TimestampedValue<V>>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      c.output(
+                    public void processElement(
+                        @Element KV<K, V> element,
+                        @Timestamp Instant timestamp,
+                        OutputReceiver<KV<K, TimestampedValue<V>>> r) {
+                      r.output(
                           KV.of(
-                              c.element().getKey(),
-                              TimestampedValue.of(c.element().getValue(), c.timestamp())));
+                              element.getKey(),
+                              TimestampedValue.of(element.getValue(), timestamp)));
                     }
                   }))
           .setCoder(

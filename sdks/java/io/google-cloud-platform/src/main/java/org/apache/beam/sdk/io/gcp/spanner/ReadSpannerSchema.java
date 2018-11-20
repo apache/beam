@@ -24,8 +24,8 @@ import com.google.cloud.spanner.Statement;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * This {@link DoFn} reads Cloud Spanner 'information_schema.*' tables to build the
- * {@link SpannerSchema}.
+ * This {@link DoFn} reads Cloud Spanner 'information_schema.*' tables to build the {@link
+ * SpannerSchema}.
  */
 class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
@@ -51,8 +51,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
   public void processElement(ProcessContext c) throws Exception {
     SpannerSchema.Builder builder = SpannerSchema.builder();
     DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
-    try (ReadOnlyTransaction tx =
-        databaseClient.readOnlyTransaction()) {
+    try (ReadOnlyTransaction tx = databaseClient.readOnlyTransaction()) {
       ResultSet resultSet = readTableInfo(tx);
 
       while (resultSet.next()) {
@@ -81,32 +80,34 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     // number of indexes that cover each column. this will be used to estimate
     // the number of cells (table column plus indexes) mutated in an upsert operation
     // in order to stay below the 20k threshold
-    return tx.executeQuery(Statement
-        .of("SELECT"
-            + "    c.table_name"
-            + "  , c.column_name"
-            + "  , c.spanner_type"
-            + "  , (1 + COALESCE(t.indices, 0)) AS cells_mutated"
-            + "  FROM ("
-            + "    SELECT c.table_name, c.column_name, c.spanner_type, c.ordinal_position"
-            + "     FROM information_schema.columns as c"
-            + "     WHERE c.table_catalog = '' AND c.table_schema = '') AS c"
-            + "  LEFT OUTER JOIN ("
-            + "    SELECT t.table_name, t.column_name, COUNT(*) AS indices"
-            + "      FROM information_schema.index_columns AS t "
-            + "      WHERE t.index_name != 'PRIMARY_KEY' AND t.table_catalog = ''"
-            + "      AND t.table_schema = ''"
-            + "      GROUP BY t.table_name, t.column_name) AS t"
-            + "  USING (table_name, column_name)"
-            + "  ORDER BY c.table_name, c.ordinal_position"));
+    return tx.executeQuery(
+        Statement.of(
+            "SELECT"
+                + "    c.table_name"
+                + "  , c.column_name"
+                + "  , c.spanner_type"
+                + "  , (1 + COALESCE(t.indices, 0)) AS cells_mutated"
+                + "  FROM ("
+                + "    SELECT c.table_name, c.column_name, c.spanner_type, c.ordinal_position"
+                + "     FROM information_schema.columns as c"
+                + "     WHERE c.table_catalog = '' AND c.table_schema = '') AS c"
+                + "  LEFT OUTER JOIN ("
+                + "    SELECT t.table_name, t.column_name, COUNT(*) AS indices"
+                + "      FROM information_schema.index_columns AS t "
+                + "      WHERE t.index_name != 'PRIMARY_KEY' AND t.table_catalog = ''"
+                + "      AND t.table_schema = ''"
+                + "      GROUP BY t.table_name, t.column_name) AS t"
+                + "  USING (table_name, column_name)"
+                + "  ORDER BY c.table_name, c.ordinal_position"));
   }
 
   private ResultSet readPrimaryKeyInfo(ReadOnlyTransaction tx) {
-    return tx.executeQuery(Statement
-        .of("SELECT t.table_name, t.column_name, t.column_ordering"
-            + " FROM information_schema.index_columns AS t "
-            + " WHERE t.index_name = 'PRIMARY_KEY' AND t.table_catalog = ''"
-            + " AND t.table_schema = ''"
-            + " ORDER BY t.table_name, t.ordinal_position"));
+    return tx.executeQuery(
+        Statement.of(
+            "SELECT t.table_name, t.column_name, t.column_ordering"
+                + " FROM information_schema.index_columns AS t "
+                + " WHERE t.index_name = 'PRIMARY_KEY' AND t.table_catalog = ''"
+                + " AND t.table_schema = ''"
+                + " ORDER BY t.table_name, t.ordinal_position"));
   }
 }

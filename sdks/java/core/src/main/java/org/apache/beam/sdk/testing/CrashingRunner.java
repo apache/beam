@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.testing;
 
 import org.apache.beam.sdk.Pipeline;
@@ -24,10 +23,10 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * A {@link PipelineRunner} that applies no overrides and throws an exception on calls to
- * {@link Pipeline#run()}. For use in {@link TestPipeline} to construct but not execute pipelines.
+ * A {@link PipelineRunner} that applies no overrides and throws an exception on calls to {@link
+ * Pipeline#run()}. For use in {@link TestPipeline} to construct but not execute pipelines.
  */
-public final class CrashingRunner extends PipelineRunner<PipelineResult>{
+public final class CrashingRunner extends PipelineRunner<PipelineResult> {
 
   @SuppressWarnings("unused") // used by reflection
   public static CrashingRunner fromOptions(PipelineOptions opts) {
@@ -36,14 +35,16 @@ public final class CrashingRunner extends PipelineRunner<PipelineResult>{
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
-    throw new IllegalArgumentException(String.format("Cannot call #run(Pipeline) on an instance "
-            + "of %s. %s should only be used as the default to construct a Pipeline "
-            + "using %s, and cannot execute Pipelines. Instead, specify a %s "
-            + "by providing PipelineOptions in the system property '%s'.",
-        CrashingRunner.class.getSimpleName(),
-        CrashingRunner.class.getSimpleName(),
-        TestPipeline.class.getSimpleName(),
-        PipelineRunner.class.getSimpleName(),
-        TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS));
+    throw new IllegalArgumentException(
+        String.format(
+            "Cannot call #run(Pipeline) on an instance "
+                + "of %s. %s should only be used as the default to construct a Pipeline "
+                + "using %s, and cannot execute Pipelines. Instead, specify a %s "
+                + "by providing PipelineOptions in the system property '%s'.",
+            CrashingRunner.class.getSimpleName(),
+            CrashingRunner.class.getSimpleName(),
+            TestPipeline.class.getSimpleName(),
+            PipelineRunner.class.getSimpleName(),
+            TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS));
   }
 }

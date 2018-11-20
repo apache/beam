@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -34,17 +33,12 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
-/**
- * Contains some useful helper instances of {@link DynamicDestinations}.
- */
+/** Contains some useful helper instances of {@link DynamicDestinations}. */
 class DynamicDestinationsHelpers {
-  /**
-   * Always returns a constant table destination.
-   */
+  /** Always returns a constant table destination. */
   static class ConstantTableDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final ValueProvider<String> tableSpec;
-    @Nullable
-    private final String tableDescription;
+    @Nullable private final String tableDescription;
 
     ConstantTableDestinations(ValueProvider<String> tableSpec, @Nullable String tableDescription) {
       this.tableSpec = tableSpec;
@@ -85,9 +79,7 @@ class DynamicDestinationsHelpers {
     }
   }
 
-  /**
-   * Returns a tables based on a user-supplied function.
-   */
+  /** Returns a tables based on a user-supplied function. */
   static class TableFunctionDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction;
 
@@ -124,9 +116,9 @@ class DynamicDestinationsHelpers {
   }
 
   /**
-   * Delegates all calls to an inner instance of {@link DynamicDestinations}. This allows
-   * subclasses to modify another instance of {@link DynamicDestinations} by subclassing and
-   * overriding just the methods they want to alter.
+   * Delegates all calls to an inner instance of {@link DynamicDestinations}. This allows subclasses
+   * to modify another instance of {@link DynamicDestinations} by subclassing and overriding just
+   * the methods they want to alter.
    */
   static class DelegatingDynamicDestinations<T, DestinationT>
       extends DynamicDestinations<T, DestinationT> {
@@ -162,16 +154,13 @@ class DynamicDestinationsHelpers {
     }
   }
 
-  /**
-   * Returns the same schema for every table.
-   */
+  /** Returns the same schema for every table. */
   static class ConstantSchemaDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
-    @Nullable
-    private final ValueProvider<String> jsonSchema;
+    @Nullable private final ValueProvider<String> jsonSchema;
 
-    ConstantSchemaDestinations(DynamicDestinations<T, TableDestination> inner,
-                               ValueProvider<String> jsonSchema) {
+    ConstantSchemaDestinations(
+        DynamicDestinations<T, TableDestination> inner, ValueProvider<String> jsonSchema) {
       super(inner);
       checkArgument(jsonSchema != null, "jsonSchema can not be null");
       this.jsonSchema = jsonSchema;
@@ -196,8 +185,7 @@ class DynamicDestinationsHelpers {
   static class ConstantTimePartitioningDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
 
-    @Nullable
-    private final ValueProvider<String> jsonTimePartitioning;
+    @Nullable private final ValueProvider<String> jsonTimePartitioning;
 
     ConstantTimePartitioningDestinations(
         DynamicDestinations<T, TableDestination> inner,
@@ -216,9 +204,7 @@ class DynamicDestinationsHelpers {
       String partitioning = this.jsonTimePartitioning.get();
       checkArgument(partitioning != null, "jsonTimePartitioning can not be null");
       return new TableDestination(
-          destination.getTableSpec(),
-          destination.getTableDescription(),
-          partitioning);
+          destination.getTableSpec(), destination.getTableDescription(), partitioning);
     }
 
     @Override
@@ -236,19 +222,20 @@ class DynamicDestinationsHelpers {
   }
 
   /**
-   * Takes in a side input mapping tablespec to json table schema, and always returns the
-   * matching schema from the side input.
+   * Takes in a side input mapping tablespec to json table schema, and always returns the matching
+   * schema from the side input.
    */
   static class SchemaFromViewDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
     PCollectionView<Map<String, String>> schemaView;
-    SchemaFromViewDestinations(DynamicDestinations<T, TableDestination> inner,
-                               PCollectionView<Map<String, String>> schemaView) {
+
+    SchemaFromViewDestinations(
+        DynamicDestinations<T, TableDestination> inner,
+        PCollectionView<Map<String, String>> schemaView) {
       super(inner);
       checkArgument(schemaView != null, "schemaView can not be null");
       this.schemaView = schemaView;
     }
-
 
     @Override
     public List<PCollectionView<?>> getSideInputs() {

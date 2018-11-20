@@ -24,10 +24,10 @@ import static org.junit.Assert.assertNull;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -41,8 +41,8 @@ public class BagUserStateTest {
 
   @Test
   public void testGet() throws Exception {
-    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(ImmutableMap.of(
-        key("A"), encode("A1", "A2", "A3")));
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1", "A2", "A3")));
     BagUserState<String> userState =
         new BagUserState<>(
             fakeClient,
@@ -52,8 +52,8 @@ public class BagUserStateTest {
             ByteString.copyFromUtf8("encodedWindow"),
             encode("A"),
             StringUtf8Coder.of());
-    assertArrayEquals(new String[]{ "A1", "A2", "A3" },
-        Iterables.toArray(userState.get(), String.class));
+    assertArrayEquals(
+        new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
 
     userState.asyncClose();
     thrown.expect(IllegalStateException.class);
@@ -62,8 +62,8 @@ public class BagUserStateTest {
 
   @Test
   public void testAppend() throws Exception {
-    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(ImmutableMap.of(
-        key("A"), encode("A1")));
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1")));
     BagUserState<String> userState =
         new BagUserState<>(
             fakeClient,
@@ -75,13 +75,11 @@ public class BagUserStateTest {
             StringUtf8Coder.of());
     userState.append("A2");
     Iterable<String> stateBeforeA3 = userState.get();
-    assertArrayEquals(new String[]{ "A1", "A2" },
-        Iterables.toArray(stateBeforeA3, String.class));
+    assertArrayEquals(new String[] {"A1", "A2"}, Iterables.toArray(stateBeforeA3, String.class));
     userState.append("A3");
-    assertArrayEquals(new String[]{ "A1", "A2" },
-        Iterables.toArray(stateBeforeA3, String.class));
-    assertArrayEquals(new String[]{ "A1", "A2", "A3" },
-        Iterables.toArray(userState.get(), String.class));
+    assertArrayEquals(new String[] {"A1", "A2"}, Iterables.toArray(stateBeforeA3, String.class));
+    assertArrayEquals(
+        new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
     userState.asyncClose();
 
     assertEquals(encode("A1", "A2", "A3"), fakeClient.getData().get(key("A")));
@@ -91,8 +89,8 @@ public class BagUserStateTest {
 
   @Test
   public void testClear() throws Exception {
-    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(ImmutableMap.of(
-        key("A"), encode("A1", "A2", "A3")));
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1", "A2", "A3")));
     BagUserState<String> userState =
         new BagUserState<>(
             fakeClient,
@@ -102,13 +100,12 @@ public class BagUserStateTest {
             ByteString.copyFromUtf8("encodedWindow"),
             encode("A"),
             StringUtf8Coder.of());
-    assertArrayEquals(new String[]{ "A1", "A2", "A3" },
-        Iterables.toArray(userState.get(), String.class));
+    assertArrayEquals(
+        new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
     userState.clear();
     assertFalse(userState.get().iterator().hasNext());
     userState.append("A4");
-    assertArrayEquals(new String[]{ "A4" },
-        Iterables.toArray(userState.get(), String.class));
+    assertArrayEquals(new String[] {"A4"}, Iterables.toArray(userState.get(), String.class));
     userState.clear();
     assertFalse(userState.get().iterator().hasNext());
     userState.asyncClose();
@@ -119,15 +116,17 @@ public class BagUserStateTest {
   }
 
   private StateKey key(String id) throws IOException {
-    return StateKey.newBuilder().setBagUserState(
-        StateKey.BagUserState.newBuilder()
-            .setPtransformId("ptransformId")
-            .setUserStateId("stateId")
-            .setWindow(ByteString.copyFromUtf8("encodedWindow"))
-            .setKey(encode(id))).build();
+    return StateKey.newBuilder()
+        .setBagUserState(
+            StateKey.BagUserState.newBuilder()
+                .setPtransformId("ptransformId")
+                .setUserStateId("stateId")
+                .setWindow(ByteString.copyFromUtf8("encodedWindow"))
+                .setKey(encode(id)))
+        .build();
   }
 
-  private ByteString encode(String ... values) throws IOException {
+  private ByteString encode(String... values) throws IOException {
     ByteString.Output out = ByteString.newOutput();
     for (String value : values) {
       StringUtf8Coder.of().encode(value, out);

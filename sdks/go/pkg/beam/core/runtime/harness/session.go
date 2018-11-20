@@ -170,7 +170,7 @@ func recordHeader() error {
 			Msg: &session.Entry_Header{
 				Header: &session.Header{
 					Version:   "0.0.1",
-					MaxMsgLen: 4000000, // TODO(wcn): get from DataManager.
+					MaxMsgLen: 4000000, // TODO(wcn): get from DataChannelManager.
 				},
 			},
 		})

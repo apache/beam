@@ -53,33 +53,35 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for CoGroupByKeyTest.  Implements Serializable for anonymous DoFns.
- */
+/** Tests for CoGroupByKeyTest. Implements Serializable for anonymous DoFns. */
 @RunWith(JUnit4.class)
 public class CoGroupByKeyTest implements Serializable {
 
   /**
-   * Converts the given list into a PCollection belonging to the provided
-   * Pipeline in such a way that coder inference needs to be performed.
+   * Converts the given list into a PCollection belonging to the provided Pipeline in such a way
+   * that coder inference needs to be performed.
    */
-  private PCollection<KV<Integer, String>> createInput(String name,
-      Pipeline p, List<KV<Integer, String>> list) {
+  private PCollection<KV<Integer, String>> createInput(
+      String name, Pipeline p, List<KV<Integer, String>> list) {
     return createInput(name, p, list, new ArrayList<>());
   }
 
-  /**
-   * Converts the given list with timestamps into a PCollection.
-   */
-  private PCollection<KV<Integer, String>> createInput(String name,
-      Pipeline p, List<KV<Integer, String>> list, List<Long> timestamps) {
+  /** Converts the given list with timestamps into a PCollection. */
+  private PCollection<KV<Integer, String>> createInput(
+      String name, Pipeline p, List<KV<Integer, String>> list, List<Long> timestamps) {
     PCollection<KV<Integer, String>> input;
     if (timestamps.isEmpty()) {
-      input = p.apply("Create" + name, Create.of(list)
-          .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
+      input =
+          p.apply(
+              "Create" + name,
+              Create.of(list)
+                  .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
     } else {
-      input = p.apply("Create" + name, Create.timestamped(list, timestamps)
-          .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
+      input =
+          p.apply(
+              "Create" + name,
+              Create.timestamped(list, timestamps)
+                  .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
     }
     return input.apply(
         "Identity" + name,
@@ -93,23 +95,17 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   /**
-   * Returns a {@code PCollection<KV<Integer, CoGbkResult>>} containing the result
-   * of a {@link CoGroupByKey} over 2 {@code PCollection<KV<Integer, String>>},
-   * where each {@link PCollection} has no duplicate keys and the key sets of
-   * each {@link PCollection} are intersecting but neither is a subset of the other.
+   * Returns a {@code PCollection<KV<Integer, CoGbkResult>>} containing the result of a {@link
+   * CoGroupByKey} over 2 {@code PCollection<KV<Integer, String>>}, where each {@link PCollection}
+   * has no duplicate keys and the key sets of each {@link PCollection} are intersecting but neither
+   * is a subset of the other.
    */
   private PCollection<KV<Integer, CoGbkResult>> buildGetOnlyGbk(
-      Pipeline p,
-      TupleTag<String> tag1,
-      TupleTag<String> tag2) {
+      Pipeline p, TupleTag<String> tag1, TupleTag<String> tag2) {
     List<KV<Integer, String>> list1 =
-        Arrays.asList(
-            KV.of(1, "collection1-1"),
-            KV.of(2, "collection1-2"));
+        Arrays.asList(KV.of(1, "collection1-1"), KV.of(2, "collection1-2"));
     List<KV<Integer, String>> list2 =
-        Arrays.asList(
-            KV.of(2, "collection2-2"),
-            KV.of(3, "collection2-3"));
+        Arrays.asList(KV.of(2, "collection2-2"), KV.of(3, "collection2-3"));
     PCollection<KV<Integer, String>> collection1 = createInput("CreateList1", p, list1);
     PCollection<KV<Integer, String>> collection2 = createInput("CreateList2", p, list2);
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
@@ -119,8 +115,7 @@ public class CoGroupByKeyTest implements Serializable {
     return coGbkResults;
   }
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(ValidatesRunner.class)
@@ -128,8 +123,7 @@ public class CoGroupByKeyTest implements Serializable {
     final TupleTag<String> tag1 = new TupleTag<>();
     final TupleTag<String> tag2 = new TupleTag<>();
 
-    PCollection<KV<Integer, CoGbkResult>> coGbkResults =
-        buildGetOnlyGbk(p, tag1, tag2);
+    PCollection<KV<Integer, CoGbkResult>> coGbkResults = buildGetOnlyGbk(p, tag1, tag2);
 
     PAssert.thatMap(coGbkResults)
         .satisfies(
@@ -145,10 +139,9 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   /**
-   * Returns a {@code PCollection<KV<Integer, CoGbkResult>>} containing the
-   * results of the {@code CoGroupByKey} over three
-   * {@code PCollection<KV<Integer, String>>}, each of which correlates
-   * a customer id to purchases, addresses, or names, respectively.
+   * Returns a {@code PCollection<KV<Integer, CoGbkResult>>} containing the results of the {@code
+   * CoGroupByKey} over three {@code PCollection<KV<Integer, String>>}, each of which correlates a
+   * customer id to purchases, addresses, or names, respectively.
    */
   private PCollection<KV<Integer, CoGbkResult>> buildPurchasesCoGbk(
       Pipeline p,
@@ -191,8 +184,7 @@ public class CoGroupByKeyTest implements Serializable {
     PCollection<KV<Integer, String>> addressTable =
         createInput("CreateIdToAddress", p, idToAddress);
 
-    PCollection<KV<Integer, String>> nameTable =
-        createInput("CreateIdToName", p, idToName);
+    PCollection<KV<Integer, String>> nameTable = createInput("CreateIdToName", p, idToName);
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         KeyedPCollectionTuple.of(namesTag, nameTable)
@@ -203,14 +195,12 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   /**
-   * Returns a {@code PCollection<KV<Integer, CoGbkResult>>} containing the
-   * results of the {@code CoGroupByKey} over 2 {@code PCollection<KV<Integer, String>>},
-   * each of which correlates a customer id to clicks, purchases, respectively.
+   * Returns a {@code PCollection<KV<Integer, CoGbkResult>>} containing the results of the {@code
+   * CoGroupByKey} over 2 {@code PCollection<KV<Integer, String>>}, each of which correlates a
+   * customer id to clicks, purchases, respectively.
    */
   private PCollection<KV<Integer, CoGbkResult>> buildPurchasesCoGbkWithWindowing(
-      Pipeline p,
-      TupleTag<String> clicksTag,
-      TupleTag<String> purchasesTag) {
+      Pipeline p, TupleTag<String> clicksTag, TupleTag<String> purchasesTag) {
     List<KV<Integer, String>> idToClick =
         Arrays.asList(
             KV.of(1, "Click t0"),
@@ -233,22 +223,22 @@ public class CoGroupByKeyTest implements Serializable {
             KV.of(2, "House t10"));
 
     PCollection<KV<Integer, String>> clicksTable =
-        createInput("CreateClicks",
-            p,
-            idToClick,
-            Arrays.asList(0L, 2L, 4L, 6L, 8L))
-        .apply("WindowClicks", Window.<KV<Integer, String>>into(
-            FixedWindows.of(new Duration(4)))
-            .withTimestampCombiner(TimestampCombiner.EARLIEST));
+        createInput("CreateClicks", p, idToClick, Arrays.asList(0L, 2L, 4L, 6L, 8L))
+            .apply(
+                "WindowClicks",
+                Window.<KV<Integer, String>>into(FixedWindows.of(new Duration(4)))
+                    .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
     PCollection<KV<Integer, String>> purchasesTable =
-        createInput("CreatePurchases",
-            p,
-            idToPurchases,
-            Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L))
-        .apply("WindowPurchases", Window.<KV<Integer, String>>into(
-            FixedWindows.of(new Duration(4)))
-            .withTimestampCombiner(TimestampCombiner.EARLIEST));
+        createInput(
+                "CreatePurchases",
+                p,
+                idToPurchases,
+                Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L))
+            .apply(
+                "WindowPurchases",
+                Window.<KV<Integer, String>>into(FixedWindows.of(new Duration(4)))
+                    .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         KeyedPCollectionTuple.of(clicksTag, clicksTable)
@@ -263,7 +253,6 @@ public class CoGroupByKeyTest implements Serializable {
     final TupleTag<String> namesTag = new TupleTag<>();
     final TupleTag<String> addressesTag = new TupleTag<>();
     final TupleTag<String> purchasesTag = new TupleTag<>();
-
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         buildPurchasesCoGbk(p, purchasesTag, addressesTag, namesTag);
@@ -316,9 +305,7 @@ public class CoGroupByKeyTest implements Serializable {
 
     private final TupleTag<String> purchasesTag;
 
-    private ClickOfPurchaseFn(
-        TupleTag<String> clicksTag,
-        TupleTag<String> purchasesTag) {
+    private ClickOfPurchaseFn(TupleTag<String> clicksTag, TupleTag<String> purchasesTag) {
       this.clicksTag = clicksTag;
       this.purchasesTag = purchasesTag;
     }
@@ -332,20 +319,21 @@ public class CoGroupByKeyTest implements Serializable {
       Iterable<String> purchases = row.getAll(purchasesTag);
       for (String click : clicks) {
         for (String purchase : purchases) {
-          c.output(KV.of(click + ":" + purchase,
-                         c.timestamp().getMillis() + ":" + w.maxTimestamp().getMillis()));
+          c.output(
+              KV.of(
+                  click + ":" + purchase,
+                  c.timestamp().getMillis() + ":" + w.maxTimestamp().getMillis()));
         }
       }
     }
   }
 
-
   /**
-   * A DoFn used in testCoGroupByKeyHandleResults(), to test processing the
-   * results of a CoGroupByKey.
+   * A DoFn used in testCoGroupByKeyHandleResults(), to test processing the results of a
+   * CoGroupByKey.
    */
-  private static class CorrelatePurchaseCountForAddressesWithoutNamesFn extends
-      DoFn<KV<Integer, CoGbkResult>, KV<String, Integer>> {
+  private static class CorrelatePurchaseCountForAddressesWithoutNamesFn
+      extends DoFn<KV<Integer, CoGbkResult>, KV<String, Integer>> {
     private final TupleTag<String> purchasesTag;
 
     private final TupleTag<String> addressesTag;
@@ -353,9 +341,7 @@ public class CoGroupByKeyTest implements Serializable {
     private final TupleTag<String> namesTag;
 
     private CorrelatePurchaseCountForAddressesWithoutNamesFn(
-        TupleTag<String> purchasesTag,
-        TupleTag<String> addressesTag,
-        TupleTag<String> namesTag) {
+        TupleTag<String> purchasesTag, TupleTag<String> addressesTag, TupleTag<String> namesTag) {
       this.purchasesTag = purchasesTag;
       this.addressesTag = addressesTag;
       this.namesTag = namesTag;
@@ -395,8 +381,8 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   /**
-   * Tests that the consuming DoFn
-   * (CorrelatePurchaseCountForAddressesWithoutNamesFn) performs as expected.
+   * Tests that the consuming DoFn (CorrelatePurchaseCountForAddressesWithoutNamesFn) performs as
+   * expected.
    */
   @SuppressWarnings("unchecked")
   @Test
@@ -407,10 +393,10 @@ public class CoGroupByKeyTest implements Serializable {
     TupleTag<String> namesTag = new TupleTag<>();
 
     // result1 should get filtered out because it has a name.
-    CoGbkResult result1 = CoGbkResult
-        .of(purchasesTag, Arrays.asList("3a", "3b"))
-        .and(addressesTag, Arrays.asList("2a", "2b"))
-        .and(namesTag, Arrays.asList("1a"));
+    CoGbkResult result1 =
+        CoGbkResult.of(purchasesTag, Arrays.asList("3a", "3b"))
+            .and(addressesTag, Arrays.asList("2a", "2b"))
+            .and(namesTag, Arrays.asList("1a"));
     // result 2 should be counted because it has an address and purchases.
     CoGbkResult result2 =
         CoGbkResult.of(purchasesTag, Arrays.asList("5a", "5b"))
@@ -427,16 +413,14 @@ public class CoGroupByKeyTest implements Serializable {
             .and(addressesTag, Arrays.asList("8a"))
             .and(namesTag, new ArrayList<>());
 
-    KvCoder<Integer, CoGbkResult> coder = KvCoder.of(
-        VarIntCoder.of(),
-        CoGbkResult.CoGbkResultCoder.of(
-            CoGbkResultSchema.of(
-                ImmutableList.of(purchasesTag, addressesTag, namesTag)),
-            UnionCoder.of(
-                ImmutableList.of(
-                    StringUtf8Coder.of(),
-                    StringUtf8Coder.of(),
-                    StringUtf8Coder.of()))));
+    KvCoder<Integer, CoGbkResult> coder =
+        KvCoder.of(
+            VarIntCoder.of(),
+            CoGbkResult.CoGbkResultCoder.of(
+                CoGbkResultSchema.of(ImmutableList.of(purchasesTag, addressesTag, namesTag)),
+                UnionCoder.of(
+                    ImmutableList.of(
+                        StringUtf8Coder.of(), StringUtf8Coder.of(), StringUtf8Coder.of()))));
 
     PCollection<KV<String, Integer>> results =
         p.apply(
@@ -454,8 +438,8 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   /**
-   * Tests the pipeline end-to-end.  Builds the purchases CoGroupByKey, and
-   * applies CorrelatePurchaseCountForAddressesWithoutNamesFn to the results.
+   * Tests the pipeline end-to-end. Builds the purchases CoGroupByKey, and applies
+   * CorrelatePurchaseCountForAddressesWithoutNamesFn to the results.
    */
   @SuppressWarnings("unchecked")
   @Test
@@ -470,22 +454,18 @@ public class CoGroupByKeyTest implements Serializable {
 
     // Do some simple processing on the result of the CoGroupByKey.  Count the
     // purchases for each address on record that has no associated name.
-    PCollection<KV<String, Integer>>
-      purchaseCountByKnownAddressesWithoutKnownNames =
-        coGbkResults.apply(ParDo.of(
-            new CorrelatePurchaseCountForAddressesWithoutNamesFn(
-                purchasesTag, addressesTag, namesTag)));
+    PCollection<KV<String, Integer>> purchaseCountByKnownAddressesWithoutKnownNames =
+        coGbkResults.apply(
+            ParDo.of(
+                new CorrelatePurchaseCountForAddressesWithoutNamesFn(
+                    purchasesTag, addressesTag, namesTag)));
 
     PAssert.that(purchaseCountByKnownAddressesWithoutKnownNames)
-        .containsInAnyOrder(
-            KV.of("29 School Rd", 2),
-            KV.of("383 Jackson Street", 1));
+        .containsInAnyOrder(KV.of("29 School Rd", 2), KV.of("383 Jackson Street", 1));
     p.run();
   }
 
-  /**
-   * Tests the pipeline end-to-end with FixedWindows.
-   */
+  /** Tests the pipeline end-to-end with FixedWindows. */
   @SuppressWarnings("unchecked")
   @Test
   @Category(ValidatesRunner.class)
@@ -496,9 +476,8 @@ public class CoGroupByKeyTest implements Serializable {
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         buildPurchasesCoGbkWithWindowing(p, clicksTag, purchasesTag);
 
-    PCollection<KV<String, String>>
-        clickOfPurchase = coGbkResults.apply(ParDo.of(
-            new ClickOfPurchaseFn(clicksTag, purchasesTag)));
+    PCollection<KV<String, String>> clickOfPurchase =
+        coGbkResults.apply(ParDo.of(new ClickOfPurchaseFn(clicksTag, purchasesTag)));
     PAssert.that(clickOfPurchase)
         .containsInAnyOrder(
             KV.of("Click t0:Boat t1", "0:3"),

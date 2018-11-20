@@ -69,16 +69,12 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for AvroSource.
- */
+/** Tests for AvroSource. */
 @RunWith(JUnit4.class)
 public class AvroSourceTest {
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  @Rule public ExpectedException expectedException = ExpectedException.none();
 
   private enum SyncBehavior {
     SYNC_REGULAR, // Sync at regular, user defined intervals
@@ -92,8 +88,14 @@ public class AvroSourceTest {
    * Generates an input Avro file containing the given records in the temporary directory and
    * returns the full path of the file.
    */
-  private <T> String generateTestFile(String filename, List<T> elems, SyncBehavior syncBehavior,
-      int syncInterval, AvroCoder<T> coder, String codec) throws IOException {
+  private <T> String generateTestFile(
+      String filename,
+      List<T> elems,
+      SyncBehavior syncBehavior,
+      int syncInterval,
+      AvroCoder<T> coder,
+      String codec)
+      throws IOException {
     Random random = new Random(0);
     File tmpFile = tmpFolder.newFile(filename);
     String path = tmpFile.toString();
@@ -139,12 +141,12 @@ public class AvroSourceTest {
   @Test
   public void testReadWithDifferentCodecs() throws Exception {
     // Test reading files generated using all codecs.
-    String codecs[] = {
-        DataFileConstants.NULL_CODEC,
-        DataFileConstants.BZIP2_CODEC,
-        DataFileConstants.DEFLATE_CODEC,
-        DataFileConstants.SNAPPY_CODEC,
-        DataFileConstants.XZ_CODEC,
+    String[] codecs = {
+      DataFileConstants.NULL_CODEC,
+      DataFileConstants.BZIP2_CODEC,
+      DataFileConstants.DEFLATE_CODEC,
+      DataFileConstants.SNAPPY_CODEC,
+      DataFileConstants.XZ_CODEC,
     };
     // As Avro's default block size is 64KB, write 64K records to ensure at least one full block.
     // We could make this smaller than 64KB assuming each record is at least B bytes, but then the
@@ -152,8 +154,9 @@ public class AvroSourceTest {
     List<Bird> expected = createRandomRecords(1 << 16);
 
     for (String codec : codecs) {
-      String filename = generateTestFile(
-          codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
+      String filename =
+          generateTestFile(
+              codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
       AvroSource<Bird> source = AvroSource.from(filename).withSchema(Bird.class);
       List<Bird> actual = SourceTestUtils.readFromSource(source, null);
       assertThat(expected, containsInAnyOrder(actual.toArray()));
@@ -165,15 +168,18 @@ public class AvroSourceTest {
     // A reduced dataset is enough here.
     List<FixedRecord> expected = createFixedRecords(DEFAULT_RECORD_COUNT);
     // Create an AvroSource where each block is 1/10th of the total set of records.
-    String filename = generateTestFile(
-        "tmp.avro", expected, SyncBehavior.SYNC_REGULAR,
-        DEFAULT_RECORD_COUNT / 10 /* max records per block */,
-        AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            expected,
+            SyncBehavior.SYNC_REGULAR,
+            DEFAULT_RECORD_COUNT / 10 /* max records per block */,
+            AvroCoder.of(FixedRecord.class),
+            DataFileConstants.NULL_CODEC);
     File file = new File(filename);
 
     AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
-    List<? extends BoundedSource<FixedRecord>> splits =
-        source.split(file.length() / 3, null);
+    List<? extends BoundedSource<FixedRecord>> splits = source.split(file.length() / 3, null);
     for (BoundedSource<FixedRecord> subSource : splits) {
       int items = SourceTestUtils.readFromSource(subSource, null).size();
       // Shouldn't split while unstarted.
@@ -196,8 +202,14 @@ public class AvroSourceTest {
   @Test
   public void testGetProgressFromUnstartedReader() throws Exception {
     List<FixedRecord> records = createFixedRecords(DEFAULT_RECORD_COUNT);
-    String filename = generateTestFile("tmp.avro", records, SyncBehavior.SYNC_DEFAULT, 1000,
-        AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            records,
+            SyncBehavior.SYNC_DEFAULT,
+            1000,
+            AvroCoder.of(FixedRecord.class),
+            DataFileConstants.NULL_CODEC);
     File file = new File(filename);
 
     AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
@@ -205,8 +217,7 @@ public class AvroSourceTest {
       assertEquals(Double.valueOf(0.0), reader.getFractionConsumed());
     }
 
-    List<? extends BoundedSource<FixedRecord>> splits =
-        source.split(file.length() / 3, null);
+    List<? extends BoundedSource<FixedRecord>> splits = source.split(file.length() / 3, null);
     for (BoundedSource<FixedRecord> subSource : splits) {
       try (BoundedSource.BoundedReader<FixedRecord> reader = subSource.createReader(null)) {
         assertEquals(Double.valueOf(0.0), reader.getFractionConsumed());
@@ -218,8 +229,14 @@ public class AvroSourceTest {
   public void testProgress() throws Exception {
     // 5 records, 2 per block.
     List<FixedRecord> records = createFixedRecords(5);
-    String filename = generateTestFile("tmp.avro", records, SyncBehavior.SYNC_REGULAR, 2,
-        AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            records,
+            SyncBehavior.SYNC_REGULAR,
+            2,
+            AvroCoder.of(FixedRecord.class),
+            DataFileConstants.NULL_CODEC);
 
     AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
     try (BoundedSource.BoundedReader<FixedRecord> readerOrig = source.createReader(null)) {
@@ -271,8 +288,14 @@ public class AvroSourceTest {
   public void testProgressEmptySource() throws Exception {
     // 0 records, 20 per block.
     List<FixedRecord> records = Collections.emptyList();
-    String filename = generateTestFile("tmp.avro", records, SyncBehavior.SYNC_REGULAR, 2,
-        AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            records,
+            SyncBehavior.SYNC_REGULAR,
+            2,
+            AvroCoder.of(FixedRecord.class),
+            DataFileConstants.NULL_CODEC);
 
     AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
     try (BoundedSource.BoundedReader<FixedRecord> readerOrig = source.createReader(null)) {
@@ -297,8 +320,14 @@ public class AvroSourceTest {
   @Test
   public void testGetCurrentFromUnstartedReader() throws Exception {
     List<FixedRecord> records = createFixedRecords(DEFAULT_RECORD_COUNT);
-    String filename = generateTestFile("tmp.avro", records, SyncBehavior.SYNC_DEFAULT, 1000,
-        AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            records,
+            SyncBehavior.SYNC_DEFAULT,
+            1000,
+            AvroCoder.of(FixedRecord.class),
+            DataFileConstants.NULL_CODEC);
 
     AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
     try (BlockBasedSource.BlockBasedReader<FixedRecord> reader =
@@ -315,8 +344,14 @@ public class AvroSourceTest {
   public void testSplitAtFractionExhaustive() throws Exception {
     // A small-sized input is sufficient, because the test verifies that splitting is non-vacuous.
     List<FixedRecord> expected = createFixedRecords(20);
-    String filename = generateTestFile("tmp.avro", expected, SyncBehavior.SYNC_REGULAR, 5,
-        AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            expected,
+            SyncBehavior.SYNC_REGULAR,
+            5,
+            AvroCoder.of(FixedRecord.class),
+            DataFileConstants.NULL_CODEC);
 
     AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
     SourceTestUtils.assertSplitAtFractionExhaustive(source, null);
@@ -328,9 +363,14 @@ public class AvroSourceTest {
     // Test reading from an object file with many small random-sized blocks.
     // The file itself doesn't have to be big; we can use a decreased record count.
     List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
-    String filename = generateTestFile("tmp.avro", expected, SyncBehavior.SYNC_RANDOM,
-        DEFAULT_RECORD_COUNT / 20 /* max records/block */,
-        AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            expected,
+            SyncBehavior.SYNC_RANDOM,
+            DEFAULT_RECORD_COUNT / 20 /* max records/block */,
+            AvroCoder.of(Bird.class),
+            DataFileConstants.NULL_CODEC);
     File file = new File(filename);
 
     // Small minimum bundle size
@@ -380,8 +420,13 @@ public class AvroSourceTest {
     for (int i = 0; i < 10; i++) {
       List<Bird> contents = createRandomRecords(DEFAULT_RECORD_COUNT / 10);
       expected.addAll(contents);
-      generateTestFile(baseName + i, contents, SyncBehavior.SYNC_DEFAULT, 0,
-          AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
+      generateTestFile(
+          baseName + i,
+          contents,
+          SyncBehavior.SYNC_DEFAULT,
+          0,
+          AvroCoder.of(Bird.class),
+          DataFileConstants.NULL_CODEC);
     }
 
     AvroSource<Bird> source =
@@ -394,8 +439,14 @@ public class AvroSourceTest {
   @Test
   public void testCreationWithSchema() throws Exception {
     List<Bird> expected = createRandomRecords(100);
-    String filename = generateTestFile("tmp.avro", expected, SyncBehavior.SYNC_DEFAULT, 0,
-        AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            expected,
+            SyncBehavior.SYNC_DEFAULT,
+            0,
+            AvroCoder.of(Bird.class),
+            DataFileConstants.NULL_CODEC);
 
     // Create a source with a schema object
     Schema schema = ReflectData.get().getSchema(Bird.class);
@@ -413,16 +464,23 @@ public class AvroSourceTest {
   @Test
   public void testSchemaUpdate() throws Exception {
     List<Bird> birds = createRandomRecords(100);
-    String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
-        AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            birds,
+            SyncBehavior.SYNC_DEFAULT,
+            0,
+            AvroCoder.of(Bird.class),
+            DataFileConstants.NULL_CODEC);
 
     AvroSource<FancyBird> source = AvroSource.from(filename).withSchema(FancyBird.class);
     List<FancyBird> actual = SourceTestUtils.readFromSource(source, null);
 
     List<FancyBird> expected = new ArrayList<>();
     for (Bird bird : birds) {
-      expected.add(new FancyBird(
-          bird.number, bird.species, bird.quality, bird.quantity, null, "MAXIMUM OVERDRIVE"));
+      expected.add(
+          new FancyBird(
+              bird.number, bird.species, bird.quality, bird.quantity, null, "MAXIMUM OVERDRIVE"));
     }
 
     assertThat(actual, containsInAnyOrder(expected.toArray()));
@@ -431,8 +489,14 @@ public class AvroSourceTest {
   @Test
   public void testSchemaStringIsInterned() throws Exception {
     List<Bird> birds = createRandomRecords(100);
-    String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
-        AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            birds,
+            SyncBehavior.SYNC_DEFAULT,
+            0,
+            AvroCoder.of(Bird.class),
+            DataFileConstants.NULL_CODEC);
     Metadata fileMetadata = FileSystems.matchSingleFileSpec(filename);
     String schema = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
     // Add "" to the schema to make sure it is not interned.
@@ -448,8 +512,14 @@ public class AvroSourceTest {
   @Test
   public void testParseFn() throws Exception {
     List<Bird> expected = createRandomRecords(100);
-    String filename = generateTestFile("tmp.avro", expected, SyncBehavior.SYNC_DEFAULT, 0,
-        AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            expected,
+            SyncBehavior.SYNC_DEFAULT,
+            0,
+            AvroCoder.of(Bird.class),
+            DataFileConstants.NULL_CODEC);
 
     AvroSource<Bird> source =
         AvroSource.from(filename)
@@ -490,8 +560,8 @@ public class AvroSourceTest {
 
   /**
    * Asserts that advancePastNextSyncMarker advances an input stream past a sync marker and
-   * correctly returns the number of bytes consumed from the stream.
-   * Creates a haystack of size bytes and places a 16-byte sync marker at the position specified.
+   * correctly returns the number of bytes consumed from the stream. Creates a haystack of size
+   * bytes and places a 16-byte sync marker at the position specified.
    */
   private void testAdvancePastNextSyncMarkerAt(int position, int size) throws IOException {
     byte sentinel = (byte) 0xFF;
@@ -600,7 +670,6 @@ public class AvroSourceTest {
     assertEquals(0, s.find(buffer, 1));
   }
 
-
   @Test
   public void testSeekerFindPartial() {
     byte[] marker = {0, 0, 1};
@@ -642,10 +711,8 @@ public class AvroSourceTest {
 
   @Test
   public void testDisplayData() {
-    AvroSource<Bird> source = AvroSource
-        .from("foobar.txt")
-        .withSchema(Bird.class)
-        .withMinBundleSize(1234);
+    AvroSource<Bird> source =
+        AvroSource.from("foobar.txt").withSchema(Bird.class).withMinBundleSize(1234);
 
     DisplayData displayData = DisplayData.from(source);
     assertThat(displayData, hasDisplayItem("filePattern", "foobar.txt"));
@@ -655,14 +722,19 @@ public class AvroSourceTest {
   @Test
   public void testReadMetadataWithCodecs() throws Exception {
     // Test reading files generated using all codecs.
-    String codecs[] = {DataFileConstants.NULL_CODEC, DataFileConstants.BZIP2_CODEC,
-        DataFileConstants.DEFLATE_CODEC, DataFileConstants.SNAPPY_CODEC,
-        DataFileConstants.XZ_CODEC};
+    String[] codecs = {
+      DataFileConstants.NULL_CODEC,
+      DataFileConstants.BZIP2_CODEC,
+      DataFileConstants.DEFLATE_CODEC,
+      DataFileConstants.SNAPPY_CODEC,
+      DataFileConstants.XZ_CODEC
+    };
     List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
 
     for (String codec : codecs) {
-      String filename = generateTestFile(
-          codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
+      String filename =
+          generateTestFile(
+              codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
 
       Metadata fileMeta = FileSystems.matchSingleFileSpec(filename);
       AvroMetadata metadata = AvroSource.readMetadataFromFile(fileMeta.resourceId());
@@ -674,8 +746,9 @@ public class AvroSourceTest {
   public void testReadSchemaString() throws Exception {
     List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
     String codec = DataFileConstants.NULL_CODEC;
-    String filename = generateTestFile(
-        codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
+    String filename =
+        generateTestFile(
+            codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
     Metadata fileMeta = FileSystems.matchSingleFileSpec(filename);
     AvroMetadata metadata = AvroSource.readMetadataFromFile(fileMeta.resourceId());
     // By default, parse validates the schema, which is what we want.
@@ -686,9 +759,9 @@ public class AvroSourceTest {
   /**
    * Class that will encode to a fixed size: 16 bytes.
    *
-   * <p>Each object has a 15-byte array. Avro encodes an object of this type as
-   * a byte array, so each encoded object will consist of 1 byte that encodes the
-   * length of the array, followed by 15 bytes.
+   * <p>Each object has a 15-byte array. Avro encodes an object of this type as a byte array, so
+   * each encoded object will consist of 1 byte that encodes the length of the array, followed by 15
+   * bytes.
    */
   @DefaultCoder(AvroCoder.class)
   public static class FixedRecord {
@@ -729,9 +802,7 @@ public class AvroSourceTest {
     }
   }
 
-  /**
-   * Create a list of count 16-byte records.
-   */
+  /** Create a list of count 16-byte records. */
   private static List<FixedRecord> createFixedRecords(int count) {
     List<FixedRecord> records = new ArrayList<>();
     for (int i = 0; i < count; i++) {
@@ -740,9 +811,7 @@ public class AvroSourceTest {
     return records;
   }
 
-  /**
-   * Class used as the record type in tests.
-   */
+  /** Class used as the record type in tests. */
   @DefaultCoder(AvroCoder.class)
   static class Bird {
     long number;
@@ -773,8 +842,10 @@ public class AvroSourceTest {
     public boolean equals(Object obj) {
       if (obj instanceof Bird) {
         Bird other = (Bird) obj;
-        return Objects.equals(species, other.species) && Objects.equals(quality, other.quality)
-            && quantity == other.quantity && number == other.number;
+        return Objects.equals(species, other.species)
+            && Objects.equals(quality, other.quality)
+            && quantity == other.quantity
+            && number == other.number;
       }
       return false;
     }
@@ -798,15 +869,19 @@ public class AvroSourceTest {
     String quality;
     long quantity;
 
-    @Nullable
-    String habitat;
+    @Nullable String habitat;
 
     @AvroDefault("\"MAXIMUM OVERDRIVE\"")
     String fancinessLevel;
 
     public FancyBird() {}
 
-    public FancyBird(long number, String species, String quality, long quantity, String habitat,
+    public FancyBird(
+        long number,
+        String species,
+        String quality,
+        long quantity,
+        String habitat,
         String fancinessLevel) {
       this.number = number;
       this.species = species;
@@ -832,8 +907,10 @@ public class AvroSourceTest {
     public boolean equals(Object obj) {
       if (obj instanceof FancyBird) {
         FancyBird other = (FancyBird) obj;
-        return Objects.equals(species, other.species) && Objects.equals(quality, other.quality)
-            && quantity == other.quantity && number == other.number
+        return Objects.equals(species, other.species)
+            && Objects.equals(quality, other.quality)
+            && quantity == other.quantity
+            && number == other.number
             && Objects.equals(fancinessLevel, other.fancinessLevel)
             && Objects.equals(habitat, other.habitat);
       }
@@ -846,12 +923,11 @@ public class AvroSourceTest {
     }
   }
 
-  /**
-   * Create a list of n random records.
-   */
+  /** Create a list of n random records. */
   private static List<Bird> createRandomRecords(long n) {
     String[] qualities = {
-        "miserable", "forelorn", "fidgity", "squirrelly", "fanciful", "chipper", "lazy"};
+      "miserable", "forelorn", "fidgity", "squirrelly", "fanciful", "chipper", "lazy"
+    };
     String[] species = {"pigeons", "owls", "gulls", "hawks", "robins", "jays"};
     Random random = new Random(0);
 

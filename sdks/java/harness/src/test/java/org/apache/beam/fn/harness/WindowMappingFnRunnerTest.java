@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
@@ -41,19 +42,18 @@ public class WindowMappingFnRunnerTest {
   public void testWindowMapping() throws Exception {
     String pTransformId = "pTransformId";
 
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
             .setUrn(WindowMappingFnRunner.URN)
             .setPayload(
                 ParDoTranslation.translateWindowMappingFn(
-                    new GlobalWindows().getDefaultWindowMappingFn(),
-                    SdkComponents.create()
-                ).toByteString())
+                        new GlobalWindows().getDefaultWindowMappingFn(), components)
+                    .toByteString())
             .build();
-    RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
-        .setSpec(functionSpec)
-        .build();
-
+    RunnerApi.PTransform pTransform =
+        RunnerApi.PTransform.newBuilder().setSpec(functionSpec).build();
 
     ThrowingFunction<KV<Object, BoundedWindow>, KV<Object, BoundedWindow>> mapFunction =
         WindowMappingFnRunner.createMapFunctionForPTransform(pTransformId, pTransform);
@@ -61,8 +61,6 @@ public class WindowMappingFnRunnerTest {
     KV<Object, BoundedWindow> input =
         KV.of("abc", new IntervalWindow(Instant.now(), Duration.standardMinutes(1)));
 
-    assertEquals(
-        KV.of(input.getKey(), GlobalWindow.INSTANCE),
-        mapFunction.apply(input));
+    assertEquals(KV.of(input.getKey(), GlobalWindow.INSTANCE), mapFunction.apply(input));
   }
 }

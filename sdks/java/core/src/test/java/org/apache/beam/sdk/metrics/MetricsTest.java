@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.metrics;
 
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
@@ -30,6 +29,7 @@ import static org.mockito.Mockito.when;
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
@@ -54,9 +54,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
-/**
- * Tests for {@link Metrics}.
- */
+/** Tests for {@link Metrics}. */
 public class MetricsTest implements Serializable {
 
   private static final String NS = "test";
@@ -66,19 +64,19 @@ public class MetricsTest implements Serializable {
   private static final MetricName ELEMENTS_READ = SourceMetrics.elementsRead().getName();
 
   private static MetricQueryResults queryTestMetrics(PipelineResult result) {
-    return result.metrics().queryMetrics(
-        MetricsFilter.builder()
-            .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
-            .build());
+    return result
+        .metrics()
+        .queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+                .build());
   }
 
   /** Shared test helpers and setup/teardown. */
   public abstract static class SharedTestBase implements Serializable {
-    @Rule
-    public final transient ExpectedException thrown = ExpectedException.none();
+    @Rule public final transient ExpectedException thrown = ExpectedException.none();
 
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
+    @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
     @After
     public void tearDown() {
@@ -87,50 +85,55 @@ public class MetricsTest implements Serializable {
 
     protected PipelineResult runPipelineWithMetrics() {
       final Counter count = Metrics.counter(MetricsTest.class, "count");
-      final TupleTag<Integer> output1 = new TupleTag<Integer>(){};
-      final TupleTag<Integer> output2 = new TupleTag<Integer>(){};
+      final TupleTag<Integer> output1 = new TupleTag<Integer>() {};
+      final TupleTag<Integer> output2 = new TupleTag<Integer>() {};
       pipeline
           .apply(Create.of(5, 8, 13))
-          .apply("MyStep1", ParDo.of(new DoFn<Integer, Integer>() {
-            Distribution bundleDist = Metrics.distribution(MetricsTest.class, "bundle");
+          .apply(
+              "MyStep1",
+              ParDo.of(
+                  new DoFn<Integer, Integer>() {
+                    Distribution bundleDist = Metrics.distribution(MetricsTest.class, "bundle");
 
-            @StartBundle
-            public void startBundle() {
-              bundleDist.update(10L);
-            }
+                    @StartBundle
+                    public void startBundle() {
+                      bundleDist.update(10L);
+                    }
 
-            @SuppressWarnings("unused")
-            @ProcessElement
-            public void processElement(ProcessContext c) {
-              Distribution values = Metrics.distribution(MetricsTest.class, "input");
-              count.inc();
-              values.update(c.element());
+                    @SuppressWarnings("unused")
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      Distribution values = Metrics.distribution(MetricsTest.class, "input");
+                      count.inc();
+                      values.update(c.element());
 
-              c.output(c.element());
-              c.output(c.element());
-            }
+                      c.output(c.element());
+                      c.output(c.element());
+                    }
 
-            @DoFn.FinishBundle
-            public void finishBundle() {
-              bundleDist.update(40L);
-            }
-          }))
-          .apply("MyStep2", ParDo
-              .of(new DoFn<Integer, Integer>() {
-                @SuppressWarnings("unused")
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  Distribution values = Metrics.distribution(MetricsTest.class, "input");
-                  Gauge gauge = Metrics.gauge(MetricsTest.class, "my-gauge");
-                  Integer element = c.element();
-                  count.inc();
-                  values.update(element);
-                  gauge.set(12L);
-                  c.output(element);
-                  c.output(output2, element);
-                }
-              })
-              .withOutputTags(output1, TupleTagList.of(output2)));
+                    @DoFn.FinishBundle
+                    public void finishBundle() {
+                      bundleDist.update(40L);
+                    }
+                  }))
+          .apply(
+              "MyStep2",
+              ParDo.of(
+                      new DoFn<Integer, Integer>() {
+                        @SuppressWarnings("unused")
+                        @ProcessElement
+                        public void processElement(ProcessContext c) {
+                          Distribution values = Metrics.distribution(MetricsTest.class, "input");
+                          Gauge gauge = Metrics.gauge(MetricsTest.class, "my-gauge");
+                          Integer element = c.element();
+                          count.inc();
+                          values.update(element);
+                          gauge.set(12L);
+                          c.output(element);
+                          c.output(output2, element);
+                        }
+                      })
+                  .withOutputTags(output1, TupleTagList.of(output2)));
       PipelineResult result = pipeline.run();
 
       result.waitUntilFinish();
@@ -147,6 +150,7 @@ public class MetricsTest implements Serializable {
       // Should not fail even though there is no metrics container.
       Metrics.distribution(NS, NAME).update(5L);
     }
+
     @Test
     public void testCounterWithoutContainer() {
       assertNull(MetricsEnvironment.getCurrentContainer());
@@ -224,8 +228,13 @@ public class MetricsTest implements Serializable {
   /** Tests for committed metrics. */
   @RunWith(JUnit4.class)
   public static class CommittedMetricTests extends SharedTestBase {
-    @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class,
-        UsesDistributionMetrics.class, UsesGaugeMetrics.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesCommittedMetrics.class,
+      UsesCounterMetrics.class,
+      UsesDistributionMetrics.class,
+      UsesGaugeMetrics.class
+    })
     @Test
     public void testAllCommittedMetrics() {
       PipelineResult result = runPipelineWithMetrics();
@@ -234,7 +243,12 @@ public class MetricsTest implements Serializable {
       assertAllMetrics(metrics, true);
     }
 
-    @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesCommittedMetrics.class,
+      UsesCounterMetrics.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     @Test
     public void testCommittedCounterMetrics() {
       PipelineResult result = runPipelineWithMetrics();
@@ -277,12 +291,14 @@ public class MetricsTest implements Serializable {
                               ELEMENTS_READ.getNamespace(), ELEMENTS_READ.getName()))
                       .build());
 
-      assertThat(metrics.getCounters(), hasItem(
-          attemptedMetricsResult(
-              ELEMENTS_READ.getNamespace(),
-              ELEMENTS_READ.getName(),
-              "Read(BoundedCountingSource)",
-              1000L)));
+      assertThat(
+          metrics.getCounters(),
+          hasItem(
+              attemptedMetricsResult(
+                  ELEMENTS_READ.getNamespace(),
+                  ELEMENTS_READ.getName(),
+                  "Read(BoundedCountingSource)",
+                  1000L)));
     }
 
     @Test
@@ -306,20 +322,27 @@ public class MetricsTest implements Serializable {
                               ELEMENTS_READ.getNamespace(), ELEMENTS_READ.getName()))
                       .build());
 
-      assertThat(metrics.getCounters(), hasItem(
-          attemptedMetricsResult(
-              ELEMENTS_READ.getNamespace(),
-              ELEMENTS_READ.getName(),
-              "Read(UnboundedCountingSource)",
-              1000L)));
+      assertThat(
+          metrics.getCounters(),
+          hasItem(
+              attemptedMetricsResult(
+                  ELEMENTS_READ.getNamespace(),
+                  ELEMENTS_READ.getName(),
+                  "Read(UnboundedCountingSource)",
+                  1000L)));
     }
   }
 
   /** Tests for attempted metrics. */
   @RunWith(JUnit4.class)
   public static class AttemptedMetricTests extends SharedTestBase {
-    @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class,
-        UsesDistributionMetrics.class, UsesGaugeMetrics.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesAttemptedMetrics.class,
+      UsesCounterMetrics.class,
+      UsesDistributionMetrics.class,
+      UsesGaugeMetrics.class
+    })
     @Test
     public void testAllAttemptedMetrics() {
       PipelineResult result = runPipelineWithMetrics();
@@ -355,28 +378,49 @@ public class MetricsTest implements Serializable {
   }
 
   private static void assertCounterMetrics(MetricQueryResults metrics, boolean isCommitted) {
-    assertThat(metrics.getCounters(), hasItem(
-        metricsResult(NAMESPACE, "count", "MyStep1", 3L, isCommitted)));
-    assertThat(metrics.getCounters(), hasItem(
-        metricsResult(NAMESPACE, "count", "MyStep2", 6L, isCommitted)));
+    assertThat(
+        metrics.getCounters(),
+        hasItem(metricsResult(NAMESPACE, "count", "MyStep1", 3L, isCommitted)));
+    assertThat(
+        metrics.getCounters(),
+        hasItem(metricsResult(NAMESPACE, "count", "MyStep2", 6L, isCommitted)));
   }
 
   private static void assertGaugeMetrics(MetricQueryResults metrics, boolean isCommitted) {
-    assertThat(metrics.getGauges(), hasItem(
-        metricsResult(NAMESPACE, "my-gauge", "MyStep2",
-            GaugeResult.create(12L, Instant.now()), isCommitted)));
+    assertThat(
+        metrics.getGauges(),
+        hasItem(
+            metricsResult(
+                NAMESPACE,
+                "my-gauge",
+                "MyStep2",
+                GaugeResult.create(12L, Instant.now()),
+                isCommitted)));
   }
 
   private static void assertDistributionMetrics(MetricQueryResults metrics, boolean isCommitted) {
-    assertThat(metrics.getDistributions(), hasItem(
-        metricsResult(NAMESPACE, "input", "MyStep1",
-            DistributionResult.create(26L, 3L, 5L, 13L), isCommitted)));
+    assertThat(
+        metrics.getDistributions(),
+        hasItem(
+            metricsResult(
+                NAMESPACE,
+                "input",
+                "MyStep1",
+                DistributionResult.create(26L, 3L, 5L, 13L),
+                isCommitted)));
 
-    assertThat(metrics.getDistributions(), hasItem(
-        metricsResult(NAMESPACE, "input", "MyStep2",
-            DistributionResult.create(52L, 6L, 5L, 13L), isCommitted)));
-    assertThat(metrics.getDistributions(), hasItem(
-        distributionMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L, isCommitted)));
+    assertThat(
+        metrics.getDistributions(),
+        hasItem(
+            metricsResult(
+                NAMESPACE,
+                "input",
+                "MyStep2",
+                DistributionResult.create(52L, 6L, 5L, 13L),
+                isCommitted)));
+    assertThat(
+        metrics.getDistributions(),
+        hasItem(distributionMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L, isCommitted)));
   }
 
   private static void assertAllMetrics(MetricQueryResults metrics, boolean isCommitted) {
@@ -384,5 +428,4 @@ public class MetricsTest implements Serializable {
     assertDistributionMetrics(metrics, isCommitted);
     assertGaugeMetrics(metrics, isCommitted);
   }
-
 }

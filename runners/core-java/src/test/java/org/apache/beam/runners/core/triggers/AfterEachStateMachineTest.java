@@ -32,9 +32,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link AfterEachStateMachine}.
- */
+/** Tests for {@link AfterEachStateMachine}. */
 @RunWith(JUnit4.class)
 public class AfterEachStateMachineTest {
 
@@ -51,12 +49,13 @@ public class AfterEachStateMachineTest {
    */
   @Test
   public void testAfterEachInSequence() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterEachStateMachine.inOrder(
-            RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(2))
-                .orFinally(AfterPaneStateMachine.elementCountAtLeast(3)),
-            RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(5))
-                .orFinally(AfterWatermarkStateMachine.pastEndOfWindow())),
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterEachStateMachine.inOrder(
+                RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(2))
+                    .orFinally(AfterPaneStateMachine.elementCountAtLeast(3)),
+                RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(5))
+                    .orFinally(AfterWatermarkStateMachine.pastEndOfWindow())),
             FixedWindows.of(Duration.millis(10)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
@@ -98,10 +97,11 @@ public class AfterEachStateMachineTest {
 
   @Test
   public void testToString() {
-    TriggerStateMachine trigger = AfterEachStateMachine.inOrder(
-        StubTriggerStateMachine.named("t1"),
-        StubTriggerStateMachine.named("t2"),
-        StubTriggerStateMachine.named("t3"));
+    TriggerStateMachine trigger =
+        AfterEachStateMachine.inOrder(
+            StubTriggerStateMachine.named("t1"),
+            StubTriggerStateMachine.named("t2"),
+            StubTriggerStateMachine.named("t3"));
 
     assertEquals("AfterEach.inOrder(t1, t2, t3)", trigger.toString());
   }

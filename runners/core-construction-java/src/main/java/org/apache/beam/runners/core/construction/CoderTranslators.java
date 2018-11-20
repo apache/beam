@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import com.google.common.collect.ImmutableList;
@@ -72,6 +71,20 @@ class CoderTranslators {
       @Override
       public IterableCoder<?> fromComponents(List<Coder<?>> components) {
         return IterableCoder.of(components.get(0));
+      }
+    };
+  }
+
+  static CoderTranslator<Timer.Coder<?>> timer() {
+    return new SimpleStructuredCoderTranslator<Timer.Coder<?>>() {
+      @Override
+      public List<? extends Coder<?>> getComponents(Timer.Coder<?> from) {
+        return from.getCoderArguments();
+      }
+
+      @Override
+      public Timer.Coder<?> fromComponents(List<Coder<?>> components) {
+        return Timer.Coder.of(components.get(0));
       }
     };
   }

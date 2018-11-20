@@ -29,13 +29,11 @@ import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
-/**
- * Helpers for merging state.
- */
+/** Helpers for merging state. */
 public class StateMerging {
   /**
-   * Clear all state in {@code address} in all windows under merge (even result windows)
-   * in {@code context}.
+   * Clear all state in {@code address} in all windows under merge (even result windows) in {@code
+   * context}.
    */
   public static <K, StateT extends State, W extends BoundedWindow> void clear(
       MergingStateAccessor<K, W> context, StateTag<StateT> address) {
@@ -45,9 +43,8 @@ public class StateMerging {
   }
 
   /**
-   * Prefetch all bag state in {@code address} across all windows under merge in
-   * {@code context}, except for the bag state in the final state address window which we can
-   * blindly append to.
+   * Prefetch all bag state in {@code address} across all windows under merge in {@code context},
+   * except for the bag state in the final state address window which we can blindly append to.
    */
   public static <K, T, W extends BoundedWindow> void prefetchBags(
       MergingStateAccessor<K, W> context, StateTag<BagState<T>> address) {
@@ -65,9 +62,7 @@ public class StateMerging {
     }
   }
 
-  /**
-   * Merge all bag state in {@code address} across all windows under merge.
-   */
+  /** Merge all bag state in {@code address} across all windows under merge. */
   public static <K, T, W extends BoundedWindow> void mergeBags(
       MergingStateAccessor<K, W> context, StateTag<BagState<T>> address) {
     mergeBags(context.accessInEachMergingWindow(address).values(), context.access(address));
@@ -108,9 +103,7 @@ public class StateMerging {
     }
   }
 
-  /**
-   * Merge all set state in {@code address} across all windows under merge.
-   */
+  /** Merge all set state in {@code address} across all windows under merge. */
   public static <K, T, W extends BoundedWindow> void mergeSets(
       MergingStateAccessor<K, W> context, StateTag<SetState<T>> address) {
     mergeSets(context.accessInEachMergingWindow(address).values(), context.access(address));
@@ -155,17 +148,14 @@ public class StateMerging {
    * Prefetch all combining value state for {@code address} across all merging windows in {@code
    * context}.
    */
-  public static <K, StateT extends GroupingState<?, ?>, W extends BoundedWindow> void
-      prefetchCombiningValues(MergingStateAccessor<K, W> context,
-          StateTag<StateT> address) {
+  public static <K, StateT extends GroupingState<?, ?>, W extends BoundedWindow>
+      void prefetchCombiningValues(MergingStateAccessor<K, W> context, StateTag<StateT> address) {
     for (StateT state : context.accessInEachMergingWindow(address).values()) {
       prefetchRead(state);
     }
   }
 
-  /**
-   * Merge all value state in {@code address} across all merging windows in {@code context}.
-   */
+  /** Merge all value state in {@code address} across all merging windows in {@code context}. */
   public static <K, InputT, AccumT, OutputT, W extends BoundedWindow> void mergeCombiningValues(
       MergingStateAccessor<K, W> context,
       StateTag<CombiningState<InputT, AccumT, OutputT>> address) {
@@ -174,8 +164,8 @@ public class StateMerging {
   }
 
   /**
-   * Merge all value state from {@code sources} (which may include {@code result}) into
-   * {@code result}.
+   * Merge all value state from {@code sources} (which may include {@code result}) into {@code
+   * result}.
    */
   public static <InputT, AccumT, OutputT, W extends BoundedWindow> void mergeCombiningValues(
       Collection<CombiningState<InputT, AccumT, OutputT>> sources,

@@ -25,13 +25,16 @@ import static com.google.common.base.Verify.verifyNotNull;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.BaseEncoding;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.avro.Conversions;
+import org.apache.avro.LogicalType;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
@@ -42,8 +45,8 @@ import org.joda.time.format.DateTimeFormatter;
 /**
  * A set of utilities for working with Avro files.
  *
- * <p>These utilities are based on the <a
- * href="https://avro.apache.org/docs/1.8.1/spec.html">Avro 1.8.1</a> specification.
+ * <p>These utilities are based on the <a href="https://avro.apache.org/docs/1.8.1/spec.html">Avro
+ * 1.8.1</a> specification.
  */
 class BigQueryAvroUtils {
 
@@ -53,6 +56,7 @@ class BigQueryAvroUtils {
           .put("BYTES", Type.BYTES)
           .put("INTEGER", Type.LONG)
           .put("FLOAT", Type.DOUBLE)
+          .put("NUMERIC", Type.BYTES)
           .put("BOOLEAN", Type.BOOLEAN)
           .put("TIMESTAMP", Type.LONG)
           .put("RECORD", Type.RECORD)
@@ -60,6 +64,7 @@ class BigQueryAvroUtils {
           .put("DATETIME", Type.STRING)
           .put("TIME", Type.STRING)
           .build();
+
   /**
    * Formats BigQuery seconds-since-epoch into String matching JSON export. Thread-safe and
    * immutable.
@@ -97,8 +102,8 @@ class BigQueryAvroUtils {
   /**
    * Utility function to convert from an Avro {@link GenericRecord} to a BigQuery {@link TableRow}.
    *
-   * <p>See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">
-   * "Avro format"</a> for more information.
+   * <p>See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">"Avro
+   * format"</a> for more information.
    */
   static TableRow convertGenericRecordToTableRow(GenericRecord record, TableSchema schema) {
     return convertGenericRecordToTableRow(record, schema.getFields());
@@ -128,7 +133,7 @@ class BigQueryAvroUtils {
     String mode = firstNonNull(fieldSchema.getMode(), "NULLABLE");
     switch (mode) {
       case "REQUIRED":
-        return convertRequiredField(schema.getType(), fieldSchema, v);
+        return convertRequiredField(schema.getType(), schema.getLogicalType(), fieldSchema, v);
       case "REPEATED":
         return convertRepeatedField(schema, fieldSchema, v);
       case "NULLABLE":
@@ -150,20 +155,21 @@ class BigQueryAvroUtils {
     // REPEATED fields are represented as Avro arrays.
     if (v == null) {
       // Handle the case of an empty repeated field.
-      return ImmutableList.of();
+      return new ArrayList<>();
     }
     @SuppressWarnings("unchecked")
     List<Object> elements = (List<Object>) v;
-    ImmutableList.Builder<Object> values = ImmutableList.builder();
+    ArrayList<Object> values = new ArrayList<>();
     Type elementType = schema.getElementType().getType();
+    LogicalType elementLogicalType = schema.getElementType().getLogicalType();
     for (Object element : elements) {
-      values.add(convertRequiredField(elementType, fieldSchema, element));
+      values.add(convertRequiredField(elementType, elementLogicalType, fieldSchema, element));
     }
-    return values.build();
+    return values;
   }
 
   private static Object convertRequiredField(
-      Type avroType, TableFieldSchema fieldSchema, Object v) {
+      Type avroType, LogicalType avroLogicalType, TableFieldSchema fieldSchema, Object v) {
     // REQUIRED fields are represented as the corresponding Avro types. For example, a BigQuery
     // INTEGER type maps to an Avro LONG type.
     checkNotNull(v, "REQUIRED field %s should not be null", fieldSchema.getName());
@@ -179,6 +185,8 @@ class BigQueryAvroUtils {
         avroType,
         bqType,
         fieldSchema.getName());
+    // For historical reasons, don't validate avroLogicalType except for with NUMERIC.
+    // BigQuery represents NUMERIC in Avro format as BYTES with a DECIMAL logical type.
     switch (fieldSchema.getType()) {
       case "STRING":
       case "DATE":
@@ -194,6 +202,16 @@ class BigQueryAvroUtils {
       case "FLOAT":
         verify(v instanceof Double, "Expected Double, got %s", v.getClass());
         return v;
+      case "NUMERIC":
+        // NUMERIC data types are represented as BYTES with the DECIMAL logical type. They are
+        // converted back to Strings with precision and scale determined by the logical type.
+        verify(v instanceof ByteBuffer, "Expected ByteBuffer, got %s", v.getClass());
+        verifyNotNull(avroLogicalType, "Expected Decimal logical type");
+        verify(avroLogicalType instanceof LogicalTypes.Decimal, "Expected Decimal logical type");
+        BigDecimal numericValue =
+            new Conversions.DecimalConversion()
+                .fromBytes((ByteBuffer) v, Schema.create(avroType), avroLogicalType);
+        return numericValue.toString();
       case "BOOLEAN":
         verify(v instanceof Boolean, "Expected Boolean, got %s", v.getClass());
         return v;
@@ -217,8 +235,7 @@ class BigQueryAvroUtils {
         throw new UnsupportedOperationException(
             String.format(
                 "Unexpected BigQuery field schema type %s for field named %s",
-                fieldSchema.getType(),
-                fieldSchema.getName()));
+                fieldSchema.getType(), fieldSchema.getName()));
     }
   }
 
@@ -244,9 +261,10 @@ class BigQueryAvroUtils {
 
     Type firstType = unionTypes.get(0).getType();
     if (!firstType.equals(Type.NULL)) {
-      return convertRequiredField(firstType, fieldSchema, v);
+      return convertRequiredField(firstType, unionTypes.get(0).getLogicalType(), fieldSchema, v);
     }
-    return convertRequiredField(unionTypes.get(1).getType(), fieldSchema, v);
+    return convertRequiredField(
+        unionTypes.get(1).getType(), unionTypes.get(1).getLogicalType(), fieldSchema, v);
   }
 
   static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas) {

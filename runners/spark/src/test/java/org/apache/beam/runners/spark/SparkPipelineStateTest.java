@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -42,9 +41,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-/**
- * This suite tests that various scenarios result in proper states of the pipeline.
- */
+/** This suite tests that various scenarios result in proper states of the pipeline. */
 public class SparkPipelineStateTest implements Serializable {
 
   private static class MyCustomException extends RuntimeException {
@@ -57,26 +54,26 @@ public class SparkPipelineStateTest implements Serializable {
   private transient SparkPipelineOptions options =
       PipelineOptionsFactory.as(SparkPipelineOptions.class);
 
-  @Rule
-  public transient TestName testName = new TestName();
+  @Rule public transient TestName testName = new TestName();
 
   private static final String FAILED_THE_BATCH_INTENTIONALLY = "Failed the batch intentionally";
 
   private ParDo.SingleOutput<String, String> printParDo(final String prefix) {
-    return ParDo.of(new DoFn<String, String>() {
+    return ParDo.of(
+        new DoFn<String, String>() {
 
-      @ProcessElement
-      public void processElement(final ProcessContext c) {
-        System.out.println(prefix + " " + c.element());
-      }
-    });
+          @ProcessElement
+          public void processElement(final ProcessContext c) {
+            System.out.println(prefix + " " + c.element());
+          }
+        });
   }
 
   private PTransform<PBegin, PCollection<String>> getValues(final SparkPipelineOptions options) {
     final boolean doNotSyncWithWatermark = false;
     return options.isStreaming()
         ? CreateStream.of(StringUtf8Coder.of(), Duration.millis(1), doNotSyncWithWatermark)
-                      .nextBatch("one", "two")
+            .nextBatch("one", "two")
         : Create.of("one", "two");
   }
 
@@ -97,9 +94,7 @@ public class SparkPipelineStateTest implements Serializable {
     final Pipeline pipeline = Pipeline.create(options);
     final String name = testName.getMethodName() + "(isStreaming=" + options.isStreaming() + ")";
 
-    pipeline
-        .apply(getValues(options)).setCoder(StringUtf8Coder.of())
-        .apply(printParDo(name));
+    pipeline.apply(getValues(options)).setCoder(StringUtf8Coder.of()).apply(printParDo(name));
 
     return pipeline;
   }
@@ -111,14 +106,17 @@ public class SparkPipelineStateTest implements Serializable {
     try {
       final Pipeline pipeline = Pipeline.create(options);
       pipeline
-          .apply(getValues(options)).setCoder(StringUtf8Coder.of())
-          .apply(MapElements.via(new SimpleFunction<String, String>() {
+          .apply(getValues(options))
+          .setCoder(StringUtf8Coder.of())
+          .apply(
+              MapElements.via(
+                  new SimpleFunction<String, String>() {
 
-            @Override
-            public String apply(final String input) {
-              throw new MyCustomException(FAILED_THE_BATCH_INTENTIONALLY);
-            }
-          }));
+                    @Override
+                    public String apply(final String input) {
+                      throw new MyCustomException(FAILED_THE_BATCH_INTENTIONALLY);
+                    }
+                  }));
 
       result = (SparkPipelineResult) pipeline.run();
       result.waitUntilFinish();
@@ -208,5 +206,4 @@ public class SparkPipelineStateTest implements Serializable {
   public void testBatchPipelineTimeoutState() throws Exception {
     testTimeoutPipeline(getBatchOptions());
   }
-
 }

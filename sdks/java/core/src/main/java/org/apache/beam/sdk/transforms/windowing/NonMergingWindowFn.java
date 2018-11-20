@@ -21,13 +21,12 @@ package org.apache.beam.sdk.transforms.windowing;
  * Abstract base class for {@link WindowFn WindowFns} that do not merge windows.
  *
  * @param <T> type of elements being windowed
- * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
- *            {@code WindowFn}
+ * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this {@code
+ *     WindowFn}
  */
-public abstract class NonMergingWindowFn<T, W extends BoundedWindow>
-    extends WindowFn<T, W> {
+public abstract class NonMergingWindowFn<T, W extends BoundedWindow> extends WindowFn<T, W> {
   @Override
-  public final void mergeWindows(MergeContext c) { }
+  public final void mergeWindows(MergeContext c) {}
 
   @Override
   public final boolean isNonMerging() {

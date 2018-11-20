@@ -18,15 +18,22 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.projectPathFromPath;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.Seconds;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.junit.rules.TestRule;
@@ -41,14 +48,15 @@ import org.junit.runners.model.Statement;
 public class TestPubsub implements TestRule {
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
-  private static final String TOPIC_FORMAT = "projects/%s/topics/%s";
+  private static final String EVENTS_TOPIC_NAME = "events";
   private static final String TOPIC_PREFIX = "integ-test-";
   private static final String NO_ID_ATTRIBUTE = null;
   private static final String NO_TIMESTAMP_ATTRIBUTE = null;
 
-  PubsubClient pubsub;
-  private TestPubsubOptions pipelineOptions;
-  private String eventsTopicPath;
+  private final TestPubsubOptions pipelineOptions;
+
+  private @Nullable PubsubClient pubsub = null;
+  private @Nullable TopicPath eventsTopicPath = null;
 
   /**
    * Creates an instance of this rule.
@@ -56,8 +64,7 @@ public class TestPubsub implements TestRule {
    * <p>Loads GCP configuration from {@link TestPipelineOptions}.
    */
   public static TestPubsub create() {
-    TestPubsubOptions options =
-        TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
+    TestPubsubOptions options = TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
     return new TestPubsub(options);
   }
 
@@ -73,8 +80,11 @@ public class TestPubsub implements TestRule {
         if (TestPubsub.this.pubsub != null) {
           throw new AssertionError(
               "Pubsub client was not shutdown in previous test. "
-              + "Topic path is'" + eventsTopicPath + "'. "
-              + "Current test: " + description.getDisplayName());
+                  + "Topic path is'"
+                  + eventsTopicPath
+                  + "'. "
+                  + "Current test: "
+                  + description.getDisplayName());
         }
 
         try {
@@ -88,12 +98,14 @@ public class TestPubsub implements TestRule {
   }
 
   private void initializePubsub(Description description) throws IOException {
-    pubsub = PubsubGrpcClient.FACTORY.newClient(
-        NO_TIMESTAMP_ATTRIBUTE, NO_ID_ATTRIBUTE, pipelineOptions);
-    String eventsTopicPathTmp =
-        String.format(TOPIC_FORMAT, pipelineOptions.getProject(), createTopicName(description));
+    pubsub =
+        PubsubGrpcClient.FACTORY.newClient(
+            NO_TIMESTAMP_ATTRIBUTE, NO_ID_ATTRIBUTE, pipelineOptions);
+    TopicPath eventsTopicPathTmp =
+        PubsubClient.topicPathFromName(
+            pipelineOptions.getProject(), createTopicName(description, EVENTS_TOPIC_NAME));
 
-    pubsub.createTopic(new TopicPath(eventsTopicPathTmp));
+    pubsub.createTopic(eventsTopicPathTmp);
 
     eventsTopicPath = eventsTopicPathTmp;
   }
@@ -105,7 +117,7 @@ public class TestPubsub implements TestRule {
 
     try {
       if (eventsTopicPath != null) {
-        pubsub.deleteTopic(new TopicPath(eventsTopicPath));
+        pubsub.deleteTopic(eventsTopicPath);
       }
     } finally {
       pubsub.close();
@@ -117,17 +129,14 @@ public class TestPubsub implements TestRule {
   /**
    * Generates randomized topic name.
    *
-   * <p>Example:
-   * 'TestClassName-testMethodName-2018-12-11-23-32-333-&lt;random-long&gt;'
+   * <p>Example: 'TestClassName-testMethodName-2018-12-11-23-32-333-&lt;random-long&gt;'
    */
-  static String createTopicName(Description description) throws IOException {
+  static String createTopicName(Description description, String name) throws IOException {
     StringBuilder topicName = new StringBuilder(TOPIC_PREFIX);
 
     if (description.getClassName() != null) {
       try {
-        topicName
-            .append(Class.forName(description.getClassName()).getSimpleName())
-            .append("-");
+        topicName.append(Class.forName(description.getClassName()).getSimpleName()).append("-");
       } catch (ClassNotFoundException e) {
         throw new RuntimeException(e);
       }
@@ -139,33 +148,63 @@ public class TestPubsub implements TestRule {
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
 
-    return topicName.toString() + "-" + String.valueOf(ThreadLocalRandom.current().nextLong());
+    return topicName.toString()
+        + "-"
+        + name
+        + "-"
+        + String.valueOf(ThreadLocalRandom.current().nextLong());
   }
 
-  /**
-   * Topic path where events will be published to.
-   */
-  public String topicPath() {
+  /** Topic path where events will be published to. */
+  public TopicPath topicPath() {
     return eventsTopicPath;
   }
 
-  /**
-   * Publish messages to {@link #topicPath()}.
-   */
+  private List<SubscriptionPath> listSubscriptions(ProjectPath projectPath, TopicPath topicPath)
+      throws IOException {
+    return pubsub.listSubscriptions(projectPath, topicPath);
+  }
+
+  /** Publish messages to {@link #topicPath()}. */
   public void publish(List<PubsubMessage> messages) throws IOException {
     List<PubsubClient.OutgoingMessage> outgoingMessages =
-        messages
-            .stream()
-            .map(this::toOutgoingMessage)
-            .collect(toList());
-    pubsub.publish(new TopicPath(eventsTopicPath), outgoingMessages);
+        messages.stream().map(this::toOutgoingMessage).collect(toList());
+    pubsub.publish(eventsTopicPath, outgoingMessages);
+  }
+
+  /**
+   * Check if topics exist.
+   *
+   * @param project GCP project identifier.
+   * @param timeoutDuration Joda duration that sets a period of time before checking times out.
+   */
+  public void checkIfAnySubscriptionExists(String project, Duration timeoutDuration)
+      throws InterruptedException, IllegalArgumentException, IOException, TimeoutException {
+    if (timeoutDuration.getMillis() <= 0) {
+      throw new IllegalArgumentException(String.format("timeoutDuration should be greater than 0"));
+    }
+
+    DateTime startTime = new DateTime();
+    int sizeOfSubscriptionList = 0;
+    while (sizeOfSubscriptionList == 0
+        && Seconds.secondsBetween(new DateTime(), startTime).getSeconds()
+            < timeoutDuration.toStandardSeconds().getSeconds()) {
+      // Sleep 1 sec
+      Thread.sleep(1000);
+      sizeOfSubscriptionList =
+          listSubscriptions(projectPathFromPath(String.format("projects/%s", project)), topicPath())
+              .size();
+    }
+
+    if (sizeOfSubscriptionList > 0) {
+      return;
+    } else {
+      throw new TimeoutException("Timed out when checking if topics exist for " + topicPath());
+    }
   }
 
   private PubsubClient.OutgoingMessage toOutgoingMessage(PubsubMessage message) {
     return new PubsubClient.OutgoingMessage(
-        message.getPayload(),
-        message.getAttributeMap(),
-        DateTime.now().getMillis(),
-        null);
+        message.getPayload(), message.getAttributeMap(), DateTime.now().getMillis(), null);
   }
 }

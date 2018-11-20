@@ -25,9 +25,8 @@ import org.joda.time.Instant;
 /**
  * A {@link Trigger} which never fires.
  *
- * <p>Using this trigger will only produce output when the watermark passes the end of the
- * {@link BoundedWindow window} plus the {@link Window#withAllowedLateness allowed
- * lateness}.
+ * <p>Using this trigger will only produce output when the watermark passes the end of the {@link
+ * BoundedWindow window} plus the {@link Window#withAllowedLateness allowed lateness}.
  */
 public final class Never {
   /**
@@ -39,9 +38,7 @@ public final class Never {
     return new NeverTrigger();
   }
 
-  /**
-   * The actual trigger class for {@link Never} triggers.
-   */
+  /** The actual trigger class for {@link Never} triggers. */
   public static class NeverTrigger extends OnceTrigger {
     private NeverTrigger() {
       super(null);

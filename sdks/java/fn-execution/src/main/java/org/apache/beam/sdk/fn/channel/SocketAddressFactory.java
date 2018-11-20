@@ -15,25 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.channel;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.net.HostAndPort;
-import io.netty.channel.unix.DomainSocketAddress;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.unix.DomainSocketAddress;
 
 /** Creates a {@link SocketAddress} based upon a supplied string. */
 public class SocketAddressFactory {
   private static final String UNIX_DOMAIN_SOCKET_PREFIX = "unix://";
 
-  /**
-   * Parse a {@link SocketAddress} from the given string.
-   */
+  /** Parse a {@link SocketAddress} from the given string. */
   public static SocketAddress createFrom(String value) {
     if (value.startsWith(UNIX_DOMAIN_SOCKET_PREFIX)) {
       // Unix Domain Socket address.
@@ -56,8 +53,10 @@ public class SocketAddressFactory {
     } else {
       // Standard TCP/IP address.
       HostAndPort hostAndPort = HostAndPort.fromString(value);
-      checkArgument(hostAndPort.hasPort(),
-          "Address must be a unix:// path or be in the form host:port. Got: %s", value);
+      checkArgument(
+          hostAndPort.hasPort(),
+          "Address must be a unix:// path or be in the form host:port. Got: %s",
+          value);
       return new InetSocketAddress(hostAndPort.getHost(), hostAndPort.getPort());
     }
   }

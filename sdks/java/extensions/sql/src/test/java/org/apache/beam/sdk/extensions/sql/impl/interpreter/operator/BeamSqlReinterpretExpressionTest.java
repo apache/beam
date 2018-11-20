@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret.BeamSqlReinterpretExpression;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -121,7 +120,7 @@ public class BeamSqlReinterpretExpressionTest extends BeamSqlFnExecutorTestBase 
 
   private static long evaluateReinterpretExpression(BeamSqlExpression operand) {
     return reinterpretExpression(operand)
-        .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of())
+        .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
         .getLong();
   }
 

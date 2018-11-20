@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.util.WindowedValue;
@@ -23,8 +22,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * A {@link PCollectionViewWriter} is responsible for writing contents of a {@link PCollection} to
- * a storage mechanism that can be read from while constructing a {@link PCollectionView}.
+ * A {@link PCollectionViewWriter} is responsible for writing contents of a {@link PCollection} to a
+ * storage mechanism that can be read from while constructing a {@link PCollectionView}.
  *
  * @param <ElemT> the type of elements the input {@link PCollection} contains.
  * @param <ViewT> the type of the PCollectionView this writer writes to.

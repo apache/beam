@@ -66,8 +66,7 @@ public class WindowedWordCountIT {
 
   @Rule public TestName testName = new TestName();
 
-  private static final String DEFAULT_INPUT =
-      "gs://apache-beam-samples/shakespeare/sonnets.txt";
+  private static final String DEFAULT_INPUT = "gs://apache-beam-samples/shakespeare/sonnets.txt";
   static final int MAX_READ_RETRIES = 4;
   static final Duration DEFAULT_SLEEP_DURATION = Duration.standardSeconds(10L);
   static final FluentBackoff BACK_OFF_FACTORY =
@@ -122,12 +121,14 @@ public class WindowedWordCountIT {
 
     options.setOutput(
         FileSystems.matchNewResource(options.getTempRoot(), true)
-            .resolve(String.format(
-                "WindowedWordCountIT.%s-%tFT%<tH:%<tM:%<tS.%<tL+%s",
-                testName.getMethodName(), new Date(), ThreadLocalRandom.current().nextInt()),
+            .resolve(
+                String.format(
+                    "WindowedWordCountIT.%s-%tFT%<tH:%<tM:%<tS.%<tL+%s",
+                    testName.getMethodName(), new Date(), ThreadLocalRandom.current().nextInt()),
                 StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
-            .resolve("results", StandardResolveOptions.RESOLVE_FILE).toString());
+            .resolve("results", StandardResolveOptions.RESOLVE_FILE)
+            .toString());
     return options;
   }
 
@@ -154,13 +155,16 @@ public class WindowedWordCountIT {
     for (int startMinute : ImmutableList.of(0, 10, 20, 30, 40, 50)) {
       final Instant windowStart =
           new Instant(options.getMinTimestampMillis()).plus(Duration.standardMinutes(startMinute));
-      String filePrefix = filenamePolicy.filenamePrefixForWindow(
-          new IntervalWindow(
-              windowStart, windowStart.plus(Duration.standardMinutes(10))));
+      String filePrefix =
+          filenamePolicy.filenamePrefixForWindow(
+              new IntervalWindow(windowStart, windowStart.plus(Duration.standardMinutes(10))));
       expectedOutputFiles.add(
           new NumberedShardedFile(
-              output.getCurrentDirectory()
-                  .resolve(filePrefix, StandardResolveOptions.RESOLVE_FILE).toString() + "*"));
+              output
+                      .getCurrentDirectory()
+                      .resolve(filePrefix, StandardResolveOptions.RESOLVE_FILE)
+                      .toString()
+                  + "*"));
     }
 
     ShardedFile inputFile = new ExplicitShardedFile(Collections.singleton(options.getInputFile()));
@@ -169,7 +173,7 @@ public class WindowedWordCountIT {
     SortedMap<String, Long> expectedWordCounts = new TreeMap<>();
     for (String line :
         inputFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff())) {
-      String[] words = line.split(ExampleUtils.TOKENIZER_PATTERN);
+      String[] words = line.split(ExampleUtils.TOKENIZER_PATTERN, -1);
 
       for (String word : words) {
         if (!word.isEmpty()) {
@@ -179,8 +183,7 @@ public class WindowedWordCountIT {
       }
     }
 
-    options.setOnSuccessMatcher(
-        new WordCountsMatcher(expectedWordCounts, expectedOutputFiles));
+    options.setOnSuccessMatcher(new WordCountsMatcher(expectedWordCounts, expectedOutputFiles));
 
     WindowedWordCount.runWindowedWordCount(options);
   }
@@ -215,7 +218,7 @@ public class WindowedWordCountIT {
         // Since the windowing is nondeterministic we only check the sums
         actualCounts = new TreeMap<>();
         for (String line : outputLines) {
-          String[] splits = line.split(": ");
+          String[] splits = line.split(": ", -1);
           String word = splits[0];
           long count = Long.parseLong(splits[1]);
           actualCounts.merge(word, count, (a, b) -> a + b);
@@ -224,8 +227,8 @@ public class WindowedWordCountIT {
         return actualCounts.equals(expectedWordCounts);
       } catch (Exception e) {
         throw new RuntimeException(
-            String.format("Failed to read from sharded output: %s due to exception",
-                outputFiles), e);
+            String.format("Failed to read from sharded output: %s due to exception", outputFiles),
+            e);
       }
     }
 

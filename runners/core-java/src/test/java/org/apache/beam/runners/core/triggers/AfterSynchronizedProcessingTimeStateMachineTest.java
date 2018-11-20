@@ -30,9 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests the {@link AfterSynchronizedProcessingTimeStateMachine}.
- */
+/** Tests the {@link AfterSynchronizedProcessingTimeStateMachine}. */
 @RunWith(JUnit4.class)
 public class AfterSynchronizedProcessingTimeStateMachineTest {
 
@@ -42,11 +40,11 @@ public class AfterSynchronizedProcessingTimeStateMachineTest {
   @Test
   public void testAfterProcessingTimeWithFixedWindows() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    SimpleTriggerStateMachineTester<IntervalWindow> tester = TriggerStateMachineTester.forTrigger(
-        AfterProcessingTimeStateMachine
-            .pastFirstElementInPane()
-            .plusDelayOf(Duration.millis(5)),
-        FixedWindows.of(windowDuration));
+    SimpleTriggerStateMachineTester<IntervalWindow> tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterProcessingTimeStateMachine.pastFirstElementInPane()
+                .plusDelayOf(Duration.millis(5)),
+            FixedWindows.of(windowDuration));
 
     tester.advanceProcessingTime(new Instant(10));
 
@@ -86,11 +84,11 @@ public class AfterSynchronizedProcessingTimeStateMachineTest {
   @Test
   public void testAfterProcessingTimeWithMergingWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    SimpleTriggerStateMachineTester<IntervalWindow> tester = TriggerStateMachineTester.forTrigger(
-        AfterProcessingTimeStateMachine
-            .pastFirstElementInPane()
-            .plusDelayOf(Duration.millis(5)),
-        Sessions.withGapDuration(windowDuration));
+    SimpleTriggerStateMachineTester<IntervalWindow> tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterProcessingTimeStateMachine.pastFirstElementInPane()
+                .plusDelayOf(Duration.millis(5)),
+            Sessions.withGapDuration(windowDuration));
 
     tester.advanceProcessingTime(new Instant(10));
     tester.injectElements(1); // in [1, 11), timer for 15

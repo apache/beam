@@ -32,16 +32,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Tests for {@link HadoopResourceId}.
- */
+/** Tests for {@link HadoopResourceId}. */
 public class HadoopResourceIdTest {
 
   private MiniDFSCluster hdfsCluster;
   private URI hdfsClusterBaseUri;
 
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Before
   public void setUp() throws Exception {

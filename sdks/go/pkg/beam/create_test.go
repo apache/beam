@@ -59,7 +59,9 @@ type stringValue string
 
 func (stringValue) isOneOfField() {}
 
-type _isOneOfField interface{ isOneOfField() }
+type _isOneOfField interface {
+	isOneOfField()
+}
 
 func (t *testProto) Reset()         { *t = testProto{} }
 func (t *testProto) String() string { return fmt.Sprintf("one_of_field: %#v", t.OneOfField) }

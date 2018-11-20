@@ -37,8 +37,10 @@ import org.apache.beam.sdk.values.PCollectionView;
 abstract class NaiveSpannerRead
     extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
 
-  public static NaiveSpannerRead create(SpannerConfig spannerConfig,
-      PCollectionView<Transaction> txView, TimestampBound timestampBound) {
+  public static NaiveSpannerRead create(
+      SpannerConfig spannerConfig,
+      PCollectionView<Transaction> txView,
+      TimestampBound timestampBound) {
     return new AutoValue_NaiveSpannerRead(spannerConfig, txView, timestampBound);
   }
 
@@ -54,12 +56,15 @@ abstract class NaiveSpannerRead
     PCollectionView<Transaction> txView = getTxView();
     if (txView == null) {
       Pipeline begin = input.getPipeline();
-      SpannerIO.CreateTransaction createTx = SpannerIO.createTransaction()
-          .withSpannerConfig(getSpannerConfig()).withTimestampBound(getTimestampBound());
+      SpannerIO.CreateTransaction createTx =
+          SpannerIO.createTransaction()
+              .withSpannerConfig(getSpannerConfig())
+              .withTimestampBound(getTimestampBound());
       txView = begin.apply(createTx);
     }
 
-    return input.apply("Naive read from Cloud Spanner",
+    return input.apply(
+        "Naive read from Cloud Spanner",
         ParDo.of(new NaiveSpannerReadFn(getSpannerConfig(), txView)).withSideInputs(txView));
   }
 
@@ -88,8 +93,8 @@ abstract class NaiveSpannerRead
     public void processElement(ProcessContext c) throws Exception {
       Transaction tx = c.sideInput(txView);
       ReadOperation op = c.element();
-      BatchReadOnlyTransaction context = spannerAccessor.getBatchClient()
-          .batchReadOnlyTransaction(tx.transactionId());
+      BatchReadOnlyTransaction context =
+          spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
       try (ResultSet resultSet = execute(op, context)) {
         while (resultSet.next()) {
           c.output(resultSet.getCurrentRowAsStruct());
@@ -102,8 +107,8 @@ abstract class NaiveSpannerRead
         return readOnlyTransaction.executeQuery(op.getQuery());
       }
       if (op.getIndex() != null) {
-        return readOnlyTransaction
-            .readUsingIndex(op.getTable(), op.getIndex(), op.getKeySet(), op.getColumns());
+        return readOnlyTransaction.readUsingIndex(
+            op.getTable(), op.getIndex(), op.getKeySet(), op.getColumns());
       }
       return readOnlyTransaction.read(op.getTable(), op.getKeySet(), op.getColumns());
     }

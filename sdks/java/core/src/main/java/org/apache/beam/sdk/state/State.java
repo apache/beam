@@ -29,8 +29,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @Experimental(Kind.STATE)
 public interface State {
 
-  /**
-   * Clear out the state location.
-   */
+  /** Clear out the state location. */
   void clear();
 }

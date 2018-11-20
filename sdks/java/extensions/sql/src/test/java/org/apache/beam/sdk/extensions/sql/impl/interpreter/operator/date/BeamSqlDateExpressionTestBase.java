@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
@@ -27,6 +26,11 @@ import org.joda.time.format.DateTimeFormatter;
 public class BeamSqlDateExpressionTestBase extends BeamSqlFnExecutorTestBase {
   static DateTime str2DateTime(String dateStr) {
     DateTimeFormatter format = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
+    return format.parseDateTime(dateStr);
+  }
+
+  static DateTime str2Date(String dateStr) {
+    DateTimeFormatter format = DateTimeFormat.forPattern("yyyy-MM-dd").withZoneUTC();
     return format.parseDateTime(dateStr);
   }
 }

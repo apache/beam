@@ -22,20 +22,19 @@ import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertThat;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DedupingOperator}.
- */
+/** Tests for {@link DedupingOperator}. */
 @RunWith(JUnit4.class)
 public class DedupingOperatorTest {
 
@@ -43,30 +42,34 @@ public class DedupingOperatorTest {
   public void testDeduping() throws Exception {
 
     KeyedOneInputStreamOperatorTestHarness<
-        ByteBuffer,
-        WindowedValue<ValueWithRecordId<String>>,
-        WindowedValue<String>> harness = getDebupingHarness();
+            ByteBuffer, WindowedValue<ValueWithRecordId<String>>, WindowedValue<String>>
+        harness = getDebupingHarness();
 
     harness.open();
 
     String key1 = "key1";
     String key2 = "key2";
 
-    harness.processElement(new StreamRecord<>(
-        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key1, key1.getBytes()))));
+    harness.processElement(
+        new StreamRecord<>(
+            WindowedValue.valueInGlobalWindow(
+                new ValueWithRecordId<>(key1, key1.getBytes(StandardCharsets.UTF_8)))));
 
-    harness.processElement(new StreamRecord<>(
-        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key2, key2.getBytes()))));
+    harness.processElement(
+        new StreamRecord<>(
+            WindowedValue.valueInGlobalWindow(
+                new ValueWithRecordId<>(key2, key2.getBytes(StandardCharsets.UTF_8)))));
 
-    harness.processElement(new StreamRecord<>(
-        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key1, key1.getBytes()))));
+    harness.processElement(
+        new StreamRecord<>(
+            WindowedValue.valueInGlobalWindow(
+                new ValueWithRecordId<>(key1, key1.getBytes(StandardCharsets.UTF_8)))));
 
     assertThat(
         stripStreamRecordFromWindowedValue(harness.getOutput()),
-        contains(WindowedValue.valueInGlobalWindow(key1),
-            WindowedValue.valueInGlobalWindow(key2)));
+        contains(WindowedValue.valueInGlobalWindow(key1), WindowedValue.valueInGlobalWindow(key2)));
 
-    OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+    OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 
     harness.close();
 
@@ -77,11 +80,15 @@ public class DedupingOperatorTest {
 
     String key3 = "key3";
 
-    harness.processElement(new StreamRecord<>(
-        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key2, key2.getBytes()))));
+    harness.processElement(
+        new StreamRecord<>(
+            WindowedValue.valueInGlobalWindow(
+                new ValueWithRecordId<>(key2, key2.getBytes(StandardCharsets.UTF_8)))));
 
-    harness.processElement(new StreamRecord<>(
-        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key3, key3.getBytes()))));
+    harness.processElement(
+        new StreamRecord<>(
+            WindowedValue.valueInGlobalWindow(
+                new ValueWithRecordId<>(key3, key3.getBytes(StandardCharsets.UTF_8)))));
 
     assertThat(
         stripStreamRecordFromWindowedValue(harness.getOutput()),
@@ -90,9 +97,9 @@ public class DedupingOperatorTest {
     harness.close();
   }
 
-  private KeyedOneInputStreamOperatorTestHarness<ByteBuffer,
-      WindowedValue<ValueWithRecordId<String>>,
-      WindowedValue<String>> getDebupingHarness() throws Exception {
+  private KeyedOneInputStreamOperatorTestHarness<
+          ByteBuffer, WindowedValue<ValueWithRecordId<String>>, WindowedValue<String>>
+      getDebupingHarness() throws Exception {
     DedupingOperator<String> operator = new DedupingOperator<>();
 
     return new KeyedOneInputStreamOperatorTestHarness<>(

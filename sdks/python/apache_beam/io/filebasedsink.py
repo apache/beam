@@ -24,8 +24,11 @@ import os
 import re
 import time
 import uuid
+from builtins import range
+from builtins import zip
 
-from six import string_types
+from future.utils import iteritems
+from past.builtins import unicode
 
 from apache_beam.internal import util
 from apache_beam.io import iobase
@@ -57,6 +60,7 @@ class FileBasedSink(iobase.Sink):
 
   # Max number of threads to be used for renaming.
   _MAX_RENAME_THREADS = 64
+  __hash__ = None
 
   def __init__(self,
                file_path_prefix,
@@ -75,10 +79,10 @@ class FileBasedSink(iobase.Sink):
       ~exceptions.ValueError: if **shard_name_template** is not of expected
         format.
     """
-    if not isinstance(file_path_prefix, (string_types, ValueProvider)):
+    if not isinstance(file_path_prefix, ((str, unicode), ValueProvider)):
       raise TypeError('file_path_prefix must be a string or ValueProvider;'
                       'got %r instead' % file_path_prefix)
-    if not isinstance(file_name_suffix, (string_types, ValueProvider)):
+    if not isinstance(file_name_suffix, ((str, unicode), ValueProvider)):
       raise TypeError('file_name_suffix must be a string or ValueProvider;'
                       'got %r instead' % file_name_suffix)
 
@@ -89,9 +93,9 @@ class FileBasedSink(iobase.Sink):
       shard_name_template = DEFAULT_SHARD_NAME_TEMPLATE
     elif shard_name_template == '':
       num_shards = 1
-    if isinstance(file_path_prefix, string_types):
+    if isinstance(file_path_prefix, (str, unicode)):
       file_path_prefix = StaticValueProvider(str, file_path_prefix)
-    if isinstance(file_name_suffix, string_types):
+    if isinstance(file_name_suffix, (str, unicode)):
       file_name_suffix = StaticValueProvider(str, file_name_suffix)
     self.file_path_prefix = file_path_prefix
     self.file_name_suffix = file_name_suffix
@@ -163,8 +167,7 @@ class FileBasedSink(iobase.Sink):
       if base_path == new_base_path:
         raise ValueError('Cannot create a temporary directory for root path '
                          'prefix %s. Please specify a file path prefix with '
-                         'at least two components.',
-                         file_path_prefix)
+                         'at least two components.' % file_path_prefix)
     path_components = [base_path,
                        'beam-temp-' + last_component + '-' + uuid.uuid1().hex]
     return FileSystems.join(*path_components)
@@ -298,7 +301,7 @@ class FileBasedSink(iobase.Sink):
         except BeamIOError as exp:
           if exp.exception_details is None:
             raise
-          for (src, dst), exception in exp.exception_details.iteritems():
+          for (src, dst), exception in iteritems(exp.exception_details):
             if exception:
               logging.error(('Exception in _rename_batch. src: %s, '
                              'dst: %s, err: %s'), src, dst, exception)
@@ -308,7 +311,7 @@ class FileBasedSink(iobase.Sink):
           return exceptions
 
       exception_batches = util.run_using_threadpool(
-          _rename_batch, zip(source_file_batch, destination_file_batch),
+          _rename_batch, list(zip(source_file_batch, destination_file_batch)),
           num_threads)
 
       all_exceptions = [e for exception_batch in exception_batches
@@ -370,6 +373,10 @@ class FileBasedSink(iobase.Sink):
     # TODO: Clean up workitem_test which uses this.
     # pylint: disable=unidiomatic-typecheck
     return type(self) == type(other) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
 
 class FileBasedSinkWriter(iobase.Writer):

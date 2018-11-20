@@ -15,12 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
@@ -39,7 +37,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJob;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJobManager;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -52,6 +51,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -78,8 +78,9 @@ import org.slf4j.LoggerFactory;
  * {@link KV} maps the final table to itself.
  */
 class WriteTables<DestinationT>
-  extends PTransform<PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
-    PCollection<KV<TableDestination, String>>> {
+    extends PTransform<
+        PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
+        PCollection<KV<TableDestination, String>>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean singlePartition;
@@ -92,21 +93,47 @@ class WriteTables<DestinationT>
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
   private final ValueProvider<String> loadJobProjectId;
-
+  private final int maxRetryJobs;
+  private final boolean ignoreUnknownValues;
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
     private Map<DestinationT, String> jsonSchemas = Maps.newHashMap();
+
+    // Represents a pending BigQuery load job.
+    private class PendingJobData {
+      final BoundedWindow window;
+      final BigQueryHelpers.PendingJob retryJob;
+      final List<String> partitionFiles;
+      final TableDestination tableDestination;
+      final TableReference tableReference;
+
+      public PendingJobData(
+          BoundedWindow window,
+          BigQueryHelpers.PendingJob retryJob,
+          List<String> partitionFiles,
+          TableDestination tableDestination,
+          TableReference tableReference) {
+        this.window = window;
+        this.retryJob = retryJob;
+        this.partitionFiles = partitionFiles;
+        this.tableDestination = tableDestination;
+        this.tableReference = tableReference;
+      }
+    }
+    // All pending load jobs.
+    private List<PendingJobData> pendingJobs = Lists.newArrayList();
 
     @StartBundle
     public void startBundle(StartBundleContext c) {
       // Clear the map on each bundle so we can notice side-input updates.
       // (alternative is to use a cache with a TTL).
       jsonSchemas.clear();
+      pendingJobs.clear();
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
+    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       DestinationT destination = c.element().getKey().getKey();
       TableSchema tableSchema;
@@ -138,15 +165,15 @@ class WriteTables<DestinationT>
           destination);
       TableReference tableReference = tableDestination.getTableReference();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
-        tableReference.setProjectId(
-            c.getPipelineOptions().as(BigQueryOptions.class).getProject());
+        tableReference.setProjectId(c.getPipelineOptions().as(BigQueryOptions.class).getProject());
         tableDestination = tableDestination.withTableReference(tableReference);
       }
 
       Integer partition = c.element().getKey().getShardNumber();
       List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
-      String jobIdPrefix = BigQueryHelpers.createJobId(
-          c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
+      String jobIdPrefix =
+          BigQueryHelpers.createJobId(
+              c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
       if (!singlePartition) {
         tableReference.setTableId(jobIdPrefix);
@@ -156,22 +183,64 @@ class WriteTables<DestinationT>
           (c.pane().getIndex() == 0) ? firstPaneWriteDisposition : WriteDisposition.WRITE_APPEND;
       CreateDisposition createDisposition =
           (c.pane().getIndex() == 0) ? firstPaneCreateDisposition : CreateDisposition.CREATE_NEVER;
-      load(
-          bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
-          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
-          jobIdPrefix,
-          tableReference,
-          tableDestination.getTimePartitioning(),
-          tableSchema,
-          partitionFiles,
-          writeDisposition,
-          createDisposition,
-          tableDestination.getTableDescription());
-      c.output(
-          mainOutputTag, KV.of(tableDestination, BigQueryHelpers.toJsonString(tableReference)));
-      for (String file : partitionFiles) {
-        c.output(temporaryFilesTag, file);
+
+      BigQueryHelpers.PendingJob retryJob =
+          startLoad(
+              bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              jobIdPrefix,
+              tableReference,
+              tableDestination.getTimePartitioning(),
+              tableSchema,
+              partitionFiles,
+              writeDisposition,
+              createDisposition);
+      pendingJobs.add(
+          new PendingJobData(window, retryJob, partitionFiles, tableDestination, tableReference));
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      DatasetService datasetService =
+          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
+
+      PendingJobManager jobManager = new PendingJobManager();
+      for (PendingJobData pendingJob : pendingJobs) {
+        jobManager =
+            jobManager.addPendingJob(
+                pendingJob.retryJob,
+                // Lambda called when the job is done.
+                j -> {
+                  try {
+                    if (pendingJob.tableDestination.getTableDescription() != null) {
+                      TableReference ref = pendingJob.tableReference;
+                      datasetService.patchTableDescription(
+                          ref.clone()
+                              .setTableId(
+                                  BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
+                          pendingJob.tableDestination.getTableDescription());
+                    }
+                    c.output(
+                        mainOutputTag,
+                        KV.of(
+                            pendingJob.tableDestination,
+                            BigQueryHelpers.toJsonString(pendingJob.tableReference)),
+                        pendingJob.window.maxTimestamp(),
+                        pendingJob.window);
+                    for (String file : pendingJob.partitionFiles) {
+                      c.output(
+                          temporaryFilesTag,
+                          file,
+                          pendingJob.window.maxTimestamp(),
+                          pendingJob.window);
+                    }
+                    return null;
+                  } catch (IOException | InterruptedException e) {
+                    return e;
+                  }
+                });
       }
+      jobManager.waitForDone();
     }
   }
 
@@ -190,7 +259,9 @@ class WriteTables<DestinationT>
       CreateDisposition createDisposition,
       List<PCollectionView<?>> sideInputs,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
-      @Nullable ValueProvider<String> loadJobProjectId) {
+      @Nullable ValueProvider<String> loadJobProjectId,
+      int maxRetryJobs,
+      boolean ignoreUnknownValues) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -201,14 +272,18 @@ class WriteTables<DestinationT>
     this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
     this.temporaryFilesTag = new TupleTag<>("TemporaryFiles");
     this.loadJobProjectId = loadJobProjectId;
+    this.maxRetryJobs = maxRetryJobs;
+    this.ignoreUnknownValues = ignoreUnknownValues;
   }
 
   @Override
   public PCollection<KV<TableDestination, String>> expand(
       PCollection<KV<ShardedKey<DestinationT>, List<String>>> input) {
-    PCollectionTuple writeTablesOutputs = input.apply(ParDo.of(new WriteTablesDoFn())
-        .withSideInputs(sideInputs)
-        .withOutputTags(mainOutputTag, TupleTagList.of(temporaryFilesTag)));
+    PCollectionTuple writeTablesOutputs =
+        input.apply(
+            ParDo.of(new WriteTablesDoFn())
+                .withSideInputs(sideInputs)
+                .withOutputTags(mainOutputTag, TupleTagList.of(temporaryFilesTag)));
 
     // Garbage collect temporary files.
     // We mustn't start garbage collecting files until we are assured that the WriteTablesDoFn has
@@ -232,7 +307,7 @@ class WriteTables<DestinationT>
     return writeTablesOutputs.get(mainOutputTag);
   }
 
-  private void load(
+  private PendingJob startLoad(
       JobService jobService,
       DatasetService datasetService,
       String jobIdPrefix,
@@ -241,9 +316,7 @@ class WriteTables<DestinationT>
       @Nullable TableSchema schema,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
-      CreateDisposition createDisposition,
-      @Nullable String tableDescription)
-      throws InterruptedException, IOException {
+      CreateDisposition createDisposition) {
     JobConfigurationLoad loadConfig =
         new JobConfigurationLoad()
             .setDestinationTable(ref)
@@ -251,72 +324,73 @@ class WriteTables<DestinationT>
             .setSourceUris(gcsUris)
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
-            .setSourceFormat("NEWLINE_DELIMITED_JSON");
+            .setSourceFormat("NEWLINE_DELIMITED_JSON")
+            .setIgnoreUnknownValues(ignoreUnknownValues);
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
     }
     String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId.get();
-    Job lastFailedLoadJob = null;
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
-    for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
-      String jobId = jobIdPrefix + "-" + i;
 
-      JobReference jobRef =
-          new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
-
-      LOG.info("Loading {} files into {} using job {}, attempt {}", gcsUris.size(), ref, jobRef, i);
-      jobService.startLoadJob(jobRef, loadConfig);
-      LOG.info("Load job {} started", jobRef);
-
-      Job loadJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
-
-      Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
-      switch (jobStatus) {
-        case SUCCEEDED:
-          LOG.info(
-              "Load job {} succeeded. Statistics: {}", jobRef, loadJob.getStatistics());
-          if (tableDescription != null) {
-            datasetService.patchTableDescription(
-                ref.clone().setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
-                tableDescription);
-          }
-          return;
-        case UNKNOWN:
-          LOG.info(
-              "Load job {} finished in unknown state: {}", jobRef, loadJob.getStatus());
-          throw new RuntimeException(
-              String.format(
-                  "UNKNOWN status of load job [%s]: %s.",
-                  jobId, BigQueryHelpers.jobToPrettyString(loadJob)));
-        case FAILED:
-          LOG.info(
-              "Load job {} failed, {}: {}",
-              jobRef,
-              (i < BatchLoads.MAX_RETRY_JOBS - 1) ? "will retry" : "will not retry",
-              loadJob.getStatus());
-          lastFailedLoadJob = loadJob;
-          continue;
-        default:
-          throw new IllegalStateException(
-              String.format(
-                  "Unexpected status [%s] of load job: %s.",
-                  loadJob.getStatus(), BigQueryHelpers.jobToPrettyString(loadJob)));
-      }
-    }
-    throw new RuntimeException(
-        String.format(
-            "Failed to create load job with id prefix %s, "
-                + "reached max retries: %d, last failed load job: %s.",
-            jobIdPrefix,
-            BatchLoads.MAX_RETRY_JOBS,
-            BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
+    PendingJob retryJob =
+        new PendingJob(
+            // Function to load the data.
+            jobId -> {
+              JobReference jobRef =
+                  new JobReference()
+                      .setProjectId(projectId)
+                      .setJobId(jobId.getJobId())
+                      .setLocation(bqLocation);
+              LOG.info(
+                  "Loading {} files into {} using job {}, job id iteration {}",
+                  gcsUris.size(),
+                  ref,
+                  jobRef,
+                  jobId.getRetryIndex());
+              try {
+                jobService.startLoadJob(jobRef, loadConfig);
+              } catch (IOException | InterruptedException e) {
+                LOG.warn("Load job {} failed with {}", jobRef, e.toString());
+                throw new RuntimeException(e);
+              }
+              return null;
+            },
+            // Function to poll the result of a load job.
+            jobId -> {
+              JobReference jobRef =
+                  new JobReference()
+                      .setProjectId(projectId)
+                      .setJobId(jobId.getJobId())
+                      .setLocation(bqLocation);
+              try {
+                return jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            },
+            // Function to lookup a job.
+            jobId -> {
+              JobReference jobRef =
+                  new JobReference()
+                      .setProjectId(projectId)
+                      .setJobId(jobId.getJobId())
+                      .setLocation(bqLocation);
+              try {
+                return jobService.getJob(jobRef);
+              } catch (InterruptedException | IOException e) {
+                throw new RuntimeException(e);
+              }
+            },
+            maxRetryJobs,
+            jobIdPrefix);
+    return retryJob;
   }
 
   static void removeTemporaryFiles(Iterable<String> files) throws IOException {
     ImmutableList.Builder<ResourceId> fileResources = ImmutableList.builder();
     for (String file : files) {
-      fileResources.add(FileSystems.matchNewResource(file, false/* isDirectory */));
+      fileResources.add(FileSystems.matchNewResource(file, false /* isDirectory */));
     }
     FileSystems.delete(fileResources.build());
   }

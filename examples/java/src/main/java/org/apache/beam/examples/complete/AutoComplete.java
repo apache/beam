@@ -51,6 +51,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -60,6 +61,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Partition;
 import org.apache.beam.sdk.transforms.Partition.PartitionFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
@@ -71,32 +73,34 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Duration;
 
 /**
- * An example that computes the most popular hash tags
- * for every prefix, which can be used for auto-completion.
+ * An example that computes the most popular hash tags for every prefix, which can be used for
+ * auto-completion.
  *
- * <p>Concepts: Using the same pipeline in both streaming and batch, combiners,
- *              composite transforms.
+ * <p>Concepts: Using the same pipeline in both streaming and batch, combiners, composite
+ * transforms.
  *
  * <p>To execute this pipeline in streaming mode, specify:
+ *
  * <pre>{@code
- *   --streaming
+ * --streaming
  * }</pre>
  *
  * <p>To change the runner, specify:
+ *
  * <pre>{@code
- *   --runner=YOUR_SELECTED_RUNNER
- * }
- * </pre>
+ * --runner=YOUR_SELECTED_RUNNER
+ * }</pre>
+ *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>This will update the Cloud Datastore every 10 seconds based on the last
- * 30 minutes of data received.
+ * <p>This will update the Cloud Datastore every 10 seconds based on the last 30 minutes of data
+ * received.
  */
 public class AutoComplete {
 
   /**
-   * A PTransform that takes as input a list of tokens and returns
-   * the most common tokens per prefix.
+   * A PTransform that takes as input a list of tokens and returns the most common tokens per
+   * prefix.
    */
   public static class ComputeTopCompletions
       extends PTransform<PCollection<String>, PCollection<KV<String, List<CompletionCandidate>>>> {
@@ -138,18 +142,15 @@ public class AutoComplete {
             .apply(new ComputeTopRecursive(candidatesPerPrefix, 1))
             .apply(Flatten.pCollections());
       } else {
-        return candidates
-          .apply(new ComputeTopFlat(candidatesPerPrefix, 1));
+        return candidates.apply(new ComputeTopFlat(candidatesPerPrefix, 1));
       }
     }
   }
 
-  /**
-   * Lower latency, but more expensive.
-   */
+  /** Lower latency, but more expensive. */
   private static class ComputeTopFlat
-      extends PTransform<PCollection<CompletionCandidate>,
-                         PCollection<KV<String, List<CompletionCandidate>>>> {
+      extends PTransform<
+          PCollection<CompletionCandidate>, PCollection<KV<String, List<CompletionCandidate>>>> {
     private final int candidatesPerPrefix;
     private final int minPrefix;
 
@@ -162,12 +163,13 @@ public class AutoComplete {
     public PCollection<KV<String, List<CompletionCandidate>>> expand(
         PCollection<CompletionCandidate> input) {
       return input
-        // For each completion candidate, map it to all prefixes.
-        .apply(ParDo.of(new AllPrefixes(minPrefix)))
+          // For each completion candidate, map it to all prefixes.
+          .apply(ParDo.of(new AllPrefixes(minPrefix)))
 
-        // Find and return the top candiates for each prefix.
-        .apply(Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix)
-               .withHotKeyFanout(new HotKeyFanout()));
+          // Find and return the top candiates for each prefix.
+          .apply(
+              Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix)
+                  .withHotKeyFanout(new HotKeyFanout()));
     }
 
     private static class HotKeyFanout implements SerializableFunction<String, Integer> {
@@ -181,13 +183,13 @@ public class AutoComplete {
   /**
    * Cheaper but higher latency.
    *
-   * <p>Returns two PCollections, the first is top prefixes of size greater
-   * than minPrefix, and the second is top prefixes of size exactly
-   * minPrefix.
+   * <p>Returns two PCollections, the first is top prefixes of size greater than minPrefix, and the
+   * second is top prefixes of size exactly minPrefix.
    */
   private static class ComputeTopRecursive
-      extends PTransform<PCollection<CompletionCandidate>,
-                         PCollectionList<KV<String, List<CompletionCandidate>>>> {
+      extends PTransform<
+          PCollection<CompletionCandidate>,
+          PCollectionList<KV<String, List<CompletionCandidate>>>> {
     private final int candidatesPerPrefix;
     private final int minPrefix;
 
@@ -215,18 +217,18 @@ public class AutoComplete {
 
     @Override
     public PCollectionList<KV<String, List<CompletionCandidate>>> expand(
-          PCollection<CompletionCandidate> input) {
-        if (minPrefix > 10) {
-          // Base case, partitioning to return the output in the expected format.
-          return input
+        PCollection<CompletionCandidate> input) {
+      if (minPrefix > 10) {
+        // Base case, partitioning to return the output in the expected format.
+        return input
             .apply(new ComputeTopFlat(candidatesPerPrefix, minPrefix))
             .apply(Partition.of(2, new KeySizePartitionFn()));
-        } else {
-          // If a candidate is in the top N for prefix a...b, it must also be in the top
-          // N for a...bX for every X, which is typlically a much smaller set to consider.
-          // First, compute the top candidate for prefixes of size at least minPrefix + 1.
-          PCollectionList<KV<String, List<CompletionCandidate>>> larger = input
-            .apply(new ComputeTopRecursive(candidatesPerPrefix, minPrefix + 1));
+      } else {
+        // If a candidate is in the top N for prefix a...b, it must also be in the top
+        // N for a...bX for every X, which is typlically a much smaller set to consider.
+        // First, compute the top candidate for prefixes of size at least minPrefix + 1.
+        PCollectionList<KV<String, List<CompletionCandidate>>> larger =
+            input.apply(new ComputeTopRecursive(candidatesPerPrefix, minPrefix + 1));
         // Consider the top candidates for each prefix of length minPrefix + 1...
         PCollection<KV<String, List<CompletionCandidate>>> small =
             PCollectionList.of(larger.get(1).apply(ParDo.of(new FlattenTops())))
@@ -242,14 +244,12 @@ public class AutoComplete {
         PCollection<KV<String, List<CompletionCandidate>>> flattenLarger =
             larger.apply("FlattenLarge", Flatten.pCollections());
 
-          return PCollectionList.of(flattenLarger).and(small);
-        }
+        return PCollectionList.of(flattenLarger).and(small);
+      }
     }
   }
 
-  /**
-   * A DoFn that keys each candidate by all its prefixes.
-   */
+  /** A DoFn that keys each candidate by all its prefixes. */
   private static class AllPrefixes
       extends DoFn<CompletionCandidate, KV<String, CompletionCandidate>> {
     private final int minPrefix;
@@ -273,9 +273,7 @@ public class AutoComplete {
     }
   }
 
-  /**
-   * Class used to store tag-count pairs.
-   */
+  /** Class used to store tag-count pairs. */
   @DefaultCoder(AvroCoder.class)
   static class CompletionCandidate implements Comparable<CompletionCandidate> {
     private long count;
@@ -329,9 +327,7 @@ public class AutoComplete {
     }
   }
 
-  /**
-   * Takes as input a set of strings, and emits each #hashtag found therein.
-   */
+  /** Takes as input a set of strings, and emits each #hashtag found therein. */
   static class ExtractHashtags extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -347,34 +343,32 @@ public class AutoComplete {
     public void processElement(ProcessContext c) {
       List<TableRow> completions = new ArrayList<>();
       for (CompletionCandidate cc : c.element().getValue()) {
-        completions.add(new TableRow()
-          .set("count", cc.getCount())
-          .set("tag", cc.getValue()));
+        completions.add(new TableRow().set("count", cc.getCount()).set("tag", cc.getValue()));
       }
-      TableRow row = new TableRow()
-        .set("prefix", c.element().getKey())
-        .set("tags", completions);
+      TableRow row = new TableRow().set("prefix", c.element().getKey()).set("tags", completions);
       c.output(row);
     }
 
-    /**
-     * Defines the BigQuery schema used for the output.
-     */
+    /** Defines the BigQuery schema used for the output. */
     static TableSchema getSchema() {
       List<TableFieldSchema> tagFields = new ArrayList<>();
       tagFields.add(new TableFieldSchema().setName("count").setType("INTEGER"));
       tagFields.add(new TableFieldSchema().setName("tag").setType("STRING"));
       List<TableFieldSchema> fields = new ArrayList<>();
       fields.add(new TableFieldSchema().setName("prefix").setType("STRING"));
-      fields.add(new TableFieldSchema()
-          .setName("tags").setType("RECORD").setMode("REPEATED").setFields(tagFields));
+      fields.add(
+          new TableFieldSchema()
+              .setName("tags")
+              .setType("RECORD")
+              .setMode("REPEATED")
+              .setFields(tagFields));
       return new TableSchema().setFields(fields);
     }
   }
 
   /**
-   * Takes as input a the top candidates per prefix, and emits an entity
-   * suitable for writing to Cloud Datastore.
+   * Takes as input a the top candidates per prefix, and emits an entity suitable for writing to
+   * Cloud Datastore.
    *
    * <p>Note: We use ancestor keys for strong consistency. See the Cloud Datastore documentation on
    * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">
@@ -383,6 +377,7 @@ public class AutoComplete {
   static class FormatForDatastore extends DoFn<KV<String, List<CompletionCandidate>>, Entity> {
     private String kind;
     private String ancestorKey;
+
     public FormatForDatastore(String kind, String ancestorKey) {
       this.kind = kind;
       this.ancestorKey = ancestorKey;
@@ -413,45 +408,61 @@ public class AutoComplete {
    *
    * <p>Inherits standard Beam example configuration options.
    */
-  public interface Options
-      extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
+  public interface Options extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Input text file")
     @Validation.Required
     String getInputFile();
+
     void setInputFile(String value);
 
     @Description("Whether to use the recursive algorithm")
     @Default.Boolean(true)
     Boolean getRecursive();
+
     void setRecursive(Boolean value);
 
     @Description("Cloud Datastore entity kind")
     @Default.String("autocomplete-demo")
     String getKind();
+
     void setKind(String value);
 
     @Description("Whether output to BigQuery")
     @Default.Boolean(true)
     Boolean getOutputToBigQuery();
+
     void setOutputToBigQuery(Boolean value);
+
+    @Description("Whether to send output to checksum Transform.")
+    @Default.Boolean(true)
+    Boolean getOutputToChecksum();
+
+    void setOutputToChecksum(Boolean value);
+
+    @Description("Expected result of the checksum transform.")
+    Long getExpectedChecksum();
+
+    void setExpectedChecksum(Long value);
 
     @Description("Whether output to Cloud Datastore")
     @Default.Boolean(false)
     Boolean getOutputToDatastore();
+
     void setOutputToDatastore(Boolean value);
 
     @Description("Cloud Datastore ancestor key")
     @Default.String("root")
     String getDatastoreAncestorKey();
+
     void setDatastoreAncestorKey(String value);
 
     @Description("Cloud Datastore output project ID, defaults to project ID")
     String getOutputProject();
+
     void setOutputProject(String value);
   }
 
-  public static void main(String[] args) throws IOException {
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+  public static void runAutocompletePipeline(Options options) throws IOException {
 
     options.setBigQuerySchema(FormatForBigquery.getSchema());
     ExampleUtils exampleUtils = new ExampleUtils(options);
@@ -460,8 +471,7 @@ public class AutoComplete {
     // batch or windowed streaming mode.
     WindowFn<Object, ?> windowFn;
     if (options.isStreaming()) {
-      checkArgument(
-          !options.getOutputToDatastore(), "DatastoreIO is not supported in streaming.");
+      checkArgument(!options.getOutputToDatastore(), "DatastoreIO is not supported in streaming.");
       windowFn = SlidingWindows.of(Duration.standardMinutes(30)).every(Duration.standardSeconds(5));
     } else {
       windowFn = new GlobalWindows();
@@ -477,10 +487,15 @@ public class AutoComplete {
 
     if (options.getOutputToDatastore()) {
       toWrite
-      .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind(),
-          options.getDatastoreAncestorKey())))
-      .apply(DatastoreIO.v1().write().withProjectId(MoreObjects.firstNonNull(
-          options.getOutputProject(), options.getProject())));
+          .apply(
+              "FormatForDatastore",
+              ParDo.of(
+                  new FormatForDatastore(options.getKind(), options.getDatastoreAncestorKey())))
+          .apply(
+              DatastoreIO.v1()
+                  .write()
+                  .withProjectId(
+                      MoreObjects.firstNonNull(options.getOutputProject(), options.getProject())));
     }
     if (options.getOutputToBigQuery()) {
       exampleUtils.setupBigQueryTable();
@@ -491,14 +506,35 @@ public class AutoComplete {
       tableRef.setTableId(options.getBigQueryTable());
 
       toWrite
-        .apply(ParDo.of(new FormatForBigquery()))
-        .apply(BigQueryIO.writeTableRows()
-               .to(tableRef)
-               .withSchema(FormatForBigquery.getSchema())
-               .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-               .withWriteDisposition(options.isStreaming()
-                   ? BigQueryIO.Write.WriteDisposition.WRITE_APPEND
-                   : BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+          .apply(ParDo.of(new FormatForBigquery()))
+          .apply(
+              BigQueryIO.writeTableRows()
+                  .to(tableRef)
+                  .withSchema(FormatForBigquery.getSchema())
+                  .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                  .withWriteDisposition(
+                      options.isStreaming()
+                          ? BigQueryIO.Write.WriteDisposition.WRITE_APPEND
+                          : BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+    }
+
+    if (options.getOutputToChecksum()) {
+      PCollection<Long> checksum =
+          toWrite
+              .apply(
+                  ParDo.of(
+                      new DoFn<KV<String, List<CompletionCandidate>>, Long>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          KV<String, List<CompletionCandidate>> elm = c.element();
+                          Long listHash =
+                              c.element().getValue().stream().mapToLong(cc -> cc.hashCode()).sum();
+                          c.output(Long.valueOf(elm.getKey().hashCode()) + listHash);
+                        }
+                      }))
+              .apply(Sum.longsGlobally());
+
+      PAssert.that(checksum).containsInAnyOrder(options.getExpectedChecksum());
     }
 
     // Run the pipeline.
@@ -506,5 +542,11 @@ public class AutoComplete {
 
     // ExampleUtils will try to cancel the pipeline and the injector before the program exists.
     exampleUtils.waitToFinish(result);
+  }
+
+  public static void main(String[] args) throws IOException {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
+    runAutocompletePipeline(options);
   }
 }

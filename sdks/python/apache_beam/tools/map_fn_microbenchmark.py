@@ -30,9 +30,13 @@ Run as
    python -m apache_beam.tools.map_fn_microbenchmark
 """
 
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import time
+from builtins import range
+from builtins import zip
 
 import apache_beam as beam
 from apache_beam.tools import utils
@@ -45,17 +49,17 @@ def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):
     num_elements = num_elements_step * run + 1
     start = time.time()
     with beam.Pipeline() as p:
-      pc = p | beam.Create(range(num_elements))
+      pc = p | beam.Create(list(range(num_elements)))
       for ix in range(num_maps):
         pc = pc | 'Map%d' % ix >> beam.FlatMap(lambda x: (None,))
     timings[num_elements] = time.time() - start
     print("%6d element%s %g sec" % (
         num_elements, " " if num_elements == 1 else "s", timings[num_elements]))
 
-  print
+  print()
   # pylint: disable=unused-variable
   gradient, intercept, r_value, p_value, std_err = stats.linregress(
-      *zip(*timings.items()))
+      *list(zip(*list(timings.items()))))
   print("Fixed cost  ", intercept)
   print("Per-element ", gradient / num_maps)
   print("R^2         ", r_value**2)

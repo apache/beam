@@ -30,6 +30,7 @@ import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.CountingSource.UnboundedCountingSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -53,9 +54,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests of {@link CountingSource}.
- */
+/** Tests of {@link CountingSource}. */
 @RunWith(JUnit4.class)
 public class CountingSourceTest {
 
@@ -71,8 +70,7 @@ public class CountingSourceTest {
     PAssert.thatSingleton(input.apply("Max", Max.globally())).isEqualTo(numElements - 1);
   }
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(NeedsRunner.class)
@@ -94,15 +92,14 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
   public void testBoundedSourceSplits() throws Exception {
     long numElements = 1000;
     long numSplits = 10;
-    long splitSizeBytes = numElements * 8 / numSplits;  // 8 bytes per long element.
+    long splitSizeBytes = numElements * 8 / numSplits; // 8 bytes per long element.
 
     BoundedSource<Long> initial = CountingSource.upTo(numElements);
-    List<? extends BoundedSource<Long>> splits =
-        initial.split(splitSizeBytes, p.getOptions());
+    List<? extends BoundedSource<Long>> splits = initial.split(splitSizeBytes, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
     // Assemble all the splits into one flattened PCollection, also verify their sizes.
@@ -110,8 +107,8 @@ public class CountingSourceTest {
     for (int i = 0; i < splits.size(); ++i) {
       BoundedSource<Long> split = splits.get(i);
       pcollections = pcollections.and(p.apply("split" + i, Read.from(split)));
-      assertEquals("Expected even splitting",
-          splitSizeBytes, split.getEstimatedSizeBytes(p.getOptions()));
+      assertEquals(
+          "Expected even splitting", splitSizeBytes, split.getEstimatedSizeBytes(p.getOptions()));
     }
     PCollection<Long> input = pcollections.apply(Flatten.pCollections());
 
@@ -122,7 +119,7 @@ public class CountingSourceTest {
   @Test
   public void testProgress() throws IOException {
     final int numRecords = 5;
-    @SuppressWarnings("deprecation")  // testing CountingSource
+    @SuppressWarnings("deprecation") // testing CountingSource
     BoundedSource<Long> source = CountingSource.upTo(numRecords);
     try (BoundedReader<Long> reader = source.createReader(PipelineOptionsFactory.create())) {
       // Check preconditions before starting. Note that CountingReader can always give an accurate
@@ -151,8 +148,8 @@ public class CountingSourceTest {
   public void testUnboundedSource() {
     long numElements = 1000;
 
-    PCollection<Long> input = p
-        .apply(Read.from(CountingSource.unbounded()).withMaxNumRecords(numElements));
+    PCollection<Long> input =
+        p.apply(Read.from(CountingSource.unbounded()).withMaxNumRecords(numElements));
 
     addCountingAsserts(input, numElements);
     p.run();
@@ -170,9 +167,10 @@ public class CountingSourceTest {
   public void testUnboundedSourceTimestamps() {
     long numElements = 1000;
 
-    PCollection<Long> input = p.apply(
-        Read.from(CountingSource.unboundedWithTimestampFn(new ValueAsTimestampFn()))
-            .withMaxNumRecords(numElements));
+    PCollection<Long> input =
+        p.apply(
+            Read.from(CountingSource.unboundedWithTimestampFn(new ValueAsTimestampFn()))
+                .withMaxNumRecords(numElements));
     addCountingAsserts(input, numElements);
 
     PCollection<Long> diffs =
@@ -212,30 +210,26 @@ public class CountingSourceTest {
     p.run();
     Instant finished = Instant.now();
     Duration expectedDuration = period.multipliedBy((int) numElements);
-    assertThat(
-        started
-            .plus(expectedDuration)
-            .isBefore(finished),
-        is(true));
+    assertThat(started.plus(expectedDuration).isBefore(finished), is(true));
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
   public void testUnboundedSourceSplits() throws Exception {
     long numElements = 1000;
     int numSplits = 10;
 
     UnboundedSource<Long, ?> initial = CountingSource.unbounded();
-    List<? extends UnboundedSource<Long, ?>> splits =
-        initial.split(numSplits, p.getOptions());
+    List<? extends UnboundedSource<Long, ?>> splits = initial.split(numSplits, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
     long elementsPerSplit = numElements / numSplits;
     assertEquals("Expected even splits", numElements, elementsPerSplit * numSplits);
     PCollectionList<Long> pcollections = PCollectionList.empty(p);
     for (int i = 0; i < splits.size(); ++i) {
-      pcollections = pcollections.and(
-          p.apply("split" + i, Read.from(splits.get(i)).withMaxNumRecords(elementsPerSplit)));
+      pcollections =
+          pcollections.and(
+              p.apply("split" + i, Read.from(splits.get(i)).withMaxNumRecords(elementsPerSplit)));
     }
     PCollection<Long> input = pcollections.apply(Flatten.pCollections());
 
@@ -254,8 +248,7 @@ public class CountingSourceTest {
 
     UnboundedCountingSource initial =
         CountingSource.createUnboundedFrom(0).withRate(elementsPerPeriod, period);
-    List<? extends UnboundedSource<Long, ?>> splits =
-        initial.split(numSplits, p.getOptions());
+    List<? extends UnboundedSource<Long, ?>> splits = initial.split(numSplits, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
     long elementsPerSplit = numElements / numSplits;
@@ -279,8 +272,8 @@ public class CountingSourceTest {
 
   /**
    * A timestamp function that uses the given value as the timestamp. Because the input values will
-   * not wrap, this function is non-decreasing and meets the timestamp function criteria laid out
-   * in {@link CountingSource#unboundedWithTimestampFn(SerializableFunction)}.
+   * not wrap, this function is non-decreasing and meets the timestamp function criteria laid out in
+   * {@link CountingSource#unboundedWithTimestampFn(SerializableFunction)}.
    */
   private static class ValueAsTimestampFn implements SerializableFunction<Long, Instant> {
     @Override
@@ -307,8 +300,8 @@ public class CountingSourceTest {
     assertEquals(numToSkip, reader.getCurrentTimestamp().getMillis());
 
     // Checkpoint and restart, and confirm that the source continues correctly.
-    CounterMark mark = CoderUtils.clone(
-        source.getCheckpointMarkCoder(), (CounterMark) reader.getCheckpointMark());
+    CounterMark mark =
+        CoderUtils.clone(source.getCheckpointMarkCoder(), (CounterMark) reader.getCheckpointMark());
     reader = source.createReader(null, mark);
     assertTrue(reader.start());
 

@@ -15,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.data;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
-import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
- * An execution-time only {@link PTransform} which represents an SDK harness reading from a
- * {@link RemoteGrpcPort}.
+ * An execution-time only {@link PTransform} which represents an SDK harness reading from a {@link
+ * RemoteGrpcPort}.
  */
 @AutoValue
 public abstract class RemoteGrpcPortRead {
@@ -64,5 +63,6 @@ public abstract class RemoteGrpcPortRead {
   }
 
   public abstract RemoteGrpcPort getPort();
+
   abstract String getOutputPCollectionId();
 }

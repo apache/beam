@@ -17,15 +17,18 @@
 
 """Utilities for handling side inputs."""
 
+from __future__ import absolute_import
+
 import collections
 import logging
-import Queue
+import queue
 import threading
 import traceback
+from builtins import object
+from builtins import range
 
 from apache_beam.coders import observable
 from apache_beam.io import iobase
-from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
 
@@ -61,13 +64,13 @@ class PrefetchingSourceSetIterable(object):
     self.num_reader_threads = min(max_reader_threads, len(self.sources))
 
     # Queue for sources that are to be read.
-    self.sources_queue = Queue.Queue()
+    self.sources_queue = queue.Queue()
     for source in sources:
       self.sources_queue.put(source)
     # Queue for elements that have been read.
-    self.element_queue = Queue.Queue(ELEMENT_QUEUE_SIZE)
+    self.element_queue = queue.Queue(ELEMENT_QUEUE_SIZE)
     # Queue for exceptions encountered in reader threads; to be rethrown.
-    self.reader_exceptions = Queue.Queue()
+    self.reader_exceptions = queue.Queue()
     # Whether we have already iterated; this iterable can only be used once.
     self.already_iterated = False
     # Whether an error was encountered in any source reader.
@@ -79,9 +82,6 @@ class PrefetchingSourceSetIterable(object):
 
   def add_byte_counter(self, reader):
     """Adds byte counter observer to a side input reader.
-
-    If the 'sideinput_io_metrics' experiment flag is not passed in, then
-    nothing is attached to the reader.
 
     Args:
       reader: A reader that should inherit from ObservableMixin to have
@@ -123,8 +123,7 @@ class PrefetchingSourceSetIterable(object):
               # The tracking of time spend reading and bytes read from side
               # inputs is kept behind an experiment flag to test performance
               # impact.
-              if 'sideinput_io_metrics' in RuntimeValueProvider.experiments:
-                self.add_byte_counter(reader)
+              self.add_byte_counter(reader)
               returns_windowed_values = reader.returns_windowed_values
               for value in reader:
                 if self.has_errored:
@@ -134,7 +133,7 @@ class PrefetchingSourceSetIterable(object):
                   self.element_queue.put(value)
                 else:
                   self.element_queue.put(_globally_windowed(value))
-        except Queue.Empty:
+        except queue.Empty:
           return
     except Exception as e:  # pylint: disable=broad-except
       logging.error('Encountered exception in PrefetchingSourceSetIterable '
@@ -159,7 +158,8 @@ class PrefetchingSourceSetIterable(object):
     try:
       while True:
         try:
-          element = self.element_queue.get()
+          with self.read_counter:
+            element = self.element_queue.get()
           if element is READER_THREAD_IS_DONE_SENTINEL:
             num_readers_finished += 1
             if num_readers_finished == self.num_reader_threads:

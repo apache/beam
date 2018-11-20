@@ -32,6 +32,22 @@ option java_outer_classname = "RunnerApi";
 import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
 
+message BeamConstants {
+  enum Constants {
+    // All timestamps in milliseconds since Jan 1, 1970.
+    MIN_TIMESTAMP_MILLIS = 0 [(beam_constant) = "-9223372036854775"];
+    MAX_TIMESTAMP_MILLIS = 1 [(beam_constant) =  "9223372036854775"];
+    // The maximum timestamp for the global window.
+    // Triggers use maxTimestamp to set timers' timestamp. Timers fires when
+    // the watermark passes their timestamps. So, the timestamp needs to be
+    // smaller than the MAX_TIMESTAMP_MILLIS.
+    // One standard day is subtracted from MAX_TIMESTAMP_MILLIS to make sure
+    // the maxTimestamp is smaller than MAX_TIMESTAMP_MILLIS even after rounding up
+    // to seconds or minutes. See also GlobalWindow in the Java SDK.
+    GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS = 2 [(beam_constant) = "9223371950454775"];
+  }
+}
+
 // A set of mappings from id to message. This is included as an optional field
 // on any proto message that may contain references needing resolution.
 message Components {
@@ -202,9 +218,35 @@ message StandardPTransforms {
     // Payload: TestStreamPayload
     TEST_STREAM = 5 [(beam_urn) = "urn:beam:transform:teststream:v1"];
 
-    // Represents mapping of main input window into side input window.
-    // Payload: serialized WindowMappingFn.
+    // Represents mapping of main input window onto side input window.
+    //
+    // Side input window mapping function:
+    // Input: KV<nonce, MainInputWindow>
+    // Output: KV<nonce, SideInputWindow>
+    //
+    // For each main input window, the side input window is returned. The
+    // nonce is used by a runner to associate each input with its output.
+    // The nonce is represented as an opaque set of bytes.
+    //
+    // Payload: WindowMappingFn from SideInputSpec.
     MAP_WINDOWS = 6 [(beam_urn) = "beam:transform:map_windows:v1"];
+
+    // Used to merge windows during a GroupByKey.
+    //
+    // Window merging function:
+    // Input: KV<nonce, iterable<OriginalWindow>>
+    // Output: KV<nonce, KV<iterable<UnmergedOriginalWindow>, iterable<KV<MergedWindow, iterable<ConsumedOriginalWindow>>>>
+    //
+    // For each set of original windows, a list of all unmerged windows is
+    // output alongside a map of merged window to set of consumed windows.
+    // All original windows must be contained in either the unmerged original
+    // window set or one of the consumed original window sets. Each original
+    // window can only be part of one output set. The nonce is used by a runner
+    // to associate each input with its output. The nonce is represented as an
+    // opaque set of bytes.
+    //
+    // Payload: WindowFn from WindowingStrategy.
+    MERGE_WINDOWS = 7 [(beam_urn) = "beam:transform:merge_windows:v1"];
   }
   enum DeprecatedPrimitives {
     // Represents the operation to read a Bounded or Unbounded source.
@@ -228,17 +270,11 @@ message StandardPTransforms {
     // Payload: CombinePayload
     COMBINE_GLOBALLY = 1 [(beam_urn) = "beam:transform:combine_globally:v1"];
 
-    // Represents the Combine.groupedValues() operation.
-    // If this is produced by an SDK, it is assumed that the SDK understands
-    // each of CombineComponents.
-    // Payload: CombinePayload
-    COMBINE_GROUPED_VALUES = 2 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
-
     // Represents the Reshuffle operation.
-    RESHUFFLE = 3 [(beam_urn) = "beam:transform:reshuffle:v1"];
+    RESHUFFLE = 2 [(beam_urn) = "beam:transform:reshuffle:v1"];
 
     // Less well-known. Payload: WriteFilesPayload.
-    WRITE_FILES = 4 [(beam_urn) = "beam:transform:write_files:v1"];
+    WRITE_FILES = 3 [(beam_urn) = "beam:transform:write_files:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
@@ -249,23 +285,50 @@ message StandardPTransforms {
     // Represents the Pre-Combine part of a lifted Combine Per Key, as described
     // in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.ta0g6ase8z07
+    // Payload: CombinePayload
     COMBINE_PER_KEY_PRECOMBINE = 3 [(beam_urn) = "beam:transform:combine_per_key_precombine:v1"];
 
     // Represents the Merge Accumulators part of a lifted Combine Per Key, as
     // described in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.jco9rvatld5m
+    // Payload: CombinePayload
     COMBINE_PER_KEY_MERGE_ACCUMULATORS = 4 [(beam_urn) = "beam:transform:combine_per_key_merge_accumulators:v1"];
 
     // Represents the Extract Outputs part of a lifted Combine Per Key, as
     // described in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.i9i6p8gtl6ku
+    // Payload: CombinePayload
     COMBINE_PER_KEY_EXTRACT_OUTPUTS = 5 [(beam_urn) = "beam:transform:combine_per_key_extract_outputs:v1"];
+
+    // Represents the Combine Grouped Values transform, as described in the
+    // following document:
+    // https://s.apache.org/beam-runner-api-combine-model#heading=h.aj86ew4v1wk
+    // Payload: CombinePayload
+    COMBINE_GROUPED_VALUES = 6 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
   }
   // Payload for all of these: ParDoPayload containing the user's SDF
   enum SplittableParDoComponents {
+    // Pairs the input element with its initial restriction.
+    // Input: element; output: KV(element, restriction).
     PAIR_WITH_RESTRICTION = 0 [(beam_urn) = "beam:transform:sdf_pair_with_restriction:v1"];
+
+    // Splits the restriction inside an element/restriction pair.
+    // Input: KV(element, restriction); output: KV(element, restriction).
     SPLIT_RESTRICTION = 1 [(beam_urn) = "beam:transform:sdf_split_restriction:v1"];
+
+    // Applies the DoFn to every element/restriction pair in a uniquely keyed
+    // collection, in a splittable fashion.
+    // Input: KV(bytes, KV(element, restriction)); output: DoFn's output.
+    // The first "bytes" is an opaque unique key using the standard bytes coder.
+    // Typically a runner would rewrite this into a runner-specific grouping
+    // operation supporting state and timers, followed by PROCESS_ELEMENTS,
+    // with some runner-specific glue code in between.
     PROCESS_KEYED_ELEMENTS = 2 [(beam_urn) = "beam:transform:sdf_process_keyed_elements:v1"];
+
+    // Like PROCESS_KEYED_ELEMENTS, but without the unique key - just elements
+    // and restrictions.
+    // Input: KV(element, restriction); output: DoFn's output.
+    PROCESS_ELEMENTS = 3 [(beam_urn) = "beam:transform:sdf_process_elements:v1"];
   }
 }
 
@@ -318,7 +381,7 @@ message ExecutableStagePayload {
   // PTransform the ExecutableStagePayload is the payload of.
   string input = 2;
 
-  // The side inputs required for this executable stage. Each Side Input of each PTransform within
+  // The side inputs required for this executable stage. Each side input of each PTransform within
   // this ExecutableStagePayload must be represented within this field.
   repeated SideInputId side_inputs = 3;
 
@@ -334,6 +397,14 @@ message ExecutableStagePayload {
   // in transforms, and the closure of all of the components they recognize.
   Components components = 6;
 
+  // The user states required for this executable stage. Each user state of each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
+  repeated UserStateId user_states = 7;
+
+  // The timers required for this executable stage. Each timer of each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
+  repeated TimerId timers = 8;
+
   // A reference to a side input. Side inputs are uniquely identified by PTransform id and
   // local name.
   message SideInputId {
@@ -341,6 +412,26 @@ message ExecutableStagePayload {
     string transform_id = 1;
 
     // (Required) The local name of this side input from the PTransform that references it.
+    string local_name = 2;
+  }
+
+  // A reference to user state. User states are uniquely identified by PTransform id and
+  // local name.
+  message UserStateId {
+    // (Required) The id of the PTransform that references this user state.
+    string transform_id = 1;
+
+    // (Required) The local name of this user state for the PTransform that references it.
+    string local_name = 2;
+  }
+
+  // A reference to a timer. Timers are uniquely identified by PTransform id and
+  // local name.
+  message TimerId {
+    // (Required) The id of the PTransform that references this timer.
+    string transform_id = 1;
+
+    // (Required) The local name of this timer for the PTransform that references it.
     string local_name = 2;
   }
 }
@@ -371,6 +462,9 @@ message ParDoPayload {
 
   // (Required if splittable == true) Id of the restriction coder.
   string restriction_coder_id = 7;
+
+  // (Optional) Only set when this ParDo can request bundle finalization.
+  bool requests_finalization = 8;
 }
 
 // Parameters that a UDF might require.
@@ -434,6 +528,7 @@ message SetStateSpec {
 
 message TimerSpec {
   TimeDomain.Enum time_domain = 1;
+  string timer_coder_id = 2;
 }
 
 message IsBounded {
@@ -554,13 +649,29 @@ message StandardCoders {
     // Components: Coder for a single element.
     ITERABLE = 3 [(beam_urn) = "beam:coder:iterable:v1"];
 
-    // Components: None
-    TIMESTAMP = 4 [(beam_urn) = "beam:coder:timestamp:v1"];
+    // Encodes a timer containing a timestamp and a user specified payload.
+    // The encoding is represented as: timestamp payload
+    //   timestamp - a big endian 8 byte integer representing millis-since-epoch.
+    //     The encoded representation is shifted so that the byte representation of
+    //     negative values are lexicographically ordered before the byte representation
+    //     of positive values. This is typically done by subtracting -9223372036854775808
+    //     from the value and encoding it as a signed big endian integer. Example values:
+    //
+    //     -9223372036854775808: 00 00 00 00 00 00 00 00
+    //                     -255: 7F FF FF FF FF FF FF 01
+    //                       -1: 7F FF FF FF FF FF FF FF
+    //                        0: 80 00 00 00 00 00 00 00
+    //                        1: 80 00 00 00 00 00 00 01
+    //                      256: 80 00 00 00 00 00 01 00
+    //      9223372036854775807: FF FF FF FF FF FF FF FF
+    //   payload - user defined data, uses the component coder
+    // Components: Coder for the payload.
+    TIMER = 4 [(beam_urn) = "beam:coder:timer:v1"];
+
     /*
-     * The following coders are typically not specified by manually by the user,
+     * The following coders are typically not specified manually by the user,
      * but are used at runtime and must be supported by every SDK.
      */
-
     // Components: None
     INTERVAL_WINDOW = 5 [(beam_urn) = "beam:coder:interval_window:v1"];
 
@@ -898,16 +1009,40 @@ message SideInput {
   SdkFunctionSpec window_mapping_fn = 3;
 }
 
-// An environment for executing UDFs. Generally an SDK container URL, but
-// there can be many for a single SDK, for example to provide dependency
-// isolation.
+// An environment for executing UDFs. By default, an SDK container URL, but
+// can also be a process forked by a command, or an externally managed process.
 message Environment {
-
-  // (Required) The URL of a container
-  //
-  // TODO: reconcile with Fn API's DockerContainer structure by
-  // adding adequate metadata to know how to interpret the container
+  // Deprecated. Tracked in BEAM-5433
   string url = 1;
+
+  // (Required) The URN of the payload
+  string urn = 2;
+
+  // (Optional) The data specifying any parameters to the URN. If
+  // the URN does not require any arguments, this may be omitted.
+  bytes payload = 3;
+}
+
+message StandardEnvironments {
+  enum Environments {
+    DOCKER = 0 [(beam_urn) = "beam:env:docker:v1"]; // A managed docker container to run user code.
+
+    PROCESS = 1 [(beam_urn) = "beam:env:process:v1"]; // A managed native process to run user code.
+
+    EXTERNAL = 2 [(beam_urn) = "beam:env:external:v1"]; // An external non managed process to run user code.
+  }
+}
+
+// The payload of a Docker image
+message DockerPayload {
+  string container_image = 1;  // implicitly linux_amd64.
+}
+
+message ProcessPayload {
+  string os = 1;  // "linux", "darwin", ..
+  string arch = 2;  // "amd64", ..
+  string command = 3; // process to execute
+  map<string, string> env = 4; // Environment variables
 }
 
 // A specification of a user defined function.
@@ -950,6 +1085,8 @@ extend google.protobuf.EnumValueOptions {
   //   }
   // }
   string beam_urn = 185324356;
+  // A value to store other constants
+  string beam_constant = 185324357;
 }
 
 // A URN along with a parameter object whose schema is determined by the

@@ -21,15 +21,15 @@ import com.google.auto.service.AutoService;
 import java.util.ServiceLoader;
 
 /**
- * {@link PipelineOptions} creators have the ability to automatically have their
- * {@link PipelineOptions} registered with this SDK by creating a {@link ServiceLoader} entry
- * and a concrete implementation of this interface.
+ * {@link PipelineOptions} creators have the ability to automatically have their {@link
+ * PipelineOptions} registered with this SDK by creating a {@link ServiceLoader} entry and a
+ * concrete implementation of this interface.
  *
- * <p>Note that automatic registration of any {@link PipelineOptions} requires users
- * conform to the limitations discussed on {@link PipelineOptionsFactory#register(Class)}.
+ * <p>Note that automatic registration of any {@link PipelineOptions} requires users conform to the
+ * limitations discussed on {@link PipelineOptionsFactory#register(Class)}.
  *
- * <p>It is optional but recommended to use one of the many build time tools such as
- * {@link AutoService} to generate the necessary META-INF files automatically.
+ * <p>It is optional but recommended to use one of the many build time tools such as {@link
+ * AutoService} to generate the necessary META-INF files automatically.
  */
 public interface PipelineOptionsRegistrar {
   Iterable<Class<? extends PipelineOptions>> getPipelineOptions();

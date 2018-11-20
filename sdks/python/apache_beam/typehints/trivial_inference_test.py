@@ -16,6 +16,11 @@
 #
 
 """Tests for apache_beam.typehints.trivial_inference."""
+
+from __future__ import absolute_import
+
+import os
+import sys
 import unittest
 
 from apache_beam.typehints import trivial_inference
@@ -103,6 +108,9 @@ class TrivialInferenceTest(unittest.TestCase):
         lambda xs: [x for x in xs],
         [typehints.Tuple[int, ...]])
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.')
   def testTupleListComprehension(self):
     self.assertReturnType(
         typehints.List[int],

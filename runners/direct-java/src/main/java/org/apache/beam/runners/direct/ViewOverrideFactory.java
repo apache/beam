@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import java.io.IOException;
@@ -43,7 +42,7 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class ViewOverrideFactory<ElemT, ViewT>
     implements PTransformOverrideFactory<
-    PCollection<ElemT>, PCollection<ElemT>,
+        PCollection<ElemT>, PCollection<ElemT>,
         PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
 
   @Override

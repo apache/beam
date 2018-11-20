@@ -19,14 +19,9 @@
 
   <modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <groupId>org.apache.beam</groupId>
-    <artifactId>beam-sdks-java-maven-archetypes-parent</artifactId>
-    <version>2.5.0-SNAPSHOT</version>
-    <relativePath>../pom.xml</relativePath>
-  </parent>
-
+  <groupId>org.apache.beam</groupId>
   <artifactId>beam-sdks-java-maven-archetypes-examples</artifactId>
+  <version>2.6.0-SNAPSHOT</version>
   <name>Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples</name>
   <description>A Maven Archetype to create a project containing all the
     example pipelines from the Apache Beam Java SDK.
@@ -105,6 +100,7 @@
       <plugin>
         <artifactId>exec-maven-plugin</artifactId>
         <groupId>org.codehaus.mojo</groupId>
+        <version>1.5.0</version>
         <executions>
           <execution>
             <id>generate-archetype-contents</id>
@@ -121,6 +117,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-clean-plugin</artifactId>
+        <version>3.1.0</version>
         <configuration>
           <filesets>
             <fileset>
@@ -136,15 +133,4 @@
       </plugin>
     </plugins>
   </build>
-
-  <dependencies>
-    <!-- Ensure that the examples-java module is up to date before compiling
-         and testing this archetype so that the tested code receives the
-         correct dependencies. -->
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-examples-java</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-  </dependencies>
 </project>

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
@@ -34,5 +33,6 @@ public abstract class RemoteOutputReceiver<T> {
   }
 
   public abstract Coder<T> getCoder();
+
   public abstract FnDataReceiver<T> getReceiver();
 }

@@ -30,10 +30,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * A test for {@link UploadIdResponseInterceptor}.
- */
-
+/** A test for {@link UploadIdResponseInterceptor}. */
 @RunWith(JUnit4.class)
 public class UploadIdResponseInterceptorTest {
 
@@ -69,9 +66,7 @@ public class UploadIdResponseInterceptorTest {
     return builder.build().createRequestFactory().buildGetRequest(url).execute();
   }
 
-  /**
-   * Tests the responses that should not log.
-   */
+  /** Tests the responses that should not log. */
   @Test
   public void testResponseNoLogging() throws IOException {
     new UploadIdResponseInterceptor().interceptResponse(buildHttpResponse(null, null, null));
@@ -84,9 +79,7 @@ public class UploadIdResponseInterceptorTest {
     expectedLogs.verifyNotLogged("");
   }
 
-  /**
-   * Check that a response logs with the correct log.
-   */
+  /** Check that a response logs with the correct log. */
   @Test
   public void testResponseLogs() throws IOException {
     new UploadIdResponseInterceptor().interceptResponse(buildHttpResponse("abc", null, "type"));

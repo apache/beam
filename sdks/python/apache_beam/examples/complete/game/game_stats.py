@@ -71,6 +71,7 @@ python game_stats.py \
 """
 
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import argparse
@@ -158,17 +159,19 @@ class TeamScoresDict(beam.DoFn):
 
 class WriteToBigQuery(beam.PTransform):
   """Generate, format, and write BigQuery table row information."""
-  def __init__(self, table_name, dataset, schema):
+  def __init__(self, table_name, dataset, schema, project):
     """Initializes the transform.
     Args:
       table_name: Name of the BigQuery table to use.
       dataset: Name of the dataset to use.
       schema: Dictionary in the format {'column_name': 'bigquery_type'}
+      project: Name of the Cloud project containing BigQuery table.
     """
     super(WriteToBigQuery, self).__init__()
     self.table_name = table_name
     self.dataset = dataset
     self.schema = schema
+    self.project = project
 
   def get_schema(self):
     """Build the output table schema."""
@@ -181,13 +184,12 @@ class WriteToBigQuery(beam.PTransform):
         '%s:%s' % (col, self.schema[col]) for col in self.schema)
 
   def expand(self, pcoll):
-    project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
     return (
         pcoll
         | 'ConvertToRow' >> beam.Map(
             lambda elem: {col: elem[col] for col in self.schema})
         | beam.io.WriteToBigQuery(
-            self.table_name, self.dataset, project, self.get_schema()))
+            self.table_name, self.dataset, self.project, self.get_schema()))
 
 
 # [START abuse_detect]
@@ -229,7 +231,7 @@ class CalculateSpammyUsers(beam.PTransform):
 class UserSessionActivity(beam.DoFn):
   """Calculate and output an element's session duration, in seconds."""
   def process(self, elem, window=beam.DoFn.WindowParam):
-    yield (window.end.micros - window.start.micros) / 1000000
+    yield (window.end.micros - window.start.micros)//1000000
 
 
 def run(argv=None):
@@ -238,8 +240,10 @@ def run(argv=None):
 
   parser.add_argument('--topic',
                       type=str,
-                      required=True,
                       help='Pub/Sub topic to read from')
+  parser.add_argument('--subscription',
+                      type=str,
+                      help='Pub/Sub subscription to read from')
   parser.add_argument('--dataset',
                       type=str,
                       required=True,
@@ -267,6 +271,11 @@ def run(argv=None):
 
   args, pipeline_args = parser.parse_known_args(argv)
 
+  if args.topic is None and args.subscription is None:
+    parser.print_usage()
+    print(sys.argv[0] + ': error: one of --topic or --subscription is required')
+    sys.exit(1)
+
   options = PipelineOptions(pipeline_args)
 
   # We also require the --project option to access --dataset
@@ -287,10 +296,16 @@ def run(argv=None):
   options.view_as(StandardOptions).streaming = True
 
   with beam.Pipeline(options=options) as p:
-    # Read events from Pub/Sub using custom timestamps
+    # Read game events from Pub/Sub using custom timestamps, which
+    # are extracted from the data elements, and parse the data.
+    if args.subscription:
+      scores = p | 'ReadPubSub' >> beam.io.ReadFromPubSub(
+          subscription=args.subscription)
+    else:
+      scores = p | 'ReadPubSub' >> beam.io.ReadFromPubSub(
+          topic=args.topic)
     raw_events = (
-        p
-        | 'ReadPubSub' >> beam.io.gcp.pubsub.ReadStringsFromPubSub(args.topic)
+        scores
         | 'ParseGameEventFn' >> beam.ParDo(ParseGameEventFn())
         | 'AddEventTimestamps' >> beam.Map(
             lambda elem: beam.window.TimestampedValue(elem, elem['timestamp'])))
@@ -340,7 +355,7 @@ def run(argv=None):
              'total_score': 'INTEGER',
              'window_start': 'STRING',
              'processing_time': 'STRING',
-         }))
+         }, options.view_as(GoogleCloudOptions).project))
 
     # [START session_calc]
     # Detect user sessions-- that is, a burst of activity separated by a gap
@@ -374,7 +389,7 @@ def run(argv=None):
      | 'WriteAvgSessionLength' >> WriteToBigQuery(
          args.table_name + '_sessions', args.dataset, {
              'mean_duration': 'FLOAT',
-         }))
+         }, options.view_as(GoogleCloudOptions).project))
      # [END rewindow]
 
 

@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -36,7 +37,9 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -81,8 +84,16 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract LifecycleMethod teardown();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.OnWindowExpiration} method. */
+  @Nullable
+  public abstract OnWindowExpirationMethod onWindowExpiration();
+
   /** Timer declarations present on the {@link DoFn} class. Immutable. */
   public abstract Map<String, TimerDeclaration> timerDeclarations();
+
+  /** Field access declaration. */
+  @Nullable
+  public abstract Map<String, FieldAccessDeclaration> fieldAccessDeclarations();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialRestriction} method. */
   @Nullable
@@ -127,19 +138,38 @@ public abstract class DoFnSignature {
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setFnClass(Class<? extends DoFn<?, ?>> fnClass);
+
     abstract Builder setIsBoundedPerElement(PCollection.IsBounded isBounded);
+
     abstract Builder setProcessElement(ProcessElementMethod processElement);
+
     abstract Builder setStartBundle(BundleMethod startBundle);
+
     abstract Builder setFinishBundle(BundleMethod finishBundle);
+
     abstract Builder setSetup(LifecycleMethod setup);
+
     abstract Builder setTeardown(LifecycleMethod teardown);
+
+    abstract Builder setOnWindowExpiration(OnWindowExpirationMethod onWindowExpiration);
+
     abstract Builder setGetInitialRestriction(GetInitialRestrictionMethod getInitialRestriction);
+
     abstract Builder setSplitRestriction(SplitRestrictionMethod splitRestriction);
+
     abstract Builder setGetRestrictionCoder(GetRestrictionCoderMethod getRestrictionCoder);
+
     abstract Builder setNewTracker(NewTrackerMethod newTracker);
+
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
+
     abstract Builder setTimerDeclarations(Map<String, TimerDeclaration> timerDeclarations);
+
+    abstract Builder setFieldAccessDeclarations(
+        Map<String, FieldAccessDeclaration> fieldAccessDeclaration);
+
     abstract Builder setOnTimerMethods(Map<String, OnTimerMethod> onTimerMethods);
+
     abstract DoFnSignature build();
   }
 
@@ -173,8 +203,8 @@ public abstract class DoFnSignature {
     private Parameter() {}
 
     /**
-     * Performs case analysis on this {@link Parameter}, processing it with the appropriate
-     * {@link Cases#dispatch} case of the provided {@link Cases} object.
+     * Performs case analysis on this {@link Parameter}, processing it with the appropriate {@link
+     * Cases#dispatch} case of the provided {@link Cases} object.
      */
     public <ResultT> ResultT match(Cases<ResultT> cases) {
       // This could be done with reflection, but since the number of cases is small and known,
@@ -201,6 +231,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((PipelineOptionsParameter) this);
       } else if (this instanceof ElementParameter) {
         return cases.dispatch((ElementParameter) this);
+      } else if (this instanceof RowParameter) {
+        return cases.dispatch((RowParameter) this);
       } else if (this instanceof TimestampParameter) {
         return cases.dispatch((TimestampParameter) this);
       } else if (this instanceof OutputReceiverParameter) {
@@ -211,34 +243,47 @@ public abstract class DoFnSignature {
         return cases.dispatch((TimeDomainParameter) this);
       } else {
         throw new IllegalStateException(
-            String.format("Attempt to case match on unknown %s subclass %s",
+            String.format(
+                "Attempt to case match on unknown %s subclass %s",
                 Parameter.class.getCanonicalName(), this.getClass().getCanonicalName()));
       }
     }
 
-    /**
-     * An interface for destructuring a {@link Parameter}.
-     */
+    /** An interface for destructuring a {@link Parameter}. */
     public interface Cases<ResultT> {
       ResultT dispatch(StartBundleContextParameter p);
+
       ResultT dispatch(FinishBundleContextParameter p);
+
       ResultT dispatch(ProcessContextParameter p);
+
       ResultT dispatch(ElementParameter p);
+
+      ResultT dispatch(RowParameter p);
+
       ResultT dispatch(TimestampParameter p);
+
       ResultT dispatch(TimeDomainParameter p);
+
       ResultT dispatch(OutputReceiverParameter p);
+
       ResultT dispatch(TaggedOutputReceiverParameter p);
+
       ResultT dispatch(OnTimerContextParameter p);
+
       ResultT dispatch(WindowParameter p);
+
       ResultT dispatch(PaneInfoParameter p);
+
       ResultT dispatch(RestrictionTrackerParameter p);
+
       ResultT dispatch(StateParameter p);
+
       ResultT dispatch(TimerParameter p);
+
       ResultT dispatch(PipelineOptionsParameter p);
 
-      /**
-       * A base class for a visitor with a default method for cases it is not interested in.
-       */
+      /** A base class for a visitor with a default method for cases it is not interested in. */
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
 
         protected abstract ResultT dispatchDefault(Parameter p);
@@ -260,6 +305,11 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(ElementParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(RowParameter p) {
           return dispatchDefault(p);
         }
 
@@ -326,7 +376,7 @@ public abstract class DoFnSignature {
     private static final FinishBundleContextParameter FINISH_BUNDLE_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_FinishBundleContextParameter();
     private static final ProcessContextParameter PROCESS_CONTEXT_PARAMETER =
-          new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
+        new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
     private static final OnTimerContextParameter ON_TIMER_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnTimerContextParameter();
     private static final TimestampParameter TIMESTAMP_PARAMETER =
@@ -335,8 +385,6 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_PaneInfoParameter();
     private static final TimeDomainParameter TIME_DOMAIN_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TimeDomainParameter();
-    private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
     private static final TaggedOutputReceiverParameter TAGGED_OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TaggedOutputReceiverParameter();
 
@@ -349,6 +397,10 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_ElementParameter(elementT);
     }
 
+    public static RowParameter rowParameter(@Nullable String id) {
+      return new AutoValue_DoFnSignature_Parameter_RowParameter(id);
+    }
+
     public static TimestampParameter timestampParameter() {
       return TIMESTAMP_PARAMETER;
     }
@@ -357,8 +409,8 @@ public abstract class DoFnSignature {
       return TIME_DOMAIN_PARAMETER;
     }
 
-    public static OutputReceiverParameter outputReceiverParameter() {
-      return OUTPUT_RECEIVER_PARAMETER;
+    public static OutputReceiverParameter outputReceiverParameter(boolean rowReceiver) {
+      return new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter(rowReceiver);
     }
 
     public static TaggedOutputReceiverParameter taggedOutputReceiverParameter() {
@@ -384,16 +436,12 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
     }
 
-    /**
-     * Returns a {@link RestrictionTrackerParameter}.
-     */
+    /** Returns a {@link RestrictionTrackerParameter}. */
     public static RestrictionTrackerParameter restrictionTracker(TypeDescriptor<?> trackerT) {
       return new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter(trackerT);
     }
 
-    /**
-     * Returns a {@link StateParameter} referring to the given {@link StateDeclaration}.
-     */
+    /** Returns a {@link StateParameter} referring to the given {@link StateDeclaration}. */
     public static StateParameter stateParameter(StateDeclaration decl) {
       return new AutoValue_DoFnSignature_Parameter_StateParameter(decl);
     }
@@ -402,9 +450,7 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_TimerParameter(decl);
     }
 
-    /**
-     * Descriptor for a {@link Parameter} of a subtype of {@link PipelineOptions}.
-     */
+    /** Descriptor for a {@link Parameter} of a subtype of {@link PipelineOptions}. */
     @AutoValue
     public abstract static class PipelineOptionsParameter extends Parameter {
       PipelineOptionsParameter() {}
@@ -453,6 +499,19 @@ public abstract class DoFnSignature {
     }
 
     /**
+     * Descriptor for a {@link Parameter} of Row type.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class RowParameter extends Parameter {
+      RowParameter() {}
+
+      @Nullable
+      public abstract String fieldAccessId();
+    }
+
+    /**
      * Descriptor for a {@link Parameter} of type {@link DoFn.Timestamp}.
      *
      * <p>All such descriptors are equal.
@@ -469,8 +528,7 @@ public abstract class DoFnSignature {
      */
     @AutoValue
     public abstract static class TimeDomainParameter extends Parameter {
-      TimeDomainParameter() {
-      }
+      TimeDomainParameter() {}
     }
 
     /**
@@ -481,6 +539,8 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class OutputReceiverParameter extends Parameter {
       OutputReceiverParameter() {}
+
+      public abstract boolean isRowReceiver();
     }
 
     /**
@@ -490,8 +550,7 @@ public abstract class DoFnSignature {
      */
     @AutoValue
     public abstract static class TaggedOutputReceiverParameter extends Parameter {
-      TaggedOutputReceiverParameter() {
-      }
+      TaggedOutputReceiverParameter() {}
     }
 
     /**
@@ -517,8 +576,8 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Descriptor for a {@link Parameter} of type
-     * {@link org.apache.beam.sdk.transforms.windowing.PaneInfo}.
+     * Descriptor for a {@link Parameter} of type {@link
+     * org.apache.beam.sdk.transforms.windowing.PaneInfo}.
      *
      * <p>All such descriptors are equal.
      */
@@ -555,8 +614,8 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Descriptor for a {@link Parameter} of type {@link Timer}, with an id indicated by
-     * its {@link TimerId} annotation.
+     * Descriptor for a {@link Parameter} of type {@link Timer}, with an id indicated by its {@link
+     * TimerId} annotation.
      */
     @AutoValue
     public abstract static class TimerParameter extends Parameter {
@@ -616,8 +675,8 @@ public abstract class DoFnSignature {
      * Whether this {@link DoFn} observes - directly or indirectly - the window that an element
      * resides in.
      *
-     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because
-     * they are each scoped to a single window.
+     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
+     * each scoped to a single window.
      */
     public boolean observesWindow() {
       return extraParameters()
@@ -628,6 +687,31 @@ public abstract class DoFnSignature {
                       Predicates.instanceOf(TimerParameter.class),
                       Predicates.instanceOf(StateParameter.class))
                   ::apply);
+    }
+
+    /**
+     * Whether this {@link DoFn} reads a schema {@link PCollection} type as a {@link
+     * org.apache.beam.sdk.values.Row} object.
+     */
+    @Nullable
+    public RowParameter getRowParameter() {
+      Optional<Parameter> parameter =
+          extraParameters()
+              .stream()
+              .filter(Predicates.instanceOf(RowParameter.class)::apply)
+              .findFirst();
+      return parameter.isPresent() ? ((RowParameter) parameter.get()) : null;
+    }
+
+    /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */
+    @Nullable
+    public OutputReceiverParameter getMainOutputReceiver() {
+      Optional<Parameter> parameter =
+          extraParameters()
+              .stream()
+              .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
+              .findFirst();
+      return parameter.isPresent() ? ((OutputReceiverParameter) parameter.get()) : null;
     }
 
     /**
@@ -682,20 +766,58 @@ public abstract class DoFnSignature {
     }
   }
 
+  /** Describes a {@link DoFn.OnWindowExpiration} method. */
+  @AutoValue
+  public abstract static class OnWindowExpirationMethod implements MethodWithExtraParameters {
+
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /**
+     * Whether this method requires stable input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}. For {@link
+     * org.apache.beam.sdk.transforms.DoFn.OnWindowExpiration}, this means that any state must be
+     * stably persisted prior to calling it.
+     */
+    public abstract boolean requiresStableInput();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static OnWindowExpirationMethod create(
+        Method targetMethod,
+        boolean requiresStableInput,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_OnWindowExpirationMethod(
+          targetMethod,
+          requiresStableInput,
+          windowT,
+          Collections.unmodifiableList(extraParameters));
+    }
+  }
+
   /**
-   * Describes a timer declaration; a field of type {@link TimerSpec} annotated with
-   * {@link DoFn.TimerId}.
+   * Describes a timer declaration; a field of type {@link TimerSpec} annotated with {@link
+   * DoFn.TimerId}.
    */
   @AutoValue
   public abstract static class TimerDeclaration {
     public abstract String id();
+
     public abstract Field field();
 
     static TimerDeclaration create(String id, Field field) {
       return new AutoValue_DoFnSignature_TimerDeclaration(id, field);
     }
   }
-
 
   /** Describes a {@link DoFn.StartBundle} or {@link DoFn.FinishBundle} method. */
   @AutoValue
@@ -710,19 +832,38 @@ public abstract class DoFnSignature {
   }
 
   /**
-   * Describes a state declaration; a field of type {@link StateSpec} annotated with
-   * {@link DoFn.StateId}.
+   * Describes a state declaration; a field of type {@link StateSpec} annotated with {@link
+   * DoFn.StateId}.
    */
   @AutoValue
   public abstract static class StateDeclaration {
     public abstract String id();
+
     public abstract Field field();
+
     public abstract TypeDescriptor<? extends State> stateType();
 
     static StateDeclaration create(
         String id, Field field, TypeDescriptor<? extends State> stateType) {
       field.setAccessible(true);
       return new AutoValue_DoFnSignature_StateDeclaration(id, field, stateType);
+    }
+  }
+
+  /**
+   * Decscribes a field access declaration. This is used when the input {@link PCollection} has an
+   * associated schema, to specify exactly which fields in the row are accessed. Any fields not
+   * specified are not guaranteed to be present when reading the row.
+   */
+  @AutoValue
+  public abstract static class FieldAccessDeclaration {
+    public abstract String id();
+
+    public abstract Field field();
+
+    static FieldAccessDeclaration create(String id, Field field) {
+      field.setAccessible(true);
+      return new AutoValue_DoFnSignature_FieldAccessDeclaration(id, field);
     }
   }
 

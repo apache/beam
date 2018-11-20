@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
 import com.google.common.collect.Iterables;
@@ -63,27 +62,25 @@ public class BoundedDataset<T> implements Dataset {
     if (rdd == null) {
       WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
           WindowedValue.getValueOnlyCoder(coder);
-      rdd = jsc.parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
-          .map(CoderHelpers.fromByteFunction(windowCoder));
+      rdd =
+          jsc.parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
+              .map(CoderHelpers.fromByteFunction(windowCoder));
     }
     return rdd;
   }
 
   Iterable<WindowedValue<T>> getValues(PCollection<T> pcollection) {
     if (windowedValues == null) {
-      WindowFn<?, ?> windowFn =
-          pcollection.getWindowingStrategy().getWindowFn();
+      WindowFn<?, ?> windowFn = pcollection.getWindowingStrategy().getWindowFn();
       Coder<? extends BoundedWindow> windowCoder = windowFn.windowCoder();
       final WindowedValue.WindowedValueCoder<T> windowedValueCoder;
       if (windowFn instanceof GlobalWindows) {
-        windowedValueCoder =
-            WindowedValue.ValueOnlyWindowedValueCoder.of(pcollection.getCoder());
+        windowedValueCoder = WindowedValue.ValueOnlyWindowedValueCoder.of(pcollection.getCoder());
       } else {
         windowedValueCoder =
             WindowedValue.FullWindowedValueCoder.of(pcollection.getCoder(), windowCoder);
       }
-      JavaRDDLike<byte[], ?> bytesRDD =
-          rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
+      JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
       List<byte[]> clientBytes = bytesRDD.collect();
       windowedValues =
           clientBytes
@@ -105,9 +102,11 @@ public class BoundedDataset<T> implements Dataset {
       // Caching can cause Serialization, we need to code to bytes
       // more details in https://issues.apache.org/jira/browse/BEAM-2669
       Coder<WindowedValue<T>> windowedValueCoder = (Coder<WindowedValue<T>>) coder;
-      this.rdd = getRDD().map(CoderHelpers.toByteFunction(windowedValueCoder))
-          .persist(level)
-          .map(CoderHelpers.fromByteFunction(windowedValueCoder));
+      this.rdd =
+          getRDD()
+              .map(CoderHelpers.toByteFunction(windowedValueCoder))
+              .persist(level)
+              .map(CoderHelpers.fromByteFunction(windowedValueCoder));
     }
   }
 
@@ -121,5 +120,4 @@ public class BoundedDataset<T> implements Dataset {
   public void setName(String name) {
     rdd.setName(name);
   }
-
 }

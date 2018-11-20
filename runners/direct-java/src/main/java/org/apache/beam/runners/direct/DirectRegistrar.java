@@ -25,15 +25,13 @@ import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 
 /**
- * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the
- * {@link DirectRunner}.
+ * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the {@link
+ * DirectRunner}.
  */
 public class DirectRegistrar {
   private DirectRegistrar() {}
 
-  /**
-   * Registers the {@link DirectRunner}.
-   */
+  /** Registers the {@link DirectRunner}. */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
@@ -42,9 +40,7 @@ public class DirectRegistrar {
     }
   }
 
-  /**
-   * Registers the {@link DirectOptions}.
-   */
+  /** Registers the {@link DirectOptions}. */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override

@@ -52,9 +52,9 @@ type Stream interface {
 	Read() (FullValue, error)
 }
 
-// ReStream is Stream factory.
+// ReStream is re-iterable stream, i.e., a Stream factory.
 type ReStream interface {
-	Open() Stream
+	Open() (Stream, error)
 }
 
 // FixedReStream is a simple in-memory ReSteam.
@@ -62,8 +62,8 @@ type FixedReStream struct {
 	Buf []FullValue
 }
 
-func (n *FixedReStream) Open() Stream {
-	return &FixedStream{Buf: n.Buf}
+func (n *FixedReStream) Open() (Stream, error) {
+	return &FixedStream{Buf: n.Buf}, nil
 }
 
 // FixedStream is a simple in-memory Stream from a fixed array.
@@ -125,8 +125,12 @@ func Convert(v interface{}, to reflect.Type) interface{} {
 	}
 }
 
-// ReadAll read the full stream and returns the result. It always closes the stream.
-func ReadAll(s Stream) ([]FullValue, error) {
+// ReadAll read a full restream and returns the result.
+func ReadAll(rs ReStream) ([]FullValue, error) {
+	s, err := rs.Open()
+	if err != nil {
+		return nil, err
+	}
 	defer s.Close()
 
 	var ret []FullValue

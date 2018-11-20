@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 
 /**
@@ -54,6 +56,9 @@ public interface DoFnInvoker<InputT, OutputT> {
 
   /** Invoke the {@link DoFn.Teardown} method on the bound {@link DoFn}. */
   void invokeTeardown();
+
+  /** Invoke the {@link DoFn.OnWindowExpiration} method on the bound {@link DoFn}. */
+  void invokeOnWindowExpiration(ArgumentProvider<InputT, OutputT> arguments);
 
   /**
    * Invoke the {@link DoFn.ProcessElement} method on the bound {@link DoFn}.
@@ -85,7 +90,7 @@ public interface DoFnInvoker<InputT, OutputT> {
 
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> TrackerT invokeNewTracker(
+  <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> invokeNewTracker(
       RestrictionT restriction);
 
   /** Get the bound {@link DoFn}. */
@@ -110,18 +115,13 @@ public interface DoFnInvoker<InputT, OutputT> {
      */
     BoundedWindow window();
 
-    /**
-     * Provides a {@link PaneInfo}.
-     */
+    /** Provides a {@link PaneInfo}. */
     PaneInfo paneInfo(DoFn<InputT, OutputT> doFn);
-
 
     /** Provide {@link PipelineOptions}. */
     PipelineOptions pipelineOptions();
 
-    /**
-     * Provide a {@link DoFn.StartBundleContext} to use with the given {@link DoFn}.
-     */
+    /** Provide a {@link DoFn.StartBundleContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link DoFn.FinishBundleContext} to use with the given {@link DoFn}. */
@@ -139,18 +139,22 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a link to the input element timestamp. */
     Instant timestamp(DoFn<InputT, OutputT> doFn);
 
-    /** Provide a link to the time domain for a timer firing.
+    /**
+     * Provides a link to the input element converted to a {@link Row} object. The input collection
+     * must have a schema registered for this to be called.
      */
+    Row asRow(@Nullable String id);
+
+    /** Provide a link to the time domain for a timer firing. */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
-    /**
-     * Provide a {@link OutputReceiver} for outputting to the default output.
-     */
+    /** Provide a {@link OutputReceiver} for outputting to the default output. */
     OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn);
 
-    /**
-     * Provide a {@link MultiOutputReceiver} for outputing to the default output.
-     */
+    /** Provide a {@link OutputReceiver} for outputting rows to the default output. */
+    OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn);
+
+    /** Provide a {@link MultiOutputReceiver} for outputing to the default output. */
     MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn);
 
     /**
@@ -188,6 +192,14 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
+    public Row asRow(@Nullable String id) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
@@ -205,6 +217,14 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

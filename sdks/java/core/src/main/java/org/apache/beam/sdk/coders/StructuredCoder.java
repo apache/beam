@@ -32,8 +32,8 @@ import java.util.List;
  *   <li>{@link #getComponents}: the default implementation returns {@link #getCoderArguments}.
  *   <li>{@link #getEncodedElementByteSize} and {@link #isRegisterByteSizeObserverCheap}: the
  *       default implementation encodes values to bytes and counts the bytes, which is considered
- *       expensive. The default element byte size observer uses the value returned by
- *       {@link #getEncodedElementByteSize}.
+ *       expensive. The default element byte size observer uses the value returned by {@link
+ *       #getEncodedElementByteSize}.
  * </ul>
  */
 public abstract class StructuredCoder<T> extends Coder<T> {
@@ -51,8 +51,8 @@ public abstract class StructuredCoder<T> extends Coder<T> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true} if the two {@link StructuredCoder} instances have the
-   * same class and equal components.
+   * @return {@code true} if the two {@link StructuredCoder} instances have the same class and equal
+   *     components.
    */
   @Override
   public boolean equals(Object o) {
@@ -90,5 +90,4 @@ public abstract class StructuredCoder<T> extends Coder<T> {
     }
     return builder.toString();
   }
-
 }

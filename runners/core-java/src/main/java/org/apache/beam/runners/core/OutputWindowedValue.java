@@ -24,8 +24,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /**
- * An object that can output a value with all of its windowing information to the main output or
- * any tagged output.
+ * An object that can output a value with all of its windowing information to the main output or any
+ * tagged output.
  */
 public interface OutputWindowedValue<OutputT> {
   /** Outputs a value with windowing information to the main output. */

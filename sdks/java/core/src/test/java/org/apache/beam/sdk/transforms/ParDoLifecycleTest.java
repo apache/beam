@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.transforms;
 
 import static org.hamcrest.Matchers.anyOf;
@@ -44,14 +43,11 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests that {@link ParDo} exercises {@link DoFn} methods in the appropriate sequence.
- */
+/** Tests that {@link ParDo} exercises {@link DoFn} methods in the appropriate sequence. */
 @RunWith(JUnit4.class)
 public class ParDoLifecycleTest implements Serializable {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   private static class CallSequenceEnforcingDoFn<T> extends DoFn<T, T> {
     private boolean setupCalled = false;
@@ -166,7 +162,8 @@ public class ParDoLifecycleTest implements Serializable {
     @StartBundle
     public void begin() {
       assertThat("setup should have been called", setupCalled, is(true));
-      assertThat("Even number of startBundle and finishBundle calls in startBundle",
+      assertThat(
+          "Even number of startBundle and finishBundle calls in startBundle",
           startBundleCalls,
           equalTo(finishBundleCalls));
       assertThat("teardown should not have been called", teardownCalled, is(false));
@@ -176,7 +173,8 @@ public class ParDoLifecycleTest implements Serializable {
     @ProcessElement
     public void process(ProcessContext c) throws Exception {
       assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
-      assertThat("there should be one startBundle call with no call to finishBundle",
+      assertThat(
+          "there should be one startBundle call with no call to finishBundle",
           startBundleCalls,
           equalTo(finishBundleCalls + 1));
       assertThat("teardown should not have been called", teardownCalled, is(false));
@@ -185,7 +183,8 @@ public class ParDoLifecycleTest implements Serializable {
     @FinishBundle
     public void end() {
       assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
-      assertThat("there should be one bundle that has been started but not finished",
+      assertThat(
+          "there should be one bundle that has been started but not finished",
           startBundleCalls,
           equalTo(finishBundleCalls + 1));
       assertThat("teardown should not have been called", teardownCalled, is(false));
@@ -213,9 +212,7 @@ public class ParDoLifecycleTest implements Serializable {
   @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInStartBundle() {
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.START_BUNDLE);
-    p
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.of(fn));
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
     try {
       p.run();
       fail("Pipeline should have failed with an exception");
@@ -231,9 +228,7 @@ public class ParDoLifecycleTest implements Serializable {
   @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInProcessElement() {
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.PROCESS_ELEMENT);
-    p
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.of(fn));
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
     try {
       p.run();
       fail("Pipeline should have failed with an exception");
@@ -249,9 +244,7 @@ public class ParDoLifecycleTest implements Serializable {
   @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInFinishBundle() {
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.FINISH_BUNDLE);
-    p
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.of(fn));
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
     try {
       p.run();
       fail("Pipeline should have failed with an exception");
@@ -272,7 +265,8 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat("Function should have been torn down after exception",
+      assertThat(
+          "Function should have been torn down after exception",
           ExceptionThrowingOldFn.teardownCalled.get(),
           is(true));
     }
@@ -287,7 +281,8 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat("Function should have been torn down after exception",
+      assertThat(
+          "Function should have been torn down after exception",
           ExceptionThrowingOldFn.teardownCalled.get(),
           is(true));
     }
@@ -302,7 +297,8 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat("Function should have been torn down after exception",
+      assertThat(
+          "Function should have been torn down after exception",
           ExceptionThrowingOldFn.teardownCalled.get(),
           is(true));
     }
@@ -317,7 +313,8 @@ public class ParDoLifecycleTest implements Serializable {
       p.run();
       fail("Pipeline should have failed with an exception");
     } catch (Exception e) {
-      assertThat("Function should have been torn down after exception",
+      assertThat(
+          "Function should have been torn down after exception",
           ExceptionThrowingOldFn.teardownCalled.get(),
           is(true));
     }
@@ -368,7 +365,6 @@ public class ParDoLifecycleTest implements Serializable {
       teardownCalled.set(true);
     }
   }
-
 
   private static class ExceptionThrowingFn extends DoFn<Object, Object> {
     static AtomicBoolean teardownCalled = new AtomicBoolean(false);

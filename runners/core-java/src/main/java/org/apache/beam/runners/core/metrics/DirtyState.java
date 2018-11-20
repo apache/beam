@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import java.io.Serializable;
@@ -28,19 +27,17 @@ import org.apache.beam.sdk.annotations.Internal;
  * Atomically tracks the dirty-state of a metric.
  *
  * <p>Reporting an update is split into two parts such that only changes made before the call to
- * {@link #beforeCommit()} are committed when {@link #afterCommit()} is invoked. This allows for
- * a two-step commit process of gathering all the dirty updates (calling {#link beforeCommit()})
+ * {@link #beforeCommit()} are committed when {@link #afterCommit()} is invoked. This allows for a
+ * two-step commit process of gathering all the dirty updates (calling {#link beforeCommit()})
  * followed by committing and calling {#link afterCommit()}.
  *
- * <p>The tracking of dirty states is done conservatively -- sometimes {@link #beforeCommit()}
- * will return true (indicating a dirty metric) even if there have been no changes since the last
- * commit.
+ * <p>The tracking of dirty states is done conservatively -- sometimes {@link #beforeCommit()} will
+ * return true (indicating a dirty metric) even if there have been no changes since the last commit.
  *
- * <p>There is also a possible race when the underlying metric is modified but the call to
- * {@link #afterModification()} hasn't happened before the call to {@link #beforeCommit()}. In this
- * case the next round of metric updating will see the changes. If this was for the final commit,
- * then the metric updates shouldn't be extracted until all possible user modifications have
- * completed.
+ * <p>There is also a possible race when the underlying metric is modified but the call to {@link
+ * #afterModification()} hasn't happened before the call to {@link #beforeCommit()}. In this case
+ * the next round of metric updating will see the changes. If this was for the final commit, then
+ * the metric updates shouldn't be extracted until all possible user modifications have completed.
  */
 @Experimental(Kind.METRICS)
 @Internal
@@ -91,9 +88,9 @@ public class DirtyState implements Serializable {
   }
 
   /**
-   * Mark any changes up to the most recently call to {@link #beforeCommit()}} as committed.
-   * The next call to {@link #beforeCommit()} will return {@code false} unless there have
-   * been changes made since the previous call to {@link #beforeCommit()}.
+   * Mark any changes up to the most recently call to {@link #beforeCommit()}} as committed. The
+   * next call to {@link #beforeCommit()} will return {@code false} unless there have been changes
+   * made since the previous call to {@link #beforeCommit()}.
    */
   public void afterCommit() {
     dirty.compareAndSet(State.COMMITTING, State.CLEAN);

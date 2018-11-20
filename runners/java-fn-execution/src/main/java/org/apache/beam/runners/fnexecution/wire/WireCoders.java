@@ -20,9 +20,7 @@ package org.apache.beam.runners.fnexecution.wire;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
-import java.util.function.Predicate;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SyntheticComponents;
@@ -38,22 +36,26 @@ public class WireCoders {
    * unknown to the runner are wrapped with length-prefix coders. The inner element coders are kept
    * intact so that SDK harnesses can reconstruct the original elements.
    *
-   * @return a windowed value coder containing the PCollection's element coder
+   * <p>Adds all necessary coders to the components builder.
+   *
+   * @return id of a windowed value coder containing the PCollection's element coder
    */
-  public static RunnerApi.MessageWithComponents createSdkWireCoder(
-      PCollectionNode pCollectionNode, RunnerApi.Components components, Predicate<String> idUsed) {
-    return createWireCoder(pCollectionNode, components, idUsed, false);
+  public static String addSdkWireCoder(
+      PCollectionNode pCollectionNode, RunnerApi.Components.Builder components) {
+    return addWireCoder(pCollectionNode, components, false);
   }
 
   /**
    * Creates a runner-side wire coder for a port read/write for the given PCollection. Unknown
    * coders are replaced with length-prefixed byte arrays.
    *
-   * @return a windowed value coder containing the PCollection's element coder
+   * <p>Adds all necessary coders to the components builder.
+   *
+   * @return id of a windowed value coder containing the PCollection's element coder
    */
-  public static RunnerApi.MessageWithComponents createRunnerWireCoder(
-      PCollectionNode pCollectionNode, RunnerApi.Components components, Predicate<String> idUsed) {
-    return createWireCoder(pCollectionNode, components, idUsed, true);
+  public static String addRunnerWireCoder(
+      PCollectionNode pCollectionNode, RunnerApi.Components.Builder components) {
+    return addWireCoder(pCollectionNode, components, true);
   }
 
   /**
@@ -66,11 +68,9 @@ public class WireCoders {
       PCollectionNode pCollectionNode, RunnerApi.Components components) throws IOException {
     // NOTE: We discard the new set of components so we don't bother to ensure it's consistent with
     // the caller's view.
-    RunnerApi.MessageWithComponents protoCoder =
-        createRunnerWireCoder(pCollectionNode, components, components::containsCoders);
-    Coder<?> javaCoder =
-        CoderTranslation.fromProto(
-            protoCoder.getCoder(), RehydratedComponents.forComponents(protoCoder.getComponents()));
+    RunnerApi.Components.Builder builder = components.toBuilder();
+    String protoCoderId = addRunnerWireCoder(pCollectionNode, builder);
+    Coder<?> javaCoder = RehydratedComponents.forComponents(builder.build()).getCoder(protoCoderId);
     checkArgument(
         javaCoder instanceof WindowedValue.FullWindowedValueCoder,
         "Unexpected Deserialized %s type, expected %s, got %s",
@@ -80,10 +80,9 @@ public class WireCoders {
     return (Coder<WindowedValue<T>>) javaCoder;
   }
 
-  private static RunnerApi.MessageWithComponents createWireCoder(
+  private static String addWireCoder(
       PCollectionNode pCollectionNode,
-      RunnerApi.Components components,
-      Predicate<String> idUsed,
+      RunnerApi.Components.Builder components,
       boolean useByteArrayCoder) {
     String elementCoderId = pCollectionNode.getPCollection().getCoderId();
     String windowingStrategyId = pCollectionNode.getPCollection().getWindowingStrategyId();
@@ -93,11 +92,11 @@ public class WireCoders {
         ModelCoders.windowedValueCoder(elementCoderId, windowCoderId);
     // Add the original WindowedValue<T, W> coder to the components;
     String windowedValueId =
-        SyntheticComponents.uniqueId(String.format("fn/wire/%s", pCollectionNode.getId()), idUsed);
-    return LengthPrefixUnknownCoders.forCoder(
-        windowedValueId,
-        components.toBuilder().putCoders(windowedValueId, windowedValueCoder).build(),
-        useByteArrayCoder);
+        SyntheticComponents.uniqueId(
+            String.format("fn/wire/%s", pCollectionNode.getId()), components::containsCoders);
+    components.putCoders(windowedValueId, windowedValueCoder);
+    return LengthPrefixUnknownCoders.addLengthPrefixedCoder(
+        windowedValueId, components, useByteArrayCoder);
   }
 
   // Not instantiable.

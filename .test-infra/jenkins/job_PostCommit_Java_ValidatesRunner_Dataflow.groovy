@@ -16,43 +16,38 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
+
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner.
-job('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle') {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle',
+  'Run Dataflow ValidatesRunner', 'Google Cloud Dataflow Runner ValidatesRunner Tests', this) {
+
   description('Runs the ValidatesRunner suite on the Dataflow runner.')
   previousNames('beam_PostCommit_Java_ValidatesRunner_Dataflow')
   previousNames('beam_PostCommit_Java_RunnableOnService_Dataflow')
 
-  // Set common parameters. Sets a long (5 hour) timeout due to timeouts in [BEAM-3775].
-  common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 300)
+  // Set common parameters. Sets a 3 hour timeout.
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 300)
 
   // Publish all test results to Jenkins
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
   }
 
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-    delegate,
-    'Google Cloud Dataflow Runner ValidatesRunner Tests',
-    'Run Dataflow ValidatesRunner')
-
   // Gradle goals for this job.
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-runners-google-cloud-dataflow-java:validatesRunner')
       // Increase parallel worker threads above processor limit since most time is
       // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
       // because each one launches a Dataflow job with about 3 mins of overhead.
       // 3 x num_cores strikes a good balance between maxing out parallelism without
       // overloading the machines.
-      common_job_properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+      commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }
   }
 }

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -27,16 +27,17 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 /** {@code BeamSqlExpression} for 'OR' operation. */
 public class BeamSqlOrExpression extends BeamSqlLogicalExpression {
+
   public BeamSqlOrExpression(List<BeamSqlExpression> operands) {
     super(operands);
   }
 
   @Override
   public BeamSqlPrimitive<Boolean> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     boolean result = false;
     for (BeamSqlExpression exp : operands) {
-      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window, correlateEnv);
+      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window, env);
       result = expOut.getValue();
       if (result) {
         break;

@@ -32,29 +32,24 @@ import org.joda.time.Instant;
 /**
  * Executes callbacks that occur based on the progression of the watermark per-step.
  *
- * <p>Callbacks are registered by calls to
- * {@link #callOnGuaranteedFiring(PTransformNode, BoundedWindow, WindowingStrategy, Runnable)},
- * and are executed after a call to {@link #fireForWatermark(PTransformNode, Instant)} with the
- * same {@link PTransformNode} and a watermark sufficient to ensure that the trigger for the
- * windowing strategy would have been produced.
+ * <p>Callbacks are registered by calls to {@link #callOnGuaranteedFiring(PTransformNode,
+ * BoundedWindow, WindowingStrategy, Runnable)}, and are executed after a call to {@link
+ * #fireForWatermark(PTransformNode, Instant)} with the same {@link PTransformNode} and a watermark
+ * sufficient to ensure that the trigger for the windowing strategy would have been produced.
  *
  * <p>NOTE: {@link WatermarkCallbackExecutor} does not track the latest observed watermark for any
- * {@link PTransformNode} - any call to
- * {@link #callOnGuaranteedFiring(PTransformNode, BoundedWindow, WindowingStrategy, Runnable)}
- * that could have potentially already fired should be followed by a call to
- * {@link #fireForWatermark(PTransformNode, Instant)} for the same transform with the current
- * value of the watermark.
+ * {@link PTransformNode} - any call to {@link #callOnGuaranteedFiring(PTransformNode,
+ * BoundedWindow, WindowingStrategy, Runnable)} that could have potentially already fired should be
+ * followed by a call to {@link #fireForWatermark(PTransformNode, Instant)} for the same transform
+ * with the current value of the watermark.
  */
 class WatermarkCallbackExecutor {
-  /**
-   * Create a new {@link WatermarkCallbackExecutor}.
-   */
+  /** Create a new {@link WatermarkCallbackExecutor}. */
   public static WatermarkCallbackExecutor create(Executor executor) {
     return new WatermarkCallbackExecutor(executor);
   }
 
-  private final ConcurrentMap<PTransformNode, PriorityQueue<WatermarkCallback>>
-      callbacks;
+  private final ConcurrentMap<PTransformNode, PriorityQueue<WatermarkCallback>> callbacks;
   private final Executor executor;
 
   private WatermarkCallbackExecutor(Executor executor) {
@@ -63,9 +58,9 @@ class WatermarkCallbackExecutor {
   }
 
   /**
-   * Execute the provided {@link Runnable} after the next call to
-   * {@link #fireForWatermark(PTransformNode, Instant)} where the window is guaranteed to have
-   * produced output.
+   * Execute the provided {@link Runnable} after the next call to {@link
+   * #fireForWatermark(PTransformNode, Instant)} where the window is guaranteed to have produced
+   * output.
    */
   public void callOnGuaranteedFiring(
       PTransformNode step,
@@ -89,9 +84,8 @@ class WatermarkCallbackExecutor {
   }
 
   /**
-   * Execute the provided {@link Runnable} after the next call to
-   * {@link #fireForWatermark(PTransformNode, Instant)} where the window
-   * is guaranteed to be expired.
+   * Execute the provided {@link Runnable} after the next call to {@link
+   * #fireForWatermark(PTransformNode, Instant)} where the window is guaranteed to be expired.
    */
   public void callOnWindowExpiration(
       PTransformNode step,

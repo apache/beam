@@ -22,11 +22,9 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 
-/**
- * Properties needed when using Google CloudResourceManager with the Apache Beam SDK.
- */
-@Description("Options that are used to configure Google CloudResourceManager. See "
-    + "https://cloud.google.com/resource-manager/ for details on CloudResourceManager.")
-public interface CloudResourceManagerOptions extends ApplicationNameOptions, GcpOptions,
-    PipelineOptions, StreamingOptions {
-}
+/** Properties needed when using Google CloudResourceManager with the Apache Beam SDK. */
+@Description(
+    "Options that are used to configure Google CloudResourceManager. See "
+        + "https://cloud.google.com/resource-manager/ for details on CloudResourceManager.")
+public interface CloudResourceManagerOptions
+    extends ApplicationNameOptions, GcpOptions, PipelineOptions, StreamingOptions {}

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct.portable;
 
-import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.direct.ExecutableGraph;
 import org.apache.beam.sdk.Pipeline;
@@ -34,14 +33,12 @@ interface PipelineExecutor {
    * Starts this executor on the provided graph. The {@link RootProviderRegistry} will be used to
    * create initial inputs for the provide {@link ExecutableGraph graph}.
    */
-  void start(
-      ExecutableGraph<PTransformNode, PCollectionNode> graph,
-      RootProviderRegistry rootProviderRegistry);
+  void start();
 
   /**
    * Blocks until the job being executed enters a terminal state. A job is completed after all root
-   * {@link PTransformNode PTransformNodes} have completed, and all {@link CommittedBundle
-   * Bundles} have been consumed. Jobs may also terminate abnormally.
+   * {@link PTransformNode PTransformNodes} have completed, and all {@link CommittedBundle Bundles}
+   * have been consumed. Jobs may also terminate abnormally.
    *
    * <p>Waits for up to the provided duration, or forever if the provided duration is less than or
    * equal to zero.

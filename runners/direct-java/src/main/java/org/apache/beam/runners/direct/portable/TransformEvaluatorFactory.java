@@ -24,8 +24,8 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * A factory for creating instances of {@link TransformEvaluator} for the application of a
- * {@link PTransform}.
+ * A factory for creating instances of {@link TransformEvaluator} for the application of a {@link
+ * PTransform}.
  *
  * <p>{@link TransformEvaluatorFactory TransformEvaluatorFactories} will be reused within a single
  * execution of a {@link Pipeline} but will not be reused across executions.
@@ -38,8 +38,8 @@ interface TransformEvaluatorFactory {
    * DoFn.StartBundle}) must be done before the {@link TransformEvaluator} is made available to the
    * caller.
    *
-   * <p>May return null if the application cannot produce an evaluator (for example, it is a
-   * {@link Read} {@link PTransform} where all evaluators are in-use).
+   * <p>May return null if the application cannot produce an evaluator (for example, it is a {@link
+   * Read} {@link PTransform} where all evaluators are in-use).
    *
    * @return An evaluator capable of processing the transform on the bundle, or null if no evaluator
    *     can be constructed.
@@ -47,14 +47,12 @@ interface TransformEvaluatorFactory {
    */
   @Nullable
   <InputT> TransformEvaluator<InputT> forApplication(
-      PTransformNode application, CommittedBundle<?> inputBundle)
-      throws Exception;
+      PTransformNode application, CommittedBundle<?> inputBundle) throws Exception;
 
   /**
-   * Cleans up any state maintained by this {@link TransformEvaluatorFactory}. Called after a
-   * {@link Pipeline} is shut down. No more calls to
-   * {@link #forApplication(PTransformNode, CommittedBundle)} will be made after
-   * a call to {@link #cleanup()}.
+   * Cleans up any state maintained by this {@link TransformEvaluatorFactory}. Called after a {@link
+   * Pipeline} is shut down. No more calls to {@link #forApplication(PTransformNode,
+   * CommittedBundle)} will be made after a call to {@link #cleanup()}.
    */
   void cleanup() throws Exception;
 }

@@ -44,6 +44,8 @@ one-time manual trimming is desirable.
 TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
+from __future__ import absolute_import
+
 import glob
 import logging
 import os
@@ -57,8 +59,10 @@ import pkg_resources
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 # TODO(angoenka): Remove reference to dataflow internal names
-from apache_beam.runners.dataflow.internal import names
+from apache_beam.runners.dataflow.internal.names import DATAFLOW_SDK_TARBALL_FILE
+from apache_beam.runners.internal import names
 from apache_beam.utils import processes
 
 # All constants are for internal use only; no backwards-compatibility
@@ -68,9 +72,6 @@ from apache_beam.utils import processes
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
-
-# Package names for distributions
-BEAM_PACKAGE_NAME = 'apache-beam'
 
 
 class Stager(object):
@@ -93,7 +94,7 @@ class Stager(object):
   def get_sdk_package_name():
     """For internal use only; no backwards-compatibility guarantees.
         Returns the PyPI package name to be staged."""
-    return BEAM_PACKAGE_NAME
+    return names.BEAM_PACKAGE_NAME
 
   def stage_job_resources(self,
                           options,
@@ -121,8 +122,7 @@ class Stager(object):
 
         Returns:
           A list of file names (no paths) for the resources staged. All the
-          files
-          are assumed to be staged at staging_location.
+          files are assumed to be staged at staging_location.
 
         Raises:
           RuntimeError: If files specified are not found or error encountered
@@ -219,13 +219,17 @@ class Stager(object):
         resources.extend(
             self._stage_beam_sdk(sdk_remote_location, staging_location,
                                  temp_dir))
+      elif setup_options.sdk_location == 'container':
+        # Use the SDK that's built into the container, rather than re-staging
+        # it.
+        pass
       else:
         # This branch is also used by internal tests running with the SDK built
         # at head.
         if os.path.isdir(setup_options.sdk_location):
           # TODO(angoenka): remove reference to Dataflow
           sdk_path = os.path.join(setup_options.sdk_location,
-                                  names.DATAFLOW_SDK_TARBALL_FILE)
+                                  DATAFLOW_SDK_TARBALL_FILE)
         else:
           sdk_path = setup_options.sdk_location
 
@@ -240,8 +244,8 @@ class Stager(object):
           resources.append(sdk_staged_filename)
         else:
           if setup_options.sdk_location == 'default':
-            raise RuntimeError('Cannot find default Beam SDK tar file "%s"',
-                               sdk_path)
+            raise RuntimeError('Cannot find default Beam SDK tar file "%s"'
+                               % sdk_path)
           elif not setup_options.sdk_location:
             logging.info('Beam SDK will not be staged since --sdk_location '
                          'is empty.')
@@ -250,10 +254,18 @@ class Stager(object):
                 'The file "%s" cannot be found. Its location was specified by '
                 'the --sdk_location command-line option.' % sdk_path)
 
+    worker_options = options.view_as(WorkerOptions)
+    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
+    if dataflow_worker_jar is not None:
+      jar_staged_filename = 'dataflow-worker.jar'
+      staged_path = FileSystems.join(staging_location, jar_staged_filename)
+      self.stage_artifact(dataflow_worker_jar, staged_path)
+      resources.append(jar_staged_filename)
+
     # Delete all temp files created while staging job resources.
     shutil.rmtree(temp_dir)
-    self.commit_manifest()
-    return resources
+    retrieval_token = self.commit_manifest()
+    return retrieval_token, resources
 
   @staticmethod
   def _download_file(from_url, to_path):
@@ -402,7 +414,7 @@ class Stager(object):
         ':all:'
     ]
     logging.info('Executing command: %s', cmd_args)
-    processes.check_call(cmd_args)
+    processes.check_output(cmd_args)
 
   @staticmethod
   def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
@@ -415,7 +427,7 @@ class Stager(object):
             os.path.basename(setup_file), 'sdist', '--dist-dir', temp_dir
         ]
       logging.info('Executing command: %s', build_setup_args)
-      processes.check_call(build_setup_args)
+      processes.check_output(build_setup_args)
       output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
       if not output_files:
         raise RuntimeError(
@@ -437,7 +449,7 @@ class Stager(object):
       else:
         raise RuntimeError('Unrecognized SDK wheel file: %s' % sdk_location)
     else:
-      return names.DATAFLOW_SDK_TARBALL_FILE
+      return DATAFLOW_SDK_TARBALL_FILE
 
   def _stage_beam_sdk(self, sdk_remote_location, staging_location, temp_dir):
     """Stages a Beam SDK file with the appropriate version.
@@ -543,7 +555,7 @@ class Stager(object):
 
     logging.info('Executing command: %s', cmd_args)
     try:
-      processes.check_call(cmd_args)
+      processes.check_output(cmd_args)
     except subprocess.CalledProcessError as e:
       raise RuntimeError(repr(e))
 

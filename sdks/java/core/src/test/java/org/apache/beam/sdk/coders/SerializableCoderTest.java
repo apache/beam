@@ -31,6 +31,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -43,7 +45,9 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.hamcrest.Description;
 import org.hamcrest.Matchers;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -52,9 +56,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.stubbing.Answer;
 
-/**
- * Tests SerializableCoder.
- */
+/** Tests SerializableCoder. */
 @RunWith(JUnit4.class)
 public class SerializableCoderTest implements Serializable {
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(SerializableCoder.class);
@@ -102,17 +104,13 @@ public class SerializableCoderTest implements Serializable {
     }
   }
 
-  static final List<String> LINES = Arrays.asList(
-      "To be,",
-      "or not to be");
+  static final List<String> LINES = Arrays.asList("To be,", "or not to be");
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
   public void testSerializableCoder() throws Exception {
-    IterableCoder<MyRecord> coder = IterableCoder
-        .of(SerializableCoder.of(MyRecord.class));
+    IterableCoder<MyRecord> coder = IterableCoder.of(SerializableCoder.of(MyRecord.class));
 
     List<MyRecord> records = new ArrayList<>();
     for (String l : LINES) {
@@ -137,7 +135,7 @@ public class SerializableCoderTest implements Serializable {
 
   @Test
   public <T extends Serializable> void testSerializableCoderIsSerializableWithGenericTypeToken()
-  throws Exception {
+      throws Exception {
     SerializableCoder<T> coder = SerializableCoder.of(new TypeDescriptor<T>() {});
     CoderProperties.coderSerializable(coder);
   }
@@ -158,11 +156,10 @@ public class SerializableCoderTest implements Serializable {
     // SerializableCoder).
     PCollection<String> output =
         p.apply(Create.of("Hello", "World"))
-        .apply(ParDo.of(new StringToRecord()))
-        .apply(ParDo.of(new RecordToString()));
+            .apply(ParDo.of(new StringToRecord()))
+            .apply(ParDo.of(new RecordToString()));
 
-    PAssert.that(output)
-        .containsInAnyOrder("Hello", "World");
+    PAssert.that(output).containsInAnyOrder("Hello", "World");
 
     p.run();
   }
@@ -177,19 +174,19 @@ public class SerializableCoderTest implements Serializable {
     String source = new String(chars);
 
     // Verify OUTER encoding.
-    assertEquals(source, CoderUtils.decodeFromByteArray(coder,
-        CoderUtils.encodeToByteArray(coder, source)));
+    assertEquals(
+        source, CoderUtils.decodeFromByteArray(coder, CoderUtils.encodeToByteArray(coder, source)));
 
     // Second string uses a UTF8 character.  Each codepoint is translated into
     // 4 characters in UTF8.
     int[] codePoints = new int[20 * 1024];
-    Arrays.fill(codePoints, 0x1D50A);  // "MATHEMATICAL_FRAKTUR_CAPITAL_G"
+    Arrays.fill(codePoints, 0x1D50A); // "MATHEMATICAL_FRAKTUR_CAPITAL_G"
     String source2 = new String(codePoints, 0, codePoints.length);
 
     // Verify OUTER encoding.
-    assertEquals(source2, CoderUtils.decodeFromByteArray(coder,
-        CoderUtils.encodeToByteArray(coder, source2)));
-
+    assertEquals(
+        source2,
+        CoderUtils.decodeFromByteArray(coder, CoderUtils.encodeToByteArray(coder, source2)));
 
     // Encode both strings into NESTED form.
     byte[] nestedEncoding;
@@ -250,7 +247,8 @@ public class SerializableCoderTest implements Serializable {
 
   @Test
   public void testSerializableCoderProviderIsRegistered() throws Exception {
-    assertThat(CoderRegistry.createDefault().getCoder(AutoRegistration.class),
+    assertThat(
+        CoderRegistry.createDefault().getCoder(AutoRegistration.class),
         instanceOf(SerializableCoder.class));
   }
 
@@ -258,18 +256,65 @@ public class SerializableCoderTest implements Serializable {
 
   @Test
   public void coderWarnsForInterface() throws Exception {
+    String expectedLogMessage =
+        "Can't verify serialized elements of type TestInterface "
+            + "have well defined equals method.";
+    // Create the coder multiple times ensuring that we only log once.
     SerializableCoder.of(TestInterface.class);
-    expectedLogs.verifyWarn("Can't verify serialized elements of type TestInterface "
-        + "have well defined equals method.");
+    SerializableCoder.of(TestInterface.class);
+    SerializableCoder.of(TestInterface.class);
+    expectedLogs.verifyLogRecords(
+        new TypeSafeMatcher<Iterable<LogRecord>>() {
+          @Override
+          public void describeTo(Description description) {
+            description.appendText(
+                String.format("single warn log message containing [%s]", expectedLogMessage));
+          }
+
+          @Override
+          protected boolean matchesSafely(Iterable<LogRecord> item) {
+            int count = 0;
+            for (LogRecord logRecord : item) {
+              if (logRecord.getLevel().equals(Level.WARNING)
+                  && logRecord.getMessage().contains(expectedLogMessage)) {
+                count += 1;
+              }
+            }
+            return count == 1;
+          }
+        });
   }
 
   private static class NoEquals implements Serializable {}
 
   @Test
   public void coderWarnsForNoEquals() throws Exception {
+    String expectedLogMessage =
+        "Can't verify serialized elements of type NoEquals " + "have well defined equals method.";
+    // Create the coder multiple times ensuring that we only log once.
     SerializableCoder.of(NoEquals.class);
-    expectedLogs.verifyWarn("Can't verify serialized elements of type NoEquals "
-        + "have well defined equals method.");
+    SerializableCoder.of(NoEquals.class);
+    SerializableCoder.of(NoEquals.class);
+    expectedLogs.verifyLogRecords(
+        new TypeSafeMatcher<Iterable<LogRecord>>() {
+          @Override
+          public void describeTo(Description description) {
+            description.appendText(
+                String.format("single warn log message containing [%s]", expectedLogMessage));
+          }
+
+          @Override
+          protected boolean matchesSafely(Iterable<LogRecord> item) {
+            int count = 0;
+            for (LogRecord logRecord : item) {
+              if (logRecord.getLevel().equals(Level.WARNING)
+                  && logRecord.getMessage().contains(expectedLogMessage)) {
+                count += 1;
+              }
+            }
+            return count == 1;
+          }
+        });
   }
 
   private static class ProperEquals implements Serializable {
@@ -305,9 +350,13 @@ public class SerializableCoderTest implements Serializable {
   public void coderDoesNotWrapIoException() throws Exception {
     final SerializableCoder<String> coder = SerializableCoder.of(String.class);
 
-    final OutputStream outputStream = mock(OutputStream.class, (Answer) invocationOnMock -> {
-      throw new IOException();
-    });
+    final OutputStream outputStream =
+        mock(
+            OutputStream.class,
+            (Answer)
+                invocationOnMock -> {
+                  throw new IOException();
+                });
 
     coder.encode("", outputStream);
   }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertFalse;
@@ -31,34 +30,33 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link InsertRetryPolicy}.
- */
+/** Tests for {@link InsertRetryPolicy}. */
 @RunWith(JUnit4.class)
 public class InsertRetryPolicyTest {
   @Test
   public void testNeverRetry() {
-    assertFalse(InsertRetryPolicy.neverRetry().shouldRetry(
-        new Context(new TableDataInsertAllResponse.InsertErrors())));
+    assertFalse(
+        InsertRetryPolicy.neverRetry()
+            .shouldRetry(new Context(new TableDataInsertAllResponse.InsertErrors())));
   }
 
   @Test
   public void testAlwaysRetry() {
-    assertTrue(InsertRetryPolicy.alwaysRetry().shouldRetry(
-        new Context(new TableDataInsertAllResponse.InsertErrors())));
+    assertTrue(
+        InsertRetryPolicy.alwaysRetry()
+            .shouldRetry(new Context(new TableDataInsertAllResponse.InsertErrors())));
   }
 
   @Test
   public void testDontRetryPersistentErrors() {
     InsertRetryPolicy policy = InsertRetryPolicy.retryTransientErrors();
-    assertTrue(policy.shouldRetry(new Context(generateErrorAmongMany(
-        5, "timeout", "unavailable"))));
-    assertFalse(policy.shouldRetry(new Context(generateErrorAmongMany(
-        5, "timeout", "invalid"))));
-    assertFalse(policy.shouldRetry(new Context(generateErrorAmongMany(
-        5, "timeout", "invalidQuery"))));
-    assertFalse(policy.shouldRetry(new Context(generateErrorAmongMany(
-        5, "timeout", "notImplemented"))));
+    assertTrue(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "unavailable"))));
+    assertFalse(policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "invalid"))));
+    assertFalse(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "invalidQuery"))));
+    assertFalse(
+        policy.shouldRetry(new Context(generateErrorAmongMany(5, "timeout", "notImplemented"))));
   }
 
   private TableDataInsertAllResponse.InsertErrors generateErrorAmongMany(

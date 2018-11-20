@@ -43,39 +43,37 @@ import org.apache.beam.examples.complete.game.utils.GameConstants;
  * events) than the regular team members.
  *
  * <p>Each generated line of data has the following form:
- * username,teamname,score,timestamp_in_ms,readable_time
- * e.g.:
+ * username,teamname,score,timestamp_in_ms,readable_time e.g.:
  * user2_AsparagusPig,AsparagusPig,10,1445230923951,2015-11-02 09:09:28.224
  *
  * <p>The Injector writes either to a PubSub topic, or a file. It will use the PubSub topic if
- * specified. It takes the following arguments:
- * {@code Injector project-name (topic-name|none) (filename|none)}.
+ * specified. It takes the following arguments: {@code Injector project-name (topic-name|none)
+ * (filename|none)}.
  *
  * <p>To run the Injector in the mode where it publishes to PubSub, you will need to authenticate
- * locally using project-based service account credentials to avoid running over PubSub
- * quota.
- * See https://developers.google.com/identity/protocols/application-default-credentials
- * for more information on using service account credentials. Set the GOOGLE_APPLICATION_CREDENTIALS
+ * locally using project-based service account credentials to avoid running over PubSub quota. See
+ * https://developers.google.com/identity/protocols/application-default-credentials for more
+ * information on using service account credentials. Set the GOOGLE_APPLICATION_CREDENTIALS
  * environment variable to point to your downloaded service account credentials before starting the
- * program, e.g.:
- * {@code export GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/credentials-key.json}.
- * If you do not do this, then your injector will only run for a few minutes on your
- * 'user account' credentials before you will start to see quota error messages like:
- * "Request throttled due to user QPS limit being reached", and see this exception:
- * ".com.google.api.client.googleapis.json.GoogleJsonResponseException: 429 Too Many Requests".
- * Once you've set up your credentials, run the Injector like this":
-  * <pre>{@code
+ * program, e.g.: {@code export GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/credentials-key.json}.
+ * If you do not do this, then your injector will only run for a few minutes on your 'user account'
+ * credentials before you will start to see quota error messages like: "Request throttled due to
+ * user QPS limit being reached", and see this exception:
+ * ".com.google.api.client.googleapis.json.GoogleJsonResponseException: 429 Too Many Requests". Once
+ * you've set up your credentials, run the Injector like this":
+ *
+ * <pre>{@code
  * Injector <project-name> <topic-name> none
- * }
- * </pre>
+ * }</pre>
+ *
  * The pubsub topic will be created if it does not exist.
  *
  * <p>To run the injector in write-to-file-mode, set the topic name to "none" and specify the
  * filename:
+ *
  * <pre>{@code
  * Injector <project-name> none <filename>
- * }
- * </pre>
+ * }</pre>
  */
 class Injector {
   private static Pubsub pubsub;
@@ -152,18 +150,17 @@ class Injector {
   private static final int BASE_MEMBERS_PER_TEAM = 5;
   private static final int MEMBERS_PER_TEAM = 15;
   private static final int MAX_SCORE = 20;
-  private static final int LATE_DATA_RATE = 5 * 60 * 2;       // Every 10 minutes
-  private static final int BASE_DELAY_IN_MILLIS = 5 * 60 * 1000;  // 5-10 minute delay
+  private static final int LATE_DATA_RATE = 5 * 60 * 2; // Every 10 minutes
+  private static final int BASE_DELAY_IN_MILLIS = 5 * 60 * 1000; // 5-10 minute delay
   private static final int FUZZY_DELAY_IN_MILLIS = 5 * 60 * 1000;
 
   // The minimum time a 'team' can live.
   private static final int BASE_TEAM_EXPIRATION_TIME_IN_MINS = 20;
   private static final int TEAM_EXPIRATION_TIME_IN_MINS = 20;
 
-
   /**
-   * A class for holding team info: the name of the team, when it started,
-   * and the current team members. Teams may but need not include one robot team member.
+   * A class for holding team info: the name of the team, when it started, and the current team
+   * members. Teams may but need not include one robot team member.
    */
   private static class TeamInfo {
     String teamName;
@@ -177,8 +174,8 @@ class Injector {
       this.teamName = teamName;
       this.startTimeInMillis = startTimeInMillis;
       // How long until this team is dissolved.
-      this.expirationPeriod = random.nextInt(TEAM_EXPIRATION_TIME_IN_MINS)
-        + BASE_TEAM_EXPIRATION_TIME_IN_MINS;
+      this.expirationPeriod =
+          random.nextInt(TEAM_EXPIRATION_TIME_IN_MINS) + BASE_TEAM_EXPIRATION_TIME_IN_MINS;
       this.robot = robot;
       // Determine the number of team members.
       numMembers = random.nextInt(MEMBERS_PER_TEAM) + BASE_MEMBERS_PER_TEAM;
@@ -187,6 +184,7 @@ class Injector {
     String getTeamName() {
       return teamName;
     }
+
     String getRobot() {
       return robot;
     }
@@ -194,9 +192,11 @@ class Injector {
     long getStartTimeInMillis() {
       return startTimeInMillis;
     }
+
     long getEndTimeInMillis() {
       return startTimeInMillis + (expirationPeriod * 60L * 1000L);
     }
+
     String getRandomUser() {
       int userNum = random.nextInt(numMembers);
       return "user" + userNum + "_" + teamName;
@@ -208,8 +208,17 @@ class Injector {
 
     @Override
     public String toString() {
-      return "(" + teamName + ", num members: " + numMembers() + ", starting at: "
-        + startTimeInMillis + ", expires in: " + expirationPeriod + ", robot: " + robot + ")";
+      return "("
+          + teamName
+          + ", num members: "
+          + numMembers()
+          + ", starting at: "
+          + startTimeInMillis
+          + ", expires in: "
+          + expirationPeriod
+          + ", robot: "
+          + robot
+          + ")";
     }
   }
 
@@ -220,8 +229,8 @@ class Injector {
   }
 
   /**
-   * Get and return a random team. If the selected team is too old w.r.t its expiration, remove
-   * it, replacing it with a new team.
+   * Get and return a random team. If the selected team is too old w.r.t its expiration, remove it,
+   * replacing it with a new team.
    */
   private static TeamInfo randomTeam(ArrayList<TeamInfo> list) {
     int index = random.nextInt(list.size());
@@ -230,20 +239,22 @@ class Injector {
     long currTime = System.currentTimeMillis();
     if ((team.getEndTimeInMillis() < currTime) || team.numMembers() == 0) {
       System.out.println("\nteam " + team + " is too old; replacing.");
-      System.out.println("start time: " + team.getStartTimeInMillis()
-        + ", end time: " + team.getEndTimeInMillis()
-        + ", current time:" + currTime);
+      System.out.println(
+          "start time: "
+              + team.getStartTimeInMillis()
+              + ", end time: "
+              + team.getEndTimeInMillis()
+              + ", current time:"
+              + currTime);
       removeTeam(index);
       // Add a new team in its stead.
-      return (addLiveTeam());
+      return addLiveTeam();
     } else {
       return team;
     }
   }
 
-  /**
-   * Create and add a team. Possibly add a robot to the team.
-   */
+  /** Create and add a team. Possibly add a robot to the team. */
   private static synchronized TeamInfo addLiveTeam() {
     String teamName = randomElement(COLORS) + randomElement(ANIMALS);
     String robot = null;
@@ -258,9 +269,7 @@ class Injector {
     return newTeam;
   }
 
-  /**
-   * Remove a specific team.
-   */
+  /** Remove a specific team. */
   private static synchronized void removeTeam(int teamIndex) {
     TeamInfo removedTeam = liveTeams.remove(teamIndex);
     System.out.println("[-" + removedTeam + "]");
@@ -296,12 +305,9 @@ class Injector {
     return addTimeInfoToEvent(event, currTime, delayInMillis);
   }
 
-  /**
-   * Add time info to a generated gaming event.
-   */
+  /** Add time info to a generated gaming event. */
   private static String addTimeInfoToEvent(String message, Long currTime, int delayInMillis) {
-    String eventTimeString =
-        Long.toString((currTime - delayInMillis) / 1000 * 1000);
+    String eventTimeString = Long.toString((currTime - delayInMillis) / 1000 * 1000);
     // Add a (redundant) 'human-readable' date string to make the data semantics more clear.
     String dateString = GameConstants.DATE_TIME_FORMATTER.print(currTime);
     message = message + "," + eventTimeString + "," + dateString;
@@ -309,20 +315,19 @@ class Injector {
   }
 
   /**
-   * Publish 'numMessages' arbitrary events from live users with the provided delay, to a
-   * PubSub topic.
+   * Publish 'numMessages' arbitrary events from live users with the provided delay, to a PubSub
+   * topic.
    */
-  public static void publishData(int numMessages, int delayInMillis)
-      throws IOException {
+  public static void publishData(int numMessages, int delayInMillis) throws IOException {
     List<PubsubMessage> pubsubMessages = new ArrayList<>();
 
     for (int i = 0; i < Math.max(1, numMessages); i++) {
       Long currTime = System.currentTimeMillis();
       String message = generateEvent(currTime, delayInMillis);
-      PubsubMessage pubsubMessage = new PubsubMessage()
-              .encodeData(message.getBytes("UTF-8"));
+      PubsubMessage pubsubMessage = new PubsubMessage().encodeData(message.getBytes("UTF-8"));
       pubsubMessage.setAttributes(
-          ImmutableMap.of(GameConstants.TIMESTAMP_ATTRIBUTE,
+          ImmutableMap.of(
+              GameConstants.TIMESTAMP_ATTRIBUTE,
               Long.toString((currTime - delayInMillis) / 1000 * 1000)));
       if (delayInMillis != 0) {
         System.out.println(pubsubMessage.getAttributes());
@@ -336,13 +341,13 @@ class Injector {
     pubsub.projects().topics().publish(topic, publishRequest).execute();
   }
 
-  /**
-   * Publish generated events to a file.
-   */
+  /** Publish generated events to a file. */
   public static void publishDataToFile(String fileName, int numMessages, int delayInMillis)
       throws IOException {
-    PrintWriter out = new PrintWriter(new OutputStreamWriter(
-        new BufferedOutputStream(new FileOutputStream(fileName, true)), "UTF-8"));
+    PrintWriter out =
+        new PrintWriter(
+            new OutputStreamWriter(
+                new BufferedOutputStream(new FileOutputStream(fileName, true)), "UTF-8"));
 
     try {
       for (int i = 0; i < Math.max(1, numMessages); i++) {
@@ -351,13 +356,13 @@ class Injector {
         out.println(message);
       }
     } catch (Exception e) {
+      System.err.print("Error in writing generated events to file");
       e.printStackTrace();
     } finally {
       out.flush();
       out.close();
     }
   }
-
 
   public static void main(String[] args) throws IOException, InterruptedException {
     if (args.length < 3) {

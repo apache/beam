@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -81,17 +80,14 @@ public class PubsubGrpcClient extends PubsubClient {
     public PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
-      ManagedChannel channel = NettyChannelBuilder
-          .forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
-          .negotiationType(NegotiationType.TLS)
-          .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
-          .build();
+      ManagedChannel channel =
+          NettyChannelBuilder.forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
+              .negotiationType(NegotiationType.TLS)
+              .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
+              .build();
 
-      return new PubsubGrpcClient(timestampAttribute,
-                                  idAttribute,
-                                  DEFAULT_TIMEOUT_S,
-                                  channel,
-                                  options.getGcpCredential());
+      return new PubsubGrpcClient(
+          timestampAttribute, idAttribute, DEFAULT_TIMEOUT_S, channel, options.getGcpCredential());
     }
 
     @Override
@@ -100,46 +96,30 @@ public class PubsubGrpcClient extends PubsubClient {
     }
   }
 
-  /**
-   * Factory for creating Pubsub clients using gRCP transport.
-   */
+  /** Factory for creating Pubsub clients using gRCP transport. */
   public static final PubsubClientFactory FACTORY = new PubsubGrpcClientFactory();
 
-  /**
-   * Timeout for grpc calls (in s).
-   */
+  /** Timeout for grpc calls (in s). */
   private final int timeoutSec;
 
-  /**
-   * Underlying netty channel, or {@literal null} if closed.
-   */
-  @Nullable
-  private ManagedChannel publisherChannel;
+  /** Underlying netty channel, or {@literal null} if closed. */
+  @Nullable private ManagedChannel publisherChannel;
 
-  /**
-   * Credentials determined from options and environment.
-   */
+  /** Credentials determined from options and environment. */
   private final Credentials credentials;
 
   /**
    * Attribute to use for custom timestamps, or {@literal null} if should use Pubsub publish time
    * instead.
    */
-  @Nullable
-  private final String timestampAttribute;
+  @Nullable private final String timestampAttribute;
 
-  /**
-   * Attribute to use for custom ids, or {@literal null} if should use Pubsub provided ids.
-   */
-  @Nullable
-  private final String idAttribute;
+  /** Attribute to use for custom ids, or {@literal null} if should use Pubsub provided ids. */
+  @Nullable private final String idAttribute;
 
+  /** Cached stubs, or null if not cached. */
+  @Nullable private PublisherGrpc.PublisherBlockingStub cachedPublisherStub;
 
-  /**
-   * Cached stubs, or null if not cached.
-   */
-  @Nullable
-  private PublisherGrpc.PublisherBlockingStub cachedPublisherStub;
   private SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub;
 
   @VisibleForTesting
@@ -156,9 +136,7 @@ public class PubsubGrpcClient extends PubsubClient {
     this.credentials = credentials;
   }
 
-  /**
-   * Gracefully close the underlying netty channel.
-   */
+  /** Gracefully close the underlying netty channel. */
   @Override
   public void close() {
     if (publisherChannel == null) {
@@ -182,9 +160,7 @@ public class PubsubGrpcClient extends PubsubClient {
     }
   }
 
-  /**
-   * Return channel with interceptor for returning credentials.
-   */
+  /** Return channel with interceptor for returning credentials. */
   private Channel newChannel() throws IOException {
     checkState(publisherChannel != null, "PubsubGrpcClient has been closed");
     ClientAuthInterceptor interceptor =
@@ -192,9 +168,7 @@ public class PubsubGrpcClient extends PubsubClient {
     return ClientInterceptors.intercept(publisherChannel, interceptor);
   }
 
-  /**
-   * Return a stub for making a publish request with a timeout.
-   */
+  /** Return a stub for making a publish request with a timeout. */
   private PublisherBlockingStub publisherStub() throws IOException {
     if (cachedPublisherStub == null) {
       cachedPublisherStub = PublisherGrpc.newBlockingStub(newChannel());
@@ -202,9 +176,7 @@ public class PubsubGrpcClient extends PubsubClient {
     return cachedPublisherStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
   }
 
-  /**
-   * Return a stub for making a subscribe request with a timeout.
-   */
+  /** Return a stub for making a subscribe request with a timeout. */
   private SubscriberBlockingStub subscriberStub() throws IOException {
     if (cachedSubscriberStub == null) {
       cachedSubscriberStub = SubscriberGrpc.newBlockingStub(newChannel());
@@ -213,22 +185,20 @@ public class PubsubGrpcClient extends PubsubClient {
   }
 
   @Override
-  public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages)
-      throws IOException {
-    PublishRequest.Builder request = PublishRequest.newBuilder()
-                                                   .setTopic(topic.getPath());
+  public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
+    PublishRequest.Builder request = PublishRequest.newBuilder().setTopic(topic.getPath());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       PubsubMessage.Builder message =
-          PubsubMessage.newBuilder()
-                       .setData(ByteString.copyFrom(outgoingMessage.elementBytes));
+          PubsubMessage.newBuilder().setData(ByteString.copyFrom(outgoingMessage.elementBytes));
 
       if (outgoingMessage.attributes != null) {
         message.putAllAttributes(outgoingMessage.attributes);
       }
 
       if (timestampAttribute != null) {
-        message.getMutableAttributes()
-               .put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
+        message
+            .getMutableAttributes()
+            .put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
       }
 
       if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
@@ -247,12 +217,14 @@ public class PubsubGrpcClient extends PubsubClient {
       long requestTimeMsSinceEpoch,
       SubscriptionPath subscription,
       int batchSize,
-      boolean returnImmediately) throws IOException {
-    PullRequest request = PullRequest.newBuilder()
-                                     .setSubscription(subscription.getPath())
-                                     .setReturnImmediately(returnImmediately)
-                                     .setMaxMessages(batchSize)
-                                     .build();
+      boolean returnImmediately)
+      throws IOException {
+    PullRequest request =
+        PullRequest.newBuilder()
+            .setSubscription(subscription.getPath())
+            .setReturnImmediately(returnImmediately)
+            .setMaxMessages(batchSize)
+            .build();
     PullResponse response = subscriberStub().pull(request);
     if (response.getReceivedMessagesCount() == 0) {
       return ImmutableList.of();
@@ -269,8 +241,8 @@ public class PubsubGrpcClient extends PubsubClient {
       String pubsubTimestampString = null;
       Timestamp timestampProto = pubsubMessage.getPublishTime();
       if (timestampProto != null) {
-        pubsubTimestampString = String.valueOf(timestampProto.getSeconds()
-                                               + timestampProto.getNanos() / 1000L);
+        pubsubTimestampString =
+            String.valueOf(timestampProto.getSeconds() + timestampProto.getNanos() / 1000L);
       }
       long timestampMsSinceEpoch =
           extractTimestamp(timestampAttribute, pubsubTimestampString, attributes);
@@ -289,57 +261,56 @@ public class PubsubGrpcClient extends PubsubClient {
         recordId = pubsubMessage.getMessageId();
       }
 
-      incomingMessages.add(new IncomingMessage(elementBytes, attributes, timestampMsSinceEpoch,
-                                               requestTimeMsSinceEpoch, ackId, recordId));
+      incomingMessages.add(
+          new IncomingMessage(
+              elementBytes,
+              attributes,
+              timestampMsSinceEpoch,
+              requestTimeMsSinceEpoch,
+              ackId,
+              recordId));
     }
     return incomingMessages;
   }
 
   @Override
-  public void acknowledge(SubscriptionPath subscription, List<String> ackIds)
-      throws IOException {
-    AcknowledgeRequest request = AcknowledgeRequest.newBuilder()
-                                                   .setSubscription(subscription.getPath())
-                                                   .addAllAckIds(ackIds)
-                                                   .build();
+  public void acknowledge(SubscriptionPath subscription, List<String> ackIds) throws IOException {
+    AcknowledgeRequest request =
+        AcknowledgeRequest.newBuilder()
+            .setSubscription(subscription.getPath())
+            .addAllAckIds(ackIds)
+            .build();
     subscriberStub().acknowledge(request); // ignore Empty result.
   }
 
   @Override
   public void modifyAckDeadline(
-      SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds)
-      throws IOException {
+      SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds) throws IOException {
     ModifyAckDeadlineRequest request =
         ModifyAckDeadlineRequest.newBuilder()
-                                .setSubscription(subscription.getPath())
-                                .addAllAckIds(ackIds)
-                                .setAckDeadlineSeconds(deadlineSeconds)
-                                .build();
+            .setSubscription(subscription.getPath())
+            .addAllAckIds(ackIds)
+            .setAckDeadlineSeconds(deadlineSeconds)
+            .build();
     subscriberStub().modifyAckDeadline(request); // ignore Empty result.
   }
 
   @Override
   public void createTopic(TopicPath topic) throws IOException {
-    Topic request = Topic.newBuilder()
-                         .setName(topic.getPath())
-                         .build();
+    Topic request = Topic.newBuilder().setName(topic.getPath()).build();
     publisherStub().createTopic(request); // ignore Topic result.
   }
 
   @Override
   public void deleteTopic(TopicPath topic) throws IOException {
-    DeleteTopicRequest request = DeleteTopicRequest.newBuilder()
-                                                   .setTopic(topic.getPath())
-                                                   .build();
+    DeleteTopicRequest request = DeleteTopicRequest.newBuilder().setTopic(topic.getPath()).build();
     publisherStub().deleteTopic(request); // ignore Empty result.
   }
 
   @Override
   public List<TopicPath> listTopics(ProjectPath project) throws IOException {
     ListTopicsRequest.Builder request =
-        ListTopicsRequest.newBuilder()
-                         .setProject(project.getPath())
-                         .setPageSize(LIST_BATCH_SIZE);
+        ListTopicsRequest.newBuilder().setProject(project.getPath()).setPageSize(LIST_BATCH_SIZE);
     ListTopicsResponse response = publisherStub().listTopics(request.build());
     if (response.getTopicsCount() == 0) {
       return ImmutableList.of();
@@ -360,22 +331,20 @@ public class PubsubGrpcClient extends PubsubClient {
 
   @Override
   public void createSubscription(
-      TopicPath topic, SubscriptionPath subscription,
-      int ackDeadlineSeconds) throws IOException {
-    Subscription request = Subscription.newBuilder()
-                                       .setTopic(topic.getPath())
-                                       .setName(subscription.getPath())
-                                       .setAckDeadlineSeconds(ackDeadlineSeconds)
-                                       .build();
+      TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException {
+    Subscription request =
+        Subscription.newBuilder()
+            .setTopic(topic.getPath())
+            .setName(subscription.getPath())
+            .setAckDeadlineSeconds(ackDeadlineSeconds)
+            .build();
     subscriberStub().createSubscription(request); // ignore Subscription result.
   }
 
   @Override
   public void deleteSubscription(SubscriptionPath subscription) throws IOException {
     DeleteSubscriptionRequest request =
-        DeleteSubscriptionRequest.newBuilder()
-                                 .setSubscription(subscription.getPath())
-                                 .build();
+        DeleteSubscriptionRequest.newBuilder().setSubscription(subscription.getPath()).build();
     subscriberStub().deleteSubscription(request); // ignore Empty result.
   }
 
@@ -384,8 +353,8 @@ public class PubsubGrpcClient extends PubsubClient {
       throws IOException {
     ListSubscriptionsRequest.Builder request =
         ListSubscriptionsRequest.newBuilder()
-                                .setProject(project.getPath())
-                                .setPageSize(LIST_BATCH_SIZE);
+            .setProject(project.getPath())
+            .setPageSize(LIST_BATCH_SIZE);
     ListSubscriptionsResponse response = subscriberStub().listSubscriptions(request.build());
     if (response.getSubscriptionsCount() == 0) {
       return ImmutableList.of();
@@ -409,9 +378,7 @@ public class PubsubGrpcClient extends PubsubClient {
   @Override
   public int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException {
     GetSubscriptionRequest request =
-        GetSubscriptionRequest.newBuilder()
-                              .setSubscription(subscription.getPath())
-                              .build();
+        GetSubscriptionRequest.newBuilder().setSubscription(subscription.getPath()).build();
     Subscription response = subscriberStub().getSubscription(request);
     return response.getAckDeadlineSeconds();
   }

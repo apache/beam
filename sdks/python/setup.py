@@ -17,10 +17,12 @@
 
 """Apache Beam SDK for Python setup file."""
 
+from __future__ import absolute_import
 from __future__ import print_function
 
 import os
 import platform
+import sys
 import warnings
 from distutils.version import StrictVersion
 
@@ -38,7 +40,13 @@ from setuptools.command.test import test
 
 def get_version():
   global_names = {}
-  exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)  # pylint: disable=exec-used
+  exec(  # pylint: disable=exec-used
+      open(os.path.join(
+          os.path.dirname(os.path.abspath(__file__)),
+          'apache_beam/version.py')
+          ).read(),
+      global_names
+  )
   return global_names['__version__']
 
 
@@ -93,42 +101,56 @@ else:
   except ImportError:
     cythonize = lambda *args, **kwargs: []
 
+REQUIRED_PACKAGES_PY2_ONLY = [
+    'avro>=1.8.1,<2.0.0'
+]
+
+REQUIRED_PACKAGES_PY3_ONLY = [
+    'avro-python3>=1.8.1,<2.0.0'
+]
 
 REQUIRED_PACKAGES = [
-    'avro>=1.8.1,<2.0.0',
     'crcmod>=1.7,<2.0',
-    'dill==0.2.6',
+    'dill>=0.2.6,<=0.2.8.2',
+    'fastavro>=0.21.4,<0.22',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<0.10',
+    'httplib2>=0.8,<=0.11.3',
     'mock>=1.0.1,<3.0.0',
-    'oauth2client>=2.0.1,<5',
+    'oauth2client>=2.0.1,<4',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
-    'pytz>=2018.3',
+    'pydot>=1.2.0,<1.3',
+    'pytz>=2018.3,<=2018.4',
     'pyyaml>=3.12,<4.0.0',
     'pyvcf>=0.6.8,<0.7.0',
-    'six>=1.9,<1.12',
-    'typing>=3.6.0,<3.7.0',
+    'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     'futures>=3.1.1,<4.0.0',
     'future>=0.16.0,<1.0.0',
     ]
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
+    'parameterized>=0.6.0,<0.7.0',
+    'numpy>=1.14.3,<2',
     'pyhamcrest>=1.9,<2.0',
     ]
 
 GCP_REQUIREMENTS = [
-    # oauth2client >=4 only works with google-apitools>=0.5.18.
-    'google-apitools>=0.5.18,<=0.5.20',
+    # google-apitools 0.5.23 and above has important Python 3 supports.
+    'google-apitools>=0.5.23,<=0.5.24',
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-    'googledatastore==7.0.1',
-    'google-cloud-pubsub==0.26.0',
-    'proto-google-cloud-pubsub-v1==0.15.4',
+    'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
+    'google-cloud-pubsub==0.35.4',
+    'google-cloud-storage==1.13.0',
     # GCP packages required by tests
-    'google-cloud-bigquery==0.25.0',
+    'google-cloud-bigquery>=1.6.0,<1.7.0',
 ]
+
+if sys.version_info[0] == 2:
+  REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY2_ONLY
+elif sys.version_info[0] >= 3:
+  REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY3_ONLY
 
 
 # We must generate protos after setup_requires are installed.
@@ -183,7 +205,7 @@ setuptools.setup(
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
         'test': REQUIRED_TEST_PACKAGES,
-        'gcp': GCP_REQUIREMENTS
+        'gcp': GCP_REQUIREMENTS,
     },
     zip_safe=False,
     # PyPI package information.

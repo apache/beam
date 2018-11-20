@@ -28,18 +28,16 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DebuggingWordCount}.
- */
+/** Tests for {@link DebuggingWordCount}. */
 @RunWith(JUnit4.class)
 public class DebuggingWordCountTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private String getFilePath(String filePath) {
-      if (filePath.contains(":")) {
-          return filePath.replace("\\", "/").split(":")[1];
-      }
-      return filePath;
+    if (filePath.contains(":")) {
+      return filePath.replace("\\", "/").split(":", -1)[1];
+    }
+    return filePath;
   }
 
   @Test
@@ -50,8 +48,7 @@ public class DebuggingWordCountTest {
         "stomach secret Flourish message Flourish here Flourish",
         inputFile,
         StandardCharsets.UTF_8);
-    WordCountOptions options =
-        TestPipeline.testingPipelineOptions().as(WordCountOptions.class);
+    WordCountOptions options = TestPipeline.testingPipelineOptions().as(WordCountOptions.class);
     options.setInputFile(getFilePath(inputFile.getAbsolutePath()));
     options.setOutput(getFilePath(outputFile.getAbsolutePath()));
     DebuggingWordCount.runDebuggingWordCount(options);

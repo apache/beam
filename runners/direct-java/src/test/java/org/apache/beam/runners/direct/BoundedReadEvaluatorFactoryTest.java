@@ -67,9 +67,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link BoundedReadEvaluatorFactory}.
- */
+/** Tests for {@link BoundedReadEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class BoundedReadEvaluatorFactoryTest {
   private BoundedSource<Long> source;
@@ -79,8 +77,7 @@ public class BoundedReadEvaluatorFactoryTest {
   private BundleFactory bundleFactory;
   private AppliedPTransform<?, ?, ?> longsProducer;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   private PipelineOptions options;
 
   @Before
@@ -108,8 +105,7 @@ public class BoundedReadEvaluatorFactoryTest {
             .getInitialInputs(longsProducer, 1);
     List<WindowedValue<?>> outputs = new ArrayList<>();
     for (CommittedBundle<?> shardBundle : initialInputs) {
-      TransformEvaluator<?> evaluator =
-          factory.forApplication(longsProducer, null);
+      TransformEvaluator<?> evaluator = factory.forApplication(longsProducer, null);
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
@@ -142,8 +138,7 @@ public class BoundedReadEvaluatorFactoryTest {
     for (int i = 0; i < numElements; i++) {
       elems[i] = (long) i;
     }
-    PCollection<Long> read =
-        p.apply(Read.from(new TestSource<>(VarLongCoder.of(), 5, elems)));
+    PCollection<Long> read = p.apply(Read.from(new TestSource<>(VarLongCoder.of(), 5, elems)));
     AppliedPTransform<?, ?, ?> transform = DirectGraphs.getProducer(read);
     Collection<CommittedBundle<?>> unreadInputs =
         new BoundedReadEvaluatorFactory.InputProvider(context, options)
@@ -206,8 +201,7 @@ public class BoundedReadEvaluatorFactoryTest {
     when(context.createBundle(read)).thenReturn(outputBundle);
     List<WindowedValue<?>> outputs = new ArrayList<>();
     for (CommittedBundle<?> shardBundle : initialInputs) {
-      TransformEvaluator<?> evaluator =
-          factory.forApplication(transform, null);
+      TransformEvaluator<?> evaluator = factory.forApplication(transform, null);
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
@@ -249,9 +243,8 @@ public class BoundedReadEvaluatorFactoryTest {
       sources.add(shard.getValue().getSource());
     }
 
-    SourceTestUtils.assertSourcesEqualReferenceSource(source,
-        (List<? extends BoundedSource<Long>>) sources,
-        PipelineOptionsFactory.create());
+    SourceTestUtils.assertSourcesEqualReferenceSource(
+        source, (List<? extends BoundedSource<Long>>) sources, PipelineOptionsFactory.create());
   }
 
   @Test

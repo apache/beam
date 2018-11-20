@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
@@ -47,9 +48,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 
-/**
- * Implementation of {@link MetricResults} for the Direct Runner.
- */
+/** Implementation of {@link MetricResults} for the Direct Runner. */
 class DirectMetrics extends MetricResults {
 
   // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
@@ -63,7 +62,9 @@ class DirectMetrics extends MetricResults {
 
   private interface MetricAggregation<UpdateT, ResultT> {
     UpdateT zero();
+
     UpdateT combine(Iterable<UpdateT> updates);
+
     ResultT extract(UpdateT data);
   }
 
@@ -109,9 +110,11 @@ class DirectMetrics extends MetricResults {
      * @param bundle The bundle being committed.
      * @param finalCumulative The final cumulative value for the given bundle.
      */
+    @SuppressWarnings("FutureReturnValueIgnored") // direct runner metrics are best-effort;
+    // we choose not to block on async commit
     public void commitPhysical(final CommittedBundle<?> bundle, final UpdateT finalCumulative) {
       // To prevent a query from blocking the commit, we perform the commit in two steps.
-      // 1. We perform a non-blocking write to the uncommitted table to make the new vaule
+      // 1. We perform a non-blocking write to the uncommitted table to make the new value
       //    available immediately.
       // 2. We submit a runnable that will commit the update and remove the tentative value in
       //    a synchronized block.
@@ -147,8 +150,8 @@ class DirectMetrics extends MetricResults {
       UpdateT current;
       do {
         current = finishedCommitted.get();
-      } while (!finishedCommitted.compareAndSet(current,
-          aggregation.combine(asList(current, finalCumulative))));
+      } while (!finishedCommitted.compareAndSet(
+          current, aggregation.combine(asList(current, finalCumulative))));
     }
 
     /** Extract the value from all successfully committed bundles. */
@@ -159,25 +162,25 @@ class DirectMetrics extends MetricResults {
 
   private static final MetricAggregation<Long, Long> COUNTER =
       new MetricAggregation<Long, Long>() {
-    @Override
-    public Long zero() {
-      return 0L;
-    }
+        @Override
+        public Long zero() {
+          return 0L;
+        }
 
-    @Override
-    public Long combine(Iterable<Long> updates) {
-      long value = 0;
-      for (long update : updates) {
-        value += update;
-      }
-      return value;
-    }
+        @Override
+        public Long combine(Iterable<Long> updates) {
+          long value = 0;
+          for (long update : updates) {
+            value += update;
+          }
+          return value;
+        }
 
-    @Override
-    public Long extract(Long data) {
-      return data;
-    }
-  };
+        @Override
+        public Long extract(Long data) {
+          return data;
+        }
+      };
 
   private static final MetricAggregation<DistributionData, DistributionResult> DISTRIBUTION =
       new MetricAggregation<DistributionData, DistributionResult>() {
@@ -246,38 +249,43 @@ class DirectMetrics extends MetricResults {
   abstract static class DirectMetricResult<T> implements MetricResult<T> {
     // need to define these here so they appear in the correct order
     // and the generated constructor is usable and consistent
+    @Override
     public abstract MetricName getName();
+
+    @Override
     public abstract String getStep();
+
+    @Override
     public abstract T getCommitted();
+
+    @Override
     public abstract T getAttempted();
 
-    public static <T> MetricResult<T> create(MetricName name, String scope,
-        T committed, T attempted) {
+    public static <T> MetricResult<T> create(
+        MetricName name, String scope, T committed, T attempted) {
       return new AutoValue_DirectMetrics_DirectMetricResult<>(name, scope, committed, attempted);
     }
   }
 
   @Override
-  public MetricQueryResults queryMetrics(MetricsFilter filter) {
+  public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
     ImmutableList.Builder<MetricResult<Long>> counterResults = ImmutableList.builder();
     for (Entry<MetricKey, DirectMetric<Long, Long>> counter : counters.entries()) {
       maybeExtractResult(filter, counterResults, counter);
     }
     ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults =
         ImmutableList.builder();
-    for (Entry<MetricKey, DirectMetric<DistributionData, DistributionResult>> distribution
-        : distributions.entries()) {
+    for (Entry<MetricKey, DirectMetric<DistributionData, DistributionResult>> distribution :
+        distributions.entries()) {
       maybeExtractResult(filter, distributionResults, distribution);
     }
-    ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults =
-        ImmutableList.builder();
-    for (Entry<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauge
-        : gauges.entries()) {
+    ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults = ImmutableList.builder();
+    for (Entry<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauge : gauges.entries()) {
       maybeExtractResult(filter, gaugeResults, gauge);
     }
 
-    return DirectMetricQueryResults.create(counterResults.build(), distributionResults.build(),
-        gaugeResults.build());
+    return DirectMetricQueryResults.create(
+        counterResults.build(), distributionResults.build(), gaugeResults.build());
   }
 
   private <ResultT> void maybeExtractResult(
@@ -285,11 +293,12 @@ class DirectMetrics extends MetricResults {
       ImmutableList.Builder<MetricResult<ResultT>> resultsBuilder,
       Map.Entry<MetricKey, ? extends DirectMetric<?, ResultT>> entry) {
     if (MetricFiltering.matches(filter, entry.getKey())) {
-      resultsBuilder.add(DirectMetricResult.create(
-          entry.getKey().metricName(),
-          entry.getKey().stepName(),
-          entry.getValue().extractCommitted(),
-          entry.getValue().extractLatestAttempted()));
+      resultsBuilder.add(
+          DirectMetricResult.create(
+              entry.getKey().metricName(),
+              entry.getKey().stepName(),
+              entry.getValue().extractCommitted(),
+              entry.getValue().extractLatestAttempted()));
     }
   }
 
@@ -299,12 +308,10 @@ class DirectMetrics extends MetricResults {
       counters.get(counter.getKey()).updatePhysical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.get(distribution.getKey())
-          .updatePhysical(bundle, distribution.getUpdate());
+      distributions.get(distribution.getKey()).updatePhysical(bundle, distribution.getUpdate());
     }
     for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
-      gauges.get(gauge.getKey())
-          .updatePhysical(bundle, gauge.getUpdate());
+      gauges.get(gauge.getKey()).updatePhysical(bundle, gauge.getUpdate());
     }
   }
 
@@ -313,12 +320,10 @@ class DirectMetrics extends MetricResults {
       counters.get(counter.getKey()).commitPhysical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.get(distribution.getKey())
-          .commitPhysical(bundle, distribution.getUpdate());
+      distributions.get(distribution.getKey()).commitPhysical(bundle, distribution.getUpdate());
     }
     for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
-      gauges.get(gauge.getKey())
-          .commitPhysical(bundle, gauge.getUpdate());
+      gauges.get(gauge.getKey()).commitPhysical(bundle, gauge.getUpdate());
     }
   }
 
@@ -328,12 +333,10 @@ class DirectMetrics extends MetricResults {
       counters.get(counter.getKey()).commitLogical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
-      distributions.get(distribution.getKey())
-          .commitLogical(bundle, distribution.getUpdate());
+      distributions.get(distribution.getKey()).commitLogical(bundle, distribution.getUpdate());
     }
     for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
-      gauges.get(gauge.getKey())
-          .commitLogical(bundle, gauge.getUpdate());
+      gauges.get(gauge.getKey()).commitLogical(bundle, gauge.getUpdate());
     }
   }
 }

@@ -15,16 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.metrics;
 
 import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.metrics.source.Source;
 
-
-/**
- * Composite source made up of several {@link MetricRegistry} instances.
- */
+/** Composite source made up of several {@link MetricRegistry} instances. */
 public class CompositeSource implements Source {
   private final String name;
   private final MetricRegistry metricRegistry;

@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -37,12 +36,12 @@ public class BeamValuesRelTest extends BaseRelTest {
   public static void prepare() {
     registerTable(
         "string_table",
-        MockedBoundedTable.of(
+        TestBoundedTable.of(
             Schema.FieldType.STRING, "name",
             Schema.FieldType.STRING, "description"));
     registerTable(
         "int_table",
-        MockedBoundedTable.of(
+        TestBoundedTable.of(
             Schema.FieldType.INT32, "c0",
             Schema.FieldType.INT32, "c1"));
   }

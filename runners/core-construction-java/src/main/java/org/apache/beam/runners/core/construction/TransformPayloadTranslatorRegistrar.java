@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
@@ -26,6 +25,4 @@ import org.apache.beam.sdk.transforms.PTransform;
 public interface TransformPayloadTranslatorRegistrar {
   Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
       getTransformPayloadTranslators();
-
-  Map<String, ? extends TransformPayloadTranslator> getTransformRehydrators();
 }

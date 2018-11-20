@@ -48,5 +48,4 @@ if test $# -gt 0; then
 fi
 
 echo "Running flake8 for module $MODULE:"
-# TODO(BEAM-3959): Add F821 (undefined names) as soon as that test passes
-flake8 $MODULE --count --select=E9,F822,F823 --show-source --statistics
+flake8 $MODULE --count --select=E9,F821,F822,F823 --show-source --statistics

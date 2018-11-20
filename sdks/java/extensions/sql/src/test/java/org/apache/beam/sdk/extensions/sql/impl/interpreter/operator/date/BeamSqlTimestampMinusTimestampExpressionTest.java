@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -200,7 +199,9 @@ public class BeamSqlTimestampMinusTimestampExpressionTest {
   }
 
   private long eval(BeamSqlTimestampMinusTimestampExpression minusExpression) {
-    return minusExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getLong();
+    return minusExpression
+        .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+        .getLong();
   }
 
   private long applyMultiplier(long value, TimeUnit timeUnit) {

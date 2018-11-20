@@ -49,10 +49,10 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
     @SuppressWarnings("unchecked")
     PipelineRunner<? extends PipelineResult> result =
         InstanceBuilder.ofType(PipelineRunner.class)
-        .fromClass(options.getRunner())
-        .fromFactoryMethod("fromOptions")
-        .withArg(PipelineOptions.class, options)
-        .build();
+            .fromClass(options.getRunner())
+            .fromFactoryMethod("fromOptions")
+            .withArg(PipelineOptions.class, options)
+            .build();
     return result;
   }
 
@@ -71,9 +71,7 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
    */
   public abstract ResultT run(Pipeline pipeline);
 
-  /**
-   * Creates a {@link Pipeline} out of a single {@link PTransform} step, and executes it.
-   */
+  /** Creates a {@link Pipeline} out of a single {@link PTransform} step, and executes it. */
   public ResultT run(PTransform<PBegin, ?> pTransform, PipelineOptions options) {
     Pipeline p = Pipeline.create(options);
     p.apply(pTransform);

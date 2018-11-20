@@ -29,9 +29,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ReflectHelpers}.
- */
+/** Tests for {@link ReflectHelpers}. */
 @RunWith(JUnit4.class)
 public class ReflectHelpersTest {
 
@@ -42,18 +40,20 @@ public class ReflectHelpersTest {
 
   @Test
   public void testClassSimpleName() {
-    assertEquals(getClass().getSimpleName(),
-        ReflectHelpers.CLASS_SIMPLE_NAME.apply(getClass()));
+    assertEquals(getClass().getSimpleName(), ReflectHelpers.CLASS_SIMPLE_NAME.apply(getClass()));
   }
 
   @Test
   public void testMethodFormatter() throws Exception {
-    assertEquals("testMethodFormatter()",
+    assertEquals(
+        "testMethodFormatter()",
         ReflectHelpers.METHOD_FORMATTER.apply(getClass().getMethod("testMethodFormatter")));
 
-    assertEquals("oneArg(int)",
+    assertEquals(
+        "oneArg(int)",
         ReflectHelpers.METHOD_FORMATTER.apply(getClass().getDeclaredMethod("oneArg", int.class)));
-    assertEquals("twoArg(String, List)",
+    assertEquals(
+        "twoArg(String, List)",
         ReflectHelpers.METHOD_FORMATTER.apply(
             getClass().getDeclaredMethod("twoArg", String.class, List.class)));
   }
@@ -62,13 +62,13 @@ public class ReflectHelpersTest {
   public void testClassMethodFormatter() throws Exception {
     assertEquals(
         getClass().getName() + "#testMethodFormatter()",
-        ReflectHelpers.CLASS_AND_METHOD_FORMATTER
-        .apply(getClass().getMethod("testMethodFormatter")));
+        ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(
+            getClass().getMethod("testMethodFormatter")));
 
     assertEquals(
         getClass().getName() + "#oneArg(int)",
-        ReflectHelpers.CLASS_AND_METHOD_FORMATTER
-        .apply(getClass().getDeclaredMethod("oneArg", int.class)));
+        ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(
+            getClass().getDeclaredMethod("oneArg", int.class)));
     assertEquals(
         getClass().getName() + "#twoArg(String, List)",
         ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(
@@ -77,57 +77,58 @@ public class ReflectHelpersTest {
 
   @SuppressWarnings("unused")
   void oneArg(int n) {}
+
   @SuppressWarnings("unused")
   void twoArg(String foo, List<Integer> bar) {}
 
   @Test
   public void testTypeFormatterOnClasses() throws Exception {
-    assertEquals("Integer",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer.class));
-    assertEquals("int",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int.class));
-    assertEquals("Map",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Map.class));
-    assertEquals(getClass().getSimpleName(),
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(getClass()));
+    assertEquals("Integer", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer.class));
+    assertEquals("int", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int.class));
+    assertEquals("Map", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Map.class));
+    assertEquals(
+        getClass().getSimpleName(), ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(getClass()));
   }
 
   @Test
   public void testTypeFormatterOnArrays() throws Exception {
-    assertEquals("Integer[]",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer[].class));
-    assertEquals("int[]",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int[].class));
+    assertEquals("Integer[]", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer[].class));
+    assertEquals("int[]", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int[].class));
   }
 
   @Test
   public void testTypeFormatterWithGenerics() throws Exception {
-    assertEquals("Map<Integer, String>",
+    assertEquals(
+        "Map<Integer, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
             new TypeDescriptor<Map<Integer, String>>() {}.getType()));
-    assertEquals("Map<?, String>",
+    assertEquals(
+        "Map<?, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
             new TypeDescriptor<Map<?, String>>() {}.getType()));
-    assertEquals("Map<? extends Integer, String>",
+    assertEquals(
+        "Map<? extends Integer, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
             new TypeDescriptor<Map<? extends Integer, String>>() {}.getType()));
   }
 
   @Test
   public <T> void testTypeFormatterWithWildcards() throws Exception {
-    assertEquals("Map<T, T>",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeDescriptor<Map<T, T>>() {}.getType()));
+    assertEquals(
+        "Map<T, T>",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(new TypeDescriptor<Map<T, T>>() {}.getType()));
   }
 
   @Test
   public <InputT, OutputT> void testTypeFormatterWithMultipleWildcards() throws Exception {
-    assertEquals("Map<? super InputT, ? extends OutputT>",
+    assertEquals(
+        "Map<? super InputT, ? extends OutputT>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
             new TypeDescriptor<Map<? super InputT, ? extends OutputT>>() {}.getType()));
   }
 
-  private interface Options extends PipelineOptions {
+  /** Test interface. */
+  public interface Options extends PipelineOptions {
     @Default.String("package.OuterClass$InnerClass#method()")
     String getString();
 

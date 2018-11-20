@@ -27,9 +27,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * A combinatorial test of {@link ByteKeyRange#estimateFractionForKey(ByteKey)}.
- */
+/** A combinatorial test of {@link ByteKeyRange#estimateFractionForKey(ByteKey)}. */
 @RunWith(Parameterized.class)
 public class ByteKeyRangeEstimateFractionTest {
   private static final ByteKey[] TEST_KEYS = ByteKeyRangeTest.RANGE_TEST_KEYS;

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -47,11 +46,11 @@ import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Writes each bundle of {@link TableRow} elements out to separate file using {@link
- * TableRowWriter}. Elements destined to different destinations are written to separate files.
- * The transform will not write an element to a file if it is already writing to
- * {@link #maxNumWritersPerBundle} files and the element is destined to a new destination. In this
- * case, the element will be spilled into the output, and the {@link WriteGroupedRecordsToFiles}
- * transform will take care of writing it to a file.
+ * TableRowWriter}. Elements destined to different destinations are written to separate files. The
+ * transform will not write an element to a file if it is already writing to {@link
+ * #maxNumWritersPerBundle} files and the element is destined to a new destination. In this case,
+ * the element will be spilled into the output, and the {@link WriteGroupedRecordsToFiles} transform
+ * will take care of writing it to a file.
  */
 class WriteBundlesToFiles<DestinationT>
     extends DoFn<KV<DestinationT, TableRow>, Result<DestinationT>> {
@@ -94,7 +93,7 @@ class WriteBundlesToFiles<DestinationT>
             && Objects.equals(this.fileByteSize, o.fileByteSize)
             && Objects.equals(this.destination, o.destination);
       }
-      return  false;
+      return false;
     }
 
     @Override
@@ -105,9 +104,13 @@ class WriteBundlesToFiles<DestinationT>
     @Override
     public String toString() {
       return "Result{"
-          + "filename='" + filename + '\''
-          + ", fileByteSize=" + fileByteSize
-          + ", destination=" + destination
+          + "filename='"
+          + filename
+          + '\''
+          + ", fileByteSize="
+          + fileByteSize
+          + ", destination="
+          + destination
           + '}';
     }
   }
@@ -128,8 +131,7 @@ class WriteBundlesToFiles<DestinationT>
     }
 
     @Override
-    public void encode(Result<DestinationT> value, OutputStream outStream)
-        throws IOException {
+    public void encode(Result<DestinationT> value, OutputStream outStream) throws IOException {
       if (value == null) {
         throw new CoderException("cannot encode a null value");
       }
@@ -175,8 +177,8 @@ class WriteBundlesToFiles<DestinationT>
     this.spilledShardNumber = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
   }
 
-  TableRowWriter createAndInsertWriter(DestinationT destination, String tempFilePrefix,
-                                       BoundedWindow window) throws Exception {
+  TableRowWriter createAndInsertWriter(
+      DestinationT destination, String tempFilePrefix, BoundedWindow window) throws Exception {
     TableRowWriter writer = new TableRowWriter(tempFilePrefix);
     writers.put(destination, writer);
     writerWindows.put(destination, window);
@@ -263,6 +265,5 @@ class WriteBundlesToFiles<DestinationT>
       }
     }
     writers.clear();
-
   }
 }

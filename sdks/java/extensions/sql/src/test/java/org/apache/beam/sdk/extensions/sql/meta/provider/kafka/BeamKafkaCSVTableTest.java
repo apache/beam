@@ -15,8 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -73,7 +74,7 @@ public class BeamKafkaCSVTableTest {
 
   private static Schema genSchema() {
     JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
-    return CalciteUtils.toBeamSchema(
+    return CalciteUtils.toSchema(
         typeFactory
             .builder()
             .add("order_id", SqlTypeName.BIGINT)
@@ -86,7 +87,7 @@ public class BeamKafkaCSVTableTest {
       implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
-      ctx.output(KV.of(new byte[] {}, ctx.element().getBytes()));
+      ctx.output(KV.of(new byte[] {}, ctx.element().getBytes(UTF_8)));
     }
   }
 }

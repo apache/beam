@@ -36,22 +36,22 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
- * An abstract base class with functionality for assembling a
- * {@link Coder} for a class that implements {@code Iterable}.
+ * An abstract base class with functionality for assembling a {@link Coder} for a class that
+ * implements {@code Iterable}.
  *
- * <p>To complete a subclass, implement the {@link #decodeToIterable} method. This superclass
- * will decode the elements in the input stream into a {@link List} and then pass them to that
- * method to be converted into the appropriate iterable type. Note that this means the input
- * iterables must fit into memory.
+ * <p>To complete a subclass, implement the {@link #decodeToIterable} method. This superclass will
+ * decode the elements in the input stream into a {@link List} and then pass them to that method to
+ * be converted into the appropriate iterable type. Note that this means the input iterables must
+ * fit into memory.
  *
  * <p>The format of this coder is as follows:
  *
  * <ul>
  *   <li>If the input {@link Iterable} has a known and finite size, then the size is written to the
- *       output stream in big endian format, followed by all of the encoded elements.</li>
- *   <li>If the input {@link Iterable} is not known to have a finite size, then each element
- *       of the input is preceded by {@code true} encoded as a byte (indicating "more data")
- *       followed by the encoded element, and terminated by {@code false} encoded as a byte.</li>
+ *       output stream in big endian format, followed by all of the encoded elements.
+ *   <li>If the input {@link Iterable} is not known to have a finite size, then each element of the
+ *       input is preceded by {@code true} encoded as a byte (indicating "more data") followed by
+ *       the encoded element, and terminated by {@code false} encoded as a byte.
  * </ul>
  *
  * @param <T> the type of the elements of the {@code Iterable}s being transcoded
@@ -64,8 +64,8 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   }
 
   /**
-   * Builds an instance of {@code IterableT}, this coder's associated {@link Iterable}-like
-   * subtype, from a list of decoded elements.
+   * Builds an instance of {@code IterableT}, this coder's associated {@link Iterable}-like subtype,
+   * from a list of decoded elements.
    */
   protected abstract IterableT decodeToIterable(List<T> decodedElements);
 
@@ -75,7 +75,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   private final Coder<T> elementCoder;
   private final String iterableName;
 
-  protected IterableLikeCoder(Coder<T> elementCoder, String  iterableName) {
+  protected IterableLikeCoder(Coder<T> elementCoder, String iterableName) {
     checkArgument(elementCoder != null, "element Coder for IterableLikeCoder must not be null");
     checkArgument(iterableName != null, "iterable name for IterableLikeCoder must not be null");
     this.elementCoder = elementCoder;
@@ -83,9 +83,8 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   }
 
   @Override
-  public void encode(
-      IterableT iterable, OutputStream outStream)
-      throws IOException, CoderException  {
+  public void encode(IterableT iterable, OutputStream outStream)
+      throws IOException, CoderException {
     if (iterable == null) {
       throw new CoderException("cannot encode a null " + iterableName);
     }
@@ -116,8 +115,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   }
 
   @Override
-  public IterableT decode(InputStream inStream)
-      throws IOException, CoderException {
+  public IterableT decode(InputStream inStream) throws IOException, CoderException {
     DataInputStream dataInStream = new DataInputStream(inStream);
     int size = dataInStream.readInt();
     if (size >= 0) {
@@ -135,7 +133,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
       elements.add(elementCoder.decode(dataInStream));
       --count;
       if (count == 0L) {
-          count = VarInt.decodeLong(dataInStream);
+        count = VarInt.decodeLong(dataInStream);
       }
     }
     return decodeToIterable(elements);
@@ -149,32 +147,29 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   /**
    * {@inheritDoc}
    *
-   * @throws NonDeterministicException always.
-   * Encoding is not deterministic for the general {@link Iterable} case, as it depends
-   * upon the type of iterable. This may allow two objects to compare as equal
-   * while the encoding differs.
+   * @throws NonDeterministicException always. Encoding is not deterministic for the general {@link
+   *     Iterable} case, as it depends upon the type of iterable. This may allow two objects to
+   *     compare as equal while the encoding differs.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    throw new NonDeterministicException(this,
-        "IterableLikeCoder can not guarantee deterministic ordering.");
+    throw new NonDeterministicException(
+        this, "IterableLikeCoder can not guarantee deterministic ordering.");
   }
 
   /**
    * {@inheritDoc}
    *
-   * @return {@code true} if the iterable is of a known class that supports lazy counting
-   * of byte size, since that requires minimal extra computation.
+   * @return {@code true} if the iterable is of a known class that supports lazy counting of byte
+   *     size, since that requires minimal extra computation.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(
-      IterableT iterable) {
+  public boolean isRegisterByteSizeObserverCheap(IterableT iterable) {
     return iterable instanceof ElementByteSizeObservableIterable;
   }
 
   @Override
-  public void registerByteSizeObserver(
-      IterableT iterable, ElementByteSizeObserver observer)
+  public void registerByteSizeObserver(IterableT iterable, ElementByteSizeObserver observer)
       throws Exception {
     if (iterable == null) {
       throw new CoderException("cannot encode a null Iterable");
@@ -220,18 +215,15 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   }
 
   /**
-   * An observer that gets notified when an observable iterator
-   * returns a new value. This observer just notifies an outerObserver
-   * about this event. Additionally, the outerObserver is notified
-   * about additional separators that are transparently added by this
-   * coder.
+   * An observer that gets notified when an observable iterator returns a new value. This observer
+   * just notifies an outerObserver about this event. Additionally, the outerObserver is notified
+   * about additional separators that are transparently added by this coder.
    */
   private static class IteratorObserver implements Observer {
     private final ElementByteSizeObserver outerObserver;
     private final boolean countable;
 
-    public IteratorObserver(ElementByteSizeObserver outerObserver,
-                            boolean countable) {
+    public IteratorObserver(ElementByteSizeObserver outerObserver, boolean countable) {
       this.outerObserver = outerObserver;
       this.countable = countable;
 

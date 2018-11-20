@@ -27,12 +27,13 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/test/integration/primitives"
 	"github.com/apache/beam/sdks/go/test/integration/wordcount"
 )
 
 var (
-	cpus   = flag.Int("cpus", 10, "Number of tests to run in parallel")
-	filter = flag.String("filter", ".*", "Test filer to run a subset of tests")
+	parallel = flag.Int("parallel", 10, "Number of tests to run in parallel")
+	filter   = flag.String("filter", ".*", "Test filer to run a subset of tests")
 )
 
 const old_pond = "memfs://old_pond"
@@ -50,16 +51,24 @@ func main() {
 	flag.Parse()
 	beam.Init()
 
-	if *cpus < 1 {
-		*cpus = 1
+	if *parallel < 1 {
+		*parallel = 1
 	}
 
 	pipelines := []namedPipeline{
 		{"wordcount:memfs", wordcount.WordCount(old_pond, "+Qj8iAnV5BI2A4sbzUbb6Q==", 8)},
 		{"wordcount:kinglear", wordcount.WordCount("gs://apache-beam-samples/shakespeare/kinglear.txt", "7ZCh5ih9m8IW1w+iS8sRKg==", 4749)},
+		{"pardo:multioutput", primitives.ParDoMultiOutput()},
+		// BEAM-3286: {"pardo:sideinput", primitives.ParDoSideInput()},
+		// BEAM-3286: {"pardo:kvsideinput", primitives.ParDoKVSideInput()},
+		{"cogbk:cogbk", primitives.CoGBK()},
+		{"flatten:flatten", primitives.Flatten()},
+		// {"flatten:dup", primitives.FlattenDup()},
 	}
 
 	re := regexp.MustCompile(*filter)
+
+	ctx := context.Background()
 
 	ch := make(chan namedPipeline, len(pipelines))
 	for _, np := range pipelines {
@@ -69,11 +78,9 @@ func main() {
 	}
 	close(ch)
 
-	ctx := context.Background()
-
 	var failures int32
 	var wg sync.WaitGroup
-	for i := 0; i < *cpus; i++ {
+	for i := 0; i < *parallel; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
 import org.apache.beam.runners.gearpump.translators.io.UnboundedSourceWrapper;
@@ -26,10 +25,9 @@ import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.source.DataSource;
 
 /**
- * {@link Read.Unbounded} is translated to Gearpump source function
- * and {@link UnboundedSource} is wrapped into Gearpump {@link DataSource}.
+ * {@link Read.Unbounded} is translated to Gearpump source function and {@link UnboundedSource} is
+ * wrapped into Gearpump {@link DataSource}.
  */
-
 public class ReadUnboundedTranslator<T> implements TransformTranslator<Read.Unbounded<T>> {
 
   private static final long serialVersionUID = 3529494817859948619L;
@@ -37,11 +35,10 @@ public class ReadUnboundedTranslator<T> implements TransformTranslator<Read.Unbo
   @Override
   public void translate(Read.Unbounded<T> transform, TranslationContext context) {
     UnboundedSource<T, ?> unboundedSource = transform.getSource();
-    UnboundedSourceWrapper<T, ?> unboundedSourceWrapper = new UnboundedSourceWrapper<>(
-        unboundedSource, context.getPipelineOptions());
+    UnboundedSourceWrapper<T, ?> unboundedSourceWrapper =
+        new UnboundedSourceWrapper<>(unboundedSource, context.getPipelineOptions());
     JavaStream<WindowedValue<T>> sourceStream = context.getSourceStream(unboundedSourceWrapper);
 
     context.setOutputStream(context.getOutput(), sourceStream);
   }
-
 }

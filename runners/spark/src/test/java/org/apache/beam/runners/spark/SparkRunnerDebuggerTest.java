@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.assertThat;
@@ -52,9 +51,7 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Test;
 
-/**
- * Test {@link SparkRunnerDebugger} with different pipelines.
- */
+/** Test {@link SparkRunnerDebugger} with different pipelines. */
 public class SparkRunnerDebuggerTest {
 
   @Test
@@ -64,16 +61,15 @@ public class SparkRunnerDebuggerTest {
 
     Pipeline pipeline = Pipeline.create(options);
 
-    PCollection<String> lines = pipeline
-        .apply(Create.of(Collections.<String>emptyList()).withCoder(StringUtf8Coder.of()));
+    PCollection<String> lines =
+        pipeline.apply(Create.of(Collections.<String>emptyList()).withCoder(StringUtf8Coder.of()));
 
-    PCollection<KV<String, Long>> wordCounts = lines
-        .apply(new WordCount.CountWords());
+    PCollection<KV<String, Long>> wordCounts = lines.apply(new WordCount.CountWords());
 
     wordCounts.apply(GroupByKey.create()).apply(Combine.groupedValues(Sum.ofLongs()));
 
-    PCollection<KV<String, Long>> wordCountsPlusOne = wordCounts
-        .apply(MapElements.via(new PlusOne()));
+    PCollection<KV<String, Long>> wordCountsPlusOne =
+        wordCounts.apply(MapElements.via(new PlusOne()));
 
     PCollectionList.of(wordCounts).and(wordCountsPlusOne).apply(Flatten.pCollections());
 
@@ -82,13 +78,13 @@ public class SparkRunnerDebuggerTest {
         .apply(TextIO.write().to("!!PLACEHOLDER-OUTPUT-DIR!!").withNumShards(3).withSuffix(".txt"));
 
     final String expectedPipeline =
-        "sparkContext.parallelize(Arrays.asList(...))\n"
+        "sparkContext.<readFrom(org.apache.beam.sdk.transforms.Create$Values$CreateSource)>()\n"
             + "_.mapPartitions("
             + "new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"
             + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
             + "_.combineByKey(..., new org.apache.beam.sdk.transforms.Count$CountFn(), ...)\n"
             + "_.groupByKey()\n"
-            + "_.map(new org.apache.beam.sdk.transforms.Sum$SumLongFn())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Combine$GroupedValues$1())\n"
             + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
             + "sparkContext.union(...)\n"
             + "_.mapPartitions("
@@ -98,7 +94,9 @@ public class SparkRunnerDebuggerTest {
     SparkRunnerDebugger.DebugSparkPipelineResult result =
         (SparkRunnerDebugger.DebugSparkPipelineResult) pipeline.run();
 
-    assertThat("Debug pipeline did not equal expected", result.getDebugString(),
+    assertThat(
+        "Debug pipeline did not equal expected",
+        result.getDebugString(),
         Matchers.equalTo(expectedPipeline));
   }
 
@@ -111,17 +109,19 @@ public class SparkRunnerDebuggerTest {
 
     Pipeline pipeline = Pipeline.create(options);
 
-    KafkaIO.Read<String, String> read = KafkaIO.<String, String>read()
-        .withBootstrapServers("mykafka:9092")
-        .withTopics(Collections.singletonList("my_input_topic"))
-        .withKeyDeserializer(StringDeserializer.class)
-        .withValueDeserializer(StringDeserializer.class);
+    KafkaIO.Read<String, String> read =
+        KafkaIO.<String, String>read()
+            .withBootstrapServers("mykafka:9092")
+            .withTopics(Collections.singletonList("my_input_topic"))
+            .withKeyDeserializer(StringDeserializer.class)
+            .withValueDeserializer(StringDeserializer.class);
 
-    KafkaIO.Write<String, String> write = KafkaIO.<String, String>write()
-        .withBootstrapServers("myotherkafka:9092")
-        .withTopic("my_output_topic")
-        .withKeySerializer(StringSerializer.class)
-        .withValueSerializer(StringSerializer.class);
+    KafkaIO.Write<String, String> write =
+        KafkaIO.<String, String>write()
+            .withBootstrapServers("myotherkafka:9092")
+            .withTopic("my_output_topic")
+            .withKeySerializer(StringSerializer.class)
+            .withValueSerializer(StringSerializer.class);
 
     KvCoder<String, String> stringKvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
@@ -134,21 +134,23 @@ public class SparkRunnerDebuggerTest {
         .apply(WithKeys.of(new SparkRunnerDebuggerTest.ArbitraryKeyFunction()))
         .apply(write);
 
-    final String expectedPipeline = "KafkaUtils.createDirectStream(...)\n"
-        + "_.map(new org.apache.beam.sdk.transforms.windowing.FixedWindows())\n"
-        + "_.mapPartitions(new org.apache.beam.runners.spark."
-        + "SparkRunnerDebuggerTest$FormatKVFn())\n"
-        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
-        + "_.groupByKey()\n"
-        + "_.map(new org.apache.beam.sdk.transforms.Combine$IterableCombineFn())\n"
-        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$3())\n"
-        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
-        + "_.<org.apache.beam.sdk.io.kafka.AutoValue_KafkaIO_Write>";
+    final String expectedPipeline =
+        "KafkaUtils.createDirectStream(...)\n"
+            + "_.map(new org.apache.beam.sdk.transforms.windowing.FixedWindows())\n"
+            + "_.mapPartitions(new org.apache.beam.runners.spark."
+            + "SparkRunnerDebuggerTest$FormatKVFn())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "_.groupByKey()\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Combine$GroupedValues$1())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$3())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "_.<org.apache.beam.sdk.io.kafka.AutoValue_KafkaIO_Write>";
 
     SparkRunnerDebugger.DebugSparkPipelineResult result =
         (SparkRunnerDebugger.DebugSparkPipelineResult) pipeline.run();
 
-    assertThat("Debug pipeline did not equal expected",
+    assertThat(
+        "Debug pipeline did not equal expected",
         result.getDebugString(),
         Matchers.equalTo(expectedPipeline));
   }

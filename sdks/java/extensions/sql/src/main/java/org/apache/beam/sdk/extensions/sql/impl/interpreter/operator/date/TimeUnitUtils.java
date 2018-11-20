@@ -15,15 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
+import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
+import java.util.Map;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DurationFieldType;
 
 /** Utils to convert between Calcite's TimeUnit and Sql intervals. */
 public abstract class TimeUnitUtils {
+  /** supported interval and duration type. */
+  public static final Map<SqlTypeName, DurationFieldType> INTERVALS_DURATIONS_TYPES =
+      ImmutableMap.<SqlTypeName, DurationFieldType>builder()
+          .put(SqlTypeName.INTERVAL_SECOND, DurationFieldType.seconds())
+          .put(SqlTypeName.INTERVAL_MINUTE, DurationFieldType.minutes())
+          .put(SqlTypeName.INTERVAL_HOUR, DurationFieldType.hours())
+          .put(SqlTypeName.INTERVAL_DAY, DurationFieldType.days())
+          .put(SqlTypeName.INTERVAL_MONTH, DurationFieldType.months())
+          .put(SqlTypeName.INTERVAL_YEAR, DurationFieldType.years())
+          .build();
 
   /**
    * @return internal multiplier of a TimeUnit, e.g. YEAR is 12, MINUTE is 60000

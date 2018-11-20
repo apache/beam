@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import com.google.common.base.Function;
@@ -40,7 +39,7 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 /**
  * Metrics containers by step.
  *
- * <p>This class is not thread-safe.</p>
+ * <p>This class is not thread-safe.
  */
 public class MetricsContainerStepMap implements Serializable {
   private Map<String, MetricsContainerImpl> metricsContainers;
@@ -49,9 +48,7 @@ public class MetricsContainerStepMap implements Serializable {
     this.metricsContainers = new ConcurrentHashMap<>();
   }
 
-  /**
-   * Returns the container for the given step name.
-   */
+  /** Returns the container for the given step name. */
   public MetricsContainerImpl getContainer(String stepName) {
     if (!metricsContainers.containsKey(stepName)) {
       metricsContainers.put(stepName, new MetricsContainerImpl(stepName));
@@ -60,8 +57,8 @@ public class MetricsContainerStepMap implements Serializable {
   }
 
   /**
-   * Update this {@link MetricsContainerStepMap} with all values from given
-   * {@link MetricsContainerStepMap}.
+   * Update this {@link MetricsContainerStepMap} with all values from given {@link
+   * MetricsContainerStepMap}.
    */
   public void updateAll(MetricsContainerStepMap other) {
     for (Map.Entry<String, MetricsContainerImpl> container : other.metricsContainers.entrySet()) {
@@ -97,18 +94,16 @@ public class MetricsContainerStepMap implements Serializable {
   }
 
   /**
-   * Returns {@link MetricResults} based on given
-   * {@link MetricsContainerStepMap MetricsContainerStepMaps} of attempted and committed metrics.
+   * Returns {@link MetricResults} based on given {@link MetricsContainerStepMap
+   * MetricsContainerStepMaps} of attempted and committed metrics.
    *
-   * <p>This constructor is intended for runners which support both attempted and committed
-   * metrics.
+   * <p>This constructor is intended for runners which support both attempted and committed metrics.
    */
   public static MetricResults asMetricResults(
       MetricsContainerStepMap attemptedMetricsContainers,
       MetricsContainerStepMap committedMetricsContainers) {
     return new MetricsContainerStepMapMetricResults(
-        attemptedMetricsContainers,
-        committedMetricsContainers);
+        attemptedMetricsContainers, committedMetricsContainers);
   }
 
   /**
@@ -150,27 +145,27 @@ public class MetricsContainerStepMap implements Serializable {
         MetricsContainerStepMap attemptedMetricsContainers,
         MetricsContainerStepMap committedMetricsContainers,
         boolean isCommittedSupported) {
-      for (MetricsContainerImpl container
-          : attemptedMetricsContainers.getMetricsContainers().values()) {
+      for (MetricsContainerImpl container :
+          attemptedMetricsContainers.getMetricsContainers().values()) {
         MetricUpdates cumulative = container.getCumulative();
         mergeCounters(counters, cumulative.counterUpdates(), attemptedCounterUpdateFn());
-        mergeDistributions(distributions, cumulative.distributionUpdates(),
-            attemptedDistributionUpdateFn());
+        mergeDistributions(
+            distributions, cumulative.distributionUpdates(), attemptedDistributionUpdateFn());
         mergeGauges(gauges, cumulative.gaugeUpdates(), attemptedGaugeUpdateFn());
       }
-      for (MetricsContainerImpl container
-          : committedMetricsContainers.getMetricsContainers().values()) {
+      for (MetricsContainerImpl container :
+          committedMetricsContainers.getMetricsContainers().values()) {
         MetricUpdates cumulative = container.getCumulative();
         mergeCounters(counters, cumulative.counterUpdates(), committedCounterUpdateFn());
-        mergeDistributions(distributions, cumulative.distributionUpdates(),
-            committedDistributionUpdateFn());
+        mergeDistributions(
+            distributions, cumulative.distributionUpdates(), committedDistributionUpdateFn());
         mergeGauges(gauges, cumulative.gaugeUpdates(), committedGaugeUpdateFn());
       }
       this.isCommittedSupported = isCommittedSupported;
     }
 
     private Function<MetricUpdate<DistributionData>, AttemptedAndCommitted<DistributionData>>
-    attemptedDistributionUpdateFn() {
+        attemptedDistributionUpdateFn() {
       return input -> {
         MetricKey key = input.getKey();
         return new AttemptedAndCommitted<>(
@@ -179,7 +174,7 @@ public class MetricsContainerStepMap implements Serializable {
     }
 
     private Function<MetricUpdate<DistributionData>, AttemptedAndCommitted<DistributionData>>
-    committedDistributionUpdateFn() {
+        committedDistributionUpdateFn() {
       return input -> {
         MetricKey key = input.getKey();
         return new AttemptedAndCommitted<>(
@@ -188,7 +183,7 @@ public class MetricsContainerStepMap implements Serializable {
     }
 
     private Function<MetricUpdate<GaugeData>, AttemptedAndCommitted<GaugeData>>
-    attemptedGaugeUpdateFn() {
+        attemptedGaugeUpdateFn() {
       return input -> {
         MetricKey key = input.getKey();
         return new AttemptedAndCommitted<>(key, input, MetricUpdate.create(key, GaugeData.empty()));
@@ -196,7 +191,7 @@ public class MetricsContainerStepMap implements Serializable {
     }
 
     private Function<MetricUpdate<GaugeData>, AttemptedAndCommitted<GaugeData>>
-    committedGaugeUpdateFn() {
+        committedGaugeUpdateFn() {
       return input -> {
         MetricKey key = input.getKey();
         return new AttemptedAndCommitted<>(key, MetricUpdate.create(key, GaugeData.empty()), input);
@@ -218,7 +213,7 @@ public class MetricsContainerStepMap implements Serializable {
     }
 
     @Override
-    public MetricQueryResults queryMetrics(MetricsFilter filter) {
+    public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
       return new QueryResults(filter);
     }
 
@@ -231,32 +226,26 @@ public class MetricsContainerStepMap implements Serializable {
 
       @Override
       public Iterable<MetricResult<Long>> getCounters() {
-        return
-            FluentIterable
-                .from(counters.values())
-                .filter(matchesFilter(filter))
-                .transform(counterUpdateToResult())
-                .toList();
+        return FluentIterable.from(counters.values())
+            .filter(matchesFilter(filter))
+            .transform(counterUpdateToResult())
+            .toList();
       }
 
       @Override
       public Iterable<MetricResult<DistributionResult>> getDistributions() {
-        return
-            FluentIterable
-                .from(distributions.values())
-                .filter(matchesFilter(filter))
-                .transform(distributionUpdateToResult())
-                .toList();
+        return FluentIterable.from(distributions.values())
+            .filter(matchesFilter(filter))
+            .transform(distributionUpdateToResult())
+            .toList();
       }
 
       @Override
       public Iterable<MetricResult<GaugeResult>> getGauges() {
-        return
-            FluentIterable
-                .from(gauges.values())
-                .filter(matchesFilter(filter))
-                .transform(gaugeUpdateToResult())
-                .toList();
+        return FluentIterable.from(gauges.values())
+            .filter(matchesFilter(filter))
+            .transform(gaugeUpdateToResult())
+            .toList();
       }
 
       private Predicate<AttemptedAndCommitted<?>> matchesFilter(final MetricsFilter filter) {
@@ -278,7 +267,7 @@ public class MetricsContainerStepMap implements Serializable {
     }
 
     private Function<AttemptedAndCommitted<DistributionData>, MetricResult<DistributionResult>>
-    distributionUpdateToResult() {
+        distributionUpdateToResult() {
       return metricResult -> {
         MetricKey key = metricResult.getKey();
         return new AccumulatedMetricResult<>(
@@ -291,7 +280,7 @@ public class MetricsContainerStepMap implements Serializable {
     }
 
     private Function<AttemptedAndCommitted<GaugeData>, MetricResult<GaugeResult>>
-    gaugeUpdateToResult() {
+        gaugeUpdateToResult() {
       return metricResult -> {
         MetricKey key = metricResult.getKey();
         return new AccumulatedMetricResult<>(
@@ -310,18 +299,16 @@ public class MetricsContainerStepMap implements Serializable {
         Function<MetricUpdate<Long>, AttemptedAndCommitted<Long>> updateToAttemptedAndCommittedFn) {
       for (MetricUpdate<Long> metricUpdate : updates) {
         MetricKey key = metricUpdate.getKey();
-        AttemptedAndCommitted<Long> update =
-            updateToAttemptedAndCommittedFn.apply(metricUpdate);
+        AttemptedAndCommitted<Long> update = updateToAttemptedAndCommittedFn.apply(metricUpdate);
         if (counters.containsKey(key)) {
           AttemptedAndCommitted<Long> current = counters.get(key);
-          update = new AttemptedAndCommitted<>(
-              key,
-              MetricUpdate.create(
+          update =
+              new AttemptedAndCommitted<>(
                   key,
-                  update.getAttempted().getUpdate() + current.getAttempted().getUpdate()),
-              MetricUpdate.create(
-                  key,
-                  update.getCommitted().getUpdate() + current.getCommitted().getUpdate()));
+                  MetricUpdate.create(
+                      key, update.getAttempted().getUpdate() + current.getAttempted().getUpdate()),
+                  MetricUpdate.create(
+                      key, update.getCommitted().getUpdate() + current.getCommitted().getUpdate()));
         }
         counters.put(key, update);
       }
@@ -339,14 +326,21 @@ public class MetricsContainerStepMap implements Serializable {
             updateToAttemptedAndCommittedFn.apply(metricUpdate);
         if (distributions.containsKey(key)) {
           AttemptedAndCommitted<DistributionData> current = distributions.get(key);
-          update = new AttemptedAndCommitted<>(
-              key,
-              MetricUpdate.create(
+          update =
+              new AttemptedAndCommitted<>(
                   key,
-                  update.getAttempted().getUpdate().combine(current.getAttempted().getUpdate())),
-              MetricUpdate.create(
-                  key,
-                  update.getCommitted().getUpdate().combine(current.getCommitted().getUpdate())));
+                  MetricUpdate.create(
+                      key,
+                      update
+                          .getAttempted()
+                          .getUpdate()
+                          .combine(current.getAttempted().getUpdate())),
+                  MetricUpdate.create(
+                      key,
+                      update
+                          .getCommitted()
+                          .getUpdate()
+                          .combine(current.getCommitted().getUpdate())));
         }
         distributions.put(key, update);
       }
@@ -364,22 +358,27 @@ public class MetricsContainerStepMap implements Serializable {
             updateToAttemptedAndCommittedFn.apply(metricUpdate);
         if (gauges.containsKey(key)) {
           AttemptedAndCommitted<GaugeData> current = gauges.get(key);
-          update = new AttemptedAndCommitted<>(
-              key,
-              MetricUpdate.create(
+          update =
+              new AttemptedAndCommitted<>(
                   key,
-                  update.getAttempted().getUpdate().combine(current.getAttempted().getUpdate())),
-              MetricUpdate.create(
-                  key,
-                  update.getCommitted().getUpdate().combine(current.getCommitted().getUpdate())));
+                  MetricUpdate.create(
+                      key,
+                      update
+                          .getAttempted()
+                          .getUpdate()
+                          .combine(current.getAttempted().getUpdate())),
+                  MetricUpdate.create(
+                      key,
+                      update
+                          .getCommitted()
+                          .getUpdate()
+                          .combine(current.getCommitted().getUpdate())));
         }
         gauges.put(key, update);
       }
     }
 
-    /**
-     * Accumulated implementation of {@link MetricResult}.
-     */
+    /** Accumulated implementation of {@link MetricResult}. */
     private static class AccumulatedMetricResult<T> implements MetricResult<T> {
       private final MetricName name;
       private final String step;
@@ -413,8 +412,9 @@ public class MetricsContainerStepMap implements Serializable {
       @Override
       public T getCommitted() {
         if (!isCommittedSupported) {
-          throw new UnsupportedOperationException("This runner does not currently support committed"
-              + " metrics results. Please use 'attempted' instead.");
+          throw new UnsupportedOperationException(
+              "This runner does not currently support committed"
+                  + " metrics results. Please use 'attempted' instead.");
         }
         return committed;
       }
@@ -425,16 +425,14 @@ public class MetricsContainerStepMap implements Serializable {
       }
     }
 
-    /**
-     * Attempted and committed {@link MetricUpdate MetricUpdates}.
-     */
+    /** Attempted and committed {@link MetricUpdate MetricUpdates}. */
     private static class AttemptedAndCommitted<T> {
       private final MetricKey key;
       private final MetricUpdate<T> attempted;
       private final MetricUpdate<T> committed;
 
-      private AttemptedAndCommitted(MetricKey key, MetricUpdate<T> attempted,
-          MetricUpdate<T> committed) {
+      private AttemptedAndCommitted(
+          MetricKey key, MetricUpdate<T> attempted, MetricUpdate<T> committed) {
         this.key = key;
         this.attempted = attempted;
         this.committed = committed;

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -37,7 +36,6 @@ import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
@@ -98,7 +96,11 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), outputCoder);
+          input.getPipeline(),
+          input.getWindowingStrategy(),
+          input.isBounded(),
+          outputCoder,
+          onlyOutputTag);
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -149,19 +151,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
           .build();
     }
 
-    @Override
-    public PTransformTranslation.RawPTransform<?, ?> rehydrate(
-        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
-        throws IOException {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s.rehydrate should never be called; the serialized form is that of a ParDo",
-              getClass().getCanonicalName()));
-    }
-
     private static RunnerApi.ParDoPayload payloadForParDoSingle(
-        final ParDoSingle<?, ?> parDo, SdkComponents components)
-        throws IOException {
+        final ParDoSingle<?, ?> parDo, SdkComponents components) throws IOException {
       final DoFn<?, ?> doFn = parDo.getFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
       checkArgument(
@@ -210,7 +201,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
               for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
                   signature.timerDeclarations().entrySet()) {
                 RunnerApi.TimerSpec spec =
-                    translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn));
+                    translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
                 timerSpecs.put(timer.getKey(), spec);
               }
               return timerSpecs;
@@ -239,12 +230,6 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             ? extends PTransformTranslation.TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(ParDoSingle.class, new PayloadTranslator());
-    }
-
-    @Override
-    public Map<String, ? extends PTransformTranslation.TransformPayloadTranslator>
-        getTransformRehydrators() {
-      return Collections.emptyMap();
     }
   }
 }

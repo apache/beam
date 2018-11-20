@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: true)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Common"
 ext.summary = "Code used by all Beam IOs"
@@ -26,6 +26,5 @@ dependencies {
   testCompile library.java.guava
   testCompile library.java.junit
   testCompile library.java.postgres
-  testCompileOnly library.java.findbugs_annotations
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadow")
 }

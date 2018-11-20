@@ -22,9 +22,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -43,12 +43,16 @@ public class BeamSqlArrayItemExpressionTest {
     List<BeamSqlExpression> input =
         ImmutableList.of(
             BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")),
-            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 0));
+            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
 
     BeamSqlArrayItemExpression expression =
         new BeamSqlArrayItemExpression(input, SqlTypeName.VARCHAR);
 
-    assertEquals("aaa", expression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+    assertEquals(
+        "aaa",
+        expression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
@@ -56,12 +60,16 @@ public class BeamSqlArrayItemExpressionTest {
     List<BeamSqlExpression> input =
         ImmutableList.of(
             BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")),
-            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
+            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
 
     BeamSqlArrayItemExpression expression =
         new BeamSqlArrayItemExpression(input, SqlTypeName.VARCHAR);
 
-    assertEquals("bbb", expression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+    assertEquals(
+        "bbb",
+        expression
+            .evaluate(NULL_ROW, NULL_WINDOW, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
@@ -69,7 +77,7 @@ public class BeamSqlArrayItemExpressionTest {
     List<BeamSqlExpression> input =
         ImmutableList.of(
             BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb")),
-            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
+            BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
 
     BeamSqlArrayItemExpression expression =
         new BeamSqlArrayItemExpression(input, SqlTypeName.VARCHAR);

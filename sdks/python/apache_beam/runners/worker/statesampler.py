@@ -16,10 +16,15 @@
 #
 
 # This module is experimental. No backwards-compatibility guarantees.
+
+from __future__ import absolute_import
+
 import threading
 from collections import namedtuple
 
+from apache_beam.runners import common
 from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
 try:
@@ -44,6 +49,11 @@ def get_current_tracker():
     return None
 
 
+def for_test():
+  set_current_tracker(StateSampler('test', CounterFactory()))
+  return get_current_tracker()
+
+
 StateSamplerInfo = namedtuple(
     'StateSamplerInfo',
     ['state_name',
@@ -66,7 +76,17 @@ class StateSampler(statesampler_impl.StateSampler):
     self._states_by_name = {}
     self.sampling_period_ms = sampling_period_ms
     self.tracked_thread = None
+    self.finished = False
+    self.started = False
     super(StateSampler, self).__init__(sampling_period_ms)
+
+  @property
+  def stage_name(self):
+    return self._prefix
+
+  def stop(self):
+    set_current_tracker(None)
+    super(StateSampler, self).stop()
 
   def stop_if_still_running(self):
     if self.started and not self.finished:
@@ -87,13 +107,28 @@ class StateSampler(statesampler_impl.StateSampler):
         self.tracked_thread)
 
   def scoped_state(self,
-                   step_name,
+                   name_context,
                    state_name,
                    io_target=None,
                    metrics_container=None):
+    """Returns a ScopedState object associated to a Step and a State.
+
+    Args:
+      name_context: common.NameContext. It is the step name information.
+      state_name: str. It is the state name (e.g. process / start / finish).
+      io_target:
+      metrics_container: MetricsContainer. The step's metrics container.
+
+    Returns:
+      A ScopedState that keeps the execution context and is able to switch it
+      for the execution thread.
+    """
+    if not isinstance(name_context, common.NameContext):
+      name_context = common.NameContext(name_context)
+
     counter_name = CounterName(state_name + '-msecs',
                                stage_name=self._prefix,
-                               step_name=step_name,
+                               step_name=name_context.metrics_name(),
                                io_target=io_target)
     if counter_name in self._states_by_name:
       return self._states_by_name[counter_name]
@@ -102,6 +137,7 @@ class StateSampler(statesampler_impl.StateSampler):
                                                          Counter.SUM)
       self._states_by_name[counter_name] = super(
           StateSampler, self)._scoped_state(counter_name,
+                                            name_context,
                                             output_counter,
                                             metrics_container)
       return self._states_by_name[counter_name]

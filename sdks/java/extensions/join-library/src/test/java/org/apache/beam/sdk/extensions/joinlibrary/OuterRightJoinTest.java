@@ -31,17 +31,13 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-
-/**
- * This test Outer Right Join functionality.
- */
+/** This test Outer Right Join functionality. */
 public class OuterRightJoinTest {
   private List<KV<String, Long>> leftListOfKv;
   private List<KV<String, String>> listRightOfKv;
   private List<KV<String, KV<Long, String>>> expectedResult;
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Before
   public void setup() {
@@ -56,16 +52,15 @@ public class OuterRightJoinTest {
   public void testJoinOneToOneMapping() {
     leftListOfKv.add(KV.of("Key1", 5L));
     leftListOfKv.add(KV.of("Key2", 4L));
-    PCollection<KV<String, Long>> leftCollection = p
-        .apply("CreateLeft", Create.of(leftListOfKv));
+    PCollection<KV<String, Long>> leftCollection = p.apply("CreateLeft", Create.of(leftListOfKv));
 
     listRightOfKv.add(KV.of("Key1", "foo"));
     listRightOfKv.add(KV.of("Key2", "bar"));
-    PCollection<KV<String, String>> rightCollection = p
-        .apply("CreateRight", Create.of(listRightOfKv));
+    PCollection<KV<String, String>> rightCollection =
+        p.apply("CreateRight", Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.rightOuterJoin(
-      leftCollection, rightCollection, -1L);
+    PCollection<KV<String, KV<Long, String>>> output =
+        Join.rightOuterJoin(leftCollection, rightCollection, -1L);
 
     expectedResult.add(KV.of("Key1", KV.of(5L, "foo")));
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
@@ -77,16 +72,15 @@ public class OuterRightJoinTest {
   @Test
   public void testJoinOneToManyMapping() {
     leftListOfKv.add(KV.of("Key2", 4L));
-    PCollection<KV<String, Long>> leftCollection = p
-        .apply("CreateLeft", Create.of(leftListOfKv));
+    PCollection<KV<String, Long>> leftCollection = p.apply("CreateLeft", Create.of(leftListOfKv));
 
     listRightOfKv.add(KV.of("Key2", "bar"));
     listRightOfKv.add(KV.of("Key2", "gazonk"));
-    PCollection<KV<String, String>> rightCollection = p
-        .apply("CreateRight", Create.of(listRightOfKv));
+    PCollection<KV<String, String>> rightCollection =
+        p.apply("CreateRight", Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.rightOuterJoin(
-      leftCollection, rightCollection, -1L);
+    PCollection<KV<String, KV<Long, String>>> output =
+        Join.rightOuterJoin(leftCollection, rightCollection, -1L);
 
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
     expectedResult.add(KV.of("Key2", KV.of(4L, "gazonk")));
@@ -99,15 +93,14 @@ public class OuterRightJoinTest {
   public void testJoinManyToOneMapping() {
     leftListOfKv.add(KV.of("Key2", 4L));
     leftListOfKv.add(KV.of("Key2", 6L));
-    PCollection<KV<String, Long>> leftCollection = p
-        .apply("CreateLeft", Create.of(leftListOfKv));
+    PCollection<KV<String, Long>> leftCollection = p.apply("CreateLeft", Create.of(leftListOfKv));
 
     listRightOfKv.add(KV.of("Key2", "bar"));
-    PCollection<KV<String, String>> rightCollection = p
-        .apply("CreateRight", Create.of(listRightOfKv));
+    PCollection<KV<String, String>> rightCollection =
+        p.apply("CreateRight", Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.rightOuterJoin(
-      leftCollection, rightCollection, -1L);
+    PCollection<KV<String, KV<Long, String>>> output =
+        Join.rightOuterJoin(leftCollection, rightCollection, -1L);
 
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
     expectedResult.add(KV.of("Key2", KV.of(6L, "bar")));
@@ -119,15 +112,14 @@ public class OuterRightJoinTest {
   @Test
   public void testJoinNoneToOneMapping() {
     leftListOfKv.add(KV.of("Key2", 4L));
-    PCollection<KV<String, Long>> leftCollection = p
-        .apply("CreateLeft", Create.of(leftListOfKv));
+    PCollection<KV<String, Long>> leftCollection = p.apply("CreateLeft", Create.of(leftListOfKv));
 
     listRightOfKv.add(KV.of("Key3", "bar"));
-    PCollection<KV<String, String>> rightCollection = p
-        .apply("CreateRight", Create.of(listRightOfKv));
+    PCollection<KV<String, String>> rightCollection =
+        p.apply("CreateRight", Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.rightOuterJoin(
-      leftCollection, rightCollection, -1L);
+    PCollection<KV<String, KV<Long, String>>> output =
+        Join.rightOuterJoin(leftCollection, rightCollection, -1L);
 
     expectedResult.add(KV.of("Key3", KV.of(-1L, "bar")));
     PAssert.that(output).containsInAnyOrder(expectedResult);

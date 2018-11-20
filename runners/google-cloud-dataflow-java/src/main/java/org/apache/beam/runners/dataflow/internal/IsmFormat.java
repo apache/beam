@@ -49,51 +49,55 @@ import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * An Ism file is a prefix encoded composite key value file broken into shards. Each composite
- * key is composed of a fixed number of component keys. A fixed number of those sub keys represent
- * the shard key portion; see {@link IsmRecord} and {@link IsmRecordCoder} for further details
- * around the data format. In addition to the data, there is a bloom filter,
- * and multiple indices to allow for efficient retrieval.
+ * An Ism file is a prefix encoded composite key value file broken into shards. Each composite key
+ * is composed of a fixed number of component keys. A fixed number of those sub keys represent the
+ * shard key portion; see {@link IsmRecord} and {@link IsmRecordCoder} for further details around
+ * the data format. In addition to the data, there is a bloom filter, and multiple indices to allow
+ * for efficient retrieval.
  *
  * <p>An Ism file is composed of these high level sections (in order):
+ *
  * <ul>
- *   <li>shard block</li>
- *   <li>bloom filter (See {@code ScalableBloomFilter} for details on encoding format)</li>
- *   <li>shard index</li>
- *   <li>footer (See {@link Footer} for details on encoding format)</li>
+ *   <li>shard block
+ *   <li>bloom filter (See {@code ScalableBloomFilter} for details on encoding format)
+ *   <li>shard index
+ *   <li>footer (See {@link Footer} for details on encoding format)
  * </ul>
  *
  * <p>The shard block is composed of multiple copies of the following:
+ *
  * <ul>
- *   <li>data block</li>
- *   <li>data index</li>
+ *   <li>data block
+ *   <li>data index
  * </ul>
  *
  * <p>The data block is composed of multiple copies of the following:
+ *
  * <ul>
- *   <li>key prefix (See {@link KeyPrefix} for details on encoding format)</li>
- *   <li>unshared key bytes</li>
- *   <li>value bytes</li>
- *   <li>optional 0x00 0x00 bytes followed by metadata bytes
- *       (if the following 0x00 0x00 bytes are not present, then there are no metadata bytes)</li>
+ *   <li>key prefix (See {@link KeyPrefix} for details on encoding format)
+ *   <li>unshared key bytes
+ *   <li>value bytes
+ *   <li>optional 0x00 0x00 bytes followed by metadata bytes (if the following 0x00 0x00 bytes are
+ *       not present, then there are no metadata bytes)
  * </ul>
- * Each key written into the data block must be in unsigned lexicographically increasing order
- * and also its shard portion of the key must hash to the same shard id as all other keys
- * within the same data block. The hashing function used is the
- * <a href="http://smhasher.googlecode.com/svn/trunk/MurmurHash3.cpp">
- * 32-bit murmur3 algorithm, x86 variant</a> (little-endian variant),
- * using {@code 1225801234} as the seed value.
+ *
+ * Each key written into the data block must be in unsigned lexicographically increasing order and
+ * also its shard portion of the key must hash to the same shard id as all other keys within the
+ * same data block. The hashing function used is the <a
+ * href="http://smhasher.googlecode.com/svn/trunk/MurmurHash3.cpp">32-bit murmur3 algorithm, x86
+ * variant</a> (little-endian variant), using {@code 1225801234} as the seed value.
  *
  * <p>The data index is composed of {@code N} copies of the following:
+ *
  * <ul>
- *   <li>key prefix (See {@link KeyPrefix} for details on encoding format)</li>
- *   <li>unshared key bytes</li>
- *   <li>byte offset to key prefix in data block (variable length long coding)</li>
+ *   <li>key prefix (See {@link KeyPrefix} for details on encoding format)
+ *   <li>unshared key bytes
+ *   <li>byte offset to key prefix in data block (variable length long coding)
  * </ul>
  *
  * <p>The shard index is composed of a {@link VarInt variable length integer} encoding representing
- * the number of shard index records followed by that many shard index records.
- * See {@link IsmShardCoder} for further details as to its encoding scheme.
+ * the number of shard index records followed by that many shard index records. See {@link
+ * IsmShardCoder} for further details as to its encoding scheme.
  */
 public class IsmFormat {
   private static final int HASH_SEED = 1225801234;
@@ -101,9 +105,9 @@ public class IsmFormat {
   public static final int SHARD_BITS = 0x7F; // [0-127] shards + [128-255] metadata shards
 
   /**
-   * A record containing a composite key and either a value or metadata. The composite key
-   * must not contain the metadata key component place holder if producing a value record, and must
-   * contain the metadata component key place holder if producing a metadata record.
+   * A record containing a composite key and either a value or metadata. The composite key must not
+   * contain the metadata key component place holder if producing a value record, and must contain
+   * the metadata component key place holder if producing a metadata record.
    *
    * <p>The composite key is a fixed number of component keys where the first {@code N} component
    * keys are used to create a shard id via hashing. See {@link IsmRecordCoder#hash(List)} for
@@ -112,24 +116,29 @@ public class IsmFormat {
   @AutoValue
   public abstract static class IsmRecord<V> {
     abstract List<?> keyComponents();
-    @Nullable abstract V value();
-    @Nullable abstract byte[] metadata();
+
+    @Nullable
+    abstract V value();
+
+    @SuppressWarnings("mutable")
+    @Nullable
+    abstract byte[] metadata();
 
     IsmRecord() {} // Prevent public constructor
 
     /** Returns an IsmRecord with the specified key components and value. */
     public static <V> IsmRecord<V> of(List<?> keyComponents, V value) {
       checkArgument(!keyComponents.isEmpty(), "Expected non-empty list of key components.");
-      checkArgument(!isMetadataKey(keyComponents),
-          "Expected key components to not contain metadata key.");
+      checkArgument(
+          !isMetadataKey(keyComponents), "Expected key components to not contain metadata key.");
       return new AutoValue_IsmFormat_IsmRecord<>(keyComponents, value, null);
     }
 
     public static <V> IsmRecord<V> meta(List<?> keyComponents, byte[] metadata) {
       checkNotNull(metadata);
       checkArgument(!keyComponents.isEmpty(), "Expected non-empty list of key components.");
-      checkArgument(isMetadataKey(keyComponents),
-          "Expected key components to contain metadata key.");
+      checkArgument(
+          isMetadataKey(keyComponents), "Expected key components to contain metadata key.");
       return new AutoValue_IsmFormat_IsmRecord<>(keyComponents, null, metadata);
     }
 
@@ -143,23 +152,19 @@ public class IsmFormat {
       return keyComponents().get(index);
     }
 
-    /**
-     * Returns the value. Throws {@link IllegalStateException} if this is not a
-     * value record.
-     */
+    /** Returns the value. Throws {@link IllegalStateException} if this is not a value record. */
     public V getValue() {
-      checkState(!isMetadataKey(keyComponents()),
-          "This is a metadata record and not a value record.");
+      checkState(
+          !isMetadataKey(keyComponents()), "This is a metadata record and not a value record.");
       return value();
     }
 
     /**
-     * Returns the metadata. Throws {@link IllegalStateException} if this is not a
-     * metadata record.
+     * Returns the metadata. Throws {@link IllegalStateException} if this is not a metadata record.
      */
     public byte[] getMetadata() {
-      checkState(isMetadataKey(keyComponents()),
-          "This is a value record and not a metadata record.");
+      checkState(
+          isMetadataKey(keyComponents()), "This is a value record and not a metadata record.");
       return metadata();
     }
   }
@@ -193,10 +198,7 @@ public class IsmFormat {
       checkArgument(numberOfShardKeyCoders <= keyComponentCoders.size());
       checkArgument(numberOfMetadataShardKeyCoders <= keyComponentCoders.size());
       return new IsmRecordCoder<>(
-          numberOfShardKeyCoders,
-          numberOfMetadataShardKeyCoders,
-          keyComponentCoders,
-          valueCoder);
+          numberOfShardKeyCoders, numberOfMetadataShardKeyCoders, keyComponentCoders, valueCoder);
     }
 
     private final int numberOfShardKeyCoders;
@@ -207,7 +209,8 @@ public class IsmFormat {
     private IsmRecordCoder(
         int numberOfShardKeyCoders,
         int numberOfMetadataShardKeyCoders,
-        List<Coder<?>> keyComponentCoders, Coder<V> valueCoder) {
+        List<Coder<?>> keyComponentCoders,
+        Coder<V> valueCoder) {
       this.numberOfShardKeyCoders = numberOfShardKeyCoders;
       this.numberOfMetadataShardKeyCoders = numberOfMetadataShardKeyCoders;
       this.keyComponentCoders = keyComponentCoders;
@@ -234,9 +237,10 @@ public class IsmFormat {
     public void encode(IsmRecord<V> value, OutputStream outStream)
         throws CoderException, IOException {
       if (value.getKeyComponents().size() != keyComponentCoders.size()) {
-        throw new CoderException(String.format(
-            "Expected %s key component(s) but received key component(s) %s.",
-            keyComponentCoders.size(), value.getKeyComponents()));
+        throw new CoderException(
+            String.format(
+                "Expected %s key component(s) but received key component(s) %s.",
+                keyComponentCoders.size(), value.getKeyComponents()));
       }
       for (int i = 0; i < keyComponentCoders.size(); ++i) {
         getKeyComponentCoder(i).encode(value.getKeyComponent(i), outStream);
@@ -249,8 +253,7 @@ public class IsmFormat {
     }
 
     @Override
-    public IsmRecord<V> decode(InputStream inStream)
-        throws CoderException, IOException {
+    public IsmRecord<V> decode(InputStream inStream) throws CoderException, IOException {
       List<Object> keyComponents = new ArrayList<>(keyComponentCoders.size());
       for (Coder<?> keyCoder : keyComponentCoders) {
         keyComponents.add(keyCoder.decode(inStream));
@@ -273,42 +276,42 @@ public class IsmFormat {
     /**
      * Computes the shard id for the given key component(s).
      *
-     * <p>The shard keys are encoded into their byte representations and hashed using the
-     * <a href="http://smhasher.googlecode.com/svn/trunk/MurmurHash3.cpp">
-     * 32-bit murmur3 algorithm, x86 variant</a> (little-endian variant),
-     * using {@code 1225801234} as the seed value. We ensure that shard ids for
-     * metadata keys and normal keys do not overlap.
+     * <p>The shard keys are encoded into their byte representations and hashed using the <a
+     * href="http://smhasher.googlecode.com/svn/trunk/MurmurHash3.cpp">32-bit murmur3 algorithm, x86
+     * variant</a> (little-endian variant), using {@code 1225801234} as the seed value. We ensure
+     * that shard ids for metadata keys and normal keys do not overlap.
      */
-    public <V, T> int hash(List<?> keyComponents) {
+    public int hash(List<?> keyComponents) {
       return encodeAndHash(keyComponents, new RandomAccessData(), new ArrayList<>());
     }
 
     /**
      * Computes the shard id for the given key component(s).
      *
-     * <p>Mutates {@code keyBytes} such that when returned, contains the encoded
-     * version of the key components.
+     * <p>Mutates {@code keyBytes} such that when returned, contains the encoded version of the key
+     * components.
      */
-    public <V, T> int encodeAndHash(List<?> keyComponents, RandomAccessData keyBytesToMutate) {
+    public int encodeAndHash(List<?> keyComponents, RandomAccessData keyBytesToMutate) {
       return encodeAndHash(keyComponents, keyBytesToMutate, new ArrayList<>());
     }
 
     /**
      * Computes the shard id for the given key component(s).
      *
-     * <p>Mutates {@code keyBytes} such that when returned, contains the encoded
-     * version of the key components. Also, mutates {@code keyComponentByteOffsetsToMutate} to
-     * store the location where each key component's encoded byte representation ends within
-     * {@code keyBytes}.
+     * <p>Mutates {@code keyBytes} such that when returned, contains the encoded version of the key
+     * components. Also, mutates {@code keyComponentByteOffsetsToMutate} to store the location where
+     * each key component's encoded byte representation ends within {@code keyBytes}.
      */
-    public <V, T> int encodeAndHash(
+    public int encodeAndHash(
         List<?> keyComponents,
         RandomAccessData keyBytesToMutate,
         List<Integer> keyComponentByteOffsetsToMutate) {
       checkNotNull(keyComponents);
-      checkArgument(keyComponents.size() <= keyComponentCoders.size(),
+      checkArgument(
+          keyComponents.size() <= keyComponentCoders.size(),
           "Expected at most %s key component(s) but received %s.",
-          keyComponentCoders.size(), keyComponents);
+          keyComponentCoders.size(),
+          keyComponents);
 
       final int numberOfKeyCodersToUse;
       final int shardOffset;
@@ -320,25 +323,28 @@ public class IsmFormat {
         shardOffset = 0;
       }
 
-      checkArgument(numberOfKeyCodersToUse <= keyComponents.size(),
+      checkArgument(
+          numberOfKeyCodersToUse <= keyComponents.size(),
           "Expected at least %s key component(s) but received %s.",
-          numberOfShardKeyCoders, keyComponents);
+          numberOfShardKeyCoders,
+          keyComponents);
 
       try {
         // Encode the shard portion
         for (int i = 0; i < numberOfKeyCodersToUse; ++i) {
-          getKeyComponentCoder(i).encode(
-              keyComponents.get(i), keyBytesToMutate.asOutputStream(), Context.NESTED);
+          getKeyComponentCoder(i)
+              .encode(keyComponents.get(i), keyBytesToMutate.asOutputStream(), Context.NESTED);
           keyComponentByteOffsetsToMutate.add(keyBytesToMutate.size());
         }
-        int rval = HASH_FUNCTION.hashBytes(
-            keyBytesToMutate.array(), 0, keyBytesToMutate.size()).asInt() & SHARD_BITS;
+        int rval =
+            HASH_FUNCTION.hashBytes(keyBytesToMutate.array(), 0, keyBytesToMutate.size()).asInt()
+                & SHARD_BITS;
         rval += shardOffset;
 
         // Encode the remainder
         for (int i = numberOfKeyCodersToUse; i < keyComponents.size(); ++i) {
-          getKeyComponentCoder(i).encode(
-              keyComponents.get(i), keyBytesToMutate.asOutputStream(), Context.NESTED);
+          getKeyComponentCoder(i)
+              .encode(keyComponents.get(i), keyBytesToMutate.asOutputStream(), Context.NESTED);
           keyComponentByteOffsetsToMutate.add(keyBytesToMutate.size());
         }
         return rval;
@@ -350,10 +356,7 @@ public class IsmFormat {
 
     @Override
     public List<Coder<?>> getCoderArguments() {
-      return ImmutableList.<Coder<?>>builder()
-          .addAll(keyComponentCoders)
-          .add(valueCoder)
-          .build();
+      return ImmutableList.<Coder<?>>builder().addAll(keyComponentCoders).add(valueCoder).build();
     }
 
     @Override
@@ -376,10 +379,12 @@ public class IsmFormat {
     @Override
     public Object structuralValue(IsmRecord<V> record) {
       checkNotNull(record);
-      checkState(record.getKeyComponents().size() == keyComponentCoders.size(),
+      checkState(
+          record.getKeyComponents().size() == keyComponentCoders.size(),
           "Expected the number of key component coders %s "
-          + "to match the number of key components %s.",
-          keyComponentCoders.size(), record.getKeyComponents());
+              + "to match the number of key components %s.",
+          keyComponentCoders.size(),
+          record.getKeyComponents());
 
       if (consistentWithEquals()) {
         ArrayList<Object> keyComponentStructuralValues = new ArrayList<>();
@@ -390,8 +395,8 @@ public class IsmFormat {
         if (isMetadataKey(record.getKeyComponents())) {
           return IsmRecord.meta(keyComponentStructuralValues, record.getMetadata());
         } else {
-          return IsmRecord.of(keyComponentStructuralValues,
-              valueCoder.structuralValue(record.getValue()));
+          return IsmRecord.of(
+              keyComponentStructuralValues, valueCoder.structuralValue(record.getValue()));
         }
       }
       return super.structuralValue(record);
@@ -420,17 +425,16 @@ public class IsmFormat {
     }
   }
 
-  /**
-   * Validates that the key portion of the given coder is deterministic.
-   */
+  /** Validates that the key portion of the given coder is deterministic. */
   public static void validateCoderIsCompatible(IsmRecordCoder<?> coder) {
     for (Coder<?> keyComponentCoder : coder.getKeyComponentCoders()) {
       try {
-          keyComponentCoder.verifyDeterministic();
+        keyComponentCoder.verifyDeterministic();
       } catch (NonDeterministicException e) {
         throw new IllegalArgumentException(
-            String.format("Key component coder %s is expected to be deterministic.",
-                keyComponentCoder), e);
+            String.format(
+                "Key component coder %s is expected to be deterministic.", keyComponentCoder),
+            e);
       }
     }
   }
@@ -446,34 +450,34 @@ public class IsmFormat {
   }
 
   /** A marker object representing the wildcard metadata key component. */
-  private static final Object METADATA_KEY = new Object() {
-    @Override
-    public String toString() {
-      return "META";
-    }
+  private static final Object METADATA_KEY =
+      new Object() {
+        @Override
+        public String toString() {
+          return "META";
+        }
 
-    @Override
-    public boolean equals(Object obj) {
-      return this == obj;
-    }
+        @Override
+        public boolean equals(Object obj) {
+          return this == obj;
+        }
 
-    @Override
-    public int hashCode() {
-      return -1248902349;
-    }
-  };
+        @Override
+        public int hashCode() {
+          return -1248902349;
+        }
+      };
 
   /**
-   * An object representing a wild card for a key component.
-   * Encoded using {@link MetadataKeyCoder}.
+   * An object representing a wild card for a key component. Encoded using {@link MetadataKeyCoder}.
    */
   public static Object getMetadataKey() {
     return METADATA_KEY;
   }
 
   /**
-   * A coder for metadata key component. Can be used to wrap key component coder allowing for
-   * the metadata key component to be used as a place holder instead of an actual key.
+   * A coder for metadata key component. Can be used to wrap key component coder allowing for the
+   * metadata key component to be used as a place holder instead of an actual key.
    */
   public static class MetadataKeyCoder<K> extends StructuredCoder<K> {
     public static <K> MetadataKeyCoder<K> of(Coder<K> keyCoder) {
@@ -492,8 +496,7 @@ public class IsmFormat {
     }
 
     @Override
-    public void encode(K value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(K value, OutputStream outStream) throws CoderException, IOException {
       if (value == METADATA_KEY) {
         outStream.write(0);
       } else {
@@ -503,8 +506,7 @@ public class IsmFormat {
     }
 
     @Override
-    public K decode(InputStream inStream)
-        throws CoderException, IOException {
+    public K decode(InputStream inStream) throws CoderException, IOException {
       int marker = inStream.read();
       if (marker == 0) {
         return (K) getMetadataKey();
@@ -533,7 +535,9 @@ public class IsmFormat {
   @AutoValue
   public abstract static class IsmShard {
     abstract int id();
+
     abstract long blockOffset();
+
     abstract long indexOffset();
 
     IsmShard() {}
@@ -541,27 +545,20 @@ public class IsmFormat {
     /** Returns an IsmShard with the given id, block offset and no index offset. */
     public static IsmShard of(int id, long blockOffset) {
       IsmShard ismShard = new AutoValue_IsmFormat_IsmShard(id, blockOffset, -1);
-      checkState(id >= 0,
-          "%s attempting to be written with negative shard id.",
-          ismShard);
-      checkState(blockOffset >= 0,
-          "%s attempting to be written with negative block offset.",
-          ismShard);
+      checkState(id >= 0, "%s attempting to be written with negative shard id.", ismShard);
+      checkState(
+          blockOffset >= 0, "%s attempting to be written with negative block offset.", ismShard);
       return ismShard;
     }
 
     /** Returns an IsmShard with the given id, block offset, and index offset. */
     public static IsmShard of(int id, long blockOffset, long indexOffset) {
       IsmShard ismShard = new AutoValue_IsmFormat_IsmShard(id, blockOffset, indexOffset);
-      checkState(id >= 0,
-          "%s attempting to be written with negative shard id.",
-          ismShard);
-      checkState(blockOffset >= 0,
-          "%s attempting to be written with negative block offset.",
-          ismShard);
-      checkState(indexOffset >= 0,
-          "%s attempting to be written with negative index offset.",
-          ismShard);
+      checkState(id >= 0, "%s attempting to be written with negative shard id.", ismShard);
+      checkState(
+          blockOffset >= 0, "%s attempting to be written with negative block offset.", ismShard);
+      checkState(
+          indexOffset >= 0, "%s attempting to be written with negative index offset.", ismShard);
       return ismShard;
     }
 
@@ -576,12 +573,12 @@ public class IsmFormat {
     }
 
     /**
-     * Return the absolute position within the Ism file where the index block begins.
-     * Throws {@link IllegalStateException} if the index offset was never specified.
+     * Return the absolute position within the Ism file where the index block begins. Throws {@link
+     * IllegalStateException} if the index offset was never specified.
      */
     public long getIndexOffset() {
-      checkState(indexOffset() >= 0,
-            "Unable to fetch index offset because it was never specified.");
+      checkState(
+          indexOffset() >= 0, "Unable to fetch index offset because it was never specified.");
       return indexOffset();
     }
 
@@ -592,9 +589,9 @@ public class IsmFormat {
   }
 
   /**
-   * A {@link ListCoder} wrapping a {@link IsmShardCoder} used to encode the shard index.
-   * See {@link ListCoder} for its encoding specification and {@link IsmShardCoder} for its
-   * encoding specification.
+   * A {@link ListCoder} wrapping a {@link IsmShardCoder} used to encode the shard index. See {@link
+   * ListCoder} for its encoding specification and {@link IsmShardCoder} for its encoding
+   * specification.
    */
   public static final Coder<List<IsmShard>> ISM_SHARD_INDEX_CODER =
       ListCoder.of(IsmShardCoder.of());
@@ -603,10 +600,11 @@ public class IsmFormat {
    * A coder for {@link IsmShard}s.
    *
    * <p>The shard descriptor is encoded as:
+   *
    * <ul>
-   *   <li>id (variable length integer encoding)</li>
-   *   <li>blockOffset (variable length long encoding)</li>
-   *   <li>indexOffset (variable length long encoding)</li>
+   *   <li>id (variable length integer encoding)
+   *   <li>blockOffset (variable length long encoding)
+   *   <li>indexOffset (variable length long encoding)
    * </ul>
    */
   public static class IsmShardCoder extends AtomicCoder<IsmShard> {
@@ -620,11 +618,9 @@ public class IsmFormat {
     private IsmShardCoder() {}
 
     @Override
-    public void encode(IsmShard value, OutputStream outStream)
-        throws CoderException, IOException {
-      checkState(value.getIndexOffset() >= 0,
-          "%s attempting to be written without index offset.",
-          value);
+    public void encode(IsmShard value, OutputStream outStream) throws CoderException, IOException {
+      checkState(
+          value.getIndexOffset() >= 0, "%s attempting to be written without index offset.", value);
       VarIntCoder.of().encode(value.getId(), outStream);
       VarLongCoder.of().encode(value.getBlockOffset(), outStream);
       VarLongCoder.of().encode(value.getIndexOffset(), outStream);
@@ -651,20 +647,22 @@ public class IsmFormat {
   }
 
   /**
-   * The prefix used before each key which contains the number of shared and unshared
-   * bytes from the previous key that was read. The key prefix along with the previous key
-   * and the unshared key bytes allows one to construct the current key by doing the following
-   * {@code currentKey = previousKey[0 : sharedBytes] + read(unsharedBytes)}.
+   * The prefix used before each key which contains the number of shared and unshared bytes from the
+   * previous key that was read. The key prefix along with the previous key and the unshared key
+   * bytes allows one to construct the current key by doing the following {@code currentKey =
+   * previousKey[0 : sharedBytes] + read(unsharedBytes)}.
    *
    * <p>The key prefix is encoded as:
+   *
    * <ul>
-   *   <li>number of shared key bytes (variable length integer coding)</li>
-   *   <li>number of unshared key bytes (variable length integer coding)</li>
+   *   <li>number of shared key bytes (variable length integer coding)
+   *   <li>number of unshared key bytes (variable length integer coding)
    * </ul>
    */
   @AutoValue
   public abstract static class KeyPrefix {
     public abstract int getSharedKeySize();
+
     public abstract int getUnsharedKeySize();
 
     public static KeyPrefix of(int sharedKeySize, int unsharedKeySize) {
@@ -681,15 +679,13 @@ public class IsmFormat {
     }
 
     @Override
-    public void encode(KeyPrefix value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(KeyPrefix value, OutputStream outStream) throws CoderException, IOException {
       VarInt.encode(value.getSharedKeySize(), outStream);
       VarInt.encode(value.getUnsharedKeySize(), outStream);
     }
 
     @Override
-    public KeyPrefix decode(InputStream inStream)
-        throws CoderException, IOException {
+    public KeyPrefix decode(InputStream inStream) throws CoderException, IOException {
       return KeyPrefix.of(VarInt.decodeInt(inStream), VarInt.decodeInt(inStream));
     }
 
@@ -707,8 +703,7 @@ public class IsmFormat {
     }
 
     @Override
-    public long getEncodedElementByteSize(KeyPrefix value)
-        throws Exception {
+    public long getEncodedElementByteSize(KeyPrefix value) throws Exception {
       checkNotNull(value);
       return VarInt.getLength(value.getSharedKeySize())
           + (long) VarInt.getLength(value.getUnsharedKeySize());
@@ -716,15 +711,16 @@ public class IsmFormat {
   }
 
   /**
-   * The footer stores the relevant information required to locate the index and bloom filter.
-   * It also stores a version byte and the number of keys stored.
+   * The footer stores the relevant information required to locate the index and bloom filter. It
+   * also stores a version byte and the number of keys stored.
    *
    * <p>The footer is encoded as the value containing:
+   *
    * <ul>
-   *   <li>start of bloom filter offset (big endian long coding)</li>
-   *   <li>start of shard index position offset (big endian long coding)</li>
-   *   <li>number of keys in file (big endian long coding)</li>
-   *   <li>0x01 (version key as a single byte)</li>
+   *   <li>start of bloom filter offset (big endian long coding)
+   *   <li>start of shard index position offset (big endian long coding)
+   *   <li>number of keys in file (big endian long coding)
+   *   <li>0x01 (version key as a single byte)
    * </ul>
    */
   @AutoValue
@@ -734,8 +730,11 @@ public class IsmFormat {
     public static final byte VERSION = 2;
 
     public abstract byte getVersion();
+
     public abstract long getIndexPosition();
+
     public abstract long getBloomFilterPosition();
+
     public abstract long getNumberOfKeys();
 
     public static Footer of(long indexPosition, long bloomFilterPosition, long numberOfKeys) {
@@ -753,8 +752,7 @@ public class IsmFormat {
     }
 
     @Override
-    public void encode(Footer value, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(Footer value, OutputStream outStream) throws CoderException, IOException {
       DataOutputStream dataOut = new DataOutputStream(outStream);
       dataOut.writeLong(value.getIndexPosition());
       dataOut.writeLong(value.getBloomFilterPosition());
@@ -763,14 +761,13 @@ public class IsmFormat {
     }
 
     @Override
-    public Footer decode(InputStream inStream)
-        throws CoderException, IOException {
+    public Footer decode(InputStream inStream) throws CoderException, IOException {
       DataInputStream dataIn = new DataInputStream(inStream);
       Footer footer = Footer.of(dataIn.readLong(), dataIn.readLong(), dataIn.readLong());
       int version = dataIn.read();
       if (version != Footer.VERSION) {
-        throw new IOException("Unknown version " + version + ". "
-            + "Only version 2 is currently supported.");
+        throw new IOException(
+            "Unknown version " + version + ". " + "Only version 2 is currently supported.");
       }
       return footer;
     }
@@ -789,8 +786,7 @@ public class IsmFormat {
     }
 
     @Override
-    public long getEncodedElementByteSize(Footer value)
-        throws Exception {
+    public long getEncodedElementByteSize(Footer value) throws Exception {
       return Footer.FIXED_LENGTH;
     }
   }

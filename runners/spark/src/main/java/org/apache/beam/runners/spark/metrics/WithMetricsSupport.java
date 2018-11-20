@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.metrics;
 
 import com.codahale.metrics.Counter;
@@ -42,12 +41,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link MetricRegistry} decorator-like that supports {@link AggregatorMetric} and
- * {@link SparkBeamMetric} as {@link Gauge Gauges}.
- * <p>
- * {@link MetricRegistry} is not an interface, so this is not a by-the-book decorator.
- * That said, it delegates all metric related getters to the "decorated" instance.
- * </p>
+ * A {@link MetricRegistry} decorator-like that supports {@link AggregatorMetric} and {@link
+ * SparkBeamMetric} as {@link Gauge Gauges}.
+ *
+ * <p>{@link MetricRegistry} is not an interface, so this is not a by-the-book decorator. That said,
+ * it delegates all metric related getters to the "decorated" instance.
  */
 public class WithMetricsSupport extends MetricRegistry {
 
@@ -85,29 +83,26 @@ public class WithMetricsSupport extends MetricRegistry {
 
   @Override
   public SortedMap<String, Gauge> getGauges(final MetricFilter filter) {
-    return
-        new ImmutableSortedMap.Builder<String, Gauge>(
+    return new ImmutableSortedMap.Builder<String, Gauge>(
             Ordering.from(String.CASE_INSENSITIVE_ORDER))
-            .putAll(internalMetricRegistry.getGauges(filter))
-            .putAll(extractGauges(internalMetricRegistry, filter))
-            .build();
+        .putAll(internalMetricRegistry.getGauges(filter))
+        .putAll(extractGauges(internalMetricRegistry, filter))
+        .build();
   }
 
-  private Map<String, Gauge> extractGauges(final MetricRegistry metricRegistry,
-                                           final MetricFilter filter) {
+  private Map<String, Gauge> extractGauges(
+      final MetricRegistry metricRegistry, final MetricFilter filter) {
     Map<String, Gauge> gauges = new HashMap<>();
 
     // find the AggregatorMetric metrics from within all currently registered metrics
     final Optional<Map<String, Gauge>> aggregatorMetrics =
-        FluentIterable
-            .from(metricRegistry.getMetrics().entrySet())
+        FluentIterable.from(metricRegistry.getMetrics().entrySet())
             .firstMatch(isAggregatorMetric())
             .transform(aggregatorMetricToGauges());
 
     // find the SparkBeamMetric metrics from within all currently registered metrics
     final Optional<Map<String, Gauge>> beamMetrics =
-        FluentIterable
-            .from(metricRegistry.getMetrics().entrySet())
+        FluentIterable.from(metricRegistry.getMetrics().entrySet())
             .firstMatch(isSparkBeamMetric())
             .transform(beamMetricToGauges());
 

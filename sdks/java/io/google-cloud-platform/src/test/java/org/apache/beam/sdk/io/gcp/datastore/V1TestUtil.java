@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.datastore;
 
 import static com.google.datastore.v1.QueryResultBatch.MoreResultsType.NOT_FINISHED;
@@ -66,9 +65,7 @@ import org.slf4j.LoggerFactory;
 class V1TestUtil {
   private static final Logger LOG = LoggerFactory.getLogger(V1TestUtil.class);
 
-  /**
-   * A helper function to create the ancestor key for all created and queried entities.
-   */
+  /** A helper function to create the ancestor key for all created and queried entities. */
   static Key makeAncestorKey(@Nullable String namespace, String kind, String ancestor) {
     Key.Builder keyBuilder = makeKey(kind, ancestor);
     if (namespace != null) {
@@ -77,25 +74,25 @@ class V1TestUtil {
     return keyBuilder.build();
   }
 
-  /**
-   * Build a datastore ancestor query for the specified kind, namespace and ancestor.
-   */
+  /** Build a datastore ancestor query for the specified kind, namespace and ancestor. */
   static Query makeAncestorKindQuery(String kind, @Nullable String namespace, String ancestor) {
     Query.Builder q = Query.newBuilder();
     q.addKindBuilder().setName(kind);
-    q.setFilter(makeFilter(
-        "__key__",
-        PropertyFilter.Operator.HAS_ANCESTOR,
-        makeValue(makeAncestorKey(namespace, kind, ancestor))));
+    q.setFilter(
+        makeFilter(
+            "__key__",
+            PropertyFilter.Operator.HAS_ANCESTOR,
+            makeValue(makeAncestorKey(namespace, kind, ancestor))));
     return q.build();
   }
 
   /**
    * Build an entity for the given ancestorKey, kind, namespace and value.
+   *
    * @param largePropertySize if greater than 0, add an unindexed property of the given size.
    */
-  static Entity makeEntity(Long value, Key ancestorKey, String kind, @Nullable String namespace,
-      int largePropertySize) {
+  static Entity makeEntity(
+      Long value, Key ancestorKey, String kind, @Nullable String namespace, int largePropertySize) {
     Entity.Builder entityBuilder = Entity.newBuilder();
     Key.Builder keyBuilder = makeKey(ancestorKey, kind, UUID.randomUUID().toString());
     // NOTE: Namespace is not inherited between keys created with DatastoreHelper.makeKey, so
@@ -108,24 +105,24 @@ class V1TestUtil {
     entityBuilder.setKey(keyBuilder.build());
     entityBuilder.putProperties("value", makeValue(value).build());
     if (largePropertySize > 0) {
-      entityBuilder.putProperties("unindexed_value", makeValue(new String(
-          new char[largePropertySize]).replace("\0", "A")).setExcludeFromIndexes(true).build());
+      entityBuilder.putProperties(
+          "unindexed_value",
+          makeValue(new String(new char[largePropertySize]).replace("\0", "A"))
+              .setExcludeFromIndexes(true)
+              .build());
     }
     return entityBuilder.build();
   }
 
-  /**
-   * A DoFn that creates entity for a long number.
-   */
+  /** A DoFn that creates entity for a long number. */
   static class CreateEntityFn extends DoFn<Long, Entity> {
     private final String kind;
-    @Nullable
-    private final String namespace;
+    @Nullable private final String namespace;
     private final int largePropertySize;
     private Key ancestorKey;
 
-    CreateEntityFn(String kind, @Nullable String namespace, String ancestor,
-        int largePropertySize) {
+    CreateEntityFn(
+        String kind, @Nullable String namespace, String ancestor, int largePropertySize) {
       this.kind = kind;
       this.namespace = namespace;
       this.largePropertySize = largePropertySize;
@@ -139,31 +136,25 @@ class V1TestUtil {
     }
   }
 
-  /**
-   * Build a new datastore client.
-   */
+  /** Build a new datastore client. */
   static Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
     Credentials credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
     HttpRequestInitializer initializer;
     if (credential != null) {
-      initializer = new ChainingHttpRequestInitializer(
-          new HttpCredentialsAdapter(credential),
-          new RetryHttpRequestInitializer());
+      initializer =
+          new ChainingHttpRequestInitializer(
+              new HttpCredentialsAdapter(credential), new RetryHttpRequestInitializer());
     } else {
       initializer = new RetryHttpRequestInitializer();
     }
 
     DatastoreOptions.Builder builder =
-        new DatastoreOptions.Builder()
-            .projectId(projectId)
-            .initializer(initializer);
+        new DatastoreOptions.Builder().projectId(projectId).initializer(initializer);
 
     return DatastoreFactory.get().create(builder.build());
   }
 
-  /**
-   * Build a datastore query request.
-   */
+  /** Build a datastore query request. */
   private static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
     RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
     if (namespace != null) {
@@ -172,14 +163,12 @@ class V1TestUtil {
     return requestBuilder.build();
   }
 
-  /**
-   * Delete all entities with the given ancestor.
-   */
+  /** Delete all entities with the given ancestor. */
   static void deleteAllEntities(V1TestOptions options, String project, String ancestor)
       throws Exception {
     Datastore datastore = getDatastore(options, project);
-    Query query = V1TestUtil.makeAncestorKindQuery(
-        options.getKind(), options.getNamespace(), ancestor);
+    Query query =
+        V1TestUtil.makeAncestorKindQuery(options.getKind(), options.getNamespace(), ancestor);
 
     V1TestReader reader = new V1TestReader(datastore, query, options.getNamespace());
     V1TestWriter writer = new V1TestWriter(datastore, new DeleteMutationBuilder());
@@ -195,15 +184,13 @@ class V1TestUtil {
     LOG.info("Successfully deleted {} entities", numEntities);
   }
 
-  /**
-   * Returns the total number of entities for the given datastore.
-   */
+  /** Returns the total number of entities for the given datastore. */
   static long countEntities(V1TestOptions options, String project, String ancestor)
       throws Exception {
     // Read from datastore.
     Datastore datastore = V1TestUtil.getDatastore(options, project);
-    Query query = V1TestUtil.makeAncestorKindQuery(
-        options.getKind(), options.getNamespace(), ancestor);
+    Query query =
+        V1TestUtil.makeAncestorKindQuery(options.getKind(), options.getNamespace(), ancestor);
 
     V1TestReader reader = new V1TestReader(datastore, query, options.getNamespace());
 
@@ -216,16 +203,14 @@ class V1TestUtil {
   }
 
   /**
-   * An interface to represent any datastore mutation operation.
-   * Mutation operations include insert, delete, upsert, update.
+   * An interface to represent any datastore mutation operation. Mutation operations include insert,
+   * delete, upsert, update.
    */
   interface MutationBuilder {
     Mutation.Builder apply(Entity entity);
   }
 
-  /**
-   *A MutationBuilder that performs upsert operation.
-   */
+  /** A MutationBuilder that performs upsert operation. */
   static class UpsertMutationBuilder implements MutationBuilder {
     @Override
     public Mutation.Builder apply(Entity entity) {
@@ -233,9 +218,7 @@ class V1TestUtil {
     }
   }
 
-  /**
-   * A MutationBuilder that performs delete operation.
-   */
+  /** A MutationBuilder that performs delete operation. */
   static class DeleteMutationBuilder implements MutationBuilder {
     @Override
     public Mutation.Builder apply(Entity entity) {
@@ -243,9 +226,7 @@ class V1TestUtil {
     }
   }
 
-  /**
-   * A helper class to write entities to datastore.
-   */
+  /** A helper class to write entities to datastore. */
   static class V1TestWriter {
     private static final Logger LOG = LoggerFactory.getLogger(V1TestWriter.class);
     // Limits the number of entities updated per batch
@@ -302,13 +283,15 @@ class V1TestUtil {
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff =
           FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF).backoff();
+              .withMaxRetries(MAX_RETRIES)
+              .withInitialBackoff(INITIAL_BACKOFF)
+              .backoff();
 
       while (true) {
         // Batch mutate entities.
         try {
           CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
-          for (Entity entity: entities) {
+          for (Entity entity : entities) {
             commitRequest.addMutations(mutationBuilder.apply(entity));
           }
           commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
@@ -316,7 +299,9 @@ class V1TestUtil {
           // Break if the commit threw no exception.
           break;
         } catch (DatastoreException exception) {
-          LOG.error("Error writing to the Datastore ({}): {}", exception.getCode(),
+          LOG.error(
+              "Error writing to the Datastore ({}): {}",
+              exception.getCode(),
               exception.getMessage());
           if (!BackOffUtils.next(sleeper, backoff)) {
             LOG.error("Aborting after {} retries.", MAX_RETRIES);
@@ -329,15 +314,12 @@ class V1TestUtil {
     }
   }
 
-  /**
-   * A helper class to read entities from datastore.
-   */
+  /** A helper class to read entities from datastore. */
   static class V1TestReader {
     private static final int QUERY_BATCH_LIMIT = 500;
     private final Datastore datastore;
     private final Query query;
-    @Nullable
-    private final String namespace;
+    @Nullable private final String namespace;
     private boolean moreResults;
     private Iterator<EntityResult> entities;
     // Current batch of query results
@@ -387,8 +369,8 @@ class V1TestUtil {
 
       int numFetch = currentBatch.getEntityResultsCount();
       // All indications from the API are that there are/may be more results.
-      moreResults = ((numFetch == QUERY_BATCH_LIMIT)
-          || (currentBatch.getMoreResults() == NOT_FINISHED));
+      moreResults =
+          ((numFetch == QUERY_BATCH_LIMIT) || (currentBatch.getMoreResults() == NOT_FINISHED));
 
       // May receive a batch of 0 results if the number of records is a multiple
       // of the request limit.

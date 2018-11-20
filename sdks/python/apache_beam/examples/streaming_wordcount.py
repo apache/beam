@@ -23,7 +23,7 @@ from __future__ import absolute_import
 import argparse
 import logging
 
-import six
+from past.builtins import unicode
 
 import apache_beam as beam
 import apache_beam.transforms.window as window
@@ -60,10 +60,16 @@ def run(argv=None):
 
   # Read from PubSub into a PCollection.
   if known_args.input_subscription:
-    lines = p | beam.io.ReadStringsFromPubSub(
-        subscription=known_args.input_subscription)
+    messages = (p
+                | beam.io.ReadFromPubSub(
+                    subscription=known_args.input_subscription)
+                .with_output_types(bytes))
   else:
-    lines = p | beam.io.ReadStringsFromPubSub(topic=known_args.input_topic)
+    messages = (p
+                | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+                .with_output_types(bytes))
+
+  lines = messages | 'decode' >> beam.Map(lambda x: x.decode('utf-8'))
 
   # Count the occurrences of each word.
   def count_ones(word_ones):
@@ -72,7 +78,7 @@ def run(argv=None):
 
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(six.text_type))
+                          .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | beam.WindowInto(window.FixedWindows(15, 0))
             | 'group' >> beam.GroupByKey()
@@ -83,11 +89,14 @@ def run(argv=None):
     (word, count) = word_count
     return '%s: %d' % (word, count)
 
-  output = counts | 'format' >> beam.Map(format_result)
+  output = (counts
+            | 'format' >> beam.Map(format_result)
+            | 'encode' >> beam.Map(lambda x: x.encode('utf-8'))
+            .with_output_types(bytes))
 
   # Write to PubSub.
   # pylint: disable=expression-not-assigned
-  output | beam.io.WriteStringsToPubSub(known_args.output_topic)
+  output | beam.io.WriteToPubSub(known_args.output_topic)
 
   result = p.run()
   result.wait_until_finish()

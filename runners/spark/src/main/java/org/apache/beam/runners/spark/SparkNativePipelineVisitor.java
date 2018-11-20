@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import com.google.common.base.Joiner;
@@ -36,15 +35,14 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * Pipeline visitor for translating a Beam pipeline into equivalent Spark operations.
- * Used for debugging purposes using {@link SparkRunnerDebugger}.
+ * Pipeline visitor for translating a Beam pipeline into equivalent Spark operations. Used for
+ * debugging purposes using {@link SparkRunnerDebugger}.
  */
 public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
   private final List<NativeTransform> transforms;
   private final List<String> knownCompositesPackages =
       Lists.newArrayList(
-          "org.apache.beam.sdk.transforms",
-          "org.apache.beam.runners.spark.examples");
+          "org.apache.beam.sdk.transforms", "org.apache.beam.runners.spark.examples");
 
   SparkNativePipelineVisitor(SparkPipelineTranslator translator, EvaluationContext ctxt) {
     super(translator, ctxt);
@@ -79,23 +77,21 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
 
   private boolean shouldDebug(final TransformHierarchy.Node node) {
     return node == null
-        || !transforms
+        || (!transforms
                 .stream()
                 .anyMatch(
                     debugTransform ->
                         debugTransform.getNode().equals(node) && debugTransform.isComposite())
-            && shouldDebug(node.getEnclosingNode());
+            && shouldDebug(node.getEnclosingNode()));
   }
 
   @Override
-  <TransformT extends PTransform<? super PInput, POutput>> void
-  doVisitTransform(TransformHierarchy.Node node) {
+  <TransformT extends PTransform<? super PInput, POutput>> void doVisitTransform(
+      TransformHierarchy.Node node) {
     @SuppressWarnings("unchecked")
     TransformT transform = (TransformT) node.getTransform();
     @SuppressWarnings("unchecked")
-    Class<TransformT> transformClass = (Class<TransformT>) transform.getClass();
-    @SuppressWarnings("unchecked")
-    TransformEvaluator<TransformT> evaluator = translate(node, transform, transformClass);
+    TransformEvaluator<TransformT> evaluator = translate(node, transform);
     if (shouldDebug(node)) {
       transforms.add(new NativeTransform(node, evaluator, transform, false));
     }
@@ -159,21 +155,18 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
           return transformString;
         }
         return "_." + transformString;
-      } catch (
-          NoSuchMethodException
-              | InvocationTargetException
-              | IllegalAccessException
-              | NoSuchFieldException e) {
+      } catch (NoSuchMethodException
+          | InvocationTargetException
+          | IllegalAccessException
+          | NoSuchFieldException e) {
         return "<FailedTranslation>";
       }
     }
 
     private String replaceFnString(
-        Class<? extends PTransform> transformClass,
-        String transformString,
-        String fnFieldName)
+        Class<? extends PTransform> transformClass, String transformString, String fnFieldName)
         throws IllegalAccessException, InvocationTargetException, NoSuchMethodException,
-        NoSuchFieldException {
+            NoSuchFieldException {
       Object fn =
           transformClass.getMethod("get" + StringUtils.capitalize(fnFieldName)).invoke(transform);
       Class<?> fnClass = fn.getClass();

@@ -37,16 +37,12 @@ public class AfterFirst extends OnceTrigger {
     checkArgument(subTriggers.size() > 1);
   }
 
-  /**
-   * Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers.
-   */
+  /** Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers. */
   public static AfterFirst of(OnceTrigger... triggers) {
     return new AfterFirst(Arrays.asList(triggers));
   }
 
-  /**
-   * Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers.
-   */
+  /** Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers. */
   public static AfterFirst of(List<Trigger> triggers) {
     return new AfterFirst(triggers);
   }

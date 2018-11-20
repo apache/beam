@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.translation;
 
 import com.datatorrent.api.InputOperator;
@@ -24,8 +23,8 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 
 /**
- * {@link Read.Unbounded} is translated to Apex {@link InputOperator}
- * that wraps {@link UnboundedSource}.
+ * {@link Read.Unbounded} is translated to Apex {@link InputOperator} that wraps {@link
+ * UnboundedSource}.
  */
 class ReadUnboundedTranslator<T> implements TransformTranslator<Read.Unbounded<T>> {
   private static final long serialVersionUID = 1L;
@@ -33,9 +32,8 @@ class ReadUnboundedTranslator<T> implements TransformTranslator<Read.Unbounded<T
   @Override
   public void translate(Read.Unbounded<T> transform, TranslationContext context) {
     UnboundedSource<T, ?> unboundedSource = transform.getSource();
-    ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
-        unboundedSource, context.getPipelineOptions());
+    ApexReadUnboundedInputOperator<T, ?> operator =
+        new ApexReadUnboundedInputOperator<>(unboundedSource, context.getPipelineOptions());
     context.addOperator(operator, operator.output);
   }
-
 }

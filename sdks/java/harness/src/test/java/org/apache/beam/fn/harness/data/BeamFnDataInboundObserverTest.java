@@ -25,7 +25,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -49,8 +49,7 @@ public class BeamFnDataInboundObserverTest {
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testDecodingElements() throws Exception {
@@ -61,8 +60,10 @@ public class BeamFnDataInboundObserverTest {
 
     // Test decoding multiple messages
     observer.accept(dataWith("ABC", "DEF", "GHI"));
-    assertThat(values, contains(
-        valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
+    assertThat(
+        values,
+        contains(
+            valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
     values.clear();
 
     // Test empty message signaling end of stream
@@ -97,12 +98,14 @@ public class BeamFnDataInboundObserverTest {
     }
   }
 
-  private BeamFnApi.Elements.Data dataWith(String ... values) throws Exception {
-    BeamFnApi.Elements.Data.Builder builder = BeamFnApi.Elements.Data.newBuilder()
-        .setInstructionReference("777L")
-        .setTarget(BeamFnApi.Target.newBuilder()
-            .setPrimitiveTransformReference("999L")
-            .setName("Test"));
+  private BeamFnApi.Elements.Data dataWith(String... values) throws Exception {
+    BeamFnApi.Elements.Data.Builder builder =
+        BeamFnApi.Elements.Data.newBuilder()
+            .setInstructionReference("777L")
+            .setTarget(
+                BeamFnApi.Target.newBuilder()
+                    .setPrimitiveTransformReference("999L")
+                    .setName("Test"));
     ByteString.Output output = ByteString.newOutput();
     for (String value : values) {
       CODER.encode(valueInGlobalWindow(value), output);

@@ -136,21 +136,19 @@ type Payload struct {
 	Data []byte
 }
 
-// TODO(herohde) 5/24/2017: how should we represent/obtain the coder for Combine
-// accumulator types? Coder registry? Assume JSON?
-
 // MultiEdge represents a primitive data processing operation. Each non-user
 // code operation may be implemented by either the harness or the runner.
 type MultiEdge struct {
 	id     int
 	parent *Scope
 
-	Op        Opcode
-	DoFn      *DoFn      // ParDo
-	CombineFn *CombineFn // Combine
-	Value     []byte     // Impulse
-	Payload   *Payload   // External
-	WindowFn  *window.Fn // WindowInto
+	Op         Opcode
+	DoFn       *DoFn        // ParDo
+	CombineFn  *CombineFn   // Combine
+	AccumCoder *coder.Coder // Combine
+	Value      []byte       // Impulse
+	Payload    *Payload     // External
+	WindowFn   *window.Fn   // WindowInto
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -317,9 +315,17 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs ma
 	return edge, nil
 }
 
+// CombinePerKeyScope is the Go SDK canonical name for the combine composite
+// scope. With Beam Portability, "primitive" composite transforms like
+// combine have their URNs & payloads attached to a high level scope, with a
+// default representation beneath. The use of this const permits the
+// translation layer to confirm the SDK expects this combine to be liftable
+// by a runner and should set this scope's URN and Payload accordingly.
+const CombinePerKeyScope = "CombinePerKey"
+
 // NewCombine inserts a new Combine edge into the graph. Combines cannot have side
 // input.
-func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) {
+func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node, ac *coder.Coder) (*MultiEdge, error) {
 	inT := in.Type()
 	if !typex.IsCoGBK(inT) {
 		return nil, fmt.Errorf("combine requires CoGBK type: %v", inT)
@@ -380,6 +386,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 	edge := g.NewEdge(s)
 	edge.Op = Combine
 	edge.CombineFn = u
+	edge.AccumCoder = ac
 	edge.Input = []*Inbound{{Kind: kinds[0], From: in, Type: inbound[0]}}
 	for i := 0; i < len(out); i++ {
 		n := g.NewNode(out[i], in.WindowingStrategy(), in.Bounded())

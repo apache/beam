@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable.artifact;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -31,9 +30,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link LocalArtifactStagingLocation}.
- */
+/** Tests for {@link LocalArtifactStagingLocation}. */
 @RunWith(JUnit4.class)
 public class LocalArtifactStagingLocationTest {
   @Rule public TemporaryFolder tmp = new TemporaryFolder();

@@ -33,17 +33,17 @@ import org.junit.runners.JUnit4;
 /** Tests for Impulse. */
 @RunWith(JUnit4.class)
 public class ImpulseTest {
-  @Rule
-  public transient TestPipeline p = TestPipeline.create();
+  @Rule public transient TestPipeline p = TestPipeline.create();
 
   @Test
   @Category({ValidatesRunner.class, UsesImpulse.class})
   public void testImpulse() {
-    PCollection<Integer> result = p.apply(Impulse.create())
-        .apply(FlatMapElements.into(TypeDescriptors.integers())
-            .via(impulse -> Arrays.asList(1, 2, 3)));
+    PCollection<Integer> result =
+        p.apply(Impulse.create())
+            .apply(
+                FlatMapElements.into(TypeDescriptors.integers())
+                    .via(impulse -> Arrays.asList(1, 2, 3)));
     PAssert.that(result).containsInAnyOrder(1, 2, 3);
     p.run().waitUntilFinish();
   }
-
 }

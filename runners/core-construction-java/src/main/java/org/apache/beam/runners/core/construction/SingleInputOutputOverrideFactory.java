@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
@@ -25,9 +24,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * A {@link PTransformOverrideFactory} which consumes from a {@link PValue} and produces a
- * {@link PValue}. {@link #mapOutputs(Map, PValue)} is
- * implemented.
+ * A {@link PTransformOverrideFactory} which consumes from a {@link PValue} and produces a {@link
+ * PValue}. {@link #mapOutputs(Map, PValue)} is implemented.
  */
 public abstract class SingleInputOutputOverrideFactory<
         InputT extends PValue,

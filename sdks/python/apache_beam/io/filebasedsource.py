@@ -26,8 +26,10 @@ For an example implementation of :class:`FileBasedSource` see
 :class:`~apache_beam.io._AvroSource`.
 """
 
-from six import integer_types
-from six import string_types
+from __future__ import absolute_import
+
+from past.builtins import long
+from past.builtins import unicode
 
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
@@ -99,12 +101,12 @@ class FileBasedSource(iobase.BoundedSource):
         result.
     """
 
-    if not isinstance(file_pattern, (string_types, ValueProvider)):
+    if not isinstance(file_pattern, ((str, unicode), ValueProvider)):
       raise TypeError('%s: file_pattern must be of type string'
                       ' or ValueProvider; got %r instead'
                       % (self.__class__.__name__, file_pattern))
 
-    if isinstance(file_pattern, string_types):
+    if isinstance(file_pattern, (str, unicode)):
       file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
 
@@ -235,11 +237,11 @@ class _SingleFileSource(iobase.BoundedSource):
 
   def __init__(self, file_based_source, file_name, start_offset, stop_offset,
                min_bundle_size=0, splittable=True):
-    if not isinstance(start_offset, integer_types):
+    if not isinstance(start_offset, (int, long)):
       raise TypeError(
           'start_offset must be a number. Received: %r' % start_offset)
     if stop_offset != range_trackers.OffsetRangeTracker.OFFSET_INFINITY:
-      if not isinstance(stop_offset, integer_types):
+      if not isinstance(stop_offset, (int, long)):
         raise TypeError(
             'stop_offset must be a number. Received: %r' % stop_offset)
       if start_offset >= stop_offset:
@@ -383,8 +385,8 @@ class ReadAllFiles(PTransform):
       source_from_file):
     """
     Args:
-      splittable: If True, files won't be split into sub-ranges. If False, files
-                  may or may not be split into data ranges.
+      splittable: If False, files won't be split into sub-ranges. If True,
+                  files may or may not be split into data ranges.
       compression_type: A ``CompressionType`` object that specifies the
                   compression type of the files that will be processed. If
                   ``CompressionType.AUTO``, system will try to automatically

@@ -17,6 +17,8 @@
 
 """Test for the custom coders example."""
 
+from __future__ import absolute_import
+
 import logging
 import tempfile
 import unittest

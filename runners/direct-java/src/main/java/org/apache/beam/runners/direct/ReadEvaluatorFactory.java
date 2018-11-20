@@ -36,8 +36,7 @@ final class ReadEvaluatorFactory implements TransformEvaluatorFactory {
   final BoundedReadEvaluatorFactory boundedFactory;
   final UnboundedReadEvaluatorFactory unboundedFactory;
 
-  public ReadEvaluatorFactory(
-      EvaluationContext context, PipelineOptions options) {
+  public ReadEvaluatorFactory(EvaluationContext context, PipelineOptions options) {
     boundedFactory = new BoundedReadEvaluatorFactory(context, options);
     unboundedFactory = new UnboundedReadEvaluatorFactory(context, options);
   }
@@ -62,8 +61,7 @@ final class ReadEvaluatorFactory implements TransformEvaluatorFactory {
     unboundedFactory.cleanup();
   }
 
-  static <T> InputProvider<T> inputProvider(
-      EvaluationContext context, PipelineOptions options) {
+  static <T> InputProvider<T> inputProvider(EvaluationContext context, PipelineOptions options) {
     return new InputProvider<>(context, options);
   }
 

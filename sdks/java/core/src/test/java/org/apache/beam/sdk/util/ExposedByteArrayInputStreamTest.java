@@ -76,5 +76,4 @@ public class ExposedByteArrayInputStreamTest {
     byte[] ret = exposedStream.readAll();
     assertArrayEquals("ello World!".getBytes(Charsets.UTF_8), ret);
   }
-
 }

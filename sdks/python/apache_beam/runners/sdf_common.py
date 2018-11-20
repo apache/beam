@@ -17,7 +17,10 @@
 
 """This module contains Splittable DoFn logic that's common to all runners."""
 
+from __future__ import absolute_import
+
 import uuid
+from builtins import object
 
 import apache_beam as beam
 from apache_beam import pvalue

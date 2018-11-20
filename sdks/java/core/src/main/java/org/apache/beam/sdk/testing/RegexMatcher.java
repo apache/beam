@@ -21,7 +21,6 @@ import java.util.regex.Pattern;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 
-
 /** Hamcrest matcher to assert a string matches a pattern. */
 public class RegexMatcher extends BaseMatcher<String> {
   private final Pattern pattern;

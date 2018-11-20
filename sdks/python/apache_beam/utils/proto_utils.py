@@ -17,6 +17,8 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
+from __future__ import absolute_import
+
 from google.protobuf import any_pb2
 from google.protobuf import struct_pb2
 

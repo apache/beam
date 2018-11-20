@@ -37,8 +37,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * cannot be obtained when the extractor is created.
  */
 final class PaneExtractors {
-  private PaneExtractors() {
-  }
+  private PaneExtractors() {}
 
   static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> onlyPane(
       PAssert.PAssertionSite site) {
@@ -90,7 +89,6 @@ final class PaneExtractors {
     }
   }
 
-
   private static class ExtractOnTimePane<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
     @Override
@@ -104,7 +102,6 @@ final class PaneExtractors {
       return outputs;
     }
   }
-
 
   private static class ExtractFinalPane<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
@@ -120,7 +117,6 @@ final class PaneExtractors {
     }
   }
 
-
   private static class ExtractAllPanes<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
     @Override
@@ -132,7 +128,6 @@ final class PaneExtractors {
       return outputs;
     }
   }
-
 
   private static class ExtractNonLatePanes<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {

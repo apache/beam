@@ -30,9 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link KeyedWorkItems}.
- */
+/** Tests for {@link KeyedWorkItems}. */
 @RunWith(JUnit4.class)
 public class KeyedWorkItemCoderTest {
   @Test
@@ -62,7 +60,8 @@ public class KeyedWorkItemCoderTest {
 
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
-    CoderProperties.coderSerializable(KeyedWorkItemCoder.of(
-        GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
+    CoderProperties.coderSerializable(
+        KeyedWorkItemCoder.of(
+            GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
   }
 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import com.google.auto.value.AutoValue;
@@ -26,9 +25,7 @@ import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * Representation of multiple metric updates.
- */
+/** Representation of multiple metric updates. */
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricUpdates {
@@ -39,6 +36,7 @@ public abstract class MetricUpdates {
 
   /**
    * Representation of a single metric update.
+   *
    * @param <T> The type of value representing the update.
    */
   @AutoValue
@@ -56,8 +54,7 @@ public abstract class MetricUpdates {
 
   /** Returns true if there are no updates in this MetricUpdates object. */
   public boolean isEmpty() {
-    return Iterables.isEmpty(counterUpdates())
-        && Iterables.isEmpty(distributionUpdates());
+    return Iterables.isEmpty(counterUpdates()) && Iterables.isEmpty(distributionUpdates());
   }
 
   /** All of the counter updates. */

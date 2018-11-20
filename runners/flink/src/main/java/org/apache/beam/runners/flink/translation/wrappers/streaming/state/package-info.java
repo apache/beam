@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Internal state implementation of the Beam runner for Apache Flink.
- */
+/** Internal state implementation of the Beam runner for Apache Flink. */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.state;

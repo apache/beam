@@ -32,14 +32,21 @@ import org.apache.beam.sdk.values.Row;
 /**
  * <i>Experimental</i>
  *
- * <p>Creates a {@link PTransform} to convert input JSON objects to {@link Row Rows}
- * with given {@link Schema}.
+ * <p>Creates a {@link PTransform} to convert input JSON objects to {@link Row Rows} with given
+ * {@link Schema}.
  *
- * <p>Currently supported {@link Schema} field types are: <ul> <li>{@link Schema.TypeName#BYTE}</li>
- * <li>{@link Schema.TypeName#INT16}</li> <li>{@link Schema.TypeName#INT32}</li> <li>{@link
- * Schema.TypeName#INT64}</li> <li>{@link Schema.TypeName#FLOAT}</li> <li>{@link
- * Schema.TypeName#DOUBLE}</li> <li>{@link Schema.TypeName#BOOLEAN}</li> <li>{@link
- * Schema.TypeName#STRING}</li> </ul>
+ * <p>Currently supported {@link Schema} field types are:
+ *
+ * <ul>
+ *   <li>{@link Schema.TypeName#BYTE}
+ *   <li>{@link Schema.TypeName#INT16}
+ *   <li>{@link Schema.TypeName#INT32}
+ *   <li>{@link Schema.TypeName#INT64}
+ *   <li>{@link Schema.TypeName#FLOAT}
+ *   <li>{@link Schema.TypeName#DOUBLE}
+ *   <li>{@link Schema.TypeName#BOOLEAN}
+ *   <li>{@link Schema.TypeName#STRING}
+ * </ul>
  *
  * <p>For specifics of JSON deserialization see {@link RowJsonDeserializer}.
  *
@@ -91,7 +98,7 @@ public class JsonToRow {
                       context.output(jsonToRow(objectMapper(), context.element()));
                     }
                   }))
-          .setCoder(schema.getRowCoder());
+          .setRowSchema(schema);
     }
 
     private ObjectMapper objectMapper() {

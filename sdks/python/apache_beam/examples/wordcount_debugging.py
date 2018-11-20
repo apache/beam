@@ -45,7 +45,7 @@ import argparse
 import logging
 import re
 
-import six
+from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -101,7 +101,7 @@ class CountWords(beam.PTransform):
 
     return (pcoll
             | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-                          .with_output_types(six.text_type))
+                          .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
             | 'count' >> beam.Map(count_ones))

@@ -16,18 +16,15 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableFindbugs: false, enableErrorProne: false)
-applyGrpcNature()
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyPortabilityNature()
 
 description = "Apache Beam :: Model :: Job Management"
 ext.summary = "Portable definitions for submitting pipelines."
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow library.java.protobuf_java
-  shadow library.java.grpc_core
-  shadow library.java.grpc_protobuf
-  shadow library.java.grpc_stub
+  // We purposely depend on the unshaded classes for protobuf compilation and
+  // export the shaded variant as the actual runtime dependency.
+  protobuf project(path: ":beam-model-pipeline", configuration: "unshaded")
+  runtime project(path: ":beam-model-pipeline", configuration: "shadow")
 }

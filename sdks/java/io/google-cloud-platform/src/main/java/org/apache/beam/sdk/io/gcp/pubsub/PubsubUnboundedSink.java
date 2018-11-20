@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -67,48 +66,40 @@ import org.joda.time.Duration;
 
 /**
  * A PTransform which streams messages to Pubsub.
+ *
  * <ul>
- * <li>The underlying implementation is just a {@link GroupByKey} followed by a {@link ParDo} which
- * publishes as a side effect. (In the future we want to design and switch to a custom
- * {@code UnboundedSink} implementation so as to gain access to system watermark and
- * end-of-pipeline cleanup.)
- * <li>We try to send messages in batches while also limiting send latency.
- * <li>No stats are logged. Rather some counters are used to keep track of elements and batches.
- * <li>Though some background threads are used by the underlying netty system all actual Pubsub
- * calls are blocking. We rely on the underlying runner to allow multiple {@link DoFn} instances
- * to execute concurrently and hide latency.
- * <li>A failed bundle will cause messages to be resent. Thus we rely on the Pubsub consumer
- * to dedup messages.
+ *   <li>The underlying implementation is just a {@link GroupByKey} followed by a {@link ParDo}
+ *       which publishes as a side effect. (In the future we want to design and switch to a custom
+ *       {@code UnboundedSink} implementation so as to gain access to system watermark and
+ *       end-of-pipeline cleanup.)
+ *   <li>We try to send messages in batches while also limiting send latency.
+ *   <li>No stats are logged. Rather some counters are used to keep track of elements and batches.
+ *   <li>Though some background threads are used by the underlying netty system all actual Pubsub
+ *       calls are blocking. We rely on the underlying runner to allow multiple {@link DoFn}
+ *       instances to execute concurrently and hide latency.
+ *   <li>A failed bundle will cause messages to be resent. Thus we rely on the Pubsub consumer to
+ *       dedup messages.
  * </ul>
  */
 public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, PDone> {
-  /**
-   * Default maximum number of messages per publish.
-   */
-  private static final int DEFAULT_PUBLISH_BATCH_SIZE = 1000;
+  /** Default maximum number of messages per publish. */
+  static final int DEFAULT_PUBLISH_BATCH_SIZE = 1000;
 
-  /**
-   * Default maximum size of a publish batch, in bytes.
-   */
-  private static final int DEFAULT_PUBLISH_BATCH_BYTES = 400000;
+  /** Default maximum size of a publish batch, in bytes. */
+  static final int DEFAULT_PUBLISH_BATCH_BYTES = 400000;
 
-  /**
-   * Default longest delay between receiving a message and pushing it to Pubsub.
-   */
+  /** Default longest delay between receiving a message and pushing it to Pubsub. */
   private static final Duration DEFAULT_MAX_LATENCY = Duration.standardSeconds(2);
 
-  /**
-   * Coder for conveying outgoing messages between internal stages.
-   */
+  /** Coder for conveying outgoing messages between internal stages. */
   private static class OutgoingMessageCoder extends AtomicCoder<OutgoingMessage> {
     private static final NullableCoder<String> RECORD_ID_CODER =
         NullableCoder.of(StringUtf8Coder.of());
     private static final NullableCoder<Map<String, String>> ATTRIBUTES_CODER =
-            NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+        NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 
     @Override
-    public void encode(
-        OutgoingMessage value, OutputStream outStream)
+    public void encode(OutgoingMessage value, OutputStream outStream)
         throws CoderException, IOException {
       ByteArrayCoder.of().encode(value.elementBytes, outStream);
       ATTRIBUTES_CODER.encode(value.attributes, outStream);
@@ -117,8 +108,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     }
 
     @Override
-    public OutgoingMessage decode(
-        InputStream inStream) throws CoderException, IOException {
+    public OutgoingMessage decode(InputStream inStream) throws CoderException, IOException {
       byte[] elementBytes = ByteArrayCoder.of().decode(inStream);
       Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream);
       long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream);
@@ -127,16 +117,13 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     }
   }
 
-  @VisibleForTesting
-  static final Coder<OutgoingMessage> CODER = new OutgoingMessageCoder();
+  @VisibleForTesting static final Coder<OutgoingMessage> CODER = new OutgoingMessageCoder();
 
   // ================================================================================
   // RecordIdMethod
   // ================================================================================
 
-  /**
-   * Specify how record ids are to be generated.
-   */
+  /** Specify how record ids are to be generated. */
   @VisibleForTesting
   enum RecordIdMethod {
     /** Leave null. */
@@ -151,9 +138,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   // ShardFn
   // ================================================================================
 
-  /**
-   * Convert elements to messages and shard them.
-   */
+  /** Convert elements to messages and shard them. */
   private static class ShardFn extends DoFn<PubsubMessage, KV<Integer, OutgoingMessage>> {
     private final Counter elementCounter = Metrics.counter(ShardFn.class, "elements");
     private final int numShards;
@@ -187,9 +172,10 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
           recordId = UUID.randomUUID().toString();
           break;
       }
-      c.output(KV.of(ThreadLocalRandom.current().nextInt(numShards),
-                     new OutgoingMessage(elementBytes, attributes, timestampMsSinceEpoch,
-                             recordId)));
+      c.output(
+          KV.of(
+              ThreadLocalRandom.current().nextInt(numShards),
+              new OutgoingMessage(elementBytes, attributes, timestampMsSinceEpoch, recordId)));
     }
 
     @Override
@@ -203,11 +189,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   // WriterFn
   // ================================================================================
 
-  /**
-   * Publish messages to Pubsub in batches.
-   */
-  private static class WriterFn
-      extends DoFn<KV<Integer, Iterable<OutgoingMessage>>, Void> {
+  /** Publish messages to Pubsub in batches. */
+  private static class WriterFn extends DoFn<KV<Integer, Iterable<OutgoingMessage>>, Void> {
     private final PubsubClientFactory pubsubFactory;
     private final ValueProvider<TopicPath> topic;
     private final String timestampAttribute;
@@ -215,11 +198,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     private final int publishBatchSize;
     private final int publishBatchBytes;
 
-    /**
-     * Client on which to talk to Pubsub. Null until created by {@link #startBundle}.
-     */
-    @Nullable
-    private transient PubsubClient pubsubClient;
+    /** Client on which to talk to Pubsub. Null until created by {@link #startBundle}. */
+    @Nullable private transient PubsubClient pubsubClient;
 
     private final Counter batchCounter = Metrics.counter(WriterFn.class, "batches");
     private final Counter elementCounter = SinkMetrics.elementsWritten();
@@ -240,15 +220,14 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       this.publishBatchBytes = publishBatchBytes;
     }
 
-    /**
-     * BLOCKING
-     * Send {@code messages} as a batch to Pubsub.
-     */
-    private void publishBatch(List<OutgoingMessage> messages, int bytes)
-        throws IOException {
+    /** BLOCKING Send {@code messages} as a batch to Pubsub. */
+    private void publishBatch(List<OutgoingMessage> messages, int bytes) throws IOException {
       int n = pubsubClient.publish(topic.get(), messages);
-      checkState(n == messages.size(), "Attempted to publish %s messages but %s were successful",
-                 messages.size(), n);
+      checkState(
+          n == messages.size(),
+          "Attempted to publish %s messages but %s were successful",
+          messages.size(),
+          n);
       batchCounter.inc();
       elementCounter.inc(messages.size());
       byteCounter.inc(bytes);
@@ -257,8 +236,9 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     @StartBundle
     public void startBundle(StartBundleContext c) throws Exception {
       checkState(pubsubClient == null, "startBundle invoked without prior finishBundle");
-      pubsubClient = pubsubFactory.newClient(timestampAttribute, idAttribute,
-                                             c.getPipelineOptions().as(PubsubOptions.class));
+      pubsubClient =
+          pubsubFactory.newClient(
+              timestampAttribute, idAttribute, c.getPipelineOptions().as(PubsubOptions.class));
     }
 
     @ProcessElement
@@ -266,8 +246,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       List<OutgoingMessage> pubsubMessages = new ArrayList<>(publishBatchSize);
       int bytes = 0;
       for (OutgoingMessage message : c.element().getValue()) {
-        if (!pubsubMessages.isEmpty()
-            && bytes + message.elementBytes.length > publishBatchBytes) {
+        if (!pubsubMessages.isEmpty() && bytes + message.elementBytes.length > publishBatchBytes) {
           // Break large (in bytes) batches into smaller.
           // (We've already broken by batch size using the trigger below, though that may
           // run slightly over the actual PUBLISH_BATCH_SIZE. We'll consider that ok since
@@ -306,51 +285,39 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   // PubsubUnboundedSink
   // ================================================================================
 
-  /**
-   * Which factory to use for creating Pubsub transport.
-   */
+  /** Which factory to use for creating Pubsub transport. */
   private final PubsubClientFactory pubsubFactory;
 
-  /**
-   * Pubsub topic to publish to.
-   */
+  /** Pubsub topic to publish to. */
   private final ValueProvider<TopicPath> topic;
 
   /**
    * Pubsub metadata field holding timestamp of each element, or {@literal null} if should use
    * Pubsub message publish timestamp instead.
    */
-  @Nullable
-  private final String timestampAttribute;
+  @Nullable private final String timestampAttribute;
 
   /**
-   * Pubsub metadata field holding id for each element, or {@literal null} if need to generate
-   * a unique id ourselves.
+   * Pubsub metadata field holding id for each element, or {@literal null} if need to generate a
+   * unique id ourselves.
    */
-  @Nullable
-  private final String idAttribute;
+  @Nullable private final String idAttribute;
 
   /**
    * Number of 'shards' to use so that latency in Pubsub publish can be hidden. Generally this
-   * should be a small multiple of the number of available cores. Too smoll a number results
-   * in too much time lost to blocking Pubsub calls. To large a number results in too many
-   * single-element batches being sent to Pubsub with high per-batch overhead.
+   * should be a small multiple of the number of available cores. Too smoll a number results in too
+   * much time lost to blocking Pubsub calls. To large a number results in too many single-element
+   * batches being sent to Pubsub with high per-batch overhead.
    */
   private final int numShards;
 
-  /**
-   * Maximum number of messages per publish.
-   */
+  /** Maximum number of messages per publish. */
   private final int publishBatchSize;
 
-  /**
-   * Maximum size of a publish batch, in bytes.
-   */
+  /** Maximum size of a publish batch, in bytes. */
   private final int publishBatchBytes;
 
-  /**
-   * Longest delay between receiving a message and pushing it to Pubsub.
-   */
+  /** Longest delay between receiving a message and pushing it to Pubsub. */
   private final Duration maxLatency;
 
   /**
@@ -387,36 +354,54 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       String timestampAttribute,
       String idAttribute,
       int numShards) {
-    this(pubsubFactory, topic, timestampAttribute, idAttribute, numShards,
-         DEFAULT_PUBLISH_BATCH_SIZE, DEFAULT_PUBLISH_BATCH_BYTES, DEFAULT_MAX_LATENCY,
-         RecordIdMethod.RANDOM);
+    this(
+        pubsubFactory,
+        topic,
+        timestampAttribute,
+        idAttribute,
+        numShards,
+        DEFAULT_PUBLISH_BATCH_SIZE,
+        DEFAULT_PUBLISH_BATCH_BYTES,
+        DEFAULT_MAX_LATENCY,
+        RecordIdMethod.RANDOM);
   }
 
-  /**
-   * Get the topic being written to.
-   */
+  public PubsubUnboundedSink(
+      PubsubClientFactory pubsubFactory,
+      ValueProvider<TopicPath> topic,
+      String timestampAttribute,
+      String idAttribute,
+      int numShards,
+      int publishBatchSize,
+      int publishBatchBytes) {
+    this(
+        pubsubFactory,
+        topic,
+        timestampAttribute,
+        idAttribute,
+        numShards,
+        publishBatchSize,
+        publishBatchBytes,
+        DEFAULT_MAX_LATENCY,
+        RecordIdMethod.RANDOM);
+  }
+  /** Get the topic being written to. */
   public TopicPath getTopic() {
     return topic.get();
   }
 
-  /**
-   * Get the {@link ValueProvider} for the topic being written to.
-   */
+  /** Get the {@link ValueProvider} for the topic being written to. */
   public ValueProvider<TopicPath> getTopicProvider() {
     return topic;
   }
 
-  /**
-   * Get the timestamp attribute.
-   */
+  /** Get the timestamp attribute. */
   @Nullable
   public String getTimestampAttribute() {
     return timestampAttribute;
   }
 
-  /**
-   * Get the id attribute.
-   */
+  /** Get the id attribute. */
   @Nullable
   public String getIdAttribute() {
     return idAttribute;

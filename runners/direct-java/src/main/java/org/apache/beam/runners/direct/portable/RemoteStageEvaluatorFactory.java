@@ -15,19 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable;
 
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
@@ -58,7 +60,8 @@ class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
 
   private class RemoteStageEvaluator<T> implements TransformEvaluator<T> {
     private final PTransformNode transform;
-    private final RemoteBundle<T> bundle;
+    private final RemoteBundle bundle;
+    private final FnDataReceiver<WindowedValue<?>> mainInput;
     private final Collection<UncommittedBundle<?>> outputs;
 
     private RemoteStageEvaluator(PTransformNode transform) throws Exception {
@@ -66,18 +69,21 @@ class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
       ExecutableStage stage =
           ExecutableStage.fromPayload(
               ExecutableStagePayload.parseFrom(transform.getTransform().getSpec().getPayload()));
-      outputs = new ArrayList<>();
+      this.outputs = new ArrayList<>();
       StageBundleFactory stageFactory = jobFactory.forStage(stage);
-      bundle =
+      this.bundle =
           stageFactory.getBundle(
-              BundleFactoryOutputRecieverFactory.create(
+              BundleFactoryOutputReceiverFactory.create(
                   bundleFactory, stage.getComponents(), outputs::add),
-              StateRequestHandler.unsupported());
+              StateRequestHandler.unsupported(),
+              BundleProgressHandler.ignored());
+      // TODO(BEAM-4680): Add support for timers as inputs to the ULR
+      this.mainInput = Iterables.getOnlyElement(bundle.getInputReceivers().values());
     }
 
     @Override
     public void processElement(WindowedValue<T> element) throws Exception {
-      bundle.getInputReceiver().accept(element);
+      mainInput.accept(element);
     }
 
     @Override

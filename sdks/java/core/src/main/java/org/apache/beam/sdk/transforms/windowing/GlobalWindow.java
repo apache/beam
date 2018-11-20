@@ -21,17 +21,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.StructuredCoder;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/**
- * The default window into which all data is placed (via {@link GlobalWindows}).
- */
+/** The default window into which all data is placed (via {@link GlobalWindows}). */
 public class GlobalWindow extends BoundedWindow {
-  /**
-   * Singleton instance of {@link GlobalWindow}.
-   */
+  /** Singleton instance of {@link GlobalWindow}. */
   public static final GlobalWindow INSTANCE = new GlobalWindow();
 
   // Triggers use maxTimestamp to set timers' timestamp. Timers fires when
@@ -40,8 +36,7 @@ public class GlobalWindow extends BoundedWindow {
   // One standard day is subtracted from TIMESTAMP_MAX_VALUE to make sure
   // the maxTimestamp is smaller than TIMESTAMP_MAX_VALUE even after rounding up
   // to seconds or minutes.
-  private static final Instant END_OF_GLOBAL_WINDOW =
-      TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1));
+  private static final Instant END_OF_GLOBAL_WINDOW = extractMaxTimestampFromProto();
 
   @Override
   public Instant maxTimestamp() {
@@ -60,9 +55,7 @@ public class GlobalWindow extends BoundedWindow {
 
   private GlobalWindow() {}
 
-  /**
-   * {@link Coder} for encoding and decoding {@code GlobalWindow}s.
-   */
+  /** {@link Coder} for encoding and decoding {@code GlobalWindow}s. */
   public static class Coder extends StructuredCoder<GlobalWindow> {
     public static final Coder INSTANCE = new Coder();
 
@@ -88,5 +81,15 @@ public class GlobalWindow extends BoundedWindow {
     }
 
     private Coder() {}
+  }
+
+  /** Parses the max timestamp for global windows from the proto. */
+  private static Instant extractMaxTimestampFromProto() {
+    return new Instant(
+        Long.parseLong(
+            RunnerApi.BeamConstants.Constants.GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS
+                .getValueDescriptor()
+                .getOptions()
+                .getExtension(RunnerApi.beamConstant)));
   }
 }

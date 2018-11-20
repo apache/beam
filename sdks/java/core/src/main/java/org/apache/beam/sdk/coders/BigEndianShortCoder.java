@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.coders;
 
 import java.io.DataInputStream;
@@ -27,9 +26,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * A {@link BigEndianShortCoder} encodes {@link Short Shorts} in 4 bytes, big-endian.
- */
+/** A {@link BigEndianShortCoder} encodes {@link Short Shorts} in 4 bytes, big-endian. */
 public class BigEndianShortCoder extends AtomicCoder<Short> {
 
   public static BigEndianShortCoder of() {
@@ -52,8 +49,7 @@ public class BigEndianShortCoder extends AtomicCoder<Short> {
   }
 
   @Override
-  public Short decode(InputStream inStream)
-      throws IOException, CoderException {
+  public Short decode(InputStream inStream) throws IOException, CoderException {
     try {
       return new DataInputStream(inStream).readShort();
     } catch (EOFException | UTFDataFormatException exn) {
@@ -97,8 +93,7 @@ public class BigEndianShortCoder extends AtomicCoder<Short> {
    * @return {@code 2}, the size in bytes of an short's big endian encoding.
    */
   @Override
-  protected long getEncodedElementByteSize(Short value)
-      throws Exception {
+  protected long getEncodedElementByteSize(Short value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Short");
     }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
@@ -33,7 +32,6 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 
-
 /**
  * An adapter between the {@link MetricsContainerStepMap} and Codahale's {@link Metric} interface.
  */
@@ -44,8 +42,7 @@ class SparkBeamMetric implements Metric {
   Map<String, ?> renderAll() {
     Map<String, Object> metrics = new HashMap<>();
     MetricResults metricResults =
-        asAttemptedOnlyMetricResults(
-            MetricsAccumulator.getInstance().value());
+        asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().build());
     for (MetricResult<Long> metricResult : metricQueryResults.getCounters()) {

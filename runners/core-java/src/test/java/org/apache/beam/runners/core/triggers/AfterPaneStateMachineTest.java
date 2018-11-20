@@ -31,22 +31,20 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link AfterPaneStateMachine}.
- */
+/** Tests for {@link AfterPaneStateMachine}. */
 @RunWith(JUnit4.class)
 public class AfterPaneStateMachineTest {
 
   SimpleTriggerStateMachineTester<IntervalWindow> tester;
   /**
-   * Tests that the trigger does fire when enough elements are in a window, and that it only
-   * fires that window (no leakage).
+   * Tests that the trigger does fire when enough elements are in a window, and that it only fires
+   * that window (no leakage).
    */
   @Test
   public void testAfterPaneElementCountFixedWindows() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterPaneStateMachine.elementCountAtLeast(2),
-        FixedWindows.of(Duration.millis(10)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterPaneStateMachine.elementCountAtLeast(2), FixedWindows.of(Duration.millis(10)));
 
     tester.injectElements(1); // [0, 10)
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
@@ -65,9 +63,9 @@ public class AfterPaneStateMachineTest {
 
   @Test
   public void testClear() throws Exception {
-    SimpleTriggerStateMachineTester<IntervalWindow> tester = TriggerStateMachineTester.forTrigger(
-        AfterPaneStateMachine.elementCountAtLeast(2),
-        FixedWindows.of(Duration.millis(10)));
+    SimpleTriggerStateMachineTester<IntervalWindow> tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterPaneStateMachine.elementCountAtLeast(2), FixedWindows.of(Duration.millis(10)));
 
     tester.injectElements(1, 2, 3);
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
@@ -77,9 +75,10 @@ public class AfterPaneStateMachineTest {
 
   @Test
   public void testAfterPaneElementCountSessions() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterPaneStateMachine.elementCountAtLeast(2),
-        Sessions.withGapDuration(Duration.millis(10)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterPaneStateMachine.elementCountAtLeast(2),
+            Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(
         1, // in [1, 11)
@@ -98,7 +97,7 @@ public class AfterPaneStateMachineTest {
     // Because we closed the previous window, we don't have it around to merge with. So there
     // will be a new FIRE_AND_FINISH result.
     tester.injectElements(
-        7,  // in [7, 17)
+        7, // in [7, 17)
         9); // in [9, 19)
 
     tester.mergeWindows();

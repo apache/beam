@@ -15,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
-import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression.INTERVALS_DURATIONS_TYPES;
-
-import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -38,7 +35,6 @@ import org.joda.time.Period;
  * <p>See {@link BeamSqlDatetimeMinusExpression} for other kinds of datetime types subtraction.
  */
 public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
-
   public BeamSqlTimestampMinusIntervalExpression(
       List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
@@ -53,14 +49,14 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
     return operands.size() == 2
         && SqlTypeName.TIMESTAMP.equals(outputType)
         && SqlTypeName.TIMESTAMP.equals(operands.get(0).getOutputType())
-        && INTERVALS_DURATIONS_TYPES.containsKey(operands.get(1).getOutputType());
+        && TimeUnitUtils.INTERVALS_DURATIONS_TYPES.containsKey(operands.get(1).getOutputType());
   }
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row row, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    DateTime date = new DateTime((Object) opValueEvaluated(0, row, window, correlateEnv));
-    Period period = intervalToPeriod(op(1).evaluate(row, window, correlateEnv));
+      Row row, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    DateTime date = new DateTime(opValueEvaluated(0, row, window, env));
+    Period period = intervalToPeriod(op(1).evaluate(row, window, env));
 
     return BeamSqlPrimitive.of(outputType, date.minus(period));
   }
@@ -78,6 +74,6 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
   }
 
   private static DurationFieldType durationFieldType(SqlTypeName intervalTypeToCount) {
-    return INTERVALS_DURATIONS_TYPES.get(intervalTypeToCount);
+    return TimeUnitUtils.INTERVALS_DURATIONS_TYPES.get(intervalTypeToCount);
   }
 }

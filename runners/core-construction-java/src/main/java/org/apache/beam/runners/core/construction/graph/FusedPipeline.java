@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
@@ -82,10 +81,14 @@ public abstract class FusedPipeline {
                 false)
             .map(PTransformNode::getId)
             .collect(Collectors.toList());
-    return Pipeline.newBuilder()
-        .setComponents(fusedComponents)
-        .addAllRootTransformIds(rootTransformIds)
-        .build();
+    Pipeline res =
+        Pipeline.newBuilder()
+            .setComponents(fusedComponents)
+            .addAllRootTransformIds(rootTransformIds)
+            .build();
+    // Validate that fusion didn't produce a malformed pipeline.
+    PipelineValidator.validate(res);
+    return res;
   }
 
   /**
@@ -103,11 +106,11 @@ public abstract class FusedPipeline {
           String.format(
               "%s/%s",
               stage.getInputPCollection().getPCollection().getUniqueName(),
-              stage.getEnvironment().getUrl());
+              stage.getEnvironment().getUrn());
       Set<String> usedNames =
           Sets.union(topLevelTransforms.keySet(), getComponents().getTransformsMap().keySet());
-      topLevelTransforms.put(
-          SyntheticComponents.uniqueId(baseName, usedNames::contains), stage.toPTransform());
+      String uniqueId = SyntheticComponents.uniqueId(baseName, usedNames::contains);
+      topLevelTransforms.put(uniqueId, stage.toPTransform(uniqueId));
     }
     return topLevelTransforms;
   }

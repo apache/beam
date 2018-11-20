@@ -43,9 +43,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link SideInputHandler}.
- */
+/** Unit tests for {@link SideInputHandler}. */
 @RunWith(JUnit4.class)
 public class SideInputHandlerTest {
 
@@ -94,12 +92,9 @@ public class SideInputHandlerTest {
         new SideInputHandler(
             ImmutableList.of(view1, view2), InMemoryStateInternals.<Void>forKey(null));
 
-    IntervalWindow firstWindow =
-        new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
 
-    IntervalWindow secondWindow =
-        new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_2));
-
+    IntervalWindow secondWindow = new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_2));
 
     // side input should not yet be ready
     assertFalse(sideInputHandler.isReady(view1, firstWindow));
@@ -108,8 +103,7 @@ public class SideInputHandlerTest {
     sideInputHandler.addSideInputValue(
         view1,
         valuesInWindow(
-            materializeValuesFor(View.asIterable(), "Hello"),
-            new Instant(0), firstWindow));
+            materializeValuesFor(View.asIterable(), "Hello"), new Instant(0), firstWindow));
 
     // now side input should be ready
     assertTrue(sideInputHandler.isReady(view1, firstWindow));
@@ -128,15 +122,12 @@ public class SideInputHandlerTest {
     SideInputHandler sideInputHandler =
         new SideInputHandler(ImmutableList.of(view1), InMemoryStateInternals.<Void>forKey(null));
 
-    IntervalWindow window =
-        new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
 
     // add a first value for view1
     sideInputHandler.addSideInputValue(
         view1,
-        valuesInWindow(
-            materializeValuesFor(View.asIterable(), "Hello"),
-            new Instant(0), window));
+        valuesInWindow(materializeValuesFor(View.asIterable(), "Hello"), new Instant(0), window));
 
     assertThat(sideInputHandler.get(view1, window), contains("Hello"));
 
@@ -144,8 +135,7 @@ public class SideInputHandlerTest {
     sideInputHandler.addSideInputValue(
         view1,
         valuesInWindow(
-            materializeValuesFor(View.asIterable(), "Ciao", "Buongiorno"),
-            new Instant(0), window));
+            materializeValuesFor(View.asIterable(), "Ciao", "Buongiorno"), new Instant(0), window));
 
     assertThat(sideInputHandler.get(view1, window), contains("Ciao", "Buongiorno"));
   }
@@ -156,24 +146,23 @@ public class SideInputHandlerTest {
         new SideInputHandler(ImmutableList.of(view1), InMemoryStateInternals.<Void>forKey(null));
 
     // two windows that we'll later use for adding elements/retrieving side input
-    IntervalWindow firstWindow =
-        new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
     IntervalWindow secondWindow =
         new IntervalWindow(new Instant(1000), new Instant(1000 + WINDOW_MSECS_2));
 
     // add a first value for view1 in the first window
     sideInputHandler.addSideInputValue(
         view1,
-        valuesInWindow(materializeValuesFor(View.asIterable(), "Hello"),
-            new Instant(0), firstWindow));
+        valuesInWindow(
+            materializeValuesFor(View.asIterable(), "Hello"), new Instant(0), firstWindow));
 
     assertThat(sideInputHandler.get(view1, firstWindow), contains("Hello"));
 
     // add something for second window of view1
     sideInputHandler.addSideInputValue(
         view1,
-        valuesInWindow(materializeValuesFor(View.asIterable(), "Arrivederci"),
-    new Instant(0), secondWindow));
+        valuesInWindow(
+            materializeValuesFor(View.asIterable(), "Arrivederci"), new Instant(0), secondWindow));
 
     assertThat(sideInputHandler.get(view1, secondWindow), contains("Arrivederci"));
 
@@ -188,14 +177,13 @@ public class SideInputHandlerTest {
             ImmutableList.of(view1, view2), InMemoryStateInternals.<Void>forKey(null));
 
     // two windows that we'll later use for adding elements/retrieving side input
-    IntervalWindow firstWindow =
-        new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(WINDOW_MSECS_1));
 
     // add value for view1 in the first window
     sideInputHandler.addSideInputValue(
         view1,
-        valuesInWindow(materializeValuesFor(View.asIterable(), "Hello"),
-            new Instant(0), firstWindow));
+        valuesInWindow(
+            materializeValuesFor(View.asIterable(), "Hello"), new Instant(0), firstWindow));
 
     assertThat(sideInputHandler.get(view1, firstWindow), contains("Hello"));
 
@@ -205,8 +193,8 @@ public class SideInputHandlerTest {
     // also add some data for view2
     sideInputHandler.addSideInputValue(
         view2,
-        valuesInWindow(materializeValuesFor(View.asIterable(), "Salut"),
-            new Instant(0), firstWindow));
+        valuesInWindow(
+            materializeValuesFor(View.asIterable(), "Salut"), new Instant(0), firstWindow));
 
     assertTrue(sideInputHandler.isReady(view2, firstWindow));
     assertThat(sideInputHandler.get(view2, firstWindow), contains("Salut"));

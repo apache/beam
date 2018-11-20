@@ -3,16 +3,24 @@
 
 package pipeline_v1
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import google_protobuf2 "github.com/golang/protobuf/ptypes/duration"
-import google_protobuf3 "github.com/golang/protobuf/ptypes/timestamp"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	duration "github.com/golang/protobuf/ptypes/duration"
+	timestamp "github.com/golang/protobuf/ptypes/timestamp"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type GlobalWindowsPayload_Enum int32
 
@@ -24,6 +32,7 @@ const (
 var GlobalWindowsPayload_Enum_name = map[int32]string{
 	0: "PROPERTIES",
 }
+
 var GlobalWindowsPayload_Enum_value = map[string]int32{
 	"PROPERTIES": 0,
 }
@@ -31,7 +40,10 @@ var GlobalWindowsPayload_Enum_value = map[string]int32{
 func (x GlobalWindowsPayload_Enum) String() string {
 	return proto.EnumName(GlobalWindowsPayload_Enum_name, int32(x))
 }
-func (GlobalWindowsPayload_Enum) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{0, 0} }
+
+func (GlobalWindowsPayload_Enum) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_fab9dd76b0d0d680, []int{0, 0}
+}
 
 type FixedWindowsPayload_Enum int32
 
@@ -43,6 +55,7 @@ const (
 var FixedWindowsPayload_Enum_name = map[int32]string{
 	0: "PROPERTIES",
 }
+
 var FixedWindowsPayload_Enum_value = map[string]int32{
 	"PROPERTIES": 0,
 }
@@ -50,7 +63,10 @@ var FixedWindowsPayload_Enum_value = map[string]int32{
 func (x FixedWindowsPayload_Enum) String() string {
 	return proto.EnumName(FixedWindowsPayload_Enum_name, int32(x))
 }
-func (FixedWindowsPayload_Enum) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{1, 0} }
+
+func (FixedWindowsPayload_Enum) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_fab9dd76b0d0d680, []int{1, 0}
+}
 
 type SlidingWindowsPayload_Enum int32
 
@@ -62,6 +78,7 @@ const (
 var SlidingWindowsPayload_Enum_name = map[int32]string{
 	0: "PROPERTIES",
 }
+
 var SlidingWindowsPayload_Enum_value = map[string]int32{
 	"PROPERTIES": 0,
 }
@@ -69,8 +86,9 @@ var SlidingWindowsPayload_Enum_value = map[string]int32{
 func (x SlidingWindowsPayload_Enum) String() string {
 	return proto.EnumName(SlidingWindowsPayload_Enum_name, int32(x))
 }
+
 func (SlidingWindowsPayload_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor2, []int{2, 0}
+	return fileDescriptor_fab9dd76b0d0d680, []int{2, 0}
 }
 
 type SessionsPayload_Enum int32
@@ -83,6 +101,7 @@ const (
 var SessionsPayload_Enum_name = map[int32]string{
 	0: "PROPERTIES",
 }
+
 var SessionsPayload_Enum_value = map[string]int32{
 	"PROPERTIES": 0,
 }
@@ -90,34 +109,83 @@ var SessionsPayload_Enum_value = map[string]int32{
 func (x SessionsPayload_Enum) String() string {
 	return proto.EnumName(SessionsPayload_Enum_name, int32(x))
 }
-func (SessionsPayload_Enum) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{3, 0} }
+
+func (SessionsPayload_Enum) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_fab9dd76b0d0d680, []int{3, 0}
+}
 
 type GlobalWindowsPayload struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GlobalWindowsPayload) Reset()                    { *m = GlobalWindowsPayload{} }
-func (m *GlobalWindowsPayload) String() string            { return proto.CompactTextString(m) }
-func (*GlobalWindowsPayload) ProtoMessage()               {}
-func (*GlobalWindowsPayload) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
+func (m *GlobalWindowsPayload) Reset()         { *m = GlobalWindowsPayload{} }
+func (m *GlobalWindowsPayload) String() string { return proto.CompactTextString(m) }
+func (*GlobalWindowsPayload) ProtoMessage()    {}
+func (*GlobalWindowsPayload) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fab9dd76b0d0d680, []int{0}
+}
+
+func (m *GlobalWindowsPayload) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GlobalWindowsPayload.Unmarshal(m, b)
+}
+func (m *GlobalWindowsPayload) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GlobalWindowsPayload.Marshal(b, m, deterministic)
+}
+func (m *GlobalWindowsPayload) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GlobalWindowsPayload.Merge(m, src)
+}
+func (m *GlobalWindowsPayload) XXX_Size() int {
+	return xxx_messageInfo_GlobalWindowsPayload.Size(m)
+}
+func (m *GlobalWindowsPayload) XXX_DiscardUnknown() {
+	xxx_messageInfo_GlobalWindowsPayload.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GlobalWindowsPayload proto.InternalMessageInfo
 
 type FixedWindowsPayload struct {
-	Size   *google_protobuf2.Duration  `protobuf:"bytes,1,opt,name=size" json:"size,omitempty"`
-	Offset *google_protobuf3.Timestamp `protobuf:"bytes,2,opt,name=offset" json:"offset,omitempty"`
+	Size                 *duration.Duration   `protobuf:"bytes,1,opt,name=size,proto3" json:"size,omitempty"`
+	Offset               *timestamp.Timestamp `protobuf:"bytes,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
-func (m *FixedWindowsPayload) Reset()                    { *m = FixedWindowsPayload{} }
-func (m *FixedWindowsPayload) String() string            { return proto.CompactTextString(m) }
-func (*FixedWindowsPayload) ProtoMessage()               {}
-func (*FixedWindowsPayload) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
+func (m *FixedWindowsPayload) Reset()         { *m = FixedWindowsPayload{} }
+func (m *FixedWindowsPayload) String() string { return proto.CompactTextString(m) }
+func (*FixedWindowsPayload) ProtoMessage()    {}
+func (*FixedWindowsPayload) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fab9dd76b0d0d680, []int{1}
+}
 
-func (m *FixedWindowsPayload) GetSize() *google_protobuf2.Duration {
+func (m *FixedWindowsPayload) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FixedWindowsPayload.Unmarshal(m, b)
+}
+func (m *FixedWindowsPayload) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FixedWindowsPayload.Marshal(b, m, deterministic)
+}
+func (m *FixedWindowsPayload) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FixedWindowsPayload.Merge(m, src)
+}
+func (m *FixedWindowsPayload) XXX_Size() int {
+	return xxx_messageInfo_FixedWindowsPayload.Size(m)
+}
+func (m *FixedWindowsPayload) XXX_DiscardUnknown() {
+	xxx_messageInfo_FixedWindowsPayload.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FixedWindowsPayload proto.InternalMessageInfo
+
+func (m *FixedWindowsPayload) GetSize() *duration.Duration {
 	if m != nil {
 		return m.Size
 	}
 	return nil
 }
 
-func (m *FixedWindowsPayload) GetOffset() *google_protobuf3.Timestamp {
+func (m *FixedWindowsPayload) GetOffset() *timestamp.Timestamp {
 	if m != nil {
 		return m.Offset
 	}
@@ -125,31 +193,54 @@ func (m *FixedWindowsPayload) GetOffset() *google_protobuf3.Timestamp {
 }
 
 type SlidingWindowsPayload struct {
-	Size   *google_protobuf2.Duration  `protobuf:"bytes,1,opt,name=size" json:"size,omitempty"`
-	Offset *google_protobuf3.Timestamp `protobuf:"bytes,2,opt,name=offset" json:"offset,omitempty"`
-	Period *google_protobuf2.Duration  `protobuf:"bytes,3,opt,name=period" json:"period,omitempty"`
+	Size                 *duration.Duration   `protobuf:"bytes,1,opt,name=size,proto3" json:"size,omitempty"`
+	Offset               *timestamp.Timestamp `protobuf:"bytes,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	Period               *duration.Duration   `protobuf:"bytes,3,opt,name=period,proto3" json:"period,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
-func (m *SlidingWindowsPayload) Reset()                    { *m = SlidingWindowsPayload{} }
-func (m *SlidingWindowsPayload) String() string            { return proto.CompactTextString(m) }
-func (*SlidingWindowsPayload) ProtoMessage()               {}
-func (*SlidingWindowsPayload) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
+func (m *SlidingWindowsPayload) Reset()         { *m = SlidingWindowsPayload{} }
+func (m *SlidingWindowsPayload) String() string { return proto.CompactTextString(m) }
+func (*SlidingWindowsPayload) ProtoMessage()    {}
+func (*SlidingWindowsPayload) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fab9dd76b0d0d680, []int{2}
+}
 
-func (m *SlidingWindowsPayload) GetSize() *google_protobuf2.Duration {
+func (m *SlidingWindowsPayload) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SlidingWindowsPayload.Unmarshal(m, b)
+}
+func (m *SlidingWindowsPayload) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SlidingWindowsPayload.Marshal(b, m, deterministic)
+}
+func (m *SlidingWindowsPayload) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SlidingWindowsPayload.Merge(m, src)
+}
+func (m *SlidingWindowsPayload) XXX_Size() int {
+	return xxx_messageInfo_SlidingWindowsPayload.Size(m)
+}
+func (m *SlidingWindowsPayload) XXX_DiscardUnknown() {
+	xxx_messageInfo_SlidingWindowsPayload.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SlidingWindowsPayload proto.InternalMessageInfo
+
+func (m *SlidingWindowsPayload) GetSize() *duration.Duration {
 	if m != nil {
 		return m.Size
 	}
 	return nil
 }
 
-func (m *SlidingWindowsPayload) GetOffset() *google_protobuf3.Timestamp {
+func (m *SlidingWindowsPayload) GetOffset() *timestamp.Timestamp {
 	if m != nil {
 		return m.Offset
 	}
 	return nil
 }
 
-func (m *SlidingWindowsPayload) GetPeriod() *google_protobuf2.Duration {
+func (m *SlidingWindowsPayload) GetPeriod() *duration.Duration {
 	if m != nil {
 		return m.Period
 	}
@@ -157,15 +248,38 @@ func (m *SlidingWindowsPayload) GetPeriod() *google_protobuf2.Duration {
 }
 
 type SessionsPayload struct {
-	GapSize *google_protobuf2.Duration `protobuf:"bytes,1,opt,name=gap_size,json=gapSize" json:"gap_size,omitempty"`
+	GapSize              *duration.Duration `protobuf:"bytes,1,opt,name=gap_size,json=gapSize,proto3" json:"gap_size,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
 }
 
-func (m *SessionsPayload) Reset()                    { *m = SessionsPayload{} }
-func (m *SessionsPayload) String() string            { return proto.CompactTextString(m) }
-func (*SessionsPayload) ProtoMessage()               {}
-func (*SessionsPayload) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
+func (m *SessionsPayload) Reset()         { *m = SessionsPayload{} }
+func (m *SessionsPayload) String() string { return proto.CompactTextString(m) }
+func (*SessionsPayload) ProtoMessage()    {}
+func (*SessionsPayload) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fab9dd76b0d0d680, []int{3}
+}
 
-func (m *SessionsPayload) GetGapSize() *google_protobuf2.Duration {
+func (m *SessionsPayload) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SessionsPayload.Unmarshal(m, b)
+}
+func (m *SessionsPayload) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SessionsPayload.Marshal(b, m, deterministic)
+}
+func (m *SessionsPayload) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionsPayload.Merge(m, src)
+}
+func (m *SessionsPayload) XXX_Size() int {
+	return xxx_messageInfo_SessionsPayload.Size(m)
+}
+func (m *SessionsPayload) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionsPayload.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SessionsPayload proto.InternalMessageInfo
+
+func (m *SessionsPayload) GetGapSize() *duration.Duration {
 	if m != nil {
 		return m.GapSize
 	}
@@ -173,19 +287,19 @@ func (m *SessionsPayload) GetGapSize() *google_protobuf2.Duration {
 }
 
 func init() {
-	proto.RegisterType((*GlobalWindowsPayload)(nil), "org.apache.beam.model.pipeline.v1.GlobalWindowsPayload")
-	proto.RegisterType((*FixedWindowsPayload)(nil), "org.apache.beam.model.pipeline.v1.FixedWindowsPayload")
-	proto.RegisterType((*SlidingWindowsPayload)(nil), "org.apache.beam.model.pipeline.v1.SlidingWindowsPayload")
-	proto.RegisterType((*SessionsPayload)(nil), "org.apache.beam.model.pipeline.v1.SessionsPayload")
 	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.GlobalWindowsPayload_Enum", GlobalWindowsPayload_Enum_name, GlobalWindowsPayload_Enum_value)
 	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.FixedWindowsPayload_Enum", FixedWindowsPayload_Enum_name, FixedWindowsPayload_Enum_value)
 	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.SlidingWindowsPayload_Enum", SlidingWindowsPayload_Enum_name, SlidingWindowsPayload_Enum_value)
 	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.SessionsPayload_Enum", SessionsPayload_Enum_name, SessionsPayload_Enum_value)
+	proto.RegisterType((*GlobalWindowsPayload)(nil), "org.apache.beam.model.pipeline.v1.GlobalWindowsPayload")
+	proto.RegisterType((*FixedWindowsPayload)(nil), "org.apache.beam.model.pipeline.v1.FixedWindowsPayload")
+	proto.RegisterType((*SlidingWindowsPayload)(nil), "org.apache.beam.model.pipeline.v1.SlidingWindowsPayload")
+	proto.RegisterType((*SessionsPayload)(nil), "org.apache.beam.model.pipeline.v1.SessionsPayload")
 }
 
-func init() { proto.RegisterFile("standard_window_fns.proto", fileDescriptor2) }
+func init() { proto.RegisterFile("standard_window_fns.proto", fileDescriptor_fab9dd76b0d0d680) }
 
-var fileDescriptor2 = []byte{
+var fileDescriptor_fab9dd76b0d0d680 = []byte{
 	// 407 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x93, 0x31, 0x4f, 0xdb, 0x40,
 	0x14, 0xc7, 0xeb, 0x36, 0x4d, 0xab, 0xcb, 0xd0, 0xd6, 0x6d, 0xa4, 0xc4, 0x43, 0x9b, 0x78, 0x68,

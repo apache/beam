@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Internal implementation of the Beam runner for Apache Flink.
- */
+/** Internal implementation of the Beam runner for Apache Flink. */
 package org.apache.beam.runners.flink.translation.functions;

@@ -47,7 +47,7 @@ func (n *Inject) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *Inject) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (n *Inject) StartBundle(ctx context.Context, id string, data DataContext) error {
 	return n.Out.StartBundle(ctx, id, data)
 }
 
@@ -100,7 +100,7 @@ func (n *Expand) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *Expand) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (n *Expand) StartBundle(ctx context.Context, id string, data DataContext) error {
 	return n.Out.StartBundle(ctx, id, data)
 }
 
@@ -131,8 +131,12 @@ type filterReStream struct {
 	real ReStream
 }
 
-func (f *filterReStream) Open() Stream {
-	return &filterStream{n: f.n, dec: f.dec, real: f.real.Open()}
+func (f *filterReStream) Open() (Stream, error) {
+	real, err := f.real.Open()
+	if err != nil {
+		return nil, err
+	}
+	return &filterStream{n: f.n, dec: f.dec, real: real}, nil
 }
 
 type filterStream struct {

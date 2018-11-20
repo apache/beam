@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -61,7 +62,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * in the direct runner. Currently overrides applications of <a
  * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
  */
-class ParDoMultiOverrideFactory<InputT, OutputT>
+@VisibleForTesting
+public class ParDoMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
         PCollection<? extends InputT>, PCollectionTuple,
         PTransform<PCollection<? extends InputT>, PCollectionTuple>> {

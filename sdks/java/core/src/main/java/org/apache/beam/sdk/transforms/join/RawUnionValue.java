@@ -23,16 +23,14 @@ package org.apache.beam.sdk.transforms.join;
 import javax.annotation.Nullable;
 
 /**
- * This corresponds to an integer union tag and value.  The mapping of
- * union tag to type must come from elsewhere.
+ * This corresponds to an integer union tag and value. The mapping of union tag to type must come
+ * from elsewhere.
  */
 public class RawUnionValue {
   private final int unionTag;
   @Nullable private final Object value;
 
-  /**
-   * Constructs a partial union from the given union tag and value.
-   */
+  /** Constructs a partial union from the given union tag and value. */
   public RawUnionValue(int unionTag, @Nullable Object value) {
     this.unionTag = unionTag;
     this.value = value;
@@ -42,7 +40,8 @@ public class RawUnionValue {
     return unionTag;
   }
 
-  @Nullable public Object getValue() {
+  @Nullable
+  public Object getValue() {
     return value;
   }
 
@@ -66,7 +65,6 @@ public class RawUnionValue {
       return false;
     }
     return value != null ? value.equals(that.value) : that.value == null;
-
   }
 
   @Override

@@ -36,29 +36,18 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DistinctExampleTest {
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(ValidatesRunner.class)
   public void testDistinct() {
-    List<String> strings = Arrays.asList(
-        "k1",
-        "k5",
-        "k5",
-        "k2",
-        "k1",
-        "k2",
-        "k3");
+    List<String> strings = Arrays.asList("k1", "k5", "k5", "k2", "k1", "k2", "k3");
 
-    PCollection<String> input =
-        p.apply(Create.of(strings)
-            .withCoder(StringUtf8Coder.of()));
+    PCollection<String> input = p.apply(Create.of(strings).withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output = input.apply(Distinct.create());
 
-    PAssert.that(output)
-        .containsInAnyOrder("k1", "k5", "k2", "k3");
+    PAssert.that(output).containsInAnyOrder("k1", "k5", "k2", "k3");
     p.run().waitUntilFinish();
   }
 
@@ -67,9 +56,7 @@ public class DistinctExampleTest {
   public void testDistinctEmpty() {
     List<String> strings = Arrays.asList();
 
-    PCollection<String> input =
-        p.apply(Create.of(strings)
-            .withCoder(StringUtf8Coder.of()));
+    PCollection<String> input = p.apply(Create.of(strings).withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output = input.apply(Distinct.create());
 

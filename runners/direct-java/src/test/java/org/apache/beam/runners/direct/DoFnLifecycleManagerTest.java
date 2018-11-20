@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -43,9 +42,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DoFnLifecycleManager}.
- */
+/** Tests for {@link DoFnLifecycleManager}. */
 @RunWith(JUnit4.class)
 public class DoFnLifecycleManagerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -221,8 +218,7 @@ public class DoFnLifecycleManagerTest {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-    }
+    public void processElement(ProcessContext c) throws Exception {}
 
     @Teardown
     public void teardown() {

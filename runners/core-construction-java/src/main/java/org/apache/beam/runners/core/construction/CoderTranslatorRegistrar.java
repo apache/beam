@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
@@ -30,8 +29,6 @@ public interface CoderTranslatorRegistrar {
    */
   Map<Class<? extends Coder>, String> getCoderURNs();
 
-  /**
-   * Returns a mapping of URN to {@link CoderTranslator}.
-   */
+  /** Returns a mapping of URN to {@link CoderTranslator}. */
   Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getCoderTranslators();
 }

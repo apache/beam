@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.transforms;
 
 import com.google.common.base.Joiner;
@@ -23,10 +22,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * {@link PTransform PTransforms} for converting a {@link PCollection PCollection&lt;?&gt;},
- * {@link PCollection PCollection&lt;KV&lt;?,?&gt;&gt;}, or
- * {@link PCollection PCollection&lt;Iterable&lt;?&gt;&gt;}
- * to a {@link PCollection PCollection&lt;String&gt;}.
+ * {@link PTransform PTransforms} for converting a {@link PCollection PCollection&lt;?&gt;}, {@link
+ * PCollection PCollection&lt;KV&lt;?,?&gt;&gt;}, or {@link PCollection
+ * PCollection&lt;Iterable&lt;?&gt;&gt;} to a {@link PCollection PCollection&lt;String&gt;}.
  *
  * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
  * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
@@ -46,8 +44,8 @@ public final class ToString {
 
   /**
    * Transforms each element of the input {@link PCollection} to a {@link String} by using the
-   * {@link Object#toString} on the key followed by a "," followed by the {@link Object#toString}
-   * of the value.
+   * {@link Object#toString} on the key followed by a "," followed by the {@link Object#toString} of
+   * the value.
    */
   public static PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> kvs() {
     return kvs(",");
@@ -66,9 +64,9 @@ public final class ToString {
   }
 
   /**
-   * Transforms each item in the iterable of the input {@link PCollection} to a {@link String}
-   * using the {@link Object#toString} method followed by a "," until
-   * the last element in the iterable. There is no trailing delimiter.
+   * Transforms each item in the iterable of the input {@link PCollection} to a {@link String} using
+   * the {@link Object#toString} method followed by a "," until the last element in the iterable.
+   * There is no trailing delimiter.
    */
   public static PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> iterables() {
     return iterables(",");
@@ -103,12 +101,14 @@ public final class ToString {
   private static final class Elements extends PTransform<PCollection<?>, PCollection<String>> {
     @Override
     public PCollection<String> expand(PCollection<?> input) {
-      return input.apply(MapElements.via(new SimpleFunction<Object, String>() {
-        @Override
-        public String apply(Object input) {
-          return input.toString();
-        }
-      }));
+      return input.apply(
+          MapElements.via(
+              new SimpleFunction<Object, String>() {
+                @Override
+                public String apply(Object input) {
+                  return input.toString();
+                }
+              }));
     }
   }
 
@@ -137,12 +137,14 @@ public final class ToString {
 
     @Override
     public PCollection<String> expand(PCollection<? extends KV<?, ?>> input) {
-      return input.apply(MapElements.via(new SimpleFunction<KV<?, ?>, String>() {
-        @Override
-        public String apply(KV<?, ?> input) {
-          return input.getKey().toString() + delimiter + input.getValue().toString();
-        }
-      }));
+      return input.apply(
+          MapElements.via(
+              new SimpleFunction<KV<?, ?>, String>() {
+                @Override
+                public String apply(KV<?, ?> input) {
+                  return input.getKey().toString() + delimiter + input.getValue().toString();
+                }
+              }));
     }
   }
 
@@ -170,12 +172,14 @@ public final class ToString {
 
     @Override
     public PCollection<String> expand(PCollection<? extends Iterable<?>> input) {
-      return input.apply(MapElements.via(new SimpleFunction<Iterable<?>, String>() {
-        @Override
-        public String apply(Iterable<?> input) {
-          return Joiner.on(delimiter).join(input);
-        }
-      }));
+      return input.apply(
+          MapElements.via(
+              new SimpleFunction<Iterable<?>, String>() {
+                @Override
+                public String apply(Iterable<?> input) {
+                  return Joiner.on(delimiter).join(input);
+                }
+              }));
     }
   }
 }

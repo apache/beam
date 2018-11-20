@@ -18,17 +18,21 @@ import groovy.json.JsonOutput
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableSpotless: true, testShadowJar: true, shadowClosure: DEFAULT_SHADOW_CLOSURE << {
-  dependencies {
-    include(dependency(library.java.protobuf_java))
-    include(dependency(library.java.protobuf_java_util))
-    include(dependency("org.apache.calcite:.*"))
-    include(dependency("org.apache.calcite.avatica:.*"))
-    include(dependency("org.codehaus.janino:.*"))
-  }
-  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-  relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature(
+  // javacc generated code produces lint warnings
+  disableLintWarnings: ['dep-ann'],
+  testShadowJar: true,
+  shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+    dependencies {
+      include(dependency(library.java.protobuf_java))
+      include(dependency(library.java.protobuf_java_util))
+      include(dependency("org.apache.calcite:.*"))
+      include(dependency("org.apache.calcite.avatica:.*"))
+      include(dependency("org.codehaus.janino:.*"))
+    }
+    relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+    relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
 
   // Looking up the compiler factory in Calcite depends on having a properties
   // file in the right location. We package one that is shading compatible
@@ -51,20 +55,18 @@ configurations {
   fmppTemplates
 }
 
-def calcite_version = "1.16.0"
-def avatica_version = "1.11.0"
+def calcite_version = "1.17.0"
+def avatica_version = "1.12.0"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
-  fmppTask "org.freemarker:freemarker:2.3.25-incubating"
+  fmppTask "org.freemarker:freemarker:2.3.28"
   fmppTemplates "org.apache.calcite:calcite-core:$calcite_version"
   compile library.java.guava
   compile "org.apache.calcite:calcite-core:$calcite_version"
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
-  compileOnly library.java.findbugs_jsr305
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
   shadow library.java.slf4j_api
@@ -72,7 +74,7 @@ dependencies {
   shadow library.java.commons_lang3
   shadow library.java.jackson_databind
   shadow library.java.joda_time
-  shadow "com.alibaba:fastjson:1.2.12"
+  shadow "com.alibaba:fastjson:1.2.49"
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
@@ -80,6 +82,7 @@ dependencies {
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
   shadowTest library.java.mockito_core
   shadowTest library.java.quickcheck_core
 }
@@ -120,7 +123,7 @@ compileJavacc {
   dependsOn generateFmppSources
   inputDirectory = file(generateFmppJavaccRoot)
   outputDirectory = file(generatedJavaccPackageDir)
-  arguments = [grammar_encoding: "UTF-8", static: "false", lookahead: "2"]
+  arguments = [static: "false", lookahead: "2"]
 }
 
 // Help IntelliJ find the fmpp bits
@@ -153,11 +156,17 @@ task runPojoExample(type: JavaExec) {
 task integrationTest(type: Test) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
+  def pipelineOptions = [
           "--project=${gcpProject}",
-          "--blockOnRun=false"
-  ])
+          "--tempLocation=${gcsTempRoot}",
+          "--blockOnRun=false"]
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
   maxParallelForks 4

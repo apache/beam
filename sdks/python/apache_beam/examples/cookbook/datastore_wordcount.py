@@ -67,12 +67,7 @@ import argparse
 import logging
 import re
 import uuid
-
-from google.cloud.proto.datastore.v1 import entity_pb2
-from google.cloud.proto.datastore.v1 import query_pb2
-from googledatastore import helper as datastore_helper
-from googledatastore import PropertyFilter
-import six
+from builtins import object
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -82,6 +77,18 @@ from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud.proto.datastore.v1 import entity_pb2
+  from google.cloud.proto.datastore.v1 import query_pb2
+  from googledatastore import helper as datastore_helper
+  from googledatastore import PropertyFilter
+  from past.builtins import unicode
+except ImportError:
+  pass
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class WordExtractingDoFn(beam.DoFn):
@@ -132,7 +139,7 @@ class EntityWrapper(object):
     datastore_helper.add_key_path(entity.key, self._kind, self._ancestor,
                                   self._kind, str(uuid.uuid4()))
 
-    datastore_helper.add_properties(entity, {"content": six.text_type(content)})
+    datastore_helper.add_properties(entity, {"content": unicode(content)})
     return entity
 
 
@@ -187,7 +194,7 @@ def read_from_datastore(user_options, pipeline_options):
 
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(six.text_type))
+                          .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
             | 'count' >> beam.Map(count_ones))

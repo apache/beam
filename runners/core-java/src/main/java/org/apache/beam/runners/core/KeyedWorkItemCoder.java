@@ -32,9 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 
-/**
- * A {@link Coder} for {@link KeyedWorkItem KeyedWorkItems}.
- */
+/** A {@link Coder} for {@link KeyedWorkItem KeyedWorkItems}. */
 public class KeyedWorkItemCoder<K, ElemT> extends StructuredCoder<KeyedWorkItem<K, ElemT>> {
   /**
    * Create a new {@link KeyedWorkItemCoder} with the provided key coder, element coder, and window
@@ -77,8 +75,7 @@ public class KeyedWorkItemCoder<K, ElemT> extends StructuredCoder<KeyedWorkItem<
   }
 
   @Override
-  public KeyedWorkItem<K, ElemT> decode(InputStream inStream)
-      throws CoderException, IOException {
+  public KeyedWorkItem<K, ElemT> decode(InputStream inStream) throws CoderException, IOException {
     K key = keyCoder.decode(inStream);
     Iterable<TimerData> timers = timersCoder.decode(inStream);
     Iterable<WindowedValue<ElemT>> elems = elemsCoder.decode(inStream);
@@ -100,8 +97,8 @@ public class KeyedWorkItemCoder<K, ElemT> extends StructuredCoder<KeyedWorkItem<
   /**
    * {@inheritDoc}.
    *
-   * {@link KeyedWorkItemCoder} is not consistent with equals as it can return a
-   * {@link KeyedWorkItem} of a type different from the originally encoded type.
+   * <p>{@link KeyedWorkItemCoder} is not consistent with equals as it can return a {@link
+   * KeyedWorkItem} of a type different from the originally encoded type.
    */
   @Override
   public boolean consistentWithEquals() {

@@ -36,17 +36,13 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link WithTimestamps}.
- */
+/** Tests for {@link WithTimestamps}. */
 @RunWith(JUnit4.class)
 public class WithTimestampsTest implements Serializable {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   @Category(ValidatesRunner.class)
@@ -57,16 +53,18 @@ public class WithTimestampsTest implements Serializable {
     String yearTwoThousand = "946684800000";
     PCollection<String> timestamped =
         p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE), yearTwoThousand))
-         .apply(WithTimestamps.of(timestampFn));
+            .apply(WithTimestamps.of(timestampFn));
 
     PCollection<KV<String, Instant>> timestampedVals =
-        timestamped.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
-          @ProcessElement
-          public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
-              throws Exception {
-            c.output(KV.of(c.element(), c.timestamp()));
-          }
-        }));
+        timestamped.apply(
+            ParDo.of(
+                new DoFn<String, KV<String, Instant>>() {
+                  @ProcessElement
+                  public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
+                      throws Exception {
+                    c.output(KV.of(c.element(), c.timestamp()));
+                  }
+                }));
 
     PAssert.that(timestamped)
         .containsInAnyOrder(yearTwoThousand, "0", "1234", Integer.toString(Integer.MAX_VALUE));
@@ -91,8 +89,8 @@ public class WithTimestampsTest implements Serializable {
     String yearTwoThousand = "946684800000";
 
     p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE), yearTwoThousand))
-     .apply("WithTimestamps", WithTimestamps.of(timestampFn))
-     .apply("AddSkew", WithTimestamps.of(backInTimeFn));
+        .apply("WithTimestamps", WithTimestamps.of(timestampFn))
+        .apply("AddSkew", WithTimestamps.of(backInTimeFn));
 
     thrown.expect(PipelineExecutionException.class);
     thrown.expectCause(isA(IllegalArgumentException.class));
@@ -114,19 +112,21 @@ public class WithTimestampsTest implements Serializable {
     String yearTwoThousand = "946684800000";
     PCollection<String> timestampedWithSkew =
         p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE), yearTwoThousand))
-         .apply("FirstTimestamp", WithTimestamps.of(timestampFn))
-         .apply(
-             "WithSkew",
-             WithTimestamps.of(backInTimeFn).withAllowedTimestampSkew(skew.plus(100L)));
+            .apply("FirstTimestamp", WithTimestamps.of(timestampFn))
+            .apply(
+                "WithSkew",
+                WithTimestamps.of(backInTimeFn).withAllowedTimestampSkew(skew.plus(100L)));
 
     PCollection<KV<String, Instant>> timestampedVals =
-        timestampedWithSkew.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
-          @ProcessElement
-          public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
-              throws Exception {
-            c.output(KV.of(c.element(), c.timestamp()));
-          }
-        }));
+        timestampedWithSkew.apply(
+            ParDo.of(
+                new DoFn<String, KV<String, Instant>>() {
+                  @ProcessElement
+                  public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
+                      throws Exception {
+                    c.output(KV.of(c.element(), c.timestamp()));
+                  }
+                }));
 
     PAssert.that(timestampedWithSkew)
         .containsInAnyOrder(yearTwoThousand, "0", "1234", Integer.toString(Integer.MAX_VALUE));
@@ -149,7 +149,7 @@ public class WithTimestampsTest implements Serializable {
 
     String yearTwoThousand = "946684800000";
     p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE), yearTwoThousand))
-     .apply(WithTimestamps.of(timestampFn));
+        .apply(WithTimestamps.of(timestampFn));
 
     thrown.expect(PipelineExecutionException.class);
     thrown.expectCause(isA(NullPointerException.class));
@@ -169,7 +169,7 @@ public class WithTimestampsTest implements Serializable {
     thrown.expectMessage("WithTimestamps fn cannot be null");
 
     p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE)))
-     .apply(WithTimestamps.of(timestampFn));
+        .apply(WithTimestamps.of(timestampFn));
 
     p.run();
   }
@@ -184,13 +184,14 @@ public class WithTimestampsTest implements Serializable {
             .apply(WithTimestamps.of((String input) -> new Instant(Long.valueOf(input))));
 
     PCollection<KV<String, Instant>> timestampedVals =
-        timestamped.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
-          @ProcessElement
-          public void processElement(ProcessContext c)
-              throws Exception {
-            c.output(KV.of(c.element(), c.timestamp()));
-          }
-        }));
+        timestamped.apply(
+            ParDo.of(
+                new DoFn<String, KV<String, Instant>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) throws Exception {
+                    c.output(KV.of(c.element(), c.timestamp()));
+                  }
+                }));
 
     PAssert.that(timestamped)
         .containsInAnyOrder(yearTwoThousand, "0", "1234", Integer.toString(Integer.MAX_VALUE));

@@ -64,16 +64,19 @@ public class SpannerReadIT {
     @Description("Instance ID to write to in Spanner")
     @Default.String("beam-test")
     String getInstanceId();
+
     void setInstanceId(String value);
 
     @Description("Database ID prefix to write to in Spanner")
     @Default.String("beam-testdb")
     String getDatabaseIdPrefix();
+
     void setDatabaseIdPrefix(String value);
 
     @Description("Table name")
     @Default.String("users")
     String getTable();
+
     void setTable(String value);
   }
 
@@ -166,16 +169,23 @@ public class SpannerReadIT {
                 .withSpannerConfig(spannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
-    PCollection<Struct> allRecords = p.apply(SpannerIO.read()
-        .withSpannerConfig(spannerConfig)
-        .withBatching(false)
-        .withQuery("SELECT t.table_name FROM information_schema.tables AS t WHERE t"
-            + ".table_catalog = '' AND t.table_schema = ''")).apply(
-        MapElements.into(TypeDescriptor.of(ReadOperation.class))
-            .via((SerializableFunction<Struct, ReadOperation>) input -> {
-              String tableName = input.getString(0);
-              return ReadOperation.create().withQuery("SELECT * FROM " + tableName);
-            })).apply(SpannerIO.readAll().withTransaction(tx).withSpannerConfig(spannerConfig));
+    PCollection<Struct> allRecords =
+        p.apply(
+                SpannerIO.read()
+                    .withSpannerConfig(spannerConfig)
+                    .withBatching(false)
+                    .withQuery(
+                        "SELECT t.table_name FROM information_schema.tables AS t WHERE t"
+                            + ".table_catalog = '' AND t.table_schema = ''"))
+            .apply(
+                MapElements.into(TypeDescriptor.of(ReadOperation.class))
+                    .via(
+                        (SerializableFunction<Struct, ReadOperation>)
+                            input -> {
+                              String tableName = input.getString(0);
+                              return ReadOperation.create().withQuery("SELECT * FROM " + tableName);
+                            }))
+            .apply(SpannerIO.readAll().withTransaction(tx).withSpannerConfig(spannerConfig));
 
     PAssert.thatSingleton(allRecords.apply("Count rows", Count.globally())).isEqualTo(5L);
     p.run();
@@ -205,11 +215,8 @@ public class SpannerReadIT {
         .withDatabaseId(databaseName);
   }
 
-
   private DatabaseClient getDatabaseClient() {
-    return spanner.getDatabaseClient(
-        DatabaseId.of(
-            project, options.getInstanceId(), databaseName));
+    return spanner.getDatabaseClient(DatabaseId.of(project, options.getInstanceId(), databaseName));
   }
 
   @After
@@ -219,8 +226,9 @@ public class SpannerReadIT {
   }
 
   private String generateDatabaseName() {
-    String random = RandomUtils
-        .randomAlphaNumeric(MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length());
+    String random =
+        RandomUtils.randomAlphaNumeric(
+            MAX_DB_NAME_LENGTH - 1 - options.getDatabaseIdPrefix().length());
     return options.getDatabaseIdPrefix() + "-" + random;
   }
 }

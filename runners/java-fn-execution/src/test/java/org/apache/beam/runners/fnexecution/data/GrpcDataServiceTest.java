@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.data;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
@@ -24,10 +23,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertThat;
 
-import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -48,9 +43,13 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.junit.Ignore;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -63,14 +62,14 @@ public class GrpcDataServiceTest {
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4281")
   @Test
-  public void testMessageReceivedBySingleClientWhenThereAreMultipleClients()
-      throws Exception {
+  public void testMessageReceivedBySingleClientWhenThereAreMultipleClients() throws Exception {
     final LinkedBlockingQueue<Elements> clientInboundElements = new LinkedBlockingQueue<>();
     ExecutorService executorService = Executors.newCachedThreadPool();
     final CountDownLatch waitForInboundElements = new CountDownLatch(1);
-    GrpcDataService service = GrpcDataService.create(Executors.newCachedThreadPool());
+    GrpcDataService service =
+        GrpcDataService.create(
+            Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
     try (GrpcFnServer<GrpcDataService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
@@ -103,7 +102,8 @@ public class GrpcDataServiceTest {
       for (Future<Void> clientFuture : clientFutures) {
         clientFuture.get();
       }
-      assertThat(clientInboundElements,
+      assertThat(
+          clientInboundElements,
           containsInAnyOrder(elementsWithData("0"), elementsWithData("1"), elementsWithData("2")));
     }
   }
@@ -114,7 +114,9 @@ public class GrpcDataServiceTest {
         new LinkedBlockingQueue<>();
     ExecutorService executorService = Executors.newCachedThreadPool();
     final CountDownLatch waitForInboundElements = new CountDownLatch(1);
-    GrpcDataService service = GrpcDataService.create(Executors.newCachedThreadPool());
+    GrpcDataService service =
+        GrpcDataService.create(
+            Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
     try (GrpcFnServer<GrpcDataService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();

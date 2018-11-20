@@ -29,17 +29,13 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
-/***
- */
+/** * */
 @RunWith(MockitoJUnitRunner.class)
 public class DynamicCheckpointGeneratorTest {
 
-  @Mock
-  private SimplifiedKinesisClient kinesisClient;
-  @Mock
-  private StartingPointShardsFinder startingPointShardsFinder;
-  @Mock
-  private Shard shard1, shard2, shard3;
+  @Mock private SimplifiedKinesisClient kinesisClient;
+  @Mock private StartingPointShardsFinder startingPointShardsFinder;
+  @Mock private Shard shard1, shard2, shard3;
 
   @Test
   public void shouldMapAllShardsToCheckpoints() throws Exception {
@@ -48,11 +44,12 @@ public class DynamicCheckpointGeneratorTest {
     given(shard3.getShardId()).willReturn("shard-03");
     Set<Shard> shards = Sets.newHashSet(shard1, shard2, shard3);
     StartingPoint startingPoint = new StartingPoint(InitialPositionInStream.LATEST);
-    given(startingPointShardsFinder.findShardsAtStartingPoint(kinesisClient,
-        "stream", startingPoint))
+    given(
+            startingPointShardsFinder.findShardsAtStartingPoint(
+                kinesisClient, "stream", startingPoint))
         .willReturn(shards);
-    DynamicCheckpointGenerator underTest = new DynamicCheckpointGenerator("stream",
-        startingPoint, startingPointShardsFinder);
+    DynamicCheckpointGenerator underTest =
+        new DynamicCheckpointGenerator("stream", startingPoint, startingPointShardsFinder);
 
     KinesisReaderCheckpoint checkpoint = underTest.generate(kinesisClient);
 
@@ -68,14 +65,16 @@ public class DynamicCheckpointGeneratorTest {
     Set<Shard> shards = Sets.newHashSet(shard1, shard2);
     StartingPoint startingPoint = new StartingPoint(InitialPositionInStream.LATEST);
     given(
-        startingPointShardsFinder.findShardsAtStartingPoint(kinesisClient, "stream", startingPoint))
+            startingPointShardsFinder.findShardsAtStartingPoint(
+                kinesisClient, "stream", startingPoint))
         .willReturn(shards);
 
-    DynamicCheckpointGenerator underTest = new DynamicCheckpointGenerator(streamName, startingPoint,
-        startingPointShardsFinder);
+    DynamicCheckpointGenerator underTest =
+        new DynamicCheckpointGenerator(streamName, startingPoint, startingPointShardsFinder);
 
     KinesisReaderCheckpoint checkpoint = underTest.generate(kinesisClient);
-    assertThat(checkpoint).hasSize(2)
+    assertThat(checkpoint)
+        .hasSize(2)
         .doesNotContain(new ShardCheckpoint(streamName, shard3.getShardId(), startingPoint));
   }
 }

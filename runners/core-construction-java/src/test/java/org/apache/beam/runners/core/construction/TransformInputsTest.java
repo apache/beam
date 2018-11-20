@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertThat;
@@ -101,8 +100,7 @@ public class TransformInputsTest {
     PCollection<Integer> mainInts = pipeline.apply("MainInput", Create.of(12, 3));
     allInputs.put(new TupleTag<Integer>() {}, mainInts);
     PCollection<Void> voids = pipeline.apply("VoidInput", Create.empty(VoidCoder.of()));
-    allInputs.put(
-        new TupleTag<Void>() {}, voids);
+    allInputs.put(new TupleTag<Void>() {}, voids);
     allInputs.putAll(additionalInputs);
 
     AppliedPTransform<PInput, POutput, TestTransform> transform =

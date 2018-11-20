@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-const idKey = "id"
+const idKey = "worker_id"
 
 // ReadWorkerID reads the worker ID from an incoming gRPC request context.
 func ReadWorkerID(ctx context.Context) (string, error) {

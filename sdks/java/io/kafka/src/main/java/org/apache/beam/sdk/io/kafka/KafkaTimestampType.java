@@ -2,7 +2,8 @@
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  The ASF E 2.0 (the
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
@@ -17,8 +18,8 @@
 package org.apache.beam.sdk.io.kafka;
 
 /**
- * This is a copy of Kafka's {@link org.apache.kafka.common.record.TimestampType}. Included
- * here in order to support older Kafka versions (0.9.x).
+ * This is a copy of Kafka's {@link org.apache.kafka.common.record.TimestampType}. Included here in
+ * order to support older Kafka versions (0.9.x).
  */
 public enum KafkaTimestampType {
   NO_TIMESTAMP_TYPE(-1, "NoTimestampType"),

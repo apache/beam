@@ -17,8 +17,8 @@ package artifact
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/base64"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -36,32 +36,33 @@ import (
 
 // Commit commits a manifest with the given staged artifacts. It returns the
 // staging token, if successful.
-func Commit(ctx context.Context, client pb.ArtifactStagingServiceClient, artifacts []*pb.ArtifactMetadata) (string, error) {
+func Commit(ctx context.Context, client pb.ArtifactStagingServiceClient, artifacts []*pb.ArtifactMetadata, st string) (string, error) {
 	req := &pb.CommitManifestRequest{
 		Manifest: &pb.Manifest{
 			Artifact: artifacts,
 		},
+		StagingSessionToken: st,
 	}
 	resp, err := client.CommitManifest(ctx, req)
 	if err != nil {
 		return "", err
 	}
-	return resp.GetStagingToken(), nil
+	return resp.GetRetrievalToken(), nil
 }
 
 // StageDir stages a local directory with relative path keys. Convenience wrapper.
-func StageDir(ctx context.Context, client pb.ArtifactStagingServiceClient, src string) ([]*pb.ArtifactMetadata, error) {
+func StageDir(ctx context.Context, client pb.ArtifactStagingServiceClient, src string, st string) ([]*pb.ArtifactMetadata, error) {
 	list, err := scan(src)
 	if err != nil || len(list) == 0 {
 		return nil, err
 	}
-	return MultiStage(ctx, client, 10, list)
+	return MultiStage(ctx, client, 10, list, st)
 }
 
 // MultiStage stages a set of local files with the given keys. It returns
 // the full artifact metadate.  It retries each artifact a few times.
 // Convenience wrapper.
-func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpus int, list []KeyedFile) ([]*pb.ArtifactMetadata, error) {
+func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpus int, list []KeyedFile, st string) ([]*pb.ArtifactMetadata, error) {
 	if cpus < 1 {
 		cpus = 1
 	}
@@ -92,7 +93,7 @@ func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpu
 
 				var failures []string
 				for {
-					a, err := Stage(ctx, client, f.Key, f.Filename)
+					a, err := Stage(ctx, client, f.Key, f.Filename, st)
 					if err == nil {
 						ret <- a
 						break
@@ -117,20 +118,24 @@ func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpu
 }
 
 // Stage stages a local file as an artifact with the given key. It computes
-// the MD5 and returns the full artifact metadata.
-func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, filename string) (*pb.ArtifactMetadata, error) {
+// the SHA256 and returns the full artifact metadata.
+func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, filename, st string) (*pb.ArtifactMetadata, error) {
 	stat, err := os.Stat(filename)
 	if err != nil {
 		return nil, err
 	}
-	hash, err := computeMD5(filename)
+	hash, err := computeSHA256(filename)
 	if err != nil {
 		return nil, err
 	}
 	md := &pb.ArtifactMetadata{
 		Name:        key,
 		Permissions: uint32(stat.Mode()),
-		Md5:         hash,
+		Sha256:         hash,
+	}
+	pmd := &pb.PutArtifactMetadata{
+		Metadata:            md,
+		StagingSessionToken: st,
 	}
 
 	fd, err := os.Open(filename)
@@ -146,7 +151,7 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 
 	header := &pb.PutArtifactRequest{
 		Content: &pb.PutArtifactRequest_Metadata{
-			Metadata: md,
+			Metadata: pmd,
 		},
 	}
 	if err := stream.Send(header); err != nil {
@@ -158,22 +163,22 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 		stream.CloseAndRecv() // ignore error
 		return nil, fmt.Errorf("failed to send chunks for %v: %v", filename, err)
 	}
-	if _, err := stream.CloseAndRecv(); err != nil {
+	if _, err := stream.CloseAndRecv(); err != nil && err != io.EOF {
 		return nil, fmt.Errorf("failed to close stream for %v: %v", filename, err)
 	}
 	if hash != stagedHash {
-		return nil, fmt.Errorf("unexpected MD5 for sent chunks for %v: %v, want %v", filename, stagedHash, hash)
+		return nil, fmt.Errorf("unexpected SHA256 for sent chunks for %v: %v, want %v", filename, stagedHash, hash)
 	}
 	return md, nil
 }
 
 func stageChunks(stream pb.ArtifactStagingService_PutArtifactClient, r io.Reader) (string, error) {
-	md5W := md5.New()
+	sha256W := sha256.New()
 	data := make([]byte, 1<<20)
 	for {
 		n, err := r.Read(data)
 		if n > 0 {
-			if _, err := md5W.Write(data[:n]); err != nil {
+			if _, err := sha256W.Write(data[:n]); err != nil {
 				panic(err) // cannot fail
 			}
 
@@ -195,7 +200,7 @@ func stageChunks(stream pb.ArtifactStagingService_PutArtifactClient, r io.Reader
 			return "", err
 		}
 	}
-	return base64.StdEncoding.EncodeToString(md5W.Sum(nil)), nil
+	return hex.EncodeToString(sha256W.Sum(nil)), nil
 }
 
 // KeyedFile is a key and filename pair.

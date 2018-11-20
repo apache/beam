@@ -47,15 +47,20 @@ Typical usage::
 from __future__ import absolute_import
 
 import abc
-import collections
 import logging
 import os
+import re
 import shutil
 import tempfile
+from builtins import object
+from builtins import zip
+
+from future.utils import with_metaclass
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -116,13 +121,14 @@ class Pipeline(object):
       else:
         raise ValueError(
             'Parameter options, if specified, must be of type PipelineOptions. '
-            'Received : %r', options)
+            'Received : %r' % options)
     elif argv is not None:
       if isinstance(argv, list):
         self._options = PipelineOptions(argv)
       else:
         raise ValueError(
-            'Parameter argv, if specified, must be a list. Received : %r', argv)
+            'Parameter argv, if specified, must be a list. Received : %r'
+            % argv)
     else:
       self._options = PipelineOptions([])
 
@@ -146,6 +152,14 @@ class Pipeline(object):
     if errors:
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
+
+    # set default experiments for portable runner
+    # (needs to occur prior to pipeline construction)
+    if self._options.view_as(StandardOptions).runner == 'PortableRunner':
+      experiments = (self._options.view_as(DebugOptions).experiments or [])
+      if not 'beam_fn_api' in experiments:
+        experiments.append('beam_fn_api')
+        self._options.view_as(DebugOptions).experiments = experiments
 
     # Default runner to be used.
     self.runner = runner
@@ -228,8 +242,8 @@ class Pipeline(object):
             raise NotImplementedError(
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single input. Tried to replace input of '
-                'AppliedPTransform %r that has %d inputs',
-                original_transform_node, len(inputs))
+                'AppliedPTransform %r that has %d inputs'
+                % original_transform_node, len(inputs))
           elif len(inputs) == 1:
             input_node = inputs[0]
           elif len(inputs) == 0:
@@ -267,7 +281,7 @@ class Pipeline(object):
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single output. Tried to replace output of '
                 'AppliedPTransform %r with %r.'
-                , original_transform_node, new_output)
+                % (original_transform_node, new_output))
 
           # Recording updated outputs. This cannot be done in the same visitor
           # since if we dynamically update output type here, we'll run into
@@ -351,8 +365,8 @@ class Pipeline(object):
     class ReplacementValidator(PipelineVisitor):
       def visit_transform(self, transform_node):
         if override.matches(transform_node):
-          raise RuntimeError('Transform node %r was not replaced as expected.',
-                             transform_node)
+          raise RuntimeError('Transform node %r was not replaced as expected.'
+                             % transform_node)
 
     self.visit(ReplacementValidator())
 
@@ -386,7 +400,9 @@ class Pipeline(object):
     # When possible, invoke a round trip through the runner API.
     if test_runner_api and self._verify_runner_api_compatible():
       return Pipeline.from_runner_api(
-          self.to_runner_api(), self.runner, self._options).run(False)
+          self.to_runner_api(use_fake_coders=True),
+          self.runner,
+          self._options).run(False)
 
     if self._options.view_as(TypeOptions).runtime_type_check:
       from apache_beam.typehints import typecheck
@@ -523,7 +539,6 @@ class Pipeline(object):
                            'output type-hint was found for the '
                            'PTransform %s' % ptransform_name)
 
-    current.update_input_refcounts()
     self.transforms_stack.pop()
     return pvalueish_result
 
@@ -590,18 +605,47 @@ class Pipeline(object):
     self.visit(Visitor())
     return Visitor.ok
 
-  def to_runner_api(self, return_context=False, context=None):
+  def to_runner_api(
+      self, return_context=False, context=None, use_fake_coders=False):
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
     if context is None:
-      context = pipeline_context.PipelineContext()
+      context = pipeline_context.PipelineContext(
+          use_fake_coders=use_fake_coders)
+
+    # The RunnerAPI spec requires certain transforms to have KV inputs
+    # (and corresponding outputs).
+    # Currently we only upgrade to KV pairs.  If there is a need for more
+    # general shapes, potential conflicts will have to be resolved.
+    # We also only handle single-input, and (for fixing the output) single
+    # output, which is sufficient.
+    class ForceKvInputTypes(PipelineVisitor):
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        if (transform_node.transform
+            and transform_node.transform.runner_api_requires_keyed_input()):
+          pcoll = transform_node.inputs[0]
+          pcoll.element_type = typehints.coerce_to_kv_type(
+              pcoll.element_type, transform_node.full_label)
+          if len(transform_node.outputs) == 1:
+            # The runner often has expectations about the output types as well.
+            output, = transform_node.outputs.values()
+            output.element_type = transform_node.transform.infer_output_type(
+                pcoll.element_type)
+
+    self.visit(ForceKvInputTypes())
+
     # Mutates context; placing inline would force dependence on
     # argument evaluation order.
     root_transform_id = context.transforms.get_id(self._root_transform())
     proto = beam_runner_api_pb2.Pipeline(
         root_transform_ids=[root_transform_id],
         components=context.to_runner_api())
+    proto.components.transforms[root_transform_id].unique_name = (
+        root_transform_id)
     if return_context:
       return proto, context
     else:
@@ -691,29 +735,9 @@ class AppliedPTransform(object):
     self.outputs = {}
     self.parts = []
 
-    # Per tag refcount dictionary for PValues for which this node is a
-    # root producer.
-    self.refcounts = collections.defaultdict(int)
-
   def __repr__(self):
     return "%s(%s, %s)" % (self.__class__.__name__, self.full_label,
                            type(self.transform).__name__)
-
-  def update_input_refcounts(self):
-    """Increment refcounts for all transforms providing inputs."""
-
-    def real_producer(pv):
-      real = pv.producer
-      while real.parts:
-        real = real.parts[-1]
-      return real
-
-    if not self.is_composite():
-      for main_input in self.inputs:
-        if not isinstance(main_input, pvalue.PBegin):
-          real_producer(main_input).refcounts[main_input.tag] += 1
-      for side_input in self.side_inputs:
-        real_producer(side_input.pvalue).refcounts[side_input.pvalue.tag] += 1
 
   def replace_output(self, output, tag=None):
     """Replaces the output defined by the given tag with the given output.
@@ -845,7 +869,8 @@ class AppliedPTransform(object):
                    for tag, id in proto.inputs.items()
                    if not is_side_input(tag)]
     # Ordering is important here.
-    indexed_side_inputs = [(int(tag[4:]), context.pcollections.get_by_id(id))
+    indexed_side_inputs = [(int(re.match('side([0-9]+)(-.*)?$', tag).group(1)),
+                            context.pcollections.get_by_id(id))
                            for tag, id in proto.inputs.items()
                            if is_side_input(tag)]
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]
@@ -876,11 +901,10 @@ class AppliedPTransform(object):
           pc = context.pcollections.get_by_id(pcoll_id)
           pc.producer = result
           pc.tag = None if tag == 'None' else tag
-    result.update_input_refcounts()
     return result
 
 
-class PTransformOverride(object):
+class PTransformOverride(with_metaclass(abc.ABCMeta, object)):
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.
@@ -888,7 +912,6 @@ class PTransformOverride(object):
   TODO: Update this to support cases where input and/our output types are
   different.
   """
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def matches(self, applied_ptransform):

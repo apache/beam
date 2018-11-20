@@ -34,6 +34,7 @@ import org.apache.beam.fn.harness.AssignWindowsRunner.AssignWindowsMapFnFactory;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
@@ -109,9 +110,7 @@ public class AssignWindowsRunnerTest implements Serializable {
     IntervalWindow secondWindow =
         new IntervalWindow(
             new Instant(0).minus(Duration.standardMinutes(2L)), Duration.standardMinutes(4L));
-    IntervalWindow thirdWindow =
-        new IntervalWindow(
-            new Instant(0).minus(Duration.standardMinutes(0L)), Duration.standardMinutes(4L));
+    IntervalWindow thirdWindow = new IntervalWindow(new Instant(0), Duration.standardMinutes(4L));
 
     WindowedValue<Integer> firstValue =
         WindowedValue.timestampedValueInGlobalWindow(-3, new Instant(-12));
@@ -175,6 +174,8 @@ public class AssignWindowsRunnerTest implements Serializable {
     Collection<WindowedValue<?>> outputs = new ArrayList<>();
     ListMultimap<String, FnDataReceiver<WindowedValue<?>>> receivers = ArrayListMultimap.create();
     receivers.put("output", outputs::add);
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     MapFnRunners.forWindowedValueMapFnFactory(new AssignWindowsMapFnFactory<>())
         .createRunnerForPTransform(
             null /* pipelineOptions */,
@@ -190,8 +191,7 @@ public class AssignWindowsRunnerTest implements Serializable {
                         .setPayload(
                             WindowIntoPayload.newBuilder()
                                 .setWindowFn(
-                                    WindowingStrategyTranslation.toProto(
-                                        windowFn, SdkComponents.create()))
+                                    WindowingStrategyTranslation.toProto(windowFn, components))
                                 .build()
                                 .toByteString()))
                 .build(),
@@ -201,7 +201,8 @@ public class AssignWindowsRunnerTest implements Serializable {
             null /* windowingStrategies */,
             receivers,
             null /* addStartFunction */,
-            null /* addFinishFunction */);
+            null, /* addFinishFunction */
+            null /* splitListener */);
 
     WindowedValue<Integer> value =
         WindowedValue.of(
@@ -275,6 +276,8 @@ public class AssignWindowsRunnerTest implements Serializable {
 
   @Test
   public void factoryCreatesFromJavaWindowFn() throws Exception {
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     PTransform windowPTransform =
         PTransform.newBuilder()
             .putInputs("in", "input")
@@ -286,7 +289,7 @@ public class AssignWindowsRunnerTest implements Serializable {
                         WindowIntoPayload.newBuilder()
                             .setWindowFn(
                                 WindowingStrategyTranslation.toProto(
-                                    new TestWindowFn(), SdkComponents.create()))
+                                    new TestWindowFn(), components))
                             .build()
                             .toByteString())
                     .build())
@@ -312,6 +315,8 @@ public class AssignWindowsRunnerTest implements Serializable {
 
   @Test
   public void factoryCreatesFromKnownWindowFn() throws Exception {
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     PTransform windowPTransform =
         PTransform.newBuilder()
             .putInputs("in", "input")
@@ -324,7 +329,7 @@ public class AssignWindowsRunnerTest implements Serializable {
                             .setWindowFn(
                                 WindowingStrategyTranslation.toProto(
                                     Sessions.withGapDuration(Duration.standardMinutes(12L)),
-                                    SdkComponents.create()))
+                                    components))
                             .build()
                             .toByteString())
                     .build())

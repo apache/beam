@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.stream;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-import io.grpc.stub.ClientCallStreamObserver;
-import io.grpc.stub.ClientResponseObserver;
-import io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.ClientResponseObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -37,8 +36,7 @@ public class ForwardingClientResponseObserverTest {
     @SuppressWarnings("unchecked")
     StreamObserver<Object> delegateObserver = mock(StreamObserver.class);
     @SuppressWarnings("unchecked")
-    ClientCallStreamObserver<Object> callStreamObserver =
-        mock(ClientCallStreamObserver.class);
+    ClientCallStreamObserver<Object> callStreamObserver = mock(ClientCallStreamObserver.class);
     Runnable onReadyHandler = () -> {};
     ClientResponseObserver<Object, Object> observer =
         new ForwardingClientResponseObserver<>(delegateObserver, onReadyHandler);

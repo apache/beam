@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 def testsConfigurations = [
         [
@@ -85,8 +85,7 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java ParquetIOPerformance Test',
                 prTriggerPhase    : 'Run Java ParquetIO Performance Test',
                 extraPipelineArgs: [
-                        numberOfRecords: '100000000',
-                        charset: 'UTF-8'
+                        numberOfRecords: '100000000'
                 ]
         ]
 ]
@@ -103,22 +102,19 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         description(testConfiguration.jobDescription)
 
         // Set default Beam job properties.
-        common_job_properties.setTopLevelMainJobProperties(delegate)
+        commonJobProperties.setTopLevelMainJobProperties(delegate)
 
         // Allows triggering this build against pull requests.
-        common_job_properties.enablePhraseTriggeringFromPullRequest(
+        commonJobProperties.enablePhraseTriggeringFromPullRequest(
                 delegate,
                 testConfiguration.prCommitStatusName,
                 testConfiguration.prTriggerPhase)
 
         // Run job in postcommit every 6 hours, don't trigger every push, and
         // don't email individual committers.
-        common_job_properties.setPostCommit(
+        commonJobProperties.setAutoJob(
                 delegate,
-                '0 */6 * * *',
-                false,
-                'commits@beam.apache.org',
-                false)
+                'H */6 * * *')
 
         def pipelineOptions = [
                 project        : 'apache-beam-testing',
@@ -130,17 +126,16 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         }
 
         def argMap = [
-                benchmarks               : 'beam_integration_benchmark',
-                beam_it_timeout          : '1200',
-                beam_it_profile          : 'io-it',
-                beam_prebuilt            : 'false',
-                beam_sdk                 : 'java',
-                beam_it_module           : 'sdks/java/io/file-based-io-tests',
-                beam_it_class            : testConfiguration.itClass,
-                beam_it_options          : common_job_properties.joinPipelineOptions(pipelineOptions),
-                beam_extra_mvn_properties: '["filesystem=gcs"]',
-                bigquery_table           : testConfiguration.bqTable,
+                benchmarks           : 'beam_integration_benchmark',
+                beam_it_timeout      : '1200',
+                beam_prebuilt        : 'false',
+                beam_sdk             : 'java',
+                beam_it_module       : 'sdks/java/io/file-based-io-tests',
+                beam_it_class        : testConfiguration.itClass,
+                beam_it_options      : commonJobProperties.joinPipelineOptions(pipelineOptions),
+                beam_extra_properties: '["filesystem=gcs"]',
+                bigquery_table       : testConfiguration.bqTable,
         ]
-        common_job_properties.buildPerformanceTest(delegate, argMap)
+        commonJobProperties.buildPerformanceTest(delegate, argMap)
     }
 }

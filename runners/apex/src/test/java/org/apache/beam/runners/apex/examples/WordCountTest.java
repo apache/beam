@@ -46,9 +46,7 @@ import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Windowed word count example on Apex runner.
- */
+/** Windowed word count example on Apex runner. */
 public class WordCountTest {
 
   static class FormatAsStringFn extends DoFn<KV<String, Long>, String> {
@@ -56,8 +54,8 @@ public class WordCountTest {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      String row = c.element().getKey() + " - " + c.element().getValue()
-          + " @ " + c.timestamp().toString();
+      String row =
+          c.element().getKey() + " - " + c.element().getValue() + " @ " + c.timestamp().toString();
       c.output(row);
     }
   }
@@ -85,18 +83,18 @@ public class WordCountTest {
     }
   }
 
-  /**
-   * Options for word count example.
-   */
+  /** Options for word count example. */
   public interface WordCountOptions extends ApexPipelineOptions {
     @Description("Path of the file to read from")
     @Validation.Required
     String getInputFile();
+
     void setInputFile(String value);
 
     @Description("Path of the file to write to")
     @Validation.Required
     String getOutput();
+
     void setOutput(String value);
   }
 
@@ -111,8 +109,8 @@ public class WordCountTest {
   }
 
   public static void main(String[] args) {
-    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-      .as(WordCountOptions.class);
+    WordCountOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(WordCountOptions.class);
 
     runWordCount(options);
   }
@@ -139,10 +137,9 @@ public class WordCountTest {
     HashSet<String> results = new HashSet<>();
     results.addAll(FileUtils.readLines(outFile1));
     results.addAll(FileUtils.readLines(outFile2));
-    HashSet<String> expectedOutput = Sets.newHashSet(
-        "foo - 5 @ 294247-01-09T04:00:54.775Z",
-        "bar - 5 @ 294247-01-09T04:00:54.775Z"
-    );
+    HashSet<String> expectedOutput =
+        Sets.newHashSet(
+            "foo - 5 @ 294247-01-09T04:00:54.775Z", "bar - 5 @ 294247-01-09T04:00:54.775Z");
     Assert.assertEquals("expected output", expectedOutput, results);
   }
 
@@ -157,11 +154,9 @@ public class WordCountTest {
 
   @Test
   public void testWindowedWordCount() throws Exception {
-    String[] args = new String[] {
-        "--runner=" + ApexRunner.class.getName()
-    };
-    ApexPipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-        .as(ApexPipelineOptions.class);
+    String[] args = new String[] {"--runner=" + ApexRunner.class.getName()};
+    ApexPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(ApexPipelineOptions.class);
     options.setApplicationName("StreamingWordCount");
     Pipeline p = Pipeline.create(options);
 
@@ -187,7 +182,5 @@ public class WordCountTest {
     Assert.assertTrue(
         CollectResultsFn.RESULTS.containsKey("foo") && CollectResultsFn.RESULTS.containsKey("bar"));
     CollectResultsFn.RESULTS.clear();
-
   }
-
 }

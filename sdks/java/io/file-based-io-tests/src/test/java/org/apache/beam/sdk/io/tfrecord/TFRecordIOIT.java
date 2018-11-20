@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.tfrecord;
 
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.io.Compression;
@@ -29,8 +28,8 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TFRecordIO;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
+import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -47,11 +46,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-
 /**
  * Integration tests for {@link org.apache.beam.sdk.io.TFRecordIO}.
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
+ *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
@@ -62,10 +61,9 @@ import org.junit.runners.JUnit4;
  *  --tests org.apache.beam.sdk.io.tfrecord.TFRecordIOIT
  *  -DintegrationTestRunner=direct
  * </pre>
- * </p>
  *
- * <p>Please see 'build_rules.gradle' file for instructions regarding
- * running this test using Beam performance testing framework.</p>
+ * <p>Please see 'build_rules.gradle' file for instructions regarding running this test using Beam
+ * performance testing framework.
  */
 @RunWith(JUnit4.class)
 public class TFRecordIOIT {
@@ -74,15 +72,13 @@ public class TFRecordIOIT {
   private static Integer numberOfTextLines;
   private static Compression compressionType;
 
-  @Rule
-  public TestPipeline writePipeline = TestPipeline.create();
+  @Rule public TestPipeline writePipeline = TestPipeline.create();
 
-  @Rule
-  public TestPipeline readPipeline = TestPipeline.create();
+  @Rule public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setup() {
-    IOTestPipelineOptions options = readTestPipelineOptions();
+    FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
@@ -96,15 +92,16 @@ public class TFRecordIOIT {
   // TODO: There are two pipelines due to: https://issues.apache.org/jira/browse/BEAM-3267
   @Test
   public void writeThenReadAll() {
-    TFRecordIO.Write writeTransform = TFRecordIO
-        .write()
-        .to(filenamePrefix)
-        .withCompression(compressionType)
-        .withSuffix(".tfrecord");
+    TFRecordIO.Write writeTransform =
+        TFRecordIO.write()
+            .to(filenamePrefix)
+            .withCompression(compressionType)
+            .withSuffix(".tfrecord");
 
     writePipeline
         .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
-        .apply("Produce text lines",
+        .apply(
+            "Produce text lines",
             ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
         .apply("Transform strings to bytes", MapElements.via(new StringToByteArray()))
         .apply("Write content to files", writeTransform);

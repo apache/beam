@@ -33,32 +33,33 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Session window test.
- */
-public class TopWikipediaSessionsTest extends StreamingProgramTestBase implements Serializable {
+/** Session window test. */
+public class TopWikipediaSessionsTest extends AbstractTestBase implements Serializable {
 
   protected String resultDir;
   protected String resultPath;
 
-  public TopWikipediaSessionsTest() {
-  }
+  public TopWikipediaSessionsTest() {}
 
-  static final String[] EXPECTED_RESULT = new String[] {
-      "user: user1 value:3",
-      "user: user1 value:1",
-      "user: user2 value:4",
-      "user: user2 value:6",
-      "user: user3 value:7",
-      "user: user3 value:2"
-  };
+  static final String[] EXPECTED_RESULT =
+      new String[] {
+        "user: user1 value:3",
+        "user: user1 value:1",
+        "user: user2 value:4",
+        "user: user2 value:6",
+        "user: user3 value:7",
+        "user: user3 value:2"
+      };
 
-  @Override
-  protected void preSubmit() throws Exception {
+  @Before
+  public void preSubmit() throws Exception {
     // Beam Write will add shard suffix to fileName, see ShardNameTemplate.
     // So tempFile need have a parent to compare.
     File resultParent = createAndRegisterTempFile("result");
@@ -66,13 +67,13 @@ public class TopWikipediaSessionsTest extends StreamingProgramTestBase implement
     resultPath = new File(resultParent, "file.txt").getAbsolutePath();
   }
 
-  @Override
-  protected void postSubmit() throws Exception {
+  @After
+  public void postSubmit() throws Exception {
     compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultDir);
   }
 
-  @Override
-  protected void testProgram() throws Exception {
+  @Test
+  public void testProgram() throws Exception {
 
     Pipeline p = FlinkTestPipeline.createForStreaming();
 
@@ -158,14 +159,17 @@ public class TopWikipediaSessionsTest extends StreamingProgramTestBase implement
             .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))))
             .apply(Count.perElement());
 
-    PCollection<String> format = output.apply(ParDo.of(new DoFn<KV<String, Long>, String>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
-        KV<String, Long> el = c.element();
-        String out = "user: " + el.getKey() + " value:" + el.getValue();
-        c.output(out);
-      }
-    }));
+    PCollection<String> format =
+        output.apply(
+            ParDo.of(
+                new DoFn<KV<String, Long>, String>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) throws Exception {
+                    KV<String, Long> el = c.element();
+                    String out = "user: " + el.getKey() + " value:" + el.getValue();
+                    c.output(out);
+                  }
+                }));
 
     format.apply(TextIO.write().to(resultPath));
 

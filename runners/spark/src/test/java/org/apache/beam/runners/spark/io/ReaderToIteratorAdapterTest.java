@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.io;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -31,13 +30,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Test for {@link SourceRDD.Bounded.ReaderToIteratorAdapter}.
- */
+/** Test for {@link SourceRDD.Bounded.ReaderToIteratorAdapter}. */
 public class ReaderToIteratorAdapterTest {
 
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
+  @Rule public ExpectedException exception = ExpectedException.none();
 
   private static class TestReader extends Source.Reader<Integer> {
 
@@ -141,5 +137,4 @@ public class ReaderToIteratorAdapterTest {
     exception.expect(NoSuchElementException.class);
     readerIterator.next();
   }
-
 }

@@ -20,34 +20,45 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.util.Data;
+import com.google.api.services.bigquery.model.ErrorProto;
+import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.collect.ImmutableSet;
+import java.util.Random;
+import java.util.Set;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJob;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJobManager;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.testng.collections.Sets;
 
 /** Tests for {@link BigQueryHelpers}. */
 @RunWith(JUnit4.class)
 public class BigQueryHelpersTest {
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testTableParsing() {
-    TableReference ref = BigQueryHelpers
-        .parseTableSpec("my-project:data_set.table_name");
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project:data_set.table_name");
     assertEquals("my-project", ref.getProjectId());
     assertEquals("data_set", ref.getDatasetId());
     assertEquals("table_name", ref.getTableId());
@@ -62,8 +73,7 @@ public class BigQueryHelpersTest {
 
   @Test
   public void testTableParsing_noProjectId() {
-    TableReference ref = BigQueryHelpers
-        .parseTableSpec("data_set.table_name");
+    TableReference ref = BigQueryHelpers.parseTableSpec("data_set.table_name");
     assertEquals(null, ref.getProjectId());
     assertEquals("data_set", ref.getDatasetId());
     assertEquals("table_name", ref.getTableId());
@@ -95,10 +105,11 @@ public class BigQueryHelpersTest {
 
   @Test
   public void testTableDecoratorStripping() {
-    assertEquals("project:dataset.table",
+    assertEquals(
+        "project:dataset.table",
         BigQueryHelpers.stripPartitionDecorator("project:dataset.table$20171127"));
-    assertEquals("project:dataset.table",
-        BigQueryHelpers.stripPartitionDecorator("project:dataset.table"));
+    assertEquals(
+        "project:dataset.table", BigQueryHelpers.stripPartitionDecorator("project:dataset.table"));
   }
 
   // Test that BigQuery's special null placeholder objects can be encoded.
@@ -116,7 +127,6 @@ public class BigQueryHelpersTest {
     Assert.assertArrayEquals(bytes, newBytes);
   }
 
-
   @Test
   public void testShardedKeyCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(ShardedKeyCoder.of(GlobalWindow.Coder.INSTANCE));
@@ -131,9 +141,66 @@ public class BigQueryHelpersTest {
   public void testComplexCoderSerializable() {
     CoderProperties.coderSerializable(
         WindowedValue.getFullCoder(
-            KvCoder.of(
-                ShardedKeyCoder.of(StringUtf8Coder.of()),
-                TableRowInfoCoder.of()),
+            KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()),
             IntervalWindow.getCoder()));
+  }
+
+  @Test
+  public void testPendingJobManager() throws Exception {
+    PendingJobManager jobManager =
+        new PendingJobManager(
+            BackOffAdapter.toGcpBackOff(
+                FluentBackoff.DEFAULT
+                    .withMaxRetries(Integer.MAX_VALUE)
+                    .withInitialBackoff(Duration.millis(10))
+                    .withMaxBackoff(Duration.millis(10))
+                    .backoff()));
+
+    Set<String> succeeded = Sets.newHashSet();
+    for (int i = 0; i < 5; i++) {
+      Job currentJob = new Job();
+      currentJob.setKind(" bigquery#job");
+      PendingJob pendingJob =
+          new PendingJob(
+              retryId -> {
+                if (new Random().nextInt(2) == 0) {
+                  throw new RuntimeException("Failing to start.");
+                }
+                currentJob.setJobReference(
+                    new JobReference()
+                        .setProjectId("")
+                        .setLocation("")
+                        .setJobId(retryId.getJobId()));
+                return null;
+              },
+              retryId -> {
+                if (retryId.getRetryIndex() < 5) {
+                  currentJob.setStatus(new JobStatus().setErrorResult(new ErrorProto()));
+                } else {
+                  currentJob.setStatus(new JobStatus().setErrorResult(null));
+                }
+                return currentJob;
+              },
+              retryId -> {
+                if (retryId.getJobId().equals(currentJob.getJobReference().getJobId())) {
+                  return currentJob;
+                } else {
+                  return null;
+                }
+              },
+              100,
+              "JOB_" + i);
+      jobManager.addPendingJob(
+          pendingJob,
+          j -> {
+            succeeded.add(j.currentJobId.getJobId());
+            return null;
+          });
+    }
+
+    jobManager.waitForDone();
+    Set<String> expectedJobs =
+        ImmutableSet.of("JOB_0-5", "JOB_1-5", "JOB_2-5", "JOB_3-5", "JOB_4-5");
+    assertEquals(expectedJobs, succeeded);
   }
 }

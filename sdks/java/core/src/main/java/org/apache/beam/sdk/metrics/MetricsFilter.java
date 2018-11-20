@@ -23,9 +23,7 @@ import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * Simple POJO representing a filter for querying metrics.
- */
+/** Simple POJO representing a filter for querying metrics. */
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricsFilter {
@@ -39,19 +37,19 @@ public abstract class MetricsFilter {
   }
 
   protected abstract ImmutableSet<String> immutableSteps();
+
   protected abstract ImmutableSet<MetricNameFilter> immutableNames();
 
   public static Builder builder() {
     return new AutoValue_MetricsFilter.Builder();
   }
 
-  /**
-   * Builder for creating a {@link MetricsFilter}.
-   */
+  /** Builder for creating a {@link MetricsFilter}. */
   @AutoValue.Builder
   public abstract static class Builder {
 
     protected abstract ImmutableSet.Builder<MetricNameFilter> immutableNamesBuilder();
+
     protected abstract ImmutableSet.Builder<String> immutableStepsBuilder();
 
     /**
@@ -72,8 +70,8 @@ public abstract class MetricsFilter {
      *
      * <p>If no steps are specified then metrics will be included for all steps.
      *
-     * <p>If one or more steps are specified, then metrics will be included if they are part of
-     * any of the specified steps.
+     * <p>If one or more steps are specified, then metrics will be included if they are part of any
+     * of the specified steps.
      *
      * <p>The step names of metrics are identified as a path within the pipeline. So for example, a
      * transform that is applied with the name "bar" in a composite that was applied with the name

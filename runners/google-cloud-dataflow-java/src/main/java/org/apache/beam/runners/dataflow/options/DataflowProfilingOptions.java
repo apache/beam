@@ -23,28 +23,26 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/**
- * Options for controlling profiling of pipeline execution.
- */
+/** Options for controlling profiling of pipeline execution. */
 @Description("[Experimental] Used to configure profiling of the Dataflow pipeline")
 @Experimental
 @Hidden
 public interface DataflowProfilingOptions extends PipelineOptions {
 
-  @Description("When set to a non-empty value, enables recording profiles and saving them to GCS.\n"
-      + "Profiles will continue until the pipeline is stopped or updated without this option.\n")
+  @Description(
+      "When set to a non-empty value, enables recording profiles and saving them to GCS.\n"
+          + "Profiles will continue until the pipeline is stopped or updated without this option.\n")
   String getSaveProfilesToGcs();
+
   void setSaveProfilesToGcs(String gcsPath);
 
   @Description(
       "[INTERNAL] Additional configuration for the profiling agent. Not typically necessary.")
   @Hidden
   DataflowProfilingAgentConfiguration getProfilingAgentConfiguration();
+
   void setProfilingAgentConfiguration(DataflowProfilingAgentConfiguration configuration);
 
-  /**
-   * Configuration the for profiling agent.
-   */
-  class DataflowProfilingAgentConfiguration extends HashMap<String, Object> {
-  }
+  /** Configuration the for profiling agent. */
+  class DataflowProfilingAgentConfiguration extends HashMap<String, Object> {}
 }

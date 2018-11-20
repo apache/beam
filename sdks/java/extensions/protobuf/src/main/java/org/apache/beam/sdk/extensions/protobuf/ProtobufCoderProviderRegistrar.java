@@ -26,9 +26,7 @@ import org.apache.beam.sdk.coders.CoderProviderRegistrar;
 import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * A {@link CoderProviderRegistrar} for standard types used with Google Protobuf.
- */
+/** A {@link CoderProviderRegistrar} for standard types used with Google Protobuf. */
 @AutoService(CoderProviderRegistrar.class)
 public class ProtobufCoderProviderRegistrar implements CoderProviderRegistrar {
   @Override
@@ -38,4 +36,3 @@ public class ProtobufCoderProviderRegistrar implements CoderProviderRegistrar {
         ProtoCoder.getCoderProvider());
   }
 }
-

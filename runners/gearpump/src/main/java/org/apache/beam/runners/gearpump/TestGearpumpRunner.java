@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump;
 
 import com.typesafe.config.Config;
@@ -28,9 +27,7 @@ import org.apache.gearpump.cluster.ClusterConfig;
 import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
 import org.apache.gearpump.util.Constants;
 
-/**
- * Gearpump {@link PipelineRunner} for tests, which uses {@link EmbeddedCluster}.
- */
+/** Gearpump {@link PipelineRunner} for tests, which uses {@link EmbeddedCluster}. */
 public class TestGearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
 
   private final GearpumpRunner delegate;
@@ -38,8 +35,8 @@ public class TestGearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
 
   private TestGearpumpRunner(GearpumpPipelineOptions options) {
     Config config = ClusterConfig.master(null);
-    config = config.withValue(Constants.APPLICATION_TOTAL_RETRIES(),
-      ConfigValueFactory.fromAnyRef(0));
+    config =
+        config.withValue(Constants.APPLICATION_TOTAL_RETRIES(), ConfigValueFactory.fromAnyRef(0));
     cluster = new EmbeddedCluster(config);
     cluster.start();
     options.setEmbeddedCluster(cluster);

@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -63,13 +62,9 @@ import org.apache.calcite.rel.core.Union;
  * }</pre>
  */
 public class BeamUnionRel extends Union implements BeamRelNode {
-  private BeamSetOperatorRelBase delegate;
-
   public BeamUnionRel(
       RelOptCluster cluster, RelTraitSet traits, List<RelNode> inputs, boolean all) {
     super(cluster, traits, inputs, all);
-    this.delegate =
-        new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.UNION, inputs, all);
   }
 
   @Override
@@ -78,14 +73,7 @@ public class BeamUnionRel extends Union implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
-    return new Transform();
-  }
-
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-    @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      return delegate.buildBeamPipeline(inputPCollections);
-    }
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
+    return new BeamSetOperatorRelBase(this, BeamSetOperatorRelBase.OpType.UNION, all);
   }
 }

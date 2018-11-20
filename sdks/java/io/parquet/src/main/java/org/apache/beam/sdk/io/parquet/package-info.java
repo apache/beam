@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing from Parquet.
- */
+/** Transforms for reading and writing from Parquet. */
 package org.apache.beam.sdk.io.parquet;

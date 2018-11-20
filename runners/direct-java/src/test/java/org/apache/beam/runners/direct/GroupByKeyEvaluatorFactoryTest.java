@@ -45,15 +45,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link GroupByKeyEvaluatorFactory}.
- */
+/** Tests for {@link GroupByKeyEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class GroupByKeyEvaluatorFactoryTest {
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
   public void testInMemoryEvaluator() throws Exception {
@@ -83,20 +80,13 @@ public class GroupByKeyEvaluatorFactoryTest {
     UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle =
         bundleFactory.createKeyedBundle(bazKey, groupedKvs);
 
-    when(evaluationContext.createKeyedBundle(
-        fooKey,
-        groupedKvs)).thenReturn(fooBundle);
-    when(evaluationContext.createKeyedBundle(
-        barKey,
-        groupedKvs)).thenReturn(barBundle);
-    when(evaluationContext.createKeyedBundle(
-        bazKey,
-        groupedKvs)).thenReturn(bazBundle);
+    when(evaluationContext.createKeyedBundle(fooKey, groupedKvs)).thenReturn(fooBundle);
+    when(evaluationContext.createKeyedBundle(barKey, groupedKvs)).thenReturn(barBundle);
+    when(evaluationContext.createKeyedBundle(bazKey, groupedKvs)).thenReturn(bazBundle);
 
     // The input to a GroupByKey is assumed to be a KvCoder
     @SuppressWarnings("unchecked")
-    Coder<String> keyCoder =
-        ((KvCoder<String, Integer>) values.getCoder()).getKeyCoder();
+    Coder<String> keyCoder = ((KvCoder<String, Integer>) values.getCoder()).getKeyCoder();
     TransformEvaluator<KV<String, Integer>> evaluator =
         new GroupByKeyOnlyEvaluatorFactory(evaluationContext)
             .forApplication(DirectGraphs.getProducer(groupedKvs), inputBundle);
@@ -136,8 +126,7 @@ public class GroupByKeyEvaluatorFactoryTest {
         contains(
             new KeyedWorkItemMatcher<>(
                 KeyedWorkItems.elementsWorkItem(
-                    "baz",
-                    ImmutableSet.of(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))),
+                    "baz", ImmutableSet.of(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))),
                 keyCoder)));
   }
 

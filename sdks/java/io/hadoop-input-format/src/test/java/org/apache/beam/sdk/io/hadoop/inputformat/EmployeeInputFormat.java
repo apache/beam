@@ -1,16 +1,19 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
- * agreements. See the NOTICE file distributed with this work for additional information regarding
- * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License. You may obtain a
- * copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed under the License
- * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
- * or implied. See the License for the specific language governing permissions and limitations under
- * the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
@@ -31,20 +34,19 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
  * This is a valid InputFormat for reading employee data, available in the form of {@code List<KV>}
- * as {@linkplain EmployeeRecordReader#employeeDataList employeeDataList} .
- * {@linkplain EmployeeRecordReader#employeeDataList employeeDataList} is populated using
- * {@linkplain TestEmployeeDataSet#populateEmployeeData()}.
- * {@linkplain EmployeeInputFormat} is used to test whether the
- * {@linkplain HadoopInputFormatIO } source returns immutable records in the scenario when
- * RecordReader creates new key and value objects every time it reads data.
+ * as {@linkplain EmployeeRecordReader#employeeDataList employeeDataList} . {@linkplain
+ * EmployeeRecordReader#employeeDataList employeeDataList} is populated using {@linkplain
+ * TestEmployeeDataSet#populateEmployeeData()}. {@linkplain EmployeeInputFormat} is used to test
+ * whether the {@linkplain HadoopInputFormatIO } source returns immutable records in the scenario
+ * when RecordReader creates new key and value objects every time it reads data.
  */
 class EmployeeInputFormat extends InputFormat<Text, Employee> {
 
   public EmployeeInputFormat() {}
 
   @Override
-  public RecordReader<Text, Employee> createRecordReader(InputSplit split,
-      TaskAttemptContext context) {
+  public RecordReader<Text, Employee> createRecordReader(
+      InputSplit split, TaskAttemptContext context) {
     return new EmployeeRecordReader();
   }
 
@@ -54,16 +56,14 @@ class EmployeeInputFormat extends InputFormat<Text, Employee> {
     for (int i = 1; i <= TestEmployeeDataSet.NUMBER_OF_SPLITS; i++) {
       InputSplit inputSplitObj =
           new NewObjectsEmployeeInputSplit(
-              ((i - 1) * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT), (i
-                  * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1));
+              ((i - 1) * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
+              (i * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1));
       inputSplitList.add(inputSplitObj);
     }
     return inputSplitList;
   }
 
-  /**
-   * InputSplit implementation for EmployeeInputFormat.
-   */
+  /** InputSplit implementation for EmployeeInputFormat. */
   public static class NewObjectsEmployeeInputSplit extends InputSplit implements Writable {
     // Start and end map index of each split of employeeData.
     private long startIndex;
@@ -76,9 +76,7 @@ class EmployeeInputFormat extends InputFormat<Text, Employee> {
       this.endIndex = endIndex;
     }
 
-    /**
-     * Returns number of records in each split.
-     */
+    /** Returns number of records in each split. */
     @Override
     public long getLength() {
       return this.endIndex - this.startIndex + 1;
@@ -110,9 +108,7 @@ class EmployeeInputFormat extends InputFormat<Text, Employee> {
     }
   }
 
-  /**
-   * RecordReader for EmployeeInputFormat.
-   */
+  /** RecordReader for EmployeeInputFormat. */
   public static class EmployeeRecordReader extends RecordReader<Text, Employee> {
 
     private NewObjectsEmployeeInputSplit split;

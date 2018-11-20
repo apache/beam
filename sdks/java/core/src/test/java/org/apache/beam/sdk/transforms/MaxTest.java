@@ -28,9 +28,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Max.
- */
+/** Tests for Max. */
 @RunWith(JUnit4.class)
 public class MaxTest {
   @Test
@@ -45,26 +43,17 @@ public class MaxTest {
 
   @Test
   public void testMaxIntegerFn() {
-    testCombineFn(
-        Max.ofIntegers(),
-        Lists.newArrayList(1, 2, 3, 4),
-        4);
+    testCombineFn(Max.ofIntegers(), Lists.newArrayList(1, 2, 3, 4), 4);
   }
 
   @Test
   public void testMaxLongFn() {
-    testCombineFn(
-        Max.ofLongs(),
-        Lists.newArrayList(1L, 2L, 3L, 4L),
-        4L);
+    testCombineFn(Max.ofLongs(), Lists.newArrayList(1L, 2L, 3L, 4L), 4L);
   }
 
   @Test
   public void testMaxDoubleFn() {
-    testCombineFn(
-        Max.ofDoubles(),
-        Lists.newArrayList(1.0, 2.0, 3.0, 4.0),
-        4.0);
+    testCombineFn(Max.ofDoubles(), Lists.newArrayList(1.0, 2.0, 3.0, 4.0), 4.0);
   }
 
   @Test

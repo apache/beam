@@ -40,33 +40,33 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * An example that reads the public 'Shakespeare' data, and for each word in
- * the dataset that is over a given length, generates a string containing the
- * list of play names in which that word appears, and saves this information
- * to a bigquery table.
+ * An example that reads the public 'Shakespeare' data, and for each word in the dataset that is
+ * over a given length, generates a string containing the list of play names in which that word
+ * appears, and saves this information to a bigquery table.
  *
  * <p>Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
  *
  * <p>To execute this pipeline locally, specify the BigQuery table for the output:
+ *
  * <pre>{@code
- *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
+ * --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  * }</pre>
  *
  * <p>To change the runner, specify:
+ *
  * <pre>{@code
- *   --runner=YOUR_SELECTED_RUNNER
- * }
- * </pre>
+ * --runner=YOUR_SELECTED_RUNNER
+ * }</pre>
+ *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The BigQuery input table defaults to {@code publicdata:samples.shakespeare} and can
- * be overridden with {@code --input}.
+ * <p>The BigQuery input table defaults to {@code publicdata:samples.shakespeare} and can be
+ * overridden with {@code --input}.
  */
 public class CombinePerKeyExamples {
   // Use the shakespeare public BigQuery sample
-  private static final String SHAKESPEARE_TABLE =
-      "publicdata:samples.shakespeare";
+  private static final String SHAKESPEARE_TABLE = "publicdata:samples.shakespeare";
   // We'll track words >= this word length across all plays in the table.
   private static final int MIN_WORD_LENGTH = 9;
 
@@ -92,56 +92,49 @@ public class CombinePerKeyExamples {
     }
   }
 
-
   /**
-   * Prepares the data for writing to BigQuery by building a TableRow object
-   * containing a word with a string listing the plays in which it appeared.
+   * Prepares the data for writing to BigQuery by building a TableRow object containing a word with
+   * a string listing the plays in which it appeared.
    */
   static class FormatShakespeareOutputFn extends DoFn<KV<String, String>, TableRow> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      TableRow row = new TableRow()
-          .set("word", c.element().getKey())
-          .set("all_plays", c.element().getValue());
+      TableRow row =
+          new TableRow().set("word", c.element().getKey()).set("all_plays", c.element().getValue());
       c.output(row);
     }
   }
 
   /**
-   * Reads the public 'Shakespeare' data, and for each word in the dataset
-   * over a given length, generates a string containing the list of play names
-   * in which that word appears. It does this via the Combine.perKey
-   * transform, with the ConcatWords combine function.
+   * Reads the public 'Shakespeare' data, and for each word in the dataset over a given length,
+   * generates a string containing the list of play names in which that word appears. It does this
+   * via the Combine.perKey transform, with the ConcatWords combine function.
    *
-   * <p>Combine.perKey is similar to a GroupByKey followed by a ParDo, but
-   * has more restricted semantics that allow it to be executed more
-   * efficiently. These records are then formatted as BQ table rows.
+   * <p>Combine.perKey is similar to a GroupByKey followed by a ParDo, but has more restricted
+   * semantics that allow it to be executed more efficiently. These records are then formatted as BQ
+   * table rows.
    */
-  static class PlaysForWord
-      extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
+  static class PlaysForWord extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
     @Override
     public PCollection<TableRow> expand(PCollection<TableRow> rows) {
 
       // row... => <word, play_name> ...
-      PCollection<KV<String, String>> words = rows.apply(
-          ParDo.of(new ExtractLargeWordsFn()));
+      PCollection<KV<String, String>> words = rows.apply(ParDo.of(new ExtractLargeWordsFn()));
 
       // word, play_name => word, all_plays ...
       PCollection<KV<String, String>> wordAllPlays = words.apply(Combine.perKey(new ConcatWords()));
 
       // <word, all_plays>... => row...
-      PCollection<TableRow> results = wordAllPlays.apply(
-          ParDo.of(new FormatShakespeareOutputFn()));
+      PCollection<TableRow> results = wordAllPlays.apply(ParDo.of(new FormatShakespeareOutputFn()));
 
       return results;
     }
   }
 
   /**
-   * A 'combine function' used with the Combine.perKey transform. Builds a
-   * comma-separated string of all input items.  So, it will build a string
-   * containing all the different Shakespeare plays in which the given input
-   * word has appeared.
+   * A 'combine function' used with the Combine.perKey transform. Builds a comma-separated string of
+   * all input items. So, it will build a string containing all the different Shakespeare plays in
+   * which the given input word has appeared.
    */
   public static class ConcatWords implements SerializableFunction<Iterable<String>, String> {
     @Override
@@ -166,23 +159,24 @@ public class CombinePerKeyExamples {
    *
    * <p>Inherits standard configuration options.
    */
-  private interface Options extends PipelineOptions {
-    @Description("Table to read from, specified as "
-        + "<project_id>:<dataset_id>.<table_id>")
+  public interface Options extends PipelineOptions {
+    @Description("Table to read from, specified as " + "<project_id>:<dataset_id>.<table_id>")
     @Default.String(SHAKESPEARE_TABLE)
     String getInput();
+
     void setInput(String value);
 
-    @Description("Table to write to, specified as "
-        + "<project_id>:<dataset_id>.<table_id>. "
-        + "The dataset_id must already exist")
+    @Description(
+        "Table to write to, specified as "
+            + "<project_id>:<dataset_id>.<table_id>. "
+            + "The dataset_id must already exist")
     @Validation.Required
     String getOutput();
+
     void setOutput(String value);
   }
 
-  public static void main(String[] args)
-      throws Exception {
+  public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     Pipeline p = Pipeline.create(options);
@@ -194,12 +188,13 @@ public class CombinePerKeyExamples {
     TableSchema schema = new TableSchema().setFields(fields);
 
     p.apply(BigQueryIO.readTableRows().from(options.getInput()))
-     .apply(new PlaysForWord())
-     .apply(BigQueryIO.writeTableRows()
-        .to(options.getOutput())
-        .withSchema(schema)
-        .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-        .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+        .apply(new PlaysForWord())
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(options.getOutput())
+                .withSchema(schema)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
     p.run().waitUntilFinish();
   }

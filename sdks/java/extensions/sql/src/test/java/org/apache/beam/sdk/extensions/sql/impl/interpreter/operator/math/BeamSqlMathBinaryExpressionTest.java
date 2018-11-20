@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
@@ -72,33 +71,46 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 4.0));
     Assert.assertEquals(
         2.0,
-        new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
     // round(integer,integer) => integer
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     Assert.assertEquals(
-        2, new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        2,
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     // round(long,long) => long
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 5L));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 3L));
     Assert.assertEquals(
-        5L, new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        5L,
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     // round(short) => short
     operands.clear();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, new Short("4")));
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("4")));
     Assert.assertEquals(
         SqlFunctions.toShort(4),
-        new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     // round(long,long) => long
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 2L));
     Assert.assertEquals(
-        2L, new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        2L,
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     // round(double, long) => double
     operands.clear();
@@ -106,41 +118,54 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1L));
     Assert.assertEquals(
         1.1,
-        new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.368768));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     Assert.assertEquals(
         2.37,
-        new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 3.78683686458));
     Assert.assertEquals(
         4.0,
-        new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 378.683686458));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, -2));
     Assert.assertEquals(
         400.0,
-        new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 378.683686458));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, -1));
     Assert.assertEquals(
         380.0,
-        new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     // round(integer, double) => integer
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.2));
     Assert.assertEquals(
-        2, new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        2,
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     // operand with a BeamSqlInputRefExpression
     // to select a column value from row of a row
@@ -151,7 +176,9 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
 
     Assert.assertEquals(
         1234567L,
-        new BeamSqlRoundExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlRoundExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
@@ -164,21 +191,27 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 4.0));
     Assert.assertEquals(
         16.0,
-        new BeamSqlPowerExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlPowerExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
     // power(integer,integer) => long
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     Assert.assertEquals(
         4.0,
-        new BeamSqlPowerExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlPowerExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
     // power(integer,long) => long
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 2));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 3L));
     Assert.assertEquals(
         8.0,
-        new BeamSqlPowerExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlPowerExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     // power(long,long) => long
     operands.clear();
@@ -186,7 +219,9 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 2L));
     Assert.assertEquals(
         4.0,
-        new BeamSqlPowerExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlPowerExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     // power(double, int) => double
     operands.clear();
@@ -194,7 +229,9 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
     Assert.assertEquals(
         1.1,
-        new BeamSqlPowerExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlPowerExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     // power(double, long) => double
     operands.clear();
@@ -202,7 +239,9 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1L));
     Assert.assertEquals(
         1.1,
-        new BeamSqlPowerExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlPowerExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     // power(integer, double) => double
     operands.clear();
@@ -210,7 +249,9 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.2));
     Assert.assertEquals(
         Math.pow(2, 2.2),
-        new BeamSqlPowerExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlPowerExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
@@ -220,14 +261,18 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 4.0));
     Assert.assertEquals(
         2.0,
-        new BeamSqlTruncateExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlTruncateExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
     // truncate(double, integer) => double
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.80685));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 4));
     Assert.assertEquals(
         2.8068,
-        new BeamSqlTruncateExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlTruncateExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
@@ -237,6 +282,8 @@ public class BeamSqlMathBinaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 0.56));
     Assert.assertEquals(
         Math.atan2(0.875, 0.56),
-        new BeamSqlAtan2Expression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlAtan2Expression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 }

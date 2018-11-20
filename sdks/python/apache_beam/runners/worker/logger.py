@@ -15,14 +15,18 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
+
 """Python worker logging."""
+
+from __future__ import absolute_import
 
 import json
 import logging
 import threading
 import traceback
 
-from apache_beam.runners.common import LoggingContext
+from apache_beam.runners.worker import statesampler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -34,7 +38,6 @@ class _PerThreadWorkerData(threading.local):
 
   def __init__(self):
     super(_PerThreadWorkerData, self).__init__()
-    # TODO(robertwb): Consider starting with an initial (ignored) ~20 elements
     # in the list, as going up and down all the way to zero incurs several
     # reallocations.
     self.stack = []
@@ -49,7 +52,7 @@ class _PerThreadWorkerData(threading.local):
 per_thread_worker_data = _PerThreadWorkerData()
 
 
-class PerThreadLoggingContext(LoggingContext):
+class PerThreadLoggingContext(object):
   """A context manager to add per thread attributes."""
 
   def __init__(self, **kwargs):
@@ -146,10 +149,14 @@ class JsonLogFormatter(logging.Formatter):
     data = per_thread_worker_data.get_data()
     if 'work_item_id' in data:
       output['work'] = data['work_item_id']
-    if 'stage_name' in data:
-      output['stage'] = data['stage_name']
-    if 'step_name' in data:
-      output['step'] = data['step_name']
+
+    tracker = statesampler.get_current_tracker()
+    if tracker:
+      output['stage'] = tracker.stage_name
+
+      if tracker.current_state() and tracker.current_state().name_context:
+        output['step'] = tracker.current_state().name_context.logging_name()
+
     # All logging happens using the root logger. We will add the basename of the
     # file and the function name where the logging happened to make it easier
     # to identify who generated the record.

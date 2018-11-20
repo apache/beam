@@ -46,6 +46,7 @@ public class SdkCoreApiSurfaceTest {
         .pruningClassName("org.apache.beam.sdk.testing.InterceptingUrlClassLoader")
         // test only
         .pruningPrefix("org.apache.beam.model.")
+        .pruningPrefix("org.apache.beam.vendor.")
         .pruningPrefix("java");
   }
 
@@ -67,7 +68,6 @@ public class SdkCoreApiSurfaceTest {
             "org.joda.time",
             "org.junit");
 
-    assertThat(
-        getSdkApiSurface(getClass().getClassLoader()), containsOnlyPackages(allowed));
+    assertThat(getSdkApiSurface(getClass().getClassLoader()), containsOnlyPackages(allowed));
   }
 }

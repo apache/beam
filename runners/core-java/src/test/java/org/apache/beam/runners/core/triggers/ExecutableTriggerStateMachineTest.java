@@ -25,9 +25,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ExecutableTriggerStateMachine}.
- */
+/** Tests for {@link ExecutableTriggerStateMachine}. */
 @RunWith(JUnit4.class)
 public class ExecutableTriggerStateMachineTest {
 
@@ -88,14 +86,13 @@ public class ExecutableTriggerStateMachineTest {
     }
 
     @Override
-    public void onElement(OnElementContext c) throws Exception { }
+    public void onElement(OnElementContext c) throws Exception {}
 
     @Override
-    public void onMerge(OnMergeContext c) throws Exception { }
+    public void onMerge(OnMergeContext c) throws Exception {}
 
     @Override
-    public void clear(TriggerContext c) throws Exception {
-    }
+    public void clear(TriggerContext c) throws Exception {}
 
     @Override
     public boolean shouldFire(TriggerContext c) {
@@ -103,6 +100,6 @@ public class ExecutableTriggerStateMachineTest {
     }
 
     @Override
-    public void onFire(TriggerContext c) { }
+    public void onFire(TriggerContext c) {}
   }
 }

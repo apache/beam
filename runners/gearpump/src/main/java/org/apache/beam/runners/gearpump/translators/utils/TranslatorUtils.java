@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators.utils;
 
 import com.google.common.collect.Lists;
@@ -35,9 +34,7 @@ import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.dsl.window.impl.Window;
 
-/**
- * Utility methods for translators.
- */
+/** Utility methods for translators. */
 public class TranslatorUtils {
 
   public static Instant jodaTimeToJava8Time(org.joda.time.Instant time) {
@@ -56,8 +53,8 @@ public class TranslatorUtils {
       Instant start = TranslatorUtils.jodaTimeToJava8Time(intervalWindow.start());
       return new Window(start, end);
     } else if (window instanceof GlobalWindow) {
-      return new Window(TranslatorUtils.jodaTimeToJava8Time(BoundedWindow.TIMESTAMP_MIN_VALUE),
-          end);
+      return new Window(
+          TranslatorUtils.jodaTimeToJava8Time(BoundedWindow.TIMESTAMP_MIN_VALUE), end);
     } else {
       throw new RuntimeException("unknown window " + window.getClass().getName());
     }
@@ -70,11 +67,15 @@ public class TranslatorUtils {
     JavaStream<RawUnionValue> mainStream =
         inputStream.map(new ToRawUnionValue<>("0"), "map_to_RawUnionValue");
 
-    for (Map.Entry<String, PCollectionView<?>> tagToSideInput: tagsToSideInputs.entrySet()) {
-      JavaStream<WindowedValue<List<?>>> sideInputStream = context.getInputStream(
-          tagToSideInput.getValue());
-      mainStream = mainStream.merge(sideInputStream.map(new ToRawUnionValue<>(
-          tagToSideInput.getKey()), "map_to_RawUnionValue"), 1, "merge_to_MainStream");
+    for (Map.Entry<String, PCollectionView<?>> tagToSideInput : tagsToSideInputs.entrySet()) {
+      JavaStream<WindowedValue<List<?>>> sideInputStream =
+          context.getInputStream(tagToSideInput.getValue());
+      mainStream =
+          mainStream.merge(
+              sideInputStream.map(
+                  new ToRawUnionValue<>(tagToSideInput.getKey()), "map_to_RawUnionValue"),
+              1,
+              "merge_to_MainStream");
     }
     return mainStream;
   }
@@ -84,7 +85,7 @@ public class TranslatorUtils {
     Map<String, PCollectionView<?>> tagsToSideInputs = new HashMap<>();
     // tag 0 is reserved for main input
     int tag = 1;
-    for (PCollectionView<?> sideInput: sideInputs) {
+    for (PCollectionView<?> sideInput : sideInputs) {
       tagsToSideInputs.put(Integer.toString(tag), sideInput);
       tag++;
     }
@@ -92,27 +93,27 @@ public class TranslatorUtils {
   }
 
   public static JavaStream<List<RawUnionValue>> toList(JavaStream<RawUnionValue> stream) {
-    return stream.fold(new FoldFunction<RawUnionValue, List<RawUnionValue>>() {
+    return stream.fold(
+        new FoldFunction<RawUnionValue, List<RawUnionValue>>() {
 
-      @Override
-      public List<RawUnionValue> init() {
-        return Lists.newArrayList();
-      }
+          @Override
+          public List<RawUnionValue> init() {
+            return Lists.newArrayList();
+          }
 
-      @Override
-      public List<RawUnionValue> fold(List<RawUnionValue> accumulator,
-          RawUnionValue rawUnionValue) {
-        accumulator.add(rawUnionValue);
-        return accumulator;
-      }
-    }, "fold_to_iterable");
+          @Override
+          public List<RawUnionValue> fold(
+              List<RawUnionValue> accumulator, RawUnionValue rawUnionValue) {
+            accumulator.add(rawUnionValue);
+            return accumulator;
+          }
+        },
+        "fold_to_iterable");
   }
 
-  /**
-   * Converts @link{RawUnionValue} to @link{WindowedValue}.
-   */
-  public static class FromRawUnionValue<OutputT> extends
-      MapFunction<RawUnionValue, WindowedValue<OutputT>> {
+  /** Converts @link{RawUnionValue} to @link{WindowedValue}. */
+  public static class FromRawUnionValue<OutputT>
+      extends MapFunction<RawUnionValue, WindowedValue<OutputT>> {
 
     private static final long serialVersionUID = -4764968219713478955L;
 
@@ -122,8 +123,7 @@ public class TranslatorUtils {
     }
   }
 
-  private static class ToRawUnionValue<T> extends
-      MapFunction<WindowedValue<T>, RawUnionValue> {
+  private static class ToRawUnionValue<T> extends MapFunction<WindowedValue<T>, RawUnionValue> {
 
     private static final long serialVersionUID = 8648852871014813583L;
     private final String tag;
@@ -138,16 +138,12 @@ public class TranslatorUtils {
     }
   }
 
-  /**
-   * This is copied from org.apache.beam.sdk.transforms.join.RawUnionValue.
-   */
+  /** This is copied from org.apache.beam.sdk.transforms.join.RawUnionValue. */
   public static class RawUnionValue {
     private final String unionTag;
     private final Object value;
 
-    /**
-     * Constructs a partial union from the given union tag and value.
-     */
+    /** Constructs a partial union from the given union tag and value. */
     public RawUnionValue(String unionTag, Object value) {
       this.unionTag = unionTag;
       this.value = value;
@@ -181,7 +177,6 @@ public class TranslatorUtils {
         return false;
       }
       return value != null ? value.equals(that.value) : that.value == null;
-
     }
 
     @Override
@@ -191,5 +186,4 @@ public class TranslatorUtils {
       return result;
     }
   }
-
 }

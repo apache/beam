@@ -15,20 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.channel;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
-import io.grpc.ManagedChannel;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ManagedChannel;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
 
 /** Tests for {@link ManagedChannelFactory}. */
 @RunWith(JUnit4.class)
@@ -47,7 +45,7 @@ public class ManagedChannelFactoryTest {
 
   @Test
   public void testEpollHostPortChannel() {
-    assumeTrue(io.netty.channel.epoll.Epoll.isAvailable());
+    assumeTrue(org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.epoll.Epoll.isAvailable());
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl("localhost:123").build();
     ManagedChannel channel =
@@ -58,7 +56,7 @@ public class ManagedChannelFactoryTest {
 
   @Test
   public void testEpollDomainSocketChannel() throws Exception {
-    assumeTrue(io.netty.channel.epoll.Epoll.isAvailable());
+    assumeTrue(org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.epoll.Epoll.isAvailable());
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl("unix://" + tmpFolder.newFile().getAbsolutePath())

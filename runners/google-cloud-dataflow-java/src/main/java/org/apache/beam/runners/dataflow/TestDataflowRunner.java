@@ -142,6 +142,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Return {@code true} if the job succeeded or {@code false} if it terminated in any other manner.
    */
+  @SuppressWarnings("FutureReturnValueIgnored") // Job status checked via job.waitUntilFinish
   private boolean waitForStreamingJobTermination(
       final DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
     // In streaming, there are infinite retries, so rather than timeout
@@ -180,9 +181,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  /**
-   * Return {@code true} if job state is {@code State.DONE}. {@code false} otherwise.
-   */
+  /** Return {@code true} if job state is {@code State.DONE}. {@code false} otherwise. */
   private boolean waitForBatchJobTermination(
       DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
     {
@@ -318,14 +317,14 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class ErrorMonitorMessagesHandler implements JobMessagesHandler {
     private final DataflowPipelineJob job;
     private final JobMessagesHandler messageHandler;
-    private final StringBuffer errorMessage;
+    private final StringBuilder errorMessage;
     private volatile boolean hasSeenError;
 
     private ErrorMonitorMessagesHandler(
         DataflowPipelineJob job, JobMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
-      this.errorMessage = new StringBuffer();
+      this.errorMessage = new StringBuilder();
       this.hasSeenError = false;
     }
 

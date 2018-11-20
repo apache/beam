@@ -67,6 +67,10 @@ message ProvisionInfo {
     // (optional) Resource limits that the SDK harness worker should respect.
     // Runners may -- but are not required to -- enforce any limits provided.
     Resources resource_limits = 4;
+
+    // (required) The artifact retrieval token produced by
+    // ArtifactStagingService.CommitManifestResponse.
+    string retrieval_token = 6;
 }
 
 // Resources specify limits for local resources, such memory and cpu. It

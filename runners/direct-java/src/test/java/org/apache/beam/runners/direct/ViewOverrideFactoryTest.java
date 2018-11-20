@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -78,9 +77,7 @@ public class ViewOverrideFactoryTest implements Serializable {
               assertThat(
                   replacementView.getTagInternal(), equalTo((TupleTag) view.getTagInternal()));
               assertThat(replacementView.getViewFn(), equalTo(view.getViewFn()));
-              assertThat(
-                  replacementView.getWindowMappingFn(),
-                  equalTo(view.getWindowMappingFn()));
+              assertThat(replacementView.getWindowMappingFn(), equalTo(view.getWindowMappingFn()));
               assertThat(node.getInputs().entrySet(), hasSize(1));
             }
           }

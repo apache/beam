@@ -42,3 +42,4 @@ cdef class DataflowDistributionCounter(object):
   cpdef void translate_to_histogram(self, histogram)
   cpdef bint add_inputs_for_test(self, elements) except -1
   cpdef int64_t calculate_bucket_index(self, int64_t element)
+  cpdef merge(self, accumulators)

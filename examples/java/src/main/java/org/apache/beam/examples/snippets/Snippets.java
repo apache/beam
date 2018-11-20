@@ -51,9 +51,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
-/**
- * Code snippets used in webdocs.
- */
+/** Code snippets used in webdocs. */
 public class Snippets {
 
   @DefaultCoder(AvroCoder.class)
@@ -99,8 +97,8 @@ public class Snippets {
     modelBigQueryIO(p, "", "", "");
   }
 
-  public static void modelBigQueryIO(Pipeline p,
-      String writeProject, String writeDataset, String writeTable) {
+  public static void modelBigQueryIO(
+      Pipeline p, String writeProject, String writeDataset, String writeTable) {
     {
       // [START BigQueryTableSpec]
       String tableSpec = "clouddataflow-readonly:samples.weather_stations";
@@ -115,74 +113,80 @@ public class Snippets {
 
     {
       // [START BigQueryTableSpecObject]
-      TableReference tableSpec = new TableReference()
-          .setProjectId("clouddataflow-readonly")
-          .setDatasetId("samples")
-          .setTableId("weather_stations");
+      TableReference tableSpec =
+          new TableReference()
+              .setProjectId("clouddataflow-readonly")
+              .setDatasetId("samples")
+              .setTableId("weather_stations");
       // [END BigQueryTableSpecObject]
     }
 
     {
       String tableSpec = "clouddataflow-readonly:samples.weather_stations";
       // [START BigQueryReadTable]
-      PCollection<Double> maxTemperatures = p
-          .apply(BigQueryIO.readTableRows().from(tableSpec))
-          // Each row is of type TableRow
-          .apply(MapElements.into(TypeDescriptors.doubles()).via(
-              (TableRow row) -> (Double) row.get("max_temperature")));
+      PCollection<Double> maxTemperatures =
+          p.apply(BigQueryIO.readTableRows().from(tableSpec))
+              // Each row is of type TableRow
+              .apply(
+                  MapElements.into(TypeDescriptors.doubles())
+                      .via((TableRow row) -> (Double) row.get("max_temperature")));
       // [END BigQueryReadTable]
     }
 
     {
       String tableSpec = "clouddataflow-readonly:samples.weather_stations";
       // [START BigQueryReadFunction]
-      PCollection<Double> maxTemperatures = p
-          .apply(BigQueryIO.read(
-              (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
-              .from(tableSpec)
-              .withCoder(DoubleCoder.of()));
+      PCollection<Double> maxTemperatures =
+          p.apply(
+              BigQueryIO.read(
+                      (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+                  .from(tableSpec)
+                  .withCoder(DoubleCoder.of()));
       // [END BigQueryReadFunction]
     }
 
     {
       // [START BigQueryReadQuery]
-      PCollection<Double> maxTemperatures = p
-          .apply(BigQueryIO.read(
-              (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
-              .fromQuery(
-                  "SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]")
-              .withCoder(DoubleCoder.of()));
+      PCollection<Double> maxTemperatures =
+          p.apply(
+              BigQueryIO.read(
+                      (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+                  .fromQuery(
+                      "SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]")
+                  .withCoder(DoubleCoder.of()));
       // [END BigQueryReadQuery]
     }
 
     {
       // [START BigQueryReadQueryStdSQL]
-      PCollection<Double> maxTemperatures = p
-          .apply(BigQueryIO.read(
-              (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
-              .fromQuery(
-                  "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
-              .usingStandardSql()
-              .withCoder(DoubleCoder.of()));
+      PCollection<Double> maxTemperatures =
+          p.apply(
+              BigQueryIO.read(
+                      (SchemaAndRecord elem) -> (Double) elem.getRecord().get("max_temperature"))
+                  .fromQuery(
+                      "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
+                  .usingStandardSql()
+                  .withCoder(DoubleCoder.of()));
       // [END BigQueryReadQueryStdSQL]
     }
 
     // [START BigQuerySchemaJson]
-    String tableSchemaJson = ""
-        + "{"
-        + "  \"fields\": ["
-        + "    {"
-        + "      \"name\": \"source\","
-        + "      \"type\": \"STRING\","
-        + "      \"mode\": \"NULLABLE\""
-        + "    },"
-        + "    {"
-        + "      \"name\": \"quote\","
-        + "      \"type\": \"STRING\","
-        + "      \"mode\": \"REQUIRED\""
-        + "    }"
-        + "  ]"
-        + "}";
+    String tableSchemaJson =
+        ""
+            + "{"
+            + "  \"fields\": ["
+            + "    {"
+            + "      \"name\": \"source\","
+            + "      \"type\": \"STRING\","
+            + "      \"mode\": \"NULLABLE\""
+            + "    },"
+            + "    {"
+            + "      \"name\": \"quote\","
+            + "      \"type\": \"STRING\","
+            + "      \"mode\": \"REQUIRED\""
+            + "    }"
+            + "  ]"
+            + "}";
     // [END BigQuerySchemaJson]
 
     {
@@ -192,9 +196,18 @@ public class Snippets {
       }
 
       // [START BigQuerySchemaObject]
-      TableSchema tableSchema = new TableSchema().setFields(ImmutableList.of(
-          new TableFieldSchema().setName("source").setType("STRING").setMode("NULLABLE"),
-          new TableFieldSchema().setName("quote").setType("STRING").setMode("REQUIRED")));
+      TableSchema tableSchema =
+          new TableSchema()
+              .setFields(
+                  ImmutableList.of(
+                      new TableFieldSchema()
+                          .setName("source")
+                          .setType("STRING")
+                          .setMode("NULLABLE"),
+                      new TableFieldSchema()
+                          .setName("quote")
+                          .setType("STRING")
+                          .setMode("REQUIRED")));
       // [END BigQuerySchemaObject]
 
       // [START BigQueryWriteInput]
@@ -215,43 +228,50 @@ public class Snippets {
       }
       */
 
-      PCollection<Quote> quotes = p
-          .apply(Create.of(
-              new Quote("Mahatma Gandhi", "My life is my message."),
-              new Quote("Yoda", "Do, or do not. There is no 'try'.")
-          ));
+      PCollection<Quote> quotes =
+          p.apply(
+              Create.of(
+                  new Quote("Mahatma Gandhi", "My life is my message."),
+                  new Quote("Yoda", "Do, or do not. There is no 'try'.")));
       // [END BigQueryWriteInput]
 
       // [START BigQueryWriteTable]
       quotes
-          .apply(MapElements.into(TypeDescriptor.of(TableRow.class)).via(
-              (Quote elem) -> new TableRow().set("source", elem.source).set("quote", elem.quote)
-          ))
-          .apply(BigQueryIO.writeTableRows()
-              .to(tableSpec)
-              .withSchema(tableSchema)
-              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-              .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
+          .apply(
+              MapElements.into(TypeDescriptor.of(TableRow.class))
+                  .via(
+                      (Quote elem) ->
+                          new TableRow().set("source", elem.source).set("quote", elem.quote)))
+          .apply(
+              BigQueryIO.writeTableRows()
+                  .to(tableSpec)
+                  .withSchema(tableSchema)
+                  .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                  .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
       // [END BigQueryWriteTable]
 
       // [START BigQueryWriteFunction]
-      quotes.apply(BigQueryIO.<Quote>write()
-          .to(tableSpec)
-          .withSchema(tableSchema)
-          .withFormatFunction(
-              (Quote elem) -> new TableRow().set("source", elem.source).set("quote", elem.quote))
-          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-          .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
+      quotes.apply(
+          BigQueryIO.<Quote>write()
+              .to(tableSpec)
+              .withSchema(tableSchema)
+              .withFormatFunction(
+                  (Quote elem) ->
+                      new TableRow().set("source", elem.source).set("quote", elem.quote))
+              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+              .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
       // [END BigQueryWriteFunction]
 
       // [START BigQueryWriteJsonSchema]
-      quotes.apply(BigQueryIO.<Quote>write()
-          .to(tableSpec)
-          .withJsonSchema(tableSchemaJson)
-          .withFormatFunction(
-              (Quote elem) -> new TableRow().set("source", elem.source).set("quote", elem.quote))
-          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-          .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
+      quotes.apply(
+          BigQueryIO.<Quote>write()
+              .to(tableSpec)
+              .withJsonSchema(tableSchemaJson)
+              .withFormatFunction(
+                  (Quote elem) ->
+                      new TableRow().set("source", elem.source).set("quote", elem.quote))
+              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+              .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
       // [END BigQueryWriteJsonSchema]
     }
 
@@ -280,56 +300,75 @@ public class Snippets {
       }
       */
 
-      PCollection<WeatherData> weatherData = p
-          .apply(BigQueryIO.read(
-              (SchemaAndRecord elem) -> {
-                GenericRecord record = elem.getRecord();
-                return new WeatherData(
-                    (Long) record.get("year"),
-                    (Long) record.get("month"),
-                    (Long) record.get("day"),
-                    (Double) record.get("max_temperature"));
-              })
-              .fromQuery("SELECT year, month, day, max_temperature "
-                  + "FROM [clouddataflow-readonly:samples.weather_stations] "
-                  + "WHERE year BETWEEN 2007 AND 2009")
-              .withCoder(AvroCoder.of(WeatherData.class)));
+      PCollection<WeatherData> weatherData =
+          p.apply(
+              BigQueryIO.read(
+                      (SchemaAndRecord elem) -> {
+                        GenericRecord record = elem.getRecord();
+                        return new WeatherData(
+                            (Long) record.get("year"),
+                            (Long) record.get("month"),
+                            (Long) record.get("day"),
+                            (Double) record.get("max_temperature"));
+                      })
+                  .fromQuery(
+                      "SELECT year, month, day, max_temperature "
+                          + "FROM [clouddataflow-readonly:samples.weather_stations] "
+                          + "WHERE year BETWEEN 2007 AND 2009")
+                  .withCoder(AvroCoder.of(WeatherData.class)));
 
       // We will send the weather data into different tables for every year.
-      weatherData.apply(BigQueryIO.<WeatherData>write()
-          .to(new DynamicDestinations<WeatherData, Long>() {
-            @Override
-            public Long getDestination(ValueInSingleWindow<WeatherData> elem) {
-              return elem.getValue().year;
-            }
+      weatherData.apply(
+          BigQueryIO.<WeatherData>write()
+              .to(
+                  new DynamicDestinations<WeatherData, Long>() {
+                    @Override
+                    public Long getDestination(ValueInSingleWindow<WeatherData> elem) {
+                      return elem.getValue().year;
+                    }
 
-            @Override
-            public TableDestination getTable(Long destination) {
-              return new TableDestination(
-                  new TableReference()
-                      .setProjectId(writeProject)
-                      .setDatasetId(writeDataset)
-                      .setTableId(writeTable + "_" + destination),
-                  "Table for year " + destination);
-            }
+                    @Override
+                    public TableDestination getTable(Long destination) {
+                      return new TableDestination(
+                          new TableReference()
+                              .setProjectId(writeProject)
+                              .setDatasetId(writeDataset)
+                              .setTableId(writeTable + "_" + destination),
+                          "Table for year " + destination);
+                    }
 
-            @Override
-            public TableSchema getSchema(Long destination) {
-              return new TableSchema().setFields(ImmutableList.of(
-                  new TableFieldSchema().setName("year").setType("INTEGER").setMode("REQUIRED"),
-                  new TableFieldSchema().setName("month").setType("INTEGER").setMode("REQUIRED"),
-                  new TableFieldSchema().setName("day").setType("INTEGER").setMode("REQUIRED"),
-                  new TableFieldSchema().setName("maxTemp").setType("FLOAT").setMode("NULLABLE")));
-            }
-          })
-          .withFormatFunction(
-              (WeatherData elem) -> new TableRow()
-                  .set("year", elem.year)
-                  .set("month", elem.month)
-                  .set("day", elem.day)
-                  .set("maxTemp", elem.maxTemp))
-          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-          .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
+                    @Override
+                    public TableSchema getSchema(Long destination) {
+                      return new TableSchema()
+                          .setFields(
+                              ImmutableList.of(
+                                  new TableFieldSchema()
+                                      .setName("year")
+                                      .setType("INTEGER")
+                                      .setMode("REQUIRED"),
+                                  new TableFieldSchema()
+                                      .setName("month")
+                                      .setType("INTEGER")
+                                      .setMode("REQUIRED"),
+                                  new TableFieldSchema()
+                                      .setName("day")
+                                      .setType("INTEGER")
+                                      .setMode("REQUIRED"),
+                                  new TableFieldSchema()
+                                      .setName("maxTemp")
+                                      .setType("FLOAT")
+                                      .setMode("NULLABLE")));
+                    }
+                  })
+              .withFormatFunction(
+                  (WeatherData elem) ->
+                      new TableRow()
+                          .set("year", elem.year)
+                          .set("month", elem.month)
+                          .set("day", elem.day)
+                          .set("maxTemp", elem.maxTemp))
+              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+              .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
       // [END BigQueryWriteDynamicDestinations]
 
       String tableSpec = "clouddataflow-readonly:samples.weather_stations";
@@ -337,26 +376,37 @@ public class Snippets {
         tableSpec = writeProject + ":" + writeDataset + "." + writeTable + "_partitioning";
       }
 
-      TableSchema tableSchema = new TableSchema().setFields(ImmutableList.of(
-          new TableFieldSchema().setName("year").setType("INTEGER").setMode("REQUIRED"),
-          new TableFieldSchema().setName("month").setType("INTEGER").setMode("REQUIRED"),
-          new TableFieldSchema().setName("day").setType("INTEGER").setMode("REQUIRED"),
-          new TableFieldSchema().setName("maxTemp").setType("FLOAT").setMode("NULLABLE")));
+      TableSchema tableSchema =
+          new TableSchema()
+              .setFields(
+                  ImmutableList.of(
+                      new TableFieldSchema().setName("year").setType("INTEGER").setMode("REQUIRED"),
+                      new TableFieldSchema()
+                          .setName("month")
+                          .setType("INTEGER")
+                          .setMode("REQUIRED"),
+                      new TableFieldSchema().setName("day").setType("INTEGER").setMode("REQUIRED"),
+                      new TableFieldSchema()
+                          .setName("maxTemp")
+                          .setType("FLOAT")
+                          .setMode("NULLABLE")));
 
       // [START BigQueryTimePartitioning]
-      weatherData.apply(BigQueryIO.<WeatherData>write()
-          .to(tableSpec + "_partitioning")
-          .withSchema(tableSchema)
-          .withFormatFunction(
-              (WeatherData elem) -> new TableRow()
-                  .set("year", elem.year)
-                  .set("month", elem.month)
-                  .set("day", elem.day)
-                  .set("maxTemp", elem.maxTemp))
-          // NOTE: an existing table without time partitioning set up will not work
-          .withTimePartitioning(new TimePartitioning().setType("DAY"))
-          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-          .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
+      weatherData.apply(
+          BigQueryIO.<WeatherData>write()
+              .to(tableSpec + "_partitioning")
+              .withSchema(tableSchema)
+              .withFormatFunction(
+                  (WeatherData elem) ->
+                      new TableRow()
+                          .set("year", elem.year)
+                          .set("month", elem.month)
+                          .set("day", elem.day)
+                          .set("maxTemp", elem.maxTemp))
+              // NOTE: an existing table without time partitioning set up will not work
+              .withTimePartitioning(new TimePartitioning().setType("DAY"))
+              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+              .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE));
       // [END BigQueryTimePartitioning]
     }
   }
@@ -391,24 +441,25 @@ public class Snippets {
 
     // [START CoGroupByKeyTuple]
     PCollection<KV<String, CoGbkResult>> results =
-        KeyedPCollectionTuple
-        .of(emailsTag, emails)
-        .and(phonesTag, phones)
-        .apply(CoGroupByKey.create());
+        KeyedPCollectionTuple.of(emailsTag, emails)
+            .and(phonesTag, phones)
+            .apply(CoGroupByKey.create());
 
-    PCollection<String> contactLines = results.apply(ParDo.of(
-      new DoFn<KV<String, CoGbkResult>, String>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) {
-          KV<String, CoGbkResult> e = c.element();
-          String name = e.getKey();
-          Iterable<String> emailsIter = e.getValue().getAll(emailsTag);
-          Iterable<String> phonesIter = e.getValue().getAll(phonesTag);
-          String formattedResult = Snippets.formatCoGbkResults(name, emailsIter, phonesIter);
-          c.output(formattedResult);
-        }
-      }
-    ));
+    PCollection<String> contactLines =
+        results.apply(
+            ParDo.of(
+                new DoFn<KV<String, CoGbkResult>, String>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    KV<String, CoGbkResult> e = c.element();
+                    String name = e.getKey();
+                    Iterable<String> emailsIter = e.getValue().getAll(emailsTag);
+                    Iterable<String> phonesIter = e.getValue().getAll(phonesTag);
+                    String formattedResult =
+                        Snippets.formatCoGbkResults(name, emailsIter, phonesIter);
+                    c.output(formattedResult);
+                  }
+                }));
     // [END CoGroupByKeyTuple]
     return contactLines;
   }

@@ -29,10 +29,14 @@ automatically in the web docs. The naming convention for the tags is to have as
 prefix the PATH_TO_HTML where they are included followed by a descriptive
 string. The tags can contain only letters, digits and _.
 """
+from __future__ import absolute_import
+from __future__ import division
 
 import argparse
+from builtins import object
+from builtins import range
 
-import six
+from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import iobase
@@ -1048,7 +1052,7 @@ def model_datastoreio():
     entity = entity_pb2.Entity()
     googledatastore.helper.add_key_path(entity.key, kind, str(uuid.uuid4()))
     googledatastore.helper.add_properties(entity,
-                                          {'content': six.text_type(content)})
+                                          {'content': unicode(content)})
     return entity
 
   entities = musicians | 'To Entity' >> beam.Map(to_entity)

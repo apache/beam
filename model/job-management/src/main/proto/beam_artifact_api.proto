@@ -30,9 +30,6 @@ option java_package = "org.apache.beam.model.jobmanagement.v1";
 option java_outer_classname = "ArtifactApi";
 
 // A service to stage artifacts for use in a Job.
-//
-// RPCs made to an ArtifactStagingService endpoint should include some form of identification for
-// the job as a header.
 service ArtifactStagingService {
   // Stage an artifact to be available during job execution. The first request must contain the
   // name of the artifact. All future requests must contain sequential chunks of the content of
@@ -65,7 +62,11 @@ message ArtifactMetadata {
 
   // (Optional) The base64-encoded md5 checksum of the artifact. Used, among other things, by
   // harness boot code to validate the integrity of the artifact.
-  string md5 = 3;
+  string md5X = 3;
+
+  // (Optional) The hex-encoded sha256 checksum of the artifact. Used, among other things, by
+  // harness boot code to validate the integrity of the artifact.
+  string sha256 = 4;
 }
 
 // A collection of artifacts.
@@ -84,7 +85,11 @@ message ProxyManifest {
 }
 
 // A request to get the manifest of a Job.
-message GetManifestRequest {}
+message GetManifestRequest {
+  // (Required) An opaque token representing the entirety of the staged artifacts.
+  // Returned in CommitManifestResponse.
+  string retrieval_token = 1;
+}
 
 // A response containing a job manifest.
 message GetManifestResponse {
@@ -95,6 +100,9 @@ message GetManifestResponse {
 message GetArtifactRequest {
   // (Required) The name of the artifact to retrieve.
   string name = 1;
+  // (Required) An opaque token representing the entirety of the staged artifacts.
+  // Returned in CommitManifestResponse.
+  string retrieval_token = 2;
 }
 
 // Part of an artifact.
@@ -102,13 +110,20 @@ message ArtifactChunk {
   bytes data = 1;
 }
 
+message PutArtifactMetadata {
+  // (Required) A token for artifact staging session. This token can be obtained
+  // from PrepareJob request in JobService
+  string staging_session_token = 1;
+  // (Required) The Artifact metadata.
+  ArtifactMetadata metadata = 2;
+}
+
 // A request to stage an artifact.
 message PutArtifactRequest {
   // (Required)
   oneof content {
-    // The Artifact metadata. The first message in a PutArtifact call must contain the name
-    // of the artifact.
-    ArtifactMetadata metadata = 1;
+    // The first message in a PutArtifact call must contain this field.
+    PutArtifactMetadata metadata = 1;
 
     // A chunk of the artifact. All messages after the first in a PutArtifact call must contain a
     // chunk.
@@ -124,11 +139,15 @@ message PutArtifactResponse {
 message CommitManifestRequest {
   // (Required) The manifest to commit.
   Manifest manifest = 1;
+  // (Required) A token for artifact staging session. This token can be obtained
+  // from PrepareJob request in JobService
+  string staging_session_token = 2;
 }
 
 // The result of committing a manifest.
 message CommitManifestResponse {
   // (Required) An opaque token representing the entirety of the staged artifacts.
-  string staging_token = 1;
+  // This can be used to retrieve the manifest and artifacts from an associated
+  // ArtifactRetrievalService.
+  string retrieval_token = 1;
 }
-

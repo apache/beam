@@ -31,25 +31,24 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link OrFinallyStateMachine}.
- */
+/** Tests for {@link OrFinallyStateMachine}. */
 @RunWith(JUnit4.class)
 public class OrFinallyStateMachineTest {
 
   private SimpleTriggerStateMachineTester<IntervalWindow> tester;
 
   /**
-   * Tests that for {@code OrFinally(actual, ...)} when {@code actual}
-   * fires and finishes, the {@code OrFinally} also fires and finishes.
+   * Tests that for {@code OrFinally(actual, ...)} when {@code actual} fires and finishes, the
+   * {@code OrFinally} also fires and finishes.
    */
   @Test
   public void testActualFiresAndFinishes() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        new OrFinallyStateMachine(
-            AfterPaneStateMachine.elementCountAtLeast(2),
-            AfterPaneStateMachine.elementCountAtLeast(100)),
-        FixedWindows.of(Duration.millis(100)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            new OrFinallyStateMachine(
+                AfterPaneStateMachine.elementCountAtLeast(2),
+                AfterPaneStateMachine.elementCountAtLeast(100)),
+            FixedWindows.of(Duration.millis(100)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
 
@@ -66,17 +65,17 @@ public class OrFinallyStateMachineTest {
   }
 
   /**
-   * Tests that for {@code OrFinally(actual, ...)} when {@code actual}
-   * fires but does not finish, the {@code OrFinally} also fires and also does not
-   * finish.
+   * Tests that for {@code OrFinally(actual, ...)} when {@code actual} fires but does not finish,
+   * the {@code OrFinally} also fires and also does not finish.
    */
   @Test
   public void testActualFiresOnly() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        new OrFinallyStateMachine(
-            RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(2)),
-            AfterPaneStateMachine.elementCountAtLeast(100)),
-        FixedWindows.of(Duration.millis(100)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            new OrFinallyStateMachine(
+                RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(2)),
+                AfterPaneStateMachine.elementCountAtLeast(100)),
+            FixedWindows.of(Duration.millis(100)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
 
@@ -99,17 +98,18 @@ public class OrFinallyStateMachineTest {
   }
 
   /**
-   * Tests that if the first trigger rewinds to be non-finished in the merged window,
-   * then it becomes the currently active trigger again, with real triggers.
+   * Tests that if the first trigger rewinds to be non-finished in the merged window, then it
+   * becomes the currently active trigger again, with real triggers.
    */
   @Test
   public void testShouldFireAfterMerge() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        AfterEachStateMachine.inOrder(
-            AfterPaneStateMachine.elementCountAtLeast(5)
-                .orFinally(AfterWatermarkStateMachine.pastEndOfWindow()),
-            RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(1))),
-        Sessions.withGapDuration(Duration.millis(10)));
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterEachStateMachine.inOrder(
+                AfterPaneStateMachine.elementCountAtLeast(5)
+                    .orFinally(AfterWatermarkStateMachine.pastEndOfWindow()),
+                RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(1))),
+            Sessions.withGapDuration(Duration.millis(10)));
 
     // Finished the orFinally in the first window
     tester.injectElements(1);
@@ -136,17 +136,17 @@ public class OrFinallyStateMachineTest {
   }
 
   /**
-   * Tests that for {@code OrFinally(actual, until)} when {@code actual}
-   * fires but does not finish, then {@code until} fires and finishes, the
-   * whole thing fires and finished.
+   * Tests that for {@code OrFinally(actual, until)} when {@code actual} fires but does not finish,
+   * then {@code until} fires and finishes, the whole thing fires and finished.
    */
   @Test
   public void testActualFiresButUntilFinishes() throws Exception {
-    tester = TriggerStateMachineTester.forTrigger(
-        new OrFinallyStateMachine(
-            RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(2)),
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            new OrFinallyStateMachine(
+                RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(2)),
                 AfterPaneStateMachine.elementCountAtLeast(3)),
-        FixedWindows.of(Duration.millis(10)));
+            FixedWindows.of(Duration.millis(10)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 

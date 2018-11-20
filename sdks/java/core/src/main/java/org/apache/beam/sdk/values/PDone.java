@@ -24,8 +24,8 @@ import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * {@link PDone} is the output of a {@link PTransform} that has a trivial result,
- * such as a {@link WriteFiles}.
+ * {@link PDone} is the output of a {@link PTransform} that has a trivial result, such as a {@link
+ * WriteFiles}.
  */
 public class PDone implements POutput {
 
@@ -35,9 +35,7 @@ public class PDone implements POutput {
     this.pipeline = pipeline;
   }
 
-  /**
-   * Creates a {@link PDone} in the given {@link Pipeline}.
-   */
+  /** Creates a {@link PDone} in the given {@link Pipeline}. */
   public static PDone in(Pipeline pipeline) {
     return new PDone(pipeline);
   }
@@ -47,9 +45,7 @@ public class PDone implements POutput {
     return pipeline;
   }
 
-  /**
-   * A {@link PDone} contains no {@link PValue PValues}.
-   */
+  /** A {@link PDone} contains no {@link PValue PValues}. */
   @Override
   public Map<TupleTag<?>, PValue> expand() {
     return Collections.emptyMap();

@@ -31,8 +31,8 @@ public class ValueProviders {
    * Given {@code serializedOptions} as a JSON-serialized {@link PipelineOptions}, updates the
    * values according to the provided values in {@code runtimeValues}.
    *
-   * @deprecated Use {@link org.apache.beam.sdk.testing.TestPipeline#newProvider}
-   * for testing {@link ValueProvider} code.
+   * @deprecated Use {@link org.apache.beam.sdk.testing.TestPipeline#newProvider} for testing {@link
+   *     ValueProvider} code.
    */
   @Deprecated
   public static String updateSerializedOptions(

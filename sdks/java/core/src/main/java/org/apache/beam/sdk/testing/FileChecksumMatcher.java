@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -45,16 +44,19 @@ import org.slf4j.LoggerFactory;
  * Matcher to verify file checksum in E2E test.
  *
  * <p>For example:
+ *
  * <pre>{@code
- *   assertThat(job, new FileChecksumMatcher(checksumString, filePath));
- * }</pre>
- * or
- * <pre>{@code
- *   assertThat(job, new FileChecksumMatcher(checksumString, filePath, shardTemplate));
+ * assertThat(job, new FileChecksumMatcher(checksumString, filePath));
  * }</pre>
  *
- * <p>Checksum of outputs is generated based on SHA-1 algorithm. If output file is empty,
- * SHA-1 hash of empty string (da39a3ee5e6b4b0d3255bfef95601890afd80709) is used as expected.
+ * or
+ *
+ * <pre>{@code
+ * assertThat(job, new FileChecksumMatcher(checksumString, filePath, shardTemplate));
+ * }</pre>
+ *
+ * <p>Checksum of outputs is generated based on SHA-1 algorithm. If output file is empty, SHA-1 hash
+ * of empty string (da39a3ee5e6b4b0d3255bfef95601890afd80709) is used as expected.
  */
 public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
     implements SerializableMatcher<PipelineResult> {
@@ -92,18 +94,15 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
    *
    * @param checksum expected checksum string used to verify file content.
    * @param filePath path of files that's to be verified.
-   * @param shardTemplate template of shard name to parse out the total number of shards
-   *                      which is used in I/O retry to avoid inconsistency of filesystem.
-   *                      Customized template should assign name "numshards" to capturing
-   *                      group - total shard number.
+   * @param shardTemplate template of shard name to parse out the total number of shards which is
+   *     used in I/O retry to avoid inconsistency of filesystem. Customized template should assign
+   *     name "numshards" to capturing group - total shard number.
    */
   public FileChecksumMatcher(String checksum, String filePath, Pattern shardTemplate) {
     checkArgument(
-        !Strings.isNullOrEmpty(checksum),
-        "Expected valid checksum, but received %s", checksum);
+        !Strings.isNullOrEmpty(checksum), "Expected valid checksum, but received %s", checksum);
     checkArgument(
-        !Strings.isNullOrEmpty(filePath),
-        "Expected valid file path, but received %s", filePath);
+        !Strings.isNullOrEmpty(filePath), "Expected valid file path, but received %s", filePath);
     checkNotNull(
         shardTemplate,
         "Expected non-null shard pattern. "
@@ -140,8 +139,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
       try {
         outputs = shardedFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff());
       } catch (Exception e) {
-        throw new RuntimeException(
-            String.format("Failed to read from: %s", shardedFile), e);
+        throw new RuntimeException(String.format("Failed to read from: %s", shardedFile), e);
       }
 
       // Verify outputs. Checksum is computed using SHA-1 algorithm
@@ -152,7 +150,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
     return actualChecksum;
   }
 
-  private String computeHash(@Nonnull List<String> strs) {
+  private static String computeHash(@Nonnull List<String> strs) {
     if (strs.isEmpty()) {
       return Hashing.sha1().hashString("", StandardCharsets.UTF_8).toString();
     }
@@ -166,17 +164,11 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
 
   @Override
   public void describeTo(Description description) {
-    description
-        .appendText("Expected checksum is (")
-        .appendText(expectedChecksum)
-        .appendText(")");
+    description.appendText("Expected checksum is (").appendText(expectedChecksum).appendText(")");
   }
 
   @Override
   public void describeMismatchSafely(PipelineResult pResult, Description description) {
-    description
-        .appendText("was (")
-        .appendText(getActualChecksum())
-        .appendText(")");
+    description.appendText("was (").appendText(getActualChecksum()).appendText(")");
   }
 }

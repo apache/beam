@@ -15,14 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import java.math.BigDecimal;
-import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
@@ -52,7 +53,7 @@ public class BeamSqlRowCoderTest {
             .add("col_boolean", SqlTypeName.BOOLEAN)
             .build();
 
-    Schema beamSchema = CalciteUtils.toBeamSchema(relDataType);
+    Schema beamSchema = CalciteUtils.toSchema(relDataType);
 
     Row row =
         Row.withSchema(beamSchema)
@@ -69,7 +70,9 @@ public class BeamSqlRowCoderTest {
                 DateTime.now(),
                 true)
             .build();
-    RowCoder coder = beamSchema.getRowCoder();
+    Coder<Row> coder =
+        SchemaCoder.of(
+            beamSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
     CoderProperties.coderDecodeEncodeEqual(coder, row);
   }
 }

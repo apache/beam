@@ -15,19 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.logging;
 
 import static com.google.common.base.Throwables.getStackTraceAsString;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Timestamp;
-import io.grpc.ManagedChannel;
-import io.grpc.Status;
-import io.grpc.stub.CallStreamObserver;
-import io.grpc.stub.ClientCallStreamObserver;
-import io.grpc.stub.ClientResponseObserver;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -55,6 +48,12 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.ClientResponseObserver;
 
 /**
  * Configures {@link java.util.logging} to send all {@link LogRecord}s via the Beam Fn Logging API.
@@ -63,12 +62,12 @@ public class BeamFnLoggingClient implements AutoCloseable {
   private static final String ROOT_LOGGER_NAME = "";
   private static final ImmutableMap<Level, BeamFnApi.LogEntry.Severity.Enum> LOG_LEVEL_MAP =
       ImmutableMap.<Level, BeamFnApi.LogEntry.Severity.Enum>builder()
-      .put(Level.SEVERE, BeamFnApi.LogEntry.Severity.Enum.ERROR)
-      .put(Level.WARNING, BeamFnApi.LogEntry.Severity.Enum.WARN)
-      .put(Level.INFO, BeamFnApi.LogEntry.Severity.Enum.INFO)
-      .put(Level.FINE, BeamFnApi.LogEntry.Severity.Enum.DEBUG)
-      .put(Level.FINEST, BeamFnApi.LogEntry.Severity.Enum.TRACE)
-      .build();
+          .put(Level.SEVERE, BeamFnApi.LogEntry.Severity.Enum.ERROR)
+          .put(Level.WARNING, BeamFnApi.LogEntry.Severity.Enum.WARN)
+          .put(Level.INFO, BeamFnApi.LogEntry.Severity.Enum.INFO)
+          .put(Level.FINE, BeamFnApi.LogEntry.Severity.Enum.DEBUG)
+          .put(Level.FINEST, BeamFnApi.LogEntry.Severity.Enum.TRACE)
+          .build();
 
   private static final ImmutableMap<SdkHarnessOptions.LogLevel, Level> LEVEL_CONFIGURATION =
       ImmutableMap.<SdkHarnessOptions.LogLevel, Level>builder()
@@ -83,8 +82,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
   private static final Formatter FORMATTER = new SimpleFormatter();
 
   /**
-   * The number of log messages that will be buffered. Assuming log messages are at most 1 KiB,
-   * this represents a buffer of about 10 MiBs.
+   * The number of log messages that will be buffered. Assuming log messages are at most 1 KiB, this
+   * represents a buffer of about 10 MiBs.
    */
   private static final int MAX_BUFFERED_LOG_ENTRY_COUNT = 10_000;
 
@@ -117,7 +116,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     logManager.reset();
     Logger rootLogger = logManager.getLogger(ROOT_LOGGER_NAME);
     for (Handler handler : rootLogger.getHandlers()) {
-      //rootLogger.removeHandler(handler);
+      rootLogger.removeHandler(handler);
     }
 
     // Use the passed in logging options to configure the various logger levels.
@@ -128,7 +127,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
     if (loggingOptions.getSdkHarnessLogLevelOverrides() != null) {
       for (Map.Entry<String, SdkHarnessOptions.LogLevel> loggerOverride :
-        loggingOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
+          loggingOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
         Logger logger = Logger.getLogger(loggerOverride.getKey());
         logger.setLevel(LEVEL_CONFIGURATION.get(loggerOverride.getValue()));
         configuredLoggers.add(logger);
@@ -139,8 +138,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     inboundObserver = new LogControlObserver();
     logRecordHandler = new LogRecordHandler(options.as(GcsOptions.class).getExecutorService());
     logRecordHandler.setLevel(Level.ALL);
-    outboundObserver =
-        (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
+    outboundObserver = (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
     rootLogger.addHandler(logRecordHandler);
   }
 
@@ -180,8 +178,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
         new LinkedBlockingDeque<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
     private final Future<?> bufferedLogWriter;
     /**
-     * Safe object publishing is not required since we only care if the thread that set
-     * this field is equal to the thread also attempting to add a log entry.
+     * Safe object publishing is not required since we only care if the thread that set this field
+     * is equal to the thread also attempting to add a log entry.
      */
     private Thread logEntryHandlerThread;
 
@@ -195,14 +193,16 @@ public class BeamFnLoggingClient implements AutoCloseable {
       if (severity == null) {
         return;
       }
-      BeamFnApi.LogEntry.Builder builder = BeamFnApi.LogEntry.newBuilder()
-          .setSeverity(severity)
-          .setLogLocation(record.getLoggerName())
-          .setMessage(FORMATTER.formatMessage(record))
-          .setThread(Integer.toString(record.getThreadID()))
-          .setTimestamp(Timestamp.newBuilder()
-              .setSeconds(record.getMillis() / 1000)
-              .setNanos((int) (record.getMillis() % 1000) * 1_000_000));
+      BeamFnApi.LogEntry.Builder builder =
+          BeamFnApi.LogEntry.newBuilder()
+              .setSeverity(severity)
+              .setLogLocation(record.getLoggerName())
+              .setMessage(FORMATTER.formatMessage(record))
+              .setThread(Integer.toString(record.getThreadID()))
+              .setTimestamp(
+                  Timestamp.newBuilder()
+                      .setSeconds(record.getMillis() / 1000)
+                      .setNanos((int) (record.getMillis() % 1000) * 1_000_000));
       if (record.getThrown() != null) {
         builder.setTrace(getStackTraceAsString(record.getThrown()));
       }
@@ -229,8 +229,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
       // this thread will get stuck.
       logEntryHandlerThread = Thread.currentThread();
 
-      List<BeamFnApi.LogEntry> additionalLogEntries =
-          new ArrayList<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
+      List<BeamFnApi.LogEntry> additionalLogEntries = new ArrayList<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
       Throwable thrown = null;
       try {
         // As long as we haven't yet terminated, then attempt
@@ -278,8 +277,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
 
     @Override
-    public void flush() {
-    }
+    public void flush() {}
 
     @Override
     public synchronized void close() {
@@ -315,8 +313,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
 
     @Override
-    public void onNext(BeamFnApi.LogControl value) {
-    }
+    public void onNext(BeamFnApi.LogControl value) {}
 
     @Override
     public void onError(Throwable t) {
@@ -327,6 +324,5 @@ public class BeamFnLoggingClient implements AutoCloseable {
     public void onCompleted() {
       inboundObserverCompletion.complete(COMPLETED);
     }
-
   }
 }

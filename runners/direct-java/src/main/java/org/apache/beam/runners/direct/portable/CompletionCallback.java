@@ -19,15 +19,10 @@ package org.apache.beam.runners.direct.portable;
 
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 
-/**
- * A callback for completing a bundle of input.
- */
+/** A callback for completing a bundle of input. */
 interface CompletionCallback {
-  /**
-   * Handle a successful result, returning the committed outputs of the result.
-   */
-  CommittedResult handleResult(
-      CommittedBundle<?> inputBundle, TransformResult<?> result);
+  /** Handle a successful result, returning the committed outputs of the result. */
+  CommittedResult handleResult(CommittedBundle<?> inputBundle, TransformResult<?> result);
 
   /**
    * Handle an input bundle that did not require processing.
@@ -36,14 +31,12 @@ interface CompletionCallback {
    */
   void handleEmpty(PTransformNode transform);
 
-  /**
-   * Handle a result that terminated abnormally due to the provided {@link Exception}.
-   */
+  /** Handle a result that terminated abnormally due to the provided {@link Exception}. */
   void handleException(CommittedBundle<?> inputBundle, Exception t);
 
   /**
    * Handle a result that terminated abnormally due to the provided {@link Error}. The pipeline
    * should be shut down, and the Error propagated.
-  */
+   */
   void handleError(Error err);
 }

@@ -19,7 +19,7 @@ package org.apache.beam.runners.fnexecution.control;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import io.grpc.stub.StreamObserver;
+import com.google.common.base.Strings;
 import java.util.ArrayList;
 import java.util.Collection;
 import javax.annotation.concurrent.GuardedBy;
@@ -27,6 +27,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +75,12 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   @Override
   public StreamObserver<BeamFnApi.InstructionResponse> control(
       StreamObserver<BeamFnApi.InstructionRequest> requestObserver) {
-    String workerId = headerAccessor.getSdkWorkerId();
+    final String workerId = headerAccessor.getSdkWorkerId();
+    if (Strings.isNullOrEmpty(workerId)) {
+      // TODO(BEAM-4149): Enforce proper worker id.
+      LOGGER.warn("No worker_id header provided in control request");
+    }
+
     LOGGER.info("Beam Fn Control client connected with id {}", workerId);
     FnApiControlClient newClient = FnApiControlClient.forRequestObserver(workerId, requestObserver);
     try {

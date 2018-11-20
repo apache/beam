@@ -20,16 +20,58 @@ package org.apache.beam.sdk.extensions.sql.jdbc;
 import static org.apache.beam.sdk.extensions.sql.impl.JdbcDriver.CONNECT_STRING_PREFIX;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import javax.annotation.Nullable;
 import sqlline.SqlLine;
+import sqlline.SqlLine.Status;
 
 /** {@link BeamSqlLine} provides default arguments to SqlLine. */
 public class BeamSqlLine {
-  public static void main(String[] args) throws IOException {
-    String[] args2 = new String[2 + args.length];
-    args2[0] = "-u";
-    args2[1] = CONNECT_STRING_PREFIX;
-    System.arraycopy(args, 0, args2, 2, args.length);
 
-    SqlLine.main(args2);
+  private static final String NICKNAME = "BeamSQL";
+
+  public static void main(String[] args) throws IOException {
+    runSqlLine(args, null, System.out, System.err);
+  }
+
+  private static String[] checkConnectionArgs(String[] args) {
+    List<String> argsList = new ArrayList<>(Arrays.asList(args));
+
+    if (!argsList.contains("-nn")) {
+      argsList.add("-nn");
+      argsList.add(NICKNAME);
+    }
+
+    if (!argsList.contains("-u")) {
+      argsList.add("-u");
+      argsList.add(CONNECT_STRING_PREFIX);
+    }
+
+    return argsList.toArray(new String[argsList.size()]);
+  }
+
+  static Status runSqlLine(
+      String[] args,
+      InputStream inputStream,
+      @Nullable OutputStream outputStream,
+      @Nullable OutputStream errorStream)
+      throws IOException {
+    String[] modifiedArgs = checkConnectionArgs(args);
+    SqlLine sqlLine = new SqlLine();
+
+    if (outputStream != null) {
+      sqlLine.setOutputStream(new PrintStream(outputStream));
+    }
+
+    if (errorStream != null) {
+      sqlLine.setErrorStream(new PrintStream(errorStream));
+    }
+
+    return sqlLine.begin(modifiedArgs, inputStream, true);
   }
 }

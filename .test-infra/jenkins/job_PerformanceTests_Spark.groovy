@@ -16,25 +16,22 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 // This job runs the Beam performance tests on PerfKit Benchmarker.
 job('beam_PerformanceTests_Spark'){
     // Set default Beam job properties.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
-    common_job_properties.enablePhraseTriggeringFromPullRequest(
+    commonJobProperties.setTopLevelMainJobProperties(delegate)
+    commonJobProperties.enablePhraseTriggeringFromPullRequest(
             delegate,
             'Spark Performance Test',
             'Run Spark Performance Test')
 
     // Run job in postcommit every 6 hours, don't trigger every push, and
     // don't email individual committers.
-    common_job_properties.setPostCommit(
+    commonJobProperties.setAutoJob(
         delegate,
-        '0 */6 * * *',
-        false,
-        'commits@beam.apache.org',
-        false)
+        'H */6 * * *')
 
     def argMap = [
       benchmarks: 'dpb_wordcount_benchmark',
@@ -45,5 +42,5 @@ job('beam_PerformanceTests_Spark'){
       bigquery_table: 'beam_performance.spark_pkp_results'
     ]
 
-    common_job_properties.buildPerformanceTest(delegate, argMap)
+    commonJobProperties.buildPerformanceTest(delegate, argMap)
 }

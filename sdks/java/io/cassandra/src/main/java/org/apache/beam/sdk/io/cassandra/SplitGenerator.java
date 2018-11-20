@@ -68,8 +68,7 @@ final class SplitGenerator {
   /**
    * Given big0 properly ordered list of tokens, compute at least {@code totalSplitCount} splits.
    * Each split can contain several token ranges in order to reduce the overhead of vnodes.
-   * Currently, token range grouping is not smart and doesn't check if they share the same
-   * replicas.
+   * Currently, token range grouping is not smart and doesn't check if they share the same replicas.
    * This is planned to change once Beam is able to handle collocation with the Cassandra nodes.
    *
    * @param totalSplitCount requested total amount of splits. This function may generate more

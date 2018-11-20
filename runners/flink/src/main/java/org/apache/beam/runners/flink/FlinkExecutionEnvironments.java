@@ -17,10 +17,18 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
 import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -36,7 +44,14 @@ public class FlinkExecutionEnvironments {
    * If the submitted job is a batch processing job, this method creates the adequate Flink {@link
    * org.apache.flink.api.java.ExecutionEnvironment} depending on the user-specified options.
    */
-  public static ExecutionEnvironment createBatchExecutionEnvironment(FlinkPipelineOptions options) {
+  public static ExecutionEnvironment createBatchExecutionEnvironment(
+      FlinkPipelineOptions options, List<String> filesToStage) {
+    return createBatchExecutionEnvironment(options, filesToStage, null);
+  }
+
+  @VisibleForTesting
+  static ExecutionEnvironment createBatchExecutionEnvironment(
+      FlinkPipelineOptions options, List<String> filesToStage, @Nullable String confDir) {
 
     LOG.info("Creating a Batch Execution Environment.");
 
@@ -51,31 +66,44 @@ public class FlinkExecutionEnvironments {
     } else if ("[auto]".equals(masterUrl)) {
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
     } else if (masterUrl.matches(".*:\\d*")) {
-      String[] parts = masterUrl.split(":");
-      List<String> stagingFiles = options.getFilesToStage();
+      List<String> parts = Splitter.on(':').splitToList(masterUrl);
       flinkBatchEnv =
           ExecutionEnvironment.createRemoteEnvironment(
-              parts[0],
-              Integer.parseInt(parts[1]),
-              stagingFiles.toArray(new String[stagingFiles.size()]));
+              parts.get(0),
+              Integer.parseInt(parts.get(1)),
+              filesToStage.toArray(new String[filesToStage.size()]));
     } else {
       LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
     }
 
+    // Set the execution more for data exchange.
+    flinkBatchEnv.getConfig().setExecutionMode(options.getExecutionModeForBatch());
+
     // set the correct parallelism.
     if (options.getParallelism() != -1 && !(flinkBatchEnv instanceof CollectionEnvironment)) {
       flinkBatchEnv.setParallelism(options.getParallelism());
     }
+    // Set the correct parallelism, required by UnboundedSourceWrapper to generate consistent splits.
+    final int parallelism;
+    if (flinkBatchEnv instanceof CollectionEnvironment) {
+      parallelism = 1;
+    } else {
+      parallelism =
+          determineParallelism(options.getParallelism(), flinkBatchEnv.getParallelism(), confDir);
+    }
 
+    flinkBatchEnv.setParallelism(parallelism);
     // set parallelism in the options (required by some execution code)
-    options.setParallelism(flinkBatchEnv.getParallelism());
+    options.setParallelism(parallelism);
 
     if (options.getObjectReuse()) {
       flinkBatchEnv.getConfig().enableObjectReuse();
     } else {
       flinkBatchEnv.getConfig().disableObjectReuse();
     }
+
+    applyLatencyTrackingInterval(flinkBatchEnv.getConfig(), options);
 
     return flinkBatchEnv;
   }
@@ -86,7 +114,13 @@ public class FlinkExecutionEnvironments {
    * user-specified options.
    */
   public static StreamExecutionEnvironment createStreamExecutionEnvironment(
-      FlinkPipelineOptions options) {
+      FlinkPipelineOptions options, List<String> filesToStage) {
+    return createStreamExecutionEnvironment(options, filesToStage, null);
+  }
+
+  @VisibleForTesting
+  static StreamExecutionEnvironment createStreamExecutionEnvironment(
+      FlinkPipelineOptions options, List<String> filesToStage, @Nullable String flinkConfigDir) {
 
     LOG.info("Creating a Streaming Environment.");
 
@@ -99,25 +133,27 @@ public class FlinkExecutionEnvironments {
     } else if ("[auto]".equals(masterUrl)) {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
     } else if (masterUrl.matches(".*:\\d*")) {
-      String[] parts = masterUrl.split(":");
-      List<String> stagingFiles = options.getFilesToStage();
+      List<String> parts = Splitter.on(':').splitToList(masterUrl);
+      Configuration clientConfig = new Configuration();
+      clientConfig.setInteger(RestOptions.PORT, Integer.parseInt(parts.get(1)));
       flinkStreamEnv =
           StreamExecutionEnvironment.createRemoteEnvironment(
-              parts[0],
-              Integer.parseInt(parts[1]),
-              stagingFiles.toArray(new String[stagingFiles.size()]));
+              parts.get(0),
+              Integer.parseInt(parts.get(1)),
+              clientConfig,
+              filesToStage.toArray(new String[filesToStage.size()]));
     } else {
       LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
     }
 
-    // set the correct parallelism.
-    if (options.getParallelism() != -1) {
-      flinkStreamEnv.setParallelism(options.getParallelism());
-    }
-
+    // Set the parallelism, required by UnboundedSourceWrapper to generate consistent splits.
+    final int parallelism =
+        determineParallelism(
+            options.getParallelism(), flinkStreamEnv.getParallelism(), flinkConfigDir);
+    flinkStreamEnv.setParallelism(parallelism);
     // set parallelism in the options (required by some execution code)
-    options.setParallelism(flinkStreamEnv.getParallelism());
+    options.setParallelism(parallelism);
 
     if (options.getObjectReuse()) {
       flinkStreamEnv.getConfig().enableObjectReuse();
@@ -148,9 +184,11 @@ public class FlinkExecutionEnvironments {
         throw new IllegalArgumentException("The checkpoint interval must be positive");
       }
       flinkStreamEnv.enableCheckpointing(checkpointInterval, options.getCheckpointingMode());
-      flinkStreamEnv
-          .getCheckpointConfig()
-          .setCheckpointTimeout(options.getCheckpointTimeoutMillis());
+      if (options.getCheckpointTimeoutMillis() != -1) {
+        flinkStreamEnv
+            .getCheckpointConfig()
+            .setCheckpointTimeout(options.getCheckpointTimeoutMillis());
+      }
       boolean externalizedCheckpoint = options.isExternalizedCheckpointsEnabled();
       boolean retainOnCancellation = options.getRetainExternalizedCheckpointsOnCancellation();
       if (externalizedCheckpoint) {
@@ -161,14 +199,66 @@ public class FlinkExecutionEnvironments {
                     ? ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
                     : ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION);
       }
+
+      long minPauseBetweenCheckpoints = options.getMinPauseBetweenCheckpoints();
+      if (minPauseBetweenCheckpoints != -1) {
+        flinkStreamEnv
+            .getCheckpointConfig()
+            .setMinPauseBetweenCheckpoints(minPauseBetweenCheckpoints);
+      }
+    } else {
+      // https://issues.apache.org/jira/browse/FLINK-2491
+      // Checkpointing is disabled, we can allow shutting down sources when they're done
+      options.setShutdownSourcesOnFinalWatermark(true);
+    }
+
+    applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
+
+    if (options.getAutoWatermarkInterval() != null) {
+      flinkStreamEnv.getConfig().setAutoWatermarkInterval(options.getAutoWatermarkInterval());
     }
 
     // State backend
-    final AbstractStateBackend stateBackend = options.getStateBackend();
+    final StateBackend stateBackend = options.getStateBackend();
     if (stateBackend != null) {
       flinkStreamEnv.setStateBackend(stateBackend);
     }
 
     return flinkStreamEnv;
+  }
+
+  private static int determineParallelism(
+      final int pipelineOptionsParallelism,
+      final int envParallelism,
+      @Nullable String flinkConfDir) {
+    if (pipelineOptionsParallelism > 0) {
+      return pipelineOptionsParallelism;
+    }
+    if (envParallelism > 0) {
+      // If the user supplies a parallelism on the command-line, this is set on the execution environment during creation
+      return envParallelism;
+    }
+
+    final Configuration configuration;
+    if (flinkConfDir == null) {
+      configuration = GlobalConfiguration.loadConfiguration();
+    } else {
+      configuration = GlobalConfiguration.loadConfiguration(flinkConfDir);
+    }
+    final int flinkConfigParallelism =
+        configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM.key(), -1);
+    if (flinkConfigParallelism > 0) {
+      return flinkConfigParallelism;
+    }
+    LOG.warn(
+        "No default parallelism could be found. Defaulting to parallelism 1. "
+            + "Please set an explicit parallelism with --parallelism");
+    return 1;
+  }
+
+  private static void applyLatencyTrackingInterval(
+      ExecutionConfig config, FlinkPipelineOptions options) {
+    long latencyTrackingInterval = options.getLatencyTrackingInterval();
+    config.setLatencyTrackingInterval(latencyTrackingInterval);
   }
 }

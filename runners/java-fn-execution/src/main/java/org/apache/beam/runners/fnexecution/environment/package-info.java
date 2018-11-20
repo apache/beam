@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Classes used to instantiate and manage SDK harness environments.
- */
+/** Classes used to instantiate and manage SDK harness environments. */
 package org.apache.beam.runners.fnexecution.environment;

@@ -17,7 +17,5 @@
  */
 package org.apache.beam.runners.spark;
 
-/**
- * Category tag for tests that validate Spark checkpoint recovery.
- */
+/** Category tag for tests that validate Spark checkpoint recovery. */
 public interface UsesCheckpointRecovery {}

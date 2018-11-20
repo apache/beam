@@ -15,34 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.stream;
 
-import io.grpc.stub.StreamObserver;
 import java.util.List;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 
 /**
  * Uses {@link PipelineOptions} to configure which underlying {@link StreamObserver} implementation
  * to use in the java SDK harness.
  */
 public abstract class HarnessStreamObserverFactories {
-  public static StreamObserverFactory fromOptions(
-      PipelineOptions options) {
+  public static OutboundObserverFactory fromOptions(PipelineOptions options) {
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     if (experiments != null && experiments.contains("beam_fn_api_buffered_stream")) {
       int bufferSize = getBufferSize(experiments);
       if (bufferSize > 0) {
-        return StreamObserverFactory.buffered(
+        return OutboundObserverFactory.clientBuffered(
             options.as(GcsOptions.class).getExecutorService(), bufferSize);
       }
-      return StreamObserverFactory.buffered(
+      return OutboundObserverFactory.clientBuffered(
           options.as(GcsOptions.class).getExecutorService());
     }
-    return StreamObserverFactory.direct();
+    return OutboundObserverFactory.clientDirect();
   }
 
   private static int getBufferSize(List<String> experiments) {

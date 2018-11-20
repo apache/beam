@@ -62,9 +62,9 @@ public class TFRecordIO {
   public static final Coder<byte[]> DEFAULT_BYTE_ARRAY_CODER = ByteArrayCoder.of();
 
   /**
-   * A {@link PTransform} that reads from a TFRecord file (or multiple TFRecord
-   * files matching a pattern) and returns a {@link PCollection} containing
-   * the decoding of each of the records of the TFRecord file(s) as a byte array.
+   * A {@link PTransform} that reads from a TFRecord file (or multiple TFRecord files matching a
+   * pattern) and returns a {@link PCollection} containing the decoding of each of the records of
+   * the TFRecord file(s) as a byte array.
    */
   public static Read read() {
     return new AutoValue_TFRecordIO_Read.Builder()
@@ -74,9 +74,9 @@ public class TFRecordIO {
   }
 
   /**
-   * A {@link PTransform} that writes a {@link PCollection} to TFRecord file (or
-   * multiple TFRecord files matching a sharding pattern), with each
-   * element of the input collection encoded into its own record.
+   * A {@link PTransform} that writes a {@link PCollection} to TFRecord file (or multiple TFRecord
+   * files matching a sharding pattern), with each element of the input collection encoded into its
+   * own record.
    */
   public static Write write() {
     return new AutoValue_TFRecordIO_Write.Builder()
@@ -110,38 +110,37 @@ public class TFRecordIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
+
       abstract Builder setValidate(boolean validate);
+
       abstract Builder setCompression(Compression compression);
 
       abstract Read build();
     }
 
     /**
-     * Returns a transform for reading TFRecord files that reads from the file(s)
-     * with the given filename or filename pattern. This can be a local path (if running locally),
-     * or a Google Cloud Storage filename or filename pattern of the form
-     * {@code "gs://<bucket>/<filepath>"} (if running locally or using remote
-     * execution). Standard <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html"
-     * >Java Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
+     * Returns a transform for reading TFRecord files that reads from the file(s) with the given
+     * filename or filename pattern. This can be a local path (if running locally), or a Google
+     * Cloud Storage filename or filename pattern of the form {@code "gs://<bucket>/<filepath>"} (if
+     * running locally or using remote execution). Standard <a
+     * href="http://docs.oracle.com/javase/tutorial/essential/io/find.html" >Java Filesystem glob
+     * patterns</a> ("*", "?", "[..]") are supported.
      */
     public Read from(String filepattern) {
       return from(StaticValueProvider.of(filepattern));
     }
 
-    /**
-     * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
-     */
+    /** Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}. */
     public Read from(ValueProvider<String> filepattern) {
       return toBuilder().setFilepattern(filepattern).build();
     }
 
     /**
-     * Returns a transform for reading TFRecord files that has GCS path validation on
-     * pipeline creation disabled.
+     * Returns a transform for reading TFRecord files that has GCS path validation on pipeline
+     * creation disabled.
      *
-     * <p>This can be useful in the case where the GCS input does not
-     * exist at the pipeline creation time, but is expected to be
-     * available at execution time.
+     * <p>This can be useful in the case where the GCS input does not exist at the pipeline creation
+     * time, but is expected to be available at execution time.
      */
     public Read withoutValidation() {
       return toBuilder().setValidate(false).build();
@@ -199,12 +198,13 @@ public class TFRecordIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add(DisplayData.item("compressionType", getCompression().toString())
-              .withLabel("Compression Type"))
-          .addIfNotDefault(DisplayData.item("validation", getValidate())
-              .withLabel("Validation Enabled"), true)
-          .addIfNotNull(DisplayData.item("filePattern", getFilepattern())
-              .withLabel("File Pattern"));
+          .add(
+              DisplayData.item("compressionType", getCompression().toString())
+                  .withLabel("Compression Type"))
+          .addIfNotDefault(
+              DisplayData.item("validation", getValidate()).withLabel("Validation Enabled"), true)
+          .addIfNotNull(
+              DisplayData.item("filePattern", getFilepattern()).withLabel("File Pattern"));
     }
   }
 
@@ -214,16 +214,19 @@ public class TFRecordIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
     /** The directory to which files will be written. */
-    @Nullable abstract ValueProvider<ResourceId> getOutputPrefix();
+    @Nullable
+    abstract ValueProvider<ResourceId> getOutputPrefix();
 
     /** The suffix of each file written, combined with prefix and shardTemplate. */
-    @Nullable abstract String getFilenameSuffix();
+    @Nullable
+    abstract String getFilenameSuffix();
 
     /** Requested number of shards. 0 for automatic. */
     abstract int getNumShards();
 
     /** The shard template of each file written, combined with prefix and suffix. */
-    @Nullable abstract String getShardTemplate();
+    @Nullable
+    abstract String getShardTemplate();
 
     /** Option to indicate the output sink's compression type. Default is NONE. */
     abstract Compression getCompression();
@@ -246,12 +249,11 @@ public class TFRecordIO {
     }
 
     /**
-     * Writes TFRecord file(s) with the given output prefix. The {@code prefix} will be used as a
-     * to generate a {@link ResourceId} using any supported {@link FileSystem}.
+     * Writes TFRecord file(s) with the given output prefix. The {@code prefix} will be used as a to
+     * generate a {@link ResourceId} using any supported {@link FileSystem}.
      *
-     * <p>In addition to their prefix, created files will have a shard identifier (see
-     * {@link #withNumShards(int)}), and end in a common suffix, if given by
-     * {@link #withSuffix(String)}.
+     * <p>In addition to their prefix, created files will have a shard identifier (see {@link
+     * #withNumShards(int)}), and end in a common suffix, if given by {@link #withSuffix(String)}.
      *
      * <p>For more information on filenames, see {@link DefaultFilenamePolicy}.
      */
@@ -262,9 +264,8 @@ public class TFRecordIO {
     /**
      * Writes TFRecord file(s) with a prefix given by the specified resource.
      *
-     * <p>In addition to their prefix, created files will have a shard identifier (see
-     * {@link #withNumShards(int)}), and end in a common suffix, if given by
-     * {@link #withSuffix(String)}.
+     * <p>In addition to their prefix, created files will have a shard identifier (see {@link
+     * #withNumShards(int)}), and end in a common suffix, if given by {@link #withSuffix(String)}.
      *
      * <p>For more information on filenames, see {@link DefaultFilenamePolicy}.
      */
@@ -273,9 +274,7 @@ public class TFRecordIO {
       return toResource(StaticValueProvider.of(outputResource));
     }
 
-    /**
-     * Like {@link #to(ResourceId)}.
-     */
+    /** Like {@link #to(ResourceId)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write toResource(ValueProvider<ResourceId> outputResource) {
       return toBuilder().setOutputPrefix(outputResource).build();
@@ -293,12 +292,10 @@ public class TFRecordIO {
     /**
      * Writes to the provided number of shards.
      *
-     * <p>Constraining the number of shards is likely to reduce
-     * the performance of a pipeline. Setting this value is not recommended
-     * unless you require a specific number of output files.
+     * <p>Constraining the number of shards is likely to reduce the performance of a pipeline.
+     * Setting this value is not recommended unless you require a specific number of output files.
      *
-     * @param numShards the number of shards to use, or 0 to let the system
-     *                  decide.
+     * @param numShards the number of shards to use, or 0 to let the system decide.
      * @see ShardNameTemplate
      */
     public Write withNumShards(int numShards) {
@@ -318,12 +315,10 @@ public class TFRecordIO {
     /**
      * Forces a single file as output.
      *
-     * <p>Constraining the number of shards is likely to reduce
-     * the performance of a pipeline. Using this setting is not recommended
-     * unless you truly require a single output file.
+     * <p>Constraining the number of shards is likely to reduce the performance of a pipeline. Using
+     * this setting is not recommended unless you truly require a single output file.
      *
-     * <p>This is a shortcut for
-     * {@code .withNumShards(1).withShardNameTemplate("")}
+     * <p>This is a shortcut for {@code .withNumShards(1).withShardNameTemplate("")}
      */
     public Write withoutSharding() {
       return withNumShards(1).withShardNameTemplate("");
@@ -347,15 +342,13 @@ public class TFRecordIO {
 
     @Override
     public PDone expand(PCollection<byte[]> input) {
-      checkState(getOutputPrefix() != null,
+      checkState(
+          getOutputPrefix() != null,
           "need to set the output prefix of a TFRecordIO.Write transform");
       WriteFiles<byte[], Void, byte[]> write =
           WriteFiles.to(
               new TFRecordSink(
-                  getOutputPrefix(),
-                  getShardTemplate(),
-                  getFilenameSuffix(),
-                  getCompression()));
+                  getOutputPrefix(), getShardTemplate(), getFilenameSuffix(), getCompression()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -367,16 +360,17 @@ public class TFRecordIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add(DisplayData.item("filePrefix", getOutputPrefix())
-              .withLabel("Output File Prefix"))
-          .addIfNotNull(DisplayData.item("fileSuffix", getFilenameSuffix())
-              .withLabel("Output File Suffix"))
-          .addIfNotNull(DisplayData.item("shardNameTemplate", getShardTemplate())
+          .add(DisplayData.item("filePrefix", getOutputPrefix()).withLabel("Output File Prefix"))
+          .addIfNotNull(
+              DisplayData.item("fileSuffix", getFilenameSuffix()).withLabel("Output File Suffix"))
+          .addIfNotNull(
+              DisplayData.item("shardNameTemplate", getShardTemplate())
                   .withLabel("Output Shard Name Template"))
-          .addIfNotDefault(DisplayData.item("numShards", getNumShards())
-              .withLabel("Maximum Output Shards"), 0)
-          .add(DisplayData.item("compressionType", getCompression().toString())
-              .withLabel("Compression Type"));
+          .addIfNotDefault(
+              DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"), 0)
+          .add(
+              DisplayData.item("compressionType", getCompression().toString())
+                  .withLabel("Compression Type"));
     }
   }
 
@@ -434,9 +428,7 @@ public class TFRecordIO {
   /** Disable construction of utility class. */
   private TFRecordIO() {}
 
-  /**
-   * A {@link FileBasedSource} which can decode records in TFRecord files.
-   */
+  /** A {@link FileBasedSource} which can decode records in TFRecord files. */
   @VisibleForTesting
   static class TFRecordSource extends FileBasedSource<byte[]> {
     @VisibleForTesting
@@ -450,9 +442,7 @@ public class TFRecordIO {
 
     @Override
     protected FileBasedSource<byte[]> createForSubrangeOfFile(
-        Metadata metadata,
-        long start,
-        long end) {
+        Metadata metadata, long start, long end) {
       checkArgument(start == 0, "TFRecordSource is not splittable");
       return new TFRecordSource(metadata, start, end);
     }
@@ -474,8 +464,8 @@ public class TFRecordIO {
     }
 
     /**
-     * A {@link org.apache.beam.sdk.io.FileBasedSource.FileBasedReader FileBasedReader}
-     * which can decode records in TFRecord files.
+     * A {@link org.apache.beam.sdk.io.FileBasedSource.FileBasedReader FileBasedReader} which can
+     * decode records in TFRecord files.
      *
      * <p>See {@link TFRecordIO.TFRecordSource} for further details.
      */
@@ -595,8 +585,8 @@ public class TFRecordIO {
   //////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Codec for TFRecords file format.
-   * See https://www.tensorflow.org/api_guides/python/python_io#TFRecords_Format_Details
+   * Codec for TFRecords file format. See
+   * https://www.tensorflow.org/api_guides/python/python_io#TFRecords_Format_Details
    */
   private static class TFRecordCodec {
     private static final int HEADER_LEN = (Long.SIZE + Integer.SIZE) / Byte.SIZE;
@@ -628,27 +618,40 @@ public class TFRecordIO {
       if (headerBytes <= 0) {
         return null;
       }
-      checkState(
-          headerBytes == HEADER_LEN,
-          "Not a valid TFRecord. Fewer than 12 bytes.");
+      checkState(headerBytes == HEADER_LEN, "Not a valid TFRecord. Fewer than 12 bytes.");
+
       header.rewind();
       long length = header.getLong();
+      long lengthHash = hashLong(length);
       int maskedCrc32OfLength = header.getInt();
-      checkState(
-          hashLong(length) == maskedCrc32OfLength,
-          "Mismatch of length mask");
+      if (lengthHash != maskedCrc32OfLength) {
+        throw new IOException(
+            String.format(
+                "Mistmatch of length mask when reading a record. Expected %d but received %d.",
+                maskedCrc32OfLength, lengthHash));
+      }
 
       ByteBuffer data = ByteBuffer.allocate((int) length);
-      checkState(inChannel.read(data) == length, "Invalid data");
+      while (data.hasRemaining() && inChannel.read(data) >= 0) {}
+      if (data.hasRemaining()) {
+        throw new IOException(
+            String.format(
+                "EOF while reading record of length %d. Read only %d bytes. Input might be truncated.",
+                length, data.position()));
+      }
 
       footer.clear();
       inChannel.read(footer);
       footer.rewind();
-      int maskedCrc32OfData = footer.getInt();
 
-      checkState(
-          hashBytes(data.array()) == maskedCrc32OfData,
-          "Mismatch of data mask");
+      int maskedCrc32OfData = footer.getInt();
+      int dataHash = hashBytes(data.array());
+      if (dataHash != maskedCrc32OfData) {
+        throw new IOException(
+            String.format(
+                "Mistmatch of data mask when reading a record. Expected %d but received %d.",
+                maskedCrc32OfData, dataHash));
+      }
       return data.array();
     }
 
@@ -669,5 +672,4 @@ public class TFRecordIO {
       outChannel.write(footer);
     }
   }
-
 }

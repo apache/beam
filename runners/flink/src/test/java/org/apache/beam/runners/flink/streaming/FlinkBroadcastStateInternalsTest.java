@@ -28,8 +28,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link FlinkBroadcastStateInternals}. This is based on the tests for
- * {@code StateInternalsTest}.
+ * Tests for {@link FlinkBroadcastStateInternals}. This is based on the tests for {@code
+ * StateInternalsTest}.
  *
  * <p>Just test value, bag and combining.
  */
@@ -91,5 +91,4 @@ public class FlinkBroadcastStateInternalsTest extends StateInternalsTest {
   @Override
   @Ignore
   public void testMapReadable() {}
-
 }

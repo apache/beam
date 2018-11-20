@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -83,72 +83,59 @@ import org.slf4j.LoggerFactory;
  * Users should use {@link PubsubIO#read} instead.
  *
  * <p>A PTransform which streams messages from Pubsub.
+ *
  * <ul>
- * <li>The underlying implementation in an {@link UnboundedSource} which receives messages
- * in batches and hands them out one at a time.
- * <li>The watermark (either in Pubsub processing time or custom timestamp time) is estimated
- * by keeping track of the minimum of the last minutes worth of messages. This assumes Pubsub
- * delivers the oldest (in Pubsub processing time) available message at least once a minute,
- * and that custom timestamps are 'mostly' monotonic with Pubsub processing time. Unfortunately
- * both of those assumptions are fragile. Thus the estimated watermark may get ahead of
- * the 'true' watermark and cause some messages to be late.
- * <li>Checkpoints are used both to ACK received messages back to Pubsub (so that they may
- * be retired on the Pubsub end), and to NACK already consumed messages should a checkpoint
- * need to be restored (so that Pubsub will resend those messages promptly).
- * <li>The backlog is determined by each reader using the messages which have been pulled from
- * Pubsub but not yet consumed downstream. The backlog does not take account of any messages queued
- * by Pubsub for the subscription. Unfortunately there is currently no API to determine
- * the size of the Pubsub queue's backlog.
- * <li>The subscription must already exist.
- * <li>The subscription timeout is read whenever a reader is started. However it is not
- * checked thereafter despite the timeout being user-changeable on-the-fly.
- * <li>We log vital stats every 30 seconds.
- * <li>Though some background threads may be used by the underlying transport all Pubsub calls
- * are blocking. We rely on the underlying runner to allow multiple
- * {@link UnboundedSource.UnboundedReader} instances to execute concurrently and thus hide latency.
+ *   <li>The underlying implementation in an {@link UnboundedSource} which receives messages in
+ *       batches and hands them out one at a time.
+ *   <li>The watermark (either in Pubsub processing time or custom timestamp time) is estimated by
+ *       keeping track of the minimum of the last minutes worth of messages. This assumes Pubsub
+ *       delivers the oldest (in Pubsub processing time) available message at least once a minute,
+ *       and that custom timestamps are 'mostly' monotonic with Pubsub processing time.
+ *       Unfortunately both of those assumptions are fragile. Thus the estimated watermark may get
+ *       ahead of the 'true' watermark and cause some messages to be late.
+ *   <li>Checkpoints are used both to ACK received messages back to Pubsub (so that they may be
+ *       retired on the Pubsub end), and to NACK already consumed messages should a checkpoint need
+ *       to be restored (so that Pubsub will resend those messages promptly).
+ *   <li>The backlog is determined by each reader using the messages which have been pulled from
+ *       Pubsub but not yet consumed downstream. The backlog does not take account of any messages
+ *       queued by Pubsub for the subscription. Unfortunately there is currently no API to determine
+ *       the size of the Pubsub queue's backlog.
+ *   <li>The subscription must already exist.
+ *   <li>The subscription timeout is read whenever a reader is started. However it is not checked
+ *       thereafter despite the timeout being user-changeable on-the-fly.
+ *   <li>We log vital stats every 30 seconds.
+ *   <li>Though some background threads may be used by the underlying transport all Pubsub calls are
+ *       blocking. We rely on the underlying runner to allow multiple {@link
+ *       UnboundedSource.UnboundedReader} instances to execute concurrently and thus hide latency.
  * </ul>
  */
 public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<PubsubMessage>> {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSource.class);
 
-  /**
-   * Default ACK timeout for created subscriptions.
-   */
+  /** Default ACK timeout for created subscriptions. */
   private static final int DEAULT_ACK_TIMEOUT_SEC = 60;
 
-  /**
-   * Coder for checkpoints.
-   */
+  /** Coder for checkpoints. */
   private static final PubsubCheckpointCoder<?> CHECKPOINT_CODER = PubsubCheckpointCoder.of();
 
-  /**
-   * Maximum number of messages per pull.
-   */
+  /** Maximum number of messages per pull. */
   private static final int PULL_BATCH_SIZE = 1000;
 
-  /**
-   * Maximum number of ACK ids per ACK or ACK extension call.
-   */
+  /** Maximum number of ACK ids per ACK or ACK extension call. */
   private static final int ACK_BATCH_SIZE = 2000;
 
-  /**
-   * Maximum number of messages in flight.
-   */
+  /** Maximum number of messages in flight. */
   private static final int MAX_IN_FLIGHT = 20000;
 
-  /**
-   * Timeout for round trip from receiving a message to finally ACKing it back to Pubsub.
-   */
+  /** Timeout for round trip from receiving a message to finally ACKing it back to Pubsub. */
   private static final Duration PROCESSING_TIMEOUT = Duration.standardMinutes(2);
 
-  /**
-   * Percentage of ack timeout by which to extend acks when they are near timeout.
-   */
+  /** Percentage of ack timeout by which to extend acks when they are near timeout. */
   private static final int ACK_EXTENSION_PCT = 50;
 
   /**
-   * Percentage of ack timeout we should use as a safety margin. We'll try to extend acks
-   * by this margin before the ack actually expires.
+   * Percentage of ack timeout we should use as a safety margin. We'll try to extend acks by this
+   * margin before the ack actually expires.
    */
   private static final int ACK_SAFETY_PCT = 20;
 
@@ -158,35 +145,25 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
    */
   private static final Duration ACK_TOO_LATE = Duration.standardSeconds(2);
 
-  /**
-   * Period of samples to determine watermark and other stats.
-   */
+  /** Period of samples to determine watermark and other stats. */
   private static final Duration SAMPLE_PERIOD = Duration.standardMinutes(1);
 
-  /**
-   * Period of updates to determine watermark and other stats.
-   */
+  /** Period of updates to determine watermark and other stats. */
   private static final Duration SAMPLE_UPDATE = Duration.standardSeconds(5);
 
-  /**
-   * Period for logging stats.
-   */
+  /** Period for logging stats. */
   private static final Duration LOG_PERIOD = Duration.standardSeconds(30);
 
-  /**
-   * Minimum number of unread messages required before considering updating watermark.
-   */
+  /** Minimum number of unread messages required before considering updating watermark. */
   private static final int MIN_WATERMARK_MESSAGES = 10;
 
   /**
-   * Minimum number of SAMPLE_UPDATE periods over which unread messages shoud be spread
-   * before considering updating watermark.
+   * Minimum number of SAMPLE_UPDATE periods over which unread messages shoud be spread before
+   * considering updating watermark.
    */
   private static final int MIN_WATERMARK_SPREAD = 2;
 
-  /**
-   * Additional sharding so that we can hide read message latency.
-   */
+  /** Additional sharding so that we can hide read message latency. */
   private static final int SCALE_OUT = 4;
 
   // TODO: Would prefer to use MinLongFn but it is a BinaryCombineFn<Long> rather
@@ -224,45 +201,38 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   // ================================================================================
 
   /**
-   * Which messages have been durably committed and thus can now be ACKed.
-   * Which messages have been read but not yet committed, in which case they should be NACKed if
-   * we need to restore.
+   * Which messages have been durably committed and thus can now be ACKed. Which messages have been
+   * read but not yet committed, in which case they should be NACKed if we need to restore.
    */
   @VisibleForTesting
   static class PubsubCheckpoint implements UnboundedSource.CheckpointMark {
     /**
-     * The {@link SubscriptionPath} to the subscription the reader is reading from. May be
-     * {@code null} if the {@link PubsubUnboundedSource} contains the subscription.
+     * The {@link SubscriptionPath} to the subscription the reader is reading from. May be {@code
+     * null} if the {@link PubsubUnboundedSource} contains the subscription.
      */
-    @VisibleForTesting
-    @Nullable String subscriptionPath;
+    @VisibleForTesting @Nullable String subscriptionPath;
 
     /**
-     * If the checkpoint is for persisting: the reader who's snapshotted state we are persisting.
-     * If the checkpoint is for restoring: {@literal null}.
-     * Not persisted in durable checkpoint.
-     * CAUTION: Between a checkpoint being taken and {@link #finalizeCheckpoint()} being called
-     * the 'true' active reader may have changed.
+     * If the checkpoint is for persisting: the reader who's snapshotted state we are persisting. If
+     * the checkpoint is for restoring: {@literal null}. Not persisted in durable checkpoint.
+     * CAUTION: Between a checkpoint being taken and {@link #finalizeCheckpoint()} being called the
+     * 'true' active reader may have changed.
      */
-    @Nullable
-    private PubsubReader reader;
+    @Nullable private PubsubReader reader;
 
     /**
      * If the checkpoint is for persisting: The ACK ids of messages which have been passed
-     * downstream since the last checkpoint.
-     * If the checkpoint is for restoring: {@literal null}.
+     * downstream since the last checkpoint. If the checkpoint is for restoring: {@literal null}.
      * Not persisted in durable checkpoint.
      */
-    @Nullable
-    private List<String> safeToAckIds;
+    @Nullable private List<String> safeToAckIds;
 
     /**
-     * If the checkpoint is for persisting: The ACK ids of messages which have been received
-     * from Pubsub but not yet passed downstream at the time of the snapshot.
-     * If the checkpoint is for restoring: Same, but recovered from durable storage.
+     * If the checkpoint is for persisting: The ACK ids of messages which have been received from
+     * Pubsub but not yet passed downstream at the time of the snapshot. If the checkpoint is for
+     * restoring: Same, but recovered from durable storage.
      */
-    @VisibleForTesting
-    final List<String> notYetReadIds;
+    @VisibleForTesting final List<String> notYetReadIds;
 
     public PubsubCheckpoint(
         @Nullable String subscriptionPath,
@@ -283,10 +253,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     /**
-     * BLOCKING
-     * All messages which have been passed downstream have now been durably committed.
-     * We can ACK them upstream.
-     * CAUTION: This may never be called.
+     * BLOCKING All messages which have been passed downstream have now been durably committed. We
+     * can ACK them upstream. CAUTION: This may never be called.
      */
     @Override
     public void finalizeCheckpoint() throws IOException {
@@ -314,17 +282,14 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         }
       } finally {
         int remainingInFlight = reader.numInFlightCheckpoints.decrementAndGet();
-        checkState(remainingInFlight >= 0,
-                   "Miscounted in-flight checkpoints");
+        checkState(remainingInFlight >= 0, "Miscounted in-flight checkpoints");
         reader.maybeCloseClient();
         reader = null;
         safeToAckIds = null;
       }
     }
 
-    /**
-     * Return current time according to {@code reader}.
-     */
+    /** Return current time according to {@code reader}. */
     private static long now(PubsubReader reader) {
       if (reader.outer.outer.clock == null) {
         return System.currentTimeMillis();
@@ -334,9 +299,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     /**
-     * BLOCKING
-     * NACK all messages which have been read from Pubsub but not passed downstream.
-     * This way Pubsub will send them again promptly.
+     * BLOCKING NACK all messages which have been read from Pubsub but not passed downstream. This
+     * way Pubsub will send them again promptly.
      */
     public void nackAll(PubsubReader reader) throws IOException {
       checkState(this.reader == null, "Cannot nackAll on persisting checkpoint");
@@ -370,11 +334,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private PubsubCheckpointCoder() {}
 
     @Override
-    public void encode(PubsubCheckpoint value, OutputStream outStream)
-        throws IOException {
-      SUBSCRIPTION_PATH_CODER.encode(
-          value.subscriptionPath,
-          outStream);
+    public void encode(PubsubCheckpoint value, OutputStream outStream) throws IOException {
+      SUBSCRIPTION_PATH_CODER.encode(value.subscriptionPath, outStream);
       LIST_CODER.encode(value.notYetReadIds, outStream);
     }
 
@@ -391,21 +352,17 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   // ================================================================================
 
   /**
-   * A reader which keeps track of which messages have been received from Pubsub
-   * but not yet consumed downstream and/or ACKed back to Pubsub.
+   * A reader which keeps track of which messages have been received from Pubsub but not yet
+   * consumed downstream and/or ACKed back to Pubsub.
    */
   @VisibleForTesting
   static class PubsubReader extends UnboundedSource.UnboundedReader<PubsubMessage> {
-    /**
-     * For access to topic and checkpointCoder.
-     */
+    /** For access to topic and checkpointCoder. */
     private final PubsubSource outer;
-    @VisibleForTesting
-    final SubscriptionPath subscription;
 
-    /**
-     * Client on which to talk to Pubsub. Contains a null value if the client has been closed.
-     */
+    @VisibleForTesting final SubscriptionPath subscription;
+
+    /** Client on which to talk to Pubsub. Contains a null value if the client has been closed. */
     private AtomicReference<PubsubClient> pubsubClient;
 
     /**
@@ -415,31 +372,26 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private AtomicBoolean active = new AtomicBoolean(true);
 
     /**
-     * Ack timeout, in ms, as set on subscription when we first start reading. Not
-     * updated thereafter. -1 if not yet determined.
+     * Ack timeout, in ms, as set on subscription when we first start reading. Not updated
+     * thereafter. -1 if not yet determined.
      */
     private int ackTimeoutMs;
 
-    /**
-     * ACK ids of messages we have delivered downstream but not yet ACKed.
-     */
+    /** ACK ids of messages we have delivered downstream but not yet ACKed. */
     private Set<String> safeToAckIds;
 
     /**
-     * Messages we have received from Pubsub and not yet delivered downstream.
-     * We preserve their order.
+     * Messages we have received from Pubsub and not yet delivered downstream. We preserve their
+     * order.
      */
     private final Queue<PubsubClient.IncomingMessage> notYetRead;
 
     private static class InFlightState {
-      /**
-       * When request which yielded message was issues.
-       */
+      /** When request which yielded message was issues. */
       long requestTimeMsSinceEpoch;
 
       /**
-       * When Pubsub will consider this message's ACK to timeout and thus it needs to be
-       * extended.
+       * When Pubsub will consider this message's ACK to timeout and thus it needs to be extended.
        */
       long ackDeadlineMsSinceEpoch;
 
@@ -450,150 +402,119 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     /**
-     * Map from ACK ids of messages we have received from Pubsub but not yet ACKed to their
-     * in flight state. Ordered from earliest to latest ACK deadline.
+     * Map from ACK ids of messages we have received from Pubsub but not yet ACKed to their in
+     * flight state. Ordered from earliest to latest ACK deadline.
      */
     private final LinkedHashMap<String, InFlightState> inFlight;
 
     /**
-     * Batches of successfully ACKed ids which need to be pruned from the above.
-     * CAUTION: Accessed by both reader and checkpointing threads.
+     * Batches of successfully ACKed ids which need to be pruned from the above. CAUTION: Accessed
+     * by both reader and checkpointing threads.
      */
     private final Queue<List<String>> ackedIds;
 
-    /**
-     * Byte size of undecoded elements in {@link #notYetRead}.
-     */
+    /** Byte size of undecoded elements in {@link #notYetRead}. */
     private long notYetReadBytes;
 
     /**
-     * Bucketed map from received time (as system time, ms since epoch) to message
-     * timestamps (mssince epoch) of all received but not-yet read messages.
-     * Used to estimate watermark.
+     * Bucketed map from received time (as system time, ms since epoch) to message timestamps
+     * (mssince epoch) of all received but not-yet read messages. Used to estimate watermark.
      */
     private BucketingFunction minUnreadTimestampMsSinceEpoch;
 
     /**
-     * Minimum of timestamps (ms since epoch) of all recently read messages.
-     * Used to estimate watermark.
+     * Minimum of timestamps (ms since epoch) of all recently read messages. Used to estimate
+     * watermark.
      */
     private MovingFunction minReadTimestampMsSinceEpoch;
 
     /**
-     * System time (ms since epoch) we last received a message from Pubsub, or -1 if
-     * not yet received any messages.
+     * System time (ms since epoch) we last received a message from Pubsub, or -1 if not yet
+     * received any messages.
      */
     private long lastReceivedMsSinceEpoch;
 
-    /**
-     * The last reported watermark (ms since epoch), or beginning of time if none yet reported.
-     */
+    /** The last reported watermark (ms since epoch), or beginning of time if none yet reported. */
     private long lastWatermarkMsSinceEpoch;
 
-    /**
-     * The current message, or {@literal null} if none.
-     */
-    @Nullable
-    private PubsubClient.IncomingMessage current;
+    /** The current message, or {@literal null} if none. */
+    @Nullable private PubsubClient.IncomingMessage current;
 
-    /**
-     * Stats only: System time (ms since epoch) we last logs stats, or -1 if never.
-     */
+    /** Stats only: System time (ms since epoch) we last logs stats, or -1 if never. */
     private long lastLogTimestampMsSinceEpoch;
 
-    /**
-     * Stats only: Total number of messages received.
-     */
+    /** Stats only: Total number of messages received. */
     private long numReceived;
 
-    /**
-     * Stats only: Number of messages which have recently been received.
-     */
+    /** Stats only: Number of messages which have recently been received. */
     private MovingFunction numReceivedRecently;
 
-    /**
-     * Stats only: Number of messages which have recently had their deadline extended.
-     */
+    /** Stats only: Number of messages which have recently had their deadline extended. */
     private MovingFunction numExtendedDeadlines;
 
     /**
-     * Stats only: Number of messages which have recenttly had their deadline extended even
-     * though it may be too late to do so.
+     * Stats only: Number of messages which have recenttly had their deadline extended even though
+     * it may be too late to do so.
      */
     private MovingFunction numLateDeadlines;
 
-
-    /**
-     * Stats only: Number of messages which have recently been ACKed.
-     */
+    /** Stats only: Number of messages which have recently been ACKed. */
     private MovingFunction numAcked;
 
     /**
-     * Stats only: Number of messages which have recently expired (ACKs were extended for too
-     * long).
+     * Stats only: Number of messages which have recently expired (ACKs were extended for too long).
      */
     private MovingFunction numExpired;
 
-    /**
-     * Stats only: Number of messages which have recently been NACKed.
-     */
+    /** Stats only: Number of messages which have recently been NACKed. */
     private MovingFunction numNacked;
 
-    /**
-     * Stats only: Number of message bytes which have recently been read by downstream consumer.
-     */
+    /** Stats only: Number of message bytes which have recently been read by downstream consumer. */
     private MovingFunction numReadBytes;
 
     /**
-     * Stats only: Minimum of timestamp (ms since epoch) of all recently received messages.
-     * Used to estimate timestamp skew. Does not contribute to watermark estimator.
+     * Stats only: Minimum of timestamp (ms since epoch) of all recently received messages. Used to
+     * estimate timestamp skew. Does not contribute to watermark estimator.
      */
     private MovingFunction minReceivedTimestampMsSinceEpoch;
 
     /**
-     * Stats only: Maximum of timestamp (ms since epoch) of all recently received messages.
-     * Used to estimate timestamp skew.
+     * Stats only: Maximum of timestamp (ms since epoch) of all recently received messages. Used to
+     * estimate timestamp skew.
      */
     private MovingFunction maxReceivedTimestampMsSinceEpoch;
 
-    /**
-     * Stats only: Minimum of recent estimated watermarks (ms since epoch).
-     */
+    /** Stats only: Minimum of recent estimated watermarks (ms since epoch). */
     private MovingFunction minWatermarkMsSinceEpoch;
 
-    /**
-     * Stats ony: Maximum of recent estimated watermarks (ms since epoch).
-     */
+    /** Stats ony: Maximum of recent estimated watermarks (ms since epoch). */
     private MovingFunction maxWatermarkMsSinceEpoch;
 
     /**
-     * Stats only: Number of messages with timestamps strictly behind the estimated watermark
-     * at the time they are received. These may be considered 'late' by downstream computations.
+     * Stats only: Number of messages with timestamps strictly behind the estimated watermark at the
+     * time they are received. These may be considered 'late' by downstream computations.
      */
     private MovingFunction numLateMessages;
 
     /**
-     * Stats only: Current number of checkpoints in flight.
-     * CAUTION: Accessed by both checkpointing and reader threads.
+     * Stats only: Current number of checkpoints in flight. CAUTION: Accessed by both checkpointing
+     * and reader threads.
      */
     private AtomicInteger numInFlightCheckpoints;
 
-    /**
-     * Stats only: Maximum number of checkpoints in flight at any time.
-     */
+    /** Stats only: Maximum number of checkpoints in flight at any time. */
     private int maxInFlightCheckpoints;
 
     private static MovingFunction newFun(Combine.BinaryCombineLongFn function) {
-      return new MovingFunction(SAMPLE_PERIOD.getMillis(),
-                                SAMPLE_UPDATE.getMillis(),
-                                MIN_WATERMARK_SPREAD,
-                                MIN_WATERMARK_MESSAGES,
-                                function);
+      return new MovingFunction(
+          SAMPLE_PERIOD.getMillis(),
+          SAMPLE_UPDATE.getMillis(),
+          MIN_WATERMARK_SPREAD,
+          MIN_WATERMARK_MESSAGES,
+          function);
     }
 
-    /**
-     * Construct a reader.
-     */
+    /** Construct a reader. */
     public PubsubReader(PubsubOptions options, PubsubSource outer, SubscriptionPath subscription)
         throws IOException, GeneralSecurityException {
       this.outer = outer;
@@ -608,10 +529,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       inFlight = new LinkedHashMap<>();
       ackedIds = new ConcurrentLinkedQueue<>();
       notYetReadBytes = 0;
-      minUnreadTimestampMsSinceEpoch = new BucketingFunction(SAMPLE_UPDATE.getMillis(),
-                                                             MIN_WATERMARK_SPREAD,
-                                                             MIN_WATERMARK_MESSAGES,
-                                                             MIN);
+      minUnreadTimestampMsSinceEpoch =
+          new BucketingFunction(
+              SAMPLE_UPDATE.getMillis(), MIN_WATERMARK_SPREAD, MIN_WATERMARK_MESSAGES, MIN);
       minReadTimestampMsSinceEpoch = newFun(MIN);
       lastReceivedMsSinceEpoch = -1;
       lastWatermarkMsSinceEpoch = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
@@ -653,9 +573,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     /**
-     * BLOCKING
-     * NACK (ie request deadline extension of 0) receipt of messages from Pubsub
-     * with the given {@code ockIds}. Does not retain {@code ackIds}.
+     * BLOCKING NACK (ie request deadline extension of 0) receipt of messages from Pubsub with the
+     * given {@code ockIds}. Does not retain {@code ackIds}.
      */
     public void nackBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
       pubsubClient.get().modifyAckDeadline(subscription, ackIds, 0);
@@ -663,9 +582,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     /**
-     * BLOCKING
-     * Extend the processing deadline for messages from Pubsub with the given {@code ackIds}.
-     * Does not retain {@code ackIds}.
+     * BLOCKING Extend the processing deadline for messages from Pubsub with the given {@code
+     * ackIds}. Does not retain {@code ackIds}.
      */
     private void extendBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
       int extensionSec = (ackTimeoutMs * ACK_EXTENSION_PCT) / (100 * 1000);
@@ -673,9 +591,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       numExtendedDeadlines.add(nowMsSinceEpoch, ackIds.size());
     }
 
-    /**
-     * Return the current time, in ms since epoch.
-     */
+    /** Return the current time, in ms since epoch. */
     private long now() {
       if (outer.outer.clock == null) {
         return System.currentTimeMillis();
@@ -685,8 +601,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     /**
-     * Messages which have been ACKed (via the checkpoint finalize) are no longer in flight.
-     * This is only used for flow control and stats.
+     * Messages which have been ACKed (via the checkpoint finalize) are no longer in flight. This is
+     * only used for flow control and stats.
      */
     private void retire() throws IOException {
       long nowMsSinceEpoch = now();
@@ -704,9 +620,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     /**
-     * BLOCKING
-     * Extend deadline for all messages which need it.
-     * CAUTION: If extensions can't keep up with wallclock then we'll never return.
+     * BLOCKING Extend deadline for all messages which need it. CAUTION: If extensions can't keep up
+     * with wallclock then we'll never return.
      */
     private void extend() throws IOException {
       while (true) {
@@ -776,8 +691,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
           for (String ackId : toBeExtended) {
             // Maintain increasing ack deadline order.
             InFlightState state = inFlight.remove(ackId);
-            inFlight.put(ackId,
-                         new InFlightState(state.requestTimeMsSinceEpoch, newDeadlineMsSinceEpoch));
+            inFlight.put(
+                ackId, new InFlightState(state.requestTimeMsSinceEpoch, newDeadlineMsSinceEpoch));
           }
           // BLOCKs until extended.
           extendBatch(nowMsSinceEpoch, toBeExtended);
@@ -785,10 +700,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       }
     }
 
-    /**
-     * BLOCKING
-     * Fetch another batch of messages from Pubsub.
-     */
+    /** BLOCKING Fetch another batch of messages from Pubsub. */
     private void pull() throws IOException {
       if (inFlight.size() >= MAX_IN_FLIGHT) {
         // Wait for checkpoint to be finalized before pulling anymore.
@@ -816,22 +728,21 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       for (PubsubClient.IncomingMessage incomingMessage : receivedMessages) {
         notYetRead.add(incomingMessage);
         notYetReadBytes += incomingMessage.elementBytes.length;
-        inFlight.put(incomingMessage.ackId,
-                     new InFlightState(requestTimeMsSinceEpoch, deadlineMsSinceEpoch));
+        inFlight.put(
+            incomingMessage.ackId,
+            new InFlightState(requestTimeMsSinceEpoch, deadlineMsSinceEpoch));
         numReceived++;
         numReceivedRecently.add(requestTimeMsSinceEpoch, 1L);
-        minReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch,
-                                             incomingMessage.timestampMsSinceEpoch);
-        maxReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch,
-                                             incomingMessage.timestampMsSinceEpoch);
-        minUnreadTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch,
-                                           incomingMessage.timestampMsSinceEpoch);
+        minReceivedTimestampMsSinceEpoch.add(
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
+        maxReceivedTimestampMsSinceEpoch.add(
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
+        minUnreadTimestampMsSinceEpoch.add(
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
       }
     }
 
-    /**
-     * Log stats if time to do so.
-     */
+    /** Log stats if time to do so. */
     private void stats() {
       long nowMsSinceEpoch = now();
       if (lastLogTimestampMsSinceEpoch < 0) {
@@ -864,44 +775,45 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
             (nowMsSinceEpoch - inFlight.get(oldestAckId).requestTimeMsSinceEpoch) + "ms";
       }
 
-      LOG.debug("Pubsub {} has "
-               + "{} received messages, "
-               + "{} current unread messages, "
-               + "{} current unread bytes, "
-               + "{} current in-flight msgs, "
-               + "{} oldest in-flight, "
-               + "{} current in-flight checkpoints, "
-               + "{} max in-flight checkpoints, "
-               + "{}B/s recent read, "
-               + "{} recent received, "
-               + "{} recent extended, "
-               + "{} recent late extended, "
-               + "{} recent ACKed, "
-               + "{} recent NACKed, "
-               + "{} recent expired, "
-               + "{} recent message timestamp skew, "
-               + "{} recent watermark skew, "
-               + "{} recent late messages, "
-               + "{} last reported watermark",
-               subscription,
-               numReceived,
-               notYetRead.size(),
-               notYetReadBytes,
-               inFlight.size(),
-               oldestInFlight,
-               numInFlightCheckpoints.get(),
-               maxInFlightCheckpoints,
-               numReadBytes.get(nowMsSinceEpoch) / (SAMPLE_PERIOD.getMillis() / 1000L),
-               numReceivedRecently.get(nowMsSinceEpoch),
-               numExtendedDeadlines.get(nowMsSinceEpoch),
-               numLateDeadlines.get(nowMsSinceEpoch),
-               numAcked.get(nowMsSinceEpoch),
-               numNacked.get(nowMsSinceEpoch),
-               numExpired.get(nowMsSinceEpoch),
-               messageSkew,
-               watermarkSkew,
-               numLateMessages.get(nowMsSinceEpoch),
-               new Instant(lastWatermarkMsSinceEpoch));
+      LOG.debug(
+          "Pubsub {} has "
+              + "{} received messages, "
+              + "{} current unread messages, "
+              + "{} current unread bytes, "
+              + "{} current in-flight msgs, "
+              + "{} oldest in-flight, "
+              + "{} current in-flight checkpoints, "
+              + "{} max in-flight checkpoints, "
+              + "{}B/s recent read, "
+              + "{} recent received, "
+              + "{} recent extended, "
+              + "{} recent late extended, "
+              + "{} recent ACKed, "
+              + "{} recent NACKed, "
+              + "{} recent expired, "
+              + "{} recent message timestamp skew, "
+              + "{} recent watermark skew, "
+              + "{} recent late messages, "
+              + "{} last reported watermark",
+          subscription,
+          numReceived,
+          notYetRead.size(),
+          notYetReadBytes,
+          inFlight.size(),
+          oldestInFlight,
+          numInFlightCheckpoints.get(),
+          maxInFlightCheckpoints,
+          numReadBytes.get(nowMsSinceEpoch) / (SAMPLE_PERIOD.getMillis() / 1000L),
+          numReceivedRecently.get(nowMsSinceEpoch),
+          numExtendedDeadlines.get(nowMsSinceEpoch),
+          numLateDeadlines.get(nowMsSinceEpoch),
+          numAcked.get(nowMsSinceEpoch),
+          numNacked.get(nowMsSinceEpoch),
+          numExpired.get(nowMsSinceEpoch),
+          messageSkew,
+          watermarkSkew,
+          numLateMessages.get(nowMsSinceEpoch),
+          new Instant(lastWatermarkMsSinceEpoch));
 
       lastLogTimestampMsSinceEpoch = nowMsSinceEpoch;
     }
@@ -914,10 +826,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     /**
-     * BLOCKING
-     * Return {@literal true} if a Pubsub messaage is available, {@literal false} if
-     * none is available at this time or we are over-subscribed. May BLOCK while extending
-     * ACKs or fetching available messages. Will not block waiting for messages.
+     * BLOCKING Return {@literal true} if a Pubsub messaage is available, {@literal false} if none
+     * is available at this time or we are over-subscribed. May BLOCK while extending ACKs or
+     * fetching available messages. Will not block waiting for messages.
      */
     @Override
     public boolean advance() throws IOException {
@@ -995,9 +906,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     /**
      * {@inheritDoc}.
      *
-     * <p>Marks this {@link PubsubReader} as no longer active. The {@link PubsubClient}
-     * continue to exist and be active beyond the life of this call if there are any in-flight
-     * checkpoints. When no in-flight checkpoints remain, the reader will be closed.
+     * <p>Marks this {@link PubsubReader} as no longer active. The {@link PubsubClient} continue to
+     * exist and be active beyond the life of this call if there are any in-flight checkpoints. When
+     * no in-flight checkpoints remain, the reader will be closed.
      */
     @Override
     public void close() throws IOException {
@@ -1052,7 +963,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         // TODO: Estimate a timestamp lag.
         lastWatermarkMsSinceEpoch = nowMsSinceEpoch;
       } else if (minReadTimestampMsSinceEpoch.isSignificant()
-                 || minUnreadTimestampMsSinceEpoch.isSignificant()) {
+          || minUnreadTimestampMsSinceEpoch.isSignificant()) {
         // Take minimum of the timestamps in all unread messages and recently read messages.
         lastWatermarkMsSinceEpoch = Math.min(readMin, unreadMin);
       }
@@ -1097,8 +1008,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   static class PubsubSource extends UnboundedSource<PubsubMessage, PubsubCheckpoint> {
     public final PubsubUnboundedSource outer;
     // The subscription to read from.
-    @VisibleForTesting
-    final ValueProvider<SubscriptionPath> subscriptionPath;
+    @VisibleForTesting final ValueProvider<SubscriptionPath> subscriptionPath;
 
     public PubsubSource(PubsubUnboundedSource outer) {
       this(outer, outer.getSubscriptionProvider());
@@ -1111,8 +1021,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     @Override
-    public List<PubsubSource> split(
-        int desiredNumSplits, PipelineOptions options) throws Exception {
+    public List<PubsubSource> split(int desiredNumSplits, PipelineOptions options)
+        throws Exception {
       List<PubsubSource> result = new ArrayList<>(desiredNumSplits);
       PubsubSource splitSource = this;
       if (subscriptionPath == null) {
@@ -1130,8 +1040,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public PubsubReader createReader(
-        PipelineOptions options,
-        @Nullable PubsubCheckpoint checkpoint) {
+        PipelineOptions options, @Nullable PubsubCheckpoint checkpoint) {
       PubsubReader reader;
       SubscriptionPath subscription;
       if (subscriptionPath == null || subscriptionPath.get() == null) {
@@ -1156,8 +1065,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
           // Will BLOCK until NACKed.
           checkpoint.nackAll(reader);
         } catch (IOException e) {
-          LOG.error("Pubsub {} cannot have {} lost messages NACKed, ignoring: {}",
-                    subscriptionPath, checkpoint.notYetReadIds.size(), e);
+          LOG.error(
+              "Pubsub {} cannot have {} lost messages NACKed, ignoring: {}",
+              subscriptionPath,
+              checkpoint.notYetReadIds.size(),
+              e);
         }
       }
       return reader;
@@ -1196,14 +1108,10 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private final Counter elementCounter = SourceMetrics.elementsRead();
 
     private final PubsubClientFactory pubsubFactory;
-    @Nullable
-    private final ValueProvider<SubscriptionPath> subscription;
-    @Nullable
-    private final ValueProvider<TopicPath> topic;
-    @Nullable
-    private final String timestampAttribute;
-    @Nullable
-    private final String idAttribute;
+    @Nullable private final ValueProvider<SubscriptionPath> subscription;
+    @Nullable private final ValueProvider<TopicPath> topic;
+    @Nullable private final String timestampAttribute;
+    @Nullable private final String idAttribute;
 
     public StatsFn(
         PubsubClientFactory pubsubFactory,
@@ -1241,54 +1149,41 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   // PubsubUnboundedSource
   // ================================================================================
 
-  /**
-   * For testing only: Clock to use for all timekeeping. If {@literal null} use system clock.
-   */
-  @Nullable
-  private Clock clock;
+  /** For testing only: Clock to use for all timekeeping. If {@literal null} use system clock. */
+  @Nullable private Clock clock;
 
-  /**
-   * Factory for creating underlying Pubsub transport.
-   */
+  /** Factory for creating underlying Pubsub transport. */
   private final PubsubClientFactory pubsubFactory;
 
-  /**
-   * Project under which to create a subscription if only the {@link #topic} was given.
-   */
-  @Nullable
-  private final ValueProvider<ProjectPath> project;
+  /** Project under which to create a subscription if only the {@link #topic} was given. */
+  @Nullable private final ValueProvider<ProjectPath> project;
 
   /**
-   * Topic to read from. If {@literal null}, then {@link #subscription} must be given.
-   * Otherwise {@link #subscription} must be null.
+   * Topic to read from. If {@literal null}, then {@link #subscription} must be given. Otherwise
+   * {@link #subscription} must be null.
    */
-  @Nullable
-  private final ValueProvider<TopicPath> topic;
+  @Nullable private final ValueProvider<TopicPath> topic;
 
   /**
-   * Subscription to read from. If {@literal null} then {@link #topic} must be given.
-   * Otherwise {@link #topic} must be null.
+   * Subscription to read from. If {@literal null} then {@link #topic} must be given. Otherwise
+   * {@link #topic} must be null.
    *
-   * <p>If no subscription is given a random one will be created when the transorm is
-   * applied. This field will be update with that subscription's path. The created
-   * subscription is never deleted.
+   * <p>If no subscription is given a random one will be created when the transorm is applied. This
+   * field will be update with that subscription's path. The created subscription is never deleted.
    */
-  @Nullable
-  private ValueProvider<SubscriptionPath> subscription;
+  @Nullable private ValueProvider<SubscriptionPath> subscription;
 
   /**
    * Pubsub metadata field holding timestamp of each element, or {@literal null} if should use
    * Pubsub message publish timestamp instead.
    */
-  @Nullable
-  private final String timestampAttribute;
+  @Nullable private final String timestampAttribute;
 
   /**
-   * Pubsub metadata field holding id for each element, or {@literal null} if need to generate
-   * a unique id ourselves.
+   * Pubsub metadata field holding id for each element, or {@literal null} if need to generate a
+   * unique id ourselves.
    */
-  @Nullable
-  private final String idAttribute;
+  @Nullable private final String idAttribute;
 
   /** Whether this source should load the attributes of the PubsubMessage, or only the payload. */
   private final boolean needsAttributes;
@@ -1303,10 +1198,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       @Nullable String timestampAttribute,
       @Nullable String idAttribute,
       boolean needsAttributes) {
-    checkArgument((topic == null) != (subscription == null),
-                  "Exactly one of topic and subscription must be given");
-    checkArgument((topic == null) == (project == null),
-                  "Project must be given if topic is given");
+    checkArgument(
+        (topic == null) != (subscription == null),
+        "Exactly one of topic and subscription must be given");
     this.clock = clock;
     this.pubsubFactory = checkNotNull(pubsubFactory);
     this.project = project;
@@ -1317,9 +1211,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     this.needsAttributes = needsAttributes;
   }
 
-  /**
-   * Construct an unbounded source to consume from the Pubsub {@code subscription}.
-   */
+  /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
   public PubsubUnboundedSource(
       PubsubClientFactory pubsubFactory,
       @Nullable ValueProvider<ProjectPath> project,
@@ -1339,57 +1231,43 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         needsAttributes);
   }
 
-  /**
-   * Get the project path.
-   */
+  /** Get the project path. */
   @Nullable
   public ProjectPath getProject() {
     return project == null ? null : project.get();
   }
 
-  /**
-   * Get the topic being read from.
-   */
+  /** Get the topic being read from. */
   @Nullable
   public TopicPath getTopic() {
     return topic == null ? null : topic.get();
   }
 
-  /**
-   * Get the {@link ValueProvider} for the topic being read from.
-   */
+  /** Get the {@link ValueProvider} for the topic being read from. */
   @Nullable
   public ValueProvider<TopicPath> getTopicProvider() {
     return topic;
   }
 
-  /**
-   * Get the subscription being read from.
-   */
+  /** Get the subscription being read from. */
   @Nullable
   public SubscriptionPath getSubscription() {
     return subscription == null ? null : subscription.get();
   }
 
-  /**
-   * Get the {@link ValueProvider} for the subscription being read from.
-   */
+  /** Get the {@link ValueProvider} for the subscription being read from. */
   @Nullable
   public ValueProvider<SubscriptionPath> getSubscriptionProvider() {
     return subscription;
   }
 
-  /**
-   * Get the timestamp attribute.
-   */
+  /** Get the timestamp attribute. */
   @Nullable
   public String getTimestampAttribute() {
     return timestampAttribute;
   }
 
-  /**
-   * Get the id attribute.
-   */
+  /** Get the id attribute. */
   @Nullable
   public String getIdAttribute() {
     return idAttribute;
@@ -1401,21 +1279,37 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
   @Override
   public PCollection<PubsubMessage> expand(PBegin input) {
-    return input.getPipeline().begin()
-                .apply(Read.from(new PubsubSource(this)))
-                .apply("PubsubUnboundedSource.Stats",
-                    ParDo.of(new StatsFn(
-                        pubsubFactory, subscription, topic, timestampAttribute, idAttribute)));
+    return input
+        .getPipeline()
+        .begin()
+        .apply(Read.from(new PubsubSource(this)))
+        .apply(
+            "PubsubUnboundedSource.Stats",
+            ParDo.of(
+                new StatsFn(pubsubFactory, subscription, topic, timestampAttribute, idAttribute)));
   }
 
   private SubscriptionPath createRandomSubscription(PipelineOptions options) {
+    TopicPath topicPath = topic.get();
+
+    ProjectPath projectPath;
+    if (project != null) {
+      projectPath = project.get();
+    } else {
+      String projectId = options.as(GcpOptions.class).getProject();
+      checkState(
+          projectId != null,
+          "Cannot create subscription to topic %s because pipeline option 'project' not specified",
+          topicPath);
+      projectPath = PubsubClient.projectPathFromId(options.as(GcpOptions.class).getProject());
+    }
+
     try {
       try (PubsubClient pubsubClient =
           pubsubFactory.newClient(
               timestampAttribute, idAttribute, options.as(PubsubOptions.class))) {
         SubscriptionPath subscriptionPath =
-            pubsubClient.createRandomSubscription(
-                project.get(), topic.get(), DEAULT_ACK_TIMEOUT_SEC);
+            pubsubClient.createRandomSubscription(projectPath, topicPath, DEAULT_ACK_TIMEOUT_SEC);
         LOG.warn(
             "Created subscription {} to topic {}."
                 + " Note this subscription WILL NOT be deleted when the pipeline terminates",
@@ -1424,7 +1318,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         return subscriptionPath;
       }
     } catch (Exception e) {
-      throw new RuntimeException("Failed to create subscription: ", e);
+      throw new RuntimeException(
+          String.format(
+              "Failed to create subscription to topic %s on project %s: %s",
+              topicPath, projectPath, e.getMessage()),
+          e);
     }
   }
 }

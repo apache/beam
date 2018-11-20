@@ -17,7 +17,7 @@
  */
 
 /**
- * {@link org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner} is the main interface.
- * It defines data sources, validate a SQL statement, and convert it as a Beam pipeline.
+ * {@code BeamQueryPlanner} is the main interface. It defines data sources, validate a SQL
+ * statement, and convert it as a Beam pipeline.
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;

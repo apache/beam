@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable.artifact;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -26,8 +26,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.stub.StreamObserver;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -51,6 +49,8 @@ import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFil
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -59,9 +59,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link LocalFileSystemArtifactRetrievalService}.
- */
+/** Tests for {@link LocalFileSystemArtifactRetrievalService}. */
 @RunWith(JUnit4.class)
 public class LocalFileSystemArtifactRetrievalServiceTest {
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
@@ -91,7 +89,7 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
   @Test
   public void retrieveManifest() throws Exception {
     Map<String, byte[]> artifacts = new HashMap<>();
-    artifacts.put("foo", "bar, baz, quux".getBytes());
+    artifacts.put("foo", "bar, baz, quux".getBytes(UTF_8));
     artifacts.put("spam", new byte[] {127, -22, 5});
     stageAndCreateRetrievalService(artifacts);
 
@@ -129,7 +127,7 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
   @Test
   public void retrieveArtifact() throws Exception {
     Map<String, byte[]> artifacts = new HashMap<>();
-    byte[] fooContents = "bar, baz, quux".getBytes();
+    byte[] fooContents = "bar, baz, quux".getBytes(UTF_8);
     artifacts.put("foo", fooContents);
     byte[] spamContents = {127, -22, 5};
     artifacts.put("spam", spamContents);
@@ -152,7 +150,8 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
 
   @Test
   public void retrieveArtifactNotPresent() throws Exception {
-    stageAndCreateRetrievalService(Collections.singletonMap("foo", "bar, baz, quux".getBytes()));
+    stageAndCreateRetrievalService(
+        Collections.singletonMap("foo", "bar, baz, quux".getBytes(UTF_8)));
 
     final CountDownLatch completed = new CountDownLatch(1);
     final AtomicReference<Throwable> thrown = new AtomicReference<>();
@@ -192,12 +191,13 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
       Files.write(artifactFile.toPath(), artifact.getValue());
       artifactFiles.add(StagedFile.of(artifactFile, artifactFile.getName()));
     }
+    String stagingSessionToken = "token";
 
     ArtifactServiceStager stager =
         ArtifactServiceStager.overChannel(
             InProcessChannelBuilder.forName(stagerServer.getApiServiceDescriptor().getUrl())
                 .build());
-    stager.stage(artifactFiles);
+    stager.stage(stagingSessionToken, artifactFiles);
 
     retrievalServer =
         GrpcFnServer.allocatePortAndCreateFor(

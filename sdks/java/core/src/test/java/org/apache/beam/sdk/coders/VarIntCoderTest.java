@@ -31,18 +31,14 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link VarIntCoder}.
- */
+/** Test case for {@link VarIntCoder}. */
 @RunWith(JUnit4.class)
 public class VarIntCoderTest {
 
   private static final Coder<Integer> TEST_CODER = VarIntCoder.of();
 
-  private static final List<Integer> TEST_VALUES = Arrays.asList(
-      -11, -3, -1, 0, 1, 5, 13, 29,
-      Integer.MAX_VALUE,
-      Integer.MIN_VALUE);
+  private static final List<Integer> TEST_VALUES =
+      Arrays.asList(-11, -3, -1, 0, 1, 5, 13, 29, Integer.MAX_VALUE, Integer.MIN_VALUE);
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
@@ -52,28 +48,19 @@ public class VarIntCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "9f___w8",
-      "_f___w8",
-      "_____w8",
-      "AA",
-      "AQ",
-      "BQ",
-      "DQ",
-      "HQ",
-      "_____wc",
-      "gICAgAg");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "9f___w8", "_f___w8", "_____w8", "AA", "AQ", "BQ", "DQ", "HQ", "_____wc", "gICAgAg");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

@@ -31,9 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Sends records to Kinesis in reliable way.
- */
+/** Sends records to Kinesis in reliable way. */
 public class KinesisUploader {
 
   public static final int MAX_NUMBER_OF_RECORDS_IN_BATCH = 499;
@@ -51,19 +49,19 @@ public class KinesisUploader {
     for (List<String> partition : partitions) {
       List<PutRecordsRequestEntry> allRecords = new ArrayList<>();
       for (String row : partition) {
-        allRecords.add(new PutRecordsRequestEntry().
-            withData(ByteBuffer.wrap(row.getBytes(StandardCharsets.UTF_8))).
-            withPartitionKey(Integer.toString(row.hashCode()))
-
-        );
+        allRecords.add(
+            new PutRecordsRequestEntry()
+                .withData(ByteBuffer.wrap(row.getBytes(StandardCharsets.UTF_8)))
+                .withPartitionKey(Integer.toString(row.hashCode())));
       }
 
       PutRecordsResult result;
       do {
-        result = client.putRecords(
-            new PutRecordsRequest().
-                withStreamName(options.getAwsKinesisStream()).
-                withRecords(allRecords));
+        result =
+            client.putRecords(
+                new PutRecordsRequest()
+                    .withStreamName(options.getAwsKinesisStream())
+                    .withRecords(allRecords));
         List<PutRecordsRequestEntry> failedRecords = new ArrayList<>();
         int i = 0;
         for (PutRecordsResultEntry row : result.getRecords()) {
@@ -73,9 +71,7 @@ public class KinesisUploader {
           ++i;
         }
         allRecords = failedRecords;
-      }
-
-      while (result.getFailedRecordCount() > 0);
+      } while (result.getFailedRecordCount() > 0);
     }
   }
 }

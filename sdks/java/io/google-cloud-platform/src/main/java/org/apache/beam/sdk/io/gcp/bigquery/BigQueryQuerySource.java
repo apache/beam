@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -44,14 +43,12 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A {@link BigQuerySourceBase} for querying BigQuery tables.
- */
+/** A {@link BigQuerySourceBase} for querying BigQuery tables. */
 @VisibleForTesting
 class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryQuerySource.class);
 
-  static <T>BigQueryQuerySource<T> create(
+  static <T> BigQueryQuerySource<T> create(
       String stepUuid,
       ValueProvider<String> query,
       Boolean flattenResults,
@@ -141,7 +138,10 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
 
     // 3. Execute the query.
     executeQuery(
-        jobIdToken, bqOptions.getProject(), tableToExtract, bqServices.getJobService(bqOptions),
+        jobIdToken,
+        bqOptions.getProject(),
+        tableToExtract,
+        bqServices.getJobService(bqOptions),
         location);
 
     return tableToExtract;
@@ -149,8 +149,9 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
 
   @Override
   protected void cleanupTempResource(BigQueryOptions bqOptions) throws Exception {
-    TableReference tableToRemove = createTempTableReference(
-        bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
+    TableReference tableToRemove =
+        createTempTableReference(
+            bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
 
     DatasetService tableService = bqServices.getDatasetService(bqOptions);
     LOG.info("Deleting temporary table with query results {}", tableToRemove);
@@ -182,7 +183,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       String executingProject,
       TableReference destinationTable,
       JobService jobService,
-      String bqLocation) throws IOException, InterruptedException {
+      String bqLocation)
+      throws IOException, InterruptedException {
     // Generate a transient (random) query job ID, because this code may be retried after the
     // temporary dataset and table have already been deleted by a previous attempt -
     // in that case we want to re-generate the temporary dataset and table, and we'll need
@@ -200,21 +202,23 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
             .setLocation(bqLocation)
             .setJobId(queryJobId);
 
-    JobConfigurationQuery queryConfig = createBasicQueryConfig()
-        .setAllowLargeResults(true)
-        .setCreateDisposition("CREATE_IF_NEEDED")
-        .setDestinationTable(destinationTable)
-        .setPriority(this.priority.name())
-        // Overwrite contents of the temporary table - it can only already exist if this
-        // is a retry of the splitting task, in which case we must not produce duplicate data.
-        .setWriteDisposition("WRITE_TRUNCATE");
+    JobConfigurationQuery queryConfig =
+        createBasicQueryConfig()
+            .setAllowLargeResults(true)
+            .setCreateDisposition("CREATE_IF_NEEDED")
+            .setDestinationTable(destinationTable)
+            .setPriority(this.priority.name())
+            // Overwrite contents of the temporary table - it can only already exist if this
+            // is a retry of the splitting task, in which case we must not produce duplicate data.
+            .setWriteDisposition("WRITE_TRUNCATE");
 
     jobService.startQueryJob(jobRef, queryConfig);
     Job job = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
     if (BigQueryHelpers.parseStatus(job) != Status.SUCCEEDED) {
-      throw new IOException(String.format(
-          "Query job %s failed, status: %s.", queryJobId,
-          BigQueryHelpers.statusToPrettyString(job.getStatus())));
+      throw new IOException(
+          String.format(
+              "Query job %s failed, status: %s.",
+              queryJobId, BigQueryHelpers.statusToPrettyString(job.getStatus())));
     }
 
     LOG.info("Query job {} completed", queryJobId);

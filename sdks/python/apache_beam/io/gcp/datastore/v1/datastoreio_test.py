@@ -15,9 +15,14 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import unittest
+from builtins import map
+from builtins import range
+from builtins import zip
 
 from mock import MagicMock
 from mock import call
@@ -179,7 +184,8 @@ class DatastoreioTest(unittest.TestCase):
       entities = [e.entity for e in
                   fake_datastore.create_entities(num_entities)]
 
-      expected_mutations = map(WriteToDatastore.to_upsert_mutation, entities)
+      expected_mutations = list(map(WriteToDatastore.to_upsert_mutation,
+                                    entities))
       actual_mutations = []
 
       self._mock_datastore.commit.side_effect = (
@@ -195,7 +201,7 @@ class DatastoreioTest(unittest.TestCase):
 
       self.assertEqual(actual_mutations, expected_mutations)
       self.assertEqual(
-          (num_entities - 1) / _Mutate._WRITE_BATCH_INITIAL_SIZE + 1,
+          (num_entities - 1) // _Mutate._WRITE_BATCH_INITIAL_SIZE + 1,
           self._mock_datastore.commit.call_count)
 
   def test_DatastoreWriteLargeEntities(self):

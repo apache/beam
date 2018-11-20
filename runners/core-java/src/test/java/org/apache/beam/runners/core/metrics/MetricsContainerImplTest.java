@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricUpdateMatchers.metricUpdate;
@@ -30,9 +29,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link MetricsContainerImpl}.
- */
+/** Tests for {@link MetricsContainerImpl}. */
 @RunWith(JUnit4.class)
 public class MetricsContainerImplTest {
 
@@ -41,33 +38,36 @@ public class MetricsContainerImplTest {
     MetricsContainerImpl container = new MetricsContainerImpl("step1");
     CounterCell c1 = container.getCounter(MetricName.named("ns", "name1"));
     CounterCell c2 = container.getCounter(MetricName.named("ns", "name2"));
-    assertThat("All counters should start out dirty",
-        container.getUpdates().counterUpdates(), containsInAnyOrder(
-        metricUpdate("name1", 0L),
-        metricUpdate("name2", 0L)));
+    assertThat(
+        "All counters should start out dirty",
+        container.getUpdates().counterUpdates(),
+        containsInAnyOrder(metricUpdate("name1", 0L), metricUpdate("name2", 0L)));
     container.commitUpdates();
-    assertThat("After commit no counters should be dirty",
-        container.getUpdates().counterUpdates(), emptyIterable());
+    assertThat(
+        "After commit no counters should be dirty",
+        container.getUpdates().counterUpdates(),
+        emptyIterable());
 
     c1.inc(5L);
     c2.inc(4L);
 
-    assertThat(container.getUpdates().counterUpdates(), containsInAnyOrder(
-        metricUpdate("name1", 5L),
-        metricUpdate("name2", 4L)));
+    assertThat(
+        container.getUpdates().counterUpdates(),
+        containsInAnyOrder(metricUpdate("name1", 5L), metricUpdate("name2", 4L)));
 
-    assertThat("Since we haven't committed, updates are still included",
-        container.getUpdates().counterUpdates(), containsInAnyOrder(
-        metricUpdate("name1", 5L),
-        metricUpdate("name2", 4L)));
+    assertThat(
+        "Since we haven't committed, updates are still included",
+        container.getUpdates().counterUpdates(),
+        containsInAnyOrder(metricUpdate("name1", 5L), metricUpdate("name2", 4L)));
 
     container.commitUpdates();
-    assertThat("After commit there are no updates",
-        container.getUpdates().counterUpdates(), emptyIterable());
+    assertThat(
+        "After commit there are no updates",
+        container.getUpdates().counterUpdates(),
+        emptyIterable());
 
     c1.inc(8L);
-    assertThat(container.getUpdates().counterUpdates(), contains(
-        metricUpdate("name1", 13L)));
+    assertThat(container.getUpdates().counterUpdates(), contains(metricUpdate("name1", 13L)));
 
     CounterCell dne = container.tryGetCounter(MetricName.named("ns", "dne"));
     assertEquals(dne, null);
@@ -84,15 +84,15 @@ public class MetricsContainerImplTest {
 
     container.getUpdates();
     container.commitUpdates();
-    assertThat("Committing updates shouldn't affect cumulative counter values",
-        container.getCumulative().counterUpdates(), containsInAnyOrder(
-        metricUpdate("name1", 5L),
-        metricUpdate("name2", 4L)));
+    assertThat(
+        "Committing updates shouldn't affect cumulative counter values",
+        container.getCumulative().counterUpdates(),
+        containsInAnyOrder(metricUpdate("name1", 5L), metricUpdate("name2", 4L)));
 
     c1.inc(8L);
-    assertThat(container.getCumulative().counterUpdates(), containsInAnyOrder(
-        metricUpdate("name1", 13L),
-        metricUpdate("name2", 4L)));
+    assertThat(
+        container.getCumulative().counterUpdates(),
+        containsInAnyOrder(metricUpdate("name1", 13L), metricUpdate("name2", 4L)));
 
     CounterCell readC1 = container.tryGetCounter(MetricName.named("ns", "name1"));
     assertEquals(13L, (long) readC1.getCumulative());
@@ -104,34 +104,41 @@ public class MetricsContainerImplTest {
     DistributionCell c1 = container.getDistribution(MetricName.named("ns", "name1"));
     DistributionCell c2 = container.getDistribution(MetricName.named("ns", "name2"));
 
-    assertThat("Initial update includes initial zero-values",
-        container.getUpdates().distributionUpdates(), containsInAnyOrder(
-        metricUpdate("name1", DistributionData.EMPTY),
-        metricUpdate("name2", DistributionData.EMPTY)));
+    assertThat(
+        "Initial update includes initial zero-values",
+        container.getUpdates().distributionUpdates(),
+        containsInAnyOrder(
+            metricUpdate("name1", DistributionData.EMPTY),
+            metricUpdate("name2", DistributionData.EMPTY)));
 
     container.commitUpdates();
-    assertThat("No updates after commit",
-        container.getUpdates().distributionUpdates(), emptyIterable());
+    assertThat(
+        "No updates after commit", container.getUpdates().distributionUpdates(), emptyIterable());
 
     c1.update(5L);
     c2.update(4L);
 
-    assertThat(container.getUpdates().distributionUpdates(), containsInAnyOrder(
-        metricUpdate("name1", DistributionData.create(5, 1, 5, 5)),
-        metricUpdate("name2", DistributionData.create(4, 1, 4, 4))));
-    assertThat("Updates stay the same without commit",
-        container.getUpdates().distributionUpdates(), containsInAnyOrder(
-        metricUpdate("name1", DistributionData.create(5, 1, 5, 5)),
-        metricUpdate("name2", DistributionData.create(4, 1, 4, 4))));
+    assertThat(
+        container.getUpdates().distributionUpdates(),
+        containsInAnyOrder(
+            metricUpdate("name1", DistributionData.create(5, 1, 5, 5)),
+            metricUpdate("name2", DistributionData.create(4, 1, 4, 4))));
+    assertThat(
+        "Updates stay the same without commit",
+        container.getUpdates().distributionUpdates(),
+        containsInAnyOrder(
+            metricUpdate("name1", DistributionData.create(5, 1, 5, 5)),
+            metricUpdate("name2", DistributionData.create(4, 1, 4, 4))));
 
     container.commitUpdates();
-    assertThat("No updatess after commit",
-        container.getUpdates().distributionUpdates(), emptyIterable());
+    assertThat(
+        "No updatess after commit", container.getUpdates().distributionUpdates(), emptyIterable());
 
     c1.update(8L);
     c1.update(4L);
-    assertThat(container.getUpdates().distributionUpdates(), contains(
-        metricUpdate("name1", DistributionData.create(17, 3, 4, 8))));
+    assertThat(
+        container.getUpdates().distributionUpdates(),
+        contains(metricUpdate("name1", DistributionData.create(17, 3, 4, 8))));
     container.commitUpdates();
 
     DistributionCell dne = container.tryGetDistribution(MetricName.named("ns", "dne"));

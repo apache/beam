@@ -34,9 +34,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * A set of unit tests to verify {@link OrderedCode}.
- */
+/** A set of unit tests to verify {@link OrderedCode}. */
 @RunWith(JUnit4.class)
 public class OrderedCodeTest {
   /** Data for a generic coding test case with known encoded outputs. */
@@ -44,34 +42,28 @@ public class OrderedCodeTest {
     /** The test value. */
     abstract T value();
 
-    /**
-     * Test value's encoding in increasing order (obtained from the C++
-     * implementation).
-     */
+    /** Test value's encoding in increasing order (obtained from the C++ implementation). */
     abstract String increasingBytes();
 
-    /**
-     * Test value's encoding in dencreasing order (obtained from the C++
-     * implementation).
-     */
+    /** Test value's encoding in dencreasing order (obtained from the C++ implementation). */
     abstract String decreasingBytes();
 
     // Helper methods to implement in concrete classes.
 
     abstract byte[] encodeIncreasing();
+
     abstract byte[] encodeDecreasing();
 
     T decodeIncreasing() {
-      return decodeIncreasing(
-          new OrderedCode(bytesFromHexString(increasingBytes())));
+      return decodeIncreasing(new OrderedCode(bytesFromHexString(increasingBytes())));
     }
 
     T decodeDecreasing() {
-      return decodeDecreasing(
-          new OrderedCode(bytesFromHexString(decreasingBytes())));
+      return decodeDecreasing(new OrderedCode(bytesFromHexString(decreasingBytes())));
     }
 
     abstract T decodeIncreasing(OrderedCode orderedCode);
+
     abstract T decodeDecreasing(OrderedCode orderedCode);
   }
 
@@ -103,8 +95,7 @@ public class OrderedCodeTest {
 
     private static UnsignedNumber testCase(
         long value, String increasingBytes, String decreasingBytes) {
-      return new AutoValue_OrderedCodeTest_UnsignedNumber(
-          value, increasingBytes, decreasingBytes);
+      return new AutoValue_OrderedCodeTest_UnsignedNumber(value, increasingBytes, decreasingBytes);
     }
 
     /** Test cases for unsigned numbers, in increasing (unsigned) order by value. */
@@ -149,8 +140,7 @@ public class OrderedCodeTest {
 
     private static BytesTest testCase(
         String value, String increasingBytes, String decreasingBytes) {
-      return new AutoValue_OrderedCodeTest_BytesTest(
-          value, increasingBytes, decreasingBytes);
+      return new AutoValue_OrderedCodeTest_BytesTest(value, increasingBytes, decreasingBytes);
     }
 
     /** Test cases for byte arrays, in increasing order by value. */
@@ -205,13 +195,11 @@ public class OrderedCodeTest {
   private void testEncoding(List<? extends CodingTestCase<?>> testCases) {
     for (CodingTestCase<?> testCase : testCases) {
       byte[] actualIncreasing = testCase.encodeIncreasing();
-      byte[] expectedIncreasing =
-          bytesFromHexString(testCase.increasingBytes());
+      byte[] expectedIncreasing = bytesFromHexString(testCase.increasingBytes());
       assertEquals(0, compare(actualIncreasing, expectedIncreasing));
 
       byte[] actualDecreasing = testCase.encodeDecreasing();
-      byte[] expectedDecreasing =
-          bytesFromHexString(testCase.decreasingBytes());
+      byte[] expectedDecreasing = bytesFromHexString(testCase.decreasingBytes());
       assertEquals(0, compare(actualDecreasing, expectedDecreasing));
     }
   }
@@ -277,9 +265,9 @@ public class OrderedCodeTest {
 
   @Test
   public void testWriteBytes() {
-    byte[] first = { 'a', 'b', 'c'};
-    byte[] second = { 'd', 'e', 'f'};
-    byte[] last = { 'x', 'y', 'z'};
+    byte[] first = {'a', 'b', 'c'};
+    byte[] second = {'d', 'e', 'f'};
+    byte[] last = {'x', 'y', 'z'};
     OrderedCode orderedCode = new OrderedCode();
     orderedCode.writeBytes(first);
     byte[] firstEncoded = orderedCode.getEncodedBytes();
@@ -309,9 +297,9 @@ public class OrderedCodeTest {
 
   @Test
   public void testWriteBytesDecreasing() {
-    byte[] first = { 'a', 'b', 'c'};
-    byte[] second = { 'd', 'e', 'f'};
-    byte[] last = { 'x', 'y', 'z'};
+    byte[] first = {'a', 'b', 'c'};
+    byte[] second = {'d', 'e', 'f'};
+    byte[] last = {'x', 'y', 'z'};
     OrderedCode orderedCode = new OrderedCode();
     orderedCode.writeBytesDecreasing(first);
     byte[] firstEncoded = orderedCode.getEncodedBytes();
@@ -392,11 +380,10 @@ public class OrderedCodeTest {
   }
 
   /**
-   * Assert that encoding the specified long via
-   * {@link OrderedCode#writeSignedNumIncreasing(long)} results in the bytes
-   * represented by the specified string of hex digits.
-   * E.g. assertSignedNumIncreasingEncodingEquals("3fbf", -65) asserts that
-   * -65 is encoded as { (byte) 0x3f, (byte) 0xbf }.
+   * Assert that encoding the specified long via {@link OrderedCode#writeSignedNumIncreasing(long)}
+   * results in the bytes represented by the specified string of hex digits. E.g.
+   * assertSignedNumIncreasingEncodingEquals("3fbf", -65) asserts that -65 is encoded as { (byte)
+   * 0x3f, (byte) 0xbf }.
    */
   private static void assertSignedNumIncreasingEncodingEquals(
       String expectedHexEncoding, long num) {
@@ -409,22 +396,17 @@ public class OrderedCodeTest {
   }
 
   /**
-   * Assert that encoding various long values via
-   * {@link OrderedCode#writeSignedNumIncreasing(long)} produces the expected
-   * bytes. Expected byte sequences were generated via the c++ (authoritative)
+   * Assert that encoding various long values via {@link OrderedCode#writeSignedNumIncreasing(long)}
+   * produces the expected bytes. Expected byte sequences were generated via the c++ (authoritative)
    * implementation of OrderedCode::WriteSignedNumIncreasing.
    */
   @Test
   public void testSignedNumIncreasing_write() {
-    assertSignedNumIncreasingEncodingEquals(
-        "003f8000000000000000", Long.MIN_VALUE);
-    assertSignedNumIncreasingEncodingEquals(
-        "003f8000000000000001", Long.MIN_VALUE + 1);
-    assertSignedNumIncreasingEncodingEquals(
-        "077fffffff", Integer.MIN_VALUE - 1L);
+    assertSignedNumIncreasingEncodingEquals("003f8000000000000000", Long.MIN_VALUE);
+    assertSignedNumIncreasingEncodingEquals("003f8000000000000001", Long.MIN_VALUE + 1);
+    assertSignedNumIncreasingEncodingEquals("077fffffff", Integer.MIN_VALUE - 1L);
     assertSignedNumIncreasingEncodingEquals("0780000000", Integer.MIN_VALUE);
-    assertSignedNumIncreasingEncodingEquals(
-        "0780000001", Integer.MIN_VALUE + 1);
+    assertSignedNumIncreasingEncodingEquals("0780000001", Integer.MIN_VALUE + 1);
     assertSignedNumIncreasingEncodingEquals("3fbf", -65);
     assertSignedNumIncreasingEncodingEquals("40", -64);
     assertSignedNumIncreasingEncodingEquals("41", -63);
@@ -438,44 +420,36 @@ public class OrderedCodeTest {
     assertSignedNumIncreasingEncodingEquals("bf", 63);
     assertSignedNumIncreasingEncodingEquals("c040", 64);
     assertSignedNumIncreasingEncodingEquals("c041", 65);
-    assertSignedNumIncreasingEncodingEquals(
-        "f87ffffffe", Integer.MAX_VALUE - 1);
+    assertSignedNumIncreasingEncodingEquals("f87ffffffe", Integer.MAX_VALUE - 1);
     assertSignedNumIncreasingEncodingEquals("f87fffffff", Integer.MAX_VALUE);
-    assertSignedNumIncreasingEncodingEquals(
-        "f880000000", Integer.MAX_VALUE + 1L);
-    assertSignedNumIncreasingEncodingEquals(
-        "ffc07ffffffffffffffe", Long.MAX_VALUE - 1);
-    assertSignedNumIncreasingEncodingEquals(
-        "ffc07fffffffffffffff", Long.MAX_VALUE);
+    assertSignedNumIncreasingEncodingEquals("f880000000", Integer.MAX_VALUE + 1L);
+    assertSignedNumIncreasingEncodingEquals("ffc07ffffffffffffffe", Long.MAX_VALUE - 1);
+    assertSignedNumIncreasingEncodingEquals("ffc07fffffffffffffff", Long.MAX_VALUE);
   }
 
   /**
-   * Convert a string of hex digits (e.g. "3fbf") to a byte[]
-   * (e.g. { (byte) 0x3f, (byte) 0xbf }).
+   * Convert a string of hex digits (e.g. "3fbf") to a byte[] (e.g. { (byte) 0x3f, (byte) 0xbf }).
    */
   private static byte[] bytesFromHexString(String hexDigits) {
     return BaseEncoding.base16().lowerCase().decode(hexDigits);
   }
 
   /**
-   * Convert a byte[] (e.g. { (byte) 0x3f, (byte) 0xbf }) to a string of hex
-   * digits (e.g. "3fbf").
+   * Convert a byte[] (e.g. { (byte) 0x3f, (byte) 0xbf }) to a string of hex digits (e.g. "3fbf").
    */
   private static String bytesToHexString(byte[] bytes) {
     return BaseEncoding.base16().lowerCase().encode(bytes);
   }
 
   /**
-   * Assert that decoding (via {@link OrderedCode#readSignedNumIncreasing()})
-   * the bytes represented by the specified string of hex digits results in the
-   * expected long value.
-   * E.g. assertDecodedSignedNumIncreasingEquals(-65, "3fbf") asserts that the
-   * byte array { (byte) 0x3f, (byte) 0xbf } is decoded as -65.
+   * Assert that decoding (via {@link OrderedCode#readSignedNumIncreasing()}) the bytes represented
+   * by the specified string of hex digits results in the expected long value. E.g.
+   * assertDecodedSignedNumIncreasingEquals(-65, "3fbf") asserts that the byte array { (byte) 0x3f,
+   * (byte) 0xbf } is decoded as -65.
    */
   private static void assertDecodedSignedNumIncreasingEquals(
       long expectedNum, String encodedHexString) {
-    OrderedCode orderedCode =
-        new OrderedCode(bytesFromHexString(encodedHexString));
+    OrderedCode orderedCode = new OrderedCode(bytesFromHexString(encodedHexString));
     assertEquals(
         "Unexpected value when decoding 0x" + encodedHexString,
         expectedNum,
@@ -486,20 +460,16 @@ public class OrderedCodeTest {
   }
 
   /**
-   * Assert that decoding various sequences of bytes via
-   * {@link OrderedCode#readSignedNumIncreasing()} produces the expected long
-   * value.
-   * Input byte sequences were generated via the c++ (authoritative)
-   * implementation of OrderedCode::WriteSignedNumIncreasing.
+   * Assert that decoding various sequences of bytes via {@link
+   * OrderedCode#readSignedNumIncreasing()} produces the expected long value. Input byte sequences
+   * were generated via the c++ (authoritative) implementation of
+   * OrderedCode::WriteSignedNumIncreasing.
    */
   @Test
   public void testSignedNumIncreasing_read() {
-    assertDecodedSignedNumIncreasingEquals(
-        Long.MIN_VALUE, "003f8000000000000000");
-    assertDecodedSignedNumIncreasingEquals(
-        Long.MIN_VALUE + 1, "003f8000000000000001");
-    assertDecodedSignedNumIncreasingEquals(
-        Integer.MIN_VALUE - 1L, "077fffffff");
+    assertDecodedSignedNumIncreasingEquals(Long.MIN_VALUE, "003f8000000000000000");
+    assertDecodedSignedNumIncreasingEquals(Long.MIN_VALUE + 1, "003f8000000000000001");
+    assertDecodedSignedNumIncreasingEquals(Integer.MIN_VALUE - 1L, "077fffffff");
     assertDecodedSignedNumIncreasingEquals(Integer.MIN_VALUE, "0780000000");
     assertDecodedSignedNumIncreasingEquals(Integer.MIN_VALUE + 1, "0780000001");
     assertDecodedSignedNumIncreasingEquals(-65, "3fbf");
@@ -517,37 +487,32 @@ public class OrderedCodeTest {
     assertDecodedSignedNumIncreasingEquals(65, "c041");
     assertDecodedSignedNumIncreasingEquals(Integer.MAX_VALUE - 1, "f87ffffffe");
     assertDecodedSignedNumIncreasingEquals(Integer.MAX_VALUE, "f87fffffff");
-    assertDecodedSignedNumIncreasingEquals(
-        Integer.MAX_VALUE + 1L, "f880000000");
-    assertDecodedSignedNumIncreasingEquals(
-        Long.MAX_VALUE - 1, "ffc07ffffffffffffffe");
-    assertDecodedSignedNumIncreasingEquals(
-        Long.MAX_VALUE, "ffc07fffffffffffffff");
+    assertDecodedSignedNumIncreasingEquals(Integer.MAX_VALUE + 1L, "f880000000");
+    assertDecodedSignedNumIncreasingEquals(Long.MAX_VALUE - 1, "ffc07ffffffffffffffe");
+    assertDecodedSignedNumIncreasingEquals(Long.MAX_VALUE, "ffc07fffffffffffffff");
   }
 
   /**
-   * Assert that encoding (via
-   * {@link OrderedCode#writeSignedNumIncreasing(long)}) the specified long
-   * value and then decoding (via {@link OrderedCode#readSignedNumIncreasing()})
-   * results in the original value.
+   * Assert that encoding (via {@link OrderedCode#writeSignedNumIncreasing(long)}) the specified
+   * long value and then decoding (via {@link OrderedCode#readSignedNumIncreasing()}) results in the
+   * original value.
    */
-  private static void assertSignedNumIncreasingWriteAndReadIsLossless(
-      long num) {
+  private static void assertSignedNumIncreasingWriteAndReadIsLossless(long num) {
     OrderedCode orderedCode = new OrderedCode();
     orderedCode.writeSignedNumIncreasing(num);
     assertEquals(
         "Unexpected result when decoding writeSignedNumIncreasing(" + num + ")",
         num,
         orderedCode.readSignedNumIncreasing());
-    assertFalse("Unexpected remaining encoded bytes after decoding " + num,
+    assertFalse(
+        "Unexpected remaining encoded bytes after decoding " + num,
         orderedCode.hasRemainingEncodedBytes());
   }
 
   /**
-   * Assert that for various long values, encoding (via
-   * {@link OrderedCode#writeSignedNumIncreasing(long)}) and then decoding (via
-   * {@link OrderedCode#readSignedNumIncreasing()}) results in the original
-   * value.
+   * Assert that for various long values, encoding (via {@link
+   * OrderedCode#writeSignedNumIncreasing(long)}) and then decoding (via {@link
+   * OrderedCode#readSignedNumIncreasing()}) results in the original value.
    */
   @Test
   public void testSignedNumIncreasing_writeAndRead() {
@@ -577,28 +542,26 @@ public class OrderedCodeTest {
   }
 
   /**
-   * Assert that encoding (via
-   * {@link OrderedCode#writeSignedNumDecreasing(long)}) the specified long
-   * value and then decoding (via {@link OrderedCode#readSignedNumDecreasing()})
-   * results in the original value.
+   * Assert that encoding (via {@link OrderedCode#writeSignedNumDecreasing(long)}) the specified
+   * long value and then decoding (via {@link OrderedCode#readSignedNumDecreasing()}) results in the
+   * original value.
    */
-  private static void assertSignedNumDecreasingWriteAndReadIsLossless(
-      long num) {
+  private static void assertSignedNumDecreasingWriteAndReadIsLossless(long num) {
     OrderedCode orderedCode = new OrderedCode();
     orderedCode.writeSignedNumDecreasing(num);
     assertEquals(
         "Unexpected result when decoding writeSignedNumDecreasing(" + num + ")",
         num,
         orderedCode.readSignedNumDecreasing());
-    assertFalse("Unexpected remaining encoded bytes after decoding " + num,
+    assertFalse(
+        "Unexpected remaining encoded bytes after decoding " + num,
         orderedCode.hasRemainingEncodedBytes());
   }
 
   /**
-   * Assert that for various long values, encoding (via
-   * {@link OrderedCode#writeSignedNumDecreasing(long)}) and then decoding (via
-   * {@link OrderedCode#readSignedNumDecreasing()}) results in the original
-   * value.
+   * Assert that for various long values, encoding (via {@link
+   * OrderedCode#writeSignedNumDecreasing(long)}) and then decoding (via {@link
+   * OrderedCode#readSignedNumDecreasing()}) results in the original value.
    */
   @Test
   public void testSignedNumDecreasing_writeAndRead() {
@@ -653,8 +616,8 @@ public class OrderedCodeTest {
   }
 
   /**
-   * OrderedCode.log2Floor(long) is defined to return -1 given an input of zero
-   * (because that's what Bits::Log2Floor64(uint64) does).
+   * OrderedCode.log2Floor(long) is defined to return -1 given an input of zero (because that's what
+   * Bits::Log2Floor64(uint64) does).
    */
   @Test
   public void testLog2Floor_zero() {
@@ -698,10 +661,16 @@ public class OrderedCodeTest {
 
   @Test
   public void testWriteTrailingBytes() {
-    byte[] escapeChars = new byte[] { OrderedCode.ESCAPE1,
-        OrderedCode.NULL_CHARACTER, OrderedCode.SEPARATOR, OrderedCode.ESCAPE2,
-        OrderedCode.INFINITY, OrderedCode.FF_CHARACTER};
-    byte[] anotherArray = new byte[] { 'a', 'b', 'c', 'd', 'e' };
+    byte[] escapeChars =
+        new byte[] {
+          OrderedCode.ESCAPE1,
+          OrderedCode.NULL_CHARACTER,
+          OrderedCode.SEPARATOR,
+          OrderedCode.ESCAPE2,
+          OrderedCode.INFINITY,
+          OrderedCode.FF_CHARACTER
+        };
+    byte[] anotherArray = new byte[] {'a', 'b', 'c', 'd', 'e'};
 
     OrderedCode orderedCode = new OrderedCode();
     orderedCode.writeTrailingBytes(escapeChars);
@@ -722,12 +691,18 @@ public class OrderedCodeTest {
 
   @Test
   public void testMixedWrite() {
-    byte[] first = { 'a', 'b', 'c'};
-    byte[] second = { 'd', 'e', 'f'};
-    byte[] last = { 'x', 'y', 'z'};
-    byte[] escapeChars = new byte[] { OrderedCode.ESCAPE1,
-        OrderedCode.NULL_CHARACTER, OrderedCode.SEPARATOR, OrderedCode.ESCAPE2,
-        OrderedCode.INFINITY, OrderedCode.FF_CHARACTER};
+    byte[] first = {'a', 'b', 'c'};
+    byte[] second = {'d', 'e', 'f'};
+    byte[] last = {'x', 'y', 'z'};
+    byte[] escapeChars =
+        new byte[] {
+          OrderedCode.ESCAPE1,
+          OrderedCode.NULL_CHARACTER,
+          OrderedCode.SEPARATOR,
+          OrderedCode.ESCAPE2,
+          OrderedCode.INFINITY,
+          OrderedCode.FF_CHARACTER
+        };
 
     OrderedCode orderedCode = new OrderedCode();
     orderedCode.writeBytes(first);
@@ -790,30 +765,34 @@ public class OrderedCodeTest {
     byte[] separatorEncoded = {OrderedCode.ESCAPE1, OrderedCode.SEPARATOR};
     byte[] ffCharEncoded = {OrderedCode.ESCAPE1, OrderedCode.NULL_CHARACTER};
     byte[] nullCharEncoded = {OrderedCode.ESCAPE2, OrderedCode.FF_CHARACTER};
-    byte[] infinityEncoded  = {OrderedCode.ESCAPE2, OrderedCode.INFINITY};
+    byte[] infinityEncoded = {OrderedCode.ESCAPE2, OrderedCode.INFINITY};
 
     OrderedCode orderedCode = new OrderedCode();
     orderedCode.writeBytes(ffChar);
     orderedCode.writeBytes(nullChar);
     orderedCode.writeInfinity();
-    assertTrue(Arrays.equals(orderedCode.getEncodedBytes(),
-        Bytes.concat(ffCharEncoded, separatorEncoded,
-            nullCharEncoded, separatorEncoded,
-            infinityEncoded)));
+    assertTrue(
+        Arrays.equals(
+            orderedCode.getEncodedBytes(),
+            Bytes.concat(
+                ffCharEncoded,
+                separatorEncoded,
+                nullCharEncoded,
+                separatorEncoded,
+                infinityEncoded)));
     assertTrue(Arrays.equals(orderedCode.readBytes(), ffChar));
     assertTrue(Arrays.equals(orderedCode.readBytes(), nullChar));
     assertTrue(orderedCode.readInfinity());
 
-    orderedCode = new OrderedCode(
-        Bytes.concat(ffCharEncoded, separatorEncoded));
+    orderedCode = new OrderedCode(Bytes.concat(ffCharEncoded, separatorEncoded));
     assertTrue(Arrays.equals(orderedCode.readBytes(), ffChar));
 
-    orderedCode = new OrderedCode(
-        Bytes.concat(nullCharEncoded, separatorEncoded));
+    orderedCode = new OrderedCode(Bytes.concat(nullCharEncoded, separatorEncoded));
     assertTrue(Arrays.equals(orderedCode.readBytes(), nullChar));
 
-    byte[] invalidEncodingForRead = {OrderedCode.ESCAPE2, OrderedCode.ESCAPE2,
-        OrderedCode.ESCAPE1, OrderedCode.SEPARATOR};
+    byte[] invalidEncodingForRead = {
+      OrderedCode.ESCAPE2, OrderedCode.ESCAPE2, OrderedCode.ESCAPE1, OrderedCode.SEPARATOR
+    };
     orderedCode = new OrderedCode(invalidEncodingForRead);
     try {
       orderedCode.readBytes();
@@ -826,7 +805,7 @@ public class OrderedCodeTest {
 
   @Test
   public void testHasRemainingEncodedBytes() {
-    byte[] bytes = { 'a', 'b', 'c'};
+    byte[] bytes = {'a', 'b', 'c'};
     long number = 12345;
 
     // Empty

@@ -18,8 +18,8 @@
 
 import groovy.json.JsonOutput
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: true)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Gearpump"
 
@@ -38,7 +38,6 @@ configurations {
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   compileOnly "com.typesafe:config:1.3.0"
   compileOnly "org.scala-lang:scala-library:2.11.8"
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
@@ -48,15 +47,15 @@ dependencies {
   shadow "org.apache.gearpump:gearpump-streaming_2.11:$gearpump_version"
   shadow library.java.joda_time
   shadow library.java.jackson_annotations
-  shadow library.java.findbugs_jsr305
-  testCompileOnly library.java.findbugs_annotations
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
   shadowTest library.java.jackson_databind
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.mockito_core
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
 }
 
@@ -67,20 +66,24 @@ task validatesRunnerStreaming(type: Test) {
           "--streaming=true",
   ])
 
+
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
     excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
   }
 }
 

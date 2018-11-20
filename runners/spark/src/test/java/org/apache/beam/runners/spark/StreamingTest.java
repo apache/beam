@@ -17,7 +17,5 @@
  */
 package org.apache.beam.runners.spark;
 
-/**
- * Category tag for tests that should be run in streaming mode.
- */
+/** Category tag for tests that should be run in streaming mode. */
 public interface StreamingTest {}

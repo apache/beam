@@ -28,10 +28,10 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link NullableCoder} encodes nullable values of type {@code T} using a nested
- * {@code Coder<T>} that does not tolerate {@code null} values. {@link NullableCoder} uses
- * exactly 1 byte per entry to indicate whether the value is {@code null}, then adds the encoding
- * of the inner coder for non-null values.
+ * A {@link NullableCoder} encodes nullable values of type {@code T} using a nested {@code Coder<T>}
+ * that does not tolerate {@code null} values. {@link NullableCoder} uses exactly 1 byte per entry
+ * to indicate whether the value is {@code null}, then adds the encoding of the inner coder for
+ * non-null values.
  *
  * @param <T> the type of the values being transcoded
  */
@@ -53,22 +53,19 @@ public class NullableCoder<T> extends StructuredCoder<T> {
     this.valueCoder = valueCoder;
   }
 
-  /**
-   * Returns the inner {@link Coder} wrapped by this {@link NullableCoder} instance.
-   */
+  /** Returns the inner {@link Coder} wrapped by this {@link NullableCoder} instance. */
   public Coder<T> getValueCoder() {
     return valueCoder;
   }
 
   @Override
-  public void encode(@Nullable T value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(@Nullable T value, OutputStream outStream) throws IOException, CoderException {
     encode(value, outStream, Context.NESTED);
   }
 
   @Override
   public void encode(@Nullable T value, OutputStream outStream, Context context)
-      throws IOException, CoderException  {
+      throws IOException, CoderException {
     if (value == null) {
       outStream.write(ENCODE_NULL);
     } else {
@@ -89,9 +86,10 @@ public class NullableCoder<T> extends StructuredCoder<T> {
     if (b == ENCODE_NULL) {
       return null;
     } else if (b != ENCODE_PRESENT) {
-        throw new CoderException(String.format(
-            "NullableCoder expects either a byte valued %s (null) or %s (present), got %s",
-            ENCODE_NULL, ENCODE_PRESENT, b));
+      throw new CoderException(
+          String.format(
+              "NullableCoder expects either a byte valued %s (null) or %s (present), got %s",
+              ENCODE_NULL, ENCODE_PRESENT, b));
     }
     return valueCoder.decode(inStream, context);
   }
@@ -114,7 +112,7 @@ public class NullableCoder<T> extends StructuredCoder<T> {
   /**
    * {@code NullableCoder} is consistent with equals if the nested {@code Coder} is.
    *
-   * {@inheritDoc}
+   * <p>{@inheritDoc}
    */
   @Override
   public boolean consistentWithEquals() {
@@ -134,11 +132,11 @@ public class NullableCoder<T> extends StructuredCoder<T> {
    * counting the bytes. The size is known (1 byte) when {@code value} is {@code null}, otherwise
    * the size is 1 byte plus the size of nested {@code Coder}'s encoding of {@code value}.
    *
-   * {@inheritDoc}
+   * <p>{@inheritDoc}
    */
   @Override
-  public void registerByteSizeObserver(
-      @Nullable T value, ElementByteSizeObserver observer) throws Exception {
+  public void registerByteSizeObserver(@Nullable T value, ElementByteSizeObserver observer)
+      throws Exception {
     observer.update(1);
     if (value != null) {
       valueCoder.registerByteSizeObserver(value, observer);
@@ -150,7 +148,7 @@ public class NullableCoder<T> extends StructuredCoder<T> {
    * counting the bytes. The size is known (1 byte) when {@code value} is {@code null}, otherwise
    * the size is 1 byte plus the size of nested {@code Coder}'s encoding of {@code value}.
    *
-   * {@inheritDoc}
+   * <p>{@inheritDoc}
    */
   @Override
   protected long getEncodedElementByteSize(@Nullable T value) throws Exception {
@@ -161,8 +159,7 @@ public class NullableCoder<T> extends StructuredCoder<T> {
     if (valueCoder instanceof StructuredCoder) {
       // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding 1 byte to count the null indicator.
-      return 1  + ((StructuredCoder<T>) valueCoder)
-          .getEncodedElementByteSize(value);
+      return 1 + ((StructuredCoder<T>) valueCoder).getEncodedElementByteSize(value);
     }
 
     // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
@@ -173,7 +170,7 @@ public class NullableCoder<T> extends StructuredCoder<T> {
   /**
    * {@code NullableCoder} is cheap if {@code valueCoder} is cheap.
    *
-   * {@inheritDoc}
+   * <p>{@inheritDoc}
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(@Nullable T value) {

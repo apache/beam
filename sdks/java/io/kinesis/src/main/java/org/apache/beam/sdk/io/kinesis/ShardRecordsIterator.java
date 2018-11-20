@@ -30,10 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Iterates over records in a single shard.
- * Records are retrieved in batches via calls to {@link ShardRecordsIterator#readNextBatch()}.
- * Client has to confirm processed records by calling
- * {@link ShardRecordsIterator#ackRecord(KinesisRecord)} method.
+ * Iterates over records in a single shard. Records are retrieved in batches via calls to {@link
+ * ShardRecordsIterator#readNextBatch()}. Client has to confirm processed records by calling {@link
+ * ShardRecordsIterator#ackRecord(KinesisRecord)} method.
  */
 class ShardRecordsIterator {
 
@@ -47,14 +46,17 @@ class ShardRecordsIterator {
   private String shardIterator;
   private AtomicLong millisBehindLatest = new AtomicLong(Long.MAX_VALUE);
 
-  ShardRecordsIterator(final ShardCheckpoint initialCheckpoint,
-      SimplifiedKinesisClient simplifiedKinesisClient) throws TransientKinesisException {
+  ShardRecordsIterator(
+      final ShardCheckpoint initialCheckpoint, SimplifiedKinesisClient simplifiedKinesisClient)
+      throws TransientKinesisException {
     this(initialCheckpoint, simplifiedKinesisClient, new RecordFilter());
   }
 
-  ShardRecordsIterator(final ShardCheckpoint initialCheckpoint,
+  ShardRecordsIterator(
+      final ShardCheckpoint initialCheckpoint,
       SimplifiedKinesisClient simplifiedKinesisClient,
-      RecordFilter filter) throws TransientKinesisException {
+      RecordFilter filter)
+      throws TransientKinesisException {
     this.checkpoint = new AtomicReference<>(checkNotNull(initialCheckpoint, "initialCheckpoint"));
     this.filter = checkNotNull(filter, "filter");
     this.kinesis = checkNotNull(simplifiedKinesisClient, "simplifiedKinesisClient");
@@ -67,7 +69,8 @@ class ShardRecordsIterator {
       throws TransientKinesisException, KinesisShardClosedException {
     if (shardIterator == null) {
       throw new KinesisShardClosedException(
-          String.format("Shard iterator reached end of the shard: streamName=%s, shardId=%s",
+          String.format(
+              "Shard iterator reached end of the shard: streamName=%s, shardId=%s",
               streamName, shardId));
     }
     GetKinesisRecordsResult response = fetchRecords();
@@ -111,8 +114,11 @@ class ShardRecordsIterator {
     List<ShardRecordsIterator> successiveShardRecordIterators = new ArrayList<>();
     for (Shard shard : shards) {
       if (shardId.equals(shard.getParentShardId())) {
-        ShardCheckpoint shardCheckpoint = new ShardCheckpoint(streamName, shard.getShardId(),
-            new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
+        ShardCheckpoint shardCheckpoint =
+            new ShardCheckpoint(
+                streamName,
+                shard.getShardId(),
+                new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
         successiveShardRecordIterators.add(new ShardRecordsIterator(shardCheckpoint, kinesis));
       }
     }

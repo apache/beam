@@ -30,9 +30,7 @@ import org.joda.time.Duration;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
-/**
- * Result of executing a {@link Pipeline} with Gearpump.
- */
+/** Result of executing a {@link Pipeline} with Gearpump. */
 public class GearpumpPipelineResult implements PipelineResult {
 
   private final ClientContext client;
@@ -89,7 +87,7 @@ public class GearpumpPipelineResult implements PipelineResult {
     List<AppMasterData> apps =
         JavaConverters.seqAsJavaListConverter((Seq<AppMasterData>) client.listApps().appMasters())
             .asJava();
-    for (AppMasterData appData: apps) {
+    for (AppMasterData appData : apps) {
       if (appData.appId() == app.appId()) {
         status = appData.status();
       }

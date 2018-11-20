@@ -26,13 +26,13 @@ import java.util.List;
 import org.apache.beam.sdk.transforms.ParDo;
 
 /**
- * A {@link TupleTagList} is an immutable list of heterogeneously
- * typed {@link TupleTag TupleTags}. A {@link TupleTagList} is used, for instance, to
- * specify the tags of the additional outputs of a
+ * A {@link TupleTagList} is an immutable list of heterogeneously typed {@link TupleTag TupleTags}.
+ * A {@link TupleTagList} is used, for instance, to specify the tags of the additional outputs of a
  * {@link ParDo}.
  *
  * <p>A {@link TupleTagList} can be created and accessed like follows:
- * <pre> {@code
+ *
+ * <pre>{@code
  * TupleTag<String> tag1 = ...;
  * TupleTag<Integer> tag2 = ...;
  * TupleTag<Iterable<String>> tag3 = ...;
@@ -51,14 +51,14 @@ import org.apache.beam.sdk.transforms.ParDo;
  *
  * // Get a list of all TupleTags in a TupleTagList:
  * List<TupleTag<?>> allTags = tags.getAll();
- * } </pre>
+ * }</pre>
  */
 public class TupleTagList implements Serializable {
   /**
    * Returns an empty {@link TupleTagList}.
    *
-   * <p>Longer {@link TupleTagList TupleTagLists} can be created by calling
-   * {@link #and} on the result.
+   * <p>Longer {@link TupleTagList TupleTagLists} can be created by calling {@link #and} on the
+   * result.
    */
   public static TupleTagList empty() {
     return new TupleTagList();
@@ -67,8 +67,8 @@ public class TupleTagList implements Serializable {
   /**
    * Returns a singleton {@link TupleTagList} containing the given {@link TupleTag}.
    *
-   * <p>Longer {@link TupleTagList TupleTagLists} can be created by calling
-   * {@link #and} on the result.
+   * <p>Longer {@link TupleTagList TupleTagLists} can be created by calling {@link #and} on the
+   * result.
    */
   public static TupleTagList of(TupleTag<?> tag) {
     return empty().and(tag);
@@ -77,41 +77,32 @@ public class TupleTagList implements Serializable {
   /**
    * Returns a {@link TupleTagList} containing the given {@link TupleTag TupleTags}, in order.
    *
-   * <p>Longer {@link TupleTagList TupleTagLists} can be created by calling
-   * {@link #and} on the result.
+   * <p>Longer {@link TupleTagList TupleTagLists} can be created by calling {@link #and} on the
+   * result.
    */
   public static TupleTagList of(List<TupleTag<?>> tags) {
     return empty().and(tags);
   }
 
   /**
-   * Returns a new {@link TupleTagList} that has all the {@link TupleTag TupleTags} of
-   * this {@link TupleTagList} plus the given {@link TupleTag} appended to the end.
+   * Returns a new {@link TupleTagList} that has all the {@link TupleTag TupleTags} of this {@link
+   * TupleTagList} plus the given {@link TupleTag} appended to the end.
    */
   public TupleTagList and(TupleTag<?> tag) {
     return new TupleTagList(
-        new ImmutableList.Builder<TupleTag<?>>()
-            .addAll(tupleTags)
-            .add(tag)
-            .build());
+        new ImmutableList.Builder<TupleTag<?>>().addAll(tupleTags).add(tag).build());
   }
 
   /**
-   * Returns a new {@link TupleTagList} that has all the {@link TupleTag TupleTags} of
-   * this {@link TupleTagList} plus the given {@link TupleTag TupleTags} appended to the end,
-   * in order.
+   * Returns a new {@link TupleTagList} that has all the {@link TupleTag TupleTags} of this {@link
+   * TupleTagList} plus the given {@link TupleTag TupleTags} appended to the end, in order.
    */
   public TupleTagList and(List<TupleTag<?>> tags) {
     return new TupleTagList(
-        new ImmutableList.Builder<TupleTag<?>>()
-            .addAll(tupleTags)
-            .addAll(tags)
-            .build());
+        new ImmutableList.Builder<TupleTag<?>>().addAll(tupleTags).addAll(tags).build());
   }
 
-  /**
-   * Returns the number of TupleTags in this TupleTagList.
-   */
+  /** Returns the number of TupleTags in this TupleTagList. */
   public int size() {
     return tupleTags.size();
   }
@@ -119,8 +110,7 @@ public class TupleTagList implements Serializable {
   /**
    * Returns the {@link TupleTag} at the given index (origin zero).
    *
-   * @throws IndexOutOfBoundsException if the index is out of the range
-   * {@code [0..size()-1]}.
+   * @throws IndexOutOfBoundsException if the index is out of the range {@code [0..size()-1]}.
    */
   public TupleTag<?> get(int index) {
     return tupleTags.get(index);
@@ -132,7 +122,6 @@ public class TupleTagList implements Serializable {
   public List<TupleTag<?>> getAll() {
     return tupleTags;
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal details below here.

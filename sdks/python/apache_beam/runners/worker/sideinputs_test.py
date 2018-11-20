@@ -17,14 +17,17 @@
 
 """Tests for side input utilities."""
 
+from __future__ import absolute_import
+
 import logging
 import time
 import unittest
+from builtins import object
+from builtins import range
 
 import mock
 
 from apache_beam.coders import observable
-from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.runners.worker import sideinputs
 
 
@@ -77,22 +80,9 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     ]
     iterator_fn = sideinputs.get_iterator_fn_for_sources(
         sources, max_reader_threads=2)
-    assert list(strip_windows(iterator_fn())) == range(6)
-
-  def test_bytes_read_behind_experiment(self):
-    mock_read_counter = mock.MagicMock()
-    source_records = ['a', 'b', 'c', 'd']
-    sources = [
-        FakeSource(source_records, notify_observers=True),
-    ]
-    iterator_fn = sideinputs.get_iterator_fn_for_sources(
-        sources, max_reader_threads=3, read_counter=mock_read_counter)
-    assert list(strip_windows(iterator_fn())) == source_records
-    mock_read_counter.add_bytes_read.assert_not_called()
+    assert list(strip_windows(iterator_fn())) == list(range(6))
 
   def test_bytes_read_are_reported(self):
-    RuntimeValueProvider.set_runtime_options(
-        {'experiments': ['sideinput_io_metrics', 'other']})
     mock_read_counter = mock.MagicMock()
     source_records = ['a', 'b', 'c', 'd']
     sources = [
@@ -103,9 +93,6 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     assert list(strip_windows(iterator_fn())) == source_records
     mock_read_counter.add_bytes_read.assert_called_with(4)
 
-    # Remove runtime options from the runtime value provider.
-    RuntimeValueProvider.set_runtime_options({})
-
   def test_multiple_sources_iterator_fn(self):
     sources = [
         FakeSource([0]),
@@ -115,7 +102,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     ]
     iterator_fn = sideinputs.get_iterator_fn_for_sources(
         sources, max_reader_threads=3)
-    assert sorted(strip_windows(iterator_fn())) == range(11)
+    assert sorted(strip_windows(iterator_fn())) == list(range(11))
 
   def test_multiple_sources_single_reader_iterator_fn(self):
     sources = [
@@ -126,7 +113,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     ]
     iterator_fn = sideinputs.get_iterator_fn_for_sources(
         sources, max_reader_threads=1)
-    assert list(strip_windows(iterator_fn())) == range(11)
+    assert list(strip_windows(iterator_fn())) == list(range(11))
 
   def test_source_iterator_single_source_exception(self):
     class MyException(Exception):
@@ -172,7 +159,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     with self.assertRaises(MyException):
       for value in iterator_fn():
         seen.add(value.value)
-    self.assertEqual(sorted(seen), range(5))
+    self.assertEqual(sorted(seen), list(range(5)))
 
 
 class EmulatedCollectionsTest(unittest.TestCase):

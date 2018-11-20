@@ -44,8 +44,8 @@ public final class LocalResources {
     return LocalResourceId.fromPath(Paths.get(filename), isDirectory);
   }
 
-  public static ValueProvider<ResourceId>
-  fromString(ValueProvider<String> resourceProvider, final boolean isDirectory) {
+  public static ValueProvider<ResourceId> fromString(
+      ValueProvider<String> resourceProvider, final boolean isDirectory) {
     return NestedValueProvider.of(resourceProvider, input -> fromString(input, isDirectory));
   }
 

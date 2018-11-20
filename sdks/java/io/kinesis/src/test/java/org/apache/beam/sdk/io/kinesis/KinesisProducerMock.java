@@ -31,9 +31,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.joda.time.DateTime;
 
-/**
- * Simple mock implementation of {@link IKinesisProducer} for testing.
- */
+/** Simple mock implementation of {@link IKinesisProducer} for testing. */
 public class KinesisProducerMock implements IKinesisProducer {
 
   private boolean isFailedFlush = false;
@@ -42,23 +40,26 @@ public class KinesisProducerMock implements IKinesisProducer {
 
   private KinesisServiceMock kinesisService = KinesisServiceMock.getInstance();
 
-  public KinesisProducerMock(){}
+  public KinesisProducerMock() {}
 
   public KinesisProducerMock(KinesisProducerConfiguration config, boolean isFailedFlush) {
     this.isFailedFlush = isFailedFlush;
   }
 
-  @Override public ListenableFuture<UserRecordResult> addUserRecord(String stream,
-      String partitionKey, ByteBuffer data) {
+  @Override
+  public ListenableFuture<UserRecordResult> addUserRecord(
+      String stream, String partitionKey, ByteBuffer data) {
     throw new RuntimeException("Not implemented");
   }
 
-  @Override public ListenableFuture<UserRecordResult> addUserRecord(UserRecord userRecord) {
+  @Override
+  public ListenableFuture<UserRecordResult> addUserRecord(UserRecord userRecord) {
     throw new RuntimeException("Not implemented");
   }
 
-  @Override public ListenableFuture<UserRecordResult> addUserRecord(String stream,
-      String partitionKey, String explicitHashKey, ByteBuffer data) {
+  @Override
+  public ListenableFuture<UserRecordResult> addUserRecord(
+      String stream, String partitionKey, String explicitHashKey, ByteBuffer data) {
     SettableFuture<UserRecordResult> f = SettableFuture.create();
     if (kinesisService.getExistedStream().equals(stream)) {
       addedRecords.add(new UserRecord(stream, partitionKey, explicitHashKey, data));
@@ -71,33 +72,39 @@ public class KinesisProducerMock implements IKinesisProducer {
     return addedRecords.size();
   }
 
-  @Override public List<Metric> getMetrics(String metricName, int windowSeconds)
+  @Override
+  public List<Metric> getMetrics(String metricName, int windowSeconds)
       throws InterruptedException, ExecutionException {
     throw new RuntimeException("Not implemented");
   }
 
-  @Override public List<Metric> getMetrics(String metricName)
+  @Override
+  public List<Metric> getMetrics(String metricName)
       throws InterruptedException, ExecutionException {
     throw new RuntimeException("Not implemented");
   }
 
-  @Override public List<Metric> getMetrics() throws InterruptedException, ExecutionException {
+  @Override
+  public List<Metric> getMetrics() throws InterruptedException, ExecutionException {
     throw new RuntimeException("Not implemented");
   }
 
-  @Override public List<Metric> getMetrics(int windowSeconds)
+  @Override
+  public List<Metric> getMetrics(int windowSeconds)
       throws InterruptedException, ExecutionException {
     throw new RuntimeException("Not implemented");
   }
 
-  @Override public void destroy() {
-  }
+  @Override
+  public void destroy() {}
 
-  @Override public void flush(String stream) {
+  @Override
+  public void flush(String stream) {
     throw new RuntimeException("Not implemented");
   }
 
-  @Override public void flush() {
+  @Override
+  public void flush() {
     if (isFailedFlush) {
       // don't flush
       return;
@@ -112,7 +119,8 @@ public class KinesisProducerMock implements IKinesisProducer {
     }
   }
 
-  @Override public synchronized void flushSync() {
+  @Override
+  public synchronized void flushSync() {
     if (getOutstandingRecordsCount() > 0) {
       flush();
     }

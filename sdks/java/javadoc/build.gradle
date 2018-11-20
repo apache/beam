@@ -16,6 +16,13 @@
  * limitations under the License.
  */
 
+/*
+ * Aggregate Javadoc is not published to Maven Central. Each Java module that is published
+ * to Maven Cental packages its own Javadoc. To generate aggregated javadocs, run:
+ *   ./gradlew :beam-sdks-java-javadoc:aggregateJavadoc
+ * Generated files will be located under beam/sdks/java/javadoc/build/docs/javadoc and are
+ * used as part of the beam-site source tree.
+ */
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 apply plugin: 'java'
 
@@ -47,6 +54,7 @@ def exportedJavadocProjects = [
   ':beam-sdks-java-io-elasticsearch',
   ':beam-sdks-java-io-elasticsearch-tests-2',
   ':beam-sdks-java-io-elasticsearch-tests-5',
+  ':beam-sdks-java-io-elasticsearch-tests-6',
   ':beam-sdks-java-io-elasticsearch-tests-common',
   ':beam-sdks-java-io-google-cloud-platform',
   ':beam-sdks-java-io-hadoop-common',
@@ -71,6 +79,10 @@ for (String exportedJavadocProject : exportedJavadocProjects) {
   evaluationDependsOn(exportedJavadocProject)
 }
 
+task allJavadoc() {
+  dependsOn exportedJavadocProjects.collect { "$it:javadoc" }
+}
+
 task aggregateJavadoc(type: Javadoc) {
   source exportedJavadocProjects.collect { project(it).sourceSets.main.allJava }
   classpath = files(exportedJavadocProjects.collect { project(it).sourceSets.main.compileClasspath })
@@ -91,7 +103,7 @@ task aggregateJavadoc(type: Javadoc) {
 
   options.with {
     failOnError false
-    title "Apache Beam 2.5.0"
+    title "Apache Beam " + project.version
     overview 'overview.html'
     addStringOption('Xdoclint:all', '-quiet')
     addStringOption('Xdoclint:-missing', '-quiet')

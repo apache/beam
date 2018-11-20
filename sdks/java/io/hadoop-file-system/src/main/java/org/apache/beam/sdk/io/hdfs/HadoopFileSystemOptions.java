@@ -37,26 +37,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link PipelineOptions} which encapsulate {@link Configuration Hadoop Configuration}
- * for the {@link HadoopFileSystem}.
+ * {@link PipelineOptions} which encapsulate {@link Configuration Hadoop Configuration} for the
+ * {@link HadoopFileSystem}.
  */
 @SuppressWarnings("WeakerAccess")
 @Experimental(Kind.FILESYSTEM)
 public interface HadoopFileSystemOptions extends PipelineOptions {
-  @Description("A list of Hadoop configurations used to configure zero or more Hadoop filesystems. "
-      + "By default, Hadoop configuration is loaded from 'core-site.xml' and 'hdfs-site.xml' "
-      + "based upon the HADOOP_CONF_DIR and YARN_CONF_DIR environment variables. "
-      + "To specify configuration on the command-line, represent the value as a JSON list of JSON "
-      + "maps, where each map represents the entire configuration for a single Hadoop filesystem. "
-      + "For example --hdfsConfiguration='[{\"fs.default.name\": \"hdfs://localhost:9998\", ...},"
-      + "{\"fs.default.name\": \"s3a://\", ...},...]'")
+  @Description(
+      "A list of Hadoop configurations used to configure zero or more Hadoop filesystems. "
+          + "By default, Hadoop configuration is loaded from 'core-site.xml' and 'hdfs-site.xml' "
+          + "based upon the HADOOP_CONF_DIR and YARN_CONF_DIR environment variables. "
+          + "To specify configuration on the command-line, represent the value as a JSON list of JSON "
+          + "maps, where each map represents the entire configuration for a single Hadoop filesystem. "
+          + "For example --hdfsConfiguration='[{\"fs.default.name\": \"hdfs://localhost:9998\", ...},"
+          + "{\"fs.default.name\": \"s3a://\", ...},...]'")
   @Default.InstanceFactory(ConfigurationLocator.class)
   List<Configuration> getHdfsConfiguration();
+
   void setHdfsConfiguration(List<Configuration> value);
 
   /** A {@link DefaultValueFactory} which locates a Hadoop {@link Configuration}. */
   class ConfigurationLocator implements DefaultValueFactory<List<Configuration>> {
     private static final Logger LOG = LoggerFactory.getLogger(ConfigurationLocator.class);
+
     @Override
     public List<Configuration> create(PipelineOptions options) {
       // Find default configuration when HADOOP_CONF_DIR or YARN_CONF_DIR is set.
@@ -68,12 +71,12 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
       List<Configuration> configurationList = Lists.newArrayList();
 
       /*
-      * If we find a configuration in HADOOP_CONF_DIR and YARN_CONF_DIR,
-      * we should be returning them both separately.
-      *
-      * Also, ensure that we only load one configuration if both
-      * HADOOP_CONF_DIR and YARN_CONF_DIR point to the same location.
-      */
+       * If we find a configuration in HADOOP_CONF_DIR and YARN_CONF_DIR,
+       * we should be returning them both separately.
+       *
+       * Also, ensure that we only load one configuration if both
+       * HADOOP_CONF_DIR and YARN_CONF_DIR point to the same location.
+       */
       Set<String> confDirs = Sets.newHashSet();
       for (String confDir : Lists.newArrayList("HADOOP_CONF_DIR", "YARN_CONF_DIR")) {
         if (getEnvironment().containsKey(confDir)) {

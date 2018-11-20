@@ -39,9 +39,9 @@ import org.apache.beam.sdk.options.ValueProvider;
  *
  * <p>A {@link FileBasedSource} which can decode records delimited by newline characters.
  *
- * <p>This source splits the data into records using {@code UTF-8} {@code \n}, {@code \r}, or
- * {@code \r\n} as the delimiter. This source is not strict and supports decoding the last record
- * even if it is not delimited. Finally, no records are decoded if the stream is empty.
+ * <p>This source splits the data into records using {@code UTF-8} {@code \n}, {@code \r}, or {@code
+ * \r\n} as the delimiter. This source is not strict and supports decoding the last record even if
+ * it is not delimited. Finally, no records are decoded if the stream is empty.
  *
  * <p>This source supports reading from any arbitrary byte position within the stream. If the
  * starting position is not {@code 0}, then bytes are skipped until the first delimiter is found
@@ -51,8 +51,8 @@ import org.apache.beam.sdk.options.ValueProvider;
 class TextSource extends FileBasedSource<String> {
   byte[] delimiter;
 
-  TextSource(ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment,
-      byte[] delimiter) {
+  TextSource(
+      ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter) {
     super(fileSpec, emptyMatchTreatment, 1L);
     this.delimiter = delimiter;
   }
@@ -64,11 +64,8 @@ class TextSource extends FileBasedSource<String> {
 
   @Override
   protected FileBasedSource<String> createForSubrangeOfFile(
-      MatchResult.Metadata metadata,
-      long start,
-      long end) {
+      MatchResult.Metadata metadata, long start, long end) {
     return new TextSource(metadata, start, end, delimiter);
-
   }
 
   @Override
@@ -82,8 +79,8 @@ class TextSource extends FileBasedSource<String> {
   }
 
   /**
-   * A {@link FileBasedReader FileBasedReader}
-   * which can decode records delimited by delimiter characters.
+   * A {@link FileBasedReader FileBasedReader} which can decode records delimited by delimiter
+   * characters.
    *
    * <p>See {@link TextSource} for further details.
    */
@@ -139,9 +136,11 @@ class TextSource extends FileBasedSource<String> {
       // first delimiter.
       long startOffset = getCurrentSource().getStartOffset();
       if (startOffset > 0) {
-        checkState(channel instanceof SeekableByteChannel,
+        checkState(
+            channel instanceof SeekableByteChannel,
             "%s only supports reading from a SeekableByteChannel when given a start offset"
-            + " greater than 0.", TextSource.class.getSimpleName());
+                + " greater than 0.",
+            TextSource.class.getSimpleName());
         long requiredPosition = startOffset - 1;
         if (delimiter != null && startOffset >= delimiter.length) {
           // we need to move back the offset of at worse delimiter.size to be sure to see
@@ -158,10 +157,11 @@ class TextSource extends FileBasedSource<String> {
     }
 
     /**
-     * Locates the start position and end position of the next delimiter. Will
-     * consume the channel till either EOF or the delimiter bounds are found.
+     * Locates the start position and end position of the next delimiter. Will consume the channel
+     * till either EOF or the delimiter bounds are found.
      *
      * <p>This fills the buffer and updates the positions as follows:
+     *
      * <pre>{@code
      * ------------------------------------------------------
      * | element bytes | delimiter bytes | unconsumed bytes |
@@ -246,8 +246,8 @@ class TextSource extends FileBasedSource<String> {
     /**
      * Decodes the current element updating the buffer to only contain the unconsumed bytes.
      *
-     * <p>This invalidates the currently stored {@code startOfDelimiterInBuffer} and
-     * {@code endOfDelimiterInBuffer}.
+     * <p>This invalidates the currently stored {@code startOfDelimiterInBuffer} and {@code
+     * endOfDelimiterInBuffer}.
      */
     private void decodeCurrentElement() throws IOException {
       ByteString dataToDecode = buffer.substring(0, startOfDelimiterInBuffer);
@@ -256,9 +256,7 @@ class TextSource extends FileBasedSource<String> {
       buffer = buffer.substring(endOfDelimiterInBuffer);
     }
 
-    /**
-     * Returns false if we were unable to ensure the minimum capacity by consuming the channel.
-     */
+    /** Returns false if we were unable to ensure the minimum capacity by consuming the channel. */
     private boolean tryToEnsureNumberOfBytesInBuffer(int minCapacity) throws IOException {
       // While we aren't at EOF or haven't fulfilled the minimum buffer capacity,
       // attempt to read more bytes.

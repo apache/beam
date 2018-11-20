@@ -17,29 +17,43 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.base.Strings;
+import com.google.common.hash.Funnels;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.util.ZipFiles;
 
 /** Utilities for working with classpath resources for pipelines. */
 public class PipelineResources {
 
   /**
-   * Attempts to detect all the resources the class loader has access to. This does not recurse
-   * to class loader parents stopping it from pulling in resources from the system class loader.
+   * Attempts to detect all the resources the class loader has access to. This does not recurse to
+   * class loader parents stopping it from pulling in resources from the system class loader.
    *
    * @param classLoader The URLClassLoader to use to detect resources to stage.
-   * @throws IllegalArgumentException  If either the class loader is not a URLClassLoader or one
-   * of the resources the class loader exposes is not a file resource.
+   * @throws IllegalArgumentException If either the class loader is not a URLClassLoader or one of
+   *     the resources the class loader exposes is not a file resource.
    * @return A list of absolute paths to the resources the class loader uses.
    */
   public static List<String> detectClassPathResourcesToStage(ClassLoader classLoader) {
     if (!(classLoader instanceof URLClassLoader)) {
-      String message = String.format("Unable to use ClassLoader to detect classpath elements. "
-          + "Current ClassLoader is %s, only URLClassLoaders are supported.", classLoader);
+      String message =
+          String.format(
+              "Unable to use ClassLoader to detect classpath elements. "
+                  + "Current ClassLoader is %s, only URLClassLoaders are supported.",
+              classLoader);
       throw new IllegalArgumentException(message);
     }
 
@@ -53,5 +67,61 @@ public class PipelineResources {
       }
     }
     return files;
+  }
+
+  /**
+   * Goes through the list of files that need to be staged on runner. Removes nonexistent
+   * directories and packages existing ones. This is necessary for runners that require filesToStage
+   * to be jars only.
+   *
+   * @param resourcesToStage list of resources that need to be staged
+   * @param tmpJarLocation temporary directory to store the jars
+   * @return A list of absolute paths to resources (jar files)
+   */
+  public static List<String> prepareFilesForStaging(
+      List<String> resourcesToStage, String tmpJarLocation) {
+    return resourcesToStage
+        .stream()
+        .map(File::new)
+        .filter(File::exists)
+        .map(
+            file ->
+                file.isDirectory()
+                    ? packageDirectoriesToStage(file, tmpJarLocation)
+                    : file.getAbsolutePath())
+        .collect(Collectors.toList());
+  }
+
+  private static String packageDirectoriesToStage(File directoryToStage, String tmpJarLocation) {
+    String hash = calculateDirectoryContentHash(directoryToStage);
+    String pathForJar = getUniqueJarPath(hash, tmpJarLocation);
+    zipDirectory(directoryToStage, pathForJar);
+    return pathForJar;
+  }
+
+  private static String calculateDirectoryContentHash(File directoryToStage) {
+    Hasher hasher = Hashing.sha256().newHasher();
+    try (OutputStream hashStream = Funnels.asOutputStream(hasher)) {
+      ZipFiles.zipDirectory(directoryToStage, hashStream);
+      return hasher.hash().toString();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static String getUniqueJarPath(String contentHash, String tmpJarLocation) {
+    checkArgument(
+        !Strings.isNullOrEmpty(tmpJarLocation),
+        "Please provide temporary location for storing the jar files.");
+
+    return String.format("%s%s.jar", tmpJarLocation, contentHash);
+  }
+
+  private static void zipDirectory(File directoryToStage, String uniqueDirectoryPath) {
+    try {
+      ZipFiles.zipDirectory(directoryToStage, new FileOutputStream(uniqueDirectoryPath));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

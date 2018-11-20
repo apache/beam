@@ -92,7 +92,8 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testAutomaticRegistrationOfRunners() {
-    assertEquals(REGISTERED_RUNNER,
+    assertEquals(
+        REGISTERED_RUNNER,
         PipelineOptionsFactory.getRegisteredRunners()
             .get(REGISTERED_RUNNER.getSimpleName().toLowerCase()));
   }
@@ -100,15 +101,20 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testAutomaticRegistrationInculdesWithoutRunnerSuffix() {
     // Sanity check to make sure the substring works appropriately
-    assertEquals("RegisteredTest",
-        REGISTERED_RUNNER.getSimpleName()
+    assertEquals(
+        "RegisteredTest",
+        REGISTERED_RUNNER
+            .getSimpleName()
             .substring(0, REGISTERED_RUNNER.getSimpleName().length() - "Runner".length()));
     Map<String, Class<? extends PipelineRunner<?>>> registered =
         PipelineOptionsFactory.CACHE.get().getSupportedPipelineRunners();
-    assertEquals(REGISTERED_RUNNER,
-        registered.get(REGISTERED_RUNNER.getSimpleName()
-            .toLowerCase()
-            .substring(0, REGISTERED_RUNNER.getSimpleName().length() - "Runner".length())));
+    assertEquals(
+        REGISTERED_RUNNER,
+        registered.get(
+            REGISTERED_RUNNER
+                .getSimpleName()
+                .toLowerCase()
+                .substring(0, REGISTERED_RUNNER.getSimpleName().length() - "Runner".length())));
   }
 
   @Test
@@ -120,20 +126,23 @@ public class PipelineOptionsFactoryTest {
   /** A simple test interface. */
   public interface TestPipelineOptions extends PipelineOptions {
     String getTestPipelineOption();
+
     void setTestPipelineOption(String value);
   }
 
   @Test
   public void testAppNameIsSetWhenUsingAs() {
     TestPipelineOptions options = PipelineOptionsFactory.as(TestPipelineOptions.class);
-    assertEquals(PipelineOptionsFactoryTest.class.getSimpleName(),
+    assertEquals(
+        PipelineOptionsFactoryTest.class.getSimpleName(),
         options.as(ApplicationNameOptions.class).getAppName());
   }
 
   @Test
   public void testOptionsIdIsSet() throws Exception {
-    ObjectMapper mapper = new ObjectMapper().registerModules(
-        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+    ObjectMapper mapper =
+        new ObjectMapper()
+            .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
     PipelineOptions options = PipelineOptionsFactory.create();
     // We purposely serialize/deserialize to get another instance. This allows to test if the
     // default has been set or not.
@@ -165,7 +174,7 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Expected getter for property [object] of type [java.lang.Object] on "
-        + "[org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingGetter].");
+            + "[org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingGetter].");
 
     PipelineOptionsFactory.as(MissingGetter.class);
   }
@@ -180,7 +189,7 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "missing property methods on [org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MissingMultipleGetters]");
+            + "PipelineOptionsFactoryTest$MissingMultipleGetters]");
     expectedException.expectMessage("getter for property [object] of type [java.lang.Object]");
     expectedException.expectMessage("getter for property [otherObject] of type [java.lang.Object]");
 
@@ -197,7 +206,7 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Expected setter for property [object] of type [java.lang.Object] on "
-        + "[org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingSetter].");
+            + "[org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingSetter].");
 
     PipelineOptionsFactory.as(MissingSetter.class);
   }
@@ -212,7 +221,7 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "missing property methods on [org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MissingMultipleSetters]");
+            + "PipelineOptionsFactoryTest$MissingMultipleSetters]");
     expectedException.expectMessage("setter for property [object] of type [java.lang.Object]");
     expectedException.expectMessage("setter for property [otherObject] of type [java.lang.Object]");
 
@@ -229,7 +238,7 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "missing property methods on [org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MissingGettersAndSetters]");
+            + "PipelineOptionsFactoryTest$MissingGettersAndSetters]");
     expectedException.expectMessage("getter for property [object] of type [java.lang.Object]");
     expectedException.expectMessage("setter for property [otherObject] of type [java.lang.Object]");
 
@@ -239,6 +248,7 @@ public class PipelineOptionsFactoryTest {
   /** A test interface with a type mismatch between the getter and setter. */
   public interface GetterSetterTypeMismatch extends PipelineOptions {
     boolean getValue();
+
     void setValue(int value);
   }
 
@@ -247,7 +257,7 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Type mismatch between getter and setter methods for property [value]. Getter is of type "
-        + "[boolean] whereas setter is of type [int].");
+            + "[boolean] whereas setter is of type [int].");
 
     PipelineOptionsFactory.as(GetterSetterTypeMismatch.class);
   }
@@ -255,6 +265,7 @@ public class PipelineOptionsFactoryTest {
   /** A test interface with multiple type mismatches between getters and setters. */
   public interface MultiGetterSetterTypeMismatch extends GetterSetterTypeMismatch {
     long getOther();
+
     void setOther(String other);
   }
 
@@ -262,16 +273,16 @@ public class PipelineOptionsFactoryTest {
   public void testMultiGetterSetterTypeMismatchThrows() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Type mismatches between getters and setters detected:");
-    expectedException.expectMessage("Property [value]: Getter is of type "
-        + "[boolean] whereas setter is of type [int].");
-    expectedException.expectMessage("Property [other]: Getter is of type [long] "
-        + "whereas setter is of type [class java.lang.String].");
+    expectedException.expectMessage(
+        "Property [value]: Getter is of type " + "[boolean] whereas setter is of type [int].");
+    expectedException.expectMessage(
+        "Property [other]: Getter is of type [long] "
+            + "whereas setter is of type [class java.lang.String].");
     PipelineOptionsFactory.as(MultiGetterSetterTypeMismatch.class);
   }
 
   /** A test interface representing a composite interface. */
-  public interface CombinedObject extends MissingGetter, MissingSetter {
-  }
+  public interface CombinedObject extends MissingGetter, MissingSetter {}
 
   @Test
   public void testHavingSettersGettersFromSeparateInterfacesIsValid() {
@@ -288,8 +299,8 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Methods [extraneousMethod(int, String)] on "
-        + "[org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ExtraneousMethod] "
-        + "do not conform to being bean properties.");
+            + "[org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ExtraneousMethod] "
+            + "do not conform to being bean properties.");
 
     PipelineOptionsFactory.as(ExtraneousMethod.class);
   }
@@ -298,6 +309,7 @@ public class PipelineOptionsFactoryTest {
   public interface ReturnTypeConflict extends CombinedObject {
     @Override
     String getObject();
+
     void setObject(String value);
   }
 
@@ -306,17 +318,18 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Method [getObject] has multiple definitions [public abstract java.lang.Object "
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingSetter"
-        + ".getObject(), public abstract java.lang.String "
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ReturnTypeConflict"
-        + ".getObject()] with different return types for ["
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ReturnTypeConflict].");
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingSetter"
+            + ".getObject(), public abstract java.lang.String "
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ReturnTypeConflict"
+            + ".getObject()] with different return types for ["
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ReturnTypeConflict].");
     PipelineOptionsFactory.as(ReturnTypeConflict.class);
   }
 
   /** An interface to provide multiple methods with return type conflicts. */
   public interface MultiReturnTypeConflictBase extends CombinedObject {
     Object getOther();
+
     void setOther(Object object);
   }
 
@@ -324,34 +337,38 @@ public class PipelineOptionsFactoryTest {
   public interface MultiReturnTypeConflict extends MultiReturnTypeConflictBase {
     @Override
     String getObject();
+
     void setObject(String value);
 
     @Override
     Long getOther();
+
     void setOther(Long other);
   }
 
   @Test
   public void testMultipleReturnTypeConflictsThrows() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("[org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict]");
+    expectedException.expectMessage(
+        "[org.apache.beam.sdk.options." + "PipelineOptionsFactoryTest$MultiReturnTypeConflict]");
     expectedException.expectMessage(
         "Methods with multiple definitions with different return types");
     expectedException.expectMessage("Method [getObject] has multiple definitions");
-    expectedException.expectMessage("public abstract java.lang.Object "
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$"
-        + "MissingSetter.getObject()");
+    expectedException.expectMessage(
+        "public abstract java.lang.Object "
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$"
+            + "MissingSetter.getObject()");
     expectedException.expectMessage(
         "public abstract java.lang.String org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getObject()");
+            + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getObject()");
     expectedException.expectMessage("Method [getOther] has multiple definitions");
-    expectedException.expectMessage("public abstract java.lang.Object "
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$"
-        + "MultiReturnTypeConflictBase.getOther()");
+    expectedException.expectMessage(
+        "public abstract java.lang.Object "
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$"
+            + "MultiReturnTypeConflictBase.getOther()");
     expectedException.expectMessage(
         "public abstract java.lang.Long org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getOther()");
+            + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getOther()");
 
     PipelineOptionsFactory.as(MultiReturnTypeConflict.class);
   }
@@ -359,6 +376,7 @@ public class PipelineOptionsFactoryTest {
   /** Test interface that has {@link JsonIgnore @JsonIgnore} on a setter for a property. */
   public interface SetterWithJsonIgnore extends PipelineOptions {
     String getValue();
+
     @JsonIgnore
     void setValue(String value);
   }
@@ -368,13 +386,14 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Expected setter for property [value] to not be marked with @JsonIgnore on ["
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
     PipelineOptionsFactory.as(SetterWithJsonIgnore.class);
   }
 
   /** Test interface that has {@link JsonIgnore @JsonIgnore} on multiple setters. */
   public interface MultiSetterWithJsonIgnore extends SetterWithJsonIgnore {
     Integer getOther();
+
     @JsonIgnore
     void setOther(Integer other);
   }
@@ -385,30 +404,32 @@ public class PipelineOptionsFactoryTest {
     expectedException.expectMessage("Found setters marked with @JsonIgnore:");
     expectedException.expectMessage(
         "property [other] should not be marked with @JsonIgnore on ["
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiSetterWithJsonIgnore]");
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiSetterWithJsonIgnore]");
     expectedException.expectMessage(
         "property [value] should not be marked with @JsonIgnore on ["
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
     PipelineOptionsFactory.as(MultiSetterWithJsonIgnore.class);
   }
 
   /**
-   * This class is has a conflicting field with {@link CombinedObject} that doesn't have
-   * {@link JsonIgnore @JsonIgnore}.
+   * This class is has a conflicting field with {@link CombinedObject} that doesn't have {@link
+   * JsonIgnore @JsonIgnore}.
    */
   public interface GetterWithJsonIgnore extends PipelineOptions {
     @JsonIgnore
     Object getObject();
+
     void setObject(Object value);
   }
 
   /**
-   * This class is has a conflicting {@link JsonIgnore @JsonIgnore} value with
-   * {@link GetterWithJsonIgnore}.
+   * This class is has a conflicting {@link JsonIgnore @JsonIgnore} value with {@link
+   * GetterWithJsonIgnore}.
    */
   public interface GetterWithInconsistentJsonIgnoreValue extends PipelineOptions {
     @JsonIgnore(value = false)
     Object getObject();
+
     void setObject(Object value);
   }
 
@@ -420,36 +441,44 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Expected getter for property [object] to be marked with @JsonIgnore on all ["
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$GetterWithJsonIgnore, "
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingSetter], "
-        + "found only on [org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$GetterWithJsonIgnore]");
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$GetterWithJsonIgnore, "
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingSetter], "
+            + "found only on [org.apache.beam.sdk.options."
+            + "PipelineOptionsFactoryTest$GetterWithJsonIgnore]");
 
     // When we attempt to convert, we should error at this moment.
     options.as(CombinedObject.class);
   }
 
-  private interface MultiGetters extends PipelineOptions {
+  /** Test interface. */
+  public interface MultiGetters extends PipelineOptions {
     Object getObject();
+
     void setObject(Object value);
 
     @JsonIgnore
     Integer getOther();
+
     void setOther(Integer value);
 
     Void getConsistent();
+
     void setConsistent(Void consistent);
   }
 
-  private interface MultipleGettersWithInconsistentJsonIgnore extends PipelineOptions {
+  /** Test interface. */
+  public interface MultipleGettersWithInconsistentJsonIgnore extends PipelineOptions {
     @JsonIgnore
     Object getObject();
+
     void setObject(Object value);
 
     Integer getOther();
+
     void setOther(Integer value);
 
     Void getConsistent();
+
     void setConsistent(Void consistent);
   }
 
@@ -460,24 +489,30 @@ public class PipelineOptionsFactoryTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Property getters are inconsistently marked with @JsonIgnore:");
+    expectedException.expectMessage("property [object] to be marked on all");
     expectedException.expectMessage(
-        "property [object] to be marked on all");
-    expectedException.expectMessage("found only on [org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MultiGetters]");
+        "found only on [org.apache.beam.sdk.options." + "PipelineOptionsFactoryTest$MultiGetters]");
+    expectedException.expectMessage("property [other] to be marked on all");
     expectedException.expectMessage(
-        "property [other] to be marked on all");
-    expectedException.expectMessage("found only on [org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore]");
+        "found only on [org.apache.beam.sdk.options."
+            + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore]");
 
-    expectedException.expectMessage(Matchers.anyOf(
-        containsString(java.util.Arrays.toString(new String[]
-            {"org.apache.beam.sdk.options."
-                + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore",
-                "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGetters"})),
-        containsString(java.util.Arrays.toString(new String[]
-            {"org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGetters",
-                "org.apache.beam.sdk.options."
-                + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore"}))));
+    expectedException.expectMessage(
+        Matchers.anyOf(
+            containsString(
+                java.util.Arrays.toString(
+                    new String[] {
+                      "org.apache.beam.sdk.options."
+                          + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore",
+                      "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGetters"
+                    })),
+            containsString(
+                java.util.Arrays.toString(
+                    new String[] {
+                      "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGetters",
+                      "org.apache.beam.sdk.options."
+                          + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore"
+                    }))));
     expectedException.expectMessage(not(containsString("property [consistent]")));
 
     // When we attempt to convert, we should error immediately
@@ -487,6 +522,7 @@ public class PipelineOptionsFactoryTest {
   /** Test interface that has {@link Default @Default} on a setter for a property. */
   public interface SetterWithDefault extends PipelineOptions {
     String getValue();
+
     @Default.String("abc")
     void setValue(String value);
   }
@@ -503,6 +539,7 @@ public class PipelineOptionsFactoryTest {
   /** Test interface that has {@link Default @Default} on multiple setters. */
   public interface MultiSetterWithDefault extends SetterWithDefault {
     Integer getOther();
+
     @Default.String("abc")
     void setOther(Integer other);
   }
@@ -521,42 +558,46 @@ public class PipelineOptionsFactoryTest {
   }
 
   /**
-   * This class is has a conflicting field with {@link CombinedObject} that doesn't have
-   * {@link Default @Default}.
+   * This class is has a conflicting field with {@link CombinedObject} that doesn't have {@link
+   * Default @Default}.
    */
-  private interface GetterWithDefault extends PipelineOptions {
+  public interface GetterWithDefault extends PipelineOptions {
     @Default.Integer(1)
     Object getObject();
+
     void setObject(Object value);
   }
 
   /**
-   * This class is consistent with {@link GetterWithDefault} that has the same
-   * {@link Default @Default}.
+   * This class is consistent with {@link GetterWithDefault} that has the same {@link
+   * Default @Default}.
    */
-  private interface GetterWithConsistentDefault extends PipelineOptions {
+  public interface GetterWithConsistentDefault extends PipelineOptions {
     @Default.Integer(1)
     Object getObject();
+
     void setObject(Object value);
   }
 
   /**
-   * This class is inconsistent with {@link GetterWithDefault} that has a different
-   * {@link Default @Default}.
+   * This class is inconsistent with {@link GetterWithDefault} that has a different {@link
+   * Default @Default}.
    */
-  private interface GetterWithInconsistentDefaultType extends PipelineOptions {
+  public interface GetterWithInconsistentDefaultType extends PipelineOptions {
     @Default.String("abc")
     Object getObject();
+
     void setObject(Object value);
   }
 
   /**
-   * This class is inconsistent with {@link GetterWithDefault} that has a different
-   * {@link Default @Default} value.
+   * This class is inconsistent with {@link GetterWithDefault} that has a different {@link
+   * Default @Default} value.
    */
-  private interface GetterWithInconsistentDefaultValue extends PipelineOptions {
+  public interface GetterWithInconsistentDefaultValue extends PipelineOptions {
     @Default.Integer(0)
     Object getObject();
+
     void setObject(Object value);
   }
 
@@ -579,9 +620,8 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testGettersAnnotatedWithConsistentDefault() throws Exception {
-    GetterWithConsistentDefault options = PipelineOptionsFactory
-        .as(GetterWithDefault.class)
-        .as(GetterWithConsistentDefault.class);
+    GetterWithConsistentDefault options =
+        PipelineOptionsFactory.as(GetterWithDefault.class).as(GetterWithConsistentDefault.class);
 
     assertEquals(1, options.getObject());
   }
@@ -637,10 +677,12 @@ public class PipelineOptionsFactoryTest {
     options.as(GetterWithInconsistentJsonIgnoreValue.class);
   }
 
-  private interface GettersWithMultipleDefault extends PipelineOptions {
+  /** Test interface. */
+  public interface GettersWithMultipleDefault extends PipelineOptions {
     @Default.String("abc")
     @Default.Integer(0)
     Object getObject();
+
     void setObject(Object value);
   }
 
@@ -658,27 +700,35 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.as(GettersWithMultipleDefault.class);
   }
 
-  private interface MultiGettersWithDefault extends PipelineOptions {
+  /** Test interface. */
+  public interface MultiGettersWithDefault extends PipelineOptions {
     Object getObject();
+
     void setObject(Object value);
 
     @Default.Integer(1)
     Integer getOther();
+
     void setOther(Integer value);
 
     Void getConsistent();
+
     void setConsistent(Void consistent);
   }
 
-  private interface MultipleGettersWithInconsistentDefault extends PipelineOptions {
+  /** Test interface. */
+  public interface MultipleGettersWithInconsistentDefault extends PipelineOptions {
     @Default.Boolean(true)
     Object getObject();
+
     void setObject(Object value);
 
     Integer getOther();
+
     void setOther(Integer value);
 
     Void getConsistent();
+
     void setConsistent(Void consistent);
   }
 
@@ -689,24 +739,31 @@ public class PipelineOptionsFactoryTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Property getters are inconsistently marked with @Default:");
+    expectedException.expectMessage("property [object] to be marked on all");
     expectedException.expectMessage(
-        "property [object] to be marked on all");
-    expectedException.expectMessage("found only on [org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MultiGettersWithDefault]");
+        "found only on [org.apache.beam.sdk.options."
+            + "PipelineOptionsFactoryTest$MultiGettersWithDefault]");
+    expectedException.expectMessage("property [other] to be marked on all");
     expectedException.expectMessage(
-        "property [other] to be marked on all");
-    expectedException.expectMessage("found only on [org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault]");
+        "found only on [org.apache.beam.sdk.options."
+            + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault]");
 
-    expectedException.expectMessage(Matchers.anyOf(
-        containsString(java.util.Arrays.toString(new String[]
-            {"org.apache.beam.sdk.options."
-                + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault",
-                "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGettersWithDefault"})),
-        containsString(java.util.Arrays.toString(new String[]
-            {"org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGettersWithDefault",
-                "org.apache.beam.sdk.options."
-                    + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault"}))));
+    expectedException.expectMessage(
+        Matchers.anyOf(
+            containsString(
+                java.util.Arrays.toString(
+                    new String[] {
+                      "org.apache.beam.sdk.options."
+                          + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault",
+                      "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGettersWithDefault"
+                    })),
+            containsString(
+                java.util.Arrays.toString(
+                    new String[] {
+                      "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGettersWithDefault",
+                      "org.apache.beam.sdk.options."
+                          + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault"
+                    }))));
     expectedException.expectMessage(not(containsString("property [consistent]")));
 
     // When we attempt to convert, we should error immediately
@@ -715,51 +772,65 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testAppNameIsNotOverriddenWhenPassedInViaCommandLine() {
-    ApplicationNameOptions options = PipelineOptionsFactory
-        .fromArgs("--appName=testAppName")
-        .as(ApplicationNameOptions.class);
+    ApplicationNameOptions options =
+        PipelineOptionsFactory.fromArgs("--appName=testAppName").as(ApplicationNameOptions.class);
     assertEquals("testAppName", options.getAppName());
   }
 
   @Test
   public void testPropertyIsSetOnRegisteredPipelineOptionNotPartOfOriginalInterface() {
-    PipelineOptions options = PipelineOptionsFactory
-        .fromArgs("--streaming")
-        .create();
+    PipelineOptions options = PipelineOptionsFactory.fromArgs("--streaming").create();
     assertTrue(options.as(StreamingOptions.class).isStreaming());
   }
 
   /** A test interface containing all the primitives. */
   public interface Primitives extends PipelineOptions {
     boolean getBoolean();
+
     void setBoolean(boolean value);
+
     char getChar();
+
     void setChar(char value);
+
     byte getByte();
+
     void setByte(byte value);
+
     short getShort();
+
     void setShort(short value);
+
     int getInt();
+
     void setInt(int value);
+
     long getLong();
+
     void setLong(long value);
+
     float getFloat();
+
     void setFloat(float value);
+
     double getDouble();
+
     void setDouble(double value);
   }
 
   @Test
   public void testPrimitives() {
-    String[] args = new String[] {
-        "--boolean=true",
-        "--char=d",
-        "--byte=12",
-        "--short=300",
-        "--int=100000",
-        "--long=123890123890",
-        "--float=55.5",
-        "--double=12.3"};
+    String[] args =
+        new String[] {
+          "--boolean=true",
+          "--char=d",
+          "--byte=12",
+          "--short=300",
+          "--int=100000",
+          "--long=123890123890",
+          "--float=55.5",
+          "--double=12.3"
+        };
 
     Primitives options = PipelineOptionsFactory.fromArgs(args).as(Primitives.class);
     assertTrue(options.getBoolean());
@@ -782,8 +853,7 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testEmptyValueNotAllowed() {
-    String[] args = new String[] {
-        "--byte="};
+    String[] args = new String[] {"--byte="};
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(emptyStringErrorMessage());
     PipelineOptionsFactory.fromArgs(args).as(Primitives.class);
@@ -791,61 +861,93 @@ public class PipelineOptionsFactoryTest {
 
   /** Enum used for testing PipelineOptions CLI parsing. */
   public enum TestEnum {
-    Value, Value2
+    Value,
+    Value2
   }
 
   /** A test interface containing all supported objects. */
   public interface Objects extends PipelineOptions {
     Boolean getBoolean();
+
     void setBoolean(Boolean value);
+
     Character getChar();
+
     void setChar(Character value);
+
     Byte getByte();
+
     void setByte(Byte value);
+
     Short getShort();
+
     void setShort(Short value);
+
     Integer getInt();
+
     void setInt(Integer value);
+
     Long getLong();
+
     void setLong(Long value);
+
     Float getFloat();
+
     void setFloat(Float value);
+
     Double getDouble();
+
     void setDouble(Double value);
+
     String getString();
+
     void setString(String value);
+
     String getEmptyString();
+
     void setEmptyString(String value);
+
     Class<?> getClassValue();
+
     void setClassValue(Class<?> value);
+
     TestEnum getEnum();
+
     void setEnum(TestEnum value);
+
     ValueProvider<String> getStringValue();
+
     void setStringValue(ValueProvider<String> value);
+
     ValueProvider<Long> getLongValue();
+
     void setLongValue(ValueProvider<Long> value);
+
     ValueProvider<TestEnum> getEnumValue();
+
     void setEnumValue(ValueProvider<TestEnum> value);
   }
 
   @Test
   public void testObjects() {
-    String[] args = new String[] {
-        "--boolean=true",
-        "--char=d",
-        "--byte=12",
-        "--short=300",
-        "--int=100000",
-        "--long=123890123890",
-        "--float=55.5",
-        "--double=12.3",
-        "--string=stringValue",
-        "--emptyString=",
-        "--classValue=" + PipelineOptionsFactoryTest.class.getName(),
-        "--enum=" + TestEnum.Value,
-        "--stringValue=beam",
-        "--longValue=12389049585840",
-        "--enumValue=" + TestEnum.Value};
+    String[] args =
+        new String[] {
+          "--boolean=true",
+          "--char=d",
+          "--byte=12",
+          "--short=300",
+          "--int=100000",
+          "--long=123890123890",
+          "--float=55.5",
+          "--double=12.3",
+          "--string=stringValue",
+          "--emptyString=",
+          "--classValue=" + PipelineOptionsFactoryTest.class.getName(),
+          "--enum=" + TestEnum.Value,
+          "--stringValue=beam",
+          "--longValue=12389049585840",
+          "--enumValue=" + TestEnum.Value
+        };
 
     Objects options = PipelineOptionsFactory.fromArgs(args).as(Objects.class);
     assertTrue(options.getBoolean());
@@ -868,10 +970,10 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testStringValueProvider() {
     String[] args = new String[] {"--stringValue=beam"};
-    String[] emptyArgs = new String[] { "--stringValue="};
+    String[] emptyArgs = new String[] {"--stringValue="};
     Objects options = PipelineOptionsFactory.fromArgs(args).as(Objects.class);
     assertEquals("beam", options.getStringValue().get());
-    options =  PipelineOptionsFactory.fromArgs(emptyArgs).as(Objects.class);
+    options = PipelineOptionsFactory.fromArgs(emptyArgs).as(Objects.class);
     assertEquals("", options.getStringValue().get());
   }
 
@@ -901,6 +1003,7 @@ public class PipelineOptionsFactoryTest {
   public static class ComplexType {
     String value;
     String value2;
+
     public ComplexType(@JsonProperty("key") String value, @JsonProperty("key2") String value2) {
       this.value = value;
       this.value2 = value2;
@@ -908,23 +1011,28 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface for verifying JSON -> complex type conversion. */
-  interface ComplexTypes extends PipelineOptions {
+  public interface ComplexTypes extends PipelineOptions {
     Map<String, String> getMap();
+
     void setMap(Map<String, String> value);
 
     ComplexType getObject();
+
     void setObject(ComplexType value);
 
     ValueProvider<ComplexType> getObjectValue();
+
     void setObjectValue(ValueProvider<ComplexType> value);
   }
 
   @Test
   public void testComplexTypes() {
-    String[] args = new String[] {
-        "--map={\"key\":\"value\",\"key2\":\"value2\"}",
-        "--object={\"key\":\"value\",\"key2\":\"value2\"}",
-        "--objectValue={\"key\":\"value\",\"key2\":\"value2\"}"};
+    String[] args =
+        new String[] {
+          "--map={\"key\":\"value\",\"key2\":\"value2\"}",
+          "--object={\"key\":\"value\",\"key2\":\"value2\"}",
+          "--objectValue={\"key\":\"value\",\"key2\":\"value2\"}"
+        };
     ComplexTypes options = PipelineOptionsFactory.fromArgs(args).as(ComplexTypes.class);
     assertEquals(ImmutableMap.of("key", "value", "key2", "value2"), options.getMap());
     assertEquals("value", options.getObject().value);
@@ -944,71 +1052,98 @@ public class PipelineOptionsFactoryTest {
   /** A test interface containing all supported array return types. */
   public interface Arrays extends PipelineOptions {
     boolean[] getBoolean();
+
     void setBoolean(boolean[] value);
+
     char[] getChar();
+
     void setChar(char[] value);
+
     short[] getShort();
+
     void setShort(short[] value);
+
     int[] getInt();
+
     void setInt(int[] value);
+
     long[] getLong();
+
     void setLong(long[] value);
+
     float[] getFloat();
+
     void setFloat(float[] value);
+
     double[] getDouble();
+
     void setDouble(double[] value);
+
     String[] getString();
+
     void setString(String[] value);
+
     Class<?>[] getClassValue();
+
     void setClassValue(Class<?>[] value);
+
     TestEnum[] getEnum();
+
     void setEnum(TestEnum[] value);
+
     ValueProvider<String[]> getStringValue();
+
     void setStringValue(ValueProvider<String[]> value);
+
     ValueProvider<Long[]> getLongValue();
+
     void setLongValue(ValueProvider<Long[]> value);
+
     ValueProvider<TestEnum[]> getEnumValue();
+
     void setEnumValue(ValueProvider<TestEnum[]> value);
   }
 
   @Test
   @SuppressWarnings("rawtypes")
   public void testArrays() {
-    String[] args = new String[] {
-        "--boolean=true",
-        "--boolean=true",
-        "--boolean=false",
-        "--char=d",
-        "--char=e",
-        "--char=f",
-        "--short=300",
-        "--short=301",
-        "--short=302",
-        "--int=100000",
-        "--int=100001",
-        "--int=100002",
-        "--long=123890123890",
-        "--long=123890123891",
-        "--long=123890123892",
-        "--float=55.5",
-        "--float=55.6",
-        "--float=55.7",
-        "--double=12.3",
-        "--double=12.4",
-        "--double=12.5",
-        "--string=stringValue1",
-        "--string=stringValue2",
-        "--string=stringValue3",
-        "--classValue=" + PipelineOptionsFactory.class.getName(),
-        "--classValue=" + PipelineOptionsFactoryTest.class.getName(),
-        "--enum=" + TestEnum.Value,
-        "--enum=" + TestEnum.Value2,
-        "--stringValue=abc",
-        "--stringValue=beam",
-        "--longValue=123890123890",
-        "--longValue=123890123891",
-        "--enumValue=" + TestEnum.Value,
-        "--enumValue=" + TestEnum.Value2};
+    String[] args =
+        new String[] {
+          "--boolean=true",
+          "--boolean=true",
+          "--boolean=false",
+          "--char=d",
+          "--char=e",
+          "--char=f",
+          "--short=300",
+          "--short=301",
+          "--short=302",
+          "--int=100000",
+          "--int=100001",
+          "--int=100002",
+          "--long=123890123890",
+          "--long=123890123891",
+          "--long=123890123892",
+          "--float=55.5",
+          "--float=55.6",
+          "--float=55.7",
+          "--double=12.3",
+          "--double=12.4",
+          "--double=12.5",
+          "--string=stringValue1",
+          "--string=stringValue2",
+          "--string=stringValue3",
+          "--classValue=" + PipelineOptionsFactory.class.getName(),
+          "--classValue=" + PipelineOptionsFactoryTest.class.getName(),
+          "--enum=" + TestEnum.Value,
+          "--enum=" + TestEnum.Value2,
+          "--stringValue=abc",
+          "--stringValue=beam",
+          "--longValue=123890123890",
+          "--longValue=123890123891",
+          "--enumValue=" + TestEnum.Value,
+          "--enumValue=" + TestEnum.Value2
+        };
 
     Arrays options = PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
     boolean[] bools = options.getBoolean();
@@ -1019,40 +1154,34 @@ public class PipelineOptionsFactoryTest {
     assertArrayEquals(new long[] {123890123890L, 123890123891L, 123890123892L}, options.getLong());
     assertArrayEquals(new float[] {55.5f, 55.6f, 55.7f}, options.getFloat(), 0.0f);
     assertArrayEquals(new double[] {12.3, 12.4, 12.5}, options.getDouble(), 0.0);
-    assertArrayEquals(new String[] {"stringValue1", "stringValue2", "stringValue3"},
-        options.getString());
-    assertArrayEquals(new Class[] {PipelineOptionsFactory.class,
-                                   PipelineOptionsFactoryTest.class},
+    assertArrayEquals(
+        new String[] {"stringValue1", "stringValue2", "stringValue3"}, options.getString());
+    assertArrayEquals(
+        new Class[] {PipelineOptionsFactory.class, PipelineOptionsFactoryTest.class},
         options.getClassValue());
     assertArrayEquals(new TestEnum[] {TestEnum.Value, TestEnum.Value2}, options.getEnum());
     assertArrayEquals(new String[] {"abc", "beam"}, options.getStringValue().get());
     assertArrayEquals(new Long[] {123890123890L, 123890123891L}, options.getLongValue().get());
-    assertArrayEquals(new TestEnum[] {TestEnum.Value, TestEnum.Value2},
-        options.getEnumValue().get());
+    assertArrayEquals(
+        new TestEnum[] {TestEnum.Value, TestEnum.Value2}, options.getEnumValue().get());
   }
 
   @Test
   @SuppressWarnings("rawtypes")
   public void testEmptyInStringArrays() {
-    String[] args = new String[] {
-        "--string=",
-        "--string=",
-        "--string="};
+    String[] args = new String[] {"--string=", "--string=", "--string="};
 
     Arrays options = PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
-    assertArrayEquals(new String[] {"", "", ""},
-        options.getString());
+    assertArrayEquals(new String[] {"", "", ""}, options.getString());
   }
 
   @Test
   @SuppressWarnings("rawtypes")
   public void testEmptyInStringArraysWithCommaList() {
-    String[] args = new String[] {
-        "--string=a,,b"};
+    String[] args = new String[] {"--string=a,,b"};
 
     Arrays options = PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
-    assertArrayEquals(new String[] {"a", "", "b"},
-        options.getString());
+    assertArrayEquals(new String[] {"a", "", "b"}, options.getString());
   }
 
   @Test
@@ -1060,10 +1189,7 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(emptyStringErrorMessage());
 
-    String[] args = new String[] {
-        "--boolean=true",
-        "--boolean=",
-        "--boolean=false"};
+    String[] args = new String[] {"--boolean=true", "--boolean=", "--boolean=false"};
 
     PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
   }
@@ -1073,22 +1199,21 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(emptyStringErrorMessage());
 
-    String[] args = new String[] {
-        "--int=1,,9"};
+    String[] args = new String[] {"--int=1,,9"};
     PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
   }
 
   @Test
   public void testStringArrayValueProvider() {
     String[] args = new String[] {"--stringValue=abc", "--stringValue=xyz"};
-    String[] commaArgs = new String[]{"--stringValue=abc,xyz"};
-    String[] emptyArgs = new String[] { "--stringValue=", "--stringValue="};
+    String[] commaArgs = new String[] {"--stringValue=abc,xyz"};
+    String[] emptyArgs = new String[] {"--stringValue=", "--stringValue="};
     Arrays options = PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
-    assertArrayEquals(new String[]{"abc", "xyz"}, options.getStringValue().get());
+    assertArrayEquals(new String[] {"abc", "xyz"}, options.getStringValue().get());
     options = PipelineOptionsFactory.fromArgs(commaArgs).as(Arrays.class);
-    assertArrayEquals(new String[]{"abc", "xyz"}, options.getStringValue().get());
+    assertArrayEquals(new String[] {"abc", "xyz"}, options.getStringValue().get());
     options = PipelineOptionsFactory.fromArgs(emptyArgs).as(Arrays.class);
-    assertArrayEquals(new String[]{"", ""}, options.getStringValue().get());
+    assertArrayEquals(new String[] {"", ""}, options.getStringValue().get());
   }
 
   @Test
@@ -1107,16 +1232,16 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testEnumArrayValueProvider() {
-    String[] args = new String[] {"--enumValue=" + TestEnum.Value,
-        "--enumValue=" + TestEnum.Value2};
+    String[] args =
+        new String[] {"--enumValue=" + TestEnum.Value, "--enumValue=" + TestEnum.Value2};
     String[] commaArgs = new String[] {"--enumValue=" + TestEnum.Value + "," + TestEnum.Value2};
     String[] emptyArgs = new String[] {"--enumValue="};
     Arrays options = PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
-    assertArrayEquals(new TestEnum[] {TestEnum.Value, TestEnum.Value2},
-        options.getEnumValue().get());
+    assertArrayEquals(
+        new TestEnum[] {TestEnum.Value, TestEnum.Value2}, options.getEnumValue().get());
     options = PipelineOptionsFactory.fromArgs(commaArgs).as(Arrays.class);
-    assertArrayEquals(new TestEnum[] {TestEnum.Value, TestEnum.Value2},
-        options.getEnumValue().get());
+    assertArrayEquals(
+        new TestEnum[] {TestEnum.Value, TestEnum.Value2}, options.getEnumValue().get());
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(emptyStringErrorMessage());
     PipelineOptionsFactory.fromArgs(emptyArgs).as(Arrays.class);
@@ -1124,13 +1249,10 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testOutOfOrderArrays() {
-    String[] args = new String[] {
-        "--char=d",
-        "--boolean=true",
-        "--boolean=true",
-        "--char=e",
-        "--char=f",
-        "--boolean=false"};
+    String[] args =
+        new String[] {
+          "--char=d", "--boolean=true", "--boolean=true", "--char=e", "--char=f", "--boolean=false"
+        };
 
     Arrays options = PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
     boolean[] bools = options.getBoolean();
@@ -1141,18 +1263,29 @@ public class PipelineOptionsFactoryTest {
   /** A test interface containing all supported List return types. */
   public interface Lists extends PipelineOptions {
     List<String> getString();
+
     void setString(List<String> value);
+
     List<Integer> getInteger();
+
     void setInteger(List<Integer> value);
+
     @SuppressWarnings("rawtypes")
     List getList();
+
     @SuppressWarnings("rawtypes")
     void setList(List value);
+
     ValueProvider<List<String>> getStringValue();
+
     void setStringValue(ValueProvider<List<String>> value);
+
     ValueProvider<List<Long>> getLongValue();
+
     void setLongValue(ValueProvider<List<Long>> value);
+
     ValueProvider<List<TestEnum>> getEnumValue();
+
     void setEnumValue(ValueProvider<List<TestEnum>> value);
   }
 
@@ -1165,11 +1298,10 @@ public class PipelineOptionsFactoryTest {
         new String[] {"--list=stringValue1", "--list=", "--list=stringValue3"};
 
     Lists options = PipelineOptionsFactory.fromArgs(manyArgs).as(Lists.class);
-    assertEquals(ImmutableList.of("stringValue1", "stringValue2", "stringValue3"),
-        options.getList());
+    assertEquals(
+        ImmutableList.of("stringValue1", "stringValue2", "stringValue3"), options.getList());
     options = PipelineOptionsFactory.fromArgs(manyArgsWithEmptyString).as(Lists.class);
-    assertEquals(ImmutableList.of("stringValue1", "", "stringValue3"),
-        options.getList());
+    assertEquals(ImmutableList.of("stringValue1", "", "stringValue3"), options.getList());
   }
 
   @Test
@@ -1180,8 +1312,8 @@ public class PipelineOptionsFactoryTest {
     String[] emptyArg = new String[] {"--string="};
 
     Lists options = PipelineOptionsFactory.fromArgs(manyArgs).as(Lists.class);
-    assertEquals(ImmutableList.of("stringValue1", "stringValue2", "stringValue3"),
-        options.getString());
+    assertEquals(
+        ImmutableList.of("stringValue1", "stringValue2", "stringValue3"), options.getString());
 
     options = PipelineOptionsFactory.fromArgs(oneArg).as(Lists.class);
     assertEquals(ImmutableList.of("stringValue1"), options.getString());
@@ -1192,10 +1324,8 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testListInt() {
-    String[] manyArgs =
-        new String[] {"--integer=1", "--integer=2", "--integer=3"};
-    String[] manyArgsShort =
-        new String[] {"--integer=1,2,3"};
+    String[] manyArgs = new String[] {"--integer=1", "--integer=2", "--integer=3"};
+    String[] manyArgsShort = new String[] {"--integer=1,2,3"};
     String[] oneArg = new String[] {"--integer=1"};
     String[] missingArg = new String[] {"--integer="};
 
@@ -1216,32 +1346,34 @@ public class PipelineOptionsFactoryTest {
     String[] args = new String[] {"--string=stringValue1,stringValue2,stringValue3"};
 
     Lists options = PipelineOptionsFactory.fromArgs(args).as(Lists.class);
-    assertEquals(ImmutableList.of("stringValue1", "stringValue2", "stringValue3"),
-        options.getString());
+    assertEquals(
+        ImmutableList.of("stringValue1", "stringValue2", "stringValue3"), options.getString());
   }
 
   @Test
   public void testMixedShorthandAndLongStyleList() {
-    String[] args = new String[] {
-        "--char=d",
-        "--char=e",
-        "--char=f",
-        "--char=g,h,i",
-        "--char=j",
-        "--char=k",
-        "--char=l",
-        "--char=m,n,o"};
+    String[] args =
+        new String[] {
+          "--char=d",
+          "--char=e",
+          "--char=f",
+          "--char=g,h,i",
+          "--char=j",
+          "--char=k",
+          "--char=l",
+          "--char=m,n,o"
+        };
 
     Arrays options = PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
-    assertArrayEquals(new char[] {'d', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o'},
-                      options.getChar());
+    assertArrayEquals(
+        new char[] {'d', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o'}, options.getChar());
   }
 
   @Test
   public void testStringListValueProvider() {
     String[] args = new String[] {"--stringValue=abc", "--stringValue=xyz"};
-    String[] commaArgs = new String[]{"--stringValue=abc,xyz"};
-    String[] emptyArgs = new String[] { "--stringValue=", "--stringValue="};
+    String[] commaArgs = new String[] {"--stringValue=abc,xyz"};
+    String[] emptyArgs = new String[] {"--stringValue=", "--stringValue="};
     Lists options = PipelineOptionsFactory.fromArgs(args).as(Lists.class);
     assertEquals(ImmutableList.of("abc", "xyz"), options.getStringValue().get());
     options = PipelineOptionsFactory.fromArgs(commaArgs).as(Lists.class);
@@ -1266,8 +1398,8 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testEnumListValueProvider() {
-    String[] args = new String[] {"--enumValue=" + TestEnum.Value,
-        "--enumValue=" + TestEnum.Value2};
+    String[] args =
+        new String[] {"--enumValue=" + TestEnum.Value, "--enumValue=" + TestEnum.Value2};
     String[] commaArgs = new String[] {"--enumValue=" + TestEnum.Value + "," + TestEnum.Value2};
     String[] emptyArgs = new String[] {"--enumValue="};
     Lists options = PipelineOptionsFactory.fromArgs(args).as(Lists.class);
@@ -1281,9 +1413,7 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testSetASingularAttributeUsingAListThrowsAnError() {
-    String[] args = new String[] {
-        "--string=100",
-        "--string=200"};
+    String[] args = new String[] {"--string=100", "--string=200"};
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("expected one element but was");
     PipelineOptionsFactory.fromArgs(args).as(Objects.class);
@@ -1291,26 +1421,35 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testSetASingularAttributeUsingAListIsIgnoredWithoutStrictParsing() {
-    String[] args = new String[] {
-        "--diskSizeGb=100",
-        "--diskSizeGb=200"};
+    String[] args = new String[] {"--diskSizeGb=100", "--diskSizeGb=200"};
     PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
     expectedLogs.verifyWarn("Strict parsing is disabled, ignoring option");
+  }
+
+  private interface NonPublicPipelineOptions extends PipelineOptions {}
+
+  @Test
+  public void testNonPublicInterfaceLogsWarning() throws Exception {
+    PipelineOptionsFactory.as(NonPublicPipelineOptions.class);
+    // Make sure we print the name of the class.
+    expectedLogs.verifyWarn(NonPublicPipelineOptions.class.getName());
+    expectedLogs.verifyWarn("all non-public interfaces to be in the same package");
   }
 
   /** A test interface containing all supported List return types. */
   public interface Maps extends PipelineOptions {
     Map<Integer, Integer> getMap();
+
     void setMap(Map<Integer, Integer> value);
 
     Map<Integer, Map<Integer, Integer>> getNestedMap();
+
     void setNestedMap(Map<Integer, Map<Integer, Integer>> value);
   }
 
   @Test
   public void testMapIntInt() {
-    String[] manyArgsShort =
-        new String[] {"--map={\"1\":1,\"2\":2}"};
+    String[] manyArgsShort = new String[] {"--map={\"1\":1,\"2\":2}"};
     String[] oneArg = new String[] {"--map={\"1\":1}"};
     String[] missingArg = new String[] {"--map="};
 
@@ -1320,29 +1459,30 @@ public class PipelineOptionsFactoryTest {
     assertEquals(ImmutableMap.of(1, 1), options.getMap());
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(emptyStringErrorMessage(
-        "java.util.Map<java.lang.Integer, java.lang.Integer>"));
+    expectedException.expectMessage(
+        emptyStringErrorMessage("java.util.Map<java.lang.Integer, java.lang.Integer>"));
     PipelineOptionsFactory.fromArgs(missingArg).as(Maps.class);
   }
 
   @Test
   public void testNestedMap() {
-    String[] manyArgsShort =
-        new String[] {"--nestedMap={\"1\":{\"1\":1},\"2\":{\"2\":2}}"};
+    String[] manyArgsShort = new String[] {"--nestedMap={\"1\":{\"1\":1},\"2\":{\"2\":2}}"};
     String[] oneArg = new String[] {"--nestedMap={\"1\":{\"1\":1}}"};
     String[] missingArg = new String[] {"--nestedMap="};
 
     Maps options = PipelineOptionsFactory.fromArgs(manyArgsShort).as(Maps.class);
-    assertEquals(ImmutableMap.of(1, ImmutableMap.of(1, 1),
-                                 2, ImmutableMap.of(2, 2)),
-                 options.getNestedMap());
+    assertEquals(
+        ImmutableMap.of(
+            1, ImmutableMap.of(1, 1),
+            2, ImmutableMap.of(2, 2)),
+        options.getNestedMap());
     options = PipelineOptionsFactory.fromArgs(oneArg).as(Maps.class);
-    assertEquals(ImmutableMap.of(1, ImmutableMap.of(1, 1)),
-                 options.getNestedMap());
+    assertEquals(ImmutableMap.of(1, ImmutableMap.of(1, 1)), options.getNestedMap());
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(emptyStringErrorMessage(
-        "java.util.Map<java.lang.Integer, java.util.Map<java.lang.Integer, java.lang.Integer>>"));
+    expectedException.expectMessage(
+        emptyStringErrorMessage(
+            "java.util.Map<java.lang.Integer, java.util.Map<java.lang.Integer, java.lang.Integer>>"));
     PipelineOptionsFactory.fromArgs(missingArg).as(Maps.class);
   }
 
@@ -1356,12 +1496,10 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testSettingRunnerFullName() {
-    String[] args =
-        new String[] {String.format("--runner=%s", CrashingRunner.class.getName())};
+    String[] args = new String[] {String.format("--runner=%s", CrashingRunner.class.getName())};
     PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
     assertEquals(opts.getRunner(), CrashingRunner.class);
   }
-
 
   @Test
   public void testSettingUnknownRunner() {
@@ -1372,8 +1510,8 @@ public class PipelineOptionsFactoryTest {
     Set<String> registeredRunners = PipelineOptionsFactory.getRegisteredRunners().keySet();
     assertThat(registeredRunners, hasItem(REGISTERED_RUNNER.getSimpleName().toLowerCase()));
 
-    expectedException.expectMessage(PipelineOptionsFactory.CACHE.get()
-      .getSupportedRunners().toString());
+    expectedException.expectMessage(
+        PipelineOptionsFactory.CACHE.get().getSupportedRunners().toString());
 
     PipelineOptionsFactory.fromArgs(args).create();
   }
@@ -1410,11 +1548,14 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.fromArgs(args).create();
   }
 
-  interface SuggestedOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface SuggestedOptions extends PipelineOptions {
     String getAbc();
+
     void setAbc(String value);
 
     String getAbcdefg();
+
     void setAbcdefg(String value);
   }
 
@@ -1460,18 +1601,14 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testEmptyArgumentIsIgnored() {
     String[] args =
-        new String[] {
-          "", "--string=100", "", "", "--runner=" + REGISTERED_RUNNER.getSimpleName()
-        };
+        new String[] {"", "--string=100", "", "", "--runner=" + REGISTERED_RUNNER.getSimpleName()};
     PipelineOptionsFactory.fromArgs(args).as(Objects.class);
   }
 
   @Test
   public void testNullArgumentIsIgnored() {
     String[] args =
-        new String[] {
-          "--string=100", null, null, "--runner=" + REGISTERED_RUNNER.getSimpleName()
-        };
+        new String[] {"--string=100", null, null, "--runner=" + REGISTERED_RUNNER.getSimpleName()};
     PipelineOptionsFactory.fromArgs(args).as(Objects.class);
   }
 
@@ -1494,8 +1631,9 @@ public class PipelineOptionsFactoryTest {
   public void testWhenNoHelpIsRequested() {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
-    assertFalse(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
-        arguments, new PrintStream(baos), false /* exit */));
+    assertFalse(
+        PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+            arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertEquals("", output);
   }
@@ -1505,8 +1643,9 @@ public class PipelineOptionsFactoryTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
     arguments.put("help", "true");
-    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
-        arguments, new PrintStream(baos), false /* exit */));
+    assertTrue(
+        PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+            arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("The set of registered options are:"));
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
@@ -1518,14 +1657,15 @@ public class PipelineOptionsFactoryTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
     arguments.put("help", "org.apache.beam.sdk.options.PipelineOptions");
-    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
-        arguments, new PrintStream(baos), false /* exit */));
+    assertTrue(
+        PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+            arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_NAME));
-    assertThat(output,
-        containsString("The pipeline runner that will be used to execute the pipeline."));
+    assertThat(
+        output, containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
   @Test
@@ -1533,14 +1673,15 @@ public class PipelineOptionsFactoryTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
     arguments.put("help", "PipelineOptions");
-    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
-        arguments, new PrintStream(baos), false /* exit */));
+    assertTrue(
+        PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+            arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_NAME));
-    assertThat(output,
-        containsString("The pipeline runner that will be used to execute the pipeline."));
+    assertThat(
+        output, containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
   @Test
@@ -1548,28 +1689,27 @@ public class PipelineOptionsFactoryTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
     arguments.put("help", "options.PipelineOptions");
-    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
-        arguments, new PrintStream(baos), false /* exit */));
+    assertTrue(
+        PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+            arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_NAME));
-    assertThat(output,
-        containsString("The pipeline runner that will be used to execute the pipeline."));
+    assertThat(
+        output, containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
   /** Used for a name collision test with the other NameConflict interfaces. */
-  private static class NameConflictClassA {
+  public static class NameConflictClassA {
     /** Used for a name collision test with the other NameConflict interfaces. */
-    private interface NameConflict extends PipelineOptions {
-    }
+    public interface NameConflict extends PipelineOptions {}
   }
 
   /** Used for a name collision test with the other NameConflict interfaces. */
-  private static class NameConflictClassB {
+  public static class NameConflictClassB {
     /** Used for a name collision test with the other NameConflict interfaces. */
-    private interface NameConflict extends PipelineOptions {
-    }
+    public interface NameConflict extends PipelineOptions {}
   }
 
   @Test
@@ -1579,14 +1719,21 @@ public class PipelineOptionsFactoryTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
     arguments.put("help", "NameConflict");
-    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
-        arguments, new PrintStream(baos), false /* exit */));
+    assertTrue(
+        PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+            arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("Multiple matches found for NameConflict"));
-    assertThat(output, containsString("org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$NameConflictClassA$NameConflict"));
-    assertThat(output, containsString("org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$NameConflictClassB$NameConflict"));
+    assertThat(
+        output,
+        containsString(
+            "org.apache.beam.sdk.options."
+                + "PipelineOptionsFactoryTest$NameConflictClassA$NameConflict"));
+    assertThat(
+        output,
+        containsString(
+            "org.apache.beam.sdk.options."
+                + "PipelineOptionsFactoryTest$NameConflictClassB$NameConflict"));
     assertThat(output, containsString("The set of registered options are:"));
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
   }
@@ -1596,8 +1743,9 @@ public class PipelineOptionsFactoryTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
     arguments.put("help", Objects.class.getName());
-    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
-        arguments, new PrintStream(baos), false /* exit */));
+    assertTrue(
+        PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+            arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray(), Charsets.UTF_8);
     assertThat(output, containsString("<Value | Value2>"));
   }
@@ -1607,11 +1755,11 @@ public class PipelineOptionsFactoryTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
     arguments.put("help", "org.apache.beam.sdk.Pipeline");
-    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
-        arguments, new PrintStream(baos), false /* exit */));
+    assertTrue(
+        PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+            arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray(), Charsets.UTF_8);
-    assertThat(output,
-        containsString("Unable to find option org.apache.beam.sdk.Pipeline"));
+    assertThat(output, containsString("Unable to find option org.apache.beam.sdk.Pipeline"));
     assertThat(output, containsString("The set of registered options are:"));
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
   }
@@ -1621,12 +1769,13 @@ public class PipelineOptionsFactoryTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
     arguments.put("help", "org.apache.beam.sdk.option.DataflowPipelineOptions");
-    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
-        arguments, new PrintStream(baos), false /* exit */));
+    assertTrue(
+        PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+            arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray(), Charsets.UTF_8);
     // A hidden interface.
-    assertThat(output, not(
-        containsString("org.apache.beam.sdk.options.DataflowPipelineDebugOptions")));
+    assertThat(
+        output, not(containsString("org.apache.beam.sdk.options.DataflowPipelineDebugOptions")));
     // A hidden option.
     assertThat(output, not(containsString("--gcpCredential")));
   }
@@ -1648,30 +1797,38 @@ public class PipelineOptionsFactoryTest {
     assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_NAME));
-    assertThat(output,
-        containsString("The pipeline runner that will be used to execute the pipeline."));
+    assertThat(
+        output, containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
-  interface PipelineOptionsInheritedInvalid extends Invalid1,
-          InvalidPipelineOptions2, PipelineOptions {
+  /** Test interface. */
+  public interface PipelineOptionsInheritedInvalid
+      extends Invalid1, InvalidPipelineOptions2, PipelineOptions {
     String getFoo();
+
     void setFoo(String value);
   }
 
-  interface InvalidPipelineOptions1 {
+  /** Test interface. */
+  public interface InvalidPipelineOptions1 {
     String getBar();
+
     void setBar(String value);
   }
 
-  interface Invalid1 extends InvalidPipelineOptions1 {
+  /** Test interface. */
+  public interface Invalid1 extends InvalidPipelineOptions1 {
     @Override
     String getBar();
+
     @Override
     void setBar(String value);
   }
 
-  interface InvalidPipelineOptions2 {
+  /** Test interface. */
+  public interface InvalidPipelineOptions2 {
     String getBar();
+
     void setBar(String value);
   }
 
@@ -1679,13 +1836,13 @@ public class PipelineOptionsFactoryTest {
   public void testAllFromPipelineOptions() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-       "All inherited interfaces of [org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-       + "$PipelineOptionsInheritedInvalid] should inherit from the PipelineOptions interface. "
-       + "The following inherited interfaces do not:\n"
-       + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-       + "$InvalidPipelineOptions1\n"
-       + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-       + "$InvalidPipelineOptions2");
+        "All inherited interfaces of [org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$PipelineOptionsInheritedInvalid] should inherit from the PipelineOptions interface. "
+            + "The following inherited interfaces do not:\n"
+            + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$InvalidPipelineOptions1\n"
+            + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$InvalidPipelineOptions2");
 
     PipelineOptionsFactory.as(PipelineOptionsInheritedInvalid.class);
   }
@@ -1695,8 +1852,9 @@ public class PipelineOptionsFactoryTest {
   }
 
   private String emptyStringErrorMessage(String type) {
-    String msg = "Empty argument value is only allowed for String, String Array, "
-        + "Collections of Strings or any of these types in a parameterized ValueProvider";
+    String msg =
+        "Empty argument value is only allowed for String, String Array, "
+            + "Collections of Strings or any of these types in a parameterized ValueProvider";
     if (type != null) {
       return String.format("%s, but received: %s", msg, type);
     } else {
@@ -1726,8 +1884,10 @@ public class PipelineOptionsFactoryTest {
     }
   }
 
-  private interface RegisteredTestOptions extends PipelineOptions {
+  /** Test interface. */
+  public interface RegisteredTestOptions extends PipelineOptions {
     Object getRegisteredExampleFooBar();
+
     void setRegisteredExampleFooBar(Object registeredExampleFooBar);
   }
 
@@ -1744,15 +1904,16 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testRegistrationOfJacksonModulesForObjectMapper() throws Exception {
-    JacksonIncompatibleOptions options = PipelineOptionsFactory
-        .fromArgs("--jacksonIncompatible=\"testValue\"")
-        .as(JacksonIncompatibleOptions.class);
+    JacksonIncompatibleOptions options =
+        PipelineOptionsFactory.fromArgs("--jacksonIncompatible=\"testValue\"")
+            .as(JacksonIncompatibleOptions.class);
     assertEquals("testValue", options.getJacksonIncompatible().value);
   }
 
   /** PipelineOptions used to test auto registration of Jackson modules. */
-  interface JacksonIncompatibleOptions extends PipelineOptions {
+  public interface JacksonIncompatibleOptions extends PipelineOptions {
     JacksonIncompatible getJacksonIncompatible();
+
     void setJacksonIncompatible(JacksonIncompatible value);
   }
 
@@ -1768,6 +1929,7 @@ public class PipelineOptionsFactoryTest {
   /** A class which Jackson does not know how to serialize/deserialize. */
   public static class JacksonIncompatible {
     private final String value;
+
     public JacksonIncompatible(String value) {
       this.value = value;
     }
@@ -1779,12 +1941,13 @@ public class PipelineOptionsFactoryTest {
   public static final class JacksonIncompatibleMixin {}
 
   /** A Jackson deserializer for {@link JacksonIncompatible}. */
-  public static class JacksonIncompatibleDeserializer extends
-      JsonDeserializer<JacksonIncompatible> {
+  public static class JacksonIncompatibleDeserializer
+      extends JsonDeserializer<JacksonIncompatible> {
 
     @Override
-    public JacksonIncompatible deserialize(JsonParser jsonParser,
-        DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+    public JacksonIncompatible deserialize(
+        JsonParser jsonParser, DeserializationContext deserializationContext)
+        throws IOException, JsonProcessingException {
       return new JacksonIncompatible(jsonParser.readValueAs(String.class));
     }
   }
@@ -1793,8 +1956,11 @@ public class PipelineOptionsFactoryTest {
   public static class JacksonIncompatibleSerializer extends JsonSerializer<JacksonIncompatible> {
 
     @Override
-    public void serialize(JacksonIncompatible jacksonIncompatible, JsonGenerator jsonGenerator,
-        SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+    public void serialize(
+        JacksonIncompatible jacksonIncompatible,
+        JsonGenerator jsonGenerator,
+        SerializerProvider serializerProvider)
+        throws IOException, JsonProcessingException {
       jsonGenerator.writeString(jacksonIncompatible.value);
     }
   }
@@ -1804,6 +1970,7 @@ public class PipelineOptionsFactoryTest {
     @Default.Boolean(true)
     @Description("A test option.")
     boolean isOption();
+
     void setOption(boolean b);
   }
 
@@ -1811,14 +1978,15 @@ public class PipelineOptionsFactoryTest {
   public void testPipelineOptionsFactoryUsesTccl() throws Exception {
     final Thread thread = Thread.currentThread();
     final ClassLoader testClassLoader = thread.getContextClassLoader();
-    final ClassLoader caseLoader = new InterceptingUrlClassLoader(
-      testClassLoader,
-      name -> name.toLowerCase(ROOT).contains("test"));
+    final ClassLoader caseLoader =
+        new InterceptingUrlClassLoader(
+            testClassLoader, name -> name.toLowerCase(ROOT).contains("test"));
     thread.setContextClassLoader(caseLoader);
     PipelineOptionsFactory.resetCache();
     try {
       final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
-      final Class optionType = caseLoader.loadClass(
+      final Class optionType =
+          caseLoader.loadClass(
               "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ClassLoaderTestOptions");
       final Object options = pipelineOptions.as(optionType);
       assertSame(caseLoader, options.getClass().getClassLoader());
@@ -1841,7 +2009,8 @@ public class PipelineOptionsFactoryTest {
     assertThat(optsWithDefault.getValue(), equalTo(12.25));
   }
 
-  private interface ExtendedOptionsWithDefault extends OptionsWithDefaultMethod {}
+  /** Test interface. */
+  public interface ExtendedOptionsWithDefault extends OptionsWithDefaultMethod {}
 
   @Test
   public void testDefaultMethodInExtendedClassIgnoresDefaultImplementation() {
@@ -1853,7 +2022,8 @@ public class PipelineOptionsFactoryTest {
     assertThat(extendedOptsWithDefault.getValue(), equalTo(Double.NEGATIVE_INFINITY));
   }
 
-  private interface OptionsWithDefaultMethod extends PipelineOptions {
+  /** Test interface. */
+  public interface OptionsWithDefaultMethod extends PipelineOptions {
     default Number getValue() {
       return 1024;
     }
@@ -1863,14 +2033,16 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testStaticMethodsAreAllowed() {
-    assertEquals("value",
+    assertEquals(
+        "value",
         OptionsWithStaticMethod.myStaticMethod(
-            PipelineOptionsFactory.fromArgs("--myMethod=value")
-                .as(OptionsWithStaticMethod.class)));
+            PipelineOptionsFactory.fromArgs("--myMethod=value").as(OptionsWithStaticMethod.class)));
   }
 
-  private interface OptionsWithStaticMethod extends PipelineOptions {
+  /** Test interface. */
+  public interface OptionsWithStaticMethod extends PipelineOptions {
     String getMyMethod();
+
     void setMyMethod(String value);
 
     static String myStaticMethod(OptionsWithStaticMethod o) {

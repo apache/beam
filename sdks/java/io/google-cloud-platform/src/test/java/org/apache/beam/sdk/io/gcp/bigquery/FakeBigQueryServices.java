@@ -23,23 +23,22 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.ListCoder;
 
-
-/**
- * A fake implementation of BigQuery's query service..
- */
-class FakeBigQueryServices implements BigQueryServices {
+/** A fake implementation of BigQuery's query service.. */
+@Experimental(Experimental.Kind.SOURCE_SINK)
+public class FakeBigQueryServices implements BigQueryServices {
   private JobService jobService;
   private FakeDatasetService datasetService;
 
-  FakeBigQueryServices withJobService(JobService jobService) {
+  public FakeBigQueryServices withJobService(JobService jobService) {
     this.jobService = jobService;
     return this;
   }
 
-  FakeBigQueryServices withDatasetService(FakeDatasetService datasetService) {
+  public FakeBigQueryServices withDatasetService(FakeDatasetService datasetService) {
     this.datasetService = datasetService;
     return this;
   }
@@ -70,7 +69,6 @@ class FakeBigQueryServices implements BigQueryServices {
     listCoder.encode(rows, output, Context.OUTER);
     return Base64.encodeBase64String(output.toByteArray());
   }
-
 
   // Longs tend to get converted back to Integers due to JSON serialization. Convert them back.
   static TableRow convertNumbers(TableRow tableRow) {

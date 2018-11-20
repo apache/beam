@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.util;
 
 import java.io.ByteArrayInputStream;
@@ -28,8 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Broadcast helper for side inputs. Helps to do the transformation from
- * bytes transform to broadcast transform to value by coder
+ * Broadcast helper for side inputs. Helps to do the transformation from bytes transform to
+ * broadcast transform to value by coder
  */
 public class SideInputBroadcast<T> implements Serializable {
 
@@ -50,7 +49,7 @@ public class SideInputBroadcast<T> implements Serializable {
 
   public synchronized T getValue() {
     if (value == null) {
-       value = deserialize();
+      value = deserialize();
     }
     return value;
   }

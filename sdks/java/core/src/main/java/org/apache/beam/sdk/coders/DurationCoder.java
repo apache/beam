@@ -26,8 +26,8 @@ import org.joda.time.Duration;
 import org.joda.time.ReadableDuration;
 
 /**
- * A {@link Coder} that encodes a joda {@link Duration} as a {@link Long} using the format of
- * {@link VarLongCoder}.
+ * A {@link Coder} that encodes a joda {@link Duration} as a {@link Long} using the format of {@link
+ * VarLongCoder}.
  */
 public class DurationCoder extends AtomicCoder<ReadableDuration> {
 
@@ -63,9 +63,8 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   }
 
   @Override
-  public ReadableDuration decode(InputStream inStream)
-      throws CoderException, IOException {
-      return fromLong(LONG_CODER.decode(inStream));
+  public ReadableDuration decode(InputStream inStream) throws CoderException, IOException {
+    return fromLong(LONG_CODER.decode(inStream));
   }
 
   @Override
@@ -94,8 +93,8 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   }
 
   @Override
-  public void registerByteSizeObserver(
-      ReadableDuration value, ElementByteSizeObserver observer) throws Exception {
+  public void registerByteSizeObserver(ReadableDuration value, ElementByteSizeObserver observer)
+      throws Exception {
     LONG_CODER.registerByteSizeObserver(toLong(value), observer);
   }
 

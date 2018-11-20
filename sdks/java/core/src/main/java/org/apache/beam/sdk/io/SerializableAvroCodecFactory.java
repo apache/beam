@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -43,9 +42,8 @@ import org.apache.avro.file.CodecFactory;
  */
 class SerializableAvroCodecFactory implements Externalizable {
   private static final long serialVersionUID = 7445324844109564303L;
-  private static final List<String> noOptAvroCodecs = Arrays.asList(NULL_CODEC,
-                                                                    SNAPPY_CODEC,
-                                                                    BZIP2_CODEC);
+  private static final List<String> noOptAvroCodecs =
+      Arrays.asList(NULL_CODEC, SNAPPY_CODEC, BZIP2_CODEC);
   private static final Pattern deflatePattern = Pattern.compile(DEFLATE_CODEC + "-(?<level>-?\\d)");
   private static final Pattern xzPattern = Pattern.compile(XZ_CODEC + "-(?<level>\\d)");
 
@@ -86,15 +84,13 @@ class SerializableAvroCodecFactory implements Externalizable {
 
     Matcher deflateMatcher = deflatePattern.matcher(codecStr);
     if (deflateMatcher.find()) {
-      codecFactory = CodecFactory.deflateCodec(
-          Integer.parseInt(deflateMatcher.group("level")));
+      codecFactory = CodecFactory.deflateCodec(Integer.parseInt(deflateMatcher.group("level")));
       return;
     }
 
     Matcher xzMatcher = xzPattern.matcher(codecStr);
     if (xzMatcher.find()) {
-      codecFactory = CodecFactory.xzCodec(
-          Integer.parseInt(xzMatcher.group("level")));
+      codecFactory = CodecFactory.xzCodec(Integer.parseInt(xzMatcher.group("level")));
       return;
     }
 

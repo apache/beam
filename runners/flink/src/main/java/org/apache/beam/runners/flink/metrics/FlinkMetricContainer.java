@@ -38,8 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Helper class for holding a {@link MetricsContainerImpl} and forwarding Beam metrics to
- * Flink accumulators and metrics.
+ * Helper class for holding a {@link MetricsContainerImpl} and forwarding Beam metrics to Flink
+ * accumulators and metrics.
  */
 public class FlinkMetricContainer {
 
@@ -83,11 +83,10 @@ public class FlinkMetricContainer {
         : null;
   }
 
-  void updateMetrics() {
-    MetricResults metricResults =
-        asAttemptedOnlyMetricResults(metricsAccumulator.getLocalValue());
+  void updateMetrics(String stepName) {
+    MetricResults metricResults = asAttemptedOnlyMetricResults(metricsAccumulator.getLocalValue());
     MetricQueryResults metricQueryResults =
-        metricResults.queryMetrics(MetricsFilter.builder().build());
+        metricResults.queryMetrics(MetricsFilter.builder().addStep(stepName).build());
     updateCounters(metricQueryResults.getCounters());
     updateDistributions(metricQueryResults.getDistributions());
     updateGauge(metricQueryResults.getGauges());
@@ -110,16 +109,17 @@ public class FlinkMetricContainer {
 
   private void updateDistributions(Iterable<MetricResult<DistributionResult>> distributions) {
     for (MetricResult<DistributionResult> metricResult : distributions) {
-      String flinkMetricName =
-          getFlinkMetricNameString(DISTRIBUTION_PREFIX, metricResult);
+      String flinkMetricName = getFlinkMetricNameString(DISTRIBUTION_PREFIX, metricResult);
 
       DistributionResult update = metricResult.getAttempted();
 
       // update flink metric
       FlinkDistributionGauge gauge = flinkDistributionGaugeCache.get(flinkMetricName);
       if (gauge == null) {
-        gauge = runtimeContext.getMetricGroup()
-            .gauge(flinkMetricName, new FlinkDistributionGauge(update));
+        gauge =
+            runtimeContext
+                .getMetricGroup()
+                .gauge(flinkMetricName, new FlinkDistributionGauge(update));
         flinkDistributionGaugeCache.put(flinkMetricName, gauge);
       } else {
         gauge.update(update);
@@ -129,16 +129,14 @@ public class FlinkMetricContainer {
 
   private void updateGauge(Iterable<MetricResult<GaugeResult>> gauges) {
     for (MetricResult<GaugeResult> metricResult : gauges) {
-      String flinkMetricName =
-          getFlinkMetricNameString(GAUGE_PREFIX, metricResult);
+      String flinkMetricName = getFlinkMetricNameString(GAUGE_PREFIX, metricResult);
 
       GaugeResult update = metricResult.getAttempted();
 
       // update flink metric
       FlinkGauge gauge = flinkGaugeCache.get(flinkMetricName);
       if (gauge == null) {
-        gauge = runtimeContext.getMetricGroup()
-            .gauge(flinkMetricName, new FlinkGauge(update));
+        gauge = runtimeContext.getMetricGroup().gauge(flinkMetricName, new FlinkGauge(update));
         flinkGaugeCache.put(flinkMetricName, gauge);
       } else {
         gauge.update(update);
@@ -148,14 +146,15 @@ public class FlinkMetricContainer {
 
   private static String getFlinkMetricNameString(String prefix, MetricResult<?> metricResult) {
     return prefix
-        + METRIC_KEY_SEPARATOR + metricResult.getStep()
-        + METRIC_KEY_SEPARATOR + metricResult.getName().getNamespace()
-        + METRIC_KEY_SEPARATOR + metricResult.getName().getName();
+        + METRIC_KEY_SEPARATOR
+        + metricResult.getStep()
+        + METRIC_KEY_SEPARATOR
+        + metricResult.getName().getNamespace()
+        + METRIC_KEY_SEPARATOR
+        + metricResult.getName().getName();
   }
 
-  /**
-   * Flink {@link Gauge} for {@link DistributionResult}.
-   */
+  /** Flink {@link Gauge} for {@link DistributionResult}. */
   public static class FlinkDistributionGauge implements Gauge<DistributionResult> {
 
     DistributionResult data;
@@ -174,9 +173,7 @@ public class FlinkMetricContainer {
     }
   }
 
-  /**
-   * Flink {@link Gauge} for {@link GaugeResult}.
-   */
+  /** Flink {@link Gauge} for {@link GaugeResult}. */
   public static class FlinkGauge implements Gauge<GaugeResult> {
 
     GaugeResult data;

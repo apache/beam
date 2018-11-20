@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Utilities for translators.
- */
+/** Utilities for translators. */
 package org.apache.beam.runners.gearpump.translators.utils;

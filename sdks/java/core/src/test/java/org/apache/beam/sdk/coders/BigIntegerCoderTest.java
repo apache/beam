@@ -31,9 +31,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link BigIntegerCoder}.
- */
+/** Test case for {@link BigIntegerCoder}. */
 @RunWith(JUnit4.class)
 public class BigIntegerCoderTest {
 
@@ -59,8 +57,8 @@ public class BigIntegerCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
   private static final ImmutableList<String> TEST_ENCODINGS =
       ImmutableList.of("_wAAAAE", "_3____8", "_w", "AA", "AQ", "AIAAAAA", "BP____Y");
@@ -78,8 +76,8 @@ public class BigIntegerCoderTest {
       observer.advance();
       assertThat(
           observer.getSumAndReset(),
-          equalTo((long) CoderUtils.encodeToByteArray(
-              TEST_CODER, value, Coder.Context.NESTED).length));
+          equalTo(
+              (long) CoderUtils.encodeToByteArray(TEST_CODER, value, Coder.Context.NESTED).length));
     }
   }
 

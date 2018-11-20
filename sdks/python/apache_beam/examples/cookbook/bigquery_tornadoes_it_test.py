@@ -17,9 +17,12 @@
 
 """End-to-end test for Bigquery tornadoes example."""
 
+from __future__ import absolute_import
+
 import logging
 import time
 import unittest
+from builtins import round
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
@@ -50,7 +53,7 @@ class BigqueryTornadoesIT(unittest.TestCase):
     dataset = 'BigQueryTornadoesIT'
     table = 'monthly_tornadoes_%s' % int(round(time.time() * 1000))
     output_table = '.'.join([dataset, table])
-    query = 'SELECT month, tornado_count FROM [%s]' % output_table
+    query = 'SELECT month, tornado_count FROM `%s`' % output_table
 
     pipeline_verifiers = [PipelineStateMatcher(),
                           BigqueryMatcher(
@@ -61,6 +64,7 @@ class BigqueryTornadoesIT(unittest.TestCase):
                   'on_success_matcher': all_of(*pipeline_verifiers)}
 
     # Register cleanup before pipeline execution.
+    # Note that actual execution happens in reverse order.
     self.addCleanup(utils.delete_bq_table, project, dataset, table)
 
     # Get pipeline options from command argument: --test-pipeline-options,

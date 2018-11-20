@@ -31,9 +31,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link BigDecimalCoder}.
- */
+/** Test case for {@link BigDecimalCoder}. */
 @RunWith(JUnit4.class)
 public class BigDecimalCoderTest {
 
@@ -61,8 +59,8 @@ public class BigDecimalCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
   private static final ImmutableList<String> TEST_ENCODINGS =
       ImmutableList.of(
@@ -101,9 +99,10 @@ public class BigDecimalCoderTest {
     for (BigDecimal value : TEST_VALUES) {
       TEST_CODER.registerByteSizeObserver(value, observer);
       observer.advance();
-      assertThat(observer.getSumAndReset(),
-          equalTo((long) CoderUtils.encodeToByteArray(
-              TEST_CODER, value, Coder.Context.NESTED).length));
+      assertThat(
+          observer.getSumAndReset(),
+          equalTo(
+              (long) CoderUtils.encodeToByteArray(TEST_CODER, value, Coder.Context.NESTED).length));
     }
   }
 

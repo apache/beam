@@ -21,7 +21,7 @@
 #   --mode=report - In this mode script iterates over list of BigQuery tables and
 #   analyses the data. This mode is intended to be run on a regulars basis, e.g. daily.
 #   Report will contain average tests execution time of given metric, its comparison with
-#   with average calculated from historical data, recent standard deviation and standard
+#   average calculated from historical data, recent standard deviation and standard
 #   deviation calculated based on historical data.
 #   --mode=validation - In this mode script will analyse single BigQuery table and check
 #   recent results.

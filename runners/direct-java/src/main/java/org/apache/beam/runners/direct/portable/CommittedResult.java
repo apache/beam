@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable;
 
 import com.google.auto.value.AutoValue;
@@ -24,14 +23,10 @@ import java.util.Set;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 
-/**
- * A {@link TransformResult} that has been committed.
- */
+/** A {@link TransformResult} that has been committed. */
 @AutoValue
 abstract class CommittedResult<ExecutableT> {
-  /**
-   * Returns the {@link PTransformNode} that produced this result.
-   */
+  /** Returns the {@link PTransformNode} that produced this result. */
   public abstract ExecutableT getExecutable();
 
   /**
@@ -40,17 +35,15 @@ abstract class CommittedResult<ExecutableT> {
    * input elements, and absent otherwise.
    */
   public abstract Optional<? extends CommittedBundle<?>> getUnprocessedInputs();
-  /**
-   * Returns the outputs produced by the transform.
-   */
+  /** Returns the outputs produced by the transform. */
   public abstract Iterable<? extends CommittedBundle<?>> getOutputs();
 
   /**
    * Returns if the transform that produced this result produced outputs.
    *
-   * <p>Transforms that produce output via modifying the state of the runner (e.g.
-   * {@link CreatePCollectionView}) should explicitly set this to true. If {@link #getOutputs()}
-   * returns a nonempty iterable, this will also return true.
+   * <p>Transforms that produce output via modifying the state of the runner (e.g. {@link
+   * CreatePCollectionView}) should explicitly set this to true. If {@link #getOutputs()} returns a
+   * nonempty iterable, this will also return true.
    */
   public abstract Set<OutputType> getProducedOutputTypes();
 

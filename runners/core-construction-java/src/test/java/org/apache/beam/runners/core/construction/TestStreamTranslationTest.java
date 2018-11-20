@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
@@ -67,6 +66,7 @@ public class TestStreamTranslationTest {
   @Test
   public void testEncodedProto() throws Exception {
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.TestStreamPayload payload =
         TestStreamTranslation.payloadForTestStream(testStream, components);
 
@@ -82,6 +82,7 @@ public class TestStreamTranslationTest {
         AppliedPTransform.of("fakeName", PBegin.in(p).expand(), output.expand(), testStream, p);
 
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.FunctionSpec spec =
         PTransformTranslation.toProto(appliedTestStream, components).getSpec();
 
@@ -100,9 +101,7 @@ public class TestStreamTranslationTest {
       throws Exception {
 
     // This reverse direction is only valid for Java-based coders
-    assertThat(
-        protoComponents.getCoder(payload.getCoderId()),
-        equalTo(testStream.getValueCoder()));
+    assertThat(protoComponents.getCoder(payload.getCoderId()), equalTo(testStream.getValueCoder()));
 
     assertThat(payload.getEventsList().size(), equalTo(testStream.getEvents().size()));
 

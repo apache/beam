@@ -33,6 +33,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -41,16 +42,13 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Test for bounded source restore in streaming mode.
- */
+/** Test for bounded source restore in streaming mode. */
 @RunWith(Parameterized.class)
 public class BoundedSourceRestoreTest {
 
@@ -65,11 +63,10 @@ public class BoundedSourceRestoreTest {
   @Parameterized.Parameters
   public static Collection<Object[]> data() {
     /* Parameters for initializing the tests: {numTasks, numSplits} */
-    return Arrays.asList(new Object[][]{
-        {1, 1},
-        {1, 2},
-        {1, 4},
-    });
+    return Arrays.asList(
+        new Object[][] {
+          {1, 1}, {1, 2}, {1, 4},
+        });
   }
 
   @Test
@@ -85,15 +82,16 @@ public class BoundedSourceRestoreTest {
     BoundedSource<Long> source = CountingSource.upTo(numElements);
     BoundedToUnboundedSourceAdapter<Long> unboundedSource =
         new BoundedToUnboundedSourceAdapter<>(source);
-    UnboundedSourceWrapper<Long, Checkpoint<Long>> flinkWrapper = new UnboundedSourceWrapper<>(
-        "stepName", options, unboundedSource, numSplits);
+    UnboundedSourceWrapper<Long, Checkpoint<Long>> flinkWrapper =
+        new UnboundedSourceWrapper<>("stepName", options, unboundedSource, numSplits);
 
-    StreamSource<WindowedValue<ValueWithRecordId<Long>>,
-        UnboundedSourceWrapper<Long, Checkpoint<Long>>> sourceOperator =
-        new StreamSource<>(flinkWrapper);
+    StreamSource<
+            WindowedValue<ValueWithRecordId<Long>>, UnboundedSourceWrapper<Long, Checkpoint<Long>>>
+        sourceOperator = new StreamSource<>(flinkWrapper);
 
     AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<Long>>> testHarness =
-        new AbstractStreamOperatorTestHarness<>(sourceOperator,
+        new AbstractStreamOperatorTestHarness<>(
+            sourceOperator,
             numTasks /* max parallelism */,
             numTasks /* parallelism */,
             0 /* subtask index */);
@@ -103,10 +101,10 @@ public class BoundedSourceRestoreTest {
     boolean readFirstBatchOfElements = false;
     try {
       testHarness.open();
-      sourceOperator.run(checkpointLock,
+      sourceOperator.run(
+          checkpointLock,
           new TestStreamStatusMaintainer(),
-          new PartialCollector<>(emittedElements, firstBatchSize)
-      );
+          new PartialCollector<>(emittedElements, firstBatchSize));
     } catch (SuccessException e) {
       // success
       readFirstBatchOfElements = true;
@@ -114,7 +112,7 @@ public class BoundedSourceRestoreTest {
     assertTrue("Did not successfully read first batch of elements.", readFirstBatchOfElements);
 
     // draw a snapshot
-    OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
     // finalize checkpoint
     final ArrayList<Integer> finalizeList = new ArrayList<>();
@@ -127,13 +125,12 @@ public class BoundedSourceRestoreTest {
         new BoundedToUnboundedSourceAdapter<>(restoredSource);
     UnboundedSourceWrapper<Long, Checkpoint<Long>> restoredFlinkWrapper =
         new UnboundedSourceWrapper<>("stepName", options, restoredUnboundedSource, numSplits);
-    StreamSource<WindowedValue<ValueWithRecordId<Long>>,
-        UnboundedSourceWrapper<Long, Checkpoint<Long>>> restoredSourceOperator =
-        new StreamSource<>(restoredFlinkWrapper);
+    StreamSource<
+            WindowedValue<ValueWithRecordId<Long>>, UnboundedSourceWrapper<Long, Checkpoint<Long>>>
+        restoredSourceOperator = new StreamSource<>(restoredFlinkWrapper);
 
     // set parallelism to 1 to ensure that our testing operator gets all checkpointed state
-    AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<Long>>>
-        restoredTestHarness =
+    AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<Long>>> restoredTestHarness =
         new AbstractStreamOperatorTestHarness<>(
             restoredSourceOperator,
             numTasks /* max parallelism */,
@@ -149,10 +146,10 @@ public class BoundedSourceRestoreTest {
     boolean readSecondBatchOfElements = false;
     try {
       restoredTestHarness.open();
-      restoredSourceOperator.run(checkpointLock,
+      restoredSourceOperator.run(
+          checkpointLock,
           new TestStreamStatusMaintainer(),
-          new PartialCollector<>(emittedElements, secondBatchSize)
-      );
+          new PartialCollector<>(emittedElements, secondBatchSize));
     } catch (SuccessException e) {
       // success
       readSecondBatchOfElements = true;
@@ -163,16 +160,10 @@ public class BoundedSourceRestoreTest {
     assertTrue(emittedElements.size() == numElements);
   }
 
-  /**
-   * A special {@link RuntimeException} that we throw to signal that the test was successful.
-   */
-  private static class SuccessException extends RuntimeException {
+  /** A special {@link RuntimeException} that we throw to signal that the test was successful. */
+  private static class SuccessException extends RuntimeException {}
 
-  }
-
-  /**
-   * A collector which consumes only specified number of elements.
-   */
+  /** A collector which consumes only specified number of elements. */
   private static class PartialCollector<T>
       implements Output<StreamRecord<WindowedValue<ValueWithRecordId<T>>>> {
 
@@ -187,9 +178,7 @@ public class BoundedSourceRestoreTest {
     }
 
     @Override
-    public void emitWatermark(Watermark watermark) {
-
-    }
+    public void emitWatermark(Watermark watermark) {}
 
     @Override
     public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
@@ -197,9 +186,7 @@ public class BoundedSourceRestoreTest {
     }
 
     @Override
-    public void emitLatencyMarker(LatencyMarker latencyMarker) {
-
-    }
+    public void emitLatencyMarker(LatencyMarker latencyMarker) {}
 
     @Override
     public void collect(StreamRecord<WindowedValue<ValueWithRecordId<T>>> record) {
@@ -211,9 +198,7 @@ public class BoundedSourceRestoreTest {
     }
 
     @Override
-    public void close() {
-
-    }
+    public void close() {}
   }
 
   private static final class TestStreamStatusMaintainer implements StreamStatusMaintainer {
@@ -232,5 +217,4 @@ public class BoundedSourceRestoreTest {
       return currentStreamStatus;
     }
   }
-
 }

@@ -35,9 +35,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link FlinkStateInternals}. This is based on {@link StateInternalsTest}.
- */
+/** Tests for {@link FlinkStateInternals}. This is based on {@link StateInternalsTest}. */
 @RunWith(JUnit4.class)
 public class FlinkStateInternalsTest extends StateInternalsTest {
 
@@ -45,14 +43,15 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
   protected StateInternals createStateInternals() {
     MemoryStateBackend backend = new MemoryStateBackend();
     try {
-      AbstractKeyedStateBackend<ByteBuffer> keyedStateBackend = backend.createKeyedStateBackend(
-          new DummyEnvironment("test", 1, 0),
-          new JobID(),
-          "test_op",
-          new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()),
-          1,
-          new KeyGroupRange(0, 0),
-          new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
+      AbstractKeyedStateBackend<ByteBuffer> keyedStateBackend =
+          backend.createKeyedStateBackend(
+              new DummyEnvironment("test", 1, 0),
+              new JobID(),
+              "test_op",
+              new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()),
+              1,
+              new KeyGroupRange(0, 0),
+              new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
 
       keyedStateBackend.setCurrentKey(
           ByteBuffer.wrap(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Hello")));
@@ -62,5 +61,4 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
       throw new RuntimeException(e);
     }
   }
-
 }

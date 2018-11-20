@@ -27,6 +27,10 @@ This module is experimental. No backwards-compatibility guarantees.
 
 #cython: profile=True
 
+from __future__ import absolute_import
+
+from builtins import object
+
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
@@ -109,6 +113,10 @@ class PaneInfo(object):
             self.index == other.index and
             self.nonspeculative_index == other.nonspeculative_index)
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
   def __hash__(self):
     return hash((self.is_first, self.is_last, self.timing, self.index,
                  self.nonspeculative_index))
@@ -178,33 +186,22 @@ class WindowedValue(object):
         self.windows,
         self.pane_info)
 
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self.timestamp_micros == other.timestamp_micros
+            and self.value == other.value
+            and self.windows == other.windows
+            and self.pane_info == other.pane_info)
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
   def __hash__(self):
     return (hash(self.value) +
             3 * self.timestamp_micros +
             7 * hash(self.windows) +
             11 * hash(self.pane_info))
-
-  # We'd rather implement __eq__, but Cython supports that via __richcmp__
-  # instead.  Fortunately __cmp__ is understood by both (but not by Python 3).
-  def __cmp__(left, right):  # pylint: disable=no-self-argument
-    """Compares left and right for equality.
-
-    For performance reasons, doesn't actually impose an ordering
-    on unequal values (always returning 1).
-    """
-    if type(left) is not type(right):
-      return cmp(type(left), type(right))
-
-    # TODO(robertwb): Avoid the type checks?
-    # Returns False (0) if equal, and True (1) if not.
-    return not WindowedValue._typed_eq(left, right)
-
-  @staticmethod
-  def _typed_eq(left, right):
-    return (left.timestamp_micros == right.timestamp_micros
-            and left.value == right.value
-            and left.windows == right.windows
-            and left.pane_info == right.pane_info)
 
   def with_value(self, new_value):
     """Creates a new WindowedValue with the same timestamps and windows as this.

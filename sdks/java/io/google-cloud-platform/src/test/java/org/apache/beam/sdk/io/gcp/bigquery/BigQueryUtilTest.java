@@ -58,14 +58,11 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for util classes related to BigQuery.
- */
+/** Tests for util classes related to BigQuery. */
 @RunWith(JUnit4.class)
 public class BigQueryUtilTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Mock private Bigquery mockClient;
   @Mock private Bigquery.Tables mockTables;
@@ -90,8 +87,7 @@ public class BigQueryUtilTest {
   }
 
   private void onInsertAll(List<List<Long>> errorIndicesSequence) throws Exception {
-    when(mockClient.tabledata())
-        .thenReturn(mockTabledata);
+    when(mockClient.tabledata()).thenReturn(mockTabledata);
 
     final List<TableDataInsertAllResponse> responses = new ArrayList<>();
     for (List<Long> errorIndices : errorIndicesSequence) {
@@ -128,12 +124,9 @@ public class BigQueryUtilTest {
   }
 
   private void onTableGet(Table table) throws IOException {
-    when(mockClient.tables())
-        .thenReturn(mockTables);
-    when(mockTables.get(anyString(), anyString(), anyString()))
-        .thenReturn(mockTablesGet);
-    when(mockTablesGet.execute())
-        .thenReturn(table);
+    when(mockClient.tables()).thenReturn(mockTables);
+    when(mockTables.get(anyString(), anyString(), anyString())).thenReturn(mockTablesGet);
+    when(mockTablesGet.execute()).thenReturn(table);
   }
 
   private void verifyTableGet() throws IOException {
@@ -143,28 +136,22 @@ public class BigQueryUtilTest {
   }
 
   private void onTableList(TableDataList result) throws IOException {
-    when(mockClient.tabledata())
-        .thenReturn(mockTabledata);
-    when(mockTabledata.list(anyString(), anyString(), anyString()))
-        .thenReturn(mockTabledataList);
-    when(mockTabledataList.execute())
-        .thenReturn(result);
+    when(mockClient.tabledata()).thenReturn(mockTabledata);
+    when(mockTabledata.list(anyString(), anyString(), anyString())).thenReturn(mockTabledataList);
+    when(mockTabledataList.execute()).thenReturn(result);
   }
 
   private Table basicTableSchema() {
     return new Table()
-        .setSchema(new TableSchema()
-            .setFields(Arrays.asList(
-                new TableFieldSchema()
-                    .setName("name")
-                    .setType("STRING"),
-                new TableFieldSchema()
-                    .setName("answer")
-                    .setType("INTEGER")
-            )));
+        .setSchema(
+            new TableSchema()
+                .setFields(
+                    Arrays.asList(
+                        new TableFieldSchema().setName("name").setType("STRING"),
+                        new TableFieldSchema().setName("answer").setType("INTEGER"))));
   }
 
-  private TableRow rawRow(Object...args) {
+  private TableRow rawRow(Object... args) {
     List<TableCell> cells = new ArrayList<>();
     for (Object a : args) {
       cells.add(new TableCell().setV(a));
@@ -180,7 +167,7 @@ public class BigQueryUtilTest {
     onTableList(dataList);
 
     BigQueryServicesImpl.DatasetServiceImpl services =
-            new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
+        new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
 
     services.getTable(
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table"));
@@ -199,22 +186,26 @@ public class BigQueryUtilTest {
     errorsIndices.add(new ArrayList<>());
     onInsertAll(errorsIndices);
 
-    TableReference ref = BigQueryHelpers
-        .parseTableSpec("project:dataset.table");
+    TableReference ref = BigQueryHelpers.parseTableSpec("project:dataset.table");
     DatasetServiceImpl datasetService = new DatasetServiceImpl(mockClient, options, 5);
 
     List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
     List<String> ids = new ArrayList<>();
     for (int i = 0; i < 25; ++i) {
-      rows.add(ValueInSingleWindow.of(rawRow("foo", 1234), GlobalWindow.TIMESTAMP_MAX_VALUE,
-          GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+      rows.add(
+          ValueInSingleWindow.of(
+              rawRow("foo", 1234),
+              GlobalWindow.TIMESTAMP_MAX_VALUE,
+              GlobalWindow.INSTANCE,
+              PaneInfo.ON_TIME_AND_ONLY_FIRING));
       ids.add("");
     }
 
     long totalBytes = 0;
     try {
-      totalBytes = datasetService.insertAll(ref, rows, ids, InsertRetryPolicy.alwaysRetry(),
-          null);
+      totalBytes =
+          datasetService.insertAll(
+              ref, rows, ids, InsertRetryPolicy.alwaysRetry(), null, null, false, false);
     } finally {
       verifyInsertAll(5);
       // Each of the 25 rows is 23 bytes: "{f=[{v=foo}, {v=1234}]}"

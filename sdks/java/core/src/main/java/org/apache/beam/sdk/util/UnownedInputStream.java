@@ -24,8 +24,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * A {@link OutputStream} wrapper which protects against the user attempting to modify
- * the underlying stream by closing it or using mark.
+ * A {@link OutputStream} wrapper which protects against the user attempting to modify the
+ * underlying stream by closing it or using mark.
  */
 public class UnownedInputStream extends FilterInputStream {
   public UnownedInputStream(InputStream delegate) {
@@ -34,14 +34,13 @@ public class UnownedInputStream extends FilterInputStream {
 
   @Override
   public void close() throws IOException {
-    throw new UnsupportedOperationException("Caller does not own the underlying input stream "
-        + " and should not call close().");
+    throw new UnsupportedOperationException(
+        "Caller does not own the underlying input stream " + " and should not call close().");
   }
 
   @Override
   public boolean equals(Object obj) {
-    return obj instanceof UnownedInputStream
-        && ((UnownedInputStream) obj).in.equals(in);
+    return obj instanceof UnownedInputStream && ((UnownedInputStream) obj).in.equals(in);
   }
 
   @Override
@@ -52,8 +51,8 @@ public class UnownedInputStream extends FilterInputStream {
   @SuppressWarnings("UnsynchronizedOverridesSynchronized")
   @Override
   public void mark(int readlimit) {
-    throw new UnsupportedOperationException("Caller does not own the underlying input stream "
-        + " and should not call mark().");
+    throw new UnsupportedOperationException(
+        "Caller does not own the underlying input stream " + " and should not call mark().");
   }
 
   @Override
@@ -64,8 +63,8 @@ public class UnownedInputStream extends FilterInputStream {
   @SuppressWarnings("UnsynchronizedOverridesSynchronized")
   @Override
   public void reset() throws IOException {
-    throw new UnsupportedOperationException("Caller does not own the underlying input stream "
-        + " and should not call reset().");
+    throw new UnsupportedOperationException(
+        "Caller does not own the underlying input stream " + " and should not call reset().");
   }
 
   @Override

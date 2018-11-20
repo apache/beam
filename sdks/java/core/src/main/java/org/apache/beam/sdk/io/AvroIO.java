@@ -184,8 +184,8 @@ import org.joda.time.Duration;
  * custom file naming policy.
  *
  * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the {@link
- * org.apache.avro.file.Codec CodecFactory.snappyCodec()}. This default can be changed or
- * overridden using {@link AvroIO.Write#withCodec}.
+ * org.apache.avro.file.Codec CodecFactory.snappyCodec()}. This default can be changed or overridden
+ * using {@link AvroIO.Write#withCodec}.
  *
  * <h3>Writing specific or generic records</h3>
  *
@@ -433,10 +433,17 @@ public class AvroIO {
   /** Implementation of {@link #read} and {@link #readGenericRecords}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable abstract ValueProvider<String> getFilepattern();
+    @Nullable
+    abstract ValueProvider<String> getFilepattern();
+
     abstract MatchConfiguration getMatchConfiguration();
-    @Nullable abstract Class<T> getRecordClass();
-    @Nullable abstract Schema getSchema();
+
+    @Nullable
+    abstract Class<T> getRecordClass();
+
+    @Nullable
+    abstract Schema getSchema();
+
     abstract boolean getHintMatchesManyFiles();
 
     abstract Builder<T> toBuilder();
@@ -444,9 +451,13 @@ public class AvroIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setFilepattern(ValueProvider<String> filepattern);
+
       abstract Builder<T> setMatchConfiguration(MatchConfiguration matchConfiguration);
+
       abstract Builder<T> setRecordClass(Class<T> recordClass);
+
       abstract Builder<T> setSchema(Schema schema);
+
       abstract Builder<T> setHintMatchesManyFiles(boolean hintManyFiles);
 
       abstract Read<T> build();
@@ -466,7 +477,6 @@ public class AvroIO {
     public Read<T> from(String filepattern) {
       return from(StaticValueProvider.of(filepattern));
     }
-
 
     /** Sets the {@link MatchConfiguration}. */
     public Read<T> withMatchConfiguration(MatchConfiguration matchConfiguration) {
@@ -489,7 +499,7 @@ public class AvroIO {
     public Read<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(
-              getMatchConfiguration().continuously(pollInterval, terminationCondition));
+          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
     /**
@@ -561,8 +571,13 @@ public class AvroIO {
   @AutoValue
   public abstract static class ReadAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
     abstract MatchConfiguration getMatchConfiguration();
-    @Nullable abstract Class<T> getRecordClass();
-    @Nullable abstract Schema getSchema();
+
+    @Nullable
+    abstract Class<T> getRecordClass();
+
+    @Nullable
+    abstract Schema getSchema();
+
     abstract long getDesiredBundleSizeBytes();
 
     abstract Builder<T> toBuilder();
@@ -570,13 +585,15 @@ public class AvroIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setMatchConfiguration(MatchConfiguration matchConfiguration);
+
       abstract Builder<T> setRecordClass(Class<T> recordClass);
+
       abstract Builder<T> setSchema(Schema schema);
+
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ReadAll<T> build();
     }
-
 
     /** Sets the {@link MatchConfiguration}. */
     public ReadAll<T> withMatchConfiguration(MatchConfiguration configuration) {
@@ -647,10 +664,16 @@ public class AvroIO {
   /** Implementation of {@link #parseGenericRecords}. */
   @AutoValue
   public abstract static class Parse<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable abstract ValueProvider<String> getFilepattern();
+    @Nullable
+    abstract ValueProvider<String> getFilepattern();
+
     abstract MatchConfiguration getMatchConfiguration();
+
     abstract SerializableFunction<GenericRecord, T> getParseFn();
-    @Nullable abstract Coder<T> getCoder();
+
+    @Nullable
+    abstract Coder<T> getCoder();
+
     abstract boolean getHintMatchesManyFiles();
 
     abstract Builder<T> toBuilder();
@@ -658,9 +681,13 @@ public class AvroIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setFilepattern(ValueProvider<String> filepattern);
+
       abstract Builder<T> setMatchConfiguration(MatchConfiguration matchConfiguration);
+
       abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
+
       abstract Builder<T> setCoder(Coder<T> coder);
+
       abstract Builder<T> setHintMatchesManyFiles(boolean hintMatchesManyFiles);
 
       abstract Parse<T> build();
@@ -711,8 +738,8 @@ public class AvroIO {
 
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
         return input.apply(
-                org.apache.beam.sdk.io.Read.from(
-                        AvroSource.from(getFilepattern()).withParseFn(getParseFn(), coder)));
+            org.apache.beam.sdk.io.Read.from(
+                AvroSource.from(getFilepattern()).withParseFn(getParseFn(), coder)));
       }
       // All other cases go through ParseAllGenericRecords.
       return input
@@ -758,8 +785,12 @@ public class AvroIO {
   @AutoValue
   public abstract static class ParseAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
     abstract MatchConfiguration getMatchConfiguration();
+
     abstract SerializableFunction<GenericRecord, T> getParseFn();
-    @Nullable abstract Coder<T> getCoder();
+
+    @Nullable
+    abstract Coder<T> getCoder();
+
     abstract long getDesiredBundleSizeBytes();
 
     abstract Builder<T> toBuilder();
@@ -767,8 +798,11 @@ public class AvroIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setMatchConfiguration(MatchConfiguration matchConfiguration);
+
       abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
+
       abstract Builder<T> setCoder(Coder<T> coder);
+
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ParseAll<T> build();
@@ -789,7 +823,7 @@ public class AvroIO {
     public ParseAll<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(
-              getMatchConfiguration().continuously(pollInterval, terminationCondition));
+          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
     /** Specifies the coder for the result of the {@code parseFn}. */
@@ -808,7 +842,7 @@ public class AvroIO {
           Parse.inferCoder(getCoder(), getParseFn(), input.getPipeline().getCoderRegistry());
       final SerializableFunction<GenericRecord, T> parseFn = getParseFn();
       final SerializableFunction<String, FileBasedSource<T>> createSource =
-              new CreateParseSourceFn<>(parseFn, coder);
+          new CreateParseSourceFn<>(parseFn, coder);
       return input
           .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
@@ -855,9 +889,14 @@ public class AvroIO {
     @Nullable
     abstract SerializableFunction<UserT, OutputT> getFormatFunction();
 
-    @Nullable abstract ValueProvider<ResourceId> getFilenamePrefix();
-    @Nullable abstract String getShardTemplate();
-    @Nullable abstract String getFilenameSuffix();
+    @Nullable
+    abstract ValueProvider<ResourceId> getFilenamePrefix();
+
+    @Nullable
+    abstract String getShardTemplate();
+
+    @Nullable
+    abstract String getFilenameSuffix();
 
     @Nullable
     abstract ValueProvider<ResourceId> getTempDirectory();
@@ -866,9 +905,13 @@ public class AvroIO {
 
     abstract boolean getGenericRecords();
 
-    @Nullable abstract Schema getSchema();
+    @Nullable
+    abstract Schema getSchema();
+
     abstract boolean getWindowedWrites();
-    @Nullable abstract FilenamePolicy getFilenamePolicy();
+
+    @Nullable
+    abstract FilenamePolicy getFilenamePolicy();
 
     @Nullable
     abstract DynamicAvroDestinations<UserT, DestinationT, OutputT> getDynamicDestinations();
@@ -1305,12 +1348,13 @@ public class AvroIO {
       return new Write<>(inner.withCodec(codec));
     }
 
-    /** Specify that output filenames are wanted.
+    /**
+     * Specify that output filenames are wanted.
      *
-     * <p>The nested {@link TypedWrite}transform always has access to output filenames, however
-     * due to backwards-compatibility concerns, {@link Write} cannot return them. This method
-     * simply returns the inner {@link TypedWrite} transform which has {@link WriteFilesResult} as
-     * its output type, allowing access to output files.
+     * <p>The nested {@link TypedWrite}transform always has access to output filenames, however due
+     * to backwards-compatibility concerns, {@link Write} cannot return them. This method simply
+     * returns the inner {@link TypedWrite} transform which has {@link WriteFilesResult} as its
+     * output type, allowing access to output files.
      *
      * <p>The supplied {@code DestinationT} type must be: the same as that supplied in {@link
      * #to(DynamicAvroDestinations)} if that method was used, or {@code Void} otherwise.
@@ -1385,9 +1429,14 @@ public class AvroIO {
   /** Implementation of {@link #sink} and {@link #sinkViaGenericRecords}. */
   @AutoValue
   public abstract static class Sink<ElementT> implements FileIO.Sink<ElementT> {
-    @Nullable abstract RecordFormatter<ElementT> getRecordFormatter();
-    @Nullable abstract String getJsonSchema();
+    @Nullable
+    abstract RecordFormatter<ElementT> getRecordFormatter();
+
+    @Nullable
+    abstract String getJsonSchema();
+
     abstract Map<String, Object> getMetadata();
+
     abstract SerializableAvroCodecFactory getCodec();
 
     abstract Builder<ElementT> toBuilder();
@@ -1395,8 +1444,11 @@ public class AvroIO {
     @AutoValue.Builder
     abstract static class Builder<ElementT> {
       abstract Builder<ElementT> setRecordFormatter(RecordFormatter<ElementT> formatter);
+
       abstract Builder<ElementT> setJsonSchema(String jsonSchema);
+
       abstract Builder<ElementT> setMetadata(Map<String, Object> metadata);
+
       abstract Builder<ElementT> setCodec(SerializableAvroCodecFactory codec);
 
       abstract Sink<ElementT> build();

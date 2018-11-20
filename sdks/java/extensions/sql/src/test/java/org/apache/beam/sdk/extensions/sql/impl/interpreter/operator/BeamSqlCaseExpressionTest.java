@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
@@ -73,7 +72,9 @@ public class BeamSqlCaseExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "world"));
     assertEquals(
         "hello",
-        new BeamSqlCaseExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlCaseExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
@@ -81,7 +82,9 @@ public class BeamSqlCaseExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "world"));
     assertEquals(
         "world",
-        new BeamSqlCaseExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlCaseExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
@@ -91,6 +94,8 @@ public class BeamSqlCaseExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "world"));
     assertEquals(
         "hello1",
-        new BeamSqlCaseExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlCaseExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 }

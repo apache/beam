@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.transforms;
 
 import java.util.ArrayList;
@@ -33,13 +32,10 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ToString} transform.
- */
+/** Tests for {@link ToString} transform. */
 @RunWith(JUnit4.class)
 public class ToStringTest {
-  @Rule
-  public final TestPipeline p = TestPipeline.create();
+  @Rule public final TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(NeedsRunner.class)
@@ -90,15 +86,15 @@ public class ToStringTest {
   @Category(NeedsRunner.class)
   public void testToStringIterable() {
     ArrayList<Iterable<String>> iterables = new ArrayList<>();
-    iterables.add(Arrays.asList(new String[]{"one", "two", "three"}));
-    iterables.add(Arrays.asList(new String[]{"four", "five", "six"}));
+    iterables.add(Arrays.asList(new String[] {"one", "two", "three"}));
+    iterables.add(Arrays.asList(new String[] {"four", "five", "six"}));
 
     ArrayList<String> expected = new ArrayList<>();
     expected.add("one,two,three");
     expected.add("four,five,six");
 
-    PCollection<Iterable<String>> input = p.apply(Create.of(iterables)
-            .withCoder(IterableCoder.of(StringUtf8Coder.of())));
+    PCollection<Iterable<String>> input =
+        p.apply(Create.of(iterables).withCoder(IterableCoder.of(StringUtf8Coder.of())));
     PCollection<String> output = input.apply(ToString.iterables());
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
@@ -108,15 +104,15 @@ public class ToStringTest {
   @Category(NeedsRunner.class)
   public void testToStringIterableWithDelimiter() {
     ArrayList<Iterable<String>> iterables = new ArrayList<>();
-    iterables.add(Arrays.asList(new String[]{"one", "two", "three"}));
-    iterables.add(Arrays.asList(new String[]{"four", "five", "six"}));
+    iterables.add(Arrays.asList(new String[] {"one", "two", "three"}));
+    iterables.add(Arrays.asList(new String[] {"four", "five", "six"}));
 
     ArrayList<String> expected = new ArrayList<>();
     expected.add("one\ttwo\tthree");
     expected.add("four\tfive\tsix");
 
-    PCollection<Iterable<String>> input = p.apply(Create.of(iterables)
-            .withCoder(IterableCoder.of(StringUtf8Coder.of())));
+    PCollection<Iterable<String>> input =
+        p.apply(Create.of(iterables).withCoder(IterableCoder.of(StringUtf8Coder.of())));
     PCollection<String> output = input.apply(ToString.iterables("\t"));
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();

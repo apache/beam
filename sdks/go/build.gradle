@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyGoNature()
 
 description = "Apache Beam :: SDKs :: Go"
@@ -34,5 +34,10 @@ golang {
 
     // Build integration test driver
     go 'build -o ./build/bin/integration github.com/apache/beam/sdks/go/test/integration'
+  }
+
+  // Ignore spurious vet errors during check for [BEAM-4831].
+  vet {
+    continueOnFailure = true
   }
 }

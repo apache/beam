@@ -82,7 +82,6 @@ public class ExposedByteArrayOutputStreamTest {
     assertSame(TEST_DATA, exposedStream.toByteArray());
   }
 
-
   @Test
   public void testWriteSingleArrayTwice() throws IOException {
     writeToBoth(TEST_DATA);
@@ -243,5 +242,4 @@ public class ExposedByteArrayOutputStreamTest {
     exposedStream.reset();
     stream.reset();
   }
-
 }

@@ -19,6 +19,10 @@
 on transforms.ptransform_test.test_read_metrics.
 """
 
+from __future__ import absolute_import
+
+from builtins import range
+
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
 from apache_beam.metrics import Metrics

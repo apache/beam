@@ -22,9 +22,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.joda.time.Instant;
 
-/**
- * The result of a {@link Gauge} metric.
- */
+/** The result of a {@link Gauge} metric. */
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class GaugeResult {
@@ -40,16 +38,13 @@ public abstract class GaugeResult {
     return EmptyGaugeResult.INSTANCE;
   }
 
-  /**
-   * Empty {@link GaugeResult}, representing no values reported.
-   */
+  /** Empty {@link GaugeResult}, representing no values reported. */
   public static class EmptyGaugeResult extends GaugeResult {
 
     private static final EmptyGaugeResult INSTANCE = new EmptyGaugeResult();
     private static final Instant EPOCH = new Instant(0);
 
-    private EmptyGaugeResult() {
-    }
+    private EmptyGaugeResult() {}
 
     @Override
     public long getValue() {

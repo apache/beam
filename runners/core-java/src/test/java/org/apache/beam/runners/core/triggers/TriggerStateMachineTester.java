@@ -92,10 +92,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
 
     public SimpleTriggerStateMachineTester<W> withAllowedLateness(Duration allowedLateness)
         throws Exception {
-      return new SimpleTriggerStateMachineTester<>(
-              executableTrigger,
-              windowFn,
-              allowedLateness);
+      return new SimpleTriggerStateMachineTester<>(executableTrigger, windowFn, allowedLateness);
     }
   }
 
@@ -107,19 +104,14 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
   private final ActiveWindowSet<W> activeWindows;
   private final Map<W, W> windowToMergeResult;
 
-  /**
-   * An {@link ExecutableTriggerStateMachine} under test.
-   */
+  /** An {@link ExecutableTriggerStateMachine} under test. */
   protected final ExecutableTriggerStateMachine executableTrigger;
 
-  /**
-   * A map from a window and trigger to whether that trigger is finished for the window.
-   */
+  /** A map from a window and trigger to whether that trigger is finished for the window. */
   private final Map<W, FinishedTriggers> finishedSets;
 
   public static <W extends BoundedWindow> SimpleTriggerStateMachineTester<W> forTrigger(
-      TriggerStateMachine stateMachine, WindowFn<Object, W> windowFn)
-          throws Exception {
+      TriggerStateMachine stateMachine, WindowFn<Object, W> windowFn) throws Exception {
 
     ExecutableTriggerStateMachine executableTriggerStateMachine =
         ExecutableTriggerStateMachine.create(stateMachine);
@@ -137,7 +129,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
   }
 
   public static <InputT, W extends BoundedWindow>
-  TriggerStateMachineTester<InputT, W> forAdvancedTrigger(
+      TriggerStateMachineTester<InputT, W> forAdvancedTrigger(
           TriggerStateMachine stateMachine, WindowFn<Object, W> windowFn) throws Exception {
     ExecutableTriggerStateMachine executableTriggerStateMachine =
         ExecutableTriggerStateMachine.create(stateMachine);
@@ -146,17 +138,18 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
     // Not currently an issue with the tester (because we never GC) but we don't want
     // mystery failures due to violating this need.
     AccumulationMode mode =
-            windowFn.isNonMerging()
-                    ? AccumulationMode.DISCARDING_FIRED_PANES
-                    : AccumulationMode.ACCUMULATING_FIRED_PANES;
+        windowFn.isNonMerging()
+            ? AccumulationMode.DISCARDING_FIRED_PANES
+            : AccumulationMode.ACCUMULATING_FIRED_PANES;
 
     return new TriggerStateMachineTester<>(executableTriggerStateMachine, windowFn, Duration.ZERO);
   }
 
   protected TriggerStateMachineTester(
-                                 ExecutableTriggerStateMachine executableTriggerStateMachine,
-          WindowFn<Object, W> windowFn,
-                                 Duration allowedLateness) throws Exception {
+      ExecutableTriggerStateMachine executableTriggerStateMachine,
+      WindowFn<Object, W> windowFn,
+      Duration allowedLateness)
+      throws Exception {
     this.windowFn = windowFn;
     this.executableTrigger = executableTriggerStateMachine;
     this.finishedSets = new HashMap<>();
@@ -168,22 +161,23 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
     this.windowToMergeResult = new HashMap<>();
 
     this.contextFactory =
-        new TriggerStateMachineContextFactory<>(
-            windowFn, stateInternals, activeWindows);
+        new TriggerStateMachineContextFactory<>(windowFn, stateInternals, activeWindows);
   }
 
-  /**
-   * Instructs the trigger to clear its state for the given window.
-   */
+  /** Instructs the trigger to clear its state for the given window. */
   public void clearState(W window) throws Exception {
-    executableTrigger.invokeClear(contextFactory.base(window,
-        new TestTimers(windowNamespace(window)), executableTrigger, getFinishedSet(window)));
+    executableTrigger.invokeClear(
+        contextFactory.base(
+            window,
+            new TestTimers(windowNamespace(window)),
+            executableTrigger,
+            getFinishedSet(window)));
   }
 
   /**
-   * Asserts that the trigger has actually cleared all of its state for the given window. Since
-   * the trigger under test is the root, this makes the assert for all triggers regardless
-   * of their position in the trigger tree.
+   * Asserts that the trigger has actually cleared all of its state for the given window. Since the
+   * trigger under test is the root, this makes the assert for all triggers regardless of their
+   * position in the trigger tree.
    */
   public void assertCleared(W window) {
     for (StateNamespace untypedNamespace : stateInternals.getNamespacesInUse()) {
@@ -284,9 +278,13 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
         @SuppressWarnings("unchecked")
         W window = mergeResult((W) untypedWindow);
 
-        TriggerStateMachine.OnElementContext context = contextFactory.createOnElementContext(window,
-            new TestTimers(windowNamespace(window)), windowedValue.getTimestamp(),
-            executableTrigger, getFinishedSet(window));
+        TriggerStateMachine.OnElementContext context =
+            contextFactory.createOnElementContext(
+                window,
+                new TestTimers(windowNamespace(window)),
+                windowedValue.getTimestamp(),
+                executableTrigger,
+                getFinishedSet(window));
 
         if (!context.trigger().isFinished()) {
           executableTrigger.invokeOnElement(context);
@@ -296,19 +294,23 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
   }
 
   public boolean shouldFire(W window) throws Exception {
-    TriggerStateMachine.TriggerContext context = contextFactory.base(
-        window,
-        new TestTimers(windowNamespace(window)),
-        executableTrigger, getFinishedSet(window));
+    TriggerStateMachine.TriggerContext context =
+        contextFactory.base(
+            window,
+            new TestTimers(windowNamespace(window)),
+            executableTrigger,
+            getFinishedSet(window));
     executableTrigger.getSpec().prefetchShouldFire(context.state());
     return executableTrigger.invokeShouldFire(context);
   }
 
   public void fireIfShouldFire(W window) throws Exception {
-    TriggerStateMachine.TriggerContext context = contextFactory.base(
-        window,
-        new TestTimers(windowNamespace(window)),
-        executableTrigger, getFinishedSet(window));
+    TriggerStateMachine.TriggerContext context =
+        contextFactory.base(
+            window,
+            new TestTimers(windowNamespace(window)),
+            executableTrigger,
+            getFinishedSet(window));
 
     executableTrigger.getSpec().prefetchShouldFire(context.state());
     if (executableTrigger.invokeShouldFire(context)) {
@@ -326,9 +328,9 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
   }
 
   /**
-   * Invokes merge from the {@link WindowFn} a single time and passes the resulting merge
-   * events on to the trigger under test. Does not persist the fact that merging happened,
-   * since it is just to test the trigger's {@code OnMerge} method.
+   * Invokes merge from the {@link WindowFn} a single time and passes the resulting merge events on
+   * to the trigger under test. Does not persist the fact that merging happened, since it is just to
+   * test the trigger's {@code OnMerge} method.
    */
   public final void mergeWindows() throws Exception {
     windowToMergeResult.clear();
@@ -362,7 +364,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
         });
   }
 
-  public  W mergeResult(W window) {
+  public W mergeResult(W window) {
     W result = windowToMergeResult.get(window);
     return result == null ? window : result;
   }

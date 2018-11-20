@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -25,8 +24,8 @@ import java.util.Map;
 import org.apache.beam.sdk.transforms.Combine;
 
 /**
- * Keep track of the minimum/maximum/sum of a set of timestamped long values.
- * For efficiency, bucket values by their timestamp.
+ * Keep track of the minimum/maximum/sum of a set of timestamped long values. For efficiency, bucket
+ * values by their timestamp.
  */
 public class BucketingFunction {
   private static class Bucket {
@@ -54,29 +53,19 @@ public class BucketingFunction {
     }
   }
 
-  /**
-   * How large a time interval to fit within each bucket.
-   */
+  /** How large a time interval to fit within each bucket. */
   private final long bucketWidthMs;
 
-  /**
-   * How many buckets are considered 'significant'?
-   */
+  /** How many buckets are considered 'significant'? */
   private final int numSignificantBuckets;
 
-  /**
-   * How many samples are considered 'significant'?
-   */
+  /** How many samples are considered 'significant'? */
   private final int numSignificantSamples;
 
-  /**
-   * Function for combining sample values.
-   */
+  /** Function for combining sample values. */
   private final Combine.BinaryCombineLongFn function;
 
-  /**
-   * Active buckets.
-   */
+  /** Active buckets. */
   private final Map<Long, Bucket> buckets;
 
   public BucketingFunction(
@@ -91,25 +80,19 @@ public class BucketingFunction {
     this.buckets = new HashMap<>();
   }
 
-  /**
-   * Which bucket key corresponds to {@code timeMsSinceEpoch}.
-   */
+  /** Which bucket key corresponds to {@code timeMsSinceEpoch}. */
   private long key(long timeMsSinceEpoch) {
     return timeMsSinceEpoch - (timeMsSinceEpoch % bucketWidthMs);
   }
 
-  /**
-   * Add one sample of {@code value} (to bucket) at {@code timeMsSinceEpoch}.
-   */
+  /** Add one sample of {@code value} (to bucket) at {@code timeMsSinceEpoch}. */
   public void add(long timeMsSinceEpoch, long value) {
     long key = key(timeMsSinceEpoch);
     Bucket bucket = buckets.computeIfAbsent(key, k -> new Bucket(this));
     bucket.add(this, value);
   }
 
-  /**
-   * Remove one sample (from bucket) at {@code timeMsSinceEpoch}.
-   */
+  /** Remove one sample (from bucket) at {@code timeMsSinceEpoch}. */
   public void remove(long timeMsSinceEpoch) {
     long key = key(timeMsSinceEpoch);
     Bucket bucket = buckets.get(key);
@@ -121,9 +104,7 @@ public class BucketingFunction {
     }
   }
 
-  /**
-   * Return the (bucketized) combined value of all samples.
-   */
+  /** Return the (bucketized) combined value of all samples. */
   public long get() {
     long result = function.identity();
     for (Bucket bucket : buckets.values()) {
@@ -133,8 +114,7 @@ public class BucketingFunction {
   }
 
   /**
-   * Is the current result 'significant'? Ie is it drawn from enough buckets
-   * or from enough samples?
+   * Is the current result 'significant'? Ie is it drawn from enough buckets or from enough samples?
    */
   public boolean isSignificant() {
     if (buckets.size() >= numSignificantBuckets) {

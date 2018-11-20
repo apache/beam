@@ -18,8 +18,8 @@ package gcsproxy
 
 import (
 	"bytes"
-	"crypto/md5"
-	"encoding/base64"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash"
@@ -94,7 +94,7 @@ func (s *StagingServer) CommitManifest(ctx context.Context, req *pb.CommitManife
 	// now, but would be needed for a staging server that serves multiple
 	// jobs. Such a server would also use the ID sent with each request.
 
-	return &pb.CommitManifestResponse{StagingToken: gcsx.MakeObject(s.bucket, s.manifest)}, nil
+	return &pb.CommitManifestResponse{RetrievalToken: gcsx.MakeObject(s.bucket, s.manifest)}, nil
 }
 
 // matchLocations ensures that all artifacts have been staged and have valid
@@ -106,11 +106,11 @@ func matchLocations(artifacts []*pb.ArtifactMetadata, blobs map[string]staged) (
 		if !ok {
 			return nil, fmt.Errorf("artifact %v not staged", a.Name)
 		}
-		if a.Md5 == "" {
-			a.Md5 = info.hash
+		if a.Sha256 == "" {
+			a.Sha256 = info.hash
 		}
-		if info.hash != a.Md5 {
-			return nil, fmt.Errorf("staged artifact for %v has invalid MD5: %v, want %v", a.Name, info.hash, a.Md5)
+		if info.hash != a.Sha256 {
+			return nil, fmt.Errorf("staged artifact for %v has invalid SHA256: %v, want %v", a.Name, info.hash, a.Sha256)
 		}
 
 		loc = append(loc, &pb.ProxyManifest_Location{Name: a.Name, Uri: info.object})
@@ -126,7 +126,7 @@ func (s *StagingServer) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServ
 	if err != nil {
 		return fmt.Errorf("failed to receive header: %v", err)
 	}
-	md := header.GetMetadata()
+	md := header.GetMetadata().GetMetadata()
 	if md == nil {
 		return fmt.Errorf("expected header as first message: %v", header)
 	}
@@ -140,13 +140,13 @@ func (s *StagingServer) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServ
 		return fmt.Errorf("failed to create GCS client: %v", err)
 	}
 
-	r := &reader{md5W: md5.New(), stream: ps}
+	r := &reader{sha256W: sha256.New(), stream: ps}
 	if err := gcsx.WriteObject(cl, s.bucket, object, r); err != nil {
 		return fmt.Errorf("failed to stage artifact %v: %v", md.Name, err)
 	}
-	hash := r.MD5()
-	if md.Md5 != "" && md.Md5 != hash {
-		return fmt.Errorf("invalid MD5 for artifact %v: %v want %v", md.Name, hash, md.Md5)
+	hash := r.SHA256()
+	if md.Sha256 != "" && md.Sha256 != hash {
+		return fmt.Errorf("invalid SHA256 for artifact %v: %v want %v", md.Name, hash, md.Sha256)
 	}
 
 	s.mu.Lock()
@@ -157,11 +157,11 @@ func (s *StagingServer) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServ
 }
 
 // reader is an adapter between the artifact stream and the GCS stream reader.
-// It also computes the MD5 of the content.
+// It also computes the SHA256 of the content.
 type reader struct {
-	md5W   hash.Hash
-	buf    []byte
-	stream pb.ArtifactStagingService_PutArtifactServer
+	sha256W hash.Hash
+	buf     []byte
+	stream  pb.ArtifactStagingService_PutArtifactServer
 }
 
 func (r *reader) Read(buf []byte) (int, error) {
@@ -188,13 +188,13 @@ func (r *reader) Read(buf []byte) (int, error) {
 	for i := 0; i < n; i++ {
 		buf[i] = r.buf[i]
 	}
-	if _, err := r.md5W.Write(r.buf[:n]); err != nil {
+	if _, err := r.sha256W.Write(r.buf[:n]); err != nil {
 		panic(err) // cannot fail
 	}
 	r.buf = r.buf[n:]
 	return n, nil
 }
 
-func (r *reader) MD5() string {
-	return base64.StdEncoding.EncodeToString(r.md5W.Sum(nil))
+func (r *reader) SHA256() string {
+	return hex.EncodeToString(r.sha256W.Sum(nil))
 }

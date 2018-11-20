@@ -15,17 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.provisioning;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.protobuf.ListValue;
-import com.google.protobuf.NullValue;
-import com.google.protobuf.Struct;
-import com.google.protobuf.Value;
-import io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoRequest;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoResponse;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
@@ -37,6 +31,11 @@ import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc.ProvisionServiceBlockingStub;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ListValue;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.NullValue;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Value;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.inprocess.InProcessChannelBuilder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

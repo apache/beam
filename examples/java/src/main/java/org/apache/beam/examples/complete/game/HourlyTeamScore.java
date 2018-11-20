@@ -41,9 +41,9 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 /**
- * This class is the second in a series of four pipelines that tell a story in a 'gaming'
- * domain, following {@link UserScore}. In addition to the concepts introduced in {@link UserScore},
- * new concepts include: windowing and element timestamps; use of {@code Filter.by()}.
+ * This class is the second in a series of four pipelines that tell a story in a 'gaming' domain,
+ * following {@link UserScore}. In addition to the concepts introduced in {@link UserScore}, new
+ * concepts include: windowing and element timestamps; use of {@code Filter.by()}.
  *
  * <p>This pipeline processes data collected from gaming events in batch, building on {@link
  * UserScore} but using fixed windows. It calculates the sum of scores per team, for each window,
@@ -55,78 +55,75 @@ import org.joda.time.format.DateTimeFormatter;
  * results from plays at the beginning of the batch's time period until the batch is processed.
  *
  * <p>To execute this pipeline, specify the pipeline configuration like this:
- * <pre>{@code
- *   --tempLocation=YOUR_TEMP_DIRECTORY
- *   --runner=YOUR_RUNNER
- *   --output=YOUR_OUTPUT_DIRECTORY
- *   (possibly options specific to your runner or permissions for your temp/output locations)
- * }
- * </pre>
  *
- * <p>Optionally include {@code --input} to specify the batch input file path.
- * To indicate a time after which the data should be filtered out, include the
- * {@code --stopMin} arg. E.g., {@code --stopMin=2015-10-18-23-59} indicates that any data
- * timestamped after 23:59 PST on 2015-10-18 should not be included in the analysis.
- * To indicate a time before which data should be filtered out, include the {@code --startMin} arg.
- * If you're using the default input specified in {@link UserScore},
- * "gs://apache-beam-samples/game/gaming_data*.csv", then
- * {@code --startMin=2015-11-16-16-10 --stopMin=2015-11-17-16-10} are good values.
+ * <pre>{@code
+ * --tempLocation=YOUR_TEMP_DIRECTORY
+ * --runner=YOUR_RUNNER
+ * --output=YOUR_OUTPUT_DIRECTORY
+ * (possibly options specific to your runner or permissions for your temp/output locations)
+ * }</pre>
+ *
+ * <p>Optionally include {@code --input} to specify the batch input file path. To indicate a time
+ * after which the data should be filtered out, include the {@code --stopMin} arg. E.g., {@code
+ * --stopMin=2015-10-18-23-59} indicates that any data timestamped after 23:59 PST on 2015-10-18
+ * should not be included in the analysis. To indicate a time before which data should be filtered
+ * out, include the {@code --startMin} arg. If you're using the default input specified in {@link
+ * UserScore}, "gs://apache-beam-samples/game/gaming_data*.csv", then {@code
+ * --startMin=2015-11-16-16-10 --stopMin=2015-11-17-16-10} are good values.
  */
 public class HourlyTeamScore extends UserScore {
 
   private static DateTimeFormatter minFmt =
       DateTimeFormat.forPattern("yyyy-MM-dd-HH-mm")
-          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
+          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("America/Los_Angeles")));
 
-
-  /**
-   * Options supported by {@link HourlyTeamScore}.
-   */
+  /** Options supported by {@link HourlyTeamScore}. */
   public interface Options extends UserScore.Options {
 
     @Description("Numeric value of fixed window duration, in minutes")
     @Default.Integer(60)
     Integer getWindowDuration();
+
     void setWindowDuration(Integer value);
 
-    @Description("String representation of the first minute after which to generate results,"
-        + "in the format: yyyy-MM-dd-HH-mm . This time should be in PST."
-        + "Any input data timestamped prior to that minute won't be included in the sums.")
+    @Description(
+        "String representation of the first minute after which to generate results,"
+            + "in the format: yyyy-MM-dd-HH-mm . This time should be in PST."
+            + "Any input data timestamped prior to that minute won't be included in the sums.")
     @Default.String("1970-01-01-00-00")
     String getStartMin();
+
     void setStartMin(String value);
 
-    @Description("String representation of the first minute for which to not generate results,"
-        + "in the format: yyyy-MM-dd-HH-mm . This time should be in PST."
-        + "Any input data timestamped after that minute won't be included in the sums.")
+    @Description(
+        "String representation of the first minute for which to not generate results,"
+            + "in the format: yyyy-MM-dd-HH-mm . This time should be in PST."
+            + "Any input data timestamped after that minute won't be included in the sums.")
     @Default.String("2100-01-01-00-00")
     String getStopMin();
+
     void setStopMin(String value);
   }
 
   /**
-   * Create a map of information that describes how to write pipeline output to text. This map
-   * is passed to the {@link WriteToText} constructor to write team score sums and
-   * includes information about window start time.
+   * Create a map of information that describes how to write pipeline output to text. This map is
+   * passed to the {@link WriteToText} constructor to write team score sums and includes information
+   * about window start time.
    */
-  protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>>
-      configureOutput() {
+  protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>> configureOutput() {
     Map<String, WriteToText.FieldFn<KV<String, Integer>>> config = new HashMap<>();
     config.put("team", (c, w) -> c.element().getKey());
     config.put("total_score", (c, w) -> c.element().getValue());
     config.put(
         "window_start",
         (c, w) -> {
-              IntervalWindow window = (IntervalWindow) w;
-              return GameConstants.DATE_TIME_FORMATTER.print(window.start());
-            });
+          IntervalWindow window = (IntervalWindow) w;
+          return GameConstants.DATE_TIME_FORMATTER.print(window.start());
+        });
     return config;
   }
 
-
-  /**
-   * Run a batch pipeline to do windowed analysis of the data.
-   */
+  /** Run a batch pipeline to do windowed analysis of the data. */
   // [START DocInclude_HTSMain]
   public static void main(String[] args) throws Exception {
     // Begin constructing a pipeline configured by commandline flags.

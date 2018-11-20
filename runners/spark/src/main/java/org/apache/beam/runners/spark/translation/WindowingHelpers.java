@@ -15,25 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.function.Function;
 
-/**
- * Helper functions for working with windows.
- */
+/** Helper functions for working with windows. */
 public final class WindowingHelpers {
-  private WindowingHelpers() {
-  }
+  private WindowingHelpers() {}
 
   /**
-   * A Spark function for converting a value to a {@link WindowedValue}. The resulting
-   * {@link WindowedValue} will be in a global windows, and will have the default timestamp == MIN
-   * and pane.
+   * A Spark function for converting a value to a {@link WindowedValue}. The resulting {@link
+   * WindowedValue} will be in a global windows, and will have the default timestamp == MIN and
+   * pane.
    *
-   * @param <T>   The type of the object.
+   * @param <T> The type of the object.
    * @return A function that accepts an object and returns its {@link WindowedValue}.
    */
   public static <T> Function<T, WindowedValue<T>> windowFunction() {
@@ -43,7 +39,7 @@ public final class WindowingHelpers {
   /**
    * A Spark function for extracting the value from a {@link WindowedValue}.
    *
-   * @param <T>   The type of the object.
+   * @param <T> The type of the object.
    * @return A function that accepts a {@link WindowedValue} and returns its value.
    */
   public static <T> Function<WindowedValue<T>, T> unwindowFunction() {
@@ -53,7 +49,7 @@ public final class WindowingHelpers {
   /**
    * Same as windowFunction but for non-RDD values - not an RDD transformation!
    *
-   * @param <T>   The type of the object.
+   * @param <T> The type of the object.
    * @return A function that accepts an object and returns its {@link WindowedValue}.
    */
   public static <T> com.google.common.base.Function<T, WindowedValue<T>> windowValueFunction() {
@@ -63,7 +59,7 @@ public final class WindowingHelpers {
   /**
    * Same as unwindowFunction but for non-RDD values - not an RDD transformation!
    *
-   * @param <T>   The type of the object.
+   * @param <T> The type of the object.
    * @return A function that accepts an object and returns its {@link WindowedValue}.
    */
   public static <T> com.google.common.base.Function<WindowedValue<T>, T> unwindowValueFunction() {

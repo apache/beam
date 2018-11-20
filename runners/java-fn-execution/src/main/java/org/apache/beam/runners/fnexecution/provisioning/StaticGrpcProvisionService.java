@@ -15,23 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.provisioning;
 
 import static org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoResponse;
 
-import io.grpc.stub.StreamObserver;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc.ProvisionServiceImplBase;
 import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 
 /**
  * A {@link ProvisionServiceImplBase provision service} that returns a static response to all calls.
  */
-public class StaticGrpcProvisionService
-    extends ProvisionServiceGrpc.ProvisionServiceImplBase implements FnService {
+public class StaticGrpcProvisionService extends ProvisionServiceGrpc.ProvisionServiceImplBase
+    implements FnService {
   public static StaticGrpcProvisionService create(ProvisionInfo info) {
     return new StaticGrpcProvisionService(info);
   }

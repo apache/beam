@@ -17,18 +17,14 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
-import com.google.protobuf.Struct;
 import java.io.IOException;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Struct;
 
-/**
- * Factory to create a {@link JobInvocation} instances.
- */
+/** Factory to create a {@link JobInvocation} instances. */
 public interface JobInvoker {
-  /**
-   * Start running a job, abstracting its state as a {@link JobInvocation} instance.
-   */
-  JobInvocation invoke(RunnerApi.Pipeline pipeline, Struct options, @Nullable String artifactToken)
+  /** Start running a job, abstracting its state as a {@link JobInvocation} instance. */
+  JobInvocation invoke(RunnerApi.Pipeline pipeline, Struct options, @Nullable String retrievalToken)
       throws IOException;
 }

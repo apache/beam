@@ -18,24 +18,26 @@
 
 import groovy.json.JsonOutput
 
-apply from: project(":").file("build_rules.gradle")
+// Shade away runner execution utilities till because this causes ServiceLoader conflicts with
+// TransformPayloadTranslatorRegistrar amongst other runners. This only happens in the DirectRunner
+// because it is likely to appear on the classpath of another runner.
+def dependOnProjects = [":beam-runners-core-construction-java",
+                        ":beam-runners-core-java",
+                        ":beam-runners-local-java-core",
+                        ":beam-runners-java-fn-execution",
+                        ":beam-sdks-java-fn-execution"]
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
-    include(dependency(library.java.protobuf_java))
-    include(dependency(library.java.protobuf_java_util))
-    include(dependency("io.grpc:.*"))
-    include(project(path: ":beam-model-pipeline", configuration: "shadow"))
-    include(project(path: ":beam-model-fn-execution", configuration: "shadow"))
-    include(project(path: ":beam-runners-core-construction-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-core-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-java-fn-execution", configuration: "shadow"))
-    include(project(path: ":beam-runners-local-java-core", configuration: "shadow"))
+    dependOnProjects.each {
+      include(project(path: it, configuration: "shadow"))
+    }
   }
-  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-  relocate "io.grpc", getJavaRelocatedPath("io.grpc")
-  relocate "org.apache.beam.model", getJavaRelocatedPath("model")
   relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
   relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
+  relocate "org.apache.beam.sdk.fn", getJavaRelocatedPath("sdk.fn")
+  relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
 })
 
 description = "Apache Beam :: Runners :: Direct Java"
@@ -52,23 +54,22 @@ evaluationDependsOn(":beam-sdks-java-core")
 configurations {
   needsRunner
   validatesRunner
+  validatesPortableRunner
 }
 
 dependencies {
   compile library.java.guava
-  compile project(path: ":beam-model-pipeline", configuration: "shadow")
-  compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  compile project(path: ":beam-runners-core-java", configuration: "shadow")
-  compile project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-runners-local-java-core", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  dependOnProjects.each {
+    compile project(path: it, configuration: "shadow")
+  }
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-vendor-grpc-v1_13_1", configuration: "shadow")
   shadow library.java.joda_time
-  shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
-  shadow library.java.hamcrest_core
-  shadow library.java.junit
   shadow library.java.args4j
+  provided library.java.hamcrest_core
+  provided library.java.junit
   testRuntime project(path: ":beam-sdks-java-harness")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
@@ -89,13 +90,20 @@ dependencies {
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-runners-core-construction-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-runners-java-fn-execution", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesPortableRunner project(path: project.path, configuration: "shadow")
+  validatesPortableRunner project(path: project.path, configuration: "shadowTest")
 }
 
 task needsRunnerTests(type: Test) {
   group = "Verification"
   description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
 
-  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false", "--protoTranslation"])
+  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false"])
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
   classpath = configurations.needsRunner
@@ -117,7 +125,7 @@ task validatesRunner(type: Test) {
   group = "Verification"
   description "Validates Direct runner"
 
-  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false", "--protoTranslation"])
+  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false"])
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
   classpath = configurations.validatesRunner
@@ -129,6 +137,7 @@ task validatesRunner(type: Test) {
   useJUnit {
     includeCategories "org.apache.beam.sdk.testing.ValidatesRunner"
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
   }
 }
 
@@ -147,3 +156,5 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   gcsBucket: gcsBucket,
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
+
+createPortableValidatesRunnerTask(jobServerDriver: "org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobServer", testClasspathConfiguration: configurations.validatesPortableRunner)

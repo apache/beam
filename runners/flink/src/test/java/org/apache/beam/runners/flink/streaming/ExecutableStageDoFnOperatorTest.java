@@ -30,18 +30,20 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Struct;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator;
+import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -53,10 +55,13 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Struct;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
@@ -69,6 +74,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.internal.util.reflection.Whitebox;
 
 /** Tests for {@link ExecutableStageDoFnOperator}. */
 @RunWith(JUnit4.class)
@@ -79,8 +85,8 @@ public class ExecutableStageDoFnOperatorTest {
   @Mock private DistributedCache distributedCache;
   @Mock private FlinkExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
-  @Mock private ArtifactSourcePool artifactSourcePool;
   @Mock private StateRequestHandler stateRequestHandler;
+  @Mock private ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor;
 
   // NOTE: ExecutableStage.fromPayload expects exactly one input, so we provide one here. These unit
   // tests in general ignore the executable stage itself and mock around it.
@@ -92,72 +98,69 @@ public class ExecutableStageDoFnOperatorTest {
                   .putPcollections("input", PCollection.getDefaultInstance())
                   .build())
           .build();
-  private final JobInfo jobInfo = JobInfo.create("job-id", "job-name", Struct.getDefaultInstance());
+  private final JobInfo jobInfo =
+      JobInfo.create("job-id", "job-name", "retrieval-token", Struct.getDefaultInstance());
 
   @Before
   public void setUpMocks() {
     MockitoAnnotations.initMocks(this);
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
-    when(stageContext.getArtifactSourcePool()).thenReturn(artifactSourcePool);
-    when(stageContext.getStateRequestHandler(any(), any())).thenReturn(stateRequestHandler);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
+    when(processBundleDescriptor.getTimerSpecs()).thenReturn(Collections.emptyMap());
+    when(stageBundleFactory.getProcessBundleDescriptor()).thenReturn(processBundleDescriptor);
   }
 
   @Test
   public void sdkErrorsSurfaceOnClose() throws Exception {
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
-            new DoFnOperator.MultiOutputOutputManagerFactory(
-                    mainOutput, VoidCoder.of());
-    ExecutableStageDoFnOperator<Integer, Integer> operator = getOperator(mainOutput,
-            Collections.emptyList(),
-            outputManagerFactory);
+        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VoidCoder.of());
+    ExecutableStageDoFnOperator<Integer, Integer> operator =
+        getOperator(mainOutput, Collections.emptyList(), outputManagerFactory);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<Integer>> testHarness =
-            new OneInputStreamOperatorTestHarness<>(operator);
+        new OneInputStreamOperatorTestHarness<>(operator);
 
     testHarness.open();
 
     @SuppressWarnings("unchecked")
-    RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any())).thenReturn(bundle);
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
-    FnDataReceiver<WindowedValue<Integer>> receiver = Mockito.mock(FnDataReceiver.class);
-    when(bundle.getInputReceiver()).thenReturn(receiver);
+    FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
+    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("input", receiver));
 
-    Exception expected = new Exception();
+    Exception expected = new RuntimeException(new Exception());
     doThrow(expected).when(bundle).close();
     thrown.expectCause(is(expected));
 
     operator.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow(0)));
+    testHarness.close();
   }
 
   @Test
   public void expectedInputsAreSent() throws Exception {
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
-            new DoFnOperator.MultiOutputOutputManagerFactory(
-                    mainOutput, VoidCoder.of());
-    ExecutableStageDoFnOperator<Integer, Integer> operator = getOperator(mainOutput,
-            Collections.emptyList(),
-            outputManagerFactory
-    );
+        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VoidCoder.of());
+    ExecutableStageDoFnOperator<Integer, Integer> operator =
+        getOperator(mainOutput, Collections.emptyList(), outputManagerFactory);
 
     @SuppressWarnings("unchecked")
-    RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any())).thenReturn(bundle);
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
-    FnDataReceiver<WindowedValue<Integer>> receiver = Mockito.mock(FnDataReceiver.class);
-    when(bundle.getInputReceiver()).thenReturn(receiver);
+    FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
+    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("input", receiver));
 
     WindowedValue<Integer> one = WindowedValue.valueInGlobalWindow(1);
     WindowedValue<Integer> two = WindowedValue.valueInGlobalWindow(2);
     WindowedValue<Integer> three = WindowedValue.valueInGlobalWindow(3);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<Integer>> testHarness =
-            new OneInputStreamOperatorTestHarness<>(operator);
+        new OneInputStreamOperatorTestHarness<>(operator);
 
     testHarness.open();
 
@@ -177,32 +180,32 @@ public class ExecutableStageDoFnOperatorTest {
   public void outputsAreTaggedCorrectly() throws Exception {
 
     WindowedValue.ValueOnlyWindowedValueCoder<Integer> coder =
-            WindowedValue.getValueOnlyCoder(VarIntCoder.of());
+        WindowedValue.getValueOnlyCoder(VarIntCoder.of());
 
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     TupleTag<Integer> additionalOutput1 = new TupleTag<>("output-1");
     TupleTag<Integer> additionalOutput2 = new TupleTag<>("output-2");
     ImmutableMap<TupleTag<?>, OutputTag<?>> tagsToOutputTags =
-            ImmutableMap.<TupleTag<?>, OutputTag<?>>builder()
-                    .put(additionalOutput1, new OutputTag<String>(additionalOutput1.getId()){})
-                    .put(additionalOutput2, new OutputTag<String>(additionalOutput2.getId()){})
-                    .build();
+        ImmutableMap.<TupleTag<?>, OutputTag<?>>builder()
+            .put(additionalOutput1, new OutputTag<String>(additionalOutput1.getId()) {})
+            .put(additionalOutput2, new OutputTag<String>(additionalOutput2.getId()) {})
+            .build();
     ImmutableMap<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders =
-            ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
-                    .put(mainOutput, (Coder) coder)
-                    .put(additionalOutput1, coder)
-                    .put(additionalOutput2, coder)
-                    .build();
+        ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
+            .put(mainOutput, (Coder) coder)
+            .put(additionalOutput1, coder)
+            .put(additionalOutput2, coder)
+            .build();
     ImmutableMap<TupleTag<?>, Integer> tagsToIds =
-            ImmutableMap.<TupleTag<?>, Integer>builder()
-                    .put(mainOutput, 0)
-                    .put(additionalOutput1, 1)
-                    .put(additionalOutput2, 2)
-                    .build();
+        ImmutableMap.<TupleTag<?>, Integer>builder()
+            .put(mainOutput, 0)
+            .put(additionalOutput1, 1)
+            .put(additionalOutput2, 2)
+            .build();
 
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
-            new DoFnOperator.MultiOutputOutputManagerFactory(
-                    mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds);
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds);
 
     WindowedValue<Integer> zero = WindowedValue.valueInGlobalWindow(0);
     WindowedValue<Integer> three = WindowedValue.valueInGlobalWindow(3);
@@ -210,30 +213,49 @@ public class ExecutableStageDoFnOperatorTest {
     WindowedValue<Integer> five = WindowedValue.valueInGlobalWindow(5);
 
     // We use a real StageBundleFactory here in order to exercise the output receiver factory.
-    StageBundleFactory<Void> stageBundleFactory =
-        new StageBundleFactory<Void>() {
+    StageBundleFactory stageBundleFactory =
+        new StageBundleFactory() {
+
+          private boolean onceEmitted;
+
           @Override
-          public RemoteBundle<Void> getBundle(
-              OutputReceiverFactory receiverFactory, StateRequestHandler stateRequestHandler) {
-            return new RemoteBundle<Void>() {
+          public RemoteBundle getBundle(
+              OutputReceiverFactory receiverFactory,
+              StateRequestHandler stateRequestHandler,
+              BundleProgressHandler progressHandler) {
+            return new RemoteBundle() {
               @Override
               public String getId() {
                 return "bundle-id";
               }
 
               @Override
-              public FnDataReceiver<WindowedValue<Void>> getInputReceiver() {
-                return input -> {/* Ignore input*/};
+              public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+                return ImmutableMap.of(
+                    "input",
+                    input -> {
+                      /* Ignore input*/
+                    });
               }
 
               @Override
               public void close() throws Exception {
+                if (onceEmitted) {
+                  return;
+                }
                 // Emit all values to the runner when the bundle is closed.
                 receiverFactory.create(mainOutput.getId()).accept(three);
                 receiverFactory.create(additionalOutput1.getId()).accept(four);
                 receiverFactory.create(additionalOutput2.getId()).accept(five);
+                onceEmitted = true;
               }
             };
+          }
+
+          @Override
+          public ProcessBundleDescriptors.ExecutableProcessBundleDescriptor
+              getProcessBundleDescriptor() {
+            return processBundleDescriptor;
           }
 
           @Override
@@ -242,94 +264,112 @@ public class ExecutableStageDoFnOperatorTest {
     // Wire the stage bundle factory into our context.
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
 
-    ExecutableStageDoFnOperator<Integer, Integer> operator = getOperator(mainOutput,
+    ExecutableStageDoFnOperator<Integer, Integer> operator =
+        getOperator(
+            mainOutput,
             ImmutableList.of(additionalOutput1, additionalOutput2),
-            outputManagerFactory
-    );
+            outputManagerFactory);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<Integer>> testHarness =
-            new OneInputStreamOperatorTestHarness<>(operator);
+        new OneInputStreamOperatorTestHarness<>(operator);
 
     testHarness.open();
-
     testHarness.processElement(new StreamRecord<>(zero));
+    testHarness.close(); // triggers finish bundle
 
-    assertThat(testHarness.getOutput(),
-            contains(new StreamRecord<>(three)));
+    assertThat(
+        testHarness.getOutput(),
+        contains(new StreamRecord<>(three), new Watermark(Long.MAX_VALUE)));
 
-    assertThat(testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput1)),
-            contains(new StreamRecord<>(four)));
+    assertThat(
+        testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput1)),
+        contains(new StreamRecord<>(four)));
 
-    assertThat(testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput2)),
-            contains(new StreamRecord<>(five)));
-
-    testHarness.close();
-
+    assertThat(
+        testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput2)),
+        contains(new StreamRecord<>(five)));
   }
 
   @Test
   public void testStageBundleClosed() throws Exception {
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
-            new DoFnOperator.MultiOutputOutputManagerFactory(
-                    mainOutput, VoidCoder.of());
-    ExecutableStageDoFnOperator<Integer, Integer> operator = getOperator(mainOutput,
-            Collections.emptyList(),
-            outputManagerFactory
-    );
+        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VoidCoder.of());
+    ExecutableStageDoFnOperator<Integer, Integer> operator =
+        getOperator(mainOutput, Collections.emptyList(), outputManagerFactory);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<Integer>> testHarness =
-            new OneInputStreamOperatorTestHarness<>(operator);
+        new OneInputStreamOperatorTestHarness<>(operator);
+
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    when(bundle.getInputReceivers())
+        .thenReturn(
+            ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
+                .put("input", Mockito.mock(FnDataReceiver.class))
+                .build());
+    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+
     testHarness.open();
-
-    operator.close();
-    verify(stageBundleFactory).close();
-    verifyNoMoreInteractions(stageBundleFactory);
-
     testHarness.close();
+
+    verify(stageBundleFactory).getProcessBundleDescriptor();
+    verify(stageBundleFactory).close();
+    verify(stageContext).close();
+    // DoFnOperator generates a final watermark, which triggers a new bundle..
+    verify(stageBundleFactory).getBundle(any(), any(), any());
+    verifyNoMoreInteractions(stageBundleFactory);
   }
 
   @Test
   public void testSerialization() {
     WindowedValue.ValueOnlyWindowedValueCoder<Integer> coder =
-            WindowedValue.getValueOnlyCoder(VarIntCoder.of());
+        WindowedValue.getValueOnlyCoder(VarIntCoder.of());
 
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     TupleTag<Integer> additionalOutput = new TupleTag<>("additional-output");
     ImmutableMap<TupleTag<?>, OutputTag<?>> tagsToOutputTags =
-            ImmutableMap.<TupleTag<?>, OutputTag<?>>builder()
-                    .put(additionalOutput, new OutputTag<>(additionalOutput.getId(),
-                            TypeInformation.of(Integer.class)))
-                    .build();
+        ImmutableMap.<TupleTag<?>, OutputTag<?>>builder()
+            .put(
+                additionalOutput,
+                new OutputTag<>(additionalOutput.getId(), TypeInformation.of(Integer.class)))
+            .build();
     ImmutableMap<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders =
-            ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
-                    .put(mainOutput, (Coder) coder)
-                    .put(additionalOutput, coder)
-                    .build();
+        ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
+            .put(mainOutput, (Coder) coder)
+            .put(additionalOutput, coder)
+            .build();
     ImmutableMap<TupleTag<?>, Integer> tagsToIds =
-            ImmutableMap.<TupleTag<?>, Integer>builder()
-                    .put(mainOutput, 0)
-                    .put(additionalOutput, 1)
-                    .build();
+        ImmutableMap.<TupleTag<?>, Integer>builder()
+            .put(mainOutput, 0)
+            .put(additionalOutput, 1)
+            .build();
 
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
-            new DoFnOperator.MultiOutputOutputManagerFactory(
-                    mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds);
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds);
+
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
 
     ExecutableStageDoFnOperator<Integer, Integer> operator =
-            new ExecutableStageDoFnOperator<>(
-                    "transform",
-                    null,
-                    mainOutput,
-                    ImmutableList.of(additionalOutput),
-                    outputManagerFactory,
-                    Collections.emptyMap() /* sideInputTagMapping */,
-                    Collections.emptyList() /* sideInputs */,
-                    PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-                    stagePayload,
-                    jobInfo,
-                    FlinkExecutableStageContext.batchFactory()
-            );
+        new ExecutableStageDoFnOperator<>(
+            "transform",
+            null,
+            null,
+            Collections.emptyMap(),
+            mainOutput,
+            ImmutableList.of(additionalOutput),
+            outputManagerFactory,
+            Collections.emptyMap() /* sideInputTagMapping */,
+            Collections.emptyList() /* sideInputs */,
+            Collections.emptyMap() /* sideInputId mapping */,
+            options,
+            stagePayload,
+            jobInfo,
+            FlinkExecutableStageContext.factory(options),
+            createOutputMap(mainOutput, ImmutableList.of(additionalOutput)),
+            WindowingStrategy.globalDefault(),
+            null,
+            null);
 
     ExecutableStageDoFnOperator<Integer, Integer> clone = SerializationUtils.clone(operator);
     assertNotNull(clone);
@@ -341,29 +381,49 @@ public class ExecutableStageDoFnOperatorTest {
    * #runtimeContext}. The context factory is mocked to return {@link #stageContext} every time. The
    * behavior of the stage context itself is unchanged.
    */
-  private ExecutableStageDoFnOperator<Integer, Integer> getOperator(TupleTag<Integer> mainOutput,
-                  List<TupleTag<?>> additionalOutputs,
-                  DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory) {
+  private ExecutableStageDoFnOperator<Integer, Integer> getOperator(
+      TupleTag<Integer> mainOutput,
+      List<TupleTag<?>> additionalOutputs,
+      DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory) {
 
     FlinkExecutableStageContext.Factory contextFactory =
-            Mockito.mock(FlinkExecutableStageContext.Factory.class);
+        Mockito.mock(FlinkExecutableStageContext.Factory.class);
     when(contextFactory.get(any())).thenReturn(stageContext);
 
     ExecutableStageDoFnOperator<Integer, Integer> operator =
-            new ExecutableStageDoFnOperator<>(
-                    "transform",
-                    null,
-                    mainOutput,
-                    additionalOutputs,
-                    outputManagerFactory,
-                    Collections.emptyMap() /* sideInputTagMapping */,
-                    Collections.emptyList() /* sideInputs */,
-                    PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-                    stagePayload,
-                    jobInfo,
-                    contextFactory
-            );
+        new ExecutableStageDoFnOperator<>(
+            "transform",
+            null,
+            null,
+            Collections.emptyMap(),
+            mainOutput,
+            additionalOutputs,
+            outputManagerFactory,
+            Collections.emptyMap() /* sideInputTagMapping */,
+            Collections.emptyList() /* sideInputs */,
+            Collections.emptyMap() /* sideInputId mapping */,
+            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            stagePayload,
+            jobInfo,
+            contextFactory,
+            createOutputMap(mainOutput, additionalOutputs),
+            WindowingStrategy.globalDefault(),
+            null,
+            null);
 
+    Whitebox.setInternalState(operator, "stateRequestHandler", stateRequestHandler);
     return operator;
+  }
+
+  private static Map<String, TupleTag<?>> createOutputMap(
+      TupleTag mainOutput, List<TupleTag<?>> additionalOutputs) {
+    Map<String, TupleTag<?>> outputMap = new HashMap<>(additionalOutputs.size() + 1);
+    if (mainOutput != null) {
+      outputMap.put(mainOutput.getId(), mainOutput);
+    }
+    for (TupleTag<?> additionalTag : additionalOutputs) {
+      outputMap.put(additionalTag.getId(), additionalTag);
+    }
+    return outputMap;
   }
 }

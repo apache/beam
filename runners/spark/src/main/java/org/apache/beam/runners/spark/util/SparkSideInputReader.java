@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -38,9 +37,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
-/**
- * A {@link SideInputReader} for the SparkRunner.
- */
+/** A {@link SideInputReader} for the SparkRunner. */
 public class SparkSideInputReader implements SideInputReader {
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
 
@@ -59,8 +56,7 @@ public class SparkSideInputReader implements SideInputReader {
     checkNotNull(windowedBroadcastHelper, "SideInput for view " + view + " is not available.");
 
     //--- sideInput window
-    final BoundedWindow sideInputWindow =
-        view.getWindowMappingFn().getSideInputWindow(window);
+    final BoundedWindow sideInputWindow = view.getWindowMappingFn().getSideInputWindow(window);
 
     //--- match the appropriate sideInput window.
     // a tag will point to all matching sideInputs, that is all windows.
@@ -86,8 +82,9 @@ public class SparkSideInputReader implements SideInputReader {
 
     ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
     Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-    return (T) viewFn.apply(
-        InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) sideInputForWindow));
+    return (T)
+        viewFn.apply(
+            InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) sideInputForWindow));
   }
 
   @Override

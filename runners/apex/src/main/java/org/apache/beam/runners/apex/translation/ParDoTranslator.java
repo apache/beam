@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.translation;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -28,14 +27,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexParDoOperator;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
@@ -76,7 +76,15 @@ class ParDoTranslator<InputT, OutputT>
     PCollection<InputT> input = context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
-    ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(
+    Map<TupleTag<?>, Coder<?>> outputCoders =
+        outputs
+            .entrySet()
+            .stream()
+            .filter(e -> e.getValue() instanceof PCollection)
+            .collect(
+                Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+    ApexParDoOperator<InputT, OutputT> operator =
+        new ApexParDoOperator<>(
             context.getPipelineOptions(),
             doFn,
             transform.getMainOutputTag(),
@@ -84,6 +92,7 @@ class ParDoTranslator<InputT, OutputT>
             input.getWindowingStrategy(),
             sideInputs,
             input.getCoder(),
+            outputCoders,
             context.getStateBackend());
 
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
@@ -116,22 +125,30 @@ class ParDoTranslator<InputT, OutputT>
     }
   }
 
-  static class SplittableProcessElementsTranslator<
-          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
-      implements TransformTranslator<ProcessElements<InputT, OutputT, RestrictionT, TrackerT>> {
+  static class SplittableProcessElementsTranslator<InputT, OutputT, RestrictionT, PositionT>
+      implements TransformTranslator<ProcessElements<InputT, OutputT, RestrictionT, PositionT>> {
 
     @Override
     public void translate(
-        ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform,
+        ProcessElements<InputT, OutputT, RestrictionT, PositionT> transform,
         TranslationContext context) {
 
       Map<TupleTag<?>, PValue> outputs = context.getOutputs();
       PCollection<InputT> input = context.getInput();
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
-      @SuppressWarnings({ "rawtypes", "unchecked" })
+      Map<TupleTag<?>, Coder<?>> outputCoders =
+          outputs
+              .entrySet()
+              .stream()
+              .filter(e -> e.getValue() instanceof PCollection)
+              .collect(
+                  Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+
+      @SuppressWarnings({"rawtypes", "unchecked"})
       DoFn<InputT, OutputT> doFn = (DoFn) transform.newProcessFn(transform.getFn());
-      ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(
+      ApexParDoOperator<InputT, OutputT> operator =
+          new ApexParDoOperator<>(
               context.getPipelineOptions(),
               doFn,
               transform.getMainOutputTag(),
@@ -139,6 +156,7 @@ class ParDoTranslator<InputT, OutputT>
               input.getWindowingStrategy(),
               sideInputs,
               input.getCoder(),
+              outputCoders,
               context.getStateBackend());
 
       Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
@@ -170,10 +188,8 @@ class ParDoTranslator<InputT, OutputT>
       if (!sideInputs.isEmpty()) {
         addSideInputs(operator.sideInput1, sideInputs, context);
       }
-
     }
   }
-
 
   static void addSideInputs(
       Operator.InputPort<?> sideInputPort,

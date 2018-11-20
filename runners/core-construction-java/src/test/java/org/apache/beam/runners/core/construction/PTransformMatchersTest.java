@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.instanceOf;
@@ -80,9 +79,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link PTransformMatcher}.
- */
+/** Tests for {@link PTransformMatcher}. */
 @RunWith(JUnit4.class)
 public class PTransformMatchersTest implements Serializable {
   @Rule
@@ -139,8 +136,7 @@ public class PTransformMatchersTest implements Serializable {
     assertThat(subclass.getClass(), not(Matchers.<Class<?>>equalTo(MyPTransform.class)));
     assertThat(subclass, instanceOf(MyPTransform.class));
 
-    AppliedPTransform<?, ?, ?> application =
-        getAppliedTransform(subclass);
+    AppliedPTransform<?, ?, ?> application = getAppliedTransform(subclass);
 
     assertThat(matcher.matches(application), is(false));
   }
@@ -167,7 +163,8 @@ public class PTransformMatchersTest implements Serializable {
   private DoFn<KV<String, Integer>, Integer> splittableDoFn =
       new DoFn<KV<String, Integer>, Integer>() {
         @ProcessElement
-        public void processElement(ProcessContext context, SomeTracker tracker) {}
+        public void processElement(
+            ProcessContext context, RestrictionTracker<Void, Void> tracker) {}
 
         @GetInitialRestriction
         public Void getInitialRestriction(KV<String, Integer> element) {
@@ -184,8 +181,7 @@ public class PTransformMatchersTest implements Serializable {
         private final String stateId = "mystate";
 
         @StateId(stateId)
-        private final StateSpec<ValueState<Integer>> intState =
-            StateSpecs.value(VarIntCoder.of());
+        private final StateSpec<ValueState<Integer>> intState = StateSpecs.value(VarIntCoder.of());
 
         @ProcessElement
         public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
@@ -213,9 +209,7 @@ public class PTransformMatchersTest implements Serializable {
         }
       };
 
-  /**
-   * Demonstrates that a {@link ParDo.SingleOutput} does not match any ParDo matcher.
-   */
+  /** Demonstrates that a {@link ParDo.SingleOutput} does not match any ParDo matcher. */
   @Test
   public void parDoSingle() {
     AppliedPTransform<?, ?, ?> parDoApplication = getAppliedTransform(ParDo.of(doFn));
@@ -248,8 +242,7 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void parDoSingleWithTimers() {
-    AppliedPTransform<?, ?, ?> parDoApplication =
-        getAppliedTransform(ParDo.of(doFnWithTimers));
+    AppliedPTransform<?, ?, ?> parDoApplication = getAppliedTransform(ParDo.of(doFnWithTimers));
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(true));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
@@ -330,12 +323,39 @@ public class PTransformMatchersTest implements Serializable {
   }
 
   @Test
+  public void parDoRequiresStableInput() {
+    DoFn<Object, Object> doFnRSI =
+        new DoFn<Object, Object>() {
+          @RequiresStableInput
+          @ProcessElement
+          public void process(ProcessContext ctxt) {}
+        };
+
+    AppliedPTransform<?, ?, ?> single = getAppliedTransform(ParDo.of(doFn));
+    AppliedPTransform<?, ?, ?> singleRSI = getAppliedTransform(ParDo.of(doFnRSI));
+    AppliedPTransform<?, ?, ?> multi =
+        getAppliedTransform(ParDo.of(doFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+    AppliedPTransform<?, ?, ?> multiRSI =
+        getAppliedTransform(
+            ParDo.of(doFnRSI).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(single), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(singleRSI), is(true));
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(multi), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(multiRSI), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(single), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(singleRSI), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(multi), is(false));
+    assertThat(PTransformMatchers.requiresStableInputParDoMulti().matches(multiRSI), is(true));
+  }
+
+  @Test
   public void parDoWithFnTypeWithMatchingType() {
-    DoFn<Object, Object> fn = new DoFn<Object, Object>() {
-      @ProcessElement
-      public void process(ProcessContext ctxt) {
-      }
-    };
+    DoFn<Object, Object> fn =
+        new DoFn<Object, Object>() {
+          @ProcessElement
+          public void process(ProcessContext ctxt) {}
+        };
     AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
     AppliedPTransform<?, ?, ?> parDoMulti =
         getAppliedTransform(ParDo.of(fn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
@@ -347,11 +367,11 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void parDoWithFnTypeWithNoMatch() {
-    DoFn<Object, Object> fn = new DoFn<Object, Object>() {
-      @ProcessElement
-      public void process(ProcessContext ctxt) {
-      }
-    };
+    DoFn<Object, Object> fn =
+        new DoFn<Object, Object>() {
+          @ProcessElement
+          public void process(ProcessContext ctxt) {}
+        };
     AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
     AppliedPTransform<?, ?, ?> parDoMulti =
         getAppliedTransform(ParDo.of(fn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
@@ -525,8 +545,7 @@ public class PTransformMatchersTest implements Serializable {
     WriteFiles<Integer, Void, Integer> write =
         WriteFiles.to(
             new FileBasedSink<Integer, Void, Integer>(
-                StaticValueProvider.of(outputDirectory),
-                DynamicFileDestinations.constant(policy)) {
+                StaticValueProvider.of(outputDirectory), DynamicFileDestinations.constant(policy)) {
               @Override
               public WriteOperation<Void, Integer> createWriteOperation() {
                 return null;

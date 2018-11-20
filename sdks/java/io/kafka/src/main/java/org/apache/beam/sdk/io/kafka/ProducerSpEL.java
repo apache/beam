@@ -29,8 +29,8 @@ import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.AuthorizationException;
 
 /**
- * ProducerSpEL to handle newer versions Producer API. The API is updated in Kafka 0.11
- * to support exactly-once semantics.
+ * ProducerSpEL to handle newer versions Producer API. The API is updated in Kafka 0.11 to support
+ * exactly-once semantics.
  */
 class ProducerSpEL {
 
@@ -54,13 +54,13 @@ class ProducerSpEL {
       beginTransactionMethod = Producer.class.getMethod("beginTransaction");
       commitTransactionMethod = Producer.class.getMethod("commitTransaction");
       abortTransactionMethod = Producer.class.getMethod("abortTransaction");
-      sendOffsetsToTransactionMethod = Producer.class.getMethod(
-        "sendOffsetsToTransaction", Map.class, String.class);
+      sendOffsetsToTransactionMethod =
+          Producer.class.getMethod("sendOffsetsToTransaction", Map.class, String.class);
 
-      producerFencedExceptionClass = Class.forName(
-        "org.apache.kafka.common.errors.ProducerFencedException");
-      outOfOrderSequenceExceptionClass = Class.forName(
-        "org.apache.kafka.common.errors.OutOfOrderSequenceException");
+      producerFencedExceptionClass =
+          Class.forName("org.apache.kafka.common.errors.ProducerFencedException");
+      outOfOrderSequenceExceptionClass =
+          Class.forName("org.apache.kafka.common.errors.OutOfOrderSequenceException");
 
       supportsTransactions = true;
     } catch (ClassNotFoundException | NoSuchMethodException e) {
@@ -69,9 +69,9 @@ class ProducerSpEL {
   }
 
   /**
-   * Wraps an unrecoverable producer exceptions, including the ones related transactions
-   * introduced in 0.11 (as described in documentation for {@link Producer}). The calller should
-   * close the producer when this exception is thrown.
+   * Wraps an unrecoverable producer exceptions, including the ones related transactions introduced
+   * in 0.11 (as described in documentation for {@link Producer}). The calller should close the
+   * producer when this exception is thrown.
    */
   static class UnrecoverableProducerException extends ApiException {
     UnrecoverableProducerException(ApiException cause) {
@@ -84,9 +84,10 @@ class ProducerSpEL {
   }
 
   private static void ensureTransactionsSupport() {
-    checkArgument(supportsTransactions(),
-                  "This version of Kafka client library does not support transactions. ",
-                  "Please used version 0.11 or later.");
+    checkArgument(
+        supportsTransactions(),
+        "This version of Kafka client library does not support transactions. ",
+        "Please used version 0.11 or later.");
   }
 
   private static void invoke(Method method, Object obj, Object... args) {
@@ -97,8 +98,8 @@ class ProducerSpEL {
     } catch (ApiException e) {
       Class<?> eClass = e.getClass();
       if (producerFencedExceptionClass.isAssignableFrom(eClass)
-        || outOfOrderSequenceExceptionClass.isAssignableFrom(eClass)
-        || AuthorizationException.class.isAssignableFrom(eClass)) {
+          || outOfOrderSequenceExceptionClass.isAssignableFrom(eClass)
+          || AuthorizationException.class.isAssignableFrom(eClass)) {
         throw new UnrecoverableProducerException(e);
       }
       throw e;
@@ -125,9 +126,10 @@ class ProducerSpEL {
     invoke(abortTransactionMethod, producer);
   }
 
-  static void sendOffsetsToTransaction(Producer<?, ?> producer,
-                                       Map<TopicPartition, OffsetAndMetadata> offsets,
-                                       String consumerGroupId) {
+  static void sendOffsetsToTransaction(
+      Producer<?, ?> producer,
+      Map<TopicPartition, OffsetAndMetadata> offsets,
+      String consumerGroupId) {
     ensureTransactionsSupport();
     invoke(sendOffsetsToTransactionMethod, producer, offsets, consumerGroupId);
   }

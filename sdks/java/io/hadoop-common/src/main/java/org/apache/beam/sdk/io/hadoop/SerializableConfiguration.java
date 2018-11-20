@@ -36,8 +36,7 @@ public class SerializableConfiguration implements Externalizable {
 
   private transient Configuration conf;
 
-  public SerializableConfiguration() {
-  }
+  public SerializableConfiguration() {}
 
   public SerializableConfiguration(Configuration conf) {
     if (conf == null) {
@@ -49,7 +48,6 @@ public class SerializableConfiguration implements Externalizable {
   public Configuration get() {
     return conf;
   }
-
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
@@ -71,9 +69,7 @@ public class SerializableConfiguration implements Externalizable {
     }
   }
 
-  /**
-   * Returns new configured {@link Job} object.
-   */
+  /** Returns new configured {@link Job} object. */
   public static Job newJob(@Nullable SerializableConfiguration conf) throws IOException {
     if (conf == null) {
       return Job.getInstance();
@@ -87,9 +83,7 @@ public class SerializableConfiguration implements Externalizable {
     }
   }
 
-  /**
-   * Returns new populated {@link Configuration} object.
-   */
+  /** Returns new populated {@link Configuration} object. */
   public static Configuration newConfiguration(@Nullable SerializableConfiguration conf) {
     if (conf == null) {
       return new Configuration();
@@ -97,5 +91,4 @@ public class SerializableConfiguration implements Externalizable {
       return conf.get();
     }
   }
-
 }

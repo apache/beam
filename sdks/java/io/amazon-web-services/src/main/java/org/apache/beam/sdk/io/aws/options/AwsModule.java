@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws.options;
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -29,6 +30,9 @@ import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -68,6 +72,7 @@ public class AwsModule extends SimpleModule {
     setMixInAnnotation(AWSCredentialsProvider.class, AWSCredentialsProviderMixin.class);
     setMixInAnnotation(SSECustomerKey.class, SSECustomerKeyMixin.class);
     setMixInAnnotation(SSEAwsKeyManagementParams.class, SSEAwsKeyManagementParamsMixin.class);
+    setMixInAnnotation(ClientConfiguration.class, ClientConfigurationMixin.class);
   }
 
   /** A mixin to add Jackson annotations to {@link AWSCredentialsProvider}. */
@@ -166,7 +171,7 @@ public class AwsModule extends SimpleModule {
           Field field =
               PropertiesFileCredentialsProvider.class.getDeclaredField(CREDENTIALS_FILE_PATH);
           field.setAccessible(true);
-          String credentialsFilePath = ((String) field.get(specificProvider));
+          String credentialsFilePath = (String) field.get(specificProvider);
           jsonGenerator.writeStringField(CREDENTIALS_FILE_PATH, credentialsFilePath);
         } catch (NoSuchFieldException | IllegalAccessException e) {
           throw new IOException("failed to access private field with reflection", e);
@@ -182,7 +187,7 @@ public class AwsModule extends SimpleModule {
               ClasspathPropertiesFileCredentialsProvider.class.getDeclaredField(
                   CREDENTIALS_FILE_PATH);
           field.setAccessible(true);
-          String credentialsFilePath = ((String) field.get(specificProvider));
+          String credentialsFilePath = (String) field.get(specificProvider);
           jsonGenerator.writeStringField(CREDENTIALS_FILE_PATH, credentialsFilePath);
         } catch (NoSuchFieldException | IllegalAccessException e) {
           throw new IOException("failed to access private field with reflection", e);
@@ -233,5 +238,24 @@ public class AwsModule extends SimpleModule {
       final String awsKmsKeyId = asMap.getOrDefault("awsKmsKeyId", null);
       return new SSEAwsKeyManagementParams(awsKmsKeyId);
     }
+  }
+
+  @JsonAutoDetect(
+    fieldVisibility = Visibility.NONE,
+    getterVisibility = Visibility.NONE,
+    setterVisibility = Visibility.NONE
+  )
+  interface ClientConfigurationMixin {
+    @JsonProperty
+    String getProxyHost();
+
+    @JsonProperty
+    Integer getProxyPort();
+
+    @JsonProperty
+    String getProxyUsername();
+
+    @JsonProperty
+    String getProxyPassword();
   }
 }

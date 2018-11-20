@@ -34,89 +34,73 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 
 /**
- * Transforms for creating {@link PCollectionView PCollectionViews} from
- * {@link PCollection PCollections} (to read them as side inputs).
+ * Transforms for creating {@link PCollectionView PCollectionViews} from {@link PCollection
+ * PCollections} (to read them as side inputs).
  *
  * <p>While a {@link PCollection PCollection&lt;ElemT&gt;} has many values of type {@code ElemT} per
- * window, a {@link PCollectionView PCollectionView&lt;ViewT&gt;} has a single value of type
- * {@code ViewT} for each window. It can be thought of as a mapping from windows to values of
- * type {@code ViewT}. The transforms here represent ways of converting the {@code ElemT} values
- * in a window into a {@code ViewT} for that window.
+ * window, a {@link PCollectionView PCollectionView&lt;ViewT&gt;} has a single value of type {@code
+ * ViewT} for each window. It can be thought of as a mapping from windows to values of type {@code
+ * ViewT}. The transforms here represent ways of converting the {@code ElemT} values in a window
+ * into a {@code ViewT} for that window.
  *
- * <p>When a {@link ParDo} tranform is processing a main input
- * element in a window {@code w} and a {@link PCollectionView} is read via
- * {@link DoFn.ProcessContext#sideInput}, the value of the view for {@code w} is
- * returned.
+ * <p>When a {@link ParDo} tranform is processing a main input element in a window {@code w} and a
+ * {@link PCollectionView} is read via {@link DoFn.ProcessContext#sideInput}, the value of the view
+ * for {@code w} is returned.
  *
- * <p>The SDK supports viewing a {@link PCollection}, per window, as a single value,
- * a {@link List}, an {@link Iterable}, a {@link Map}, or a multimap (iterable-valued {@link Map}).
+ * <p>The SDK supports viewing a {@link PCollection}, per window, as a single value, a {@link List},
+ * an {@link Iterable}, a {@link Map}, or a multimap (iterable-valued {@link Map}).
  *
- * <p>For a {@link PCollection} that contains a single value of type {@code T}
- * per window, such as the output of {@link Combine#globally},
- * use {@link View#asSingleton()} to prepare it for use as a side input:
+ * <p>For a {@link PCollection} that contains a single value of type {@code T} per window, such as
+ * the output of {@link Combine#globally}, use {@link View#asSingleton()} to prepare it for use as a
+ * side input:
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * PCollectionView<T> output = someOtherPCollection
  *     .apply(Combine.globally(...))
  *     .apply(View.<T>asSingleton());
- * }
- * </pre>
+ * }</pre>
  *
- * <p>For a small {@link PCollection} with windows that can fit entirely in memory,
- * use {@link View#asList()} to prepare it for use as a {@code List}.
- * When read as a side input, the entire list for a window will be cached in memory.
+ * <p>For a small {@link PCollection} with windows that can fit entirely in memory, use {@link
+ * View#asList()} to prepare it for use as a {@code List}. When read as a side input, the entire
+ * list for a window will be cached in memory.
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * PCollectionView<List<T>> output =
  *    smallPCollection.apply(View.<T>asList());
- * }
- * </pre>
+ * }</pre>
  *
- * <p>If a {@link PCollection} of {@code KV<K, V>} is known to
- * have a single value per window for each key, then use {@link View#asMap()}
- * to view it as a {@code Map<K, V>}:
+ * <p>If a {@link PCollection} of {@code KV<K, V>} is known to have a single value per window for
+ * each key, then use {@link View#asMap()} to view it as a {@code Map<K, V>}:
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * PCollectionView<Map<K, V> output =
  *     somePCollection.apply(View.<K, V>asMap());
- * }
- * </pre>
+ * }</pre>
  *
- * <p>Otherwise, to access a {@link PCollection} of {@code KV<K, V>} as a
- * {@code Map<K, Iterable<V>>} side input, use {@link View#asMultimap()}:
+ * <p>Otherwise, to access a {@link PCollection} of {@code KV<K, V>} as a {@code Map<K,
+ * Iterable<V>>} side input, use {@link View#asMultimap()}:
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * PCollectionView<Map<K, Iterable<V>> output =
  *     somePCollection.apply(View.<K, Iterable<V>>asMap());
- * }
- * </pre>
+ * }</pre>
  *
- * <p>To iterate over an entire window of a {@link PCollection} via
- * side input, use {@link View#asIterable()}:
+ * <p>To iterate over an entire window of a {@link PCollection} via side input, use {@link
+ * View#asIterable()}:
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * PCollectionView<Iterable<T>> output =
  *     somePCollection.apply(View.<T>asIterable());
- * }
- * </pre>
+ * }</pre>
  *
+ * <p>Both {@link View#asMultimap()} and {@link View#asMap()} are useful for implementing lookup
+ * based "joins" with the main input, when the side input is small enough to fit into memory.
  *
- * <p>Both {@link View#asMultimap()} and {@link View#asMap()} are useful
- * for implementing lookup based "joins" with the main input, when the
- * side input is small enough to fit into memory.
+ * <p>For example, if you represent a page on a website via some {@code Page} object and have some
+ * type {@code UrlVisits} logging that a URL was visited, you could convert these to more fully
+ * structured {@code PageVisit} objects using a side input, something like the following:
  *
- * <p>For example, if you represent a page on a website via some {@code Page} object and
- * have some type {@code UrlVisits} logging that a URL was visited, you could convert these
- * to more fully structured {@code PageVisit} objects using a side input, something like the
- * following:
- *
- * <pre>
- * {@code
+ * <pre>{@code
  * PCollection<Page> pages = ... // pages fit into memory
  * PCollection<UrlVisit> urlVisits = ... // very large collection
  * final PCollectionView<Map<URL, Page>> urlToPageView = pages
@@ -134,25 +118,22 @@ import org.apache.beam.sdk.values.PCollectionViews;
  *               c.output(new PageVisit(page, urlVisit.getVisitData()));
  *             }
  *         }));
- * }
- * </pre>
+ * }</pre>
  *
- * <p>See {@link ParDo.SingleOutput#withSideInputs} for details on how to access
- * this variable inside a {@link ParDo} over another {@link PCollection}.
+ * <p>See {@link ParDo.SingleOutput#withSideInputs} for details on how to access this variable
+ * inside a {@link ParDo} over another {@link PCollection}.
  */
 public class View {
 
   // Do not instantiate
-  private View() { }
+  private View() {}
 
   /**
-   * Returns a {@link AsSingleton} transform that takes a
-   * {@link PCollection} with a single value per window
-   * as input and produces a {@link PCollectionView} that returns
-   * the value in the main input window when read as a side input.
+   * Returns a {@link AsSingleton} transform that takes a {@link PCollection} with a single value
+   * per window as input and produces a {@link PCollectionView} that returns the value in the main
+   * input window when read as a side input.
    *
-   * <pre>
-   * {@code
+   * <pre>{@code
    * PCollection<InputT> input = ...
    * CombineFn<InputT, OutputT> yourCombineFn = ...
    * PCollectionView<OutputT> output = input
@@ -160,22 +141,20 @@ public class View {
    *     .apply(View.<OutputT>asSingleton());
    * }</pre>
    *
-   * <p>If the input {@link PCollection} is empty,
-   * throws {@link java.util.NoSuchElementException} in the consuming
-   * {@link DoFn}.
+   * <p>If the input {@link PCollection} is empty, throws {@link java.util.NoSuchElementException}
+   * in the consuming {@link DoFn}.
    *
-   * <p>If the input {@link PCollection} contains more than one
-   * element, throws {@link IllegalArgumentException} in the
-   * consuming {@link DoFn}.
+   * <p>If the input {@link PCollection} contains more than one element, throws {@link
+   * IllegalArgumentException} in the consuming {@link DoFn}.
    */
   public static <T> AsSingleton<T> asSingleton() {
     return new AsSingleton<>();
   }
 
   /**
-   * Returns a {@link View.AsList} transform that takes a {@link PCollection} and returns a
-   * {@link PCollectionView} mapping each window to a {@link List} containing
-   * all of the elements in the window.
+   * Returns a {@link View.AsList} transform that takes a {@link PCollection} and returns a {@link
+   * PCollectionView} mapping each window to a {@link List} containing all of the elements in the
+   * window.
    *
    * <p>Unlike with {@link #asIterable}, the resulting list is required to fit in memory.
    */
@@ -184,29 +163,26 @@ public class View {
   }
 
   /**
-   * Returns a {@link View.AsIterable} transform that takes a {@link PCollection} as input
-   * and produces a {@link PCollectionView} mapping each window to an
-   * {@link Iterable} of the values in that window.
+   * Returns a {@link View.AsIterable} transform that takes a {@link PCollection} as input and
+   * produces a {@link PCollectionView} mapping each window to an {@link Iterable} of the values in
+   * that window.
    *
-   * <p>The values of the {@link Iterable} for a window are not required to fit in memory,
-   * but they may also not be effectively cached. If it is known that every window fits in memory,
-   * and stronger caching is desired, use {@link #asList}.
+   * <p>The values of the {@link Iterable} for a window are not required to fit in memory, but they
+   * may also not be effectively cached. If it is known that every window fits in memory, and
+   * stronger caching is desired, use {@link #asList}.
    */
   public static <T> AsIterable<T> asIterable() {
     return new AsIterable<>();
   }
 
   /**
-   * Returns a {@link View.AsMap} transform that takes a
-   * {@link PCollection PCollection&lt;KV&lt;K, V&gt;&gt;} as
-   * input and produces a {@link PCollectionView} mapping each window to
-   * a {@link Map Map&lt;K, V&gt;}. It is required that each key of the input be
-   * associated with a single value, per window. If this is not the case, precede this
-   * view with {@code Combine.perKey}, as in the example below, or alternatively
-   * use {@link View#asMultimap()}.
+   * Returns a {@link View.AsMap} transform that takes a {@link PCollection PCollection&lt;KV&lt;K,
+   * V&gt;&gt;} as input and produces a {@link PCollectionView} mapping each window to a {@link Map
+   * Map&lt;K, V&gt;}. It is required that each key of the input be associated with a single value,
+   * per window. If this is not the case, precede this view with {@code Combine.perKey}, as in the
+   * example below, or alternatively use {@link View#asMultimap()}.
    *
-   * <pre>
-   * {@code
+   * <pre>{@code
    * PCollection<KV<K, V>> input = ...
    * CombineFn<V, OutputT> yourCombineFn = ...
    * PCollectionView<Map<K, OutputT>> output = input
@@ -221,21 +197,16 @@ public class View {
   }
 
   /**
-   * Returns a {@link View.AsMultimap} transform that takes a
-   * {@link PCollection PCollection&lt;KV&lt;K, V&gt;&gt;}
-   * as input and produces a {@link PCollectionView} mapping
-   * each window to its contents as a {@link Map Map&lt;K, Iterable&lt;V&gt;&gt;}
-   * for use as a side input.
-   * In contrast to {@link View#asMap()}, it is not required that the keys in the
-   * input collection be unique.
+   * Returns a {@link View.AsMultimap} transform that takes a {@link PCollection
+   * PCollection&lt;KV&lt;K, V&gt;&gt;} as input and produces a {@link PCollectionView} mapping each
+   * window to its contents as a {@link Map Map&lt;K, Iterable&lt;V&gt;&gt;} for use as a side
+   * input. In contrast to {@link View#asMap()}, it is not required that the keys in the input
+   * collection be unique.
    *
-   * <pre>
-   * {@code
+   * <pre>{@code
    * PCollection<KV<K, V>> input = ... // maybe more than one occurrence of a some keys
    * PCollectionView<Map<K, Iterable<V>>> output = input.apply(View.<K, V>asMultimap());
    * }</pre>
-   *
-   * <p>Currently, the resulting map is required to fit into memory.
    */
   public static <K, V> AsMultimap<K, V> asMultimap() {
     return new AsMultimap<>();
@@ -250,7 +221,7 @@ public class View {
    */
   @Internal
   public static class AsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
-    private AsList() { }
+    private AsList() {}
 
     @Override
     public PCollectionView<List<T>> expand(PCollection<T> input) {
@@ -262,9 +233,9 @@ public class View {
 
       PCollection<KV<Void, T>> materializationInput =
           input.apply(new VoidKeyToMultimapMaterialization<>());
-      PCollectionView<List<T>> view = PCollectionViews.listView(
-          materializationInput,
-          materializationInput.getWindowingStrategy());
+      PCollectionView<List<T>> view =
+          PCollectionViews.listView(
+              materializationInput, materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
@@ -280,7 +251,7 @@ public class View {
   @Internal
   public static class AsIterable<T>
       extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
-    private AsIterable() { }
+    private AsIterable() {}
 
     @Override
     public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
@@ -292,9 +263,9 @@ public class View {
 
       PCollection<KV<Void, T>> materializationInput =
           input.apply(new VoidKeyToMultimapMaterialization<>());
-      PCollectionView<Iterable<T>> view = PCollectionViews.iterableView(
-          materializationInput,
-          materializationInput.getWindowingStrategy());
+      PCollectionView<Iterable<T>> view =
+          PCollectionViews.iterableView(
+              materializationInput, materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
@@ -322,23 +293,17 @@ public class View {
       this.hasDefault = true;
     }
 
-    /**
-     * Returns whether this transform has a default value.
-     */
+    /** Returns whether this transform has a default value. */
     public boolean hasDefaultValue() {
       return hasDefault;
     }
 
-    /**
-     * Returns the default value of this transform, or null if there isn't one.
-     */
+    /** Returns the default value of this transform, or null if there isn't one. */
     public T defaultValue() {
       return defaultValue;
     }
 
-    /**
-     * Default value to return for windows with no value in them.
-     */
+    /** Default value to return for windows with no value in them. */
     public AsSingleton<T> withDefaultValue(T defaultValue) {
       return new AsSingleton<>(defaultValue);
     }
@@ -427,7 +392,7 @@ public class View {
   @Internal
   public static class AsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
-    private AsMultimap() { }
+    private AsMultimap() {}
 
     @Override
     public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
@@ -439,9 +404,9 @@ public class View {
 
       PCollection<KV<Void, KV<K, V>>> materializationInput =
           input.apply(new VoidKeyToMultimapMaterialization<>());
-      PCollectionView<Map<K, Iterable<V>>> view = PCollectionViews.multimapView(
-          materializationInput,
-          materializationInput.getWindowingStrategy());
+      PCollectionView<Map<K, Iterable<V>>> view =
+          PCollectionViews.multimapView(
+              materializationInput, materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
@@ -457,11 +422,9 @@ public class View {
   @Internal
   public static class AsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
-    private AsMap() { }
+    private AsMap() {}
 
-    /**
-     * @deprecated this method simply returns this AsMap unmodified
-     */
+    /** @deprecated this method simply returns this AsMap unmodified */
     @Deprecated()
     public AsMap<K, V> withSingletonValues() {
       return this;
@@ -477,9 +440,9 @@ public class View {
 
       PCollection<KV<Void, KV<K, V>>> materializationInput =
           input.apply(new VoidKeyToMultimapMaterialization<>());
-      PCollectionView<Map<K, V>> view = PCollectionViews.mapView(
-          materializationInput,
-          materializationInput.getWindowingStrategy());
+      PCollectionView<Map<K, V>> view =
+          PCollectionViews.mapView(
+              materializationInput, materializationInput.getWindowingStrategy());
       materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
@@ -500,8 +463,8 @@ public class View {
 
     private static class VoidKeyToMultimapMaterializationDoFn<T> extends DoFn<T, KV<Void, T>> {
       @ProcessElement
-      public void processElement(ProcessContext ctxt) {
-        ctxt.output(KV.of((Void) null, ctxt.element()));
+      public void processElement(@Element T element, OutputReceiver<KV<Void, T>> r) {
+        r.output(KV.of((Void) null, element));
       }
     }
 
@@ -539,9 +502,9 @@ public class View {
      * Return the {@link PCollectionView} that is returned by applying this {@link PTransform}.
      *
      * @deprecated This should not be used to obtain the output of any given application of this
-     * {@link PTransform}. That should be obtained by inspecting the {@link Node}
-     * that contains this {@link CreatePCollectionView}, as this view may have been replaced within
-     * pipeline surgery.
+     *     {@link PTransform}. That should be obtained by inspecting the {@link Node} that contains
+     *     this {@link CreatePCollectionView}, as this view may have been replaced within pipeline
+     *     surgery.
      */
     @Deprecated
     public PCollectionView<ViewT> getView() {

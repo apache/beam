@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing using HCatalog.
- */
+/** Transforms for reading and writing using HCatalog. */
 package org.apache.beam.sdk.io.hcatalog;

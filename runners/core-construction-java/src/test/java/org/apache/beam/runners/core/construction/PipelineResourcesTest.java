@@ -17,12 +17,19 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static junit.framework.TestCase.assertTrue;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -31,9 +38,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
-/**
- * Tests for PipelineResources.
- */
+/** Tests for PipelineResources. */
 @RunWith(JUnit4.class)
 public class PipelineResourcesTest {
 
@@ -44,12 +49,11 @@ public class PipelineResourcesTest {
   public void detectClassPathResourceWithFileResources() throws Exception {
     File file = tmpFolder.newFile("file");
     File file2 = tmpFolder.newFile("file2");
-    URLClassLoader classLoader = new URLClassLoader(new URL[] {
-        file.toURI().toURL(),
-        file2.toURI().toURL()
-    });
+    URLClassLoader classLoader =
+        new URLClassLoader(new URL[] {file.toURI().toURL(), file2.toURI().toURL()});
 
-    assertEquals(ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
+    assertEquals(
+        ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
         PipelineResources.detectClassPathResourcesToStage(classLoader));
   }
 
@@ -65,12 +69,49 @@ public class PipelineResourcesTest {
   @Test
   public void detectClassPathResourceWithNonFileResources() throws Exception {
     String url = "http://www.google.com/all-the-secrets.jar";
-    URLClassLoader classLoader = new URLClassLoader(new URL[] {
-        new URL(url)
-    });
+    URLClassLoader classLoader = new URLClassLoader(new URL[] {new URL(url)});
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unable to convert url (" + url + ") to file.");
 
     PipelineResources.detectClassPathResourcesToStage(classLoader);
+  }
+
+  @Test
+  public void testRemovingNonexistentFilesFromFilesToStage() throws IOException {
+    String nonexistentFilePath = tmpFolder.getRoot().getPath() + "/nonexistent/file";
+    String existingFilePath = tmpFolder.newFile("existingFile").getAbsolutePath();
+    String temporaryLocation = tmpFolder.newFolder().getAbsolutePath();
+
+    List<String> filesToStage = Arrays.asList(nonexistentFilePath, existingFilePath);
+    List<String> expectedFilesToStage = Arrays.asList(existingFilePath);
+
+    List<String> result = PipelineResources.prepareFilesForStaging(filesToStage, temporaryLocation);
+
+    assertThat(result, is(expectedFilesToStage));
+  }
+
+  @Test
+  public void testPackagingDirectoryResourceToJarFile() throws IOException {
+    String directoryPath = tmpFolder.newFolder().getAbsolutePath();
+    String temporaryLocation = tmpFolder.newFolder().getAbsolutePath();
+
+    List<String> filesToStage = new ArrayList<>();
+    filesToStage.add(directoryPath);
+
+    List<String> result = PipelineResources.prepareFilesForStaging(filesToStage, temporaryLocation);
+
+    assertTrue(new File(result.get(0)).exists());
+    assertTrue(result.get(0).matches(".*\\.jar"));
+  }
+
+  @Test
+  public void testIfThrowsWhenThereIsNoTemporaryFolderForJars() throws IOException {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Please provide temporary location for storing the jar files.");
+
+    List<String> filesToStage = new ArrayList<>();
+    filesToStage.add(tmpFolder.newFolder().getAbsolutePath());
+
+    PipelineResources.prepareFilesForStaging(filesToStage, null);
   }
 }

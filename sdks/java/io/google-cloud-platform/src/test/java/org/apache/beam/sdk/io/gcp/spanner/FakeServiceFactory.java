@@ -34,11 +34,10 @@ import javax.annotation.concurrent.GuardedBy;
 import org.mockito.Matchers;
 
 /**
- * A serialization friendly type service factory that maintains a mock {@link Spanner} and
- * {@link DatabaseClient}.
- * */
-class FakeServiceFactory
-    implements ServiceFactory<Spanner, SpannerOptions>, Serializable {
+ * A serialization friendly type service factory that maintains a mock {@link Spanner} and {@link
+ * DatabaseClient}.
+ */
+class FakeServiceFactory implements ServiceFactory<Spanner, SpannerOptions>, Serializable {
 
   // Marked as static so they could be returned by serviceFactory, which is serializable.
   private static final Object lock = new Object();

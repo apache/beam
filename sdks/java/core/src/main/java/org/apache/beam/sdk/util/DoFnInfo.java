@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.util;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -35,10 +37,14 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Iterable<PCollectionView<?>> sideInputViews;
   private final Coder<InputT> inputCoder;
+  Map<TupleTag<?>, Coder<?>> outputCoders;
   private final TupleTag<OutputT> mainOutput;
 
   /**
    * Creates a {@link DoFnInfo} for the given {@link DoFn}.
+   *
+   * <p>This method exists for backwards compatibility with the Dataflow runner. Once the Dataflow
+   * runner has been updated to use the new constructor, remove this one.
    */
   public static <InputT, OutputT> DoFnInfo<InputT, OutputT> forFn(
       DoFn<InputT, OutputT> doFn,
@@ -47,15 +53,24 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       Coder<InputT> inputCoder,
       TupleTag<OutputT> mainOutput) {
     return new DoFnInfo<>(
-        doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput);
+        doFn, windowingStrategy, sideInputViews, inputCoder, Collections.emptyMap(), mainOutput);
+  }
+
+  /** Creates a {@link DoFnInfo} for the given {@link DoFn}. */
+  public static <InputT, OutputT> DoFnInfo<InputT, OutputT> forFn(
+      DoFn<InputT, OutputT> doFn,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
+      TupleTag<OutputT> mainOutput) {
+    return new DoFnInfo<>(
+        doFn, windowingStrategy, sideInputViews, inputCoder, outputCoders, mainOutput);
   }
 
   public DoFnInfo<InputT, OutputT> withFn(DoFn<InputT, OutputT> newFn) {
-    return DoFnInfo.forFn(newFn,
-        windowingStrategy,
-        sideInputViews,
-        inputCoder,
-        mainOutput);
+    return DoFnInfo.forFn(
+        newFn, windowingStrategy, sideInputViews, inputCoder, outputCoders, mainOutput);
   }
 
   private DoFnInfo(
@@ -63,11 +78,13 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       WindowingStrategy<?, ?> windowingStrategy,
       Iterable<PCollectionView<?>> sideInputViews,
       Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutput) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = sideInputViews;
     this.inputCoder = inputCoder;
+    this.outputCoders = outputCoders;
     this.mainOutput = mainOutput;
   }
 
@@ -86,6 +103,10 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
 
   public Coder<InputT> getInputCoder() {
     return inputCoder;
+  }
+
+  public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
+    return outputCoders;
   }
 
   public TupleTag<OutputT> getMainOutput() {

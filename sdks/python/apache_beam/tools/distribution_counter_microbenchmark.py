@@ -23,11 +23,14 @@ Run as
   python -m apache_beam.tools.distribution_counter_microbenchmark
 """
 
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import random
 import sys
 import time
+from builtins import range
 
 from apache_beam.tools import utils
 
@@ -44,7 +47,7 @@ def run_benchmark(num_runs=100, num_input=10000, seed=time.time()):
   total_time = 0
   random.seed(seed)
   lower_bound = 0
-  upper_bound = sys.maxint
+  upper_bound = sys.maxsize
   inputs = generate_input_values(num_input, lower_bound, upper_bound)
   from apache_beam.transforms import DataflowDistributionCounter
   print("Number of runs:", num_runs)
@@ -57,8 +60,8 @@ def run_benchmark(num_runs=100, num_input=10000, seed=time.time()):
     counter.add_inputs_for_test(inputs)
     time_cost = time.time() - start
     print("Run %d: Total time cost %g sec" % (i+1, time_cost))
-    total_time += time_cost/num_input
-  print("Per element update time cost:", total_time/num_runs)
+    total_time += time_cost / num_input
+  print("Per element update time cost:", total_time / num_runs)
 
 
 if __name__ == '__main__':

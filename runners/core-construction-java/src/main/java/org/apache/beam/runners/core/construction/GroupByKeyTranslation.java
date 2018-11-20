@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import com.google.auto.service.AutoService;
@@ -34,8 +33,7 @@ import org.apache.beam.sdk.transforms.PTransform;
  */
 public class GroupByKeyTranslation {
 
-  static class GroupByKeyTranslator
-      extends TransformPayloadTranslator.WithDefaultRehydration<GroupByKey<?, ?>> {
+  static class GroupByKeyTranslator implements TransformPayloadTranslator<GroupByKey<?, ?>> {
     @Override
     public String getUrn(GroupByKey<?, ?> transform) {
       return PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
@@ -55,11 +53,6 @@ public class GroupByKeyTranslation {
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(GroupByKey.class, new GroupByKeyTranslator());
-    }
-
-    @Override
-    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
     }
   }
 }

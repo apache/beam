@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableRow;
@@ -37,96 +36,79 @@ import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
-/**
- * Tests for {@link BigQueryUtils}.
- */
+/** Tests for {@link BigQueryUtils}. */
 public class BigQueryUtilsTest {
-  private static final Schema FLAT_TYPE = Schema
-      .builder()
-      .addNullableField("id", Schema.FieldType.INT64)
-      .addNullableField("value", Schema.FieldType.DOUBLE)
-      .addNullableField("name", Schema.FieldType.STRING)
-      .addNullableField("timestamp", Schema.FieldType.DATETIME)
-      .addNullableField("valid", Schema.FieldType.BOOLEAN)
-      .build();
-
-  private static final Schema ARRAY_TYPE = Schema
-      .builder()
-      .addArrayField("ids", Schema.FieldType.INT64)
-      .build();
-
-  private static final Schema ROW_TYPE = Schema
-      .builder()
-      .addNullableField("row", Schema.FieldType.row(FLAT_TYPE))
-      .build();
-
-  private static final Schema ARRAY_ROW_TYPE =
+  private static final Schema FLAT_TYPE =
       Schema.builder()
-          .addArrayField("rows", Schema.FieldType.row(FLAT_TYPE))
+          .addNullableField("id", Schema.FieldType.INT64)
+          .addNullableField("value", Schema.FieldType.DOUBLE)
+          .addNullableField("name", Schema.FieldType.STRING)
+          .addNullableField("timestamp", Schema.FieldType.DATETIME)
+          .addNullableField("valid", Schema.FieldType.BOOLEAN)
           .build();
 
+  private static final Schema ARRAY_TYPE =
+      Schema.builder().addArrayField("ids", Schema.FieldType.INT64).build();
+
+  private static final Schema ROW_TYPE =
+      Schema.builder().addNullableField("row", Schema.FieldType.row(FLAT_TYPE)).build();
+
+  private static final Schema ARRAY_ROW_TYPE =
+      Schema.builder().addArrayField("rows", Schema.FieldType.row(FLAT_TYPE)).build();
+
   private static final TableFieldSchema ID =
-      new TableFieldSchema().setName("id")
-        .setType(StandardSQLTypeName.INT64.toString());
+      new TableFieldSchema().setName("id").setType(StandardSQLTypeName.INT64.toString());
 
   private static final TableFieldSchema VALUE =
-      new TableFieldSchema().setName("value")
-        .setType(StandardSQLTypeName.FLOAT64.toString());
+      new TableFieldSchema().setName("value").setType(StandardSQLTypeName.FLOAT64.toString());
 
   private static final TableFieldSchema NAME =
-      new TableFieldSchema().setName("name")
-        .setType(StandardSQLTypeName.STRING.toString());
+      new TableFieldSchema().setName("name").setType(StandardSQLTypeName.STRING.toString());
 
   private static final TableFieldSchema TIMESTAMP =
-      new TableFieldSchema().setName("timestamp")
-        .setType(StandardSQLTypeName.TIMESTAMP.toString());
+      new TableFieldSchema().setName("timestamp").setType(StandardSQLTypeName.TIMESTAMP.toString());
 
   private static final TableFieldSchema VALID =
-      new TableFieldSchema().setName("valid")
-        .setType(StandardSQLTypeName.BOOL.toString());
+      new TableFieldSchema().setName("valid").setType(StandardSQLTypeName.BOOL.toString());
 
   private static final TableFieldSchema IDS =
-      new TableFieldSchema().setName("ids")
-        .setType(StandardSQLTypeName.INT64.toString())
-        .setMode(Mode.REPEATED.toString());
+      new TableFieldSchema()
+          .setName("ids")
+          .setType(StandardSQLTypeName.INT64.toString())
+          .setMode(Mode.REPEATED.toString());
 
   private static final Row FLAT_ROW =
-      Row
-        .withSchema(FLAT_TYPE)
-        .addValues(123L, 123.456, "test", new DateTime(123456), false)
-        .build();
+      Row.withSchema(FLAT_TYPE)
+          .addValues(123L, 123.456, "test", new DateTime(123456), false)
+          .build();
+
+  private static final Row NULL_FLAT_ROW =
+      Row.withSchema(FLAT_TYPE).addValues(null, null, null, null, null).build();
 
   private static final Row ARRAY_ROW =
-      Row
-        .withSchema(ARRAY_TYPE)
-        .addValues((Object) Arrays.asList(123L, 124L))
-        .build();
+      Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
 
-  private static final Row ROW_ROW =
-      Row
-        .withSchema(ROW_TYPE)
-        .addValues(FLAT_ROW)
-        .build();
+  private static final Row ROW_ROW = Row.withSchema(ROW_TYPE).addValues(FLAT_ROW).build();
 
   private static final Row ARRAY_ROW_ROW =
-      Row
-        .withSchema(ARRAY_ROW_TYPE)
-        .addValues((Object) Arrays.asList(FLAT_ROW))
-        .build();
+      Row.withSchema(ARRAY_ROW_TYPE).addValues((Object) Arrays.asList(FLAT_ROW)).build();
 
-  @Test public void testToTableSchema_flat() {
+  @Test
+  public void testToTableSchema_flat() {
     TableSchema schema = toTableSchema(FLAT_TYPE);
 
     assertThat(schema.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID));
   }
 
-  @Test public void testToTableSchema_array() {
+  @Test
+  public void testToTableSchema_array() {
     TableSchema schema = toTableSchema(ARRAY_TYPE);
 
     assertThat(schema.getFields(), contains(IDS));
   }
 
-  @Test public void testToTableSchema_row() {
+  @Test
+  public void testToTableSchema_row() {
     TableSchema schema = toTableSchema(ROW_TYPE);
 
     assertThat(schema.getFields().size(), equalTo(1));
@@ -137,7 +119,8 @@ public class BigQueryUtilsTest {
     assertThat(field.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID));
   }
 
-  @Test public void testToTableSchema_array_row() {
+  @Test
+  public void testToTableSchema_array_row() {
     TableSchema schema = toTableSchema(ARRAY_ROW_TYPE);
 
     assertThat(schema.getFields().size(), equalTo(1));
@@ -148,7 +131,8 @@ public class BigQueryUtilsTest {
     assertThat(field.getFields(), containsInAnyOrder(ID, VALUE, NAME, TIMESTAMP, VALID));
   }
 
-  @Test public void testToTableRow_flat() {
+  @Test
+  public void testToTableRow_flat() {
     TableRow row = toTableRow().apply(FLAT_ROW);
 
     assertThat(row.size(), equalTo(5));
@@ -158,14 +142,16 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("valid", false));
   }
 
-  @Test public void testToTableRow_array() {
+  @Test
+  public void testToTableRow_array() {
     TableRow row = toTableRow().apply(ARRAY_ROW);
 
     assertThat(row, hasEntry("ids", Arrays.asList(123L, 124L)));
     assertThat(row.size(), equalTo(1));
   }
 
-  @Test public void testToTableRow_row() {
+  @Test
+  public void testToTableRow_row() {
     TableRow row = toTableRow().apply(ROW_ROW);
 
     assertThat(row.size(), equalTo(1));
@@ -177,7 +163,8 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("valid", false));
   }
 
-  @Test public void testToTableRow_array_row() {
+  @Test
+  public void testToTableRow_array_row() {
     TableRow row = toTableRow().apply(ARRAY_ROW_ROW);
 
     assertThat(row.size(), equalTo(1));
@@ -187,5 +174,17 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("value", 123.456));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", false));
+  }
+
+  @Test
+  public void testToTableRow_null_row() {
+    TableRow row = toTableRow().apply(NULL_FLAT_ROW);
+
+    assertThat(row.size(), equalTo(5));
+    assertThat(row, hasEntry("id", null));
+    assertThat(row, hasEntry("value", null));
+    assertThat(row, hasEntry("name", null));
+    assertThat(row, hasEntry("timestamp", null));
+    assertThat(row, hasEntry("valid", null));
   }
 }

@@ -30,70 +30,54 @@ import com.google.api.client.util.Sleeper;
 import java.util.logging.Logger;
 
 /**
- * RetryHttpInitializerWrapper will automatically retry upon RPC
- * failures, preserving the auto-refresh behavior of the Google
- * Credentials.
+ * RetryHttpInitializerWrapper will automatically retry upon RPC failures, preserving the
+ * auto-refresh behavior of the Google Credentials.
  */
 public class RetryHttpInitializerWrapper implements HttpRequestInitializer {
 
-    /**
-     * A private logger.
-     */
-    private static final Logger LOG =
-            Logger.getLogger(RetryHttpInitializerWrapper.class.getName());
+  /** A private logger. */
+  private static final Logger LOG = Logger.getLogger(RetryHttpInitializerWrapper.class.getName());
 
-    /**
-     * One minutes in miliseconds.
-     */
-    private static final int ONEMINITUES = 60000;
+  /** One minutes in miliseconds. */
+  private static final int ONEMINITUES = 60000;
 
-    /**
-     * Intercepts the request for filling in the "Authorization"
-     * header field, as well as recovering from certain unsuccessful
-     * error codes wherein the Credential must refresh its token for a
-     * retry.
-     */
-    private final Credential wrappedCredential;
+  /**
+   * Intercepts the request for filling in the "Authorization" header field, as well as recovering
+   * from certain unsuccessful error codes wherein the Credential must refresh its token for a
+   * retry.
+   */
+  private final Credential wrappedCredential;
 
-    /**
-     * A sleeper; you can replace it with a mock in your test.
-     */
-    private final Sleeper sleeper;
+  /** A sleeper; you can replace it with a mock in your test. */
+  private final Sleeper sleeper;
 
-    /**
-     * A constructor.
-     *
-     * @param wrappedCredential Credential which will be wrapped and
-     * used for providing auth header.
-     */
-    public RetryHttpInitializerWrapper(final Credential wrappedCredential) {
-        this(wrappedCredential, Sleeper.DEFAULT);
-    }
+  /**
+   * A constructor.
+   *
+   * @param wrappedCredential Credential which will be wrapped and used for providing auth header.
+   */
+  public RetryHttpInitializerWrapper(final Credential wrappedCredential) {
+    this(wrappedCredential, Sleeper.DEFAULT);
+  }
 
-    /**
-     * A protected constructor only for testing.
-     *
-     * @param wrappedCredential Credential which will be wrapped and
-     * used for providing auth header.
-     * @param sleeper Sleeper for easy testing.
-     */
-    RetryHttpInitializerWrapper(
-            final Credential wrappedCredential, final Sleeper sleeper) {
-        this.wrappedCredential = checkNotNull(wrappedCredential);
-        this.sleeper = sleeper;
-    }
+  /**
+   * A protected constructor only for testing.
+   *
+   * @param wrappedCredential Credential which will be wrapped and used for providing auth header.
+   * @param sleeper Sleeper for easy testing.
+   */
+  RetryHttpInitializerWrapper(final Credential wrappedCredential, final Sleeper sleeper) {
+    this.wrappedCredential = checkNotNull(wrappedCredential);
+    this.sleeper = sleeper;
+  }
 
-    /**
-     * Initializes the given request.
-     */
-    @Override
-    public final void initialize(final HttpRequest request) {
-        request.setReadTimeout(2 * ONEMINITUES); // 2 minutes read timeout
-        final HttpUnsuccessfulResponseHandler backoffHandler =
-                new HttpBackOffUnsuccessfulResponseHandler(
-                        new ExponentialBackOff())
-                        .setSleeper(sleeper);
-        request.setInterceptor(wrappedCredential);
+  /** Initializes the given request. */
+  @Override
+  public final void initialize(final HttpRequest request) {
+    request.setReadTimeout(2 * ONEMINITUES); // 2 minutes read timeout
+    final HttpUnsuccessfulResponseHandler backoffHandler =
+        new HttpBackOffUnsuccessfulResponseHandler(new ExponentialBackOff()).setSleeper(sleeper);
+    request.setInterceptor(wrappedCredential);
     request.setUnsuccessfulResponseHandler(
         (request1, response, supportsRetry) -> {
           if (wrappedCredential.handleResponse(request1, response, supportsRetry)) {
@@ -108,8 +92,7 @@ public class RetryHttpInitializerWrapper implements HttpRequestInitializer {
             return false;
           }
         });
-        request.setIOExceptionHandler(
-                new HttpBackOffIOExceptionHandler(new ExponentialBackOff())
-                        .setSleeper(sleeper));
-    }
+    request.setIOExceptionHandler(
+        new HttpBackOffIOExceptionHandler(new ExponentialBackOff()).setSleeper(sleeper));
+  }
 }

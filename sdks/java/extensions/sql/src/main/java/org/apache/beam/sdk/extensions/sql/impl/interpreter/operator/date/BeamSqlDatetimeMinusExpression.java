@@ -15,18 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
-import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.joda.time.DurationFieldType;
 
 /**
  * Infix '-' operation for timestamps.
@@ -45,17 +42,6 @@ import org.joda.time.DurationFieldType;
  * yet.
  */
 public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
-
-  static final Map<SqlTypeName, DurationFieldType> INTERVALS_DURATIONS_TYPES =
-      ImmutableMap.<SqlTypeName, DurationFieldType>builder()
-          .put(SqlTypeName.INTERVAL_SECOND, DurationFieldType.seconds())
-          .put(SqlTypeName.INTERVAL_MINUTE, DurationFieldType.minutes())
-          .put(SqlTypeName.INTERVAL_HOUR, DurationFieldType.hours())
-          .put(SqlTypeName.INTERVAL_DAY, DurationFieldType.days())
-          .put(SqlTypeName.INTERVAL_MONTH, DurationFieldType.months())
-          .put(SqlTypeName.INTERVAL_YEAR, DurationFieldType.years())
-          .build();
-
   private BeamSqlExpression delegateExpression;
 
   public BeamSqlDatetimeMinusExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
@@ -66,11 +52,12 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
 
   private BeamSqlExpression createDelegateExpression(
       List<BeamSqlExpression> operands, SqlTypeName outputType) {
-
     if (isTimestampMinusTimestamp(operands, outputType)) {
       return new BeamSqlTimestampMinusTimestampExpression(operands, outputType);
     } else if (isTimestampMinusInterval(operands, outputType)) {
       return new BeamSqlTimestampMinusIntervalExpression(operands, outputType);
+    } else if (isDatetimeMinusInterval(operands, outputType)) {
+      return new BeamSqlDatetimeMinusIntervalExpression(operands, outputType);
     }
 
     return null;
@@ -88,6 +75,12 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
     return BeamSqlTimestampMinusIntervalExpression.accept(operands, outputType);
   }
 
+  private boolean isDatetimeMinusInterval(
+      List<BeamSqlExpression> operands, SqlTypeName outputType) {
+
+    return BeamSqlDatetimeMinusIntervalExpression.accept(operands, outputType);
+  }
+
   @Override
   public boolean accept() {
     return delegateExpression != null && delegateExpression.accept();
@@ -95,11 +88,11 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     if (delegateExpression == null) {
       throw new IllegalStateException("Unable to execute unsupported 'datetime minus' expression");
     }
 
-    return delegateExpression.evaluate(inputRow, window, correlateEnv);
+    return delegateExpression.evaluate(inputRow, window, env);
   }
 }

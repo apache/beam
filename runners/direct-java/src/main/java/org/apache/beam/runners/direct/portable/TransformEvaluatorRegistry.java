@@ -48,7 +48,7 @@ class TransformEvaluatorRegistry {
       Components components,
       BundleFactory bundleFactory,
       JobBundleFactory jobBundleFactory,
-      StateAndTimerProvider stateAndTimerProvider) {
+      StepStateAndTimers.Provider stepStateAndTimers) {
     return new TransformEvaluatorRegistry(
         ImmutableMap.<String, TransformEvaluatorFactory>builder()
             .put(
@@ -63,10 +63,14 @@ class TransformEvaluatorRegistry {
             .put(
                 DirectGroupByKey.DIRECT_GABW_URN,
                 new GroupAlsoByWindowEvaluatorFactory(
-                    graph, components, bundleFactory, stateAndTimerProvider))
+                    graph, components, bundleFactory, stepStateAndTimers))
             .put(
                 ExecutableStage.URN,
                 new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory))
+            .put(
+                SplittableRemoteStageEvaluatorFactory.URN,
+                new SplittableRemoteStageEvaluatorFactory(
+                    bundleFactory, jobBundleFactory, stepStateAndTimers))
             .build());
   }
 

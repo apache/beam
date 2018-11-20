@@ -17,6 +17,8 @@
 
 """Bigquery data verifier for end-to-end test."""
 
+from __future__ import absolute_import
+
 import logging
 
 from hamcrest.core.base_matcher import BaseMatcher
@@ -52,6 +54,13 @@ class BigqueryMatcher(BaseMatcher):
   """
 
   def __init__(self, project, query, checksum):
+    """Initialize BigQueryMatcher object.
+    Args:
+      project: The name (string) of the project.
+      query: The query (string) to perform.
+      checksum: SHA-1 hash generated from a sorted list of lines
+        read from expected output.
+    """
     if bigquery is None:
       raise ImportError(
           'Bigquery dependencies are not installed.')
@@ -85,19 +94,8 @@ class BigqueryMatcher(BaseMatcher):
       retry_filter=retry_on_http_and_value_error)
   def _query_with_retry(self, bigquery_client):
     """Run Bigquery query with retry if got error http response"""
-    query = bigquery_client.run_sync_query(self.query)
-    query.run()
-
-    # Fetch query data one page at a time.
-    page_token = None
-    results = []
-    while True:
-      for row in query.fetch_data(page_token=page_token):
-        results.append(row)
-      if results:
-        break
-
-    return results
+    query_job = bigquery_client.query(self.query)
+    return [row.values() for row in query_job]
 
   def describe_to(self, description):
     description \

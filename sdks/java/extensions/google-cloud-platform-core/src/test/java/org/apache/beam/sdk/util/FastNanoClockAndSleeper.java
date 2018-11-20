@@ -23,8 +23,8 @@ import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
 /**
- * This object quickly moves time forward based upon how much it has been asked to sleep,
- * without actually sleeping, to simulate the backoff.
+ * This object quickly moves time forward based upon how much it has been asked to sleep, without
+ * actually sleeping, to simulate the backoff.
  */
 public class FastNanoClockAndSleeper extends ExternalResource
     implements NanoClock, Sleeper, TestRule {

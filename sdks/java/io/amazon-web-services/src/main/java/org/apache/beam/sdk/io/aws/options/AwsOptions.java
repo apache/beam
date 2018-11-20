@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.aws.options;
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import org.apache.beam.sdk.options.Default;
@@ -31,53 +31,84 @@ import org.apache.beam.sdk.options.Validation;
  */
 public interface AwsOptions extends PipelineOptions {
 
-  /**
-   * AWS region used by the AWS client.
-   */
+  /** AWS region used by the AWS client. */
   @Description("AWS region used by the AWS client")
   @Validation.Required
   String getAwsRegion();
+
   void setAwsRegion(String value);
 
-  /**
-   * The AWS service endpoint used by the AWS client.
-   */
+  /** The AWS service endpoint used by the AWS client. */
   @Description("AWS service endpoint used by the AWS client")
   String getAwsServiceEndpoint();
+
   void setAwsServiceEndpoint(String value);
 
   /**
-   * The credential instance that should be used to authenticate against AWS services.
-   * The option value must contain a "@type" field and an AWS Credentials Provider class
-   * as the field value. Refer to {@link DefaultAWSCredentialsProviderChain} Javadoc for
-   * usage help.
-   * <p>
-   * For example, to specify the AWS key ID and secret, specify the following:
-   * <code>
+   * The credential instance that should be used to authenticate against AWS services. The option
+   * value must contain a "@type" field and an AWS Credentials Provider class as the field value.
+   * Refer to {@link DefaultAWSCredentialsProviderChain} Javadoc for usage help.
+   *
+   * <p>For example, to specify the AWS key ID and secret, specify the following: <code>
    * {"@type" : "AWSStaticCredentialsProvider", "awsAccessKeyId" : "key_id_value",
    * "awsSecretKey" : "secret_value"}
    * </code>
-   * </p>
    */
-   @Description("The credential instance that should be used to authenticate "
-           + "against AWS services. The option value must contain \"@type\" field "
-           + "and an AWS Credentials Provider class name as the field value. "
-           + "Refer to DefaultAWSCredentialsProviderChain Javadoc for usage help. "
-           + "For example, to specify the AWS key ID and secret, specify the following: "
-           + "{\"@type\": \"AWSStaticCredentialsProvider\", "
-           + "\"awsAccessKeyId\":\"<key_id>\", \"awsSecretKey\":\"<secret_key>\"}")
-   @Default.InstanceFactory(AwsUserCredentialsFactory.class)
-   AWSCredentialsProvider getAwsCredentialsProvider();
-   void setAwsCredentialsProvider(AWSCredentialsProvider value);
+  @Description(
+      "The credential instance that should be used to authenticate "
+          + "against AWS services. The option value must contain \"@type\" field "
+          + "and an AWS Credentials Provider class name as the field value. "
+          + "Refer to DefaultAWSCredentialsProviderChain Javadoc for usage help. "
+          + "For example, to specify the AWS key ID and secret, specify the following: "
+          + "{\"@type\": \"AWSStaticCredentialsProvider\", "
+          + "\"awsAccessKeyId\":\"<key_id>\", \"awsSecretKey\":\"<secret_key>\"}")
+  @Default.InstanceFactory(AwsUserCredentialsFactory.class)
+  AWSCredentialsProvider getAwsCredentialsProvider();
 
-  /**
-   * Attempts to load AWS credentials.
-   */
+  void setAwsCredentialsProvider(AWSCredentialsProvider value);
+
+  /** Attempts to load AWS credentials. */
   class AwsUserCredentialsFactory implements DefaultValueFactory<AWSCredentialsProvider> {
 
     @Override
     public AWSCredentialsProvider create(PipelineOptions options) {
       return DefaultAWSCredentialsProviderChain.getInstance();
+    }
+  }
+
+  /**
+   * The client configuration instance that should be used to configure AWS service clients. Please
+   * note that the configuration deserialization only allows one to specify proxy settings.
+   *
+   * <p>For example, to specify the proxy host, port, username and password, specify the following:
+   * <code>
+   * --clientConfiguration={
+   *   "proxyHost":"hostname",
+   *   "proxyPort":1234,
+   *   "proxyUsername":"username",
+   *   "proxyPassword":"password"
+   * }
+   * </code>
+   *
+   * @return
+   */
+  @Description(
+      "The client configuration instance that should be used to configure AWS service "
+          + "clients. Please note that the configuration deserialization only allows one to specify "
+          + "proxy settings. For example, to specify the proxy host, port, username and password, "
+          + "specify the following: --clientConfiguration={\"proxyHost\":\"hostname\",\"proxyPort\":1234,"
+          + "\"proxyUsername\":\"username\",\"proxyPassword\":\"password\"}")
+  @Default.InstanceFactory(ClientConfigurationFactory.class)
+  ClientConfiguration getClientConfiguration();
+
+  void setClientConfiguration(ClientConfiguration clientConfiguration);
+
+  /** Default AWS client configuration. */
+  class ClientConfigurationFactory implements DefaultValueFactory<ClientConfiguration> {
+
+    @Override
+    public ClientConfiguration create(PipelineOptions options) {
+      return new ClientConfiguration();
     }
   }
 }

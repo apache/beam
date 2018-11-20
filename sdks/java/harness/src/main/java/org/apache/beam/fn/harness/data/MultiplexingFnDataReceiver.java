@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.data;
 
 import com.google.common.collect.Iterables;
@@ -27,8 +26,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
  * FnDataReceiver receivers}.
  */
 public class MultiplexingFnDataReceiver<T> implements FnDataReceiver<T> {
-  public static <T> FnDataReceiver<T> forConsumers(
-      Collection<FnDataReceiver<T>> consumers) {
+  public static <T> FnDataReceiver<T> forConsumers(Collection<FnDataReceiver<T>> consumers) {
     if (consumers.size() == 1) {
       return Iterables.getOnlyElement(consumers);
     }

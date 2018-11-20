@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing from Redis.
- */
+/** Transforms for reading and writing from Redis. */
 package org.apache.beam.sdk.io.redis;

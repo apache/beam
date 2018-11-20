@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -157,9 +156,7 @@ public class MetricsTranslationTest {
             })
         .add(
             new Object[] {
-              ImmutableMap.builder()
-                  .put(TRANSFORM1, ImmutableList.of(GAUGE1, GAUGE2))
-                  .build()
+              ImmutableMap.builder().put(TRANSFORM1, ImmutableList.of(GAUGE1, GAUGE2)).build()
             })
         .build();
   }

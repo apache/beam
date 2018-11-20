@@ -16,8 +16,11 @@
 #
 
 """`iobase.RestrictionTracker` implementations provided with Apache Beam."""
+from __future__ import absolute_import
+from __future__ import division
 
 import threading
+from builtins import object
 
 from apache_beam.io.iobase import RestrictionTracker
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -29,7 +32,7 @@ class OffsetRange(object):
     if start > stop:
       raise ValueError(
           'Start offset must be not be larger than the stop offset. '
-          'Received %d and %d respectively.', start, stop)
+          'Received %d and %d respectively.' % (start, stop))
     self.start = start
     self.stop = stop
 
@@ -38,6 +41,13 @@ class OffsetRange(object):
       return False
 
     return self.start == other.start and self.stop == other.stop
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
+  def __hash__(self):
+    return hash((type(self), self.start, self.stop))
 
   def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
     current_split_start = self.start
@@ -48,7 +58,7 @@ class OffsetRange(object):
       remaining = self.stop - current_split_stop
 
       # Avoiding a small split at the end.
-      if (remaining < desired_num_offsets_per_split / 4 or
+      if (remaining < desired_num_offsets_per_split // 4 or
           remaining < min_num_offsets_per_split):
         current_split_stop = self.stop
 
@@ -78,10 +88,10 @@ class OffsetRestrictionTracker(RestrictionTracker):
       if self._last_claim_attempt < self._range.stop - 1:
         raise ValueError(
             'OffsetRestrictionTracker is not done since work in range [%s, %s) '
-            'has not been claimed.',
-            self._last_claim_attempt if self._last_claim_attempt is not None
-            else self._range.start,
-            self._range.stop)
+            'has not been claimed.'
+            % (self._last_claim_attempt if self._last_claim_attempt is not None
+               else self._range.start,
+               self._range.stop))
 
   def current_restriction(self):
     with self._lock:
@@ -100,15 +110,15 @@ class OffsetRestrictionTracker(RestrictionTracker):
       if self._last_claim_attempt and position <= self._last_claim_attempt:
         raise ValueError(
             'Positions claimed should strictly increase. Trying to claim '
-            'position %d while last claim attempt was %d.',
-            position, self._last_claim_attempt)
+            'position %d while last claim attempt was %d.'
+            % (position, self._last_claim_attempt))
 
       self._last_claim_attempt = position
       if position < self._range.start:
         raise ValueError(
             'Position to be claimed cannot be smaller than the start position '
-            'of the range. Tried to claim position %r for the range [%r, %r)',
-            position, self._range.start, self._range.stop)
+            'of the range. Tried to claim position %r for the range [%r, %r)'
+            % (position, self._range.start, self._range.stop))
 
       if position >= self._range.start and position < self._range.stop:
         self._current_position = position

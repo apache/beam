@@ -64,66 +64,71 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Options used to configure Google Cloud Platform specific options such as the project
- * and credentials.
+ * Options used to configure Google Cloud Platform specific options such as the project and
+ * credentials.
  *
- * <p>These options defer to the
- * <a href="https://developers.google.com/accounts/docs/application-default-credentials">
- * application default credentials</a> for authentication. See the
- * <a href="https://github.com/google/google-auth-library-java">Google Auth Library</a> for
- * alternative mechanisms for creating credentials.
+ * <p>These options defer to the <a
+ * href="https://developers.google.com/accounts/docs/application-default-credentials">application
+ * default credentials</a> for authentication. See the <a
+ * href="https://github.com/google/google-auth-library-java">Google Auth Library</a> for alternative
+ * mechanisms for creating credentials.
  */
 @Description("Options used to configure Google Cloud Platform project and credentials.")
 public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
-  /**
-   * Project id to use when launching jobs.
-   */
-  @Description("Project id. Required when using Google Cloud Platform services. "
-      + "See https://cloud.google.com/storage/docs/projects for further details.")
+  /** Project id to use when launching jobs. */
+  @Description(
+      "Project id. Required when using Google Cloud Platform services. "
+          + "See https://cloud.google.com/storage/docs/projects for further details.")
   @Default.InstanceFactory(DefaultProjectFactory.class)
   String getProject();
+
   void setProject(String value);
 
   /**
-   * GCP <a href="https://developers.google.com/compute/docs/zones"
-   * >availability zone</a> for operations.
+   * GCP <a href="https://developers.google.com/compute/docs/zones" >availability zone</a> for
+   * operations.
    *
    * <p>Default is set on a per-service basis.
    */
-  @Description("GCP availability zone for running GCP operations. "
-      + "Default is up to the individual service.")
+  @Description(
+      "GCP availability zone for running GCP operations. "
+          + "Default is up to the individual service.")
   String getZone();
+
   void setZone(String value);
 
   /**
-   * The class of the credential factory that should be created and used to create
-   * credentials. If gcpCredential has not been set explicitly, an instance of this class will
-   * be constructed and used as a credential factory.
+   * The class of the credential factory that should be created and used to create credentials. If
+   * gcpCredential has not been set explicitly, an instance of this class will be constructed and
+   * used as a credential factory.
    */
-  @Description("The class of the credential factory that should be created and used to create "
-      + "credentials. If gcpCredential has not been set explicitly, an instance of this class will "
-      + "be constructed and used as a credential factory.")
+  @Description(
+      "The class of the credential factory that should be created and used to create "
+          + "credentials. If gcpCredential has not been set explicitly, an instance of this class will "
+          + "be constructed and used as a credential factory.")
   @Default.Class(GcpCredentialFactory.class)
   Class<? extends CredentialFactory> getCredentialFactoryClass();
-  void setCredentialFactoryClass(
-      Class<? extends CredentialFactory> credentialFactoryClass);
+
+  void setCredentialFactoryClass(Class<? extends CredentialFactory> credentialFactoryClass);
 
   /**
-   * The credential instance that should be used to authenticate against GCP services.
-   * If no credential has been set explicitly, the default is to use the instance factory
-   * that constructs a credential based upon the currently set credentialFactoryClass.
+   * The credential instance that should be used to authenticate against GCP services. If no
+   * credential has been set explicitly, the default is to use the instance factory that constructs
+   * a credential based upon the currently set credentialFactoryClass.
    */
   @JsonIgnore
-  @Description("The credential instance that should be used to authenticate against GCP services. "
-      + "If no credential has been set explicitly, the default is to use the instance factory "
-      + "that constructs a credential based upon the currently set credentialFactoryClass.")
+  @Description(
+      "The credential instance that should be used to authenticate against GCP services. "
+          + "If no credential has been set explicitly, the default is to use the instance factory "
+          + "that constructs a credential based upon the currently set credentialFactoryClass.")
   @Default.InstanceFactory(GcpUserCredentialsFactory.class)
   Credentials getGcpCredential();
+
   void setGcpCredential(Credentials value);
 
   /**
-   * Attempts to infer the default project based upon the environment this application
-   * is executing within. Currently this only supports getting the default project from gcloud.
+   * Attempts to infer the default project based upon the environment this application is executing
+   * within. Currently this only supports getting the default project from gcloud.
    */
   class DefaultProjectFactory implements DefaultValueFactory<String> {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultProjectFactory.class);
@@ -138,9 +143,9 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
           configFile = new File(getEnvironment().get("APPDATA"), "gcloud/properties");
         } else {
           // New versions of gcloud use this file
-          configFile = new File(
-              System.getProperty("user.home"),
-              ".config/gcloud/configurations/config_default");
+          configFile =
+              new File(
+                  System.getProperty("user.home"), ".config/gcloud/configurations/config_default");
           if (!configFile.exists()) {
             // Old versions of gcloud use this file
             configFile = new File(System.getProperty("user.home"), ".config/gcloud/properties");
@@ -161,9 +166,11 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
             matcher = projectPattern.matcher(line);
             if (matcher.matches()) {
               String project = matcher.group(1).trim();
-              LOG.info("Inferred default GCP project '{}' from gcloud. If this is the incorrect "
-                  + "project, please cancel this Pipeline and specify the command-line "
-                  + "argument --project.", project);
+              LOG.info(
+                  "Inferred default GCP project '{}' from gcloud. If this is the incorrect "
+                      + "project, please cancel this Pipeline and specify the command-line "
+                      + "argument --project.",
+                  project);
               return project;
             }
           }
@@ -175,36 +182,33 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       return null;
     }
 
-    /**
-     * Returns true if running on the Windows OS.
-     */
+    /** Returns true if running on the Windows OS. */
     private static boolean isWindows() {
       return System.getProperty("os.name").toLowerCase(Locale.ENGLISH).contains("windows");
     }
 
-    /**
-     * Used to mock out getting environment variables.
-     */
+    /** Used to mock out getting environment variables. */
     @VisibleForTesting
     Map<String, String> getEnvironment() {
-        return System.getenv();
+      return System.getenv();
     }
   }
 
   /**
-   * Attempts to load the GCP credentials. See
-   * {@link CredentialFactory#getCredential()} for more details.
+   * Attempts to load the GCP credentials. See {@link CredentialFactory#getCredential()} for more
+   * details.
    */
   class GcpUserCredentialsFactory implements DefaultValueFactory<Credentials> {
     @Override
     public Credentials create(PipelineOptions options) {
       GcpOptions gcpOptions = options.as(GcpOptions.class);
       try {
-        CredentialFactory factory = InstanceBuilder.ofType(CredentialFactory.class)
-            .fromClass(gcpOptions.getCredentialFactoryClass())
-            .fromFactoryMethod("fromOptions")
-            .withArg(PipelineOptions.class, options)
-            .build();
+        CredentialFactory factory =
+            InstanceBuilder.ofType(CredentialFactory.class)
+                .fromClass(gcpOptions.getCredentialFactoryClass())
+                .fromFactoryMethod("fromOptions")
+                .withArg(PipelineOptions.class, options)
+                .build();
         return factory.getCredential();
       } catch (IOException | GeneralSecurityException e) {
         throw new RuntimeException("Unable to obtain credential", e);
@@ -219,12 +223,12 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    */
   @Description("A GCS path for storing temporary files in GCP.")
   @Default.InstanceFactory(GcpTempLocationFactory.class)
-  @Nullable String getGcpTempLocation();
+  @Nullable
+  String getGcpTempLocation();
+
   void setGcpTempLocation(String value);
 
-  /**
-   * Returns {@link PipelineOptions#getTempLocation} as the default GCP temp location.
-   */
+  /** Returns {@link PipelineOptions#getTempLocation} as the default GCP temp location. */
   class GcpTempLocationFactory implements DefaultValueFactory<String> {
     private static final FluentBackoff BACKOFF_FACTORY =
         FluentBackoff.DEFAULT.withMaxRetries(3).withInitialBackoff(Duration.millis(200));
@@ -236,34 +240,38 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     public String create(PipelineOptions options) {
       String tempLocation = options.getTempLocation();
       if (isNullOrEmpty(tempLocation)) {
-        tempLocation = tryCreateDefaultBucket(options,
-            newCloudResourceManagerClient(options.as(CloudResourceManagerOptions.class)).build());
+        tempLocation =
+            tryCreateDefaultBucket(
+                options,
+                newCloudResourceManagerClient(options.as(CloudResourceManagerOptions.class))
+                    .build());
         options.setTempLocation(tempLocation);
       } else {
         try {
           PathValidator validator = options.as(GcsOptions.class).getPathValidator();
           validator.validateOutputFilePrefixSupported(tempLocation);
         } catch (Exception e) {
-          throw new IllegalArgumentException(String.format(
-              "Error constructing default value for gcpTempLocation: tempLocation is not"
-              + " a valid GCS path, %s. ", tempLocation), e);
+          throw new IllegalArgumentException(
+              String.format(
+                  "Error constructing default value for gcpTempLocation: tempLocation is not"
+                      + " a valid GCS path, %s. ",
+                  tempLocation),
+              e);
         }
       }
       return tempLocation;
     }
 
     /**
-     * Creates a default bucket or verifies the existence and proper access control
-     * of an existing default bucket.  Returns the location if successful.
+     * Creates a default bucket or verifies the existence and proper access control of an existing
+     * default bucket. Returns the location if successful.
      */
     @VisibleForTesting
-    static String tryCreateDefaultBucket(
-        PipelineOptions options, CloudResourceManager crmClient) {
+    static String tryCreateDefaultBucket(PipelineOptions options, CloudResourceManager crmClient) {
       GcsOptions gcpOptions = options.as(GcsOptions.class);
 
       final String projectId = gcpOptions.getProject();
-      checkArgument(!isNullOrEmpty(projectId),
-          "--project is a required option.");
+      checkArgument(!isNullOrEmpty(projectId), "--project is a required option.");
 
       // Look up the project number, to create a default bucket with a stable
       // name with no special characters.
@@ -277,13 +285,9 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       if (!isNullOrEmpty(gcpOptions.getZone())) {
         region = getRegionFromZone(gcpOptions.getZone());
       }
-      final String bucketName =
-          "dataflow-staging-" + region + "-" + projectNumber;
-      LOG.info("No tempLocation specified, attempting to use default bucket: {}",
-          bucketName);
-      Bucket bucket = new Bucket()
-          .setName(bucketName)
-          .setLocation(region);
+      final String bucketName = "dataflow-staging-" + region + "-" + projectNumber;
+      LOG.info("No tempLocation specified, attempting to use default bucket: {}", bucketName);
+      Bucket bucket = new Bucket().setName(bucketName).setLocation(region);
       // Always try to create the bucket before checking access, so that we do not
       // race with other pipelines that may be attempting to do the same thing.
       try {
@@ -297,12 +301,12 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       // Once the bucket is expected to exist, verify that it is correctly owned
       // by the project executing the job.
       try {
-        long owner = gcpOptions.getGcsUtil().bucketOwner(
-            GcsPath.fromComponents(bucketName, ""));
+        long owner = gcpOptions.getGcsUtil().bucketOwner(GcsPath.fromComponents(bucketName, ""));
         checkArgument(
             owner == projectNumber,
-            "Bucket owner does not match the project from --project:"
-                + " %s vs. %s", owner, projectNumber);
+            "Bucket owner does not match the project from --project:" + " %s vs. %s",
+            owner,
+            projectNumber);
       } catch (IOException e) {
         throw new RuntimeException(
             "Unable to determine the owner of the default bucket at gs://" + bucketName, e);
@@ -311,12 +315,11 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     }
 
     /**
-     * Returns the project number or throws an exception if the project does not
-     * exist or has other access exceptions.
+     * Returns the project number or throws an exception if the project does not exist or has other
+     * access exceptions.
      */
-    private static long getProjectNumber(
-        String projectId,
-        CloudResourceManager crmClient) throws IOException {
+    private static long getProjectNumber(String projectId, CloudResourceManager crmClient)
+        throws IOException {
       return getProjectNumber(
           projectId,
           crmClient,
@@ -325,23 +328,21 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     }
 
     /**
-     * Returns the project number or throws an error if the project does not
-     * exist or has other access errors.
+     * Returns the project number or throws an error if the project does not exist or has other
+     * access errors.
      */
     private static long getProjectNumber(
-        String projectId,
-        CloudResourceManager crmClient,
-        BackOff backoff,
-        Sleeper sleeper) throws IOException {
-      CloudResourceManager.Projects.Get getProject =
-          crmClient.projects().get(projectId);
+        String projectId, CloudResourceManager crmClient, BackOff backoff, Sleeper sleeper)
+        throws IOException {
+      CloudResourceManager.Projects.Get getProject = crmClient.projects().get(projectId);
       try {
-        Project project = ResilientOperation.retry(
-            ResilientOperation.getGoogleRequestCallable(getProject),
-            backoff,
-            RetryDeterminer.SOCKET_ERRORS,
-            IOException.class,
-            sleeper);
+        Project project =
+            ResilientOperation.retry(
+                ResilientOperation.getGoogleRequestCallable(getProject),
+                backoff,
+                RetryDeterminer.SOCKET_ERRORS,
+                IOException.class,
+                sleeper);
         return project.getProjectNumber();
       } catch (Exception e) {
         throw new IOException("Unable to get project number", e);
@@ -350,14 +351,14 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
 
     @VisibleForTesting
     static String getRegionFromZone(String zone) {
-      String[] zoneParts = zone.split("-");
+      String[] zoneParts = zone.split("-", -1);
       checkArgument(zoneParts.length >= 2, "Invalid zone provided: %s", zone);
       return zoneParts[0] + "-" + zoneParts[1];
     }
 
     /**
-     * Returns a CloudResourceManager client builder using the specified
-     * {@link CloudResourceManagerOptions}.
+     * Returns a CloudResourceManager client builder using the specified {@link
+     * CloudResourceManagerOptions}.
      */
     @VisibleForTesting
     static CloudResourceManager.Builder newCloudResourceManagerClient(
@@ -366,11 +367,13 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       if (credentials == null) {
         NullCredentialInitializer.throwNullCredentialException();
       }
-      return new CloudResourceManager.Builder(Transport.getTransport(), Transport.getJsonFactory(),
-          chainHttpRequestInitializer(
-              credentials,
-              // Do not log 404. It clutters the output and is possibly even required by the caller.
-              new RetryHttpRequestInitializer(ImmutableList.of(404))))
+      return new CloudResourceManager.Builder(
+              Transport.getTransport(),
+              Transport.getJsonFactory(),
+              chainHttpRequestInitializer(
+                  credentials,
+                  // Do not log 404. It clutters the output and is possibly even required by the caller.
+                  new RetryHttpRequestInitializer(ImmutableList.of(404))))
           .setApplicationName(options.getAppName())
           .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     }
@@ -382,8 +385,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
             new NullCredentialInitializer(), httpRequestInitializer);
       } else {
         return new ChainingHttpRequestInitializer(
-            new HttpCredentialsAdapter(credential),
-            httpRequestInitializer);
+            new HttpCredentialsAdapter(credential), httpRequestInitializer);
       }
     }
   }

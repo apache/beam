@@ -36,16 +36,18 @@ type Combine struct {
 	UsesKey bool
 	Out     Node
 
-	mergeFn reflectx.Func2x1 // optimized caller in the case of binary merge accumulators
+	binaryMergeFn reflectx.Func2x1 // optimized caller in the case of binary merge accumulators
 
 	status Status
 	err    errorx.GuardedError
 }
 
+// ID returns the UnitID for this node.
 func (n *Combine) ID() UnitID {
 	return n.UID
 }
 
+// Up initializes this CombineFn and runs its SetupFn() method.
 func (n *Combine) Up(ctx context.Context) error {
 	if n.status != Initializing {
 		return fmt.Errorf("invalid status for combine %v: %v", n.UID, n.status)
@@ -57,12 +59,34 @@ func (n *Combine) Up(ctx context.Context) error {
 	}
 
 	if n.Fn.AddInputFn() == nil {
-		n.mergeFn = reflectx.ToFunc2x1(n.Fn.MergeAccumulatorsFn().Fn)
+		n.optimizeMergeFn()
 	}
 	return nil
 }
 
-func (n *Combine) StartBundle(ctx context.Context, id string, data DataManager) error {
+func (n *Combine) optimizeMergeFn() {
+	typ := n.Fn.MergeAccumulatorsFn().Fn.Type()
+	if typ.NumIn() == 2 && typ.NumOut() == 1 {
+		n.binaryMergeFn = reflectx.ToFunc2x1(n.Fn.MergeAccumulatorsFn().Fn)
+	}
+}
+
+func (n *Combine) mergeAccumulators(ctx context.Context, a, b interface{}) (interface{}, error) {
+	if n.binaryMergeFn != nil {
+		// Fast path for binary MergeAccumulatorsFn
+		return n.binaryMergeFn.Call2x1(a, b), nil
+	}
+
+	in := &MainInput{Key: FullValue{Elm: a}}
+	val, err := InvokeWithoutEventTime(ctx, n.Fn.MergeAccumulatorsFn(), in, b)
+	if err != nil {
+		return nil, n.fail(fmt.Errorf("MergeAccumulators failed: %v", err))
+	}
+	return val.Elm, nil
+}
+
+// StartBundle initializes processing this bundle for combines.
+func (n *Combine) StartBundle(ctx context.Context, id string, data DataContext) error {
 	if n.status != Up {
 		return fmt.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
@@ -74,6 +98,8 @@ func (n *Combine) StartBundle(ctx context.Context, id string, data DataManager) 
 	return nil
 }
 
+// ProcessElement combines elements grouped by key using the CombineFn's
+// AddInput, MergeAccumulators, and ExtractOutput functions.
 func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
 	if n.status != Active {
 		return fmt.Errorf("invalid status for combine %v: %v", n.UID, n.status)
@@ -88,7 +114,10 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 	}
 	first := true
 
-	stream := values[0].Open()
+	stream, err := values[0].Open()
+	if err != nil {
+		return n.fail(err)
+	}
 	defer stream.Close()
 	for {
 		v, err := stream.Read()
@@ -113,6 +142,7 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 	return n.Out.ProcessElement(ctx, FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp})
 }
 
+// FinishBundle completes this node's processing of a bundle.
 func (n *Combine) FinishBundle(ctx context.Context) error {
 	if n.status != Active {
 		return fmt.Errorf("invalid status for combine %v: %v", n.UID, n.status)
@@ -125,6 +155,7 @@ func (n *Combine) FinishBundle(ctx context.Context) error {
 	return nil
 }
 
+// Down runs the ParDo's TeardownFn.
 func (n *Combine) Down(ctx context.Context) error {
 	if n.status == Down {
 		return n.err.Error()
@@ -169,7 +200,7 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, t
 		// TODO(herohde) 7/5/2017: do we want to allow addInput to be optional
 		// if non-binary merge is defined?
 
-		return n.mergeFn.Call2x1(accum, value), nil
+		return n.mergeAccumulators(ctx, accum, value)
 	}
 
 	opt := &MainInput{
@@ -216,4 +247,169 @@ func (n *Combine) fail(err error) error {
 
 func (n *Combine) String() string {
 	return fmt.Sprintf("Combine[%v] Keyed:%v Out:%v", path.Base(n.Fn.Name()), n.UsesKey, n.Out.ID())
+}
+
+// The nodes below break apart the Combine into components to support
+// Combiner Lifting optimizations.
+
+// LiftedCombine is an executor for combining values before grouping by keys
+// for a lifted combine. Partially groups values by key within a bundle,
+// accumulating them in an in memory cache, before emitting them in the
+// FinishBundle step.
+type LiftedCombine struct {
+	*Combine
+
+	cache map[interface{}]FullValue
+}
+
+func (n *LiftedCombine) String() string {
+	return fmt.Sprintf("LiftedCombine[%v] Keyed:%v Out:%v", path.Base(n.Fn.Name()), n.UsesKey, n.Out.ID())
+}
+
+// StartBundle initializes the in memory cache of keys to accumulators.
+func (n *LiftedCombine) StartBundle(ctx context.Context, id string, data DataContext) error {
+	if err := n.Combine.StartBundle(ctx, id, data); err != nil {
+		return err
+	}
+	n.cache = make(map[interface{}]FullValue)
+	return nil
+}
+
+// ProcessElement takes a KV pair and combines values with the same into an accumulator,
+// caching them until the bundle is complete.
+func (n *LiftedCombine) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
+	if n.status != Active {
+		return fmt.Errorf("invalid status for precombine %v: %v", n.UID, n.status)
+	}
+
+	// Value is a KV so Elm & Elm2 are populated.
+	// Check the cache for an already present accumulator
+
+	afv, notfirst := n.cache[value.Elm]
+	var a interface{}
+	if notfirst {
+		a = afv.Elm2
+	} else {
+		b, err := n.newAccum(ctx, value.Elm)
+		if err != nil {
+			return n.fail(err)
+		}
+		a = b
+	}
+
+	a, err := n.addInput(ctx, a, value.Elm, value.Elm2, value.Timestamp, !notfirst)
+	if err != nil {
+		return n.fail(err)
+	}
+
+	// Cache the accumulator with the key
+	n.cache[value.Elm] = FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp}
+
+	return nil
+}
+
+// FinishBundle iterates through the cached (key, accumulator) pairs, and then
+// processes the value in the bundle as normal.
+func (n *LiftedCombine) FinishBundle(ctx context.Context) error {
+	if n.status != Active {
+		return fmt.Errorf("invalid status for precombine %v: %v", n.UID, n.status)
+	}
+	n.status = Up
+
+	// Need to run n.Out.ProcessElement for all the cached precombined KVs, and
+	// then finally Finish bundle as normal.
+	for _, a := range n.cache {
+		n.Out.ProcessElement(ctx, a)
+	}
+
+	if err := n.Out.FinishBundle(ctx); err != nil {
+		return n.fail(err)
+	}
+	return nil
+}
+
+// Down tears down the cache.
+func (n *LiftedCombine) Down(ctx context.Context) error {
+	if err := n.Combine.Down(ctx); err != nil {
+		return err
+	}
+	n.cache = nil
+	return nil
+}
+
+// MergeAccumulators is an executor for merging accumulators from a lifted combine.
+type MergeAccumulators struct {
+	*Combine
+}
+
+func (n *MergeAccumulators) String() string {
+	return fmt.Sprintf("MergeAccumulators[%v] Keyed:%v Out:%v", path.Base(n.Fn.Name()), n.UsesKey, n.Out.ID())
+}
+
+// ProcessElement accepts a stream of accumulator values with the same key and
+// runs the MergeAccumulatorsFn over them repeatedly.
+func (n *MergeAccumulators) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
+	if n.status != Active {
+		return fmt.Errorf("invalid status for combine merge %v: %v", n.UID, n.status)
+	}
+	a, err := n.newAccum(ctx, value.Elm)
+	if err != nil {
+		return n.fail(err)
+	}
+	first := true
+
+	stream, err := values[0].Open()
+	if err != nil {
+		return n.fail(err)
+	}
+	defer stream.Close()
+	for {
+		v, err := stream.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return n.fail(err)
+		}
+		if first {
+			a = v.Elm
+			first = false
+			continue
+		}
+		a, err = n.mergeAccumulators(ctx, a, v.Elm)
+		if err != nil {
+			return err
+		}
+	}
+	return n.Out.ProcessElement(ctx, FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp})
+}
+
+// Up eagerly gets the optimized binary merge function.
+func (n *MergeAccumulators) Up(ctx context.Context) error {
+	if err := n.Combine.Up(ctx); err != nil {
+		return err
+	}
+	n.optimizeMergeFn()
+	return nil
+}
+
+// ExtractOutput is an executor for extracting output from a lifted combine.
+type ExtractOutput struct {
+	*Combine
+}
+
+func (n *ExtractOutput) String() string {
+	return fmt.Sprintf("ExtractOutput[%v] Keyed:%v Out:%v", path.Base(n.Fn.Name()), n.UsesKey, n.Out.ID())
+}
+
+// ProcessElement accepts an accumulator value, and extracts the final return type from it.
+func (n *ExtractOutput) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
+	if n.status != Active {
+		return fmt.Errorf("invalid status for combine extract %v: %v", n.UID, n.status)
+	}
+	out, err := n.extract(ctx, value.Elm2)
+	if err != nil {
+		return n.fail(err)
+	}
+	return n.Out.ProcessElement(ctx, FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp})
 }

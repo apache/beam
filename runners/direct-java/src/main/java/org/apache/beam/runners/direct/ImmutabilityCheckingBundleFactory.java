@@ -37,8 +37,8 @@ import org.joda.time.Instant;
  * A {@link BundleFactory} that ensures that elements added to it are not mutated after being
  * output. Immutability checks are enforced at the time {@link UncommittedBundle#commit(Instant)} is
  * called, checking the value at that time against the value at the time the element was added. All
- * elements added to the bundle will be encoded by the {@link Coder} of the underlying
- * {@link PCollection}.
+ * elements added to the bundle will be encoded by the {@link Coder} of the underlying {@link
+ * PCollection}.
  *
  * <p>This catches errors during the execution of a {@link DoFn} caused by modifying an element
  * after it is added to an output {@link PCollection}.
@@ -65,7 +65,7 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
    * {@inheritDoc}.
    *
    * @return a root bundle created by the underlying {@link PCollection}. Root bundles belong to the
-   * runner, which is required to use the contents in a way that is mutation-safe.
+   *     runner, which is required to use the contents in a way that is mutation-safe.
    */
   @Override
   public <T> UncommittedBundle<T> createRootBundle() {
@@ -123,16 +123,16 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
         try {
           detector.verifyUnmodified();
         } catch (IllegalMutationException exn) {
-            throw new IllegalMutationException(
-                String.format(
-                    "PTransform %s mutated value %s after it was output (new value was %s)."
-                        + " Values must not be mutated in any way after being output.",
-                    graph.getProducer(underlying.getPCollection()).getFullName(),
-                    exn.getSavedValue(),
-                    exn.getNewValue()),
-                exn.getSavedValue(),
-                exn.getNewValue(),
-                exn);
+          throw new IllegalMutationException(
+              String.format(
+                  "PTransform %s mutated value %s after it was output (new value was %s)."
+                      + " Values must not be mutated in any way after being output.",
+                  graph.getProducer(underlying.getPCollection()).getFullName(),
+                  exn.getSavedValue(),
+                  exn.getNewValue()),
+              exn.getSavedValue(),
+              exn.getNewValue(),
+              exn);
         }
       }
       return underlying.commit(synchronizedProcessingTime);

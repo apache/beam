@@ -38,21 +38,15 @@ import org.joda.time.Duration;
  * }</pre>
  */
 public class Sessions extends WindowFn<Object, IntervalWindow> {
-  /**
-   * Duration of the gaps between sessions.
-   */
+  /** Duration of the gaps between sessions. */
   private final Duration gapDuration;
 
-  /**
-   * Creates a {@code Sessions} {@link WindowFn} with the specified gap duration.
-   */
+  /** Creates a {@code Sessions} {@link WindowFn} with the specified gap duration. */
   public static Sessions withGapDuration(Duration gapDuration) {
     return new Sessions(gapDuration);
   }
 
-  /**
-   * Creates a {@code Sessions} {@link WindowFn} with the specified gap duration.
-   */
+  /** Creates a {@code Sessions} {@link WindowFn} with the specified gap duration. */
   private Sessions(Duration gapDuration) {
     this.gapDuration = gapDuration;
   }
@@ -103,8 +97,7 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.add(DisplayData.item("gapDuration", gapDuration)
-      .withLabel("Session Gap Duration"));
+    builder.add(DisplayData.item("gapDuration", gapDuration).withLabel("Session Gap Duration"));
   }
 
   @Override

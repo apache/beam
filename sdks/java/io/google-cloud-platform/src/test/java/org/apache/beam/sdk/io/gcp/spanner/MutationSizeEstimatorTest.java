@@ -67,20 +67,14 @@ public class MutationSizeEstimatorTest {
   @Test
   public void nullPrimitiveArrays() throws Exception {
     Mutation int64 =
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("one")
-            .toInt64Array((long[]) null)
-            .build();
+        Mutation.newInsertOrUpdateBuilder("test").set("one").toInt64Array((long[]) null).build();
     Mutation float64 =
         Mutation.newInsertOrUpdateBuilder("test")
             .set("one")
             .toFloat64Array((double[]) null)
             .build();
     Mutation bool =
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("one")
-            .toBoolArray((boolean[]) null)
-            .build();
+        Mutation.newInsertOrUpdateBuilder("test").set("one").toBoolArray((boolean[]) null).build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(0L));
@@ -99,10 +93,7 @@ public class MutationSizeEstimatorTest {
             .toStringArray(Arrays.asList("one", "two", null))
             .build();
     Mutation nullArray =
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("one")
-            .toStringArray(null)
-            .build();
+        Mutation.newInsertOrUpdateBuilder("test").set("one").toStringArray(null).build();
 
     assertThat(MutationSizeEstimator.sizeOf(emptyString), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(nullString), is(0L));
@@ -123,10 +114,7 @@ public class MutationSizeEstimatorTest {
             .to(ByteArray.fromBase64("abcdabcd"))
             .build();
     Mutation nullArray =
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("one")
-            .toBytesArray(null)
-            .build();
+        Mutation.newInsertOrUpdateBuilder("test").set("one").toBytesArray(null).build();
 
     assertThat(MutationSizeEstimator.sizeOf(empty), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(nullValue), is(0L));
@@ -164,15 +152,9 @@ public class MutationSizeEstimatorTest {
             .build();
 
     Mutation nullTimestampArray =
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("one")
-            .toTimestampArray(null)
-            .build();
+        Mutation.newInsertOrUpdateBuilder("test").set("one").toTimestampArray(null).build();
     Mutation nullDateArray =
-        Mutation.newInsertOrUpdateBuilder("test")
-            .set("one")
-            .toDateArray(null)
-            .build();
+        Mutation.newInsertOrUpdateBuilder("test").set("one").toDateArray(null).build();
 
     assertThat(MutationSizeEstimator.sizeOf(timestamp), is(12L));
     assertThat(MutationSizeEstimator.sizeOf(date), is(12L));
@@ -194,5 +176,4 @@ public class MutationSizeEstimatorTest {
 
     assertThat(MutationSizeEstimator.sizeOf(group), is(17L));
   }
-
 }

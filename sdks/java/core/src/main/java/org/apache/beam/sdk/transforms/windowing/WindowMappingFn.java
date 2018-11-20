@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.transforms.windowing;
 
 import java.io.Serializable;
@@ -35,23 +34,17 @@ import org.joda.time.Duration;
 public abstract class WindowMappingFn<TargetWindowT extends BoundedWindow> implements Serializable {
   private final Duration maximumLookback;
 
-  /**
-   * Create a new {@link WindowMappingFn} with {@link Duration#ZERO zero} maximum lookback.
-   */
+  /** Create a new {@link WindowMappingFn} with {@link Duration#ZERO zero} maximum lookback. */
   protected WindowMappingFn() {
     this(Duration.ZERO);
   }
 
-  /**
-   * Create a new {@link WindowMappingFn} with the specified maximum lookback.
-   */
+  /** Create a new {@link WindowMappingFn} with the specified maximum lookback. */
   protected WindowMappingFn(Duration maximumLookback) {
     this.maximumLookback = maximumLookback;
   }
 
-  /**
-   * Returns the window of the side input corresponding to the given window of the main input.
-   */
+  /** Returns the window of the side input corresponding to the given window of the main input. */
   public abstract TargetWindowT getSideInputWindow(BoundedWindow mainWindow);
 
   /**

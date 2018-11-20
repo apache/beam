@@ -16,18 +16,25 @@
 #
 
 """Tests for datastore helper."""
+from __future__ import absolute_import
+
 import errno
+import os
 import random
 import sys
 import unittest
+from builtins import map
 from socket import error as SocketError
 
 from mock import MagicMock
 
 # pylint: disable=ungrouped-imports
-from apache_beam.io.gcp.datastore.v1 import fake_datastore
-from apache_beam.io.gcp.datastore.v1 import helper
-from apache_beam.testing.test_utils import patch_retry
+try: # TODO(BEAM-4543): googledatastore dependency does not work on Python 3.
+  from apache_beam.io.gcp.datastore.v1 import fake_datastore
+  from apache_beam.io.gcp.datastore.v1 import helper
+  from apache_beam.testing.test_utils import patch_retry
+except ImportError:
+  pass
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -45,6 +52,10 @@ except ImportError:
 # pylint: enable=ungrouped-imports
 
 
+@unittest.skipIf(sys.version_info[0] == 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3'
+                 'TODO: BEAM-4543')
 @unittest.skipIf(datastore_helper is None, 'GCP dependencies are not installed')
 class HelperTest(unittest.TestCase):
 

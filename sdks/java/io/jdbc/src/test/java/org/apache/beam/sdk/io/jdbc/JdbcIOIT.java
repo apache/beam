@@ -17,15 +17,17 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
+import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
+
 import java.sql.SQLException;
 import java.util.List;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -46,6 +48,7 @@ import org.postgresql.ds.PGSimpleDataSource;
  *
  * <p>This test requires a running instance of Postgres. Pass in connection information using
  * PipelineOptions:
+ *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/jdbc -DintegrationTestPipelineOptions='[
  *  "--postgresServerName=1.2.3.4",
@@ -58,8 +61,8 @@ import org.postgresql.ds.PGSimpleDataSource;
  *  -DintegrationTestRunner=direct
  * </pre>
  *
- * <p>Please see 'build_rules.gradle' file for instructions regarding
- * running this test using Beam performance testing framework.</p>
+ * <p>Please see 'build_rules.gradle' file for instructions regarding running this test using Beam
+ * performance testing framework.
  */
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
@@ -67,32 +70,34 @@ public class JdbcIOIT {
   private static int numberOfRows;
   private static PGSimpleDataSource dataSource;
   private static String tableName;
-
-  @Rule
-  public TestPipeline pipelineWrite = TestPipeline.create();
-  @Rule
-  public TestPipeline pipelineRead = TestPipeline.create();
+  @Rule public TestPipeline pipelineWrite = TestPipeline.create();
+  @Rule public TestPipeline pipelineRead = TestPipeline.create();
 
   @BeforeClass
-  public static void setup() throws SQLException {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
-        .as(IOTestPipelineOptions.class);
+  public static void setup() throws Exception {
+    PostgresIOTestPipelineOptions options =
+        readIOTestPipelineOptions(PostgresIOTestPipelineOptions.class);
 
     numberOfRows = options.getNumberOfRecords();
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     tableName = DatabaseTestHelper.getTestTableName("IT");
+    executeWithRetry(JdbcIOIT::createTable);
+  }
+
+  private static void createTable() throws SQLException {
     DatabaseTestHelper.createTable(dataSource, tableName);
   }
 
   @AfterClass
-  public static void tearDown() throws SQLException {
+  public static void tearDown() throws Exception {
+    executeWithRetry(JdbcIOIT::deleteTable);
+  }
+
+  private static void deleteTable() throws SQLException {
     DatabaseTestHelper.deleteTable(dataSource, tableName);
   }
 
-  /**
-   * Tests writing then reading data for a postgres database.
-   */
+  /** Tests writing then reading data for a postgres database. */
   @Test
   public void testWriteThenRead() {
     runWrite();
@@ -104,16 +109,18 @@ public class JdbcIOIT {
    *
    * <p>This method does not attempt to validate the data - we do so in the read test. This does
    * make it harder to tell whether a test failed in the write or read phase, but the tests are much
-   * easier to maintain (don't need any separate code to write test data for read tests to
-   * the database.)
+   * easier to maintain (don't need any separate code to write test data for read tests to the
+   * database.)
    */
   private void runWrite() {
-    pipelineWrite.apply(GenerateSequence.from(0).to(numberOfRows))
+    pipelineWrite
+        .apply(GenerateSequence.from(0).to(numberOfRows))
         .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
-        .apply(JdbcIO.<TestRow>write()
-            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-            .withStatement(String.format("insert into %s values(?, ?)", tableName))
-            .withPreparedStatementSetter(new JdbcTestHelper.PrepareStatementFromTestRow()));
+        .apply(
+            JdbcIO.<TestRow>write()
+                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+                .withStatement(String.format("insert into %s values(?, ?)", tableName))
+                .withPreparedStatementSetter(new JdbcTestHelper.PrepareStatementFromTestRow()));
 
     pipelineWrite.run().waitUntilFinish();
   }
@@ -121,35 +128,34 @@ public class JdbcIOIT {
   /**
    * Read the test dataset from postgres and validate its contents.
    *
-   * <p>When doing the validation, we wish to ensure that we:
-   * 1. Ensure *all* the rows are correct
+   * <p>When doing the validation, we wish to ensure that we: 1. Ensure *all* the rows are correct
    * 2. Provide enough information in assertions such that it is easy to spot obvious errors (e.g.
-   *    all elements have a similar mistake, or "only 5 elements were generated" and the user wants
-   *    to see what the problem was.
+   * all elements have a similar mistake, or "only 5 elements were generated" and the user wants to
+   * see what the problem was.
    *
    * <p>We do not wish to generate and compare all of the expected values, so this method uses
    * hashing to ensure that all expected data is present. However, hashing does not provide easy
-   * debugging information (failures like "every element was empty string" are hard to see),
-   * so we also:
-   * 1. Generate expected values for the first and last 500 rows
-   * 2. Use containsInAnyOrder to verify that their values are correct.
-   * Where first/last 500 rows is determined by the fact that we know all rows have a unique id - we
-   * can use the natural ordering of that key.
+   * debugging information (failures like "every element was empty string" are hard to see), so we
+   * also: 1. Generate expected values for the first and last 500 rows 2. Use containsInAnyOrder to
+   * verify that their values are correct. Where first/last 500 rows is determined by the fact that
+   * we know all rows have a unique id - we can use the natural ordering of that key.
    */
   private void runRead() {
     PCollection<TestRow> namesAndIds =
-        pipelineRead.apply(JdbcIO.<TestRow>read()
-        .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-        .withQuery(String.format("select name,id from %s;", tableName))
-        .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-        .withCoder(SerializableCoder.of(TestRow.class)));
+        pipelineRead.apply(
+            JdbcIO.<TestRow>read()
+                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+                .withQuery(String.format("select name,id from %s;", tableName))
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withCoder(SerializableCoder.of(TestRow.class)));
 
     PAssert.thatSingleton(namesAndIds.apply("Count All", Count.globally()))
         .isEqualTo((long) numberOfRows);
 
-    PCollection<String> consolidatedHashcode = namesAndIds
-        .apply(ParDo.of(new TestRow.SelectNameFn()))
-        .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
+    PCollection<String> consolidatedHashcode =
+        namesAndIds
+            .apply(ParDo.of(new TestRow.SelectNameFn()))
+            .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
     PAssert.that(consolidatedHashcode)
         .containsInAnyOrder(TestRow.getExpectedHashForRowCount(numberOfRows));
 

@@ -35,9 +35,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link SetCoder}.
- */
+/** Test case for {@link SetCoder}. */
 @RunWith(JUnit4.class)
 public class SetCoderTest {
 
@@ -62,21 +60,18 @@ public class SetCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AAAAAA",
-      "AAAAAQ0",
-      "AAAAA_v___8PH1M");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList("AAAAAA", "AAAAAQ0", "AAAAA_v___8PH1M");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

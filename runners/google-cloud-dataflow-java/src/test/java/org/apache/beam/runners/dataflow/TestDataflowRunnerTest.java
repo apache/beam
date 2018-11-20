@@ -97,8 +97,8 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testToString() {
-    assertEquals("TestDataflowRunner#TestAppName",
-        TestDataflowRunner.fromOptions(options).toString());
+    assertEquals(
+        "TestDataflowRunner#TestAppName", TestDataflowRunner.fromOptions(options).toString());
   }
 
   @Test
@@ -122,8 +122,8 @@ public class TestDataflowRunnerTest {
   }
 
   /**
-   * Job success on Dataflow means that it handled transient errors (if any) successfully
-   * by retrying failed bundles.
+   * Job success on Dataflow means that it handled transient errors (if any) successfully by
+   * retrying failed bundles.
    */
   @Test
   public void testRunBatchJobThatSucceedsDespiteTransientErrors() throws Exception {
@@ -136,28 +136,28 @@ public class TestDataflowRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
-      .thenAnswer(
-        invocation -> {
-          JobMessage message = new JobMessage();
-          message.setMessageText("TransientError");
-          message.setTime(TimeUtil.toCloudTime(Instant.now()));
-          message.setMessageImportance("JOB_MESSAGE_ERROR");
-          ((JobMessagesHandler) invocation.getArguments()[1]).process(Arrays.asList(message));
-          return State.DONE;
-        });
+        .thenAnswer(
+            invocation -> {
+              JobMessage message = new JobMessage();
+              message.setMessageText("TransientError");
+              message.setTime(TimeUtil.toCloudTime(Instant.now()));
+              message.setMessageImportance("JOB_MESSAGE_ERROR");
+              ((JobMessagesHandler) invocation.getArguments()[1]).process(Arrays.asList(message));
+              return State.DONE;
+            });
 
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
     when(mockClient.getJobMetrics(anyString()))
-      .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
     assertEquals(mockJob, runner.run(p, mockRunner));
   }
 
   /**
-   * Tests that when a batch job terminates in a failure state even if all assertions
-   * passed, it throws an error to that effect.
+   * Tests that when a batch job terminates in a failure state even if all assertions passed, it
+   * throws an error to that effect.
    */
   @Test
   public void testRunBatchJobThatFails() throws Exception {
@@ -222,9 +222,7 @@ public class TestDataflowRunnerTest {
     fail("AssertionError expected");
   }
 
-  /**
-   * A streaming job that terminates with no error messages is a success.
-   */
+  /** A streaming job that terminates with no error messages is a success. */
   @Test
   public void testRunStreamingJobUsingPAssertThatSucceeds() throws Exception {
     options.setStreaming(true);
@@ -299,8 +297,8 @@ public class TestDataflowRunnerTest {
     return Lists.newArrayList(metric);
   }
 
-  private JobMetrics generateMockStreamingMetricResponse(Map<String,
-      BigDecimal> metricMap) throws IOException {
+  private JobMetrics generateMockStreamingMetricResponse(Map<String, BigDecimal> metricMap)
+      throws IOException {
     return buildJobMetrics(generateMockStreamingMetrics(metricMap));
   }
 
@@ -332,8 +330,7 @@ public class TestDataflowRunnerTest {
    */
   @Test
   public void testCheckingForSuccessWhenPAssertSucceeds() throws Exception {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -352,8 +349,7 @@ public class TestDataflowRunnerTest {
    */
   @Test
   public void testCheckingForSuccessWhenPAssertFails() throws Exception {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -436,8 +432,8 @@ public class TestDataflowRunnerTest {
     JobMetrics metrics = runner.getJobMetrics(job);
 
     assertEquals(1, metrics.getMetrics().size());
-    assertEquals(generateMockMetrics(true /* success */, true /* tentative */),
-        metrics.getMetrics());
+    assertEquals(
+        generateMockMetrics(true /* success */, true /* tentative */), metrics.getMetrics());
   }
 
   @Test
@@ -495,8 +491,7 @@ public class TestDataflowRunnerTest {
         .thenReturn(State.DONE);
 
     when(mockClient.getJobMetrics(anyString()))
-        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */
-        ));
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
     runner.run(p, mockRunner);
   }
 
@@ -575,8 +570,8 @@ public class TestDataflowRunnerTest {
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
-      verify(mockJob, Mockito.times(1)).waitUntilFinish(
-          any(Duration.class), any(JobMessagesHandler.class));
+      verify(mockJob, Mockito.times(1))
+          .waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class));
       return;
     }
     fail("Expected an exception on pipeline failure.");
@@ -613,9 +608,9 @@ public class TestDataflowRunnerTest {
     // If the onSuccessMatcher were invoked, it would have crashed here with AssertionError
   }
 
-  static class TestSuccessMatcher extends BaseMatcher<PipelineResult> implements
-      SerializableMatcher<PipelineResult> {
-    private final DataflowPipelineJob mockJob;
+  static class TestSuccessMatcher extends BaseMatcher<PipelineResult>
+      implements SerializableMatcher<PipelineResult> {
+    private final transient DataflowPipelineJob mockJob;
     private final int called;
 
     public TestSuccessMatcher(DataflowPipelineJob job, int times) {
@@ -629,8 +624,8 @@ public class TestDataflowRunnerTest {
         fail(String.format("Expected PipelineResult but received %s", o));
       }
       try {
-        verify(mockJob, Mockito.times(called)).waitUntilFinish(
-            any(Duration.class), any(JobMessagesHandler.class));
+        verify(mockJob, Mockito.times(called))
+            .waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class));
       } catch (IOException | InterruptedException e) {
         throw new AssertionError(e);
       }
@@ -639,12 +634,11 @@ public class TestDataflowRunnerTest {
     }
 
     @Override
-    public void describeTo(Description description) {
-    }
+    public void describeTo(Description description) {}
   }
 
-  static class TestFailureMatcher extends BaseMatcher<PipelineResult> implements
-      SerializableMatcher<PipelineResult> {
+  static class TestFailureMatcher extends BaseMatcher<PipelineResult>
+      implements SerializableMatcher<PipelineResult> {
     @Override
     public boolean matches(Object o) {
       fail("OnSuccessMatcher should not be called on pipeline failure.");
@@ -652,7 +646,6 @@ public class TestDataflowRunnerTest {
     }
 
     @Override
-    public void describeTo(Description description) {
-    }
+    public void describeTo(Description description) {}
   }
 }

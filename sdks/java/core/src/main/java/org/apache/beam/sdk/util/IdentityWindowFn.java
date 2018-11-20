@@ -39,11 +39,11 @@ import org.joda.time.Instant;
  * <p>This {@link WindowFn} is applied when elements must be passed through a {@link GroupByKey},
  * but should maintain their existing {@link Window} assignments. Because windows may have been
  * merged, the earlier {@link WindowFn} may not appropriately maintain the existing window
- * assignments. For example, if the earlier {@link WindowFn} merges windows, after a
- * {@link GroupByKey} the {@link WindowingStrategy} uses {@link InvalidWindows}, and no further
- * {@link GroupByKey} can be applied without applying a new {@link WindowFn}. This {@link WindowFn}
- * allows existing window assignments to be maintained across a single group by key, at which point
- * the earlier {@link WindowingStrategy} should be restored.
+ * assignments. For example, if the earlier {@link WindowFn} merges windows, after a {@link
+ * GroupByKey} the {@link WindowingStrategy} uses {@link InvalidWindows}, and no further {@link
+ * GroupByKey} can be applied without applying a new {@link WindowFn}. This {@link WindowFn} allows
+ * existing window assignments to be maintained across a single group by key, at which point the
+ * earlier {@link WindowingStrategy} should be restored.
  *
  * <p>This {@link WindowFn} is an internal implementation detail of sdk-provided utilities, and
  * should not be used by {@link Pipeline} writers.

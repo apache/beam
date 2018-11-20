@@ -23,24 +23,20 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
-/**
- * An wrapper interface that represents the execution of a {@link DoFn}.
- */
+/** An wrapper interface that represents the execution of a {@link DoFn}. */
 public interface DoFnRunner<InputT, OutputT> {
-  /**
-   * Prepares and calls a {@link DoFn DoFn's} {@link DoFn.StartBundle @StartBundle} method.
-   */
+  /** Prepares and calls a {@link DoFn DoFn's} {@link DoFn.StartBundle @StartBundle} method. */
   void startBundle();
 
   /**
-   * Calls a {@link DoFn DoFn's} {@link DoFn.ProcessElement @ProcessElement} method with a
-   * {@link DoFn.ProcessContext} containing the provided element.
+   * Calls a {@link DoFn DoFn's} {@link DoFn.ProcessElement @ProcessElement} method with a {@link
+   * DoFn.ProcessContext} containing the provided element.
    */
   void processElement(WindowedValue<InputT> elem);
 
   /**
-   * Calls a {@link DoFn DoFn's} {@link DoFn.OnTimer @OnTimer} method for the given timer
-   * in the given window.
+   * Calls a {@link DoFn DoFn's} {@link DoFn.OnTimer @OnTimer} method for the given timer in the
+   * given window.
    */
   void onTimer(String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain);
 

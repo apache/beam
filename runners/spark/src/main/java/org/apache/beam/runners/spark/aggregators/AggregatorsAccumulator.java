@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.aggregators;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -35,7 +34,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * For resilience, {@link Accumulator Accumulators} are required to be wrapped in a Singleton.
- * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
+ *
+ * @see <a
+ *     href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
 public class AggregatorsAccumulator {
   private static final Logger LOG = LoggerFactory.getLogger(AggregatorsAccumulator.class);
@@ -47,9 +48,7 @@ public class AggregatorsAccumulator {
   private static volatile FileSystem fileSystem;
   private static volatile Path checkpointFilePath;
 
-  /**
-   * Init aggregators accumulator if it has not been initiated. This method is idempotent.
-   */
+  /** Init aggregators accumulator if it has not been initiated. This method is idempotent. */
   public static void init(SparkPipelineOptions opts, JavaSparkContext jsc) {
     if (instance == null) {
       synchronized (AggregatorsAccumulator.class) {
@@ -83,8 +82,7 @@ public class AggregatorsAccumulator {
   }
 
   private static Optional<NamedAggregators> recoverValueFromCheckpoint(
-      JavaSparkContext jsc,
-      CheckpointDir checkpointDir) {
+      JavaSparkContext jsc, CheckpointDir checkpointDir) {
     try {
       Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
       checkpointFilePath = new Path(beamCheckpointPath, ACCUMULATOR_CHECKPOINT_FILENAME);
@@ -115,9 +113,7 @@ public class AggregatorsAccumulator {
     }
   }
 
-  /**
-   * Spark Listener which checkpoints {@link NamedAggregators} values for fault-tolerance.
-   */
+  /** Spark Listener which checkpoints {@link NamedAggregators} values for fault-tolerance. */
   public static class AccumulatorCheckpointingSparkListener extends JavaStreamingListener {
     @Override
     public void onBatchCompleted(JavaStreamingListenerBatchCompleted batchCompleted) {

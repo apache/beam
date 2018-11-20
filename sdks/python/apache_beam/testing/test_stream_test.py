@@ -17,6 +17,8 @@
 
 """Unit tests for the test_stream module."""
 
+from __future__ import absolute_import
+
 import unittest
 
 import apache_beam as beam

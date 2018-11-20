@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertThat;
@@ -70,6 +69,7 @@ public class CreatePCollectionViewTranslationTest {
   @Test
   public void testEncodedProto() throws Exception {
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     components.registerPCollection(testPCollection);
 
     AppliedPTransform<?, ?, ?> appliedPTransform =
@@ -94,6 +94,7 @@ public class CreatePCollectionViewTranslationTest {
   @Test
   public void testExtractionDirectFromTransform() throws Exception {
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     components.registerPCollection(testPCollection);
 
     AppliedPTransform<?, ?, ?> appliedPTransform =
@@ -112,8 +113,7 @@ public class CreatePCollectionViewTranslationTest {
     PCollectionView<?> deserializedView =
         (PCollectionView<?>)
             SerializableUtils.deserializeFromByteArray(
-                payload.getPayload().toByteArray(),
-                PCollectionView.class.getSimpleName());
+                payload.getPayload().toByteArray(), PCollectionView.class.getSimpleName());
 
     assertThat(deserializedView, Matchers.equalTo(createViewTransform.getView()));
   }

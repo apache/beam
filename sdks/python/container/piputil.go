@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -149,7 +150,7 @@ func findBeamSdkWhl(files []string, acceptableWhlSpecs []string) string {
 // assume that the pipleine was started with the Beam SDK found in the wheel
 // file, and we try to install it. If not successful, we fall back to installing
 // SDK from source tarball provided in sdkSrcFile.
-func installSdk(files []string, workDir string, sdkSrcFile string, acceptableWhlSpecs []string) error {
+func installSdk(files []string, workDir string, sdkSrcFile string, acceptableWhlSpecs []string, required bool) error {
 	sdkWhlFile := findBeamSdkWhl(files, acceptableWhlSpecs)
 	if sdkWhlFile != "" {
 		err := pipInstallPackage(files, workDir, sdkWhlFile, false, false, []string{"gcp"})
@@ -157,6 +158,12 @@ func installSdk(files []string, workDir string, sdkSrcFile string, acceptableWhl
 			return nil
 		}
 		log.Printf("Could not install Apache Beam SDK from a wheel: %v, proceeding to install SDK from source tarball.", err)
+	}
+	if !required {
+		_, err := os.Stat(filepath.Join(workDir, sdkSrcFile))
+		if os.IsNotExist(err) {
+			return nil
+		}
 	}
 	err := pipInstallPackage(files, workDir, sdkSrcFile, false, false, []string{"gcp"})
 	return err

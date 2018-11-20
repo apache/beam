@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.function;
 
 import java.util.function.BiFunction;
@@ -23,8 +22,8 @@ import java.util.function.BiFunction;
 /**
  * A {@link BiFunction} which can throw {@link Exception}s.
  *
- * <p>Used to expand the allowed set of method references to be used by Java 8
- * functional interfaces.
+ * <p>Used to expand the allowed set of method references to be used by Java 8 functional
+ * interfaces.
  */
 @FunctionalInterface
 public interface ThrowingBiFunction<T1, T2, T3> {

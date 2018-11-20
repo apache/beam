@@ -28,9 +28,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * A {@link Coder} that encodes BigQuery {@link TableRow} objects in their native JSON format.
- */
+/** A {@link Coder} that encodes BigQuery {@link TableRow} objects in their native JSON format. */
 public class TableRowJsonCoder extends AtomicCoder<TableRow> {
 
   public static TableRowJsonCoder of() {
@@ -38,14 +36,12 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
   }
 
   @Override
-  public void encode(TableRow value, OutputStream outStream)
-      throws IOException {
+  public void encode(TableRow value, OutputStream outStream) throws IOException {
     encode(value, outStream, Context.NESTED);
   }
 
   @Override
-  public void encode(TableRow value, OutputStream outStream, Context context)
-      throws IOException {
+  public void encode(TableRow value, OutputStream outStream, Context context) throws IOException {
     String strValue = MAPPER.writeValueAsString(value);
     StringUtf8Coder.of().encode(strValue, outStream, context);
   }
@@ -56,15 +52,13 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
   }
 
   @Override
-  public TableRow decode(InputStream inStream, Context context)
-      throws IOException {
+  public TableRow decode(InputStream inStream, Context context) throws IOException {
     String strValue = StringUtf8Coder.of().decode(inStream, context);
     return MAPPER.readValue(strValue, TableRow.class);
   }
 
   @Override
-  protected long getEncodedElementByteSize(TableRow value)
-      throws Exception {
+  protected long getEncodedElementByteSize(TableRow value) throws Exception {
     String strValue = MAPPER.writeValueAsString(value);
     return StringUtf8Coder.of().getEncodedElementByteSize(strValue);
   }
@@ -79,18 +73,18 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
   private static final TableRowJsonCoder INSTANCE = new TableRowJsonCoder();
   private static final TypeDescriptor<TableRow> TYPE_DESCRIPTOR = new TypeDescriptor<TableRow>() {};
 
-  private TableRowJsonCoder() { }
+  private TableRowJsonCoder() {}
 
   /**
    * {@inheritDoc}
    *
-   * @throws NonDeterministicException always. A {@link TableRow} can hold arbitrary
-   *         {@link Object} instances, which makes the encoding non-deterministic.
+   * @throws NonDeterministicException always. A {@link TableRow} can hold arbitrary {@link Object}
+   *     instances, which makes the encoding non-deterministic.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    throw new NonDeterministicException(this,
-        "TableCell can hold arbitrary instances, which may be non-deterministic.");
+    throw new NonDeterministicException(
+        this, "TableCell can hold arbitrary instances, which may be non-deterministic.");
   }
 
   @Override

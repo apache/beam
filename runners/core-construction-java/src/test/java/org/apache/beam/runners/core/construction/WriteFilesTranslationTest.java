@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -66,14 +65,15 @@ public class WriteFilesTranslationTest {
 
   @Test
   public void testEncodedProto() throws Exception {
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
     RunnerApi.WriteFilesPayload payload =
-        WriteFilesTranslation.payloadForWriteFiles(writeFiles, SdkComponents.create());
+        WriteFilesTranslation.payloadForWriteFiles(writeFiles, components);
 
     assertThat(
         payload.getRunnerDeterminedSharding(),
         equalTo(
-            writeFiles.getNumShardsProvider() == null
-                && writeFiles.getComputeNumShards() == null));
+            writeFiles.getNumShardsProvider() == null && writeFiles.getComputeNumShards() == null));
 
     assertThat(payload.getWindowedWrites(), equalTo(writeFiles.getWindowedWrites()));
 
@@ -88,16 +88,14 @@ public class WriteFilesTranslationTest {
     PCollection<String> input = p.apply(Create.of("hello"));
     WriteFilesResult<Void> output = input.apply(writeFiles);
 
-    AppliedPTransform<
-            PCollection<String>, WriteFilesResult<Void>, WriteFiles<String, Void, String>>
+    AppliedPTransform<PCollection<String>, WriteFilesResult<Void>, WriteFiles<String, Void, String>>
         appliedPTransform =
             AppliedPTransform.of("foo", input.expand(), output.expand(), writeFiles, p);
 
     assertThat(
         WriteFilesTranslation.isRunnerDeterminedSharding(appliedPTransform),
         equalTo(
-            writeFiles.getNumShardsProvider() == null
-                && writeFiles.getComputeNumShards() == null));
+            writeFiles.getNumShardsProvider() == null && writeFiles.getComputeNumShards() == null));
 
     assertThat(
         WriteFilesTranslation.isWindowedWrites(appliedPTransform),

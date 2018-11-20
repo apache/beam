@@ -45,12 +45,11 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
 /**
- * Static display data associated with a pipeline component. Display data is useful for
- * pipeline runner UIs and diagnostic dashboards to display details about
- * {@link PTransform PTransforms} that make up a pipeline.
+ * Static display data associated with a pipeline component. Display data is useful for pipeline
+ * runner UIs and diagnostic dashboards to display details about {@link PTransform PTransforms} that
+ * make up a pipeline.
  *
- * <p>Components specify their display data by implementing the {@link HasDisplayData}
- * interface.
+ * <p>Components specify their display data by implementing the {@link HasDisplayData} interface.
  */
 public class DisplayData implements Serializable {
   private static final DisplayData EMPTY = new DisplayData(Maps.newHashMap());
@@ -62,9 +61,7 @@ public class DisplayData implements Serializable {
     this.entries = ImmutableMap.copyOf(entries);
   }
 
-  /**
-   * Default empty {@link DisplayData} instance.
-   */
+  /** Default empty {@link DisplayData} instance. */
   public static DisplayData none() {
     return EMPTY;
   }
@@ -96,8 +93,7 @@ public class DisplayData implements Serializable {
    *     builder.add(DisplayData.item("foo", type.get(), foo));
    *   }
    * }
-   * }
-   * </pre>
+   * }</pre>
    *
    * @return The inferred {@link Type}, or null if the type cannot be inferred,
    */
@@ -147,15 +143,12 @@ public class DisplayData implements Serializable {
     return builder.toString();
   }
 
-  /**
-   * Utility to build up display data from a component and its included
-   * subcomponents.
-   */
+  /** Utility to build up display data from a component and its included subcomponents. */
   public interface Builder {
     /**
      * Register display data from the specified subcomponent at the given path. For example, a
-     * {@link PTransform} which delegates to a user-provided function can implement
-     * {@link HasDisplayData} on the function and include it from the {@link PTransform}:
+     * {@link PTransform} which delegates to a user-provided function can implement {@link
+     * HasDisplayData} on the function and include it from the {@link PTransform}:
      *
      * <pre><code>{@literal @Override}
      * public void populateDisplayData(DisplayData.Builder builder) {
@@ -172,8 +165,8 @@ public class DisplayData implements Serializable {
      * <p>Using {@code include(path, subcomponent)} will associate each of the registered items with
      * the namespace of the {@code subcomponent} being registered, with the specified path element
      * relative to the current path. To register display data in the current path and namespace,
-     * such as from a base class implementation, use
-     * {@code subcomponent.populateDisplayData(builder)} instead.
+     * such as from a base class implementation, use {@code
+     * subcomponent.populateDisplayData(builder)} instead.
      *
      * @see HasDisplayData#populateDisplayData(DisplayData.Builder)
      */
@@ -185,8 +178,8 @@ public class DisplayData implements Serializable {
      * path.
      *
      * <p>This is useful for components which simply wrap other components and wish to retain the
-     * display data from the wrapped component. Such components should implement
-     * {@code populateDisplayData} as:
+     * display data from the wrapped component. Such components should implement {@code
+     * populateDisplayData} as:
      *
      * <pre><code>{@literal @Override}
      * public void populateDisplayData(DisplayData.Builder builder) {
@@ -196,19 +189,13 @@ public class DisplayData implements Serializable {
      */
     Builder delegate(HasDisplayData component);
 
-    /**
-     * Register the given display item.
-     */
+    /** Register the given display item. */
     Builder add(ItemSpec<?> item);
 
-    /**
-     * Register the given display item if the value is not null.
-     */
+    /** Register the given display item if the value is not null. */
     Builder addIfNotNull(ItemSpec<?> item);
 
-    /**
-     * Register the given display item if the value is different than the specified default.
-     */
+    /** Register the given display item if the value is different than the specified default. */
     <T> Builder addIfNotDefault(ItemSpec<T> item, @Nullable T defaultValue);
   }
 
@@ -216,45 +203,43 @@ public class DisplayData implements Serializable {
    * {@link Item Items} are the unit of display data. Each item is identified by a given path, key,
    * and namespace from the component the display item belongs to.
    *
-   * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add}
-   * within {@link HasDisplayData#populateDisplayData} implementations.
+   * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add} within {@link
+   * HasDisplayData#populateDisplayData} implementations.
    */
   @AutoValue
   public abstract static class Item implements Serializable {
 
-    /**
-     * The path for the display item within a component hierarchy.
-     */
+    /** The path for the display item within a component hierarchy. */
     @Nullable
     @JsonIgnore
     public abstract Path getPath();
 
     /**
-     * The namespace for the display item. The namespace defaults to the component which
-     * the display item belongs to.
+     * The namespace for the display item. The namespace defaults to the component which the display
+     * item belongs to.
      */
     @Nullable
     @JsonGetter("namespace")
     public abstract Class<?> getNamespace();
 
     /**
-     * The key for the display item. Each display item is created with a key and value
-     * via {@link DisplayData#item}.
+     * The key for the display item. Each display item is created with a key and value via {@link
+     * DisplayData#item}.
      */
     @JsonGetter("key")
     public abstract String getKey();
 
     /**
-     * Retrieve the {@link DisplayData.Type} of display data. All metadata conforms to a
-     * predefined set of allowed types.
+     * Retrieve the {@link DisplayData.Type} of display data. All metadata conforms to a predefined
+     * set of allowed types.
      */
     @JsonGetter("type")
     public abstract Type getType();
 
     /**
-     * Retrieve the value of the display item. The value is translated from the input to
-     * {@link DisplayData#item} into a format suitable for display. Translation is based on the
-     * item's {@link #getType() type}.
+     * Retrieve the value of the display item. The value is translated from the input to {@link
+     * DisplayData#item} into a format suitable for display. Translation is based on the item's
+     * {@link #getType() type}.
      */
     @JsonGetter("value")
     public abstract Object getValue();
@@ -267,8 +252,8 @@ public class DisplayData implements Serializable {
      * the full class name with package, while the short value contains just the class name.
      *
      * <p>A {@link #getValue() value} will be provided for each display item, and some types may
-     * also provide a short-value. If a short value is provided, display data consumers may
-     * choose to display it instead of or in addition to the {@link #getValue() value}.
+     * also provide a short-value. If a short value is provided, display data consumers may choose
+     * to display it instead of or in addition to the {@link #getValue() value}.
      */
     @JsonGetter("shortValue")
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -287,8 +272,8 @@ public class DisplayData implements Serializable {
     public abstract String getLabel();
 
     /**
-     * Retrieve the optional link URL for an item. The URL points to an address where the reader
-     * can find additional context for the display data.
+     * Retrieve the optional link URL for an item. The URL points to an address where the reader can
+     * find additional context for the display data.
      *
      * <p>If no URL was specified, this will return {@code null}.
      */
@@ -302,8 +287,15 @@ public class DisplayData implements Serializable {
       checkNotNull(path, "path cannot be null");
       Class<?> ns = checkNotNull(spec.getNamespace(), "namespace must be set");
 
-      return new AutoValue_DisplayData_Item(path, ns, spec.getKey(), spec.getType(),
-          spec.getValue(), spec.getShortValue(), spec.getLabel(), spec.getLinkUrl());
+      return new AutoValue_DisplayData_Item(
+          path,
+          ns,
+          spec.getKey(),
+          spec.getType(),
+          spec.getValue(),
+          spec.getShortValue(),
+          spec.getLabel(),
+          spec.getLinkUrl());
     }
 
     @Override
@@ -313,24 +305,24 @@ public class DisplayData implements Serializable {
   }
 
   /**
-   * Specifies an {@link Item} to register as display data. Each item is identified by a given
-   * path, key, and namespace from the component the display item belongs to.
+   * Specifies an {@link Item} to register as display data. Each item is identified by a given path,
+   * key, and namespace from the component the display item belongs to.
    *
-   * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add}
-   * within {@link HasDisplayData#populateDisplayData} implementations.
+   * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add} within {@link
+   * HasDisplayData#populateDisplayData} implementations.
    */
   @AutoValue
   public abstract static class ItemSpec<T> implements Serializable {
     /**
-     * The namespace for the display item. If unset, defaults to the component which
-     * the display item is registered to.
+     * The namespace for the display item. If unset, defaults to the component which the display
+     * item is registered to.
      */
     @Nullable
     public abstract Class<?> getNamespace();
 
     /**
-     * The key for the display item. Each display item is created with a key and value
-     * via {@link DisplayData#item}.
+     * The key for the display item. Each display item is created with a key and value via {@link
+     * DisplayData#item}.
      */
     public abstract String getKey();
 
@@ -341,9 +333,9 @@ public class DisplayData implements Serializable {
     public abstract Type getType();
 
     /**
-     * The value of the display item. The value is translated from the input to
-     * {@link DisplayData#item} into a format suitable for display. Translation is based on the
-     * item's {@link #getType() type}.
+     * The value of the display item. The value is translated from the input to {@link
+     * DisplayData#item} into a format suitable for display. Translation is based on the item's
+     * {@link #getType() type}.
      */
     @Nullable
     public abstract Object getValue();
@@ -356,45 +348,39 @@ public class DisplayData implements Serializable {
      * the full class name with package, while the short value contains just the class name.
      *
      * <p>A {@link #getValue() value} will be provided for each display item, and some types may
-     * also provide a short-value. If a short value is provided, display data consumers may
-     * choose to display it instead of or in addition to the {@link #getValue() value}.
+     * also provide a short-value. If a short value is provided, display data consumers may choose
+     * to display it instead of or in addition to the {@link #getValue() value}.
      */
     @Nullable
     public abstract Object getShortValue();
 
     /**
-     * The optional label for an item. The label is a human-readable description of what
-     * the metadata represents. UIs may choose to display the label instead of the item key.
+     * The optional label for an item. The label is a human-readable description of what the
+     * metadata represents. UIs may choose to display the label instead of the item key.
      */
     @Nullable
     public abstract String getLabel();
 
     /**
-     * The optional link URL for an item. The URL points to an address where the reader
-     * can find additional context for the display data.
+     * The optional link URL for an item. The URL points to an address where the reader can find
+     * additional context for the display data.
      */
     @Nullable
     public abstract String getLinkUrl();
 
     private static <T> ItemSpec<T> create(String key, Type type, @Nullable T value) {
-      return ItemSpec.<T>builder()
-          .setKey(key)
-          .setType(type)
-          .setRawValue(value)
-          .build();
+      return ItemSpec.<T>builder().setKey(key).setType(type).setRawValue(value).build();
     }
 
     /**
      * Set the item {@link ItemSpec#getNamespace() namespace} from the given {@link Class}.
      *
-     * <p>This method does not alter the current instance, but instead returns a new
-     * {@link ItemSpec} with the namespace set.
+     * <p>This method does not alter the current instance, but instead returns a new {@link
+     * ItemSpec} with the namespace set.
      */
     public ItemSpec<T> withNamespace(Class<?> namespace) {
       checkNotNull(namespace, "namespace argument cannot be null");
-      return toBuilder()
-          .setNamespace(namespace)
-          .build();
+      return toBuilder().setNamespace(namespace).build();
     }
 
     /**
@@ -402,13 +388,11 @@ public class DisplayData implements Serializable {
      *
      * <p>Specifying a null value will clear the label if it was previously defined.
      *
-     * <p>This method does not alter the current instance, but instead returns a new
-     * {@link ItemSpec} with the label set.
+     * <p>This method does not alter the current instance, but instead returns a new {@link
+     * ItemSpec} with the label set.
      */
     public ItemSpec<T> withLabel(@Nullable String label) {
-      return toBuilder()
-          .setLabel(label)
-          .build();
+      return toBuilder().setLabel(label).build();
     }
 
     /**
@@ -416,25 +400,21 @@ public class DisplayData implements Serializable {
      *
      * <p>Specifying a null value will clear the link url if it was previously defined.
      *
-     * <p>This method does not alter the current instance, but instead returns a new
-     * {@link ItemSpec} with the link url set.
+     * <p>This method does not alter the current instance, but instead returns a new {@link
+     * ItemSpec} with the link url set.
      */
     public ItemSpec<T> withLinkUrl(@Nullable String url) {
-      return toBuilder()
-          .setLinkUrl(url)
-          .build();
+      return toBuilder().setLinkUrl(url).build();
     }
 
     /**
      * Creates a similar item to the current instance but with the specified value.
      *
-     * <p>This should only be used internally. It is useful to compare the value of a
-     * {@link DisplayData.Item} to the value derived from a specified input.
+     * <p>This should only be used internally. It is useful to compare the value of a {@link
+     * DisplayData.Item} to the value derived from a specified input.
      */
     private ItemSpec<T> withValue(T value) {
-      return toBuilder()
-          .setRawValue(value)
-          .build();
+      return toBuilder().setRawValue(value).build();
     }
 
     @Override
@@ -451,22 +431,26 @@ public class DisplayData implements Serializable {
     @AutoValue.Builder
     abstract static class Builder<T> {
       public abstract ItemSpec.Builder<T> setKey(String key);
-      public abstract ItemSpec.Builder<T> setNamespace(@Nullable Class<?> namespace);
-      public abstract ItemSpec.Builder<T> setType(Type type);
-      public abstract ItemSpec.Builder<T> setValue(@Nullable Object longValue);
-      public abstract ItemSpec.Builder<T> setShortValue(@Nullable Object shortValue);
-      public abstract ItemSpec.Builder<T> setLabel(@Nullable String label);
-      public abstract ItemSpec.Builder<T> setLinkUrl(@Nullable String url);
-      public abstract ItemSpec<T> build();
 
+      public abstract ItemSpec.Builder<T> setNamespace(@Nullable Class<?> namespace);
+
+      public abstract ItemSpec.Builder<T> setType(Type type);
+
+      public abstract ItemSpec.Builder<T> setValue(@Nullable Object longValue);
+
+      public abstract ItemSpec.Builder<T> setShortValue(@Nullable Object shortValue);
+
+      public abstract ItemSpec.Builder<T> setLabel(@Nullable String label);
+
+      public abstract ItemSpec.Builder<T> setLinkUrl(@Nullable String url);
+
+      public abstract ItemSpec<T> build();
 
       abstract Type getType();
 
       ItemSpec.Builder<T> setRawValue(@Nullable T value) {
         FormattedItemValue formatted = getType().safeFormat(value);
-        return this
-            .setValue(formatted.getLongValue())
-            .setShortValue(formatted.getShortValue());
+        return this.setValue(formatted.getLongValue()).setShortValue(formatted.getShortValue());
       }
     }
   }
@@ -477,21 +461,23 @@ public class DisplayData implements Serializable {
    * <p>Identifiers are composed of:
    *
    * <ul>
-   *   <li>A {@link #getPath() path} based on the component hierarchy</li>
-   *   <li>The {@link #getKey() key} it is registered with</li>
+   *   <li>A {@link #getPath() path} based on the component hierarchy
+   *   <li>The {@link #getKey() key} it is registered with
    *   <li>A {@link #getNamespace() namespace} generated from the class of the component which
-   *   registered the item.</li>
+   *       registered the item.
    * </ul>
    *
    * <p>Display data registered with the same key from different components will have different
-   * namespaces and thus will both be represented in the composed {@link DisplayData}. If a
-   * single component registers multiple metadata items with the same key, only the most recent
-   * item will be retained; previous versions are discarded.
+   * namespaces and thus will both be represented in the composed {@link DisplayData}. If a single
+   * component registers multiple metadata items with the same key, only the most recent item will
+   * be retained; previous versions are discarded.
    */
   @AutoValue
   public abstract static class Identifier implements Serializable {
     public abstract Path getPath();
+
     public abstract Class<?> getNamespace();
+
     public abstract String getKey();
 
     public static Identifier of(Path path, Class<?> namespace, String key) {
@@ -514,13 +500,12 @@ public class DisplayData implements Serializable {
    */
   public static class Path implements Serializable {
     private final ImmutableList<String> components;
+
     private Path(ImmutableList<String> components) {
       this.components = components;
     }
 
-    /**
-     * Path for display data registered by a top-level component.
-     */
+    /** Path for display data registered by a top-level component. */
     public static Path root() {
       return new Path(ImmutableList.of());
     }
@@ -562,10 +547,8 @@ public class DisplayData implements Serializable {
      */
     public Path extend(String path) {
       validatePathElement(path);
-      return new Path(ImmutableList.<String>builder()
-          .addAll(components.iterator())
-          .add(path)
-          .build());
+      return new Path(
+          ImmutableList.<String>builder().addAll(components.iterator()).add(path).build());
     }
 
     private static void validatePathElement(String path) {
@@ -583,9 +566,7 @@ public class DisplayData implements Serializable {
 
     @Override
     public boolean equals(Object obj) {
-      return obj instanceof Path
-          && Objects.equals(components, ((Path) obj).components);
-
+      return obj instanceof Path && Objects.equals(components, ((Path) obj).components);
     }
 
     @Override
@@ -594,9 +575,7 @@ public class DisplayData implements Serializable {
     }
   }
 
-  /**
-   * Display data type.
-   */
+  /** Display data type. */
   public enum Type {
     STRING {
       @Override
@@ -631,7 +610,7 @@ public class DisplayData implements Serializable {
       @Override
       FormattedItemValue format(Object value) {
         Instant instant = checkType(value, Instant.class, TIMESTAMP);
-        return new FormattedItemValue((TIMESTAMP_FORMATTER.print(instant)));
+        return new FormattedItemValue(TIMESTAMP_FORMATTER.print(instant));
       }
     },
     DURATION {
@@ -651,8 +630,8 @@ public class DisplayData implements Serializable {
 
     private static <T> T checkType(Object value, Class<T> clazz, DisplayData.Type expectedType) {
       if (!clazz.isAssignableFrom(value.getClass())) {
-        throw new ClassCastException(String.format(
-            "Value is not valid for DisplayData type %s: %s", expectedType, value));
+        throw new ClassCastException(
+            String.format("Value is not valid for DisplayData type %s: %s", expectedType, value));
       }
 
       @SuppressWarnings("unchecked") // type checked above.
@@ -661,8 +640,8 @@ public class DisplayData implements Serializable {
     }
 
     /**
-     * Format the display data value into a long string representation, and optionally
-     * a shorter representation for display.
+     * Format the display data value into a long string representation, and optionally a shorter
+     * representation for display.
      *
      * <p>Internal-only. Value objects can be safely cast to the expected Java type.
      */
@@ -687,17 +666,17 @@ public class DisplayData implements Serializable {
       if (value instanceof Integer || value instanceof Long) {
         return INTEGER;
       } else if (value instanceof Double || value instanceof Float) {
-        return  FLOAT;
+        return FLOAT;
       } else if (value instanceof Boolean) {
-        return  BOOLEAN;
+        return BOOLEAN;
       } else if (value instanceof Instant) {
-        return  TIMESTAMP;
+        return TIMESTAMP;
       } else if (value instanceof Duration) {
-        return  DURATION;
+        return DURATION;
       } else if (value instanceof Class<?>) {
-        return  JAVA_CLASS;
+        return JAVA_CLASS;
       } else if (value instanceof String) {
-        return  STRING;
+        return STRING;
       } else {
         return null;
       }
@@ -705,9 +684,7 @@ public class DisplayData implements Serializable {
   }
 
   static class FormattedItemValue {
-    /**
-     * Default instance which contains null values.
-     */
+    /** Default instance which contains null values. */
     private static final FormattedItemValue NULL_VALUES = new FormattedItemValue(null);
 
     @Nullable private final Object shortValue;
@@ -725,6 +702,7 @@ public class DisplayData implements Serializable {
     Object getLongValue() {
       return this.longValue;
     }
+
     Object getShortValue() {
       return this.shortValue;
     }
@@ -753,9 +731,11 @@ public class DisplayData implements Serializable {
 
       HasDisplayData existingComponent = visitedPathMap.get(absolutePath);
       if (existingComponent != null) {
-        throw new IllegalArgumentException(String.format("Specified path '%s' already used for "
-                + "subcomponent %s. Subcomponents must be included using unique paths.",
-            path, existingComponent));
+        throw new IllegalArgumentException(
+            String.format(
+                "Specified path '%s' already used for "
+                    + "subcomponent %s. Subcomponents must be included using unique paths.",
+                path, existingComponent));
       }
 
       return include(absolutePath, subComponent);
@@ -805,9 +785,10 @@ public class DisplayData implements Serializable {
         // Don't re-wrap exceptions recursively.
         throw e;
       } catch (Throwable e) {
-        String msg = String.format(
-            "Error while populating display data for component '%s': %s",
-            namespace.getName(), e.getMessage());
+        String msg =
+            String.format(
+                "Error while populating display data for component '%s': %s",
+                namespace.getName(), e.getMessage());
         throw new PopulateDisplayDataException(msg, e);
       }
 
@@ -817,9 +798,7 @@ public class DisplayData implements Serializable {
       return this;
     }
 
-    /**
-     * Marker exception class for exceptions encountered while populating display data.
-     */
+    /** Marker exception class for exceptions encountered while populating display data. */
     private static class PopulateDisplayDataException extends RuntimeException {
       PopulateDisplayDataException(String message, Throwable cause) {
         super(message, cause);
@@ -859,9 +838,12 @@ public class DisplayData implements Serializable {
       Item item = Item.create(spec, latestPath);
 
       Identifier id = Identifier.of(item.getPath(), item.getNamespace(), item.getKey());
-      checkArgument(!entries.containsKey(id),
+      checkArgument(
+          !entries.containsKey(id),
           "Display data key (%s) is not unique within the specified path and namespace: %s%s.",
-          item.getKey(), item.getPath(), item.getNamespace());
+          item.getKey(),
+          item.getPath(),
+          item.getNamespace());
 
       entries.put(id, item);
       return this;
@@ -872,16 +854,12 @@ public class DisplayData implements Serializable {
     }
   }
 
-  /**
-   * Create a display item for the specified key and string value.
-   */
+  /** Create a display item for the specified key and string value. */
   public static ItemSpec<String> item(String key, @Nullable String value) {
     return item(key, Type.STRING, value);
   }
 
-  /**
-   * Create a display item for the specified key and {@link ValueProvider}.
-   */
+  /** Create a display item for the specified key and {@link ValueProvider}. */
   public static ItemSpec<?> item(String key, @Nullable ValueProvider<?> value) {
     if (value == null) {
       return item(key, Type.STRING, null);
@@ -900,71 +878,54 @@ public class DisplayData implements Serializable {
     return item(key, Type.STRING, String.valueOf(value));
   }
 
-  /**
-   * Create a display item for the specified key and integer value.
-   */
+  /** Create a display item for the specified key and integer value. */
   public static ItemSpec<Integer> item(String key, @Nullable Integer value) {
     return item(key, Type.INTEGER, value);
   }
 
-  /**
-   * Create a display item for the specified key and integer value.
-   */
+  /** Create a display item for the specified key and integer value. */
   public static ItemSpec<Long> item(String key, @Nullable Long value) {
     return item(key, Type.INTEGER, value);
   }
 
-  /**
-   * Create a display item for the specified key and floating point value.
-   */
+  /** Create a display item for the specified key and floating point value. */
   public static ItemSpec<Float> item(String key, @Nullable Float value) {
     return item(key, Type.FLOAT, value);
   }
 
-  /**
-   * Create a display item for the specified key and floating point value.
-   */
+  /** Create a display item for the specified key and floating point value. */
   public static ItemSpec<Double> item(String key, @Nullable Double value) {
     return item(key, Type.FLOAT, value);
   }
 
-  /**
-   * Create a display item for the specified key and boolean value.
-   */
+  /** Create a display item for the specified key and boolean value. */
   public static ItemSpec<Boolean> item(String key, @Nullable Boolean value) {
     return item(key, Type.BOOLEAN, value);
   }
 
-  /**
-   * Create a display item for the specified key and timestamp value.
-   */
+  /** Create a display item for the specified key and timestamp value. */
   public static ItemSpec<Instant> item(String key, @Nullable Instant value) {
     return item(key, Type.TIMESTAMP, value);
   }
 
-  /**
-   * Create a display item for the specified key and duration value.
-   */
+  /** Create a display item for the specified key and duration value. */
   public static ItemSpec<Duration> item(String key, @Nullable Duration value) {
     return item(key, Type.DURATION, value);
   }
 
-  /**
-   * Create a display item for the specified key and class value.
-   */
+  /** Create a display item for the specified key and class value. */
   public static <T> ItemSpec<Class<T>> item(String key, @Nullable Class<T> value) {
     return item(key, Type.JAVA_CLASS, value);
   }
 
   /**
-   * Create a display item for the specified key, type, and value. This method should be used
-   * if the type of the input value can only be determined at runtime. Otherwise,
-   * {@link HasDisplayData} implementors should call one of the typed factory methods, such as
-   * {@link #item(String, String)} or {@link #item(String, Integer)}.
+   * Create a display item for the specified key, type, and value. This method should be used if the
+   * type of the input value can only be determined at runtime. Otherwise, {@link HasDisplayData}
+   * implementors should call one of the typed factory methods, such as {@link #item(String,
+   * String)} or {@link #item(String, Integer)}.
    *
    * @throws ClassCastException if the value cannot be formatted as the given type.
-   *
-   *  @see Type#inferType(Object)
+   * @see Type#inferType(Object)
    */
   public static <T> ItemSpec<T> item(String key, Type type, @Nullable T value) {
     checkNotNull(key, "key argument cannot be null");

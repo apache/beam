@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -26,9 +25,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
-/**
- * Defines a coder for {@link TableRowInfo} objects.
- */
+/** Defines a coder for {@link TableRowInfo} objects. */
 @VisibleForTesting
 class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
   private static final TableRowInfoCoder INSTANCE = new TableRowInfoCoder();
@@ -38,8 +35,7 @@ class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
   }
 
   @Override
-  public void encode(TableRowInfo value, OutputStream outStream)
-      throws IOException {
+  public void encode(TableRowInfo value, OutputStream outStream) throws IOException {
     encode(value, outStream, Context.NESTED);
   }
 
@@ -59,11 +55,8 @@ class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
   }
 
   @Override
-  public TableRowInfo decode(InputStream inStream, Context context)
-      throws IOException {
-    return new TableRowInfo(
-        tableRowCoder.decode(inStream),
-        idCoder.decode(inStream, context));
+  public TableRowInfo decode(InputStream inStream, Context context) throws IOException {
+    return new TableRowInfo(tableRowCoder.decode(inStream), idCoder.decode(inStream, context));
   }
 
   @Override

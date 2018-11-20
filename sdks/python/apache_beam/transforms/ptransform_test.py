@@ -18,12 +18,17 @@
 """Unit tests for the PTransform and descendants."""
 
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import collections
 import operator
 import re
+import sys
 import unittest
+from builtins import map
+from builtins import range
+from builtins import zip
 from functools import reduce
 
 import hamcrest as hc
@@ -57,6 +62,12 @@ from apache_beam.utils.windowed_value import WindowedValue
 class PTransformTest(unittest.TestCase):
   # Enable nose tests running in parallel
   _multiprocess_can_split_ = True
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def assertStartswith(self, msg, prefix):
     self.assertTrue(msg.startswith(prefix),
@@ -180,7 +191,9 @@ class PTransformTest(unittest.TestCase):
     assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  # TODO(BEAM-3544): Disable this test in streaming temporarily.
+  # Remove sickbay-streaming tag after it's resolved.
+  @attr('ValidatesRunner', 'sickbay-streaming')
   def test_read_metrics(self):
     from apache_beam.io.utils import CountingSource
 
@@ -380,7 +393,7 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create(vals)
     result = pcoll | 'Mean' >> beam.CombineGlobally(self._MeanCombineFn())
-    assert_that(result, equal_to([sum(vals) / len(vals)]))
+    assert_that(result, equal_to([sum(vals) // len(vals)]))
     pipeline.run()
 
   def test_combine_with_callable(self):
@@ -411,8 +424,8 @@ class PTransformTest(unittest.TestCase):
     pcoll = pipeline | 'Start' >> beam.Create(([('a', x) for x in vals_1] +
                                                [('b', x) for x in vals_2]))
     result = pcoll | 'Mean' >> beam.CombinePerKey(self._MeanCombineFn())
-    assert_that(result, equal_to([('a', sum(vals_1) / len(vals_1)),
-                                  ('b', sum(vals_2) / len(vals_2))]))
+    assert_that(result, equal_to([('a', sum(vals_1) // len(vals_1)),
+                                  ('b', sum(vals_2) // len(vals_2))]))
     pipeline.run()
 
   def test_combine_per_key_with_callable(self):
@@ -653,15 +666,15 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_apply_to_list(self):
-    self.assertItemsEqual(
+    self.assertCountEqual(
         [1, 2, 3], [0, 1, 2] | 'AddOne' >> beam.Map(lambda x: x + 1))
     self.assertItemsEqual([1],
                           [0, 1, 2] | 'Odd' >> beam.Filter(lambda x: x % 2))
-    self.assertItemsEqual([1, 2, 100, 3],
+    self.assertCountEqual([1, 2, 100, 3],
                           ([1, 2, 3], [100]) | beam.Flatten())
     join_input = ([('k', 'a')],
                   [('k', 'b'), ('k', 'c')])
-    self.assertItemsEqual([('k', (['a'], ['b', 'c']))],
+    self.assertCountEqual([('k', (['a'], ['b', 'c']))],
                           join_input | beam.CoGroupByKey())
 
   def test_multi_input_ptransform(self):

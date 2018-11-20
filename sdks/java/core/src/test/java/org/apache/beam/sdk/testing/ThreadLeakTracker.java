@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,8 +29,8 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 /**
- * Tracks the threads created during a test method execution (or class using @ClassRule)
- * and fails if some still exists after the test method execution.
+ * Tracks the threads created during a test method execution (or class using @ClassRule) and fails
+ * if some still exists after the test method execution.
  */
 public class ThreadLeakTracker implements TestRule {
   private final Field groupField;
@@ -60,12 +60,12 @@ public class ThreadLeakTracker implements TestRule {
         } finally {
           groupField.set(thread, threadGroup);
           final Thread[] threads = listThreads();
-          final List<Thread> leaked = Stream.of(threads)
-            .filter(t -> t.getThreadGroup() == testGroup)
-            .collect(toList());
+          final List<Thread> leaked =
+              Stream.of(threads).filter(t -> t.getThreadGroup() == testGroup).collect(toList());
           if (!leaked.isEmpty()) {
-            fail("Some threads leaked: " + leaked.stream().map(Thread::getName)
-              .collect(joining("\n- ", "\n- ", "")));
+            fail(
+                "Some threads leaked: "
+                    + leaked.stream().map(Thread::getName).collect(joining("\n- ", "\n- ", "")));
           }
         }
       }

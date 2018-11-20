@@ -23,7 +23,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-
 /**
  * Signifies that a public API (public class, method or field) is subject to incompatible changes,
  * or even removal, in a future release.
@@ -43,9 +42,7 @@ import java.lang.annotation.Target;
 public @interface Experimental {
   Kind value() default Kind.UNSPECIFIED;
 
-  /**
-   * An enumeration of various kinds of experimental APIs.
-   */
+  /** An enumeration of various kinds of experimental APIs. */
   enum Kind {
     /** Generic group of experimental APIs. This is the default value. */
     UNSPECIFIED,
@@ -101,5 +98,8 @@ public @interface Experimental {
      * closures</a>.
      */
     CONTEXTFUL,
+
+    /** PCollection Schema support in Beam. */
+    SCHEMAS,
   }
 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.util;
 
 import com.google.auto.service.AutoService;
@@ -53,8 +52,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoderV2;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 
 /**
- * The {@link CoderCloudObjectTranslatorRegistrar} containing the default collection of
- * {@link Coder} {@link CloudObjectTranslator Cloud Object Translators}.
+ * The {@link CoderCloudObjectTranslatorRegistrar} containing the default collection of {@link
+ * Coder} {@link CloudObjectTranslator Cloud Object Translators}.
  */
 @AutoService(CoderCloudObjectTranslatorRegistrar.class)
 public class DefaultCoderCloudObjectTranslatorRegistrar
@@ -132,7 +131,6 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
     for (Class<? extends Coder> atomicCoder : KNOWN_ATOMIC_CODERS) {
       builder.put(atomicCoder, CloudObjectTranslators.atomic(atomicCoder));
     }
-    return builder
-        .build();
+    return builder.build();
   }
 }

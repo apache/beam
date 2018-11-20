@@ -31,8 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is the process kernel which deals with exec of the subprocess.
- * It also deals with all I/O.
+ * This is the process kernel which deals with exec of the subprocess. It also deals with all I/O.
  */
 public class SubProcessKernel {
 
@@ -46,8 +45,9 @@ public class SubProcessKernel {
   private SubProcessKernel() {}
 
   /**
-   * Creates the SubProcess Kernel ready for execution.
-   * Will deal with all input and outputs to the SubProcess
+   * Creates the SubProcess Kernel ready for execution. Will deal with all input and outputs to the
+   * SubProcess
+   *
    * @param options
    * @param binaryName
    */
@@ -69,7 +69,7 @@ public class SubProcessKernel {
           results = collectProcessResults(process, processBuilder, outputFiles);
         } catch (Exception ex) {
           LOG.error("Error running executable ", ex);
-          throw (ex);
+          throw ex;
         }
       } catch (IOException ex) {
         LOG.error(
@@ -84,7 +84,6 @@ public class SubProcessKernel {
     try (CallingSubProcessUtils.Permit permit =
         new CallingSubProcessUtils.Permit(processBuilder.command().get(0))) {
 
-
       try (SubProcessIOFiles outputFiles = new SubProcessIOFiles(configuration.getWorkerPath())) {
 
         try {
@@ -92,7 +91,7 @@ public class SubProcessKernel {
           return collectProcessResultsBytes(process, processBuilder, outputFiles);
         } catch (Exception ex) {
           LOG.error("Error running executable ", ex);
-          throw (ex);
+          throw ex;
         }
       } catch (IOException ex) {
         LOG.error(
@@ -103,8 +102,9 @@ public class SubProcessKernel {
     }
   }
 
-  private ProcessBuilder prepareBuilder(ProcessBuilder builder, SubProcessCommandLineArgs commands,
-      SubProcessIOFiles outPutFiles) throws IllegalStateException {
+  private ProcessBuilder prepareBuilder(
+      ProcessBuilder builder, SubProcessCommandLineArgs commands, SubProcessIOFiles outPutFiles)
+      throws IllegalStateException {
 
     // Check we are not over the max size of command line parameters
     if (getTotalCommandBytes(commands) > MAX_SIZE_COMMAND_LINE_ARGS) {
@@ -117,10 +117,8 @@ public class SubProcessKernel {
     builder.command().add(1, outPutFiles.resultFile.toString());
 
     // Shift commands by 2 ordinal positions and load into the builder
-    if (commands != null) {
-      for (SubProcessCommandLineArgs.Command s : commands.getParameters()) {
-        builder.command().add(s.ordinalPosition + 2, s.value);
-      }
+    for (SubProcessCommandLineArgs.Command s : commands.getParameters()) {
+      builder.command().add(s.ordinalPosition + 2, s.value);
     }
 
     builder.redirectError(Redirect.appendTo(outPutFiles.errFile.toFile()));
@@ -131,6 +129,7 @@ public class SubProcessKernel {
 
   /**
    * Add up the total bytes used by the process.
+   *
    * @param commands
    * @return
    */
@@ -142,8 +141,9 @@ public class SubProcessKernel {
     return size;
   }
 
-  private Process execBinary(ProcessBuilder builder, SubProcessCommandLineArgs commands,
-      SubProcessIOFiles outPutFiles) throws Exception {
+  private Process execBinary(
+      ProcessBuilder builder, SubProcessCommandLineArgs commands, SubProcessIOFiles outPutFiles)
+      throws Exception {
     try {
 
       builder = prepareBuilder(builder, commands, outPutFiles);
@@ -152,33 +152,36 @@ public class SubProcessKernel {
       boolean timeout = !process.waitFor(configuration.getWaitTime(), TimeUnit.SECONDS);
 
       if (timeout) {
-        String log = String.format(
-            "Timeout waiting to run process with parameters %s . "
-                + "Check to see if your timeout is long enough. Currently set at %s.",
-            createLogEntryFromInputs(builder.command()), configuration.getWaitTime());
+        String log =
+            String.format(
+                "Timeout waiting to run process with parameters %s . "
+                    + "Check to see if your timeout is long enough. Currently set at %s.",
+                createLogEntryFromInputs(builder.command()), configuration.getWaitTime());
         throw new Exception(log);
       }
       return process;
 
     } catch (Exception ex) {
 
-      LOG.error(String.format("Error running process with parameters %s error was %s ",
-          createLogEntryFromInputs(builder.command()), ex.getMessage()));
+      LOG.error(
+          String.format(
+              "Error running process with parameters %s error was %s ",
+              createLogEntryFromInputs(builder.command()), ex.getMessage()));
       throw new Exception(ex);
-
     }
   }
 
   /**
    * TODO clean up duplicate with byte[] version collectBinaryProcessResults.
+   *
    * @param process
    * @param builder
    * @param outPutFiles
    * @return List of results
    * @throws Exception if process has non 0 value or no logs found then throw exception
    */
-  private List<String> collectProcessResults(Process process, ProcessBuilder builder,
-      SubProcessIOFiles outPutFiles) throws Exception {
+  private List<String> collectProcessResults(
+      Process process, ProcessBuilder builder, SubProcessIOFiles outPutFiles) throws Exception {
 
     List<String> results = new ArrayList<>();
 
@@ -209,22 +212,25 @@ public class SubProcessKernel {
       }
       return results;
     } catch (Exception ex) {
-      String log = String.format("Unexpected error runnng process. %s error message was %s",
-          createLogEntryFromInputs(builder.command()), ex.getMessage());
+      String log =
+          String.format(
+              "Unexpected error runnng process. %s error message was %s",
+              createLogEntryFromInputs(builder.command()), ex.getMessage());
       throw new Exception(log);
     }
   }
 
   /**
    * Used when the reault file contains binary data.
+   *
    * @param process
    * @param builder
    * @param outPutFiles
    * @return Binary results
    * @throws Exception if process has non 0 value or no logs found then throw exception
    */
-  private byte[] collectProcessResultsBytes(Process process, ProcessBuilder builder,
-      SubProcessIOFiles outPutFiles) throws Exception {
+  private byte[] collectProcessResultsBytes(
+      Process process, ProcessBuilder builder, SubProcessIOFiles outPutFiles) throws Exception {
 
     Byte[] results;
 
@@ -251,40 +257,43 @@ public class SubProcessKernel {
       return Files.readAllBytes(outPutFiles.resultFile);
 
     } catch (Exception ex) {
-      String log = String.format("Unexpected error runnng process. %s error message was %s",
-          createLogEntryFromInputs(builder.command()), ex.getMessage());
+      String log =
+          String.format(
+              "Unexpected error runnng process. %s error message was %s",
+              createLogEntryFromInputs(builder.command()), ex.getMessage());
       throw new Exception(log);
     }
   }
 
-  private static String createLogEntryForProcessFailure(Process process, List<String> commands,
-      SubProcessIOFiles files) {
+  private static String createLogEntryForProcessFailure(
+      Process process, List<String> commands, SubProcessIOFiles files) {
 
     StringBuilder stringBuilder = new StringBuilder();
 
     // Highlight when no result file is found vs standard process error
     if (process.exitValue() == 0) {
-      stringBuilder.append(
-          String.format("%nProcess succeded but no result file was found %n"));
+      stringBuilder.append(String.format("%nProcess succeded but no result file was found %n"));
     } else {
       stringBuilder.append(
           String.format("%nProcess error failed with exit value of %s %n", process.exitValue()));
     }
 
-    stringBuilder
-        .append(String.format("Command info was %s %n", createLogEntryFromInputs(commands)));
+    stringBuilder.append(
+        String.format("Command info was %s %n", createLogEntryFromInputs(commands)));
 
-    stringBuilder.append(String.format("First line of error file is  %s %n",
-        FileUtils.readLineOfLogFile(files.errFile)));
+    stringBuilder.append(
+        String.format(
+            "First line of error file is  %s %n", FileUtils.readLineOfLogFile(files.errFile)));
 
-    stringBuilder.append(String.format("First line of out file is %s %n",
-        FileUtils.readLineOfLogFile(files.outFile)));
+    stringBuilder.append(
+        String.format(
+            "First line of out file is %s %n", FileUtils.readLineOfLogFile(files.outFile)));
 
-    stringBuilder.append(String.format("First line of ret file is %s %n",
-        FileUtils.readLineOfLogFile(files.resultFile)));
+    stringBuilder.append(
+        String.format(
+            "First line of ret file is %s %n", FileUtils.readLineOfLogFile(files.resultFile)));
 
     return stringBuilder.toString();
-
   }
 
   private static String createLogEntryFromInputs(List<String> commands) {
@@ -304,8 +313,9 @@ public class SubProcessKernel {
       throw new IllegalArgumentException(
           "No executable provided to the Process Builder... we will do... nothing... ");
     }
-    builder.command().set(0,
-        FileUtils.getFileResourceId(configuration.getWorkerPath(), executable).toString());
+    builder
+        .command()
+        .set(0, FileUtils.getFileResourceId(configuration.getWorkerPath(), executable).toString());
     return builder;
   }
 }

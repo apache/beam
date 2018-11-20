@@ -15,7 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Defines IO connectors for Amazon Web Services S3.
- */
+/** Defines IO connectors for Amazon Web Services S3. */
 package org.apache.beam.sdk.io.aws.s3;

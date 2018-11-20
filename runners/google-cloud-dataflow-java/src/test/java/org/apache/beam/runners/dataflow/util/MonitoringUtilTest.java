@@ -43,9 +43,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for MonitoringUtil.
- */
+/** Tests for MonitoringUtil. */
 @RunWith(JUnit4.class)
 public class MonitoringUtilTest {
   private static final String PROJECT_ID = "someProject";
@@ -61,7 +59,7 @@ public class MonitoringUtilTest {
 
     ListJobMessagesResponse firstResponse = new ListJobMessagesResponse();
     firstResponse.setJobMessages(new ArrayList<>());
-    for (int i = 0; i < 100; ++i) {
+    for (long i = 0; i < 100; ++i) {
       JobMessage message = new JobMessage();
       message.setId("message_" + i);
       message.setTime(TimeUtil.toCloudTime(new Instant(i)));
@@ -72,7 +70,7 @@ public class MonitoringUtilTest {
 
     ListJobMessagesResponse secondResponse = new ListJobMessagesResponse();
     secondResponse.setJobMessages(new ArrayList<>());
-    for (int i = 100; i < 150; ++i) {
+    for (long i = 100; i < 150; ++i) {
       JobMessage message = new JobMessage();
       message.setId("message_" + i);
       message.setTime(TimeUtil.toCloudTime(new Instant(i)));
@@ -123,7 +121,8 @@ public class MonitoringUtilTest {
     options.setRegion(REGION_ID);
     options.setGcpCredential(new TestCredential());
     String cancelCommand = MonitoringUtil.getGcloudCancelCommand(options, JOB_ID);
-    assertEquals("gcloud dataflow jobs --project=someProject cancel --region=thatRegion 1234",
+    assertEquals(
+        "gcloud dataflow jobs --project=someProject cancel --region=thatRegion 1234",
         cancelCommand);
   }
 
@@ -139,7 +138,7 @@ public class MonitoringUtilTest {
     String cancelCommand = MonitoringUtil.getGcloudCancelCommand(options, JOB_ID);
     assertEquals(
         "CLOUDSDK_API_ENDPOINT_OVERRIDES_DATAFLOW=https://dataflow.googleapis.com/v0neverExisted/ "
-        + "gcloud dataflow jobs --project=someProject cancel --region=thatRegion 1234",
+            + "gcloud dataflow jobs --project=someProject cancel --region=thatRegion 1234",
         cancelCommand);
   }
 
@@ -179,8 +178,15 @@ public class MonitoringUtilTest {
     emptyJobMessage.setMessageImportance("JOB_MESSAGE_EMPTY");
     emptyJobMessage.setTime(TimeUtil.toCloudTime(unknownTime));
 
-    new LoggingHandler().process(Arrays.asList(errorJobMessage, warningJobMessage, basicJobMessage,
-        detailedJobMessage, debugJobMessage, unknownJobMessage));
+    new LoggingHandler()
+        .process(
+            Arrays.asList(
+                errorJobMessage,
+                warningJobMessage,
+                basicJobMessage,
+                detailedJobMessage,
+                debugJobMessage,
+                unknownJobMessage));
 
     expectedLogs.verifyError("ERRORERROR");
     expectedLogs.verifyError(errorTime.toString());

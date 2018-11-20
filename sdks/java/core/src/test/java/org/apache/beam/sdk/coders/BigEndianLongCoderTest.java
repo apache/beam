@@ -31,20 +31,26 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link BigEndianLongCoder}.
- */
+/** Test case for {@link BigEndianLongCoder}. */
 @RunWith(JUnit4.class)
 public class BigEndianLongCoderTest {
 
   private static final Coder<Long> TEST_CODER = BigEndianLongCoder.of();
 
-  private static final List<Long> TEST_VALUES = Arrays.asList(
-      -11L, -3L, -1L, 0L, 1L, 5L, 13L, 29L,
-      Integer.MAX_VALUE + 131L,
-      Integer.MIN_VALUE - 29L,
-      Long.MAX_VALUE,
-      Long.MIN_VALUE);
+  private static final List<Long> TEST_VALUES =
+      Arrays.asList(
+          -11L,
+          -3L,
+          -1L,
+          0L,
+          1L,
+          5L,
+          13L,
+          29L,
+          Integer.MAX_VALUE + 131L,
+          Integer.MIN_VALUE - 29L,
+          Long.MAX_VALUE,
+          Long.MIN_VALUE);
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
@@ -54,30 +60,30 @@ public class BigEndianLongCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "__________U",
-      "__________0",
-      "__________8",
-      "AAAAAAAAAAA",
-      "AAAAAAAAAAE",
-      "AAAAAAAAAAU",
-      "AAAAAAAAAA0",
-      "AAAAAAAAAB0",
-      "AAAAAIAAAII",
-      "_____3___-M",
-      "f_________8",
-      "gAAAAAAAAAA");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList(
+          "__________U",
+          "__________0",
+          "__________8",
+          "AAAAAAAAAAA",
+          "AAAAAAAAAAE",
+          "AAAAAAAAAAU",
+          "AAAAAAAAAA0",
+          "AAAAAAAAAB0",
+          "AAAAAIAAAII",
+          "_____3___-M",
+          "f_________8",
+          "gAAAAAAAAAA");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -24,7 +23,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
 public class CoderTranslation {
@@ -76,8 +75,8 @@ public class CoderTranslation {
         .build();
   }
 
-  public static RunnerApi.Coder toProto(
-      Coder<?> coder, SdkComponents components) throws IOException {
+  public static RunnerApi.Coder toProto(Coder<?> coder, SdkComponents components)
+      throws IOException {
     if (KNOWN_CODER_URNS.containsKey(coder.getClass())) {
       return toKnownCoder(coder, components);
     }

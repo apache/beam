@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -51,6 +50,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(VarLongCoder.class, ModelCoders.INT64_CODER_URN)
           .put(IntervalWindowCoder.class, ModelCoders.INTERVAL_WINDOW_CODER_URN)
           .put(IterableCoder.class, ModelCoders.ITERABLE_CODER_URN)
+          .put(Timer.Coder.class, ModelCoders.TIMER_CODER_URN)
           .put(LengthPrefixCoder.class, ModelCoders.LENGTH_PREFIX_CODER_URN)
           .put(GlobalWindow.Coder.class, ModelCoders.GLOBAL_WINDOW_CODER_URN)
           .put(FullWindowedValueCoder.class, ModelCoders.WINDOWED_VALUE_CODER_URN)
@@ -67,6 +67,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(GlobalWindow.Coder.class, CoderTranslators.atomic(GlobalWindow.Coder.class))
           .put(KvCoder.class, CoderTranslators.kv())
           .put(IterableCoder.class, CoderTranslators.iterable())
+          .put(Timer.Coder.class, CoderTranslators.timer())
           .put(LengthPrefixCoder.class, CoderTranslators.lengthPrefix())
           .put(FullWindowedValueCoder.class, CoderTranslators.fullWindowedValue())
           .build();
@@ -83,6 +84,10 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
         "All Model %ss should have an associated java %s",
         Coder.class.getSimpleName(),
         Coder.class.getSimpleName());
+  }
+
+  public static boolean isKnownCoder(Coder<?> coder) {
+    return BEAM_MODEL_CODER_URNS.containsKey(coder.getClass());
   }
 
   @Override

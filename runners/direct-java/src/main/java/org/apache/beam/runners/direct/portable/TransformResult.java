@@ -32,15 +32,15 @@ import org.joda.time.Instant;
 /**
  * The result of evaluating an {@link PTransformNode} with a {@link TransformEvaluator}.
  *
- * <p>Every transform evaluator has a defined input type, but {@link ParDo} has multiple outputs
- * so there is not necesssarily a defined output type.
+ * <p>Every transform evaluator has a defined input type, but {@link ParDo} has multiple outputs so
+ * there is not necesssarily a defined output type.
  */
 interface TransformResult<InputT> {
   /**
    * Returns the {@link PTransformNode} that produced this result.
    *
-   * <p>This is treated as an opaque identifier so evaluators can delegate to other evaluators
-   * that may not have compatible types.
+   * <p>This is treated as an opaque identifier so evaluators can delegate to other evaluators that
+   * may not have compatible types.
    */
   PTransformNode getTransform();
 
@@ -59,16 +59,14 @@ interface TransformResult<InputT> {
    */
   Iterable<? extends WindowedValue<InputT>> getUnprocessedElements();
 
-  /**
-   * Returns the logical metric updates.
-   */
+  /** Returns the logical metric updates. */
   MetricUpdates getLogicalMetricUpdates();
 
   /**
    * Returns the Watermark Hold for the transform at the time this result was produced.
    *
-   * <p>If the transform does not set any watermark hold, returns
-   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
+   * <p>If the transform does not set any watermark hold, returns {@link
+   * BoundedWindow#TIMESTAMP_MAX_VALUE}.
    */
   Instant getWatermarkHold();
 
@@ -90,8 +88,8 @@ interface TransformResult<InputT> {
   TimerUpdate getTimerUpdate();
 
   /**
-   * Returns the types of output produced by this {@link PTransform}. This may not include
-   * {@link OutputType#BUNDLE}, as empty bundles may be dropped when the transform is committed.
+   * Returns the types of output produced by this {@link PTransform}. This may not include {@link
+   * OutputType#BUNDLE}, as empty bundles may be dropped when the transform is committed.
    */
   Set<OutputType> getOutputTypes();
 

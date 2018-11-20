@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Optional;
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -52,8 +52,7 @@ class QuiescenceDriver implements ExecutionDriver {
   public static ExecutionDriver create(
       EvaluationContext context,
       ExecutableGraph<PTransformNode, PCollectionNode> graph,
-      BundleProcessor<PCollectionNode, CommittedBundle<?>, PTransformNode>
-          bundleProcessor,
+      BundleProcessor<PCollectionNode, CommittedBundle<?>, PTransformNode> bundleProcessor,
       PipelineMessageReceiver messageReceiver,
       Map<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>> initialBundles) {
     return new QuiescenceDriver(context, graph, bundleProcessor, messageReceiver, initialBundles);
@@ -68,8 +67,7 @@ class QuiescenceDriver implements ExecutionDriver {
   private final CompletionCallback defaultCompletionCallback =
       new TimerIterableCompletionCallback(Collections.emptyList());
 
-  private final Map<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>>
-      pendingRootBundles;
+  private final Map<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>> pendingRootBundles;
   private final Queue<WorkUpdate> pendingWork = new ConcurrentLinkedQueue<>();
 
   private final AtomicReference<ExecutorState> state =
@@ -80,11 +78,9 @@ class QuiescenceDriver implements ExecutionDriver {
   private QuiescenceDriver(
       EvaluationContext evaluationContext,
       ExecutableGraph<PTransformNode, PCollectionNode> graph,
-      BundleProcessor<PCollectionNode, CommittedBundle<?>, PTransformNode>
-          bundleProcessor,
+      BundleProcessor<PCollectionNode, CommittedBundle<?>, PTransformNode> bundleProcessor,
       PipelineMessageReceiver pipelineMessageReceiver,
-      Map<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>>
-          pendingRootBundles) {
+      Map<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>> pendingRootBundles) {
     this.evaluationContext = evaluationContext;
     this.graph = graph;
     this.bundleProcessor = bundleProcessor;
@@ -157,8 +153,8 @@ class QuiescenceDriver implements ExecutionDriver {
         Collection<TimerData> delivery = transformTimers.getTimers();
         KeyedWorkItem<?, Object> work =
             KeyedWorkItems.timersWorkItem(transformTimers.getKey().getKey(), delivery);
-        // TODO: Extract from graph
-        PCollectionNode inputPCollection = null;
+        PCollectionNode inputPCollection =
+            Iterables.getOnlyElement(graph.getPerElementInputs(transformTimers.getExecutable()));
         @SuppressWarnings({"unchecked", "rawtypes"})
         CommittedBundle<?> bundle =
             evaluationContext
@@ -170,7 +166,6 @@ class QuiescenceDriver implements ExecutionDriver {
             bundle, transformTimers.getExecutable(), new TimerIterableCompletionCallback(delivery));
         state.set(ExecutorState.ACTIVE);
       }
-      throw new UnsupportedOperationException();
     } catch (Exception e) {
       LOG.error("Internal Error while delivering timers", e);
       pipelineMessageReceiver.failed(e);
@@ -187,8 +182,8 @@ class QuiescenceDriver implements ExecutionDriver {
     // If any timers have fired, they will add more work; We don't need to add more
     if (state.get() == ExecutorState.QUIESCENT) {
       // All current TransformExecutors are blocked; add more work from the roots.
-      for (Map.Entry<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>>
-          pendingRootEntry : pendingRootBundles.entrySet()) {
+      for (Map.Entry<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>> pendingRootEntry :
+          pendingRootBundles.entrySet()) {
         Collection<CommittedBundle<?>> bundles = new ArrayList<>();
         // Pull all available work off of the queue, then schedule it all, so this loop
         // terminates
@@ -296,6 +291,7 @@ class QuiescenceDriver implements ExecutionDriver {
 
     @Override
     public void handleError(Error err) {
+      outstandingWork.decrementAndGet();
       pipelineMessageReceiver.failed(err);
     }
   }

@@ -15,16 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.transforms.PTransform;
 
-/**
- * Describe a {@link PTransform} evaluator.
- */
+/** Describe a {@link PTransform} evaluator. */
 public interface TransformEvaluator<TransformT extends PTransform<?, ?>> extends Serializable {
   void evaluate(TransformT transform, EvaluationContext context);
+
   String toNativeString();
 }

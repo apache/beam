@@ -18,28 +18,32 @@
 """A library of basic combiner PTransform subclasses."""
 
 from __future__ import absolute_import
+from __future__ import division
 
+import heapq
 import operator
 import random
+from builtins import object
+from builtins import zip
+from functools import cmp_to_key
+
+from past.builtins import long
 
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
+from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import KV
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
+from apache_beam.typehints import Iterable
 from apache_beam.typehints import List
 from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
-
-try:
-  long        # Python 2
-except NameError:
-  long = int  # Python 3
 
 __all__ = [
     'Count',
@@ -155,68 +159,112 @@ class Top(object):
   """Combiners for obtaining extremal elements."""
   # pylint: disable=no-self-argument
 
-  @staticmethod
-  @ptransform.ptransform_fn
-  def Of(pcoll, n, compare=None, *args, **kwargs):
+  class Of(ptransform.PTransform):
     """Obtain a list of the compare-most N elements in a PCollection.
 
     This transform will retrieve the n greatest elements in the PCollection
     to which it is applied, where "greatest" is determined by the comparator
     function supplied as the compare argument.
-
-    compare should be an implementation of "a < b" taking at least two arguments
-    (a and b). Additional arguments and side inputs specified in the apply call
-    become additional arguments to the comparator.  Defaults to the natural
-    ordering of the elements.
-
-    The arguments 'key' and 'reverse' may instead be passed as keyword
-    arguments, and have the same meaning as for Python's sort functions.
-
-    Args:
-      pcoll: PCollection to process.
-      n: number of elements to extract from pcoll.
-      compare: as described above.
-      *args: as described above.
-      **kwargs: as described above.
     """
-    key = kwargs.pop('key', None)
-    reverse = kwargs.pop('reverse', False)
-    return pcoll | core.CombineGlobally(
-        TopCombineFn(n, compare, key, reverse), *args, **kwargs)
 
-  @staticmethod
-  @ptransform.ptransform_fn
-  def PerKey(pcoll, n, compare=None, *args, **kwargs):
+    def __init__(self, n, compare=None, *args, **kwargs):
+      """Initializer.
+
+      compare should be an implementation of "a < b" taking at least two
+      arguments (a and b). Additional arguments and side inputs specified in
+      the apply call become additional arguments to the comparator. Defaults to
+      the natural ordering of the elements.
+      The arguments 'key' and 'reverse' may instead be passed as keyword
+      arguments, and have the same meaning as for Python's sort functions.
+
+      Args:
+        pcoll: PCollection to process.
+        n: number of elements to extract from pcoll.
+        compare: as described above.
+        *args: as described above.
+        **kwargs: as described above.
+      """
+      self._n = n
+      self._compare = compare
+      self._key = kwargs.pop('key', None)
+      self._reverse = kwargs.pop('reverse', False)
+      self._args = args
+      self._kwargs = kwargs
+
+    def default_label(self):
+      return 'Top(%d)' % self._n
+
+    def expand(self, pcoll):
+      compare = self._compare
+      if (not self._args and not self._kwargs and
+          not self._key and pcoll.windowing.is_default()):
+        if self._reverse:
+          if compare is None or compare is operator.lt:
+            compare = operator.gt
+          else:
+            original_compare = compare
+            compare = lambda a, b: original_compare(b, a)
+        # This is a more efficient global algorithm.
+        return (
+            pcoll
+            | core.ParDo(_TopPerBundle(self._n, compare))
+            | core.GroupByKey()
+            | core.ParDo(_MergeTopPerBundle(self._n, compare)))
+      else:
+        return pcoll | core.CombineGlobally(
+            TopCombineFn(self._n, compare, self._key, self._reverse),
+            *self._args, **self._kwargs)
+
+  class PerKey(ptransform.PTransform):
     """Identifies the compare-most N elements associated with each key.
 
     This transform will produce a PCollection mapping unique keys in the input
     PCollection to the n greatest elements with which they are associated, where
     "greatest" is determined by the comparator function supplied as the compare
-    argument.
-
-    compare should be an implementation of "a < b" taking at least two arguments
-    (a and b). Additional arguments and side inputs specified in the apply call
-    become additional arguments to the comparator.  Defaults to the natural
-    ordering of the elements.
-
-    The arguments 'key' and 'reverse' may instead be passed as keyword
-    arguments, and have the same meaning as for Python's sort functions.
-
-    Args:
-      pcoll: PCollection to process.
-      n: number of elements to extract from pcoll.
-      compare: as described above.
-      *args: as described above.
-      **kwargs: as described above.
-
-    Raises:
-      TypeCheckError: If the output type of the input PCollection is not
-        compatible with KV[A, B].
+    argument in the initializer.
     """
-    key = kwargs.pop('key', None)
-    reverse = kwargs.pop('reverse', False)
-    return pcoll | core.CombinePerKey(
-        TopCombineFn(n, compare, key, reverse), *args, **kwargs)
+    def __init__(self, n, compare=None, *args, **kwargs):
+      """Initializer.
+
+      compare should be an implementation of "a < b" taking at least two
+      arguments (a and b). Additional arguments and side inputs specified in
+      the apply call become additional arguments to the comparator.  Defaults to
+      the natural ordering of the elements.
+
+      The arguments 'key' and 'reverse' may instead be passed as keyword
+      arguments, and have the same meaning as for Python's sort functions.
+
+      Args:
+        n: number of elements to extract from input.
+        compare: as described above.
+        *args: as described above.
+        **kwargs: as described above.
+      """
+      self._n = n
+      self._compare = compare
+      self._key = kwargs.pop('key', None)
+      self._reverse = kwargs.pop('reverse', False)
+      self._args = args
+      self._kwargs = kwargs
+
+    def default_label(self):
+      return 'TopPerKey(%d)' % self._n
+
+    def expand(self, pcoll):
+      """Expands the transform.
+
+      Raises TypeCheckError: If the output type of the input PCollection is not
+      compatible with KV[A, B].
+
+      Args:
+        pcoll: PCollection to process
+
+      Returns:
+        the PCollection containing the result.
+      """
+      return pcoll | core.CombinePerKey(
+          TopCombineFn(self._n, self._compare, self._key, self._reverse),
+          *self._args, **self._kwargs)
 
   @staticmethod
   @ptransform.ptransform_fn
@@ -241,6 +289,92 @@ class Top(object):
   def SmallestPerKey(pcoll, n, reverse=True):
     """Identifies the N least elements associated with each key."""
     return pcoll | Top.PerKey(n, reverse=True)
+
+
+class _ComparableValue(object):
+
+  __slots__ = ('value', 'less_than')
+
+  def __init__(self, value, less_than):
+    self.value = value
+    self.less_than = less_than
+
+  def __lt__(self, other):
+    return self.less_than(self.value, other.value)
+
+  def __repr__(self):
+    return "_ComparableValue[%s]" % self.value
+
+
+@with_input_types(T)
+@with_output_types(KV[None, List[T]])
+class _TopPerBundle(core.DoFn):
+  def __init__(self, n, less_than):
+    self._n = n
+    self._less_than = None if less_than is operator.le else less_than
+
+  def start_bundle(self):
+    self._heap = []
+
+  def process(self, element):
+    if self._less_than is not None:
+      element = _ComparableValue(element, self._less_than)
+    if len(self._heap) < self._n:
+      heapq.heappush(self._heap, element)
+    else:
+      heapq.heappushpop(self._heap, element)
+
+  def finish_bundle(self):
+    # Though sorting here results in more total work, this allows us to
+    # skip most elements in the reducer.
+    # Essentially, given s map bundles, we are trading about O(sn) compares in
+    # the (single) reducer for O(sn log n) compares across all mappers.
+    self._heap.sort()
+
+    # Unwrap to avoid serialization via pickle.
+    if self._less_than:
+      yield window.GlobalWindows.windowed_value(
+          (None, [wrapper.value for wrapper in self._heap]))
+    else:
+      yield window.GlobalWindows.windowed_value(
+          (None, self._heap))
+
+
+@with_input_types(KV[None, Iterable[List[T]]])
+@with_output_types(List[T])
+class _MergeTopPerBundle(core.DoFn):
+  def __init__(self, n, less_than):
+    self._n = n
+    self._less_than = None if less_than is operator.le else less_than
+
+  def process(self, key_and_bundles):
+    _, bundles = key_and_bundles
+    heap = []
+    for bundle in bundles:
+      if not heap:
+        if self._less_than:
+          heap = [
+              _ComparableValue(element, self._less_than) for element in bundle]
+        else:
+          heap = bundle
+        continue
+      for element in reversed(bundle):
+        if self._less_than is not None:
+          element = _ComparableValue(element, self._less_than)
+        if len(heap) < self._n:
+          heapq.heappush(heap, element)
+        elif element <= heap[0]:
+          # Because _TopPerBundle returns sorted lists, all other elements
+          # will also be smaller.
+          break
+        else:
+          heapq.heappushpop(heap, element)
+
+    heap.sort()
+    if self._less_than:
+      yield [wrapper.value for wrapper in reversed(heap)]
+    else:
+      yield heap[::-1]
 
 
 @with_input_types(T)
@@ -290,9 +424,12 @@ class TopCombineFn(core.CombineFn):
   def _sort_buffer(self, buffer, lt):
     if lt in (operator.gt, operator.lt):
       buffer.sort(key=self._key_fn, reverse=self._reverse)
+    elif self._key_fn:
+      buffer.sort(key=cmp_to_key(
+          (lambda a, b: (not lt(self._key_fn(a), self._key_fn(b)))
+           - (not lt(self._key_fn(b), self._key_fn(a))))))
     else:
-      buffer.sort(cmp=lambda a, b: (not lt(a, b)) - (not lt(b, a)),
-                  key=self._key_fn)
+      buffer.sort(key=cmp_to_key(lambda a, b: (not lt(a, b)) - (not lt(b, a))))
 
   def display_data(self):
     return {'n': self._n,

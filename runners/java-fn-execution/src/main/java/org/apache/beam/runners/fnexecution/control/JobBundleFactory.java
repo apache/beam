@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -27,5 +26,5 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
  * <p>Releases all job-scoped resources when closed.
  */
 public interface JobBundleFactory extends AutoCloseable {
-  <T> StageBundleFactory<T> forStage(ExecutableStage executableStage);
+  StageBundleFactory forStage(ExecutableStage executableStage);
 }

@@ -45,8 +45,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class WindowedValueTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testWindowedValueCoder() throws CoderException {

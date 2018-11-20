@@ -36,12 +36,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * A helper class for supporting sources defined as {@code Source}.
  *
- * <p>Provides a bridge between the high-level {@code Source} API and the
- * low-level {@code CloudSource} class.
+ * <p>Provides a bridge between the high-level {@code Source} API and the low-level {@code
+ * CloudSource} class.
  */
 public class CustomSources {
   private static final String SERIALIZED_SOURCE = "serialized_source";
@@ -85,8 +84,7 @@ public class CustomSources {
       List<String> encodedSplits = new ArrayList<>();
       int desiredNumSplits =
           getDesiredNumUnboundedSourceSplits(options.as(DataflowPipelineOptions.class));
-      for (UnboundedSource<?, ?> split :
-          unboundedSource.split(desiredNumSplits, options)) {
+      for (UnboundedSource<?, ?> split : unboundedSource.split(desiredNumSplits, options)) {
         encodedSplits.add(encodeBase64String(serializeToByteArray(split)));
       }
       checkArgument(!encodedSplits.isEmpty(), "UnboundedSources must have at least one split");

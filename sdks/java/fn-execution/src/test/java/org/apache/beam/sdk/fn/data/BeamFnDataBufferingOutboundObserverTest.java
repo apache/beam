@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Iterables;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,10 +48,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
   private static final LogicalEndpoint OUTPUT_LOCATION =
       LogicalEndpoint.of(
           "777L",
-          Target.newBuilder()
-              .setPrimitiveTransformReference("555L")
-              .setName("Test")
-              .build());
+          Target.newBuilder().setPrimitiveTransformReference("555L").setName("Test").build());
   private static final Coder<WindowedValue<byte[]>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(ByteArrayCoder.of()));
 
@@ -97,8 +94,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
 
     // Test that when we close with an empty buffer we only have one end of stream
     consumer.close();
-    assertEquals(messageWithData(),
-        Iterables.get(values, 2));
+    assertEquals(messageWithData(), Iterables.get(values, 2));
 
     // Test that we can't write to a closed stream.
     try {
@@ -138,9 +134,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
 
     // Test that when we cross the buffer, we emit.
     consumer.accept(valueInGlobalWindow(new byte[49]));
-    assertEquals(
-        messageWithData(new byte[51], new byte[49]),
-        Iterables.get(values, 0));
+    assertEquals(messageWithData(new byte[51], new byte[49]), Iterables.get(values, 0));
 
     // Test that when we close we empty the value, and then the stream terminator as part
     // of the same message
@@ -148,23 +142,25 @@ public class BeamFnDataBufferingOutboundObserverTest {
     consumer.close();
     assertEquals(
         BeamFnApi.Elements.newBuilder(messageWithData(new byte[1]))
-            .addData(BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-                .setTarget(OUTPUT_LOCATION.getTarget()))
+            .addData(
+                BeamFnApi.Elements.Data.newBuilder()
+                    .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
+                    .setTarget(OUTPUT_LOCATION.getTarget()))
             .build(),
         Iterables.get(values, 1));
   }
 
-  private static BeamFnApi.Elements messageWithData(byte[] ... datum) throws IOException {
+  private static BeamFnApi.Elements messageWithData(byte[]... datum) throws IOException {
     ByteString.Output output = ByteString.newOutput();
     for (byte[] data : datum) {
       CODER.encode(valueInGlobalWindow(data), output);
     }
     return BeamFnApi.Elements.newBuilder()
-        .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
-            .setTarget(OUTPUT_LOCATION.getTarget())
-            .setData(output.toByteString()))
+        .addData(
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
+                .setTarget(OUTPUT_LOCATION.getTarget())
+                .setData(output.toByteString()))
         .build();
   }
 

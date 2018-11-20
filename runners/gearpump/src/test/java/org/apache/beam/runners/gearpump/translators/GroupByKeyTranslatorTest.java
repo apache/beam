@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -81,9 +80,7 @@ public class GroupByKeyTranslatorTest {
   @Parameterized.Parameters(name = "{index}: {0}")
   public static Iterable<TimestampCombiner> data() {
     return ImmutableList.of(
-        TimestampCombiner.EARLIEST,
-        TimestampCombiner.LATEST,
-        TimestampCombiner.END_OF_WINDOW);
+        TimestampCombiner.EARLIEST, TimestampCombiner.LATEST, TimestampCombiner.END_OF_WINDOW);
   }
 
   @Parameterized.Parameter(0)
@@ -103,8 +100,8 @@ public class GroupByKeyTranslatorTest {
     KV<org.joda.time.Instant, WindowedValue<KV<String, String>>> result =
         keyedByTimestamp.map(value);
     org.joda.time.Instant time =
-        timestampCombiner.assign(window,
-            slidingWindows.getOutputTime(value.getTimestamp(), window));
+        timestampCombiner.assign(
+            window, slidingWindows.getOutputTime(value.getTimestamp(), window));
     assertThat(result, equalTo(KV.of(time, value)));
   }
 
@@ -112,8 +109,8 @@ public class GroupByKeyTranslatorTest {
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testMerge() {
     WindowFn slidingWindows = Sessions.withGapDuration(Duration.millis(10));
-    GroupByKeyTranslator.Merge merge = new GroupByKeyTranslator.Merge(slidingWindows,
-        timestampCombiner);
+    GroupByKeyTranslator.Merge merge =
+        new GroupByKeyTranslator.Merge(slidingWindows, timestampCombiner);
     org.joda.time.Instant key1 = new org.joda.time.Instant(5);
     WindowedValue<KV<String, String>> value1 =
         WindowedValue.of(
@@ -131,8 +128,9 @@ public class GroupByKeyTranslatorTest {
             PaneInfo.NO_FIRING);
 
     KV<org.joda.time.Instant, WindowedValue<KV<String, List<String>>>> result1 =
-        merge.fold(KV.<org.joda.time.Instant, WindowedValue<KV<String, List<String>>>>of(
-            null, null), KV.of(key1, value1));
+        merge.fold(
+            KV.<org.joda.time.Instant, WindowedValue<KV<String, List<String>>>>of(null, null),
+            KV.of(key1, value1));
     assertThat(result1.getKey(), equalTo(key1));
     assertThat(result1.getValue().getValue().getValue(), equalTo(Lists.newArrayList("value1")));
 

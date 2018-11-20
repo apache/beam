@@ -13,6 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// We use the almost vestigial util_gen.tmpl to be able to similarly generate all
+// the same function identifiers more easily for shim generation.
+// The generate statements live here since `go:generate` operates in filename order,
+// and this is the last file in the package.
+
+//go:generate specialize --input=util_gen.tmpl --x=integers,floats
+//go:generate gofmt -w util_gen.go
+//go:generate go generate util_gen.go
+
 package stats
 
 import (

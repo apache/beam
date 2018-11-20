@@ -17,8 +17,9 @@
  */
 
 /**
- * Defines transforms for reading and writing from
- * <a href="https://cloud.google.com/pubsub/">Google Cloud Pub/Sub</a>.
+ * Defines transforms for reading and writing from <a href="https://cloud.google.com/pubsub/">Google
+ * Cloud Pub/Sub</a>.
+ *
  * @see org.apache.beam.sdk.io.gcp.pubsub.PubsubIO
  */
 package org.apache.beam.sdk.io.gcp.pubsub;

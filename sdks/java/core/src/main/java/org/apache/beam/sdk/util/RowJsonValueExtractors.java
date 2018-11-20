@@ -43,11 +43,12 @@ class RowJsonValueExtractors {
   static ValueExtractor<Byte> byteValueExtractor() {
     return ValidatingValueExtractor.<Byte>builder()
         .setExtractor(jsonNode -> (byte) jsonNode.intValue())
-        .setValidator(jsonNode ->
-                          jsonNode.isIntegralNumber()
-                          && jsonNode.canConvertToInt()
-                          && jsonNode.intValue() >= Byte.MIN_VALUE
-                          && jsonNode.intValue() <= Byte.MAX_VALUE)
+        .setValidator(
+            jsonNode ->
+                jsonNode.isIntegralNumber()
+                    && jsonNode.canConvertToInt()
+                    && jsonNode.intValue() >= Byte.MIN_VALUE
+                    && jsonNode.intValue() <= Byte.MAX_VALUE)
         .build();
   }
 
@@ -59,11 +60,12 @@ class RowJsonValueExtractors {
   static ValueExtractor<Short> shortValueExtractor() {
     return ValidatingValueExtractor.<Short>builder()
         .setExtractor(jsonNode -> (short) jsonNode.intValue())
-        .setValidator(jsonNode ->
-                          jsonNode.isIntegralNumber()
-                          && jsonNode.canConvertToInt()
-                          && jsonNode.intValue() >= Short.MIN_VALUE
-                          && jsonNode.intValue() <= Short.MAX_VALUE)
+        .setValidator(
+            jsonNode ->
+                jsonNode.isIntegralNumber()
+                    && jsonNode.canConvertToInt()
+                    && jsonNode.intValue() >= Short.MIN_VALUE
+                    && jsonNode.intValue() <= Short.MAX_VALUE)
         .build();
   }
 
@@ -75,9 +77,7 @@ class RowJsonValueExtractors {
   static ValueExtractor<Integer> intValueExtractor() {
     return ValidatingValueExtractor.<Integer>builder()
         .setExtractor(JsonNode::intValue)
-        .setValidator(jsonNode ->
-                          jsonNode.isIntegralNumber()
-                          && jsonNode.canConvertToInt())
+        .setValidator(jsonNode -> jsonNode.isIntegralNumber() && jsonNode.canConvertToInt())
         .build();
   }
 
@@ -89,9 +89,7 @@ class RowJsonValueExtractors {
   static ValueExtractor<Long> longValueExtractor() {
     return ValidatingValueExtractor.<Long>builder()
         .setExtractor(JsonNode::longValue)
-        .setValidator(jsonNode ->
-                          jsonNode.isIntegralNumber()
-                          && jsonNode.canConvertToLong())
+        .setValidator(jsonNode -> jsonNode.isIntegralNumber() && jsonNode.canConvertToLong())
         .build();
   }
 
@@ -107,14 +105,14 @@ class RowJsonValueExtractors {
             jsonNode ->
                 jsonNode.isFloat()
 
-                // Either floating number which allows lossless conversion to float
-                || (jsonNode.isFloatingPointNumber()
-                    && jsonNode.doubleValue() == (double) (float) jsonNode.doubleValue())
+                    // Either floating number which allows lossless conversion to float
+                    || (jsonNode.isFloatingPointNumber()
+                        && jsonNode.doubleValue() == (double) (float) jsonNode.doubleValue())
 
-                // Or an integer number which allows lossless conversion to float
-                || (jsonNode.isIntegralNumber()
-                    && jsonNode.canConvertToInt()
-                    && jsonNode.asInt() == (int) (float) jsonNode.asInt()))
+                    // Or an integer number which allows lossless conversion to float
+                    || (jsonNode.isIntegralNumber()
+                        && jsonNode.canConvertToInt()
+                        && jsonNode.asInt() == (int) (float) jsonNode.asInt()))
         .build();
   }
 
@@ -126,18 +124,20 @@ class RowJsonValueExtractors {
   static ValueExtractor<Double> doubleValueExtractor() {
     return ValidatingValueExtractor.<Double>builder()
         .setExtractor(JsonNode::doubleValue)
-        .setValidator(jsonNode ->
-                          jsonNode.isDouble()
+        .setValidator(
+            jsonNode ->
+                jsonNode.isDouble()
 
-                          // Either a long number which allows lossless conversion to float
-                          || (jsonNode.isIntegralNumber()
-                              && jsonNode.canConvertToLong()
-                              && jsonNode.asLong() == (long) (double) jsonNode.asInt())
+                    // Either a long number which allows lossless conversion to float
+                    || (jsonNode.isIntegralNumber()
+                        && jsonNode.canConvertToLong()
+                        && jsonNode.asLong() == (long) (double) jsonNode.asInt())
 
-                          // Or a decimal number which allows lossless conversion to float
-                          || (jsonNode.isFloatingPointNumber()
-                              && jsonNode.decimalValue()
-                                         .equals(BigDecimal.valueOf(jsonNode.doubleValue()))))
+                    // Or a decimal number which allows lossless conversion to float
+                    || (jsonNode.isFloatingPointNumber()
+                        && jsonNode
+                            .decimalValue()
+                            .equals(BigDecimal.valueOf(jsonNode.doubleValue()))))
         .build();
   }
 
@@ -165,11 +165,23 @@ class RowJsonValueExtractors {
         .build();
   }
 
+  /**
+   * Extracts BigDecimal from the JsonNode if it is within bounds.
+   *
+   * <p>Throws {@link UnsupportedRowJsonException} if value is out of bounds.
+   */
+  static ValueExtractor<BigDecimal> decimalValueExtractor() {
+    return ValidatingValueExtractor.<BigDecimal>builder()
+        .setExtractor(JsonNode::decimalValue)
+        .setValidator(jsonNode -> jsonNode.isNumber())
+        .build();
+  }
+
   @AutoValue
-  public abstract static class ValidatingValueExtractor<W>
-      implements ValueExtractor<W> {
+  public abstract static class ValidatingValueExtractor<W> implements ValueExtractor<W> {
 
     abstract Predicate<JsonNode> validator();
+
     abstract Function<JsonNode, W> extractor();
 
     static <T> Builder<T> builder() {
@@ -180,8 +192,10 @@ class RowJsonValueExtractors {
     public W extractValue(JsonNode value) {
       if (!validator().test(value)) {
         throw new UnsupportedRowJsonException(
-            "Value \"" + value.asText() + "\" "
-            + "is out of range for the type of the field defined in the row schema.");
+            "Value \""
+                + value.asText()
+                + "\" "
+                + "is out of range for the type of the field defined in the row schema.");
       }
 
       return extractor().apply(value);
@@ -190,6 +204,7 @@ class RowJsonValueExtractors {
     @AutoValue.Builder
     abstract static class Builder<W> {
       abstract Builder<W> setValidator(Predicate<JsonNode> validator);
+
       abstract Builder<W> setExtractor(Function<JsonNode, W> extractor);
 
       abstract ValidatingValueExtractor<W> build();

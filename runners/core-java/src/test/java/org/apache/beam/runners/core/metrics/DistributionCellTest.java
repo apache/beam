@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -26,9 +25,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DistributionCell}.
- */
+/** Tests for {@link DistributionCell}. */
 @RunWith(JUnit4.class)
 public class DistributionCellTest {
   private DistributionCell cell = new DistributionCell(MetricName.named("hello", "world"));
@@ -38,8 +35,10 @@ public class DistributionCellTest {
     cell.update(5);
     cell.update(7);
     assertThat(cell.getCumulative(), equalTo(DistributionData.create(12, 2, 5, 7)));
-    assertThat("getCumulative is idempotent",
-        cell.getCumulative(), equalTo(DistributionData.create(12, 2, 5, 7)));
+    assertThat(
+        "getCumulative is idempotent",
+        cell.getCumulative(),
+        equalTo(DistributionData.create(12, 2, 5, 7)));
 
     assertThat(cell.getDirty().beforeCommit(), equalTo(true));
     cell.getDirty().afterCommit();
@@ -48,7 +47,7 @@ public class DistributionCellTest {
     cell.update(30);
     assertThat(cell.getCumulative(), equalTo(DistributionData.create(42, 3, 5, 30)));
 
-    assertThat("Adding a new value made the cell dirty",
-        cell.getDirty().beforeCommit(), equalTo(true));
+    assertThat(
+        "Adding a new value made the cell dirty", cell.getDirty().beforeCommit(), equalTo(true));
   }
 }

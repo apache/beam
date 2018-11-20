@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.local;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -29,9 +28,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link StructuralKey}.
- */
+/** Tests for {@link StructuralKey}. */
 @RunWith(JUnit4.class)
 public class StructuralKeyTest {
   @Test
@@ -39,7 +36,8 @@ public class StructuralKeyTest {
     Assert.assertThat(StructuralKey.of(1234, VarIntCoder.of()).getKey(), Matchers.equalTo(1234));
     Assert.assertThat(
         StructuralKey.of("foobar", StringUtf8Coder.of()).getKey(), Matchers.equalTo("foobar"));
-    assertArrayEquals(StructuralKey.of(new byte[] {2, 9, -22}, ByteArrayCoder.of()).getKey(),
+    assertArrayEquals(
+        StructuralKey.of(new byte[] {2, 9, -22}, ByteArrayCoder.of()).getKey(),
         new byte[] {2, 9, -22});
   }
 

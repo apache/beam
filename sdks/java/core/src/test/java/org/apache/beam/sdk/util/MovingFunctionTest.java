@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
@@ -27,9 +26,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests {@link MovingFunction}.
- */
+/** Tests {@link MovingFunction}. */
 @RunWith(JUnit4.class)
 public class MovingFunctionTest {
 
@@ -52,10 +49,8 @@ public class MovingFunctionTest {
       };
 
   private MovingFunction newFunc() {
-    return new
-        MovingFunction(SAMPLE_PERIOD, SAMPLE_UPDATE, SIGNIFICANT_BUCKETS,
-                       SIGNIFICANT_SAMPLES, SUM);
-
+    return new MovingFunction(
+        SAMPLE_PERIOD, SAMPLE_UPDATE, SIGNIFICANT_BUCKETS, SIGNIFICANT_SAMPLES, SUM);
   }
 
   @Test
@@ -94,7 +89,7 @@ public class MovingFunctionTest {
     MovingFunction f = newFunc();
     int lost = 0;
     for (int i = 0; i < SAMPLE_PERIOD * 2; i++) {
-      f.add(i , 1);
+      f.add(i, 1);
       if (i >= SAMPLE_PERIOD && i % SAMPLE_UPDATE == 0) {
         lost += SAMPLE_UPDATE;
       }
@@ -110,5 +105,13 @@ public class MovingFunctionTest {
     assertEquals(2, f.get(SAMPLE_PERIOD - 1));
     assertEquals(1, f.get(SAMPLE_PERIOD + 3 * SAMPLE_UPDATE));
     assertEquals(0, f.get(SAMPLE_PERIOD * 2));
+  }
+
+  @Test
+  public void properlyFlushStaleValues() {
+    MovingFunction f = newFunc();
+    f.add(0, 1);
+    f.add(SAMPLE_PERIOD * 3, 1);
+    assertEquals(1, f.get(SAMPLE_PERIOD * 3));
   }
 }

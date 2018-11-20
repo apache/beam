@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -49,9 +48,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link ReadTranslation}.
- */
+/** Tests for {@link ReadTranslation}. */
 @RunWith(Parameterized.class)
 public class ReadTranslationTest {
 
@@ -73,7 +70,9 @@ public class ReadTranslationTest {
     assumeThat(source, instanceOf(BoundedSource.class));
     BoundedSource<?> boundedSource = (BoundedSource<?>) this.source;
     Read.Bounded<?> boundedRead = Read.from(boundedSource);
-    ReadPayload payload = ReadTranslation.toProto(boundedRead, SdkComponents.create());
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
+    ReadPayload payload = ReadTranslation.toProto(boundedRead, components);
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.BOUNDED));
     BoundedSource<?> deserializedSource = ReadTranslation.boundedSourceFromProto(payload);
     assertThat(deserializedSource, equalTo(source));
@@ -84,7 +83,9 @@ public class ReadTranslationTest {
     assumeThat(source, instanceOf(UnboundedSource.class));
     UnboundedSource<?, ?> unboundedSource = (UnboundedSource<?, ?>) this.source;
     Read.Unbounded<?> unboundedRead = Read.from(unboundedSource);
-    ReadPayload payload = ReadTranslation.toProto(unboundedRead, SdkComponents.create());
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
+    ReadPayload payload = ReadTranslation.toProto(unboundedRead, components);
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.UNBOUNDED));
     UnboundedSource<?, ?> deserializedSource = ReadTranslation.unboundedSourceFromProto(payload);
     assertThat(deserializedSource, equalTo(source));

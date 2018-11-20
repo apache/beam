@@ -64,8 +64,7 @@ public class DoFnSignaturesProcessElementTest {
   public void testGoodConcreteTypes() throws Exception {
     analyzeProcessElementMethod(
         new AnonymousMethod() {
-          private void method(
-              DoFn<Integer, String>.ProcessContext c) {}
+          private void method(DoFn<Integer, String>.ProcessContext c) {}
         });
   }
 
@@ -78,8 +77,7 @@ public class DoFnSignaturesProcessElementTest {
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
-          private void method(
-              DoFn<Integer, Integer>.ProcessContext c) {}
+          private void method(DoFn<Integer, Integer>.ProcessContext c) {}
         });
   }
 
@@ -92,16 +90,14 @@ public class DoFnSignaturesProcessElementTest {
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
-          private void method(
-              DoFn<Integer, ? super Integer>.ProcessContext c) {}
+          private void method(DoFn<Integer, ? super Integer>.ProcessContext c) {}
         });
   }
 
   static class BadTypeVariables<InputT, OutputT> extends DoFn<InputT, OutputT> {
     @ProcessElement
     @SuppressWarnings("unused")
-    public void badTypeVariables(
-        DoFn<InputT, InputT>.ProcessContext c) {}
+    public void badTypeVariables(DoFn<InputT, InputT>.ProcessContext c) {}
   }
 
   @Test
@@ -155,8 +151,7 @@ public class DoFnSignaturesProcessElementTest {
   private static class GoodTypeVariables<InputT, OutputT> extends DoFn<InputT, OutputT> {
     @ProcessElement
     @SuppressWarnings("unused")
-    public void goodTypeVariables(
-        DoFn<InputT, OutputT>.ProcessContext c) {}
+    public void goodTypeVariables(DoFn<InputT, OutputT>.ProcessContext c) {}
   }
 
   @Test

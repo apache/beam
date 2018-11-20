@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators;
 
 import org.apache.beam.runners.gearpump.translators.io.BoundedSourceWrapper;
@@ -26,21 +25,20 @@ import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.source.DataSource;
 
 /**
- * {@link Read.Bounded} is translated to Gearpump source function
- * and {@link BoundedSource} is wrapped into Gearpump {@link DataSource}.
+ * {@link Read.Bounded} is translated to Gearpump source function and {@link BoundedSource} is
+ * wrapped into Gearpump {@link DataSource}.
  */
-public class ReadBoundedTranslator <T> implements TransformTranslator<Read.Bounded<T>> {
+public class ReadBoundedTranslator<T> implements TransformTranslator<Read.Bounded<T>> {
 
   private static final long serialVersionUID = -3899020490896998330L;
 
   @Override
   public void translate(Read.Bounded<T> transform, TranslationContext context) {
     BoundedSource<T> boundedSource = transform.getSource();
-    BoundedSourceWrapper<T> sourceWrapper = new BoundedSourceWrapper<>(boundedSource,
-        context.getPipelineOptions());
+    BoundedSourceWrapper<T> sourceWrapper =
+        new BoundedSourceWrapper<>(boundedSource, context.getPipelineOptions());
     JavaStream<WindowedValue<T>> sourceStream = context.getSourceStream(sourceWrapper);
 
     context.setOutputStream(context.getOutput(), sourceStream);
   }
-
 }

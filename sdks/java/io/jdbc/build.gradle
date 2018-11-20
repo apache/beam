@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: true, enableFindbugs: false)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature(enableFindbugs: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -26,9 +26,7 @@ ext.summary = "IO to read and write on JDBC datasource."
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.findbugs_jsr305
   shadow "org.apache.commons:commons-dbcp2:2.1.1"
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
@@ -36,11 +34,11 @@ dependencies {
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
   testCompile library.java.slf4j_jdk14
   testCompile library.java.postgres
-  testCompile group: "org.apache.derby", name: "derby", version:"10.12.1.1"
-  testCompile group: "org.apache.derby", name: "derbyclient", version:"10.12.1.1"
-  testCompile group: "org.apache.derby", name: "derbynet", version:"10.12.1.1"
-  testCompileOnly library.java.findbugs_annotations
+  testCompile group: "org.apache.derby", name: "derby", version:"10.14.2.0"
+  testCompile group: "org.apache.derby", name: "derbyclient", version:"10.14.2.0"
+  testCompile group: "org.apache.derby", name: "derbynet", version:"10.14.2.0"
 }

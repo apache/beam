@@ -28,11 +28,11 @@ import org.joda.time.Months;
 import org.joda.time.Years;
 
 /**
- * A collection of {@link WindowFn}s that windows values into calendar-based
- * windows such as spans of days, months, or years.
+ * A collection of {@link WindowFn}s that windows values into calendar-based windows such as spans
+ * of days, months, or years.
  *
- * <p>For example, to group data into quarters that change on the 15th, use
- * {@code CalendarWindows.months(3).withStartingMonth(2014, 1).beginningOnDay(15)}.
+ * <p>For example, to group data into quarters that change on the 15th, use {@code
+ * CalendarWindows.months(3).withStartingMonth(2014, 1).beginningOnDay(15)}.
  */
 public class CalendarWindows {
 
@@ -41,8 +41,8 @@ public class CalendarWindows {
   /**
    * Returns a {@link WindowFn} that windows elements into periods measured by days.
    *
-   * <p>For example, {@code CalendarWindows.days(1)} will window elements into
-   * separate windows for each day.
+   * <p>For example, {@code CalendarWindows.days(1)} will window elements into separate windows for
+   * each day.
    */
   public static DaysWindows days(int number) {
     return new DaysWindows(number, DEFAULT_START_DATE, DateTimeZone.UTC);
@@ -51,23 +51,20 @@ public class CalendarWindows {
   /**
    * Returns a {@link WindowFn} that windows elements into periods measured by weeks.
    *
-   * <p>For example, {@code CalendarWindows.weeks(1, DateTimeConstants.TUESDAY)} will
-   * window elements into week-long windows starting on Tuesdays.
+   * <p>For example, {@code CalendarWindows.weeks(1, DateTimeConstants.TUESDAY)} will window
+   * elements into week-long windows starting on Tuesdays.
    */
   public static DaysWindows weeks(int number, int startDayOfWeek) {
     return new DaysWindows(
-        7 * number,
-        DEFAULT_START_DATE.withDayOfWeek(startDayOfWeek),
-        DateTimeZone.UTC);
+        7 * number, DEFAULT_START_DATE.withDayOfWeek(startDayOfWeek), DateTimeZone.UTC);
   }
 
   /**
    * Returns a {@link WindowFn} that windows elements into periods measured by months.
    *
-   * <p>For example,
-   * {@code CalendarWindows.months(8).withStartingMonth(2014, 1).beginningOnDay(10)}
-   * will window elements into 8 month windows where that start on the 10th day of month,
-   * and the first window begins in January 2014.
+   * <p>For example, {@code CalendarWindows.months(8).withStartingMonth(2014, 1).beginningOnDay(10)}
+   * will window elements into 8 month windows where that start on the 10th day of month, and the
+   * first window begins in January 2014.
    */
   public static MonthsWindows months(int number) {
     return new MonthsWindows(number, 1, DEFAULT_START_DATE, DateTimeZone.UTC);
@@ -76,10 +73,10 @@ public class CalendarWindows {
   /**
    * Returns a {@link WindowFn} that windows elements into periods measured by years.
    *
-   * <p>For example,
-   * {@code CalendarWindows.years(1).withTimeZone(DateTimeZone.forId("America/Los_Angeles"))}
-   * will window elements into year-long windows that start at midnight on Jan 1, in the
-   * America/Los_Angeles time zone.
+   * <p>For example, {@code
+   * CalendarWindows.years(1).withTimeZone(DateTimeZone.forId("America/Los_Angeles"))} will window
+   * elements into year-long windows that start at midnight on Jan 1, in the America/Los_Angeles
+   * time zone.
    */
   public static YearsWindows years(int number) {
     return new YearsWindows(number, 1, 1, DEFAULT_START_DATE, DateTimeZone.UTC);
@@ -88,21 +85,19 @@ public class CalendarWindows {
   /**
    * A {@link WindowFn} that windows elements into periods measured by days.
    *
-   * <p>By default, periods of multiple days are measured starting at the
-   * epoch.  This can be overridden with {@link #withStartingDay}.
+   * <p>By default, periods of multiple days are measured starting at the epoch. This can be
+   * overridden with {@link #withStartingDay}.
    *
-   * <p>The time zone used to determine calendar boundaries is UTC, unless this
-   * is overridden with the {@link #withTimeZone} method.
+   * <p>The time zone used to determine calendar boundaries is UTC, unless this is overridden with
+   * the {@link #withTimeZone} method.
    */
   public static class DaysWindows extends PartitioningWindowFn<Object, IntervalWindow> {
     public DaysWindows withStartingDay(int year, int month, int day) {
-      return new DaysWindows(
-          number, new DateTime(year, month, day, 0, 0, timeZone), timeZone);
+      return new DaysWindows(number, new DateTime(year, month, day, 0, 0, timeZone), timeZone);
     }
 
     public DaysWindows withTimeZone(DateTimeZone timeZone) {
-      return new DaysWindows(
-          number, startDate.withZoneRetainFields(timeZone), timeZone);
+      return new DaysWindows(number, startDate.withZoneRetainFields(timeZone), timeZone);
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -162,11 +157,10 @@ public class CalendarWindows {
       super.populateDisplayData(builder);
 
       builder
-          .add(DisplayData.item("numDays", number)
-            .withLabel("Windows Days"))
+          .add(DisplayData.item("numDays", number).withLabel("Windows Days"))
           .addIfNotDefault(
               DisplayData.item("startDate", new DateTime(startDate, timeZone).toInstant())
-                .withLabel("Window Start Date"),
+                  .withLabel("Window Start Date"),
               new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 
@@ -181,25 +175,23 @@ public class CalendarWindows {
     public DateTimeZone getTimeZone() {
       return timeZone;
     }
-
   }
 
   /**
    * A {@link WindowFn} that windows elements into periods measured by months.
    *
-   * <p>By default, periods of multiple months are measured starting at the
-   * epoch.  This can be overridden with {@link #withStartingMonth}.
+   * <p>By default, periods of multiple months are measured starting at the epoch. This can be
+   * overridden with {@link #withStartingMonth}.
    *
-   * <p>Months start on the first day of each calendar month, unless overridden by
-   * {@link #beginningOnDay}.
+   * <p>Months start on the first day of each calendar month, unless overridden by {@link
+   * #beginningOnDay}.
    *
-   * <p>The time zone used to determine calendar boundaries is UTC, unless this
-   * is overridden with the {@link #withTimeZone} method.
+   * <p>The time zone used to determine calendar boundaries is UTC, unless this is overridden with
+   * the {@link #withTimeZone} method.
    */
   public static class MonthsWindows extends PartitioningWindowFn<Object, IntervalWindow> {
     public MonthsWindows beginningOnDay(int dayOfMonth) {
-      return new MonthsWindows(
-          number, dayOfMonth, startDate, timeZone);
+      return new MonthsWindows(number, dayOfMonth, startDate, timeZone);
     }
 
     public MonthsWindows withStartingMonth(int year, int month) {
@@ -232,7 +224,8 @@ public class CalendarWindows {
 
       int monthOffset =
           Months.monthsBetween(startDate.withDayOfMonth(dayOfMonth), datetime).getMonths()
-          / number * number;
+              / number
+              * number;
 
       DateTime begin = startDate.withDayOfMonth(dayOfMonth).plusMonths(monthOffset);
       DateTime end = begin.plusMonths(number);
@@ -274,12 +267,11 @@ public class CalendarWindows {
       super.populateDisplayData(builder);
 
       builder
-          .add(DisplayData.item("numMonths", number)
-            .withLabel("Window Months"))
+          .add(DisplayData.item("numMonths", number).withLabel("Window Months"))
           .addIfNotDefault(
-            DisplayData.item("startDate", new DateTime(startDate, timeZone).toInstant())
-              .withLabel("Window Start Date"),
-            new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
+              DisplayData.item("startDate", new DateTime(startDate, timeZone).toInstant())
+                  .withLabel("Window Start Date"),
+              new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 
     public int getNumber() {
@@ -297,25 +289,23 @@ public class CalendarWindows {
     public DateTimeZone getTimeZone() {
       return timeZone;
     }
-
   }
 
   /**
    * A {@link WindowFn} that windows elements into periods measured by years.
    *
-   * <p>By default, periods of multiple years are measured starting at the
-   * epoch.  This can be overridden with {@link #withStartingYear}.
+   * <p>By default, periods of multiple years are measured starting at the epoch. This can be
+   * overridden with {@link #withStartingYear}.
    *
-   * <p>Years start on the first day of each calendar year, unless overridden by
-   * {@link #beginningOnDay}.
+   * <p>Years start on the first day of each calendar year, unless overridden by {@link
+   * #beginningOnDay}.
    *
-   * <p>The time zone used to determine calendar boundaries is UTC, unless this
-   * is overridden with the {@link #withTimeZone} method.
+   * <p>The time zone used to determine calendar boundaries is UTC, unless this is overridden with
+   * the {@link #withTimeZone} method.
    */
   public static class YearsWindows extends PartitioningWindowFn<Object, IntervalWindow> {
     public YearsWindows beginningOnDay(int monthOfYear, int dayOfMonth) {
-      return new YearsWindows(
-          number, monthOfYear, dayOfMonth, startDate, timeZone);
+      return new YearsWindows(number, monthOfYear, dayOfMonth, startDate, timeZone);
     }
 
     public YearsWindows withStartingYear(int year) {
@@ -351,8 +341,7 @@ public class CalendarWindows {
 
       DateTime offsetStart = startDate.withMonthOfYear(monthOfYear).withDayOfMonth(dayOfMonth);
 
-      int yearOffset =
-          Years.yearsBetween(offsetStart, datetime).getYears() / number * number;
+      int yearOffset = Years.yearsBetween(offsetStart, datetime).getYears() / number * number;
 
       DateTime begin = offsetStart.plusYears(yearOffset);
       DateTime end = begin.plusYears(number);
@@ -395,11 +384,10 @@ public class CalendarWindows {
       super.populateDisplayData(builder);
 
       builder
-          .add(DisplayData.item("numYears", number)
-            .withLabel("Window Years"))
+          .add(DisplayData.item("numYears", number).withLabel("Window Years"))
           .addIfNotDefault(
               DisplayData.item("startDate", new DateTime(startDate, timeZone).toInstant())
-                .withLabel("Window Start Date"),
+                  .withLabel("Window Start Date"),
               new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 
@@ -422,6 +410,5 @@ public class CalendarWindows {
     public int getNumber() {
       return number;
     }
-
   }
 }

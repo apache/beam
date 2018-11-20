@@ -26,9 +26,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline.
- */
+/** Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline. */
 class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslationOptimizer.class);
@@ -71,7 +69,10 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
   }
 
   private boolean hasUnboundedOutput(AppliedPTransform<?, ?, ?> transform) {
-    return transform.getOutputs().values().stream()
+    return transform
+        .getOutputs()
+        .values()
+        .stream()
         .filter(value -> value instanceof PCollection)
         .map(value -> (PCollection<?>) value)
         .anyMatch(collection -> collection.isBounded() == IsBounded.UNBOUNDED);

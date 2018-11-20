@@ -25,14 +25,18 @@ should find all such places. For this reason even places where retry is not
 needed right now use a @retry.no_retries decorator.
 """
 
+from __future__ import absolute_import
 
 import logging
 import random
 import sys
 import time
 import traceback
+from builtins import next
+from builtins import object
+from builtins import range
 
-import six
+from future.utils import raise_with_traceback
 
 from apache_beam.io.filesystem import BeamIOError
 
@@ -190,7 +194,7 @@ def with_exponential_backoff(
               sleep_interval = next(retry_intervals)
             except StopIteration:
               # Re-raise the original exception since we finished the retries.
-              six.raise_from(exn, exn_traceback)
+              raise_with_traceback(exn, exn_traceback)
 
             logger(
                 'Retry with exponential backoff: waiting for %s seconds before '
@@ -205,7 +209,6 @@ def with_exponential_backoff(
             # Traceback objects in locals can cause reference cycles that will
             # prevent garbage collection. Clear it now since we do not need
             # it anymore.
-            sys.exc_clear()
             exn_traceback = None
 
     return wrapper

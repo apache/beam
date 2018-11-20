@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.util;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -53,8 +52,8 @@ import scala.reflect.ClassTag;
 /**
  * A store to hold the global watermarks for a micro-batch.
  *
- * <p>For each source, holds a queue for the watermarks of each micro-batch that was read,
- * and advances the watermarks according to the queue (first-in-first-out).
+ * <p>For each source, holds a queue for the watermarks of each micro-batch that was read, and
+ * advances the watermarks according to the queue (first-in-first-out).
  */
 public class GlobalWatermarkHolder {
 
@@ -83,7 +82,7 @@ public class GlobalWatermarkHolder {
 
   @VisibleForTesting
   public static void addAll(Map<Integer, Queue<SparkWatermarks>> sourceTimes) {
-    for (Map.Entry<Integer, Queue<SparkWatermarks>> en: sourceTimes.entrySet()) {
+    for (Map.Entry<Integer, Queue<SparkWatermarks>> en : sourceTimes.entrySet()) {
       int sourceId = en.getKey();
       Queue<SparkWatermarks> timesQueue = en.getValue();
       while (!timesQueue.isEmpty()) {
@@ -97,8 +96,7 @@ public class GlobalWatermarkHolder {
   }
 
   /**
-   * Returns the {@link Broadcast} containing the {@link SparkWatermarks} mapped
-   * to their sources.
+   * Returns the {@link Broadcast} containing the {@link SparkWatermarks} mapped to their sources.
    */
   @SuppressWarnings("unchecked")
   public static Map<Integer, SparkWatermarks> get(Long cacheInterval) {
@@ -141,8 +139,8 @@ public class GlobalWatermarkHolder {
   }
 
   /**
-   * Advances the watermarks to the next-in-line watermarks.
-   * SparkWatermarks are monotonically increasing.
+   * Advances the watermarks to the next-in-line watermarks. SparkWatermarks are monotonically
+   * increasing.
    */
   public static void advance(final String batchId) {
     synchronized (GlobalWatermarkHolder.class) {
@@ -185,7 +183,7 @@ public class GlobalWatermarkHolder {
     // update all sources' watermarks into the new broadcast.
     final Map<Integer, SparkWatermarks> newValues = new HashMap<>();
 
-    for (final Map.Entry<Integer, Queue<SparkWatermarks>> watermarkInfo: sourceTimes.entrySet()) {
+    for (final Map.Entry<Integer, Queue<SparkWatermarks>> watermarkInfo : sourceTimes.entrySet()) {
 
       if (watermarkInfo.getValue().isEmpty()) {
         continue;
@@ -236,8 +234,7 @@ public class GlobalWatermarkHolder {
 
       newValues.put(
           sourceId,
-          new SparkWatermarks(
-              nextLowWatermark, nextHighWatermark, nextSynchronizedProcessingTime));
+          new SparkWatermarks(nextLowWatermark, nextHighWatermark, nextSynchronizedProcessingTime));
     }
 
     return newValues;
@@ -248,8 +245,8 @@ public class GlobalWatermarkHolder {
     blockManager.removeBlock(WATERMARKS_BLOCK_ID, true);
     // if an executor tries to fetch the watermark block here, it will fail to do so since
     // the watermark block has just been removed, but the new copy has not been put yet.
-    blockManager.putSingle(WATERMARKS_BLOCK_ID, newWatermarks, StorageLevel.MEMORY_ONLY(),
-        true, WATERMARKS_TAG);
+    blockManager.putSingle(
+        WATERMARKS_BLOCK_ID, newWatermarks, StorageLevel.MEMORY_ONLY(), true, WATERMARKS_TAG);
     // if an executor tries to fetch the watermark block here, it still may fail to do so since
     // the put operation might not have been executed yet
     // see also https://issues.apache.org/jira/browse/BEAM-2789
@@ -263,11 +260,7 @@ public class GlobalWatermarkHolder {
     if (watermarks == null) {
       final HashMap<Integer, SparkWatermarks> empty = Maps.newHashMap();
       blockManager.putSingle(
-          WATERMARKS_BLOCK_ID,
-          empty,
-          StorageLevel.MEMORY_ONLY(),
-          true,
-          WATERMARKS_TAG);
+          WATERMARKS_BLOCK_ID, empty, StorageLevel.MEMORY_ONLY(), true, WATERMARKS_TAG);
       return empty;
     } else {
       return watermarks;
@@ -275,8 +268,8 @@ public class GlobalWatermarkHolder {
   }
 
   private static Map<Integer, SparkWatermarks> fetchSparkWatermarks(BlockManager blockManager) {
-    final Option<BlockResult> blockResultOption = blockManager.get(WATERMARKS_BLOCK_ID,
-        WATERMARKS_TAG);
+    final Option<BlockResult> blockResultOption =
+        blockManager.get(WATERMARKS_BLOCK_ID, WATERMARKS_TAG);
     if (blockResultOption.isDefined()) {
       Iterator<Object> data = blockResultOption.get().data();
       Map<Integer, SparkWatermarks> next = (Map<Integer, SparkWatermarks>) data.next();
@@ -314,8 +307,8 @@ public class GlobalWatermarkHolder {
   }
 
   /**
-   * A {@link SparkWatermarks} holds the watermarks and batch time
-   * relevant to a micro-batch input from a specific source.
+   * A {@link SparkWatermarks} holds the watermarks and batch time relevant to a micro-batch input
+   * from a specific source.
    */
   public static class SparkWatermarks implements Serializable {
     private final Instant lowWatermark;
@@ -324,9 +317,7 @@ public class GlobalWatermarkHolder {
 
     @VisibleForTesting
     public SparkWatermarks(
-        Instant lowWatermark,
-        Instant highWatermark,
-        Instant synchronizedProcessingTime) {
+        Instant lowWatermark, Instant highWatermark, Instant synchronizedProcessingTime) {
       this.lowWatermark = lowWatermark;
       this.highWatermark = highWatermark;
       this.synchronizedProcessingTime = synchronizedProcessingTime;
@@ -347,9 +338,13 @@ public class GlobalWatermarkHolder {
     @Override
     public String toString() {
       return "SparkWatermarks{"
-          + "lowWatermark=" + lowWatermark
-          + ", highWatermark=" + highWatermark
-          + ", synchronizedProcessingTime=" + synchronizedProcessingTime + '}';
+          + "lowWatermark="
+          + lowWatermark
+          + ", highWatermark="
+          + highWatermark
+          + ", synchronizedProcessingTime="
+          + synchronizedProcessingTime
+          + '}';
     }
   }
 
@@ -376,11 +371,11 @@ public class GlobalWatermarkHolder {
       // make sure to update the last watermarked batch time AFTER the watermarks have already
       // been updated (i.e., after the call to GlobalWatermarkHolder.advance(...))
       // in addition, the watermark's block in the BlockManager is updated in an asynchronous manner
-      lastWatermarkedBatchTime =
-          laterOf(lastWatermarkedBatchTime, currentBatchTime);
+      lastWatermarkedBatchTime = laterOf(lastWatermarkedBatchTime, currentBatchTime);
 
-      LOG.info("Batch with timestamp: {} has completed, watermarks have been updated.",
-               lastWatermarkedBatchTime);
+      LOG.info(
+          "Batch with timestamp: {} has completed, watermarks have been updated.",
+          lastWatermarkedBatchTime);
     }
   }
 }

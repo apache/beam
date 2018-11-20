@@ -18,8 +18,9 @@
 
 import groovy.json.JsonOutput
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
+
 
 description = "Apache Beam :: Runners :: Flink"
 
@@ -34,6 +35,7 @@ evaluationDependsOn(":beam-runners-core-java")
 
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
+  //systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
   jvmArgs "-XX:-UseGCOverheadLimit"
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
@@ -44,7 +46,7 @@ configurations {
   validatesRunner
 }
 
-def flink_version = "1.4.0"
+def flink_version = "1.5.5"
 
 dependencies {
   compile library.java.guava
@@ -52,11 +54,12 @@ dependencies {
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-vendor-grpc-v1_13_1", configuration: "shadow")
   shadow library.java.jackson_annotations
-  shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.commons_compress
+  shadow library.java.args4j
   shadow "org.apache.flink:flink-clients_2.11:$flink_version"
   shadow "org.apache.flink:flink-core:$flink_version"
   shadow "org.apache.flink:flink-metrics-core:$flink_version"
@@ -71,12 +74,14 @@ dependencies {
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.google_api_services_bigquery
+  shadowTest library.java.slf4j_simple
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest "org.apache.flink:flink-core:$flink_version:tests"
   shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
+  shadowTest project(":beam-sdks-java-harness")
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
@@ -93,30 +98,28 @@ def createValidatesRunnerTask(Map m) {
     group = "Verification"
     def runnerType = config.streaming ? "streaming" : "batch"
     description = "Validates the ${runnerType} runner"
-    def pipelineOptions = JsonOutput.toJson(["--runner=TestFlinkRunner", "--streaming=${config.streaming}"])
+    def pipelineOptions = JsonOutput.toJson(
+        ["--runner=TestFlinkRunner",
+         "--streaming=${config.streaming}",
+         // TODO This should be changed to > 1
+         "--parallelism=1",
+        ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
     // maxParallelForks decreased from 4 in order to avoid OOM errors
     maxParallelForks 2
-    if (config.streaming) {
-      useJUnit {
-        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-        excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    useJUnit {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+      if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
       }
-    } else {
-      useJUnit {
-        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-        excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      }
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     }
   }
 }

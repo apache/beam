@@ -45,21 +45,24 @@ public final class FluentBackoff {
   /**
    * By default the {@link BackOff} created by this builder will use exponential backoff (base
    * exponent 1.5) with an initial backoff of 1 second. These parameters can be overridden with
-   * {@link #withExponent(double)} and {@link #withInitialBackoff(Duration)},
-   * respectively, and the maximum backoff after exponential increase can be capped using {@link
+   * {@link #withExponent(double)} and {@link #withInitialBackoff(Duration)}, respectively, and the
+   * maximum backoff after exponential increase can be capped using {@link
    * FluentBackoff#withMaxBackoff(Duration)}.
    *
    * <p>The default {@link BackOff} does not limit the number of retries. To limit the backoff, the
-   * maximum total number of retries can be set using {@link #withMaxRetries(int)}. The
-   * total time spent in backoff can be time-bounded as well by configuring {@link
-   * #withMaxCumulativeBackoff(Duration)}. If either of these limits are reached, calls
-   * to {@link BackOff#nextBackOffMillis()} will return {@link BackOff#STOP} to signal that no more
-   * retries should continue.
+   * maximum total number of retries can be set using {@link #withMaxRetries(int)}. The total time
+   * spent in backoff can be time-bounded as well by configuring {@link
+   * #withMaxCumulativeBackoff(Duration)}. If either of these limits are reached, calls to {@link
+   * BackOff#nextBackOffMillis()} will return {@link BackOff#STOP} to signal that no more retries
+   * should continue.
    */
-  public static final FluentBackoff DEFAULT = new FluentBackoff(
-      DEFAULT_EXPONENT,
-      DEFAULT_MIN_BACKOFF, DEFAULT_MAX_BACKOFF, DEFAULT_MAX_CUM_BACKOFF,
-      DEFAULT_MAX_RETRIES);
+  public static final FluentBackoff DEFAULT =
+      new FluentBackoff(
+          DEFAULT_EXPONENT,
+          DEFAULT_MIN_BACKOFF,
+          DEFAULT_MAX_BACKOFF,
+          DEFAULT_MAX_CUM_BACKOFF,
+          DEFAULT_MAX_RETRIES);
 
   /**
    * Instantiates a {@link BackOff} that will obey the current configuration.
@@ -111,9 +114,7 @@ public final class FluentBackoff {
    */
   public FluentBackoff withMaxBackoff(Duration maxBackoff) {
     checkArgument(
-        maxBackoff.getMillis() > 0,
-        "maxBackoff %s must be at least 1 millisecond",
-        maxBackoff);
+        maxBackoff.getMillis() > 0, "maxBackoff %s must be at least 1 millisecond", maxBackoff);
     return new FluentBackoff(
         exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
   }
@@ -127,16 +128,18 @@ public final class FluentBackoff {
    * @see FluentBackoff
    */
   public FluentBackoff withMaxCumulativeBackoff(Duration maxCumulativeBackoff) {
-    checkArgument(maxCumulativeBackoff.isLongerThan(Duration.ZERO),
-        "maxCumulativeBackoff %s must be at least 1 millisecond", maxCumulativeBackoff);
+    checkArgument(
+        maxCumulativeBackoff.isLongerThan(Duration.ZERO),
+        "maxCumulativeBackoff %s must be at least 1 millisecond",
+        maxCumulativeBackoff);
     return new FluentBackoff(
         exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
   }
 
   /**
-   * Returns a copy of this {@link FluentBackoff} that limits the total number of retries, aka
-   * the total number of calls to {@link BackOff#nextBackOffMillis()} before returning
-   * {@link BackOff#STOP}.
+   * Returns a copy of this {@link FluentBackoff} that limits the total number of retries, aka the
+   * total number of calls to {@link BackOff#nextBackOffMillis()} before returning {@link
+   * BackOff#STOP}.
    *
    * <p>Does not modify this object.
    *
@@ -219,7 +222,10 @@ public final class FluentBackoff {
   }
 
   private FluentBackoff(
-      double exponent, Duration initialBackoff, Duration maxBackoff, Duration maxCumulativeBackoff,
+      double exponent,
+      Duration initialBackoff,
+      Duration maxBackoff,
+      Duration maxCumulativeBackoff,
       int maxRetries) {
     this.exponent = exponent;
     this.initialBackoff = initialBackoff;

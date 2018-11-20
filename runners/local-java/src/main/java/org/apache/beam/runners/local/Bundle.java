@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.local;
 
 import javax.annotation.Nullable;
@@ -24,15 +23,13 @@ import org.joda.time.Instant;
 
 /** An immutable collection of elements which are part of a {@code PCollection}. */
 public interface Bundle<T, CollectionT> extends Iterable<WindowedValue<T>> {
-  /**
-   * Returns the PCollection that the elements of this bundle belong to.
-   */
+  /** Returns the PCollection that the elements of this bundle belong to. */
   @Nullable
   CollectionT getPCollection();
 
   /**
-   * Returns the key that was output in the most recent {@code GroupByKey} in the
-   * execution of this bundle.
+   * Returns the key that was output in the most recent {@code GroupByKey} in the execution of this
+   * bundle.
    */
   StructuralKey<?> getKey();
 
@@ -46,13 +43,12 @@ public interface Bundle<T, CollectionT> extends Iterable<WindowedValue<T>> {
 
   /**
    * Returns the processing time output watermark at the time the producing {@code Executable}
-   * committed this bundle. Downstream synchronized processing time watermarks cannot progress
-   * past this point before consuming this bundle.
+   * committed this bundle. Downstream synchronized processing time watermarks cannot progress past
+   * this point before consuming this bundle.
    *
    * <p>This value is no greater than the earliest incomplete processing time or synchronized
    * processing time at the time this bundle was committed, including any timers that fired to
    * produce this bundle.
    */
   Instant getSynchronizedProcessingOutputWatermark();
-
 }

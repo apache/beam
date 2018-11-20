@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.gcp.options;
 
 import com.google.auto.service.AutoService;
@@ -23,9 +22,7 @@ import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 
-/**
- * A registrar containing the default GCP options.
- */
+/** A registrar containing the default GCP options. */
 @AutoService(PipelineOptionsRegistrar.class)
 public class GcpPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
   @Override

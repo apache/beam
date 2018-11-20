@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOSinkRule;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -39,6 +42,7 @@ public class BeamIOSinkRel extends TableModify
     implements BeamRelNode, RelStructuredTypeFlattener.SelfFlatteningRel {
 
   private final BeamSqlTable sqlTable;
+  private final Map<String, String> pipelineOptions;
   private boolean isFlattening = false;
 
   public BeamIOSinkRel(
@@ -50,7 +54,8 @@ public class BeamIOSinkRel extends TableModify
       List<String> updateColumnList,
       List<RexNode> sourceExpressionList,
       boolean flattened,
-      BeamSqlTable sqlTable) {
+      BeamSqlTable sqlTable,
+      Map<String, String> pipelineOptions) {
     super(
         cluster,
         cluster.traitSetOf(BeamLogicalConvention.INSTANCE),
@@ -62,6 +67,7 @@ public class BeamIOSinkRel extends TableModify
         sourceExpressionList,
         flattened);
     this.sqlTable = sqlTable;
+    this.pipelineOptions = pipelineOptions;
   }
 
   @Override
@@ -77,7 +83,8 @@ public class BeamIOSinkRel extends TableModify
             getUpdateColumnList(),
             getSourceExpressionList(),
             flattened,
-            sqlTable);
+            sqlTable,
+            pipelineOptions);
     newRel.traitSet = traitSet;
     return newRel;
   }
@@ -98,27 +105,29 @@ public class BeamIOSinkRel extends TableModify
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
-    /**
-     * Note that {@code BeamIOSinkRel} returns the input PCollection, which is the persisted
-     * PCollection.
-     */
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      RelNode input = getInput();
-      String stageName = BeamSqlRelUtils.getStageName(BeamIOSinkRel.this);
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      checkArgument(
+          pinput.size() == 1,
+          "Wrong number of inputs for %s: %s",
+          BeamIOSinkRel.class.getSimpleName(),
+          pinput);
+      PCollection<Row> input = pinput.get(0);
 
-      PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
+      sqlTable.buildIOWriter(input);
 
-      upstream.apply(stageName, sqlTable.buildIOWriter());
-
-      return upstream;
+      return input;
     }
+  }
+
+  @Override
+  public Map<String, String> getPipelineOptions() {
+    return pipelineOptions;
   }
 }

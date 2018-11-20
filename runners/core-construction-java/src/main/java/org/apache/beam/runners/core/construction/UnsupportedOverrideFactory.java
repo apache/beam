@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
@@ -28,9 +27,9 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * A {@link PTransformOverrideFactory} that throws an exception when a call to
- * {@link #getReplacementTransform(AppliedPTransform)} is made. This is for
- * {@link PTransform PTransforms} which are not supported by a runner.
+ * A {@link PTransformOverrideFactory} that throws an exception when a call to {@link
+ * #getReplacementTransform(AppliedPTransform)} is made. This is for {@link PTransform PTransforms}
+ * which are not supported by a runner.
  */
 public final class UnsupportedOverrideFactory<
         InputT extends PInput,

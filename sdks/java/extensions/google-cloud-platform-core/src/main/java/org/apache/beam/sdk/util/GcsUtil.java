@@ -54,7 +54,6 @@ import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -73,21 +72,18 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Provides operations on GCS.
- */
+/** Provides operations on GCS. */
 public class GcsUtil {
   /**
-   * This is a {@link DefaultValueFactory} able to create a {@link GcsUtil} using
-   * any transport flags specified on the {@link PipelineOptions}.
+   * This is a {@link DefaultValueFactory} able to create a {@link GcsUtil} using any transport
+   * flags specified on the {@link PipelineOptions}.
    */
   public static class GcsUtilFactory implements DefaultValueFactory<GcsUtil> {
     /**
-     * Returns an instance of {@link GcsUtil} based on the
-     * {@link PipelineOptions}.
+     * Returns an instance of {@link GcsUtil} based on the {@link PipelineOptions}.
      *
-     * <p>If no instance has previously been created, one is created and the value
-     * stored in {@code options}.
+     * <p>If no instance has previously been created, one is created and the value stored in {@code
+     * options}.
      */
     @Override
     public GcsUtil create(PipelineOptions options) {
@@ -101,9 +97,7 @@ public class GcsUtil {
           gcsOptions.getGcsUploadBufferSizeBytes());
     }
 
-    /**
-     * Returns an instance of {@link GcsUtil} based on the given parameters.
-     */
+    /** Returns an instance of {@link GcsUtil} based on the given parameters. */
     public static GcsUtil create(
         Storage storageClient,
         HttpRequestInitializer httpRequestInitializer,
@@ -122,13 +116,9 @@ public class GcsUtil {
   /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
   private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
 
-  /**
-   * Maximum number of requests permitted in a GCS batch request.
-   */
+  /** Maximum number of requests permitted in a GCS batch request. */
   private static final int MAX_REQUESTS_PER_BATCH = 100;
-  /**
-   * Maximum number of concurrent batches of requests executing on GCS.
-   */
+  /** Maximum number of concurrent batches of requests executing on GCS. */
   private static final int MAX_CONCURRENT_BATCHES = 256;
 
   private static final FluentBackoff BACKOFF_FACTORY =
@@ -138,6 +128,7 @@ public class GcsUtil {
 
   /** Client for the GCS API. */
   private Storage storageClient;
+
   private final HttpRequestInitializer httpRequestInitializer;
   /** Buffer size for GCS uploads (in bytes). */
   @Nullable private final Integer uploadBufferSizeBytes;
@@ -145,17 +136,15 @@ public class GcsUtil {
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
   private final ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
+  // Unbounded thread pool for codependent pipeline operations that will deadlock the pipeline if
+  // starved for threads.
   // Exposed for testing.
   final ExecutorService executorService;
 
-  /**
-   * Returns the prefix portion of the glob that doesn't contain wildcards.
-   */
+  /** Returns the prefix portion of the glob that doesn't contain wildcards. */
   public static String getNonWildcardPrefix(String globExp) {
     Matcher m = GLOB_PREFIX.matcher(globExp);
-    checkArgument(
-        m.matches(),
-        String.format("Glob expression: [%s] is not expandable.", globExp));
+    checkArgument(m.matches(), String.format("Glob expression: [%s] is not expandable.", globExp));
     return m.group("PREFIX");
   }
 
@@ -207,9 +196,7 @@ public class GcsUtil {
     return dst.toString();
   }
 
-  /**
-   * Returns true if the given {@code spec} contains wildcard.
-   */
+  /** Returns true if the given {@code spec} contains wildcard. */
   public static boolean isWildcard(GcsPath spec) {
     return GLOB_PREFIX.matcher(spec.getObject()).matches();
   }
@@ -231,9 +218,8 @@ public class GcsUtil {
   }
 
   /**
-   * Expands a pattern into matched paths. The pattern path may contain globs, which are expanded
-   * in the result. For patterns that only match a single object, we ensure that the object
-   * exists.
+   * Expands a pattern into matched paths. The pattern path may contain globs, which are expanded in
+   * the result. For patterns that only match a single object, we ensure that the object exists.
    */
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
     Pattern p = null;
@@ -255,11 +241,14 @@ public class GcsUtil {
       }
     }
 
-    LOG.debug("matching files in bucket {}, prefix {} against pattern {}", gcsPattern.getBucket(),
-        prefix, p.toString());
+    LOG.debug(
+        "matching files in bucket {}, prefix {} against pattern {}",
+        gcsPattern.getBucket(),
+        prefix,
+        p.toString());
 
     String pageToken = null;
-    List<GcsPath> results = new LinkedList<>();
+    List<GcsPath> results = new ArrayList<>();
     do {
       Objects objects = listObjects(gcsPattern.getBucket(), prefix, pageToken);
       if (objects.getItems() == null) {
@@ -291,16 +280,14 @@ public class GcsUtil {
     return BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
   }
   /**
-   * Returns the file size from GCS or throws {@link FileNotFoundException}
-   * if the resource does not exist.
+   * Returns the file size from GCS or throws {@link FileNotFoundException} if the resource does not
+   * exist.
    */
   public long fileSize(GcsPath path) throws IOException {
     return getObject(path).getSize().longValue();
   }
 
-  /**
-   * Returns the {@link StorageObject} for the given {@link GcsPath}.
-   */
+  /** Returns the {@link StorageObject} for the given {@link GcsPath}. */
   public StorageObject getObject(GcsPath gcsPath) throws IOException {
     return getObject(gcsPath, createBackOff(), Sleeper.DEFAULT);
   }
@@ -324,17 +311,15 @@ public class GcsUtil {
         throw new FileNotFoundException(gcsPath.toString());
       }
       throw new IOException(
-          String.format("Unable to get the file object for path %s.", gcsPath),
-          e);
+          String.format("Unable to get the file object for path %s.", gcsPath), e);
     }
   }
 
   /**
-   * Returns {@link StorageObjectOrIOException StorageObjectOrIOExceptions} for the given
-   * {@link GcsPath GcsPaths}.
+   * Returns {@link StorageObjectOrIOException StorageObjectOrIOExceptions} for the given {@link
+   * GcsPath GcsPaths}.
    */
-  public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths)
-      throws IOException {
+  public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths) throws IOException {
     List<StorageObjectOrIOException[]> results = new ArrayList<>();
     executeBatches(makeGetBatches(gcsPaths, results));
     ImmutableList.Builder<StorageObjectOrIOException> ret = ImmutableList.builder();
@@ -344,9 +329,7 @@ public class GcsUtil {
     return ret.build();
   }
 
-  /**
-   * Lists {@link Objects} given the {@code bucket}, {@code prefix}, {@code pageToken}.
-   */
+  /** Lists {@link Objects} given the {@code bucket}, {@code prefix}, {@code pageToken}. */
   public Objects listObjects(String bucket, String prefix, @Nullable String pageToken)
       throws IOException {
     // List all objects that start with the prefix (including objects in sub-directories).
@@ -366,14 +349,13 @@ public class GcsUtil {
           IOException.class);
     } catch (Exception e) {
       throw new IOException(
-          String.format("Unable to match files in bucket %s, prefix %s.", bucket, prefix),
-          e);
+          String.format("Unable to match files in bucket %s, prefix %s.", bucket, prefix), e);
     }
   }
 
   /**
-   * Returns the file size from GCS or throws {@link FileNotFoundException}
-   * if the resource does not exist.
+   * Returns the file size from GCS or throws {@link FileNotFoundException} if the resource does not
+   * exist.
    */
   @VisibleForTesting
   List<Long> fileSizes(List<GcsPath> paths) throws IOException {
@@ -403,8 +385,7 @@ public class GcsUtil {
    * @param path the GCS filename to read from
    * @return a SeekableByteChannel that can read the object data
    */
-  public SeekableByteChannel open(GcsPath path)
-      throws IOException {
+  public SeekableByteChannel open(GcsPath path) throws IOException {
     return new GoogleCloudStorageReadChannel(
         storageClient,
         path.getBucket(),
@@ -416,8 +397,7 @@ public class GcsUtil {
   /**
    * Creates an object in GCS.
    *
-   * <p>Returns a WritableByteChannel that can be used to write data to the
-   * object.
+   * <p>Returns a WritableByteChannel that can be used to write data to the object.
    *
    * @param path the GCS file to write to
    * @param type the type of object, eg "text/plain".
@@ -428,8 +408,8 @@ public class GcsUtil {
   }
 
   /**
-   * Same as {@link GcsUtil#create(GcsPath, String)} but allows overriding
-   * {code uploadBufferSizeBytes}.
+   * Same as {@link GcsUtil#create(GcsPath, String)} but allows overriding {code
+   * uploadBufferSizeBytes}.
    */
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
@@ -451,41 +431,31 @@ public class GcsUtil {
     return channel;
   }
 
-  /**
-   * Returns whether the GCS bucket exists and is accessible.
-   */
+  /** Returns whether the GCS bucket exists and is accessible. */
   public boolean bucketAccessible(GcsPath path) throws IOException {
-    return bucketAccessible(
-        path,
-        createBackOff(),
-        Sleeper.DEFAULT);
+    return bucketAccessible(path, createBackOff(), Sleeper.DEFAULT);
   }
 
   /**
-   * Returns the project number of the project which owns this bucket.
-   * If the bucket exists, it must be accessible otherwise the permissions
-   * exception will be propagated.  If the bucket does not exist, an exception
-   * will be thrown.
+   * Returns the project number of the project which owns this bucket. If the bucket exists, it must
+   * be accessible otherwise the permissions exception will be propagated. If the bucket does not
+   * exist, an exception will be thrown.
    */
   public long bucketOwner(GcsPath path) throws IOException {
-    return getBucket(
-        path,
-        createBackOff(),
-        Sleeper.DEFAULT).getProjectNumber().longValue();
+    return getBucket(path, createBackOff(), Sleeper.DEFAULT).getProjectNumber().longValue();
   }
 
   /**
-   * Creates a {@link Bucket} under the specified project in Cloud Storage or
-   * propagates an exception.
+   * Creates a {@link Bucket} under the specified project in Cloud Storage or propagates an
+   * exception.
    */
   public void createBucket(String projectId, Bucket bucket) throws IOException {
-    createBucket(
-        projectId, bucket, createBackOff(), Sleeper.DEFAULT);
+    createBucket(projectId, bucket, createBackOff(), Sleeper.DEFAULT);
   }
 
   /**
-   * Returns whether the GCS bucket exists. This will return false if the bucket
-   * is inaccessible due to permissions.
+   * Returns whether the GCS bucket exists. This will return false if the bucket is inaccessible due
+   * to permissions.
    */
   @VisibleForTesting
   boolean bucketAccessible(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
@@ -499,65 +469,65 @@ public class GcsUtil {
   @VisibleForTesting
   @Nullable
   Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
-    Storage.Buckets.Get getBucket =
-        storageClient.buckets().get(path.getBucket());
+    Storage.Buckets.Get getBucket = storageClient.buckets().get(path.getBucket());
 
-      try {
-        Bucket bucket = ResilientOperation.retry(
-            ResilientOperation.getGoogleRequestCallable(getBucket),
-            backoff,
-            new RetryDeterminer<IOException>() {
-              @Override
-              public boolean shouldRetry(IOException e) {
-                if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
-                  return false;
+    try {
+      Bucket bucket =
+          ResilientOperation.retry(
+              ResilientOperation.getGoogleRequestCallable(getBucket),
+              backoff,
+              new RetryDeterminer<IOException>() {
+                @Override
+                public boolean shouldRetry(IOException e) {
+                  if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
+                    return false;
+                  }
+                  return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
                 }
-                return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
-              }
-            },
-            IOException.class,
-            sleeper);
+              },
+              IOException.class,
+              sleeper);
 
-        return bucket;
-      } catch (GoogleJsonResponseException e) {
-        if (errorExtractor.accessDenied(e)) {
-          throw new AccessDeniedException(path.toString(), null, e.getMessage());
-        }
-        if (errorExtractor.itemNotFound(e)) {
-          throw new FileNotFoundException(e.getMessage());
-        }
-        throw e;
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IOException(
-            String.format("Error while attempting to verify existence of bucket gs://%s",
-                path.getBucket()), e);
-     }
+      return bucket;
+    } catch (GoogleJsonResponseException e) {
+      if (errorExtractor.accessDenied(e)) {
+        throw new AccessDeniedException(path.toString(), null, e.getMessage());
+      }
+      if (errorExtractor.itemNotFound(e)) {
+        throw new FileNotFoundException(e.getMessage());
+      }
+      throw e;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException(
+          String.format(
+              "Error while attempting to verify existence of bucket gs://%s", path.getBucket()),
+          e);
+    }
   }
 
   @VisibleForTesting
   void createBucket(String projectId, Bucket bucket, BackOff backoff, Sleeper sleeper)
-        throws IOException {
-    Storage.Buckets.Insert insertBucket =
-        storageClient.buckets().insert(projectId, bucket);
+      throws IOException {
+    Storage.Buckets.Insert insertBucket = storageClient.buckets().insert(projectId, bucket);
     insertBucket.setPredefinedAcl("projectPrivate");
     insertBucket.setPredefinedDefaultObjectAcl("projectPrivate");
 
     try {
       ResilientOperation.retry(
-        ResilientOperation.getGoogleRequestCallable(insertBucket),
-        backoff,
-        new RetryDeterminer<IOException>() {
-          @Override
-          public boolean shouldRetry(IOException e) {
-            if (errorExtractor.itemAlreadyExists(e) || errorExtractor.accessDenied(e)) {
-              return false;
+          ResilientOperation.getGoogleRequestCallable(insertBucket),
+          backoff,
+          new RetryDeterminer<IOException>() {
+            @Override
+            public boolean shouldRetry(IOException e) {
+              if (errorExtractor.itemAlreadyExists(e) || errorExtractor.accessDenied(e)) {
+                return false;
+              }
+              return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
             }
-            return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
-          }
-        },
-        IOException.class,
-        sleeper);
+          },
+          IOException.class,
+          sleeper);
       return;
     } catch (GoogleJsonResponseException e) {
       if (errorExtractor.accessDenied(e)) {
@@ -570,27 +540,26 @@ public class GcsUtil {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException(
-        String.format("Error while attempting to create bucket gs://%s for rproject %s",
-                      bucket.getName(), projectId), e);
+          String.format(
+              "Error while attempting to create bucket gs://%s for rproject %s",
+              bucket.getName(), projectId),
+          e);
     }
   }
 
   private static void executeBatches(List<BatchRequest> batches) throws IOException {
     ExecutorService executor =
         MoreExecutors.listeningDecorator(
-            MoreExecutors.getExitingExecutorService(
-                new ThreadPoolExecutor(
-                    MAX_CONCURRENT_BATCHES,
-                    MAX_CONCURRENT_BATCHES,
-                    0L,
-                    TimeUnit.MILLISECONDS,
-                    new LinkedBlockingQueue<>())));
+            new ThreadPoolExecutor(
+                MAX_CONCURRENT_BATCHES,
+                MAX_CONCURRENT_BATCHES,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>()));
 
-    List<CompletionStage<Void>> futures = new LinkedList<>();
+    List<CompletionStage<Void>> futures = new ArrayList<>();
     for (final BatchRequest batch : batches) {
-      futures.add(MoreFutures.runAsync(
-          () -> batch.execute(),
-          executor));
+      futures.add(MoreFutures.runAsync(() -> batch.execute(), executor));
     }
 
     try {
@@ -618,9 +587,8 @@ public class GcsUtil {
    */
   @VisibleForTesting
   List<BatchRequest> makeGetBatches(
-      Collection<GcsPath> paths,
-      List<StorageObjectOrIOException[]> results) throws IOException {
-    List<BatchRequest> batches = new LinkedList<>();
+      Collection<GcsPath> paths, List<StorageObjectOrIOException[]> results) throws IOException {
+    List<BatchRequest> batches = new ArrayList<>();
     for (List<GcsPath> filesToGet :
         Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
       BatchRequest batch = createBatchRequest();
@@ -647,7 +615,7 @@ public class GcsUtil {
         srcList.size(),
         destList.size());
 
-    List<BatchRequest> batches = new LinkedList<>();
+    List<BatchRequest> batches = new ArrayList<>();
     BatchRequest batch = createBatchRequest();
     for (int i = 0; i < srcList.size(); i++) {
       final GcsPath sourcePath = GcsPath.fromUri(srcList.get(i));
@@ -665,7 +633,7 @@ public class GcsUtil {
   }
 
   List<BatchRequest> makeRemoveBatches(Collection<String> filenames) throws IOException {
-    List<BatchRequest> batches = new LinkedList<>();
+    List<BatchRequest> batches = new ArrayList<>();
     for (List<String> filesToDelete :
         Lists.partition(Lists.newArrayList(filenames), MAX_REQUESTS_PER_BATCH)) {
       BatchRequest batch = createBatchRequest();
@@ -685,97 +653,98 @@ public class GcsUtil {
       throws IOException {
     final StorageObjectOrIOException[] ret = new StorageObjectOrIOException[1];
 
-    Storage.Objects.Get getRequest = storageClient.objects()
-        .get(path.getBucket(), path.getObject());
-    getRequest.queue(batch, new JsonBatchCallback<StorageObject>() {
-      @Override
-      public void onSuccess(StorageObject response, HttpHeaders httpHeaders) throws IOException {
-        ret[0] = StorageObjectOrIOException.create(response);
-      }
+    Storage.Objects.Get getRequest =
+        storageClient.objects().get(path.getBucket(), path.getObject());
+    getRequest.queue(
+        batch,
+        new JsonBatchCallback<StorageObject>() {
+          @Override
+          public void onSuccess(StorageObject response, HttpHeaders httpHeaders)
+              throws IOException {
+            ret[0] = StorageObjectOrIOException.create(response);
+          }
 
-      @Override
-      public void onFailure(GoogleJsonError e, HttpHeaders httpHeaders) throws IOException {
-        IOException ioException;
-        if (errorExtractor.itemNotFound(e)) {
-          ioException = new FileNotFoundException(path.toString());
-        } else {
-          ioException = new IOException(String.format("Error trying to get %s: %s", path, e));
-        }
-        ret[0] = StorageObjectOrIOException.create(ioException);
-      }
-    });
+          @Override
+          public void onFailure(GoogleJsonError e, HttpHeaders httpHeaders) throws IOException {
+            IOException ioException;
+            if (errorExtractor.itemNotFound(e)) {
+              ioException = new FileNotFoundException(path.toString());
+            } else {
+              ioException = new IOException(String.format("Error trying to get %s: %s", path, e));
+            }
+            ret[0] = StorageObjectOrIOException.create(ioException);
+          }
+        });
     return ret;
   }
 
-  /**
-   * A class that holds either a {@link StorageObject} or an {@link IOException}.
-   */
+  /** A class that holds either a {@link StorageObject} or an {@link IOException}. */
   @AutoValue
   public abstract static class StorageObjectOrIOException {
 
-    /**
-     * Returns the {@link StorageObject}.
-     */
+    /** Returns the {@link StorageObject}. */
     @Nullable
     public abstract StorageObject storageObject();
 
-    /**
-     * Returns the {@link IOException}.
-     */
+    /** Returns the {@link IOException}. */
     @Nullable
     public abstract IOException ioException();
 
     @VisibleForTesting
     public static StorageObjectOrIOException create(StorageObject storageObject) {
       return new AutoValue_GcsUtil_StorageObjectOrIOException(
-          checkNotNull(storageObject, "storageObject"),
-          null /* ioException */);
+          checkNotNull(storageObject, "storageObject"), null /* ioException */);
     }
 
     @VisibleForTesting
     public static StorageObjectOrIOException create(IOException ioException) {
       return new AutoValue_GcsUtil_StorageObjectOrIOException(
-          null /* storageObject */,
-          checkNotNull(ioException, "ioException"));
+          null /* storageObject */, checkNotNull(ioException, "ioException"));
     }
   }
 
   private void enqueueCopy(final GcsPath from, final GcsPath to, BatchRequest batch)
       throws IOException {
-    Storage.Objects.Copy copyRequest = storageClient.objects()
-        .copy(from.getBucket(), from.getObject(), to.getBucket(), to.getObject(), null);
-    copyRequest.queue(batch, new JsonBatchCallback<StorageObject>() {
-      @Override
-      public void onSuccess(StorageObject obj, HttpHeaders responseHeaders) {
-        LOG.debug("Successfully copied {} to {}", from, to);
-      }
+    Storage.Objects.Copy copyRequest =
+        storageClient
+            .objects()
+            .copy(from.getBucket(), from.getObject(), to.getBucket(), to.getObject(), null);
+    copyRequest.queue(
+        batch,
+        new JsonBatchCallback<StorageObject>() {
+          @Override
+          public void onSuccess(StorageObject obj, HttpHeaders responseHeaders) {
+            LOG.debug("Successfully copied {} to {}", from, to);
+          }
 
-      @Override
-      public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-        throw new IOException(
-            String.format("Error trying to copy %s to %s: %s", from, to, e));
-      }
-    });
+          @Override
+          public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
+            throw new IOException(String.format("Error trying to copy %s to %s: %s", from, to, e));
+          }
+        });
   }
 
   private void enqueueDelete(final GcsPath file, BatchRequest batch) throws IOException {
-    Storage.Objects.Delete deleteRequest = storageClient.objects()
-        .delete(file.getBucket(), file.getObject());
-    deleteRequest.queue(batch, new JsonBatchCallback<Void>() {
-      @Override
-      public void onSuccess(Void obj, HttpHeaders responseHeaders) {
-        LOG.debug("Successfully deleted {}", file);
-      }
+    Storage.Objects.Delete deleteRequest =
+        storageClient.objects().delete(file.getBucket(), file.getObject());
+    deleteRequest.queue(
+        batch,
+        new JsonBatchCallback<Void>() {
+          @Override
+          public void onSuccess(Void obj, HttpHeaders responseHeaders) {
+            LOG.debug("Successfully deleted {}", file);
+          }
 
-      @Override
-      public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-        if (e.getCode() == 404) {
-          LOG.info("Ignoring failed deletion of file {} which already does not exist: {}", file, e);
-        } else {
-          throw new IOException(String.format("Error trying to delete %s: %s", file, e));
-        }
-      }
-    });
+          @Override
+          public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
+            if (e.getCode() == 404) {
+              LOG.info(
+                  "Ignoring failed deletion of file {} which already does not exist: {}", file, e);
+            } else {
+              throw new IOException(String.format("Error trying to delete %s: %s", file, e));
+            }
+          }
+        });
   }
 
   private BatchRequest createBatchRequest() {

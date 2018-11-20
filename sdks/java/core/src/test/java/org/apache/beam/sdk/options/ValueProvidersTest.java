@@ -30,15 +30,18 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ValueProviders}. */
 @RunWith(JUnit4.class)
 public class ValueProvidersTest {
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   /** A test interface. */
   public interface TestOptions extends PipelineOptions {
     String getString();
+
     void setString(String value);
 
     String getOtherString();
+
     void setOtherString(String value);
   }
 
@@ -46,22 +49,22 @@ public class ValueProvidersTest {
   public void testUpdateSerialize() throws Exception {
     TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
     String serializedOptions = MAPPER.writeValueAsString(submitOptions);
-    String updatedOptions = ValueProviders.updateSerializedOptions(
-      serializedOptions, ImmutableMap.of("string", "bar"));
-    TestOptions runtime = MAPPER.readValue(updatedOptions, PipelineOptions.class)
-      .as(TestOptions.class);
+    String updatedOptions =
+        ValueProviders.updateSerializedOptions(serializedOptions, ImmutableMap.of("string", "bar"));
+    TestOptions runtime =
+        MAPPER.readValue(updatedOptions, PipelineOptions.class).as(TestOptions.class);
     assertEquals("bar", runtime.getString());
   }
 
   @Test
   public void testUpdateSerializeExistingValue() throws Exception {
-    TestOptions submitOptions = PipelineOptionsFactory.fromArgs(
-        "--string=baz", "--otherString=quux").as(TestOptions.class);
+    TestOptions submitOptions =
+        PipelineOptionsFactory.fromArgs("--string=baz", "--otherString=quux").as(TestOptions.class);
     String serializedOptions = MAPPER.writeValueAsString(submitOptions);
-    String updatedOptions = ValueProviders.updateSerializedOptions(
-      serializedOptions, ImmutableMap.of("string", "bar"));
-    TestOptions runtime = MAPPER.readValue(updatedOptions, PipelineOptions.class)
-      .as(TestOptions.class);
+    String updatedOptions =
+        ValueProviders.updateSerializedOptions(serializedOptions, ImmutableMap.of("string", "bar"));
+    TestOptions runtime =
+        MAPPER.readValue(updatedOptions, PipelineOptions.class).as(TestOptions.class);
     assertEquals("bar", runtime.getString());
     assertEquals("quux", runtime.getOtherString());
   }
@@ -72,8 +75,8 @@ public class ValueProvidersTest {
     String serializedOptions = MAPPER.writeValueAsString(submitOptions);
     String updatedOptions =
         ValueProviders.updateSerializedOptions(serializedOptions, ImmutableMap.of());
-    TestOptions runtime = MAPPER.readValue(updatedOptions, PipelineOptions.class)
-      .as(TestOptions.class);
+    TestOptions runtime =
+        MAPPER.readValue(updatedOptions, PipelineOptions.class).as(TestOptions.class);
     assertNull(runtime.getString());
   }
 }

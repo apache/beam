@@ -29,7 +29,7 @@ job('beam_SeedJob_Standalone') {
   label('beam')
 
   logRotator {
-    daysToKeep(14)
+    daysToKeep(30)
   }
 
   scm {
@@ -97,9 +97,8 @@ job('beam_SeedJob_Standalone') {
     }
   }
 
-  // If anything goes wrong, mail the main dev list, because it is a big deal
   publishers {
-    mailer('dev@beam.apache.org', false, true)
+    mailer('builds@beam.apache.org', false, true)
   }
 
   steps {

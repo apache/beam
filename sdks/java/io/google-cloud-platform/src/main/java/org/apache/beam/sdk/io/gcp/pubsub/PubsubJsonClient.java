@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -23,6 +22,8 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.Pubsub.Builder;
+import com.google.api.services.pubsub.Pubsub.Projects.Subscriptions;
+import com.google.api.services.pubsub.Pubsub.Projects.Topics;
 import com.google.api.services.pubsub.model.AcknowledgeRequest;
 import com.google.api.services.pubsub.model.ListSubscriptionsResponse;
 import com.google.api.services.pubsub.model.ListTopicsResponse;
@@ -50,9 +51,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 
-/**
- * A Pubsub client using JSON transport.
- */
+/** A Pubsub client using JSON transport. */
 public class PubsubJsonClient extends PubsubClient {
 
   private static class PubsubJsonClientFactory implements PubsubClientFactory {
@@ -62,8 +61,7 @@ public class PubsubJsonClient extends PubsubClient {
         return httpRequestInitializer;
       } else {
         return new ChainingHttpRequestInitializer(
-            new HttpCredentialsAdapter(credential),
-            httpRequestInitializer);
+            new HttpCredentialsAdapter(credential), httpRequestInitializer);
       }
     }
 
@@ -71,17 +69,18 @@ public class PubsubJsonClient extends PubsubClient {
     public PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
-      Pubsub pubsub = new Builder(
-          Transport.getTransport(),
-          Transport.getJsonFactory(),
-          chainHttpRequestInitializer(
-              options.getGcpCredential(),
-              // Do not log 404. It clutters the output and is possibly even required by the caller.
-              new RetryHttpRequestInitializer(ImmutableList.of(404))))
-          .setRootUrl(options.getPubsubRootUrl())
-          .setApplicationName(options.getAppName())
-          .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
-          .build();
+      Pubsub pubsub =
+          new Builder(
+                  Transport.getTransport(),
+                  Transport.getJsonFactory(),
+                  chainHttpRequestInitializer(
+                      options.getGcpCredential(),
+                      // Do not log 404. It clutters the output and is possibly even required by the caller.
+                      new RetryHttpRequestInitializer(ImmutableList.of(404))))
+              .setRootUrl(options.getPubsubRootUrl())
+              .setApplicationName(options.getAppName())
+              .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
+              .build();
       return new PubsubJsonClient(timestampAttribute, idAttribute, pubsub);
     }
 
@@ -91,34 +90,24 @@ public class PubsubJsonClient extends PubsubClient {
     }
   }
 
-  /**
-   * Factory for creating Pubsub clients using Json transport.
-   */
+  /** Factory for creating Pubsub clients using Json transport. */
   public static final PubsubClientFactory FACTORY = new PubsubJsonClientFactory();
 
   /**
    * Attribute to use for custom timestamps, or {@literal null} if should use Pubsub publish time
    * instead.
    */
-  @Nullable
-  private final String timestampAttribute;
+  @Nullable private final String timestampAttribute;
 
-  /**
-   * Attribute to use for custom ids, or {@literal null} if should use Pubsub provided ids.
-   */
-  @Nullable
-  private final String idAttribute;
+  /** Attribute to use for custom ids, or {@literal null} if should use Pubsub provided ids. */
+  @Nullable private final String idAttribute;
 
-  /**
-   * Underlying JSON transport.
-   */
+  /** Underlying JSON transport. */
   private Pubsub pubsub;
 
   @VisibleForTesting
   PubsubJsonClient(
-      @Nullable String timestampAttribute,
-      @Nullable String idAttribute,
-      Pubsub pubsub) {
+      @Nullable String timestampAttribute, @Nullable String idAttribute, Pubsub pubsub) {
     this.timestampAttribute = timestampAttribute;
     this.idAttribute = idAttribute;
     this.pubsub = pubsub;
@@ -130,8 +119,7 @@ public class PubsubJsonClient extends PubsubClient {
   }
 
   @Override
-  public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages)
-      throws IOException {
+  public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     List<PubsubMessage> pubsubMessages = new ArrayList<>(outgoingMessages.size());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       PubsubMessage pubsubMessage = new PubsubMessage().encodeData(outgoingMessage.elementBytes);
@@ -139,10 +127,8 @@ public class PubsubJsonClient extends PubsubClient {
       pubsubMessages.add(pubsubMessage);
     }
     PublishRequest request = new PublishRequest().setMessages(pubsubMessages);
-    PublishResponse response = pubsub.projects()
-                                     .topics()
-                                     .publish(topic.getPath(), request)
-                                     .execute();
+    PublishResponse response =
+        pubsub.projects().topics().publish(topic.getPath(), request).execute();
     return response.getMessageIds().size();
   }
 
@@ -167,14 +153,12 @@ public class PubsubJsonClient extends PubsubClient {
       long requestTimeMsSinceEpoch,
       SubscriptionPath subscription,
       int batchSize,
-      boolean returnImmediately) throws IOException {
-    PullRequest request = new PullRequest()
-        .setReturnImmediately(returnImmediately)
-        .setMaxMessages(batchSize);
-    PullResponse response = pubsub.projects()
-                                  .subscriptions()
-                                  .pull(subscription.getPath(), request)
-                                  .execute();
+      boolean returnImmediately)
+      throws IOException {
+    PullRequest request =
+        new PullRequest().setReturnImmediately(returnImmediately).setMaxMessages(batchSize);
+    PullResponse response =
+        pubsub.projects().subscriptions().pull(subscription.getPath(), request).execute();
     if (response.getReceivedMessages() == null || response.getReceivedMessages().isEmpty()) {
       return ImmutableList.of();
     }
@@ -185,6 +169,9 @@ public class PubsubJsonClient extends PubsubClient {
 
       // Payload.
       byte[] elementBytes = pubsubMessage.decodeData();
+      if (elementBytes == null) {
+        elementBytes = new byte[0];
+      }
 
       // Timestamp.
       long timestampMsSinceEpoch =
@@ -204,8 +191,14 @@ public class PubsubJsonClient extends PubsubClient {
         recordId = pubsubMessage.getMessageId();
       }
 
-      incomingMessages.add(new IncomingMessage(elementBytes, attributes, timestampMsSinceEpoch,
-                                               requestTimeMsSinceEpoch, ackId, recordId));
+      incomingMessages.add(
+          new IncomingMessage(
+              elementBytes,
+              attributes,
+              timestampMsSinceEpoch,
+              requestTimeMsSinceEpoch,
+              ackId,
+              recordId));
     }
 
     return incomingMessages;
@@ -214,93 +207,101 @@ public class PubsubJsonClient extends PubsubClient {
   @Override
   public void acknowledge(SubscriptionPath subscription, List<String> ackIds) throws IOException {
     AcknowledgeRequest request = new AcknowledgeRequest().setAckIds(ackIds);
-    pubsub.projects()
-          .subscriptions()
-          .acknowledge(subscription.getPath(), request)
-          .execute(); // ignore Empty result.
+    pubsub
+        .projects()
+        .subscriptions()
+        .acknowledge(subscription.getPath(), request)
+        .execute(); // ignore Empty result.
   }
 
   @Override
   public void modifyAckDeadline(
-      SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds)
-      throws IOException {
+      SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds) throws IOException {
     ModifyAckDeadlineRequest request =
-        new ModifyAckDeadlineRequest().setAckIds(ackIds)
-                                      .setAckDeadlineSeconds(deadlineSeconds);
-    pubsub.projects()
-          .subscriptions()
-          .modifyAckDeadline(subscription.getPath(), request)
-          .execute(); // ignore Empty result.
+        new ModifyAckDeadlineRequest().setAckIds(ackIds).setAckDeadlineSeconds(deadlineSeconds);
+    pubsub
+        .projects()
+        .subscriptions()
+        .modifyAckDeadline(subscription.getPath(), request)
+        .execute(); // ignore Empty result.
   }
 
   @Override
   public void createTopic(TopicPath topic) throws IOException {
-    pubsub.projects()
-          .topics()
-          .create(topic.getPath(), new Topic())
-          .execute(); // ignore Topic result.
+    pubsub
+        .projects()
+        .topics()
+        .create(topic.getPath(), new Topic())
+        .execute(); // ignore Topic result.
   }
 
   @Override
   public void deleteTopic(TopicPath topic) throws IOException {
-    pubsub.projects()
-          .topics()
-          .delete(topic.getPath())
-          .execute(); // ignore Empty result.
+    pubsub.projects().topics().delete(topic.getPath()).execute(); // ignore Empty result.
   }
 
   @Override
   public List<TopicPath> listTopics(ProjectPath project) throws IOException {
-    ListTopicsResponse response = pubsub.projects()
-                                        .topics()
-                                        .list(project.getPath())
-                                        .execute();
+    Topics.List request = pubsub.projects().topics().list(project.getPath());
+    ListTopicsResponse response = request.execute();
     if (response.getTopics() == null || response.getTopics().isEmpty()) {
       return ImmutableList.of();
     }
     List<TopicPath> topics = new ArrayList<>(response.getTopics().size());
-    for (Topic topic : response.getTopics()) {
-      topics.add(topicPathFromPath(topic.getName()));
+    while (true) {
+      for (Topic topic : response.getTopics()) {
+        topics.add(topicPathFromPath(topic.getName()));
+      }
+      if (Strings.isNullOrEmpty(response.getNextPageToken())) {
+        break;
+      }
+      request.setPageToken(response.getNextPageToken());
+      response = request.execute();
     }
     return topics;
   }
 
   @Override
   public void createSubscription(
-      TopicPath topic, SubscriptionPath subscription,
-      int ackDeadlineSeconds) throws IOException {
-    Subscription request = new Subscription()
-        .setTopic(topic.getPath())
-        .setAckDeadlineSeconds(ackDeadlineSeconds);
-    pubsub.projects()
-          .subscriptions()
-          .create(subscription.getPath(), request)
-          .execute(); // ignore Subscription result.
+      TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException {
+    Subscription request =
+        new Subscription().setTopic(topic.getPath()).setAckDeadlineSeconds(ackDeadlineSeconds);
+    pubsub
+        .projects()
+        .subscriptions()
+        .create(subscription.getPath(), request)
+        .execute(); // ignore Subscription result.
   }
 
   @Override
   public void deleteSubscription(SubscriptionPath subscription) throws IOException {
-    pubsub.projects()
-          .subscriptions()
-          .delete(subscription.getPath())
-          .execute(); // ignore Empty result.
+    pubsub
+        .projects()
+        .subscriptions()
+        .delete(subscription.getPath())
+        .execute(); // ignore Empty result.
   }
 
   @Override
   public List<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
       throws IOException {
-    ListSubscriptionsResponse response = pubsub.projects()
-                                               .subscriptions()
-                                               .list(project.getPath())
-                                               .execute();
+    Subscriptions.List request = pubsub.projects().subscriptions().list(project.getPath());
+    ListSubscriptionsResponse response = request.execute();
     if (response.getSubscriptions() == null || response.getSubscriptions().isEmpty()) {
       return ImmutableList.of();
     }
     List<SubscriptionPath> subscriptions = new ArrayList<>(response.getSubscriptions().size());
-    for (Subscription subscription : response.getSubscriptions()) {
-      if (subscription.getTopic().equals(topic.getPath())) {
-        subscriptions.add(subscriptionPathFromPath(subscription.getName()));
+    while (true) {
+      for (Subscription subscription : response.getSubscriptions()) {
+        if (subscription.getTopic().equals(topic.getPath())) {
+          subscriptions.add(subscriptionPathFromPath(subscription.getName()));
+        }
       }
+      if (Strings.isNullOrEmpty(response.getNextPageToken())) {
+        break;
+      }
+      request.setPageToken(response.getNextPageToken());
+      response = request.execute();
     }
     return subscriptions;
   }

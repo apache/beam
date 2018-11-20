@@ -18,15 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
-import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
@@ -45,30 +42,23 @@ public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
   }
 
   @Override
-  public BeamIOType getSourceType() {
-    return BeamIOType.BOUNDED;
+  public PCollection<Row> buildIOReader(PBegin begin) {
+    // TODO: make this more generic.
+    return begin
+        .apply(BigQueryIO.read(BigQueryUtils.toBeamRow(schema)).from(tableSpec))
+        .setRowSchema(getSchema());
   }
 
   @Override
-  public PCollection<Row> buildIOReader(Pipeline pipeline) {
-    throw new UnsupportedOperationException();
+  public POutput buildIOWriter(PCollection<Row> input) {
+    return input.apply(
+        BigQueryIO.<Row>write()
+            .withSchema(BigQueryUtils.toTableSchema(getSchema()))
+            .withFormatFunction(BigQueryUtils.toTableRow())
+            .to(tableSpec));
   }
 
-  @Override
-  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
-    return new PTransform<PCollection<Row>, POutput>() {
-      @Override
-      public WriteResult expand(PCollection<Row> input) {
-        return input.apply(
-            BigQueryIO.<Row>write()
-                .withSchema(BigQueryUtils.toTableSchema(getSchema()))
-                .withFormatFunction(BigQueryUtils.toTableRow())
-                .to(tableSpec));
-      }
-    };
-  }
-
-  public String getTableSpec() {
+  String getTableSpec() {
     return tableSpec;
   }
 }

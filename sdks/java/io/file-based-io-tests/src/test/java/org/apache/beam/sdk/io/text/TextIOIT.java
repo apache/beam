@@ -15,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.text;
 
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
+import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -47,6 +46,7 @@ import org.junit.runners.JUnit4;
  * Integration tests for {@link org.apache.beam.sdk.io.TextIO}.
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
+ *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
@@ -57,10 +57,9 @@ import org.junit.runners.JUnit4;
  *  --tests org.apache.beam.sdk.io.text.TextIOIT
  *  -DintegrationTestRunner=direct
  * </pre>
- * </p>
  *
- * <p>Please see 'build_rules.gradle' file for instructions regarding
- * running this test using Beam performance testing framework.</p>
+ * <p>Please see 'build_rules.gradle' file for instructions regarding running this test using Beam
+ * performance testing framework.
  */
 @RunWith(JUnit4.class)
 public class TextIOIT {
@@ -69,12 +68,11 @@ public class TextIOIT {
   private static Integer numberOfTextLines;
   private static Compression compressionType;
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setup() {
-    IOTestPipelineOptions options = readTestPipelineOptions();
+    FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
@@ -83,11 +81,8 @@ public class TextIOIT {
 
   @Test
   public void writeThenReadAll() {
-    TextIO.TypedWrite<String, Object> write = TextIO
-        .write()
-        .to(filenamePrefix)
-        .withOutputFilenames()
-        .withCompression(compressionType);
+    TextIO.TypedWrite<String, Object> write =
+        TextIO.write().to(filenamePrefix).withOutputFilenames().withCompression(compressionType);
 
     PCollection<String> testFilenames =
         pipeline
@@ -99,9 +94,10 @@ public class TextIOIT {
             .getPerDestinationOutputFilenames()
             .apply(Values.create());
 
-    PCollection<String> consolidatedHashcode = testFilenames
-        .apply("Read all files", TextIO.readAll().withCompression(AUTO))
-        .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+    PCollection<String> consolidatedHashcode =
+        testFilenames
+            .apply("Read all files", TextIO.readAll().withCompression(AUTO))
+            .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);

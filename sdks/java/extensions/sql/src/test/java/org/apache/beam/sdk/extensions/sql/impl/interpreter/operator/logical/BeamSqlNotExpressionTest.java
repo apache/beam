@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -35,16 +34,22 @@ public class BeamSqlNotExpressionTest extends BeamSqlFnExecutorTestBase {
     List<BeamSqlExpression> operands = new ArrayList<>();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
     Assert.assertTrue(
-        new BeamSqlNotExpression(operands).evaluate(row, null, ImmutableMap.of()).getBoolean());
+        new BeamSqlNotExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getBoolean());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
     Assert.assertFalse(
-        new BeamSqlNotExpression(operands).evaluate(row, null, ImmutableMap.of()).getBoolean());
+        new BeamSqlNotExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getBoolean());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, null));
     Assert.assertNull(
-        new BeamSqlNotExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlNotExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 }

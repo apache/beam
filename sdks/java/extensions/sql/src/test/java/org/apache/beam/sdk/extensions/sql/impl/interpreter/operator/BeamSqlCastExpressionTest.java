@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
@@ -53,7 +52,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         5L,
         new BeamSqlCastExpression(operands, SqlTypeName.BIGINT)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getLong());
   }
 
@@ -63,7 +62,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         5L,
         new BeamSqlCastExpression(operands, SqlTypeName.BIGINT)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getLong());
   }
 
@@ -74,7 +73,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTimeAtStartOfDay(),
         new BeamSqlCastExpression(operands, SqlTypeName.DATE)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -85,7 +84,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTimeAtStartOfDay(),
         new BeamSqlCastExpression(operands, SqlTypeName.DATE)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -96,7 +95,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTimeAtStartOfDay(),
         new BeamSqlCastExpression(operands, SqlTypeName.DATE)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -106,7 +105,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         SqlTypeName.TIMESTAMP,
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getOutputType());
   }
 
@@ -116,7 +115,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 22).withTime(0, 0, 0, 0),
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -131,7 +130,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         expected,
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -141,7 +140,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 21).withTime(23, 59, 59, 0),
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 
@@ -151,7 +150,7 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         new DateTime().withDate(2017, 05, 22).withTime(0, 0, 0, 0),
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 }

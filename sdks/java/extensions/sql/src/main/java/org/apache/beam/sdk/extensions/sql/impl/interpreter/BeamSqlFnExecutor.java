@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
-import com.google.common.collect.ImmutableMap;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.impl.UdfImpl;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCastExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCorrelVariableExpression;
@@ -29,11 +30,12 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDefau
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDotExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlLocalRefExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlOperatorExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlUdfExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowEndExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowStartExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.DateOperators;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.StringOperators;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlDivideExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlModExpression;
@@ -50,15 +52,14 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.B
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlIsNullExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlLessThanExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlLessThanOrEqualsExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlLikeExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlNotEqualsExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlNotLikeExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimeExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateCeilExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateFloorExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimePlusExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlExtractExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlIntervalMultiplyExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlAndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlNotExpression;
@@ -90,17 +91,6 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlTruncateExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret.BeamSqlReinterpretExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.row.BeamSqlFieldAccessExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlCharLengthExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlConcatExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlInitCapExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlLowerExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlOverlayExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlPositionExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlSubstringExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlTrimExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlUpperExpression;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamFilterRel;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
@@ -109,8 +99,10 @@ import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.schema.impl.ScalarFunctionImpl;
+import org.apache.calcite.rex.RexProgram;
+import org.apache.calcite.runtime.SqlFunctions;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
@@ -123,24 +115,29 @@ import org.joda.time.DateTime;
  * evaluated against the {@link Row}.
  */
 public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
-  protected List<BeamSqlExpression> exps;
+  private List<BeamSqlExpression> exprs;
+  private BeamSqlExpression filterCondition;
+  private List<BeamSqlExpression> projections;
 
-  public BeamSqlFnExecutor(BeamRelNode relNode) {
-    this.exps = new ArrayList<>();
-    if (relNode instanceof BeamFilterRel) {
-      BeamFilterRel filterNode = (BeamFilterRel) relNode;
-      RexNode condition = filterNode.getCondition();
-      exps.add(buildExpression(condition));
-    } else if (relNode instanceof BeamProjectRel) {
-      BeamProjectRel projectNode = (BeamProjectRel) relNode;
-      List<RexNode> projects = projectNode.getProjects();
-      for (RexNode rexNode : projects) {
-        exps.add(buildExpression(rexNode));
-      }
-    } else {
-      throw new UnsupportedOperationException(
-          String.format("%s is not supported yet!", relNode.getClass().toString()));
-    }
+  public BeamSqlFnExecutor(RexProgram program) {
+    this.exprs =
+        program
+            .getExprList()
+            .stream()
+            .map(BeamSqlFnExecutor::buildExpression)
+            .collect(Collectors.toList());
+
+    this.filterCondition =
+        program.getCondition() == null
+            ? BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true)
+            : buildExpression(program.getCondition());
+
+    this.projections =
+        program
+            .getProjectList()
+            .stream()
+            .map(BeamSqlFnExecutor::buildExpression)
+            .collect(Collectors.toList());
   }
 
   /**
@@ -148,7 +145,18 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
    * represent each {@link SqlOperator} with a corresponding {@link BeamSqlExpression}.
    */
   static BeamSqlExpression buildExpression(RexNode rexNode) {
-    BeamSqlExpression ret = null;
+    BeamSqlExpression ret = getBeamSqlExpression(rexNode);
+
+    if (!ret.accept()) {
+      throw new IllegalStateException(
+          ret.getClass().getSimpleName() + " does not accept the operands.(" + rexNode + ")");
+    }
+
+    return ret;
+  }
+
+  private static BeamSqlExpression getBeamSqlExpression(RexNode rexNode) {
+    BeamSqlExpression ret;
     if (rexNode instanceof RexLiteral) {
       RexLiteral node = (RexLiteral) rexNode;
       SqlTypeName type = node.getTypeName();
@@ -157,11 +165,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       if (SqlTypeName.CHAR_TYPES.contains(type) && node.getValue() instanceof NlsString) {
         // NlsString is not serializable, we need to convert
         // it to string explicitly.
-        return BeamSqlPrimitive.of(type, ((NlsString) value).getValue());
+        ret = BeamSqlPrimitive.of(type, ((NlsString) value).getValue());
       } else if (isDateNode(type, value)) {
-        // does this actually make sense?
-        // Calcite actually treat Calendar as the java type of Date Literal
-        return BeamSqlPrimitive.of(type, new DateTime(((Calendar) value).getTimeInMillis()));
+        ret = BeamSqlPrimitive.of(type, new DateTime(value));
       } else {
         // node.getTypeName().getSqlTypeName() and node.getSqlTypeName() can be different
         // e.g. sql: "select 1"
@@ -170,37 +176,45 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         //     node.getSqlTypeName() = DECIMAL (the actual internal storage format)
         // So we need to do a convert here.
         // check RexBuilder#makeLiteral for more information.
+
         SqlTypeName realType = node.getType().getSqlTypeName();
         Object realValue = value;
-        if (type == SqlTypeName.DECIMAL) {
-          BigDecimal rawValue = (BigDecimal) value;
+
+        if (SqlTypeName.NUMERIC_TYPES.contains(type)) {
           switch (realType) {
             case TINYINT:
-              realValue = (byte) rawValue.intValue();
+              realValue = SqlFunctions.toByte(value);
               break;
             case SMALLINT:
-              realValue = (short) rawValue.intValue();
+              realValue = SqlFunctions.toShort(value);
               break;
             case INTEGER:
-              realValue = rawValue.intValue();
+              realValue = SqlFunctions.toInt(value);
               break;
             case BIGINT:
-              realValue = rawValue.longValue();
+              realValue = SqlFunctions.toLong(value);
+              break;
+            case FLOAT:
+              realValue = SqlFunctions.toFloat(value);
+              break;
+            case DOUBLE:
+              realValue = SqlFunctions.toDouble(value);
               break;
             case DECIMAL:
-              realValue = rawValue;
+              realValue = SqlFunctions.toBigDecimal(value);
               break;
             default:
               throw new IllegalStateException(
-                  "type/realType mismatch: " + type + " VS " + realType);
-          }
-        } else if (type == SqlTypeName.DOUBLE) {
-          Double rawValue = (Double) value;
-          if (realType == SqlTypeName.FLOAT) {
-            realValue = rawValue.floatValue();
+                  "Unsupported conversion: Attempted convert node "
+                      + node.toString()
+                      + " of type "
+                      + type
+                      + "to "
+                      + realType);
           }
         }
-        return BeamSqlPrimitive.of(realType, realValue);
+
+        ret = BeamSqlPrimitive.of(realType, realValue);
       }
     } else if (rexNode instanceof RexInputRef) {
       RexInputRef node = (RexInputRef) rexNode;
@@ -210,6 +224,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       ret =
           new BeamSqlCorrelVariableExpression(
               correlVariable.getType().getSqlTypeName(), correlVariable.id.getId());
+    } else if (rexNode instanceof RexLocalRef) {
+      RexLocalRef localRef = (RexLocalRef) rexNode;
+      ret = new BeamSqlLocalRefExpression(localRef.getType().getSqlTypeName(), localRef.getIndex());
     } else if (rexNode instanceof RexFieldAccess) {
       RexFieldAccess fieldAccessNode = (RexFieldAccess) rexNode;
       BeamSqlExpression referenceExpression = buildExpression(fieldAccessNode.getReferenceExpr());
@@ -254,10 +271,19 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "<=":
           ret = new BeamSqlLessThanOrEqualsExpression(subExps);
           break;
-
+        case "LIKE":
+          ret = new BeamSqlLikeExpression(subExps);
+          break;
+        case "NOT LIKE":
+          ret = new BeamSqlNotLikeExpression(subExps);
+          break;
           // arithmetic operators
         case "+":
-          ret = new BeamSqlPlusExpression(subExps);
+          if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
+            ret = new BeamSqlPlusExpression(subExps);
+          } else {
+            ret = new BeamSqlDatetimePlusExpression(subExps);
+          }
           break;
         case "-":
           if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
@@ -347,98 +373,117 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
           // string operators
         case "||":
-          ret = new BeamSqlConcatExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.CONCAT, subExps);
           break;
         case "POSITION":
-          ret = new BeamSqlPositionExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.POSITION, subExps);
           break;
         case "CHAR_LENGTH":
         case "CHARACTER_LENGTH":
-          ret = new BeamSqlCharLengthExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.CHAR_LENGTH, subExps);
           break;
         case "UPPER":
-          ret = new BeamSqlUpperExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.UPPER, subExps);
           break;
         case "LOWER":
-          ret = new BeamSqlLowerExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.LOWER, subExps);
           break;
         case "TRIM":
-          ret = new BeamSqlTrimExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.TRIM, subExps);
           break;
         case "SUBSTRING":
-          ret = new BeamSqlSubstringExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.SUBSTRING, subExps);
           break;
         case "OVERLAY":
-          ret = new BeamSqlOverlayExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.OVERLAY, subExps);
           break;
         case "INITCAP":
-          ret = new BeamSqlInitCapExpression(subExps);
+          ret = new BeamSqlOperatorExpression(StringOperators.INIT_CAP, subExps);
           break;
 
           // date functions
         case "Reinterpret":
-          return new BeamSqlReinterpretExpression(subExps, node.type.getSqlTypeName());
+          ret = new BeamSqlReinterpretExpression(subExps, node.type.getSqlTypeName());
+          break;
         case "CEIL":
           if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
-            return new BeamSqlCeilExpression(subExps);
+            ret = new BeamSqlCeilExpression(subExps);
           } else {
-            return new BeamSqlDateCeilExpression(subExps);
+            ret = new BeamSqlOperatorExpression(DateOperators.DATETIME_CEIL, subExps);
           }
+          break;
+
         case "FLOOR":
           if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
-            return new BeamSqlFloorExpression(subExps);
+            ret = new BeamSqlFloorExpression(subExps);
           } else {
-            return new BeamSqlDateFloorExpression(subExps);
+            ret = new BeamSqlOperatorExpression(DateOperators.DATETIME_FLOOR, subExps);
           }
+          break;
+
         case "EXTRACT_DATE":
         case "EXTRACT":
-          return new BeamSqlExtractExpression(subExps);
+          ret = new BeamSqlOperatorExpression(DateOperators.EXTRACT, subExps);
+          break;
 
         case "LOCALTIME":
         case "CURRENT_TIME":
-          return new BeamSqlCurrentTimeExpression(subExps);
+          ret = new BeamSqlCurrentTimeExpression(subExps);
+          break;
 
         case "CURRENT_TIMESTAMP":
         case "LOCALTIMESTAMP":
-          return new BeamSqlCurrentTimestampExpression(subExps);
+          ret = new BeamSqlCurrentTimestampExpression(subExps);
+          break;
 
         case "CURRENT_DATE":
-          return new BeamSqlCurrentDateExpression();
+          ret = new BeamSqlCurrentDateExpression();
+          break;
 
         case "DATETIME_PLUS":
-          return new BeamSqlDatetimePlusExpression(subExps);
+          ret = new BeamSqlDatetimePlusExpression(subExps);
+          break;
 
           // array functions
         case "ARRAY":
-          return new BeamSqlArrayExpression(subExps);
+          ret = new BeamSqlArrayExpression(subExps);
+          break;
           // map functions
         case "MAP":
-          return new BeamSqlMapExpression(subExps);
+          ret = new BeamSqlMapExpression(subExps);
+          break;
 
         case "ITEM":
           switch (subExps.get(0).getOutputType()) {
             case MAP:
-              return new BeamSqlMapItemExpression(subExps, node.type.getSqlTypeName());
+              ret = new BeamSqlMapItemExpression(subExps, node.type.getSqlTypeName());
+              break;
             case ARRAY:
-              return new BeamSqlArrayItemExpression(subExps, node.type.getSqlTypeName());
+              ret = new BeamSqlArrayItemExpression(subExps, node.type.getSqlTypeName());
+              break;
             default:
               throw new UnsupportedOperationException(
                   "Operator: " + opName + " is not supported yet");
           }
+          break;
 
           // collections functions
         case "ELEMENT":
-          return new BeamSqlSingleElementExpression(subExps, node.type.getSqlTypeName());
+          ret = new BeamSqlSingleElementExpression(subExps, node.type.getSqlTypeName());
+          break;
 
         case "CARDINALITY":
-          return new BeamSqlCardinalityExpression(subExps, node.type.getSqlTypeName());
+          ret = new BeamSqlCardinalityExpression(subExps, node.type.getSqlTypeName());
+          break;
 
         case "DOT":
-          return new BeamSqlDotExpression(subExps, node.type.getSqlTypeName());
+          ret = new BeamSqlDotExpression(subExps, node.type.getSqlTypeName());
+          break;
 
-          //DEFAULT keyword for UDF with optional parameter
+          // DEFAULT keyword for UDF with optional parameter
         case "DEFAULT":
-          return new BeamSqlDefaultExpression();
+          ret = new BeamSqlDefaultExpression();
+          break;
 
         case "CASE":
           ret = new BeamSqlCaseExpression(subExps);
@@ -454,26 +499,11 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlIsNotNullExpression(subExps.get(0));
           break;
 
-        case "HOP":
-        case "TUMBLE":
-        case "SESSION":
-          ret = new BeamSqlWindowExpression(subExps, node.type.getSqlTypeName());
-          break;
-        case "HOP_START":
-        case "TUMBLE_START":
-        case "SESSION_START":
-          ret = new BeamSqlWindowStartExpression();
-          break;
-        case "HOP_END":
-        case "TUMBLE_END":
-        case "SESSION_END":
-          ret = new BeamSqlWindowEndExpression();
-          break;
         default:
-          //handle UDF
+          // handle UDF
           if (((RexCall) rexNode).getOperator() instanceof SqlUserDefinedFunction) {
             SqlUserDefinedFunction udf = (SqlUserDefinedFunction) ((RexCall) rexNode).getOperator();
-            ScalarFunctionImpl fn = (ScalarFunctionImpl) udf.getFunction();
+            UdfImpl fn = (UdfImpl) udf.getFunction();
             ret =
                 new BeamSqlUdfExpression(
                     fn.method, subExps, ((RexCall) rexNode).type.getSqlTypeName());
@@ -486,30 +516,33 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       throw new UnsupportedOperationException(
           String.format("%s is not supported yet", rexNode.getClass().toString()));
     }
-
-    if (ret != null && !ret.accept()) {
-      throw new IllegalStateException(
-          ret.getClass().getSimpleName() + " does not accept the operands.(" + rexNode + ")");
-    }
-
     return ret;
   }
 
   private static boolean isDateNode(SqlTypeName type, Object value) {
-    return (type == SqlTypeName.DATE || type == SqlTypeName.TIMESTAMP) && value instanceof Calendar;
+    return (type == SqlTypeName.DATE || type == SqlTypeName.TIME || type == SqlTypeName.TIMESTAMP)
+        && value instanceof Calendar;
   }
 
   @Override
   public void prepare() {}
 
   @Override
-  public List<Object> execute(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    List<Object> results = new ArrayList<>();
-    for (BeamSqlExpression exp : exps) {
-      results.add(exp.evaluate(inputRow, window, correlateEnv).getValue());
+  public @Nullable List<Object> execute(
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+
+    final BeamSqlExpressionEnvironment localEnv = env.copyWithLocalRefExprs(exprs);
+
+    boolean conditionResult = filterCondition.evaluate(inputRow, window, localEnv).getBoolean();
+
+    if (conditionResult) {
+      return projections
+          .stream()
+          .map(project -> project.evaluate(inputRow, window, localEnv).getValue())
+          .collect(Collectors.toList());
+    } else {
+      return null;
     }
-    return results;
   }
 
   @Override

@@ -55,12 +55,9 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
 /**
- * {@link StateInternals} that uses {@link KeyGroupCheckpointedOperator}
- * to checkpoint state.
+ * {@link StateInternals} that uses {@link KeyGroupCheckpointedOperator} to checkpoint state.
  *
- * <p>Note:
- * Ignore index of key.
- * Just implement BagState.
+ * <p>Note: Ignore index of key. Just implement BagState.
  *
  * <p>Reference from {@link HeapInternalTimerService} to the local key-group range.
  */
@@ -74,9 +71,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
   // stateName -> namespace -> (valueCoder, value)
   private final Map<String, Tuple2<Coder<?>, Map<String, ?>>>[] stateTables;
 
-  public FlinkKeyGroupStateInternals(
-      Coder<K> keyCoder,
-      KeyedStateBackend keyedStateBackend) {
+  public FlinkKeyGroupStateInternals(Coder<K> keyCoder, KeyedStateBackend keyedStateBackend) {
     this.keyCoder = keyCoder;
     this.keyedStateBackend = keyedStateBackend;
     this.localKeyGroupRange = keyedStateBackend.getKeyGroupRange();
@@ -86,8 +81,9 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
       startIdx = Math.min(keyGroupIdx, startIdx);
     }
     this.localKeyGroupRangeStartIdx = startIdx;
-    stateTables = (Map<String, Tuple2<Coder<?>, Map<String, ?>>>[])
-        new Map[localKeyGroupRange.getNumberOfKeyGroups()];
+    stateTables =
+        (Map<String, Tuple2<Coder<?>, Map<String, ?>>>[])
+            new Map[localKeyGroupRange.getNumberOfKeyGroups()];
     for (int i = 0; i < stateTables.length; i++) {
       stateTables[i] = new HashMap<>();
     }
@@ -97,7 +93,10 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
   public K getKey() {
     ByteBuffer keyBytes = (ByteBuffer) keyedStateBackend.getCurrentKey();
     try {
-      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes.array());
+      byte[] bytes = new byte[keyBytes.remaining()];
+      keyBytes.get(bytes);
+      keyBytes.position(keyBytes.position() - bytes.length);
+      return CoderUtils.decodeFromByteArray(keyCoder, bytes);
     } catch (CoderException e) {
       throw new RuntimeException("Error decoding key.", e);
     }
@@ -105,30 +104,25 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
 
   @Override
   public <T extends State> T state(
-      final StateNamespace namespace,
-      StateTag<T> address,
-      final StateContext<?> context) {
+      final StateNamespace namespace, StateTag<T> address, final StateContext<?> context) {
 
     return address.bind(
         new StateTag.StateBinder() {
 
           @Override
-          public <T> ValueState<T> bindValue(
-              StateTag<ValueState<T>> address, Coder<T> coder) {
+          public <T2> ValueState<T2> bindValue(StateTag<ValueState<T2>> address, Coder<T2> coder) {
             throw new UnsupportedOperationException(
                 String.format("%s is not supported", ValueState.class.getSimpleName()));
           }
 
           @Override
-          public <T> BagState<T> bindBag(
-              StateTag<BagState<T>> address, Coder<T> elemCoder) {
+          public <T2> BagState<T2> bindBag(StateTag<BagState<T2>> address, Coder<T2> elemCoder) {
 
             return new FlinkKeyGroupBagState<>(address, namespace, elemCoder);
           }
 
           @Override
-          public <T> SetState<T> bindSet(
-              StateTag<SetState<T>> address, Coder<T> elemCoder) {
+          public <T2> SetState<T2> bindSet(StateTag<SetState<T2>> address, Coder<T2> elemCoder) {
             throw new UnsupportedOperationException(
                 String.format("%s is not supported", SetState.class.getSimpleName()));
           }
@@ -163,8 +157,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
 
           @Override
           public WatermarkHoldState bindWatermark(
-              StateTag<WatermarkHoldState> address,
-              TimestampCombiner timestampCombiner) {
+              StateTag<WatermarkHoldState> address, TimestampCombiner timestampCombiner) {
             throw new UnsupportedOperationException(
                 String.format("%s is not supported", CombiningState.class.getSimpleName()));
           }
@@ -174,26 +167,22 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
   /**
    * Reference from {@link Combine.CombineFn}.
    *
-   * <p>Accumulators are stored in each KeyGroup, call addInput() when a element comes,
-   * call extractOutput() to produce the desired value when need to read data.
+   * <p>Accumulators are stored in each KeyGroup, call addInput() when a element comes, call
+   * extractOutput() to produce the desired value when need to read data.
    */
   interface KeyGroupCombiner<InputT, AccumT, OutputT> {
 
     /**
-     * Returns a new, mutable accumulator value, representing the accumulation
-     * of zero input values.
+     * Returns a new, mutable accumulator value, representing the accumulation of zero input values.
      */
     AccumT createAccumulator();
 
-    /**
-     * Adds the given input value to the given accumulator, returning the
-     * new accumulator value.
-     */
+    /** Adds the given input value to the given accumulator, returning the new accumulator value. */
     AccumT addInput(AccumT accumulator, InputT input);
 
     /**
-     * Returns the output value that is the result of all accumulators from KeyGroups
-     * that are assigned to this operator.
+     * Returns the output value that is the result of all accumulators from KeyGroups that are
+     * assigned to this operator.
      */
     OutputT extractOutput(Iterable<AccumT> accumulators);
   }
@@ -216,9 +205,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
       this.keyGroupCombiner = keyGroupCombiner;
     }
 
-    /**
-     * Choose keyGroup of input and addInput to accumulator.
-     */
+    /** Choose keyGroup of input and addInput to accumulator. */
     void addInput(InputT input) {
       int keyGroupIdx = keyedStateBackend.getCurrentKeyGroupIndex();
       int localIdx = getIndexForKeyGroup(keyGroupIdx);
@@ -239,9 +226,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
       map.put(namespace, accumulator);
     }
 
-    /**
-     * Get all accumulators and invoke extractOutput().
-     */
+    /** Get all accumulators and invoke extractOutput(). */
     OutputT extractOutput() {
       List<AccumT> accumulators = new ArrayList<>(stateTables.length);
       for (Map<String, Tuple2<Coder<?>, Map<String, ?>>> stateTable : stateTables) {
@@ -256,9 +241,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
       return keyGroupCombiner.extractOutput(accumulators);
     }
 
-    /**
-     * Find the first accumulator and return immediately.
-     */
+    /** Find the first accumulator and return immediately. */
     boolean isEmptyInternal() {
       for (Map<String, Tuple2<Coder<?>, Map<String, ?>>> stateTable : stateTables) {
         Tuple2<Coder<?>, Map<String, ?>> tuple2 = stateTable.get(stateName);
@@ -272,9 +255,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
       return true;
     }
 
-    /**
-     * Clear accumulators and clean empty map.
-     */
+    /** Clear accumulators and clean empty map. */
     void clearInternal() {
       for (Map<String, Tuple2<Coder<?>, Map<String, ?>>> stateTable : stateTables) {
         Tuple2<Coder<?>, Map<String, ?>> tuple2 = stateTable.get(stateName);
@@ -286,16 +267,16 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
         }
       }
     }
-
   }
 
   private int getIndexForKeyGroup(int keyGroupIdx) {
-    checkArgument(localKeyGroupRange.contains(keyGroupIdx),
+    checkArgument(
+        localKeyGroupRange.contains(keyGroupIdx),
         "Key Group " + keyGroupIdx + " does not belong to the local range.");
     return keyGroupIdx - this.localKeyGroupRangeStartIdx;
   }
 
-  private class KeyGroupBagCombiner<T> implements KeyGroupCombiner<T, List<T>, Iterable<T>> {
+  private static class KeyGroupBagCombiner<T> implements KeyGroupCombiner<T, List<T>, Iterable<T>> {
 
     @Override
     public List<T> createAccumulator() {
@@ -325,10 +306,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
     private final StateNamespace namespace;
     private final StateTag<BagState<T>> address;
 
-    FlinkKeyGroupBagState(
-        StateTag<BagState<T>> address,
-        StateNamespace namespace,
-        Coder<T> coder) {
+    FlinkKeyGroupBagState(StateTag<BagState<T>> address, StateNamespace namespace, Coder<T> coder) {
       super(
           address.getId(), namespace.stringKey(), ListCoder.of(coder), new KeyGroupBagCombiner<>());
       this.namespace = namespace;
@@ -361,7 +339,6 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
           } catch (Exception e) {
             throw new RuntimeException("Error reading state.", e);
           }
-
         }
 
         @Override
@@ -388,7 +365,6 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
       FlinkKeyGroupBagState<?> that = (FlinkKeyGroupBagState<?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
-
     }
 
     @Override
@@ -409,9 +385,13 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
   public void snapshotKeyGroupState(int keyGroupIdx, DataOutputStream out) throws Exception {
     int localIdx = getIndexForKeyGroup(keyGroupIdx);
     Map<String, Tuple2<Coder<?>, Map<String, ?>>> stateTable = stateTables[localIdx];
-    Preconditions.checkState(stateTable.size() <= Short.MAX_VALUE,
-        "Too many States: " + stateTable.size() + ". Currently at most "
-            + Short.MAX_VALUE + " states are supported");
+    Preconditions.checkState(
+        stateTable.size() <= Short.MAX_VALUE,
+        "Too many States: "
+            + stateTable.size()
+            + ". Currently at most "
+            + Short.MAX_VALUE
+            + " states are supported");
     out.writeShort(stateTable.size());
     for (Map.Entry<String, Tuple2<Coder<?>, Map<String, ?>>> entry : stateTable.entrySet()) {
       out.writeUTF(entry.getKey());
@@ -427,16 +407,15 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
   }
 
   /**
-   * Restore the state {@code (stateName -> (valueCoder && (namespace -> value)))}
-   * for a given {@code keyGroupIdx}.
+   * Restore the state {@code (stateName -> (valueCoder && (namespace -> value)))} for a given
+   * {@code keyGroupIdx}.
    *
    * @param keyGroupIdx the id of the key-group to be put in the snapshot.
    * @param in the stream to read from.
-   * @param userCodeClassLoader the class loader that will be used to deserialize
-   *                            the valueCoder.
+   * @param userCodeClassLoader the class loader that will be used to deserialize the valueCoder.
    */
-  public void restoreKeyGroupState(int keyGroupIdx, DataInputStream in,
-                                   ClassLoader userCodeClassLoader) throws Exception {
+  public void restoreKeyGroupState(
+      int keyGroupIdx, DataInputStream in, ClassLoader userCodeClassLoader) throws Exception {
     int localIdx = getIndexForKeyGroup(keyGroupIdx);
     Map<String, Tuple2<Coder<?>, Map<String, ?>>> stateTable = stateTables[localIdx];
     int numStates = in.readShort();
@@ -459,5 +438,4 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
       }
     }
   }
-
 }

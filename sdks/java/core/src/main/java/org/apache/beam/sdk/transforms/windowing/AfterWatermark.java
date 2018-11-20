@@ -44,16 +44,16 @@ import org.joda.time.Instant;
  * than that watermark (i.e. "late data") will ever be observed in the pipeline. These heuristics
  * can often be quite accurate, but the chance of seeing late data for any given window is non-zero.
  * Thus, if absolute correctness over time is important to your use case, you may want to consider
- * using a trigger that accounts for late data. The default trigger,
- * {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}, which fires
- * once when the watermark passes the end of the window and then immediately therafter when any
- * late data arrives, is one such example.
+ * using a trigger that accounts for late data. The default trigger, {@code
+ * Repeatedly.forever(AfterWatermark.pastEndOfWindow())}, which fires once when the watermark passes
+ * the end of the window and then immediately therafter when any late data arrives, is one such
+ * example.
  *
  * <p>The watermark is the clock that defines {@link TimeDomain#EVENT_TIME}.
  *
- * <p>Additionaly firings before or after the watermark can be requested by calling
- * {@code AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or
- * {@code AfterWatermark.pastEndOfWindow.withLateFirings(OnceTrigger)}.
+ * <p>Additionaly firings before or after the watermark can be requested by calling {@code
+ * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or {@code
+ * AfterWatermark.pastEndOfWindow.withLateFirings(OnceTrigger)}.
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterWatermark {
@@ -63,21 +63,16 @@ public class AfterWatermark {
   // Static factory class.
   private AfterWatermark() {}
 
-  /**
-   * Creates a trigger that fires when the watermark passes the end of the window.
-   */
+  /** Creates a trigger that fires when the watermark passes the end of the window. */
   public static FromEndOfWindow pastEndOfWindow() {
     return new FromEndOfWindow();
   }
 
-  /**
-   * @see AfterWatermark
-   */
+  /** @see AfterWatermark */
   public static class AfterWatermarkEarlyAndLate extends Trigger {
 
     private final OnceTrigger earlyTrigger;
-    @Nullable
-    private final OnceTrigger lateTrigger;
+    @Nullable private final OnceTrigger lateTrigger;
 
     public OnceTrigger getEarlyTrigger() {
       return earlyTrigger;
@@ -129,26 +124,18 @@ public class AfterWatermark {
       StringBuilder builder = new StringBuilder(TO_STRING);
 
       if (!(earlyTrigger instanceof Never.NeverTrigger)) {
-        builder
-            .append(".withEarlyFirings(")
-            .append(earlyTrigger)
-            .append(")");
+        builder.append(".withEarlyFirings(").append(earlyTrigger).append(")");
       }
 
       if (lateTrigger != null && !(lateTrigger instanceof Never.NeverTrigger)) {
-        builder
-            .append(".withLateFirings(")
-            .append(lateTrigger)
-            .append(")");
+        builder.append(".withLateFirings(").append(lateTrigger).append(")");
       }
 
       return builder.toString();
     }
   }
 
-  /**
-   * A watermark trigger targeted relative to the end of the window.
-   */
+  /** A watermark trigger targeted relative to the end of the window. */
   public static class FromEndOfWindow extends OnceTrigger {
 
     private FromEndOfWindow() {
@@ -156,8 +143,8 @@ public class AfterWatermark {
     }
 
     /**
-     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
-     * the given {@code Trigger} fires before the watermark has passed the end of the window.
+     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever the
+     * given {@code Trigger} fires before the watermark has passed the end of the window.
      */
     public AfterWatermarkEarlyAndLate withEarlyFirings(OnceTrigger earlyFirings) {
       checkNotNull(earlyFirings, "Must specify the trigger to use for early firings");
@@ -165,8 +152,8 @@ public class AfterWatermark {
     }
 
     /**
-     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
-     * the given {@code Trigger} fires after the watermark has passed the end of the window.
+     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever the
+     * given {@code Trigger} fires after the watermark has passed the end of the window.
      */
     public AfterWatermarkEarlyAndLate withLateFirings(OnceTrigger lateFirings) {
       checkNotNull(lateFirings, "Must specify the trigger to use for late firings");

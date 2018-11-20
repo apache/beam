@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import com.google.auto.value.AutoValue;
@@ -246,6 +245,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     abstract TestStream<T> getTestStream();
+
     abstract int getIndex();
 
     TestStreamIndex<T> next() {

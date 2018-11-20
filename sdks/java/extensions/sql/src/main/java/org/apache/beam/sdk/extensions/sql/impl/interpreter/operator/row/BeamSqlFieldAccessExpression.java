@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.row;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -48,8 +47,8 @@ public class BeamSqlFieldAccessExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    BeamSqlPrimitive targetObject = referenceExpression.evaluate(inputRow, window, correlateEnv);
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    BeamSqlPrimitive targetObject = referenceExpression.evaluate(inputRow, window, env);
     SqlTypeName targetFieldType = targetObject.getOutputType();
 
     Object targetFieldValue;
@@ -61,7 +60,7 @@ public class BeamSqlFieldAccessExpression extends BeamSqlExpression {
     } else {
       throw new IllegalArgumentException(
           "Attempt to access field of unsupported type "
-              + targetFieldType.getClass().getSimpleName()
+              + targetFieldType.getDeclaringClass().getSimpleName()
               + ". Field access operator is only supported for arrays or rows");
     }
 

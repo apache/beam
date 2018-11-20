@@ -15,17 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.coders;
 
 import com.esotericsoftware.kryo.Kryo;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.spark.serializer.KryoRegistrator;
 
-
-/**
- * Custom {@link KryoRegistrator}s for Beam's Spark runner needs.
- */
+/** Custom {@link KryoRegistrator}s for Beam's Spark runner needs. */
 public class BeamSparkRunnerRegistrator implements KryoRegistrator {
 
   @Override

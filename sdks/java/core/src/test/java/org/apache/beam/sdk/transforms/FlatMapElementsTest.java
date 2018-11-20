@@ -47,44 +47,39 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link FlatMapElements}.
- */
+/** Tests for {@link FlatMapElements}. */
 @RunWith(JUnit4.class)
 public class FlatMapElementsTest implements Serializable {
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-  /**
-   * Basic test of {@link FlatMapElements} with a {@link SimpleFunction}.
-   */
+  /** Basic test of {@link FlatMapElements} with a {@link SimpleFunction}. */
   @Test
   @Category(NeedsRunner.class)
   public void testFlatMapBasic() throws Exception {
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3))
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
 
-        // Note that FlatMapElements takes a SimpleFunction<InputT, ? extends Iterable<OutputT>>
-        // so the use of List<Integer> here (as opposed to Iterable<Integer>) deliberately exercises
-        // the use of an upper bound.
-        .apply(FlatMapElements.via(new SimpleFunction<Integer, List<Integer>>() {
-          @Override
-          public List<Integer> apply(Integer input) {
-            return ImmutableList.of(-input, input);
-          }
-        }));
+            // Note that FlatMapElements takes a SimpleFunction<InputT, ? extends Iterable<OutputT>>
+            // so the use of List<Integer> here (as opposed to Iterable<Integer>) deliberately exercises
+            // the use of an upper bound.
+            .apply(
+                FlatMapElements.via(
+                    new SimpleFunction<Integer, List<Integer>>() {
+                      @Override
+                      public List<Integer> apply(Integer input) {
+                        return ImmutableList.of(-input, input);
+                      }
+                    }));
 
     PAssert.that(output).containsInAnyOrder(1, -2, -1, -3, 2, 3);
     pipeline.run();
   }
 
-  /**
-   * Basic test of {@link FlatMapElements} with a {@link Fn} and a side input.
-   */
+  /** Basic test of {@link FlatMapElements} with a {@link Fn} and a side input. */
   @Test
   @Category(NeedsRunner.class)
   public void testFlatMapBasicWithSideInput() throws Exception {
@@ -113,18 +108,23 @@ public class FlatMapElementsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFlatMapFnOutputTypeDescriptor() throws Exception {
-    PCollection<String> output = pipeline
-        .apply(Create.of("hello"))
-        .apply(FlatMapElements.via(new SimpleFunction<String, Set<String>>() {
-          @Override
-          public Set<String> apply(String input) {
-            return ImmutableSet.copyOf(input.split(""));
-          }
-        }));
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of("hello"))
+            .apply(
+                FlatMapElements.via(
+                    new SimpleFunction<String, Set<String>>() {
+                      @Override
+                      public Set<String> apply(String input) {
+                        return ImmutableSet.copyOf(input.split(""));
+                      }
+                    }));
 
-    assertThat(output.getTypeDescriptor(),
+    assertThat(
+        output.getTypeDescriptor(),
         equalTo((TypeDescriptor<String>) new TypeDescriptor<String>() {}));
-    assertThat(pipeline.getCoderRegistry().getCoder(output.getTypeDescriptor()),
+    assertThat(
+        pipeline.getCoderRegistry().getCoder(output.getTypeDescriptor()),
         equalTo(pipeline.getCoderRegistry().getCoder(new TypeDescriptor<String>() {})));
 
     // Make sure the pipeline runs
@@ -132,8 +132,8 @@ public class FlatMapElementsTest implements Serializable {
   }
 
   /**
-   * A {@link SimpleFunction} to test that the coder registry can propagate coders
-   * that are bound to type variables.
+   * A {@link SimpleFunction} to test that the coder registry can propagate coders that are bound to
+   * type variables.
    */
   private static class PolymorphicSimpleFunction<T> extends SimpleFunction<T, Iterable<T>> {
     @Override
@@ -169,12 +169,13 @@ public class FlatMapElementsTest implements Serializable {
 
   @Test
   public void testSimpleFunctionClassDisplayData() {
-    SimpleFunction<Integer, List<Integer>> simpleFn = new SimpleFunction<Integer, List<Integer>>() {
-      @Override
-      public List<Integer> apply(Integer input) {
-        return Collections.emptyList();
-      }
-    };
+    SimpleFunction<Integer, List<Integer>> simpleFn =
+        new SimpleFunction<Integer, List<Integer>>() {
+          @Override
+          public List<Integer> apply(Integer input) {
+            return Collections.emptyList();
+          }
+        };
 
     FlatMapElements<?, ?> simpleMap = FlatMapElements.via(simpleFn);
     assertThat(DisplayData.from(simpleMap), hasDisplayItem("class", simpleFn.getClass()));
@@ -182,17 +183,18 @@ public class FlatMapElementsTest implements Serializable {
 
   @Test
   public void testSimpleFunctionDisplayData() {
-    SimpleFunction<Integer, List<Integer>> simpleFn = new SimpleFunction<Integer, List<Integer>>() {
-      @Override
-      public List<Integer> apply(Integer input) {
-        return Collections.emptyList();
-      }
+    SimpleFunction<Integer, List<Integer>> simpleFn =
+        new SimpleFunction<Integer, List<Integer>>() {
+          @Override
+          public List<Integer> apply(Integer input) {
+            return Collections.emptyList();
+          }
 
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "baz"));
-      }
-    };
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "baz"));
+          }
+        };
 
     FlatMapElements<?, ?> simpleFlatMap = FlatMapElements.via(simpleFn);
     assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("class", simpleFn.getClass()));
@@ -215,47 +217,50 @@ public class FlatMapElementsTest implements Serializable {
 
     @Override
     public PCollection<KV<K, Void>> expand(PCollection<KV<K, V>> input) {
-      return input.apply(FlatMapElements.<KV<K, V>, KV<K, Void>>via(
-          new SimpleFunction<KV<K, V>, Iterable<KV<K, Void>>>() {
-            @Override
-            public Iterable<KV<K, Void>> apply(KV<K, V> input) {
-              return Collections.singletonList(KV.<K, Void>of(input.getKey(), null));
-            }
-          }));
+      return input.apply(
+          FlatMapElements.<KV<K, V>, KV<K, Void>>via(
+              new SimpleFunction<KV<K, V>, Iterable<KV<K, Void>>>() {
+                @Override
+                public Iterable<KV<K, Void>> apply(KV<K, V> input) {
+                  return Collections.singletonList(KV.<K, Void>of(input.getKey(), null));
+                }
+              }));
     }
   }
 
   /**
-   * Basic test of {@link FlatMapElements} with a lambda (which is instantiated as a
-   * {@link SerializableFunction}).
+   * Basic test of {@link FlatMapElements} with a lambda (which is instantiated as a {@link
+   * SerializableFunction}).
    */
   @Test
   @Category(NeedsRunner.class)
   public void testFlatMapBasicWithLambda() throws Exception {
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3))
-        .apply(FlatMapElements
-            // Note that the input type annotation is required.
-            .into(TypeDescriptors.integers())
-            .via((Integer i) -> ImmutableList.of(i, -i)));
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                FlatMapElements
+                    // Note that the input type annotation is required.
+                    .into(TypeDescriptors.integers())
+                    .via((Integer i) -> ImmutableList.of(i, -i)));
 
     PAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
     pipeline.run();
   }
 
-  /**
-   * Basic test of {@link FlatMapElements} with a method reference.
-   */
+  /** Basic test of {@link FlatMapElements} with a method reference. */
   @Test
   @Category(NeedsRunner.class)
   public void testFlatMapMethodReference() throws Exception {
 
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3))
-        .apply(FlatMapElements
-            // Note that the input type annotation is required.
-            .into(TypeDescriptors.integers())
-            .via(new Negater()::numAndNegation));
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                FlatMapElements
+                    // Note that the input type annotation is required.
+                    .into(TypeDescriptors.integers())
+                    .via(new Negater()::numAndNegation));
 
     PAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
     pipeline.run();

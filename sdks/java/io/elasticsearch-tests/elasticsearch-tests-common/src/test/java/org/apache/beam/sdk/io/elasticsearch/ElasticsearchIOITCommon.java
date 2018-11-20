@@ -18,30 +18,48 @@
 package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_ITESTS;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
 
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.elasticsearch.client.RestClient;
 
 /**
- * Manipulates test data used by the {@link ElasticsearchIO}
- * integration tests.
+ * Manipulates test data used by the {@link ElasticsearchIO} integration tests.
  *
  * <p>This is independent from the tests so that for read tests it can be run separately after data
  * store creation rather than every time (which can be more fragile.)
  */
 public class ElasticsearchIOITCommon {
 
+  /** Pipeline options for elasticsearch tests. */
+  public interface ElasticsearchPipelineOptions extends TestPipelineOptions {
+
+    @Description("Server name for Elasticsearch server (host name/ip address)")
+    @Default.String("elasticsearch-server-name")
+    String getElasticsearchServer();
+
+    void setElasticsearchServer(String value);
+
+    @Description("Http port for elasticsearch server")
+    @Default.Integer(9200)
+    Integer getElasticsearchHttpPort();
+
+    void setElasticsearchHttpPort(Integer value);
+  }
+
   /** Enum encapsulating the mode of operation and the index. */
   enum IndexMode {
-    READ(ES_INDEX),
-    WRITE(ES_INDEX + System.currentTimeMillis()),
-    WRITE_PARTIAL(ES_INDEX + "_partial_" + System.currentTimeMillis());
+    READ(getEsIndex()),
+    WRITE(getEsIndex() + System.currentTimeMillis()),
+    WRITE_PARTIAL(getEsIndex() + "_partial_" + System.currentTimeMillis());
 
     private final String index;
+
     IndexMode(String index) {
       this.index = index;
     }
@@ -69,34 +87,30 @@ public class ElasticsearchIOITCommon {
    *     Elasticsearch as shown above.
    */
   public static void main(String[] args) throws Exception {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    IOTestPipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(IOTestPipelineOptions.class);
+    PipelineOptionsFactory.register(ElasticsearchPipelineOptions.class);
+    ElasticsearchPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(args).as(ElasticsearchPipelineOptions.class);
     createAndPopulateReadIndex(options);
   }
 
-  private static void createAndPopulateReadIndex(IOTestPipelineOptions options) throws Exception {
+  private static void createAndPopulateReadIndex(ElasticsearchPipelineOptions options)
+      throws Exception {
     // automatically creates the index and insert docs
     ConnectionConfiguration connectionConfiguration =
         getConnectionConfiguration(options, IndexMode.READ);
     try (RestClient restClient = connectionConfiguration.createClient()) {
-      ElasticSearchIOTestUtils
-          .insertTestDocuments(connectionConfiguration, NUM_DOCS_ITESTS, restClient);
+      ElasticSearchIOTestUtils.insertTestDocuments(
+          connectionConfiguration, NUM_DOCS_ITESTS, restClient);
     }
   }
 
   static ConnectionConfiguration getConnectionConfiguration(
-      IOTestPipelineOptions options, IndexMode mode) {
+      ElasticsearchPipelineOptions options, IndexMode mode) {
     return ConnectionConfiguration.create(
-            new String[] {
-              "http://"
-                  + options.getElasticsearchServer()
-                  + ":"
-                  + options.getElasticsearchHttpPort()
-            },
-            mode.getIndex(),
-            ES_TYPE);
+        new String[] {
+          "http://" + options.getElasticsearchServer() + ":" + options.getElasticsearchHttpPort()
+        },
+        mode.getIndex(),
+        ES_TYPE);
   }
-
-
 }

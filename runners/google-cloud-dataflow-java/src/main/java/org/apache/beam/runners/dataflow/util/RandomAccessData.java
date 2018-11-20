@@ -27,8 +27,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Objects;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -37,11 +39,11 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.VarInt;
 
 /**
- * An elastic-sized byte array which allows you to manipulate it as a stream, or access
- * it directly. This allows for a quick succession of moving bytes from an {@link InputStream}
- * to this wrapper to be used as an {@link OutputStream} and vice versa. This wrapper
- * also provides random access to bytes stored within. This wrapper allows users to finely
- * control the number of byte copies that occur.
+ * An elastic-sized byte array which allows you to manipulate it as a stream, or access it directly.
+ * This allows for a quick succession of moving bytes from an {@link InputStream} to this wrapper to
+ * be used as an {@link OutputStream} and vice versa. This wrapper also provides random access to
+ * bytes stored within. This wrapper allows users to finely control the number of byte copies that
+ * occur.
  *
  * <p>Anything stored within the in-memory buffer from offset {@link #size()} is considered
  * temporary unused storage.
@@ -49,9 +51,8 @@ import org.apache.beam.sdk.util.VarInt;
 @NotThreadSafe
 public class RandomAccessData {
   /**
-   * A {@link Coder} which encodes the valid parts of this stream.
-   * This follows the same encoding scheme as {@link ByteArrayCoder}.
-   * This coder is deterministic and consistent with equals.
+   * A {@link Coder} which encodes the valid parts of this stream. This follows the same encoding
+   * scheme as {@link ByteArrayCoder}. This coder is deterministic and consistent with equals.
    *
    * <p>This coder does not support encoding positive infinity.
    */
@@ -71,7 +72,7 @@ public class RandomAccessData {
     @Override
     public void encode(RandomAccessData value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
-      if (value == POSITIVE_INFINITY) {
+      if (Objects.equals(value, POSITIVE_INFINITY)) {
         throw new CoderException("Positive infinity can not be encoded.");
       }
       if (!context.isWholeStream) {
@@ -112,8 +113,7 @@ public class RandomAccessData {
     }
 
     @Override
-    protected long getEncodedElementByteSize(RandomAccessData value)
-        throws Exception {
+    protected long getEncodedElementByteSize(RandomAccessData value) throws Exception {
       if (value == null) {
         throw new CoderException("cannot encode a null in memory stream");
       }
@@ -125,28 +125,26 @@ public class RandomAccessData {
       new UnsignedLexicographicalComparator();
 
   /**
-   * A {@link Comparator} that compares two byte arrays lexicographically. It compares
-   * values as a list of unsigned bytes. The first pair of values that follow any common prefix,
-   * or when one array is a prefix of the other, treats the shorter array as the lesser.
-   * For example, {@code [] < [0x01] < [0x01, 0x7F] < [0x01, 0x80] < [0x02] < POSITIVE INFINITY}.
+   * A {@link Comparator} that compares two byte arrays lexicographically. It compares values as a
+   * list of unsigned bytes. The first pair of values that follow any common prefix, or when one
+   * array is a prefix of the other, treats the shorter array as the lesser. For example, {@code []
+   * < [0x01] < [0x01, 0x7F] < [0x01, 0x80] < [0x02] < POSITIVE INFINITY}.
    *
-   * <p>Note that a token type of positive infinity is supported and is greater than
-   * all other {@link RandomAccessData}.
+   * <p>Note that a token type of positive infinity is supported and is greater than all other
+   * {@link RandomAccessData}.
    */
   public static final class UnsignedLexicographicalComparator
-      implements Comparator<RandomAccessData> {
+      implements Comparator<RandomAccessData>, Serializable {
     // Do not instantiate
-    private UnsignedLexicographicalComparator() {
-    }
+    private UnsignedLexicographicalComparator() {}
 
     @Override
     public int compare(RandomAccessData o1, RandomAccessData o2) {
       return compare(o1, o2, 0 /* start from the beginning */);
     }
 
-    /**
-     * Compare the two sets of bytes starting at the given offset.
-     */
+    /** Compare the two sets of bytes starting at the given offset. */
+    @SuppressWarnings("ReferenceEquality") // equals overload calls into this compare method
     public int compare(RandomAccessData o1, RandomAccessData o2, int startOffset) {
       if (o1 == o2) {
         return 0;
@@ -174,9 +172,7 @@ public class RandomAccessData {
       return o1.size - o2.size;
     }
 
-    /**
-     * Compute the length of the common prefix of the two provided sets of bytes.
-     */
+    /** Compute the length of the common prefix of the two provided sets of bytes. */
     public int commonPrefixLength(RandomAccessData o1, RandomAccessData o2) {
       int minBytesLen = Math.min(o1.size, o2.size);
       for (int i = 0; i < minBytesLen; i++) {
@@ -195,9 +191,9 @@ public class RandomAccessData {
   static final RandomAccessData POSITIVE_INFINITY = new RandomAccessData(0);
 
   /**
-   * Returns a RandomAccessData that is the smallest value of same length which
-   * is strictly greater than this. Note that if this is empty or is all 0xFF then
-   * a token value of positive infinity is returned.
+   * Returns a RandomAccessData that is the smallest value of same length which is strictly greater
+   * than this. Note that if this is empty or is all 0xFF then a token value of positive infinity is
+   * returned.
    *
    * <p>The {@link UnsignedLexicographicalComparator} supports comparing {@link RandomAccessData}
    * with support for positive infinitiy.
@@ -252,25 +248,26 @@ public class RandomAccessData {
     size = position;
   }
 
-  private final OutputStream outputStream = new OutputStream() {
-    @Override
-    public void write(int b) throws IOException {
-      ensureCapacity(size + 1);
-      buffer[size] = (byte) b;
-      size += 1;
-    }
+  private final OutputStream outputStream =
+      new OutputStream() {
+        @Override
+        public void write(int b) throws IOException {
+          ensureCapacity(size + 1);
+          buffer[size] = (byte) b;
+          size += 1;
+        }
 
-    @Override
-    public void write(byte[] b, int offset, int length) throws IOException {
-      ensureCapacity(size + length);
-      System.arraycopy(b, offset, buffer, size, length);
-      size += length;
-    }
-  };
+        @Override
+        public void write(byte[] b, int offset, int length) throws IOException {
+          ensureCapacity(size + length);
+          System.arraycopy(b, offset, buffer, size, length);
+          size += length;
+        }
+      };
 
   /**
-   * Returns an output stream which writes to the backing buffer from the current position.
-   * Note that the internal buffer will grow as required to accomodate all data written.
+   * Returns an output stream which writes to the backing buffer from the current position. Note
+   * that the internal buffer will grow as required to accomodate all data written.
    */
   public OutputStream asOutputStream() {
     return outputStream;
@@ -278,9 +275,9 @@ public class RandomAccessData {
 
   /**
    * Returns an {@link InputStream} wrapper which supplies the portion of this backing byte buffer
-   * starting at {@code offset} and up to {@code length} bytes. Note that the returned
-   * {@link InputStream} is only a wrapper and any modifications to the underlying
-   * {@link RandomAccessData} will be visible by the {@link InputStream}.
+   * starting at {@code offset} and up to {@code length} bytes. Note that the returned {@link
+   * InputStream} is only a wrapper and any modifications to the underlying {@link RandomAccessData}
+   * will be visible by the {@link InputStream}.
    */
   public InputStream asInputStream(final int offset, final int length) {
     return new ByteArrayInputStream(buffer, offset, length);
@@ -295,8 +292,8 @@ public class RandomAccessData {
   }
 
   /**
-   * Reads {@code length} bytes from the specified input stream writing them into the backing
-   * data store starting at {@code offset}.
+   * Reads {@code length} bytes from the specified input stream writing them into the backing data
+   * store starting at {@code offset}.
    *
    * <p>Note that the in memory stream will be grown to ensure there is enough capacity.
    */
@@ -321,6 +318,7 @@ public class RandomAccessData {
     if (!(other instanceof RandomAccessData)) {
       return false;
     }
+
     return UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(this, (RandomAccessData) other) == 0;
   }
 
@@ -328,7 +326,7 @@ public class RandomAccessData {
   public int hashCode() {
     int result = 1;
     for (int i = 0; i < size; ++i) {
-        result = 31 * result + buffer[i];
+      result = 31 * result + buffer[i];
     }
 
     return result;
@@ -345,14 +343,14 @@ public class RandomAccessData {
   private void ensureCapacity(int minCapacity) {
     // If we have enough space, don't grow the buffer.
     if (minCapacity <= buffer.length) {
-        return;
+      return;
     }
 
     // Try to double the size of the buffer, if thats not enough, just use the new capacity.
     // Note that we use Math.min(long, long) to not cause overflow on the multiplication.
     int newCapacity = (int) Math.min(Integer.MAX_VALUE - 8, buffer.length * 2L);
     if (newCapacity < minCapacity) {
-        newCapacity = minCapacity;
+      newCapacity = minCapacity;
     }
     buffer = Arrays.copyOf(buffer, newCapacity);
   }

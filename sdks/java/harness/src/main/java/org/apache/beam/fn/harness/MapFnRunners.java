@@ -15,18 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -107,9 +107,10 @@ public abstract class MapFnRunners {
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction)
+        Consumer<ThrowingRunnable> addFinishFunction,
+        BundleSplitListener splitListener)
         throws IOException {
 
       Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =

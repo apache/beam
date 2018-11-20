@@ -33,16 +33,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
 /**
- * A {@link PTransform} that performs a {@link CoGroupByKey} on a tuple
- * of tables.  A {@link CoGroupByKey} groups results from all
- * tables by like keys into {@link CoGbkResult}s,
- * from which the results for any specific table can be accessed by the
- * {@link org.apache.beam.sdk.values.TupleTag}
- * supplied with the initial table.
+ * A {@link PTransform} that performs a {@link CoGroupByKey} on a tuple of tables. A {@link
+ * CoGroupByKey} groups results from all tables by like keys into {@link CoGbkResult}s, from which
+ * the results for any specific table can be accessed by the {@link
+ * org.apache.beam.sdk.values.TupleTag} supplied with the initial table.
  *
- * <p>Example of performing a {@link CoGroupByKey} followed by a
- * {@link ParDo} that consumes
- * the results:
+ * <p>Example of performing a {@link CoGroupByKey} followed by a {@link ParDo} that consumes the
+ * results:
+ *
  * <pre>{@code
  * PCollection<KV<K, V1>> pt1 = ...;
  * PCollection<KV<K, V2>> pt2 = ...;
@@ -68,30 +66,25 @@ import org.apache.beam.sdk.values.PCollectionList;
  *     }));
  * }</pre>
  *
- * @param <K> the type of the keys in the input and output
- * {@code PCollection}s
+ * @param <K> the type of the keys in the input and output {@code PCollection}s
  */
-public class CoGroupByKey<K> extends
-    PTransform<KeyedPCollectionTuple<K>,
-               PCollection<KV<K, CoGbkResult>>> {
+public class CoGroupByKey<K>
+    extends PTransform<KeyedPCollectionTuple<K>, PCollection<KV<K, CoGbkResult>>> {
   /**
    * Returns a {@code CoGroupByKey<K>} {@code PTransform}.
    *
-   * @param <K> the type of the keys in the input and output
-   * {@code PCollection}s
+   * @param <K> the type of the keys in the input and output {@code PCollection}s
    */
   public static <K> CoGroupByKey<K> create() {
     return new CoGroupByKey<>();
   }
 
-  private CoGroupByKey() { }
+  private CoGroupByKey() {}
 
   @Override
-  public PCollection<KV<K, CoGbkResult>> expand(
-      KeyedPCollectionTuple<K> input) {
+  public PCollection<KV<K, CoGbkResult>> expand(KeyedPCollectionTuple<K> input) {
     if (input.isEmpty()) {
-      throw new IllegalArgumentException(
-          "must have at least one input to a KeyedPCollections");
+      throw new IllegalArgumentException("must have at least one input to a KeyedPCollections");
     }
 
     // First build the union coder.
@@ -103,11 +96,9 @@ public class CoGroupByKey<K> extends
     }
     UnionCoder unionCoder = UnionCoder.of(codersList);
     Coder<K> keyCoder = input.getKeyCoder();
-    KvCoder<K, RawUnionValue> kVCoder =
-        KvCoder.of(keyCoder, unionCoder);
+    KvCoder<K, RawUnionValue> kVCoder = KvCoder.of(keyCoder, unionCoder);
 
-    PCollectionList<KV<K, RawUnionValue>> unionTables =
-        PCollectionList.empty(input.getPipeline());
+    PCollectionList<KV<K, RawUnionValue>> unionTables = PCollectionList.empty(input.getPipeline());
 
     // TODO: Use the schema to order the indices rather than depending
     // on the fact that the schema ordering is identical to the ordering from
@@ -120,17 +111,17 @@ public class CoGroupByKey<K> extends
       unionTables = unionTables.and(unionTable);
     }
 
-    PCollection<KV<K, RawUnionValue>> flattenedTable = unionTables.apply(Flatten.pCollections());
+    PCollection<KV<K, RawUnionValue>> flattenedTable =
+        unionTables.apply("Flatten", Flatten.pCollections());
 
     PCollection<KV<K, Iterable<RawUnionValue>>> groupedTable =
-        flattenedTable.apply(GroupByKey.create());
+        flattenedTable.apply("GBK", GroupByKey.create());
 
     CoGbkResultSchema tupleTags = input.getCoGbkResultSchema();
     PCollection<KV<K, CoGbkResult>> result =
         groupedTable.apply(
             "ConstructCoGbkResultFn", ParDo.of(new ConstructCoGbkResultFn<>(tupleTags)));
-    result.setCoder(KvCoder.of(keyCoder,
-        CoGbkResultCoder.of(tupleTags, unionCoder)));
+    result.setCoder(KvCoder.of(keyCoder, CoGbkResultCoder.of(tupleTags, unionCoder)));
 
     return result;
   }
@@ -138,8 +129,8 @@ public class CoGroupByKey<K> extends
   //////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Returns the value coder for the given PCollection.  Assumes that the value
-   * coder is an instance of {@code KvCoder<K, V>}.
+   * Returns the value coder for the given PCollection. Assumes that the value coder is an instance
+   * of {@code KvCoder<K, V>}.
    */
   private <V> Coder<V> getValueCoder(PCollection<KV<K, V>> pCollection) {
     // Assumes that the PCollection uses a KvCoder.
@@ -153,8 +144,8 @@ public class CoGroupByKey<K> extends
   }
 
   /**
-   * Returns a UnionTable for the given input PCollection, using the given
-   * union index and the given unionTableEncoder.
+   * Returns a UnionTable for the given input PCollection, using the given union index and the given
+   * unionTableEncoder.
    */
   private <V> PCollection<KV<K, RawUnionValue>> makeUnionTable(
       final int index,
@@ -167,12 +158,10 @@ public class CoGroupByKey<K> extends
   }
 
   /**
-   * A DoFn to construct a UnionTable (i.e., a
-   * {@code PCollection<KV<K, RawUnionValue>>} from a
+   * A DoFn to construct a UnionTable (i.e., a {@code PCollection<KV<K, RawUnionValue>>} from a
    * {@code PCollection<KV<K, V>>}.
    */
-  private static class ConstructUnionTableFn<K, V> extends
-      DoFn<KV<K, V>, KV<K, RawUnionValue>> {
+  private static class ConstructUnionTableFn<K, V> extends DoFn<KV<K, V>, KV<K, RawUnionValue>> {
 
     private final int index;
 
@@ -187,13 +176,9 @@ public class CoGroupByKey<K> extends
     }
   }
 
-  /**
-   * A DoFn to construct a CoGbkResult from an input grouped union
-   * table.
-    */
+  /** A DoFn to construct a CoGbkResult from an input grouped union table. */
   private static class ConstructCoGbkResultFn<K>
-    extends DoFn<KV<K, Iterable<RawUnionValue>>,
-                     KV<K, CoGbkResult>> {
+      extends DoFn<KV<K, Iterable<RawUnionValue>>, KV<K, CoGbkResult>> {
 
     private final CoGbkResultSchema schema;
 

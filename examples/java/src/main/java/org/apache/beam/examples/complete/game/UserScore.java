@@ -45,12 +45,11 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This class is the first in a series of four pipelines that tell a story in a 'gaming' domain.
- * Concepts: batch processing, reading input from text files, writing output to
- * text files, using standalone DoFns, use of the sum per key transform, and use of
- * Java 8 lambda syntax.
+ * Concepts: batch processing, reading input from text files, writing output to text files, using
+ * standalone DoFns, use of the sum per key transform, and use of Java 8 lambda syntax.
  *
  * <p>In this gaming scenario, many users play, as members of different teams, over the course of a
- * day, and their actions are logged for processing.  Some of the logged game events may be late-
+ * day, and their actions are logged for processing. Some of the logged game events may be late-
  * arriving, if users play on mobile devices and go transiently offline for a period.
  *
  * <p>This pipeline does batch processing of data collected from gaming events. It calculates the
@@ -58,23 +57,21 @@ import org.slf4j.LoggerFactory;
  * batch processing will not include any late data that arrives after the day's cutoff point.
  *
  * <p>To execute this pipeline, specify the pipeline configuration like this:
- * <pre>{@code
- *   --tempLocation=YOUR_TEMP_DIRECTORY
- *   --runner=YOUR_RUNNER
- *   --output=YOUR_OUTPUT_DIRECTORY
- *   (possibly options specific to your runner or permissions for your temp/output locations)
- * }
- * </pre>
  *
- * <p>Optionally include the --input argument to specify a batch input file.
- * See the --input default value for example batch data file, or use {@code injector.Injector} to
- * generate your own batch data.
-  */
+ * <pre>{@code
+ * --tempLocation=YOUR_TEMP_DIRECTORY
+ * --runner=YOUR_RUNNER
+ * --output=YOUR_OUTPUT_DIRECTORY
+ * (possibly options specific to your runner or permissions for your temp/output locations)
+ * }</pre>
+ *
+ * <p>Optionally include the --input argument to specify a batch input file. See the --input default
+ * value for example batch data file, or use {@code injector.Injector} to generate your own batch
+ * data.
+ */
 public class UserScore {
 
-  /**
-   * Class to hold info about a game event.
-   */
+  /** Class to hold info about a game event. */
   @DefaultCoder(AvroCoder.class)
   static class GameActionInfo {
     @Nullable String user;
@@ -94,31 +91,33 @@ public class UserScore {
     public String getUser() {
       return this.user;
     }
+
     public String getTeam() {
       return this.team;
     }
+
     public Integer getScore() {
       return this.score;
     }
+
     public String getKey(String keyname) {
       if ("team".equals(keyname)) {
         return this.team;
-      } else {  // return username as default
+      } else { // return username as default
         return this.user;
       }
     }
+
     public Long getTimestamp() {
       return this.timestamp;
     }
   }
 
-
   /**
    * Parses the raw game event info into GameActionInfo objects. Each event line has the following
-   * format: username,teamname,score,timestamp_in_ms,readable_time
-   * e.g.:
-   * user2_AsparagusPig,AsparagusPig,10,1445230923951,2015-11-02 09:09:28.224
-   * The human-readable time string is not used here.
+   * format: username,teamname,score,timestamp_in_ms,readable_time e.g.:
+   * user2_AsparagusPig,AsparagusPig,10,1445230923951,2015-11-02 09:09:28.224 The human-readable
+   * time string is not used here.
    */
   static class ParseEventFn extends DoFn<String, GameActionInfo> {
 
@@ -128,8 +127,7 @@ public class UserScore {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      System.out.println("GOT " + c.element());
-      String[] components = c.element().split(",");
+      String[] components = c.element().split(",", -1);
       try {
         String user = components[0].trim();
         String team = components[1].trim();
@@ -159,8 +157,7 @@ public class UserScore {
     }
 
     @Override
-    public PCollection<KV<String, Integer>> expand(
-        PCollection<GameActionInfo> gameInfo) {
+    public PCollection<KV<String, Integer>> expand(PCollection<GameActionInfo> gameInfo) {
 
       return gameInfo
           .apply(
@@ -172,10 +169,7 @@ public class UserScore {
   }
   // [END DocInclude_USExtractXform]
 
-
-  /**
-   * Options supported by {@link UserScore}.
-   */
+  /** Options supported by {@link UserScore}. */
   public interface Options extends PipelineOptions {
 
     @Description("Path to the data file(s) containing game data.")
@@ -183,31 +177,30 @@ public class UserScore {
     // day's worth (roughly) of data.
     @Default.String("gs://apache-beam-samples/game/gaming_data*.csv")
     String getInput();
+
     void setInput(String value);
 
     // Set this required option to specify where to write the output.
     @Description("Path of the file to write to.")
     @Validation.Required
     String getOutput();
+
     void setOutput(String value);
   }
 
   /**
-   * Create a map of information that describes how to write pipeline output to text. This map
-   * is passed to the {@link WriteToText} constructor to write user score sums.
+   * Create a map of information that describes how to write pipeline output to text. This map is
+   * passed to the {@link WriteToText} constructor to write user score sums.
    */
-  protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>>
-      configureOutput() {
+  protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>> configureOutput() {
     Map<String, WriteToText.FieldFn<KV<String, Integer>>> config = new HashMap<>();
     config.put("user", (c, w) -> c.element().getKey());
     config.put("total_score", (c, w) -> c.element().getValue());
     return config;
   }
 
-  /**
-   * Run a batch pipeline.
-   */
- // [START DocInclude_USMain]
+  /** Run a batch pipeline. */
+  // [START DocInclude_USMain]
   public static void main(String[] args) throws Exception {
     // Begin constructing a pipeline configured by commandline flags.
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);

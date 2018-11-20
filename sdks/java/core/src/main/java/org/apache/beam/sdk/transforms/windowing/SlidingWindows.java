@@ -29,59 +29,54 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * A {@link WindowFn} that windows values into possibly overlapping fixed-size
- * timestamp-based windows.
+ * A {@link WindowFn} that windows values into possibly overlapping fixed-size timestamp-based
+ * windows.
  *
- * <p>For example, in order to window data into 10 minute windows that
- * update every minute:
- * <pre> {@code
+ * <p>For example, in order to window data into 10 minute windows that update every minute:
+ *
+ * <pre>{@code
  * PCollection<Integer> items = ...;
  * PCollection<Integer> windowedItems = items.apply(
  *   Window.<Integer>into(SlidingWindows.of(Duration.standardMinutes(10))));
- * } </pre>
+ * }</pre>
  */
 public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
 
-  /**
-   * Amount of time between generated windows.
-   */
+  /** Amount of time between generated windows. */
   private final Duration period;
 
-  /**
-   * Size of the generated windows.
-   */
+  /** Size of the generated windows. */
   private final Duration size;
 
   /**
-   * Offset of the generated windows.
-   * Windows start at time N * start + offset, where 0 is the epoch.
+   * Offset of the generated windows. Windows start at time N * start + offset, where 0 is the
+   * epoch.
    */
   private final Duration offset;
 
   /**
-   * Assigns timestamps into half-open intervals of the form
-   * [N * period, N * period + size), where 0 is the epoch.
+   * Assigns timestamps into half-open intervals of the form [N * period, N * period + size), where
+   * 0 is the epoch.
    *
-   * <p>If {@link SlidingWindows#every} is not called, the period defaults
-   * to the largest time unit smaller than the given duration.  For example,
-   * specifying a size of 5 seconds will result in a default period of 1 second.
+   * <p>If {@link SlidingWindows#every} is not called, the period defaults to the largest time unit
+   * smaller than the given duration. For example, specifying a size of 5 seconds will result in a
+   * default period of 1 second.
    */
   public static SlidingWindows of(Duration size) {
     return new SlidingWindows(getDefaultPeriod(size), size, Duration.ZERO);
   }
 
   /**
-   * Returns a new {@code SlidingWindows} with the original size, that assigns
-   * timestamps into half-open intervals of the form
-   * [N * period, N * period + size), where 0 is the epoch.
+   * Returns a new {@code SlidingWindows} with the original size, that assigns timestamps into
+   * half-open intervals of the form [N * period, N * period + size), where 0 is the epoch.
    */
   public SlidingWindows every(Duration period) {
     return new SlidingWindows(period, size, offset);
   }
 
   /**
-   * Assigns timestamps into half-open intervals of the form
-   * [N * period + offset, N * period + offset + size).
+   * Assigns timestamps into half-open intervals of the form [N * period + offset, N * period +
+   * offset + size).
    *
    * @throws IllegalArgumentException if offset is not in [0, period)
    */
@@ -112,12 +107,11 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
   }
 
   public Collection<IntervalWindow> assignWindows(Instant timestamp) {
-    List<IntervalWindow> windows =
-        new ArrayList<>((int) (size.getMillis() / period.getMillis()));
+    List<IntervalWindow> windows = new ArrayList<>((int) (size.getMillis() / period.getMillis()));
     long lastStart = lastStartFor(timestamp);
     for (long start = lastStart;
-         start > timestamp.minus(size).getMillis();
-         start -= period.getMillis()) {
+        start > timestamp.minus(size).getMillis();
+        start -= period.getMillis()) {
       windows.add(new IntervalWindow(new Instant(start), size));
     }
     return windows;
@@ -167,17 +161,12 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder
-        .add(DisplayData.item("size", size)
-          .withLabel("Window Size"))
-        .add(DisplayData.item("period", period)
-          .withLabel("Window Period"))
-        .add(DisplayData.item("offset", offset)
-          .withLabel("Window Start Offset"));
+        .add(DisplayData.item("size", size).withLabel("Window Size"))
+        .add(DisplayData.item("period", period).withLabel("Window Period"))
+        .add(DisplayData.item("offset", offset).withLabel("Window Start Offset"));
   }
 
-  /**
-   * Return the last start of a sliding window that contains the timestamp.
-   */
+  /** Return the last start of a sliding window that contains the timestamp. */
   private long lastStartFor(Instant timestamp) {
     return timestamp.getMillis()
         - timestamp.plus(period).minus(offset).getMillis() % period.getMillis();

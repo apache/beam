@@ -19,37 +19,27 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import java.io.Serializable;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.flink.ArtifactSourcePool;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.translation.functions.FlinkDefaultExecutableStageContext.MultiInstanceFactory;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
-import org.apache.flink.api.common.functions.RuntimeContext;
 
 /** The Flink context required in order to execute {@link ExecutableStage stages}. */
-public class FlinkExecutableStageContext {
+public interface FlinkExecutableStageContext extends AutoCloseable {
 
   /**
    * Creates {@link FlinkExecutableStageContext} instances. Serializable so that factories can be
    * defined at translation time and distributed to TaskManagers.
    */
-  public interface Factory extends Serializable {
+  interface Factory extends Serializable {
+
+    /** Get or create {@link FlinkExecutableStageContext} for given {@link JobInfo}. */
     FlinkExecutableStageContext get(JobInfo jobInfo);
   }
 
-  public static Factory batchFactory() {
-    return null;
+  static Factory factory(FlinkPipelineOptions options) {
+    return MultiInstanceFactory.MULTI_INSTANCE;
   }
 
-  public StageBundleFactory getStageBundleFactory(ExecutableStage executableStage) {
-    throw new UnsupportedOperationException();
-  }
-
-  public StateRequestHandler getStateRequestHandler(
-      ExecutableStage executableStage, RuntimeContext runtimeContext) {
-    throw new UnsupportedOperationException();
-  }
-
-  public ArtifactSourcePool getArtifactSourcePool() {
-    throw new UnsupportedOperationException();
-  }
+  StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);
 }

@@ -29,23 +29,23 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * End-to-end tests of BigtableRead.
- */
+/** End-to-end tests of BigtableRead. */
 @RunWith(JUnit4.class)
 public class BigtableReadIT {
 
   @Test
   public void testE2EBigtableRead() throws Exception {
     PipelineOptionsFactory.register(BigtableTestOptions.class);
-    BigtableTestOptions options = TestPipeline.testingPipelineOptions()
-        .as(BigtableTestOptions.class);
+    BigtableTestOptions options =
+        TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
 
-    String project = options.as(GcpOptions.class).getProject();
+    String project = options.getBigtableProject();
+    if (project.equals("")) {
+      project = options.as(GcpOptions.class).getProject();
+    }
 
-    BigtableOptions.Builder bigtableOptionsBuilder = new BigtableOptions.Builder()
-        .setProjectId(project)
-        .setInstanceId(options.getInstanceId());
+    BigtableOptions.Builder bigtableOptionsBuilder =
+        new BigtableOptions.Builder().setProjectId(project).setInstanceId(options.getInstanceId());
 
     final String tableId = "BigtableReadTest";
     final long numRows = 1000L;

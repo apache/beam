@@ -22,13 +22,15 @@ from __future__ import absolute_import
 import collections
 import itertools
 import logging
-import Queue
 import sys
 import threading
 import traceback
+from builtins import object
+from builtins import range
 from weakref import WeakValueDictionary
 
-import six
+from future.moves import queue
+from future.utils import raise_
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.runners.worker import statesampler
@@ -80,7 +82,7 @@ class _ExecutorService(object):
         # shutdown.
         return self.queue.get(
             timeout=_ExecutorService._ExecutorServiceWorker.TIMEOUT)
-      except Queue.Empty:
+      except queue.Empty:
         return None
 
     def run(self):
@@ -101,7 +103,7 @@ class _ExecutorService(object):
       self.shutdown_requested = True
 
   def __init__(self, num_workers):
-    self.queue = Queue.Queue()
+    self.queue = queue.Queue()
     self.workers = [_ExecutorService._ExecutorServiceWorker(
         self.queue, i) for i in range(num_workers)]
     self.shutdown_requested = False
@@ -126,7 +128,7 @@ class _ExecutorService(object):
       try:
         self.queue.get_nowait()
         self.queue.task_done()
-      except Queue.Empty:
+      except queue.Empty:
         continue
     # All existing threads will eventually terminate (after they complete their
     # last task).
@@ -441,10 +443,13 @@ class _ExecutorServiceParallelExecutor(object):
     try:
       if update.exception:
         t, v, tb = update.exc_info
-        six.reraise(t, v, tb)
+        raise_(t, v, tb)
     finally:
       self.executor_service.shutdown()
       self.executor_service.await_completion()
+
+  def request_shutdown(self):
+    self.executor_service.shutdown()
 
   def schedule_consumers(self, committed_bundle):
     if committed_bundle.pcollection in self.value_to_consumers:
@@ -481,14 +486,14 @@ class _ExecutorServiceParallelExecutor(object):
 
     def __init__(self, item_type):
       self._item_type = item_type
-      self._queue = Queue.Queue()
+      self._queue = queue.Queue()
 
     def poll(self):
       try:
         item = self._queue.get_nowait()
         self._queue.task_done()
         return  item
-      except Queue.Empty:
+      except queue.Empty:
         return None
 
     def take(self):
@@ -501,7 +506,7 @@ class _ExecutorServiceParallelExecutor(object):
           item = self._queue.get(timeout=1)
           self._queue.task_done()
           return item
-        except Queue.Empty:
+        except queue.Empty:
           pass
 
     def offer(self, item):

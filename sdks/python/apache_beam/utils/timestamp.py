@@ -24,12 +24,17 @@ from __future__ import absolute_import
 from __future__ import division
 
 import datetime
+import functools
 import re
+from builtins import object
 
 import pytz
-from six import integer_types
+from past.builtins import long
+
+from apache_beam.portability import common_urns
 
 
+@functools.total_ordering
 class Timestamp(object):
   """Represents a Unix second timestamp with microsecond granularity.
 
@@ -42,10 +47,10 @@ class Timestamp(object):
   """
 
   def __init__(self, seconds=0, micros=0):
-    if not isinstance(seconds, integer_types + (float,)):
+    if not isinstance(seconds, (int, long, float)):
       raise TypeError('Cannot interpret %s %s as seconds.' % (
           seconds, type(seconds)))
-    if not isinstance(micros, integer_types + (float,)):
+    if not isinstance(micros, (int, long, float)):
       raise TypeError('Cannot interpret %s %s as micros.' % (
           micros, type(micros)))
     self.micros = int(seconds * 1000000) + int(micros)
@@ -63,7 +68,7 @@ class Timestamp(object):
       Corresponding Timestamp object.
     """
 
-    if not isinstance(seconds, integer_types + (float, Timestamp)):
+    if not isinstance(seconds, (int, long, float, Timestamp)):
       raise TypeError('Cannot interpret %s %s as Timestamp.' % (
           seconds, type(seconds)))
     if isinstance(seconds, Timestamp):
@@ -85,7 +90,7 @@ class Timestamp(object):
       dt: A ``datetime.datetime`` object in UTC (offset-aware).
     """
     if dt.tzinfo != pytz.utc:
-      raise ValueError('dt not in UTC: %s', dt)
+      raise ValueError('dt not in UTC: %s' % dt)
     duration = dt - cls._epoch_datetime_utc()
     return Timestamp(duration.total_seconds())
 
@@ -99,7 +104,7 @@ class Timestamp(object):
     dt_args = []
     match = cls.RFC_3339_RE.match(rfc3339)
     if match is None:
-      raise ValueError('Could not parse RFC 3339 string: %s', rfc3339)
+      raise ValueError('Could not parse RFC 3339 string: %s' % rfc3339)
     for s in match.groups():
       if s is not None:
         dt_args.append(int(s))
@@ -143,11 +148,21 @@ class Timestamp(object):
     # Note that the returned value may have lost precision.
     return self.micros // 1000000
 
-  def __cmp__(self, other):
+  def __eq__(self, other):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
       other = Timestamp.of(other)
-    return cmp(self.micros, other.micros)
+    return self.micros == other.micros
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
+  def __lt__(self, other):
+    # Allow comparisons between Duration and Timestamp values.
+    if not isinstance(other, Duration):
+      other = Timestamp.of(other)
+    return self.micros < other.micros
 
   def __hash__(self):
     return hash(self.micros)
@@ -168,10 +183,13 @@ class Timestamp(object):
     return Duration(micros=self.micros % other.micros)
 
 
-MIN_TIMESTAMP = Timestamp(micros=-0x7fffffffffffffff - 1)
-MAX_TIMESTAMP = Timestamp(micros=0x7fffffffffffffff)
+MIN_TIMESTAMP = Timestamp(micros=int(
+    common_urns.constants.MIN_TIMESTAMP_MILLIS.constant)*1000)
+MAX_TIMESTAMP = Timestamp(micros=int(
+    common_urns.constants.MAX_TIMESTAMP_MILLIS.constant)*1000)
 
 
+@functools.total_ordering
 class Duration(object):
   """Represents a second duration with microsecond granularity.
 
@@ -221,11 +239,21 @@ class Duration(object):
     # Note that the returned value may have lost precision.
     return self.micros / 1000000
 
-  def __cmp__(self, other):
+  def __eq__(self, other):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
-    return cmp(self.micros, other.micros)
+    return self.micros == other.micros
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
+  def __lt__(self, other):
+    # Allow comparisons between Duration and Timestamp values.
+    if not isinstance(other, Timestamp):
+      other = Duration.of(other)
+    return self.micros < other.micros
 
   def __hash__(self):
     return hash(self.micros)

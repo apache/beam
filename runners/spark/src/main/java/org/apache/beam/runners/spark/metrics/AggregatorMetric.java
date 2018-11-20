@@ -15,15 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.metrics;
 
 import com.codahale.metrics.Metric;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 
-/**
- * An adapter between the {@link NamedAggregators} and Codahale's {@link Metric} interface.
- */
+/** An adapter between the {@link NamedAggregators} and Codahale's {@link Metric} interface. */
 public class AggregatorMetric implements Metric {
 
   private final NamedAggregators namedAggregators;

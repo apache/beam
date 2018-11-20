@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness.state;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Iterables;
-import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -29,16 +28,17 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 
 /**
- * An implementation of a bag user state that utilizes the Beam Fn State API to fetch, clear
- * and persist values.
+ * An implementation of a bag user state that utilizes the Beam Fn State API to fetch, clear and
+ * persist values.
  *
  * <p>Calling {@link #asyncClose()} schedules any required persistence changes. This object should
  * no longer be used after it is closed.
  *
- * <p>TODO: Move to an async persist model where persistence is signalled based upon cache
- * memory pressure and its need to flush.
+ * <p>TODO: Move to an async persist model where persistence is signalled based upon cache memory
+ * pressure and its need to flush.
  *
  * <p>TODO: Support block level caching and prefetch.
  */
@@ -72,18 +72,20 @@ public class BagUserState<T> {
         .setKey(encodedKey);
     request = requestBuilder.build();
 
-    this.oldValues = new LazyCachingIteratorToIterable<>(
-        new DataStreams.DataStreamDecoder(valueCoder,
-            DataStreams.inbound(
-                StateFetchingIterators.forFirstChunk(
-                    beamFnStateClient,
-                    request))));
+    this.oldValues =
+        new LazyCachingIteratorToIterable<>(
+            new DataStreams.DataStreamDecoder(
+                valueCoder,
+                DataStreams.inbound(
+                    StateFetchingIterators.forFirstChunk(beamFnStateClient, request))));
     this.newValues = new ArrayList<>();
   }
 
   public Iterable<T> get() {
-    checkState(!isClosed,
-        "Bag user state is no longer usable because it is closed for %s", request.getStateKey());
+    checkState(
+        !isClosed,
+        "Bag user state is no longer usable because it is closed for %s",
+        request.getStateKey());
     if (oldValues == null) {
       // If we were cleared we should disregard old values.
       return Iterables.limit(Collections.unmodifiableList(newValues), newValues.size());
@@ -91,30 +93,35 @@ public class BagUserState<T> {
       // If we have no new values then just return the old values.
       return oldValues;
     }
-    return Iterables.concat(oldValues,
-        Iterables.limit(Collections.unmodifiableList(newValues), newValues.size()));
+    return Iterables.concat(
+        oldValues, Iterables.limit(Collections.unmodifiableList(newValues), newValues.size()));
   }
 
   public void append(T t) {
-    checkState(!isClosed,
-        "Bag user state is no longer usable because it is closed for %s", request.getStateKey());
+    checkState(
+        !isClosed,
+        "Bag user state is no longer usable because it is closed for %s",
+        request.getStateKey());
     newValues.add(t);
   }
 
   public void clear() {
-    checkState(!isClosed,
-        "Bag user state is no longer usable because it is closed for %s", request.getStateKey());
+    checkState(
+        !isClosed,
+        "Bag user state is no longer usable because it is closed for %s",
+        request.getStateKey());
     oldValues = null;
     newValues = new ArrayList<>();
   }
 
   public void asyncClose() throws Exception {
-    checkState(!isClosed,
-        "Bag user state is no longer usable because it is closed for %s", request.getStateKey());
+    checkState(
+        !isClosed,
+        "Bag user state is no longer usable because it is closed for %s",
+        request.getStateKey());
     if (oldValues == null) {
       beamFnStateClient.handle(
-          request.toBuilder()
-              .setClear(StateClearRequest.getDefaultInstance()),
+          request.toBuilder().setClear(StateClearRequest.getDefaultInstance()),
           new CompletableFuture<>());
     }
     if (!newValues.isEmpty()) {
@@ -124,7 +131,8 @@ public class BagUserState<T> {
         valueCoder.encode(newValue, out);
       }
       beamFnStateClient.handle(
-          request.toBuilder()
+          request
+              .toBuilder()
               .setAppend(StateAppendRequest.newBuilder().setData(out.toByteString())),
           new CompletableFuture<>());
     }

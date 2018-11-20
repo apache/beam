@@ -20,9 +20,7 @@ package org.apache.beam.runners.spark;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.junit.rules.ExternalResource;
 
-/**
- * Explicitly set {@link org.apache.spark.SparkContext} to be reused (or not) in tests.
- */
+/** Explicitly set {@link org.apache.spark.SparkContext} to be reused (or not) in tests. */
 public class ReuseSparkContextRule extends ExternalResource {
 
   private final boolean reuse;

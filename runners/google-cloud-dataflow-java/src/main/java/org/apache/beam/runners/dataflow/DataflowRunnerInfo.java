@@ -28,16 +28,12 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Populates versioning and other information for {@link DataflowRunner}.
- */
+/** Populates versioning and other information for {@link DataflowRunner}. */
 public final class DataflowRunnerInfo extends ReleaseInfo {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunnerInfo.class);
 
   private static final String APACHE_BEAM_DISTRIBUTION_PROPERTIES_PATH =
       "/org/apache/beam/runners/dataflow/dataflow.properties";
-  private static final String DATAFLOW_DISTRIBUTION_PROPERTIES_PATH =
-      "/org/apache/beam/runners/dataflow/dataflow-distribution.properties";
   private static final String FNAPI_ENVIRONMENT_MAJOR_VERSION_KEY =
       "fnapi.environment.major.version";
   private static final String LEGACY_ENVIRONMENT_MAJOR_VERSION_KEY =
@@ -46,13 +42,11 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
 
   private static class LazyInit {
     private static final DataflowRunnerInfo INSTANCE;
+
     static {
       Properties properties;
       try {
-        properties = load(DATAFLOW_DISTRIBUTION_PROPERTIES_PATH);
-        if (properties == null) {
-          properties = load(APACHE_BEAM_DISTRIBUTION_PROPERTIES_PATH);
-        }
+        properties = load(APACHE_BEAM_DISTRIBUTION_PROPERTIES_PATH);
         if (properties == null) {
           // Print a warning if we can not load either the Dataflow distribution properties
           // or the
@@ -81,9 +75,7 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
     }
   }
 
-  /**
-   * Returns an instance of {@link DataflowRunnerInfo}.
-   */
+  /** Returns an instance of {@link DataflowRunnerInfo}. */
   public static DataflowRunnerInfo getDataflowRunnerInfo() {
     return LazyInit.INSTANCE;
   }
@@ -106,17 +98,17 @@ public final class DataflowRunnerInfo extends ReleaseInfo {
 
   /** Provides the container version that will be used for constructing harness image paths. */
   public String getContainerVersion() {
-    checkState(
-        properties.containsKey(CONTAINER_VERSION_KEY),
-        "Unknown container version");
+    checkState(properties.containsKey(CONTAINER_VERSION_KEY), "Unknown container version");
     return properties.get(CONTAINER_VERSION_KEY);
   }
 
+  @Override
   public Map<String, String> getProperties() {
     return ImmutableMap.copyOf((Map) properties);
   }
 
   private final Map<String, String> properties;
+
   private DataflowRunnerInfo(Map<String, String> properties) {
     this.properties = properties;
   }

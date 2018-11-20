@@ -43,14 +43,12 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Implementation of {@link MetricResults} for the Dataflow Runner.
- */
+/** Implementation of {@link MetricResults} for the Dataflow Runner. */
 class DataflowMetrics extends MetricResults {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowMetrics.class);
   /**
-   * Client for the Dataflow service. This can be used to query the service
-   * for information about the job.
+   * Client for the Dataflow service. This can be used to query the service for information about
+   * the job.
    */
   private DataflowClient dataflowClient;
 
@@ -60,13 +58,14 @@ class DataflowMetrics extends MetricResults {
   private DataflowPipelineJob dataflowPipelineJob;
 
   /**
-   * After the job has finished running, Metrics no longer will change, so their results are
-   * cached here.
+   * After the job has finished running, Metrics no longer will change, so their results are cached
+   * here.
    */
   private JobMetrics cachedMetricResults = null;
 
   /**
    * Constructor for the DataflowMetrics class.
+   *
    * @param dataflowPipelineJob is used to get Job state and Job ID information.
    * @param dataflowClient is used to query user metrics from the Dataflow service.
    */
@@ -76,20 +75,20 @@ class DataflowMetrics extends MetricResults {
   }
 
   /**
-   * Take a list of metric updates coming from the Dataflow service, and format it into a
-   * Metrics API MetricQueryResults instance.
+   * Take a list of metric updates coming from the Dataflow service, and format it into a Metrics
+   * API MetricQueryResults instance.
+   *
    * @param metricUpdates
    * @return a populated MetricQueryResults object.
    */
   private MetricQueryResults populateMetricQueryResults(
-      List<MetricUpdate> metricUpdates,
-      MetricsFilter filter) {
+      List<MetricUpdate> metricUpdates, MetricsFilter filter) {
     return DataflowMetricQueryResultsFactory.create(dataflowPipelineJob, metricUpdates, filter)
         .build();
   }
 
   @Override
-  public MetricQueryResults queryMetrics(MetricsFilter filter) {
+  public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
     List<MetricUpdate> metricUpdates;
     ImmutableList<MetricResult<Long>> counters = ImmutableList.of();
     ImmutableList<MetricResult<DistributionResult>> distributions = ImmutableList.of();
@@ -101,9 +100,7 @@ class DataflowMetrics extends MetricResults {
       LOG.warn("Unable to query job metrics.\n");
       return DataflowMetricQueryResults.create(counters, distributions, gauges);
     }
-    metricUpdates = firstNonNull(
-        jobMetrics.getMetrics(),
-        Collections.<MetricUpdate>emptyList());
+    metricUpdates = firstNonNull(jobMetrics.getMetrics(), Collections.<MetricUpdate>emptyList());
     return populateMetricQueryResults(metricUpdates, filter);
   }
 
@@ -134,13 +131,13 @@ class DataflowMetrics extends MetricResults {
     }
 
     public void addMetricResult(
-        MetricKey metricKey,
-        @Nullable MetricUpdate committed,
-        @Nullable MetricUpdate attempted) {
+        MetricKey metricKey, @Nullable MetricUpdate committed, @Nullable MetricUpdate attempted) {
       if (committed == null || attempted == null) {
         LOG.warn(
             "Metric {} did not have both a committed ({}) and tentative value ({}).",
-            metricKey, committed, attempted);
+            metricKey,
+            committed,
+            attempted);
       } else if (committed.getDistribution() != null && attempted.getDistribution() != null) {
         // distribution metric
         DistributionResult value = getDistributionValue(committed);
@@ -172,10 +169,13 @@ class DataflowMetrics extends MetricResults {
       } else {
         // This is exceptionally unexpected. We expect matching user metrics to only have the
         // value types provided by the Metrics API.
-        LOG.warn("Unexpected / mismatched metric types."
-            + " Please report JOB ID to Dataflow Support. Metric key: {}."
-            + " Committed / attempted Metric updates: {} / {}",
-            metricKey.toString(), committed.toString(), attempted.toString());
+        LOG.warn(
+            "Unexpected / mismatched metric types."
+                + " Please report JOB ID to Dataflow Support. Metric key: {}."
+                + " Committed / attempted Metric updates: {} / {}",
+            metricKey.toString(),
+            committed.toString(),
+            attempted.toString());
       }
     }
 
@@ -186,8 +186,7 @@ class DataflowMetrics extends MetricResults {
       return ((Number) metricUpdate.getScalar()).longValue();
     }
 
-    private DistributionResult getDistributionValue(
-        MetricUpdate metricUpdate) {
+    private DistributionResult getDistributionValue(MetricUpdate metricUpdate) {
       if (metricUpdate.getDistribution() == null) {
         return DistributionResult.IDENTITY_ELEMENT;
       }
@@ -215,20 +214,20 @@ class DataflowMetrics extends MetricResults {
   private static class DataflowMetricQueryResultsFactory {
     private final Iterable<MetricUpdate> metricUpdates;
     private final MetricsFilter filter;
-    private final HashMap<MetricKey, MetricUpdate>
-        tentativeByName;
-    private final HashMap<MetricKey, MetricUpdate>
-        committedByName;
+    private final HashMap<MetricKey, MetricUpdate> tentativeByName;
+    private final HashMap<MetricKey, MetricUpdate> committedByName;
     private final HashSet<MetricKey> metricHashKeys;
     private final DataflowPipelineJob dataflowPipelineJob;
 
-    public static DataflowMetricQueryResultsFactory create(DataflowPipelineJob dataflowPipelineJob,
+    public static DataflowMetricQueryResultsFactory create(
+        DataflowPipelineJob dataflowPipelineJob,
         Iterable<MetricUpdate> metricUpdates,
         MetricsFilter filter) {
       return new DataflowMetricQueryResultsFactory(dataflowPipelineJob, metricUpdates, filter);
     }
 
-    private DataflowMetricQueryResultsFactory(DataflowPipelineJob dataflowPipelineJob,
+    private DataflowMetricQueryResultsFactory(
+        DataflowPipelineJob dataflowPipelineJob,
         Iterable<MetricUpdate> metricUpdates,
         MetricsFilter filter) {
       this.dataflowPipelineJob = dataflowPipelineJob;
@@ -241,22 +240,21 @@ class DataflowMetrics extends MetricResults {
     }
 
     /**
-     * Check whether a {@link MetricUpdate} is a tentative
-     * update or not.
+     * Check whether a {@link MetricUpdate} is a tentative update or not.
+     *
      * @return true if update is tentative, false otherwise
      */
-    private boolean isMetricTentative(
-        MetricUpdate metricUpdate) {
-      return (metricUpdate.getName().getContext().containsKey("tentative")
-          && Objects.equal(metricUpdate.getName().getContext().get("tentative"), "true"));
+    private boolean isMetricTentative(MetricUpdate metricUpdate) {
+      return metricUpdate.getName().getContext().containsKey("tentative")
+          && Objects.equal(metricUpdate.getName().getContext().get("tentative"), "true");
     }
 
     /**
      * Build an {@link MetricKey} that serves as a hash key for a metric update.
+     *
      * @return a {@link MetricKey} that can be hashed and used to identify a metric.
      */
-    private MetricKey getMetricHashKey(
-        MetricUpdate metricUpdate) {
+    private MetricKey getMetricHashKey(MetricUpdate metricUpdate) {
       String fullStepName = metricUpdate.getName().getContext().get("step");
       if (dataflowPipelineJob.transformStepNames == null
           || !dataflowPipelineJob.transformStepNames.inverse().containsKey(fullStepName)) {
@@ -264,8 +262,8 @@ class DataflowMetrics extends MetricResults {
         // altogether.
         return null;
       }
-      fullStepName = dataflowPipelineJob.transformStepNames
-          .inverse().get(fullStepName).getFullName();
+      fullStepName =
+          dataflowPipelineJob.transformStepNames.inverse().get(fullStepName).getFullName();
       return MetricKey.create(
           fullStepName,
           MetricName.named(
@@ -279,7 +277,7 @@ class DataflowMetrics extends MetricResults {
       for (MetricUpdate update : metricUpdates) {
         if (update.getName().getOrigin() != null
             && (!"user".equalsIgnoreCase(update.getName().getOrigin())
-            || !update.getName().getContext().containsKey("namespace"))) {
+                || !update.getName().getContext().containsKey("namespace"))) {
           // Skip non-user metrics, which should have both a "user" origin and a namespace.
           continue;
         }
@@ -308,20 +306,21 @@ class DataflowMetrics extends MetricResults {
     public MetricQueryResults build() {
       buildMetricsIndex();
 
-      DataflowMetricResultExtractor extractor = new DataflowMetricResultExtractor(
-          dataflowPipelineJob.getDataflowOptions().isStreaming());
+      DataflowMetricResultExtractor extractor =
+          new DataflowMetricResultExtractor(dataflowPipelineJob.getDataflowOptions().isStreaming());
       for (MetricKey metricKey : metricHashKeys) {
         String metricName = metricKey.metricName().getName();
-        if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
-            || metricName.endsWith("[MEAN]") || metricName.endsWith("[COUNT]")) {
+        if (metricName.endsWith("[MIN]")
+            || metricName.endsWith("[MAX]")
+            || metricName.endsWith("[MEAN]")
+            || metricName.endsWith("[COUNT]")) {
           // Skip distribution metrics, as these are not yet properly supported.
           // TODO: remove this when distributions stop being broken up for the UI.
           continue;
         }
 
-        extractor.addMetricResult(metricKey,
-            committedByName.get(metricKey),
-            tentativeByName.get(metricKey));
+        extractor.addMetricResult(
+            metricKey, committedByName.get(metricKey), tentativeByName.get(metricKey));
       }
       return DataflowMetricQueryResults.create(
           extractor.getCounterResults(),
@@ -336,8 +335,8 @@ class DataflowMetrics extends MetricResults {
         Iterable<MetricResult<Long>> counters,
         Iterable<MetricResult<DistributionResult>> distributions,
         Iterable<MetricResult<GaugeResult>> gauges) {
-      return
-          new AutoValue_DataflowMetrics_DataflowMetricQueryResults(counters, distributions, gauges);
+      return new AutoValue_DataflowMetrics_DataflowMetricQueryResults(
+          counters, distributions, gauges);
     }
   }
 
@@ -345,23 +344,31 @@ class DataflowMetrics extends MetricResults {
   abstract static class DataflowMetricResult<T> implements MetricResult<T> {
     // need to define these here so they appear in the correct order
     // and the generated constructor is usable and consistent
+    @Override
     public abstract MetricName getName();
+
+    @Override
     public abstract String getStep();
+
     @Nullable
     protected abstract T committedInternal();
+
+    @Override
     public abstract T getAttempted();
 
+    @Override
     public T getCommitted() {
       T committed = committedInternal();
       if (committed == null) {
-        throw new UnsupportedOperationException("This runner does not currently support committed"
-            + " metrics results. Please use 'attempted' instead.");
+        throw new UnsupportedOperationException(
+            "This runner does not currently support committed"
+                + " metrics results. Please use 'attempted' instead.");
       }
       return committed;
     }
 
-    public static <T> MetricResult<T> create(MetricName name, String scope,
-        T committed, T attempted) {
+    public static <T> MetricResult<T> create(
+        MetricName name, String scope, T committed, T attempted) {
       return new AutoValue_DataflowMetrics_DataflowMetricResult<>(
           name, scope, committed, attempted);
     }

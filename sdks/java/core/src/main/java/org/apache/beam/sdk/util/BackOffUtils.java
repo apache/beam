@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.util;
 
 import java.io.IOException;
@@ -31,15 +30,13 @@ public final class BackOffUtils {
    * Runs the next iteration of the back-off policy, and returns whether to continue to retry the
    * operation.
    *
-   * <p>
-   * If {@code true}, it will call {@link Sleeper#sleep(long)} with the specified number of
+   * <p>If {@code true}, it will call {@link Sleeper#sleep(long)} with the specified number of
    * milliseconds from {@link BackOff#nextBackOffMillis()}.
-   * </p>
    *
    * @param sleeper sleeper
    * @param backOff back-off policy
-   * @return whether to continue to back off; in other words, whether
-   *         {@link BackOff#nextBackOffMillis()} did not return {@link BackOff#STOP}
+   * @return whether to continue to back off; in other words, whether {@link
+   *     BackOff#nextBackOffMillis()} did not return {@link BackOff#STOP}
    * @throws InterruptedException if any thread has interrupted the current thread
    */
   public static boolean next(Sleeper sleeper, BackOff backOff)
@@ -52,6 +49,5 @@ public final class BackOffUtils {
     return true;
   }
 
-  private BackOffUtils() {
-  }
+  private BackOffUtils() {}
 }

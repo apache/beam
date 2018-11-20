@@ -35,14 +35,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for CoderUtils.
- */
+/** Tests for CoderUtils. */
 @RunWith(JUnit4.class)
 public class CoderUtilsTest {
 
-  @Rule
-  public transient ExpectedException expectedException = ExpectedException.none();
+  @Rule public transient ExpectedException expectedException = ExpectedException.none();
 
   static class TestCoder extends AtomicCoder<Integer> {
     public static TestCoder of() {
@@ -61,8 +58,7 @@ public class CoderUtilsTest {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
-      throw new NonDeterministicException(this,
-        "TestCoder does not actually encode or decode.");
+      throw new NonDeterministicException(this, "TestCoder does not actually encode or decode.");
     }
   }
 

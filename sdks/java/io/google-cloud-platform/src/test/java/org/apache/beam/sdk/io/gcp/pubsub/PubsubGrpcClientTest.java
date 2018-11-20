@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.junit.Assert.assertEquals;
@@ -55,9 +54,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for PubsubGrpcClient.
- */
+/** Tests for PubsubGrpcClient. */
 @RunWith(JUnit4.class)
 public class PubsubGrpcClientTest {
   private ManagedChannel inProcessChannel;
@@ -78,12 +75,13 @@ public class PubsubGrpcClientTest {
   private static final String RECORD_ID = "testRecordId";
   private static final String ACK_ID = "testAckId";
   private static final ImmutableMap<String, String> ATTRIBUTES =
-          ImmutableMap.<String, String>builder().put("a", "b").put("c", "d").build();
+      ImmutableMap.<String, String>builder().put("a", "b").put("c", "d").build();
 
   @Before
   public void setup() {
-    channelName = String.format("%s-%s",
-        PubsubGrpcClientTest.class.getName(), ThreadLocalRandom.current().nextInt());
+    channelName =
+        String.format(
+            "%s-%s", PubsubGrpcClientTest.class.getName(), ThreadLocalRandom.current().nextInt());
     inProcessChannel = InProcessChannelBuilder.forName(channelName).directExecutor().build();
     Credentials testCredentials = new TestCredential();
     client =
@@ -102,49 +100,44 @@ public class PubsubGrpcClientTest {
     String expectedSubscription = SUBSCRIPTION.getPath();
     final PullRequest expectedRequest =
         PullRequest.newBuilder()
-                   .setSubscription(expectedSubscription)
-                   .setReturnImmediately(true)
-                   .setMaxMessages(10)
-                   .build();
-    Timestamp timestamp = Timestamp.newBuilder()
-                                   .setSeconds(PUB_TIME / 1000)
-                                   .setNanos((int) (PUB_TIME % 1000) * 1000)
-                                   .build();
+            .setSubscription(expectedSubscription)
+            .setReturnImmediately(true)
+            .setMaxMessages(10)
+            .build();
+    Timestamp timestamp =
+        Timestamp.newBuilder()
+            .setSeconds(PUB_TIME / 1000)
+            .setNanos((int) (PUB_TIME % 1000) * 1000)
+            .build();
     PubsubMessage expectedPubsubMessage =
         PubsubMessage.newBuilder()
-                     .setMessageId(MESSAGE_ID)
-                     .setData(
-                         ByteString.copyFrom(DATA.getBytes(StandardCharsets.UTF_8)))
-                     .setPublishTime(timestamp)
-                     .putAllAttributes(ATTRIBUTES)
-                     .putAllAttributes(
-                         ImmutableMap.of(TIMESTAMP_ATTRIBUTE,
-                                         String.valueOf(MESSAGE_TIME),
-                             ID_ATTRIBUTE, RECORD_ID))
-                     .build();
+            .setMessageId(MESSAGE_ID)
+            .setData(ByteString.copyFrom(DATA.getBytes(StandardCharsets.UTF_8)))
+            .setPublishTime(timestamp)
+            .putAllAttributes(ATTRIBUTES)
+            .putAllAttributes(
+                ImmutableMap.of(
+                    TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME), ID_ATTRIBUTE, RECORD_ID))
+            .build();
     ReceivedMessage expectedReceivedMessage =
-        ReceivedMessage.newBuilder()
-                       .setMessage(expectedPubsubMessage)
-                       .setAckId(ACK_ID)
-                       .build();
+        ReceivedMessage.newBuilder().setMessage(expectedPubsubMessage).setAckId(ACK_ID).build();
     final PullResponse response =
         PullResponse.newBuilder()
-                    .addAllReceivedMessages(ImmutableList.of(expectedReceivedMessage))
-                    .build();
+            .addAllReceivedMessages(ImmutableList.of(expectedReceivedMessage))
+            .build();
 
     final List<PullRequest> requestsReceived = new ArrayList<>();
-    SubscriberImplBase subscriberImplBase = new SubscriberImplBase() {
-      @Override
-      public void pull(PullRequest request, StreamObserver<PullResponse> responseObserver) {
-        requestsReceived.add(request);
-        responseObserver.onNext(response);
-        responseObserver.onCompleted();
-      }
-    };
-    Server server = InProcessServerBuilder.forName(channelName)
-        .addService(subscriberImplBase)
-        .build()
-        .start();
+    SubscriberImplBase subscriberImplBase =
+        new SubscriberImplBase() {
+          @Override
+          public void pull(PullRequest request, StreamObserver<PullResponse> responseObserver) {
+            requestsReceived.add(request);
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+          }
+        };
+    Server server =
+        InProcessServerBuilder.forName(channelName).addService(subscriberImplBase).build().start();
     try {
       List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
       assertEquals(1, acutalMessages.size());
@@ -165,39 +158,36 @@ public class PubsubGrpcClientTest {
     String expectedTopic = TOPIC.getPath();
     PubsubMessage expectedPubsubMessage =
         PubsubMessage.newBuilder()
-                     .setData(ByteString.copyFrom(DATA.getBytes(StandardCharsets.UTF_8)))
-                     .putAllAttributes(ATTRIBUTES)
-                     .putAllAttributes(
-                         ImmutableMap.of(TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME),
-                                         ID_ATTRIBUTE, RECORD_ID))
-                     .build();
+            .setData(ByteString.copyFrom(DATA.getBytes(StandardCharsets.UTF_8)))
+            .putAllAttributes(ATTRIBUTES)
+            .putAllAttributes(
+                ImmutableMap.of(
+                    TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME), ID_ATTRIBUTE, RECORD_ID))
+            .build();
     final PublishRequest expectedRequest =
         PublishRequest.newBuilder()
-                      .setTopic(expectedTopic)
-                      .addAllMessages(
-                          ImmutableList.of(expectedPubsubMessage))
-                      .build();
+            .setTopic(expectedTopic)
+            .addAllMessages(ImmutableList.of(expectedPubsubMessage))
+            .build();
     final PublishResponse response =
-        PublishResponse.newBuilder()
-                       .addAllMessageIds(ImmutableList.of(MESSAGE_ID))
-                       .build();
+        PublishResponse.newBuilder().addAllMessageIds(ImmutableList.of(MESSAGE_ID)).build();
 
     final List<PublishRequest> requestsReceived = new ArrayList<>();
-    PublisherImplBase publisherImplBase = new PublisherImplBase() {
-      @Override
-      public void publish(
-          PublishRequest request, StreamObserver<PublishResponse> responseObserver) {
-        requestsReceived.add(request);
-        responseObserver.onNext(response);
-        responseObserver.onCompleted();
-      }
-    };
-    Server server = InProcessServerBuilder.forName(channelName)
-        .addService(publisherImplBase)
-        .build()
-        .start();
+    PublisherImplBase publisherImplBase =
+        new PublisherImplBase() {
+          @Override
+          public void publish(
+              PublishRequest request, StreamObserver<PublishResponse> responseObserver) {
+            requestsReceived.add(request);
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+          }
+        };
+    Server server =
+        InProcessServerBuilder.forName(channelName).addService(publisherImplBase).build().start();
     try {
-      OutgoingMessage actualMessage = new OutgoingMessage(
+      OutgoingMessage actualMessage =
+          new OutgoingMessage(
               DATA.getBytes(StandardCharsets.UTF_8), ATTRIBUTES, MESSAGE_TIME, RECORD_ID);
       int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
       assertEquals(1, n);

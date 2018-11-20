@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.options;
 
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Validation.Required;
 
 /** Pipeline options common to all portable runners. */
@@ -36,11 +37,53 @@ public interface PortablePipelineOptions extends PipelineOptions {
       "Files to stage to the artifact service and make available to workers. Files are placed on "
           + "the worker's classpath. The default value is all files from the classpath.")
   List<String> getFilesToStage();
+
   void setFilesToStage(List<String> value);
+
+  @Description(
+      "Set the default environment for running user code. "
+          + "Currently only docker image URL are supported.")
+  String getDefaultJavaEnvironmentUrl();
+
+  void setDefaultJavaEnvironmentUrl(String url);
 
   @Description(
       "Job service endpoint to use. Should be in the form of address and port, e.g. localhost:3000")
   @Required
   String getJobEndpoint();
+
   void setJobEndpoint(String endpoint);
+
+  @Description(
+      "Set the default environment type for running user code. "
+          + "Possible options are DOCKER and PROCESS.")
+  String getDefaultEnvironmentType();
+
+  void setDefaultEnvironmentType(String environmentType);
+
+  @Description(
+      "Set environment configuration for running the user code.\n"
+          + " For DOCKER: Url for the docker image.\n"
+          + " For PROCESS: json of the form "
+          + "{\"os\": \"<OS>\", \"arch\": \"<ARCHITECTURE>\", \"command\": \"<process to execute>\", "
+          + "\"env\":{\"<Environment variables 1>\": \"<ENV_VAL>\"} }. "
+          + "All fields in the json are optional except command.")
+  @Nullable
+  String getDefaultEnvironmentConfig();
+
+  void setDefaultEnvironmentConfig(@Nullable String config);
+
+  @Description(
+      "Sets the number of sdk worker processes that will run on each worker node. Default is 1. If"
+          + " 0, it will be automatically set according to the number of CPU cores on the worker.")
+  @Nullable
+  Long getSdkWorkerParallelism();
+
+  void setSdkWorkerParallelism(@Nullable Long parallelism);
+
+  @Description("Duration in milliseconds for environment cache within a job. 0 means no caching.")
+  @Default.Integer(0)
+  int getEnvironmentCacheMillis();
+
+  void setEnvironmentCacheMillis(int environmentCacheMillis);
 }

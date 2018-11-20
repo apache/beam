@@ -74,11 +74,9 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
     return new CopyOnAccessInMemoryStateInternals<>(key, underlying);
   }
 
-  private CopyOnAccessInMemoryStateInternals(
-      K key, CopyOnAccessInMemoryStateInternals underlying) {
+  private CopyOnAccessInMemoryStateInternals(K key, CopyOnAccessInMemoryStateInternals underlying) {
     this.key = key;
-    table =
-        new CopyOnAccessInMemoryStateTable(underlying == null ? null : underlying.table);
+    table = new CopyOnAccessInMemoryStateTable(underlying == null ? null : underlying.table);
   }
 
   /**
@@ -90,12 +88,12 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
    * state within this {@link StateInternals}.
    *
    * <p>Additionally, stores the {@link WatermarkHoldState} with the earliest time bound in the
-   * state table after the commit is completed, enabling calls to
-   * {@link #getEarliestWatermarkHold()}.
+   * state table after the commit is completed, enabling calls to {@link
+   * #getEarliestWatermarkHold()}.
    *
    * @return this table
    */
-  public CopyOnAccessInMemoryStateInternals commit() {
+  public CopyOnAccessInMemoryStateInternals<K> commit() {
     table.commit();
     return this;
   }
@@ -103,8 +101,8 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
   /**
    * Gets the earliest Watermark Hold present in this table.
    *
-   * <p>Must be called after this state has been committed. Will throw an
-   * {@link IllegalStateException} if the state has not been committed.
+   * <p>Must be called after this state has been committed. Will throw an {@link
+   * IllegalStateException} if the state has not been committed.
    */
   public Instant getEarliestWatermarkHold() {
     // After commit, the watermark hold is always present, but may be
@@ -132,9 +130,9 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
   }
 
   /**
-   * A {@link StateTable} that, when a value is retrieved with
-   * {@link StateTable#get(StateNamespace, StateTag, StateContext)}, first attempts to obtain a
-   * copy of existing {@link State} from an underlying {@link StateTable}.
+   * A {@link StateTable} that, when a value is retrieved with {@link StateTable#get(StateNamespace,
+   * StateTag, StateContext)}, first attempts to obtain a copy of existing {@link State} from an
+   * underlying {@link StateTable}.
    */
   private static class CopyOnAccessInMemoryStateTable extends StateTable {
     private Optional<StateTable> underlying;
@@ -144,24 +142,23 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
      *
      * <p>There are three {@link StateBinderFactory} implementations used by the {@link
      * CopyOnAccessInMemoryStateTable}.
+     *
      * <ul>
      *   <li>The default {@link StateBinderFactory} is a {@link CopyOnBindBinderFactory}, allowing
      *       the table to copy any existing {@link State} values to this {@link StateTable} from the
      *       underlying table when accessed, at which point mutations will not be visible to the
-     *       underlying table - effectively a "Copy by Value" binder.</li>
-     *   <li>During the execution of the {@link #commit()} method, this is a
-     *       {@link ReadThroughBinderFactory}, which copies the references to the existing
-     *       {@link State} objects to this {@link StateTable}.</li>
-     *   <li>After the execution of the {@link #commit()} method, this is an
-     *       instance of {@link InMemoryStateBinderFactory}, which constructs new instances of state
-     *       when a {@link StateTag} is bound.</li>
+     *       underlying table - effectively a "Copy by Value" binder.
+     *   <li>During the execution of the {@link #commit()} method, this is a {@link
+     *       ReadThroughBinderFactory}, which copies the references to the existing {@link State}
+     *       objects to this {@link StateTable}.
+     *   <li>After the execution of the {@link #commit()} method, this is an instance of {@link
+     *       InMemoryStateBinderFactory}, which constructs new instances of state when a {@link
+     *       StateTag} is bound.
      * </ul>
      */
     private StateBinderFactory binderFactory;
 
-    /**
-     * The earliest watermark hold in this table.
-     */
+    /** The earliest watermark hold in this table. */
     private Optional<Instant> earliestWatermarkHold;
 
     public CopyOnAccessInMemoryStateTable(StateTable underlying) {
@@ -173,14 +170,14 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
     /**
      * Copies all values in the underlying table to this table, then discards the underlying table.
      *
-     * <p>If there is an underlying table, this replaces the existing
-     * {@link CopyOnBindBinderFactory} with a {@link ReadThroughBinderFactory}, then reads all of
-     * the values in the existing table, binding the state values to this table. The old StateTable
+     * <p>If there is an underlying table, this replaces the existing {@link
+     * CopyOnBindBinderFactory} with a {@link ReadThroughBinderFactory}, then reads all of the
+     * values in the existing table, binding the state values to this table. The old StateTable
      * should be discarded after the call to {@link #commit()}.
      *
      * <p>After copying all of the existing values, replace the binder factory with an instance of
-     * {@link InMemoryStateBinderFactory} to construct new values, since all existing values
-     * are bound in this {@link StateTable table} and this table represents the canonical state.
+     * {@link InMemoryStateBinderFactory} to construct new values, since all existing values are
+     * bound in this {@link StateTable table} and this table represents the canonical state.
      */
     private void commit() {
       Instant earliestHold = getEarliestWatermarkHold();
@@ -221,8 +218,8 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
      *
      * <p>Because {@link InMemoryState} is not removed from the {@link StateTable} after it is
      * cleared, in case contents are modified after being cleared, the table must be explicitly
-     * checked to ensure that it contains state and removed if not (otherwise we may never use
-     * the table again).
+     * checked to ensure that it contains state and removed if not (otherwise we may never use the
+     * table again).
      */
     private void clearEmpty() {
       Collection<StateNamespace> emptyNamespaces = new HashSet<>(this.getNamespacesInUse());
@@ -261,10 +258,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
       private boolean containedInUnderlying(StateNamespace namespace, StateTag<?> tag) {
         return underlying.isPresent()
             && underlying.get().isNamespaceInUse(namespace)
-            && underlying
-                .get()
-                .getTagsInUse(namespace)
-                .containsKey(tag);
+            && underlying.get().getTagsInUse(namespace).containsKey(tag);
       }
 
       @Override
@@ -272,8 +266,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
         return new StateBinder() {
           @Override
           public WatermarkHoldState bindWatermark(
-              StateTag<WatermarkHoldState> address,
-              TimestampCombiner timestampCombiner) {
+              StateTag<WatermarkHoldState> address, TimestampCombiner timestampCombiner) {
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends WatermarkHoldState> existingState =
@@ -286,8 +279,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
           }
 
           @Override
-          public <T> ValueState<T> bindValue(
-              StateTag<ValueState<T>> address, Coder<T> coder) {
+          public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends ValueState<T>> existingState =
@@ -317,8 +309,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
           }
 
           @Override
-          public <T> BagState<T> bindBag(
-              StateTag<BagState<T>> address, Coder<T> elemCoder) {
+          public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends BagState<T>> existingState =
@@ -331,8 +322,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
           }
 
           @Override
-          public <T> SetState<T> bindSet(
-              StateTag<SetState<T>> address, Coder<T> elemCoder) {
+          public <T> SetState<T> bindSet(StateTag<SetState<T>> address, Coder<T> elemCoder) {
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends SetState<T>> existingState =
@@ -374,8 +364,8 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
 
     /**
      * {@link StateBinderFactory} that reads directly from the underlying table. Used during calls
-     * to {@link CopyOnAccessInMemoryStateTable#commit()} to read all values from
-     * the underlying table.
+     * to {@link CopyOnAccessInMemoryStateTable#commit()} to read all values from the underlying
+     * table.
      */
     private static class ReadThroughBinderFactory<K> implements StateBinderFactory {
       private final StateTable underlying;
@@ -412,52 +402,49 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
         return new StateBinder() {
           @Override
           public WatermarkHoldState bindWatermark(
-              StateTag<WatermarkHoldState> address,
-              TimestampCombiner timestampCombiner) {
+              StateTag<WatermarkHoldState> address, TimestampCombiner timestampCombiner) {
             return underlying.get(namespace, address, c);
           }
 
           @Override
-          public <T> ValueState<T> bindValue(
-              StateTag<ValueState<T>> address, Coder<T> coder) {
+          public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
             return underlying.get(namespace, address, c);
           }
 
           @Override
-          public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
-              bindCombiningValue(
+          public <InputT, AccumT, OutputT>
+              CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
                   StateTag<CombiningState<InputT, AccumT, OutputT>> address,
-                  Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+                  Coder<AccumT> accumCoder,
+                  CombineFn<InputT, AccumT, OutputT> combineFn) {
             return underlying.get(namespace, address, c);
           }
 
           @Override
-          public <T> BagState<T> bindBag(
-              StateTag<BagState<T>> address, Coder<T> elemCoder) {
+          public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
             return underlying.get(namespace, address, c);
           }
 
           @Override
-          public <T> SetState<T> bindSet(
-              StateTag<SetState<T>> address, Coder<T> elemCoder) {
+          public <T> SetState<T> bindSet(StateTag<SetState<T>> address, Coder<T> elemCoder) {
             return underlying.get(namespace, address, c);
           }
 
           @Override
           public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
               StateTag<MapState<KeyT, ValueT>> address,
-              Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
+              Coder<KeyT> mapKeyCoder,
+              Coder<ValueT> mapValueCoder) {
             return underlying.get(namespace, address, c);
           }
 
           @Override
-          public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
-          bindCombiningValueWithContext(
+          public <InputT, AccumT, OutputT>
+              CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
                   StateTag<CombiningState<InputT, AccumT, OutputT>> address,
                   Coder<AccumT> accumCoder,
                   CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-            return bindCombiningValue(
-                address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
+            return bindCombiningValue(address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
           }
         };
       }

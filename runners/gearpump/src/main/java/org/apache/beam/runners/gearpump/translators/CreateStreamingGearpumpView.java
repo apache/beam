@@ -55,9 +55,9 @@ class CreateStreamingGearpumpView<ElemT, ViewT>
   /**
    * Combiner that combines {@code T}s into a single {@code List<T>} containing all inputs.
    *
-   * <p>For internal use by {@link CreateStreamingGearpumpView}. This combiner requires that
-   * the input {@link PCollection} fits in memory. For a large {@link PCollection} this is
-   * expected to crash!
+   * <p>For internal use by {@link CreateStreamingGearpumpView}. This combiner requires that the
+   * input {@link PCollection} fits in memory. For a large {@link PCollection} this is expected to
+   * crash!
    *
    * @param <T> the type of elements to concatenate.
    */

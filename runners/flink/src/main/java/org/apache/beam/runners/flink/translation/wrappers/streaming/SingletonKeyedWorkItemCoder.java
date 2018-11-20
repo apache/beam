@@ -30,9 +30,7 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 
-/**
- * Singleton keyed work item coder.
- */
+/** Singleton keyed work item coder. */
 public class SingletonKeyedWorkItemCoder<K, ElemT>
     extends StructuredCoder<SingletonKeyedWorkItem<K, ElemT>> {
   /**
@@ -72,12 +70,11 @@ public class SingletonKeyedWorkItemCoder<K, ElemT>
   }
 
   @Override
-  public void encode(SingletonKeyedWorkItem<K, ElemT> value,
-                     OutputStream outStream,
-                     Context context)
+  public void encode(
+      SingletonKeyedWorkItem<K, ElemT> value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     keyCoder.encode(value.key(), outStream);
-    valueCoder.encode(value.value, outStream, context);
+    valueCoder.encode(value.value(), outStream, context);
   }
 
   @Override
@@ -109,12 +106,11 @@ public class SingletonKeyedWorkItemCoder<K, ElemT>
   /**
    * {@inheritDoc}.
    *
-   * {@link KeyedWorkItemCoder} is not consistent with equals as it can return a
-   * {@link KeyedWorkItem} of a type different from the originally encoded type.
+   * <p>{@link KeyedWorkItemCoder} is not consistent with equals as it can return a {@link
+   * KeyedWorkItem} of a type different from the originally encoded type.
    */
   @Override
   public boolean consistentWithEquals() {
     return false;
   }
-
 }

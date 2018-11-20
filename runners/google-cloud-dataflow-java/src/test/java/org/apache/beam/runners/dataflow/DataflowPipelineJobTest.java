@@ -73,9 +73,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for DataflowPipelineJob.
- */
+/** Tests for DataflowPipelineJob. */
 @RunWith(JUnit4.class)
 public class DataflowPipelineJobTest {
   private static final String PROJECT_ID = "some-project";
@@ -83,26 +81,17 @@ public class DataflowPipelineJobTest {
   private static final String JOB_ID = "1234";
   private static final String REPLACEMENT_JOB_ID = "4321";
 
-  @Mock
-  private DataflowClient mockDataflowClient;
-  @Mock
-  private Dataflow mockWorkflowClient;
-  @Mock
-  private Dataflow.Projects mockProjects;
-  @Mock
-  private Dataflow.Projects.Locations mockLocations;
-  @Mock
-  private Dataflow.Projects.Locations.Jobs mockJobs;
-  @Mock
-  private MonitoringUtil.JobMessagesHandler mockHandler;
-  @Rule
-  public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
+  @Mock private DataflowClient mockDataflowClient;
+  @Mock private Dataflow mockWorkflowClient;
+  @Mock private Dataflow.Projects mockProjects;
+  @Mock private Dataflow.Projects.Locations mockLocations;
+  @Mock private Dataflow.Projects.Locations.Jobs mockJobs;
+  @Mock private MonitoringUtil.JobMessagesHandler mockHandler;
+  @Rule public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Rule
-  public ExpectedLogs expectedLogs = ExpectedLogs.none(DataflowPipelineJob.class);
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(DataflowPipelineJob.class);
 
   private TestDataflowPipelineOptions options;
 
@@ -125,22 +114,20 @@ public class DataflowPipelineJobTest {
   }
 
   /**
-   * Validates that a given time is valid for the total time slept by a
-   * BackOff given the number of retries and
-   * an initial polling interval.
+   * Validates that a given time is valid for the total time slept by a BackOff given the number of
+   * retries and an initial polling interval.
    *
    * @param pollingInterval The initial polling interval given.
    * @param retries The number of retries made
    * @param timeSleptMillis The amount of time slept by the clock. This is checked against the valid
-   * interval.
+   *     interval.
    */
   private void checkValidInterval(Duration pollingInterval, int retries, long timeSleptMillis) {
     long highSum = 0;
     long lowSum = 0;
     for (int i = 0; i < retries; i++) {
       double currentInterval =
-          pollingInterval.getMillis()
-              * Math.pow(DataflowPipelineJob.DEFAULT_BACKOFF_EXPONENT, i);
+          pollingInterval.getMillis() * Math.pow(DataflowPipelineJob.DEFAULT_BACKOFF_EXPONENT, i);
       double randomOffset = 0.5 * currentInterval;
       highSum += Math.round(currentInterval + randomOffset);
       lowSum += Math.round(currentInterval - randomOffset);
@@ -170,8 +157,8 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job =
         new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
 
-    State state = job.waitUntilFinish(
-        Duration.standardMinutes(5), jobHandler, fastClock, fastClock);
+    State state =
+        job.waitUntilFinish(Duration.standardMinutes(5), jobHandler, fastClock, fastClock);
     assertEquals(null, state);
   }
 
@@ -195,8 +182,8 @@ public class DataflowPipelineJobTest {
   }
 
   /**
-   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#DONE DONE}
-   * state is terminal.
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#DONE DONE} state
+   * is terminal.
    */
   @Test
   public void testWaitToFinishDone() throws Exception {
@@ -215,8 +202,8 @@ public class DataflowPipelineJobTest {
   }
 
   /**
-   * Tests that the {@link DataflowPipelineJob} understands that the
-   * {@link State#CANCELLED CANCELLED} state is terminal.
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#CANCELLED
+   * CANCELLED} state is terminal.
    */
   @Test
   public void testWaitToFinishCancelled() throws Exception {
@@ -231,9 +218,10 @@ public class DataflowPipelineJobTest {
   @Test
   public void testWaitToFinishUpdated() throws Exception {
     assertEquals(State.UPDATED, mockWaitToFinishInState(State.UPDATED));
-    expectedLogs.verifyInfo(String.format(
-        "Job %s has been updated and is running as the new job with id %s.",
-        JOB_ID, REPLACEMENT_JOB_ID));
+    expectedLogs.verifyInfo(
+        String.format(
+            "Job %s has been updated and is running as the new job with id %s.",
+            JOB_ID, REPLACEMENT_JOB_ID));
   }
 
   /**
@@ -261,8 +249,10 @@ public class DataflowPipelineJobTest {
     State state = job.waitUntilFinish(Duration.standardMinutes(5), null, fastClock, fastClock);
     assertEquals(null, state);
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
-    checkValidInterval(DataflowPipelineJob.MESSAGES_POLLING_INTERVAL,
-        DataflowPipelineJob.MESSAGES_POLLING_RETRIES, timeDiff);
+    checkValidInterval(
+        DataflowPipelineJob.MESSAGES_POLLING_INTERVAL,
+        DataflowPipelineJob.MESSAGES_POLLING_RETRIES,
+        timeDiff);
   }
 
   @Test
@@ -322,8 +312,7 @@ public class DataflowPipelineJobTest {
     assertEquals(
         State.RUNNING,
         job.getStateWithRetries(
-            BackOffAdapter.toGcpBackOff(
-                DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),
+            BackOffAdapter.toGcpBackOff(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),
             fastClock));
   }
 
@@ -342,12 +331,13 @@ public class DataflowPipelineJobTest {
     assertEquals(
         State.UNKNOWN,
         job.getStateWithRetries(
-            BackOffAdapter.toGcpBackOff(
-                DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),
+            BackOffAdapter.toGcpBackOff(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),
             fastClock));
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
-    checkValidInterval(DataflowPipelineJob.STATUS_POLLING_INTERVAL,
-        DataflowPipelineJob.STATUS_POLLING_RETRIES, timeDiff);
+    checkValidInterval(
+        DataflowPipelineJob.STATUS_POLLING_INTERVAL,
+        DataflowPipelineJob.STATUS_POLLING_RETRIES,
+        timeDiff);
   }
 
   private AppliedPTransform<?, ?, ?> appliedPTransform(
@@ -407,8 +397,8 @@ public class DataflowPipelineJobTest {
     when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
 
-    Dataflow.Projects.Locations.Jobs.Update update = mock(
-        Dataflow.Projects.Locations.Jobs.Update.class);
+    Dataflow.Projects.Locations.Jobs.Update update =
+        mock(Dataflow.Projects.Locations.Jobs.Update.class);
     when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
         .thenReturn(update);
     when(update.execute()).thenThrow(new IOException("Some random IOException"));
@@ -417,8 +407,9 @@ public class DataflowPipelineJobTest {
         new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
 
     thrown.expect(IOException.class);
-    thrown.expectMessage("Failed to cancel job in state RUNNING, "
-        + "please go to the Developers Console to cancel it manually:");
+    thrown.expectMessage(
+        "Failed to cancel job in state RUNNING, "
+            + "please go to the Developers Console to cancel it manually:");
     job.cancel();
   }
 
@@ -438,8 +429,8 @@ public class DataflowPipelineJobTest {
     when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
 
-    Dataflow.Projects.Locations.Jobs.Update update = mock(
-        Dataflow.Projects.Locations.Jobs.Update.class);
+    Dataflow.Projects.Locations.Jobs.Update update =
+        mock(Dataflow.Projects.Locations.Jobs.Update.class);
     when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
         .thenReturn(update);
     when(update.execute()).thenThrow(new IOException("Job has terminated in state SUCCESS"));
@@ -453,16 +444,16 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testCancelTerminatedJob() throws IOException {
-    Dataflow.Projects.Locations.Jobs.Get statusRequest = mock(
-        Dataflow.Projects.Locations.Jobs.Get.class);
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_FAILED");
     when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
 
-    Dataflow.Projects.Locations.Jobs.Update update = mock(
-        Dataflow.Projects.Locations.Jobs.Update.class);
+    Dataflow.Projects.Locations.Jobs.Update update =
+        mock(Dataflow.Projects.Locations.Jobs.Update.class);
     when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
         .thenReturn(update);
     when(update.execute()).thenThrow(new IOException());
@@ -480,9 +471,7 @@ public class DataflowPipelineJobTest {
     verifyNoMoreInteractions(mockJobs);
   }
 
-  /**
-   * Tests that a {@link DataflowPipelineJob} does not duplicate messages.
-   */
+  /** Tests that a {@link DataflowPipelineJob} does not duplicate messages. */
   @Test
   public void testWaitUntilFinishNoRepeatedLogs() throws Exception {
     DataflowPipelineJob job = new DataflowPipelineJob(mockDataflowClient, JOB_ID, options, null);

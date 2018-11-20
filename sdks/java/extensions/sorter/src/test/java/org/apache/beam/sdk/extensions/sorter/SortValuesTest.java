@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sorter;
 
 import static org.hamcrest.Matchers.contains;
@@ -43,8 +42,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SortValuesTest {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Test
   public void testSecondaryKeySorting() {

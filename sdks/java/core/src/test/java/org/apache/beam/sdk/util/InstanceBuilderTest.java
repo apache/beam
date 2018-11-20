@@ -26,15 +26,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests of InstanceBuilder.
- */
+/** Tests of InstanceBuilder. */
 @RunWith(JUnit4.class)
 @SuppressWarnings("rawtypes")
 public class InstanceBuilderTest {
 
-  @Rule
-  public ExpectedException expectedEx = ExpectedException.none();
+  @Rule public ExpectedException expectedEx = ExpectedException.none();
 
   @SuppressWarnings("unused")
   private static TupleTag createTag(String id) {
@@ -43,20 +40,20 @@ public class InstanceBuilderTest {
 
   @Test
   public void testFullNameLookup() throws Exception {
-    TupleTag tag = InstanceBuilder.ofType(TupleTag.class)
-        .fromClassName(InstanceBuilderTest.class.getName())
-        .fromFactoryMethod("createTag")
-        .withArg(String.class, "hello world!")
-        .build();
+    TupleTag tag =
+        InstanceBuilder.ofType(TupleTag.class)
+            .fromClassName(InstanceBuilderTest.class.getName())
+            .fromFactoryMethod("createTag")
+            .withArg(String.class, "hello world!")
+            .build();
 
     Assert.assertEquals("hello world!", tag.getId());
   }
 
   @Test
   public void testConstructor() throws Exception {
-    TupleTag tag = InstanceBuilder.ofType(TupleTag.class)
-        .withArg(String.class, "hello world!")
-        .build();
+    TupleTag tag =
+        InstanceBuilder.ofType(TupleTag.class).withArg(String.class, "hello world!").build();
 
     Assert.assertEquals("hello world!", tag.getId());
   }
@@ -64,8 +61,7 @@ public class InstanceBuilderTest {
   @Test
   public void testBadMethod() throws Exception {
     expectedEx.expect(RuntimeException.class);
-    expectedEx.expectMessage(
-        Matchers.containsString("Unable to find factory method"));
+    expectedEx.expectMessage(Matchers.containsString("Unable to find factory method"));
 
     InstanceBuilder.ofType(String.class)
         .fromClassName(InstanceBuilderTest.class.getName())
@@ -78,8 +74,7 @@ public class InstanceBuilderTest {
   @Test
   public void testBadArgs() throws Exception {
     expectedEx.expect(RuntimeException.class);
-    expectedEx.expectMessage(
-        Matchers.containsString("Unable to find factory method"));
+    expectedEx.expectMessage(Matchers.containsString("Unable to find factory method"));
 
     InstanceBuilder.ofType(TupleTag.class)
         .fromClassName(InstanceBuilderTest.class.getName())
@@ -92,8 +87,7 @@ public class InstanceBuilderTest {
   @Test
   public void testBadReturnType() throws Exception {
     expectedEx.expect(RuntimeException.class);
-    expectedEx.expectMessage(
-        Matchers.containsString("must be assignable to String"));
+    expectedEx.expectMessage(Matchers.containsString("must be assignable to String"));
 
     InstanceBuilder.ofType(String.class)
         .fromClassName(InstanceBuilderTest.class.getName())
@@ -105,8 +99,7 @@ public class InstanceBuilderTest {
   @Test
   public void testWrongType() throws Exception {
     expectedEx.expect(RuntimeException.class);
-    expectedEx.expectMessage(
-        Matchers.containsString("must be assignable to TupleTag"));
+    expectedEx.expectMessage(Matchers.containsString("must be assignable to TupleTag"));
 
     InstanceBuilder.ofType(TupleTag.class)
         .fromClassName(InstanceBuilderTest.class.getName())

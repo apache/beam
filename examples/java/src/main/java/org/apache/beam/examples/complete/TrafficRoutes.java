@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Hashtable;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -58,36 +58,33 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 /**
- * A Beam Example that runs in both batch and streaming modes with traffic sensor data.
- * You can configure the running mode by setting {@literal --streaming} to true or false.
+ * A Beam Example that runs in both batch and streaming modes with traffic sensor data. You can
+ * configure the running mode by setting {@literal --streaming} to true or false.
  *
  * <p>Concepts: The batch and streaming runners, GroupByKey, sliding windows.
  *
- * <p>This example analyzes traffic sensor data using SlidingWindows. For each window,
- * it calculates the average speed over the window for some small set of predefined 'routes',
- * and looks for 'slowdowns' in those routes. It writes its results to a BigQuery table.
+ * <p>This example analyzes traffic sensor data using SlidingWindows. For each window, it calculates
+ * the average speed over the window for some small set of predefined 'routes', and looks for
+ * 'slowdowns' in those routes. It writes its results to a BigQuery table.
  *
  * <p>The pipeline reads traffic sensor data from {@literal --inputFile}.
  *
  * <p>The example is configured to use the default BigQuery table from the example common package
- * (there are no defaults for a general Beam pipeline).
- * You can override them by using the {@literal --bigQueryDataset}, and {@literal --bigQueryTable}
- * options. If the BigQuery table do not exist, the example will try to create them.
+ * (there are no defaults for a general Beam pipeline). You can override them by using the {@literal
+ * --bigQueryDataset}, and {@literal --bigQueryTable} options. If the BigQuery table do not exist,
+ * the example will try to create them.
  *
  * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
  * and then exits.
  */
-
 public class TrafficRoutes {
 
   // Instantiate some small predefined San Diego routes to analyze
   static Map<String, String> sdStations = buildStationInfo();
-  static final int WINDOW_DURATION = 3;  // Default sliding window duration in minutes
-  static final int WINDOW_SLIDE_EVERY = 1;  // Default window 'slide every' setting in minutes
+  static final int WINDOW_DURATION = 3; // Default sliding window duration in minutes
+  static final int WINDOW_SLIDE_EVERY = 1; // Default window 'slide every' setting in minutes
 
-  /**
-   * This class holds information about a station reading's average speed.
-   */
+  /** This class holds information about a station reading's average speed. */
   @DefaultCoder(AvroCoder.class)
   static class StationSpeed implements Comparable<StationSpeed> {
     @Nullable String stationId;
@@ -105,6 +102,7 @@ public class TrafficRoutes {
     public String getStationId() {
       return this.stationId;
     }
+
     public Double getAvgSpeed() {
       return this.avgSpeed;
     }
@@ -132,15 +130,12 @@ public class TrafficRoutes {
     }
   }
 
-  /**
-   * This class holds information about a route's speed/slowdown.
-   */
+  /** This class holds information about a route's speed/slowdown. */
   @DefaultCoder(AvroCoder.class)
   static class RouteInfo {
     @Nullable String route;
     @Nullable Double avgSpeed;
     @Nullable Boolean slowdownEvent;
-
 
     public RouteInfo() {}
 
@@ -153,17 +148,17 @@ public class TrafficRoutes {
     public String getRoute() {
       return this.route;
     }
+
     public Double getAvgSpeed() {
       return this.avgSpeed;
     }
+
     public Boolean getSlowdownEvent() {
       return this.slowdownEvent;
     }
   }
 
-  /**
-   * Extract the timestamp field from the input string, and use it as the element timestamp.
-   */
+  /** Extract the timestamp field from the input string, and use it as the element timestamp. */
   static class ExtractTimestamps extends DoFn<String, String> {
     private static final DateTimeFormatter dateTimeFormat =
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
@@ -183,8 +178,8 @@ public class TrafficRoutes {
   }
 
   /**
-   * Filter out readings for the stations along predefined 'routes', and output
-   * (station, speed info) keyed on route.
+   * Filter out readings for the stations along predefined 'routes', and output (station, speed
+   * info) keyed on route.
    */
   static class ExtractStationSpeedFn extends DoFn<String, KV<String, StationSpeed>> {
 
@@ -209,13 +204,12 @@ public class TrafficRoutes {
   }
 
   /**
-   * For a given route, track average speed for the window. Calculate whether
-   * traffic is currently slowing down, via a predefined threshold. If a supermajority of
-   * speeds in this sliding window are less than the previous reading we call this a 'slowdown'.
-   * Note: these calculations are for example purposes only, and are unrealistic and oversimplified.
+   * For a given route, track average speed for the window. Calculate whether traffic is currently
+   * slowing down, via a predefined threshold. If a supermajority of speeds in this sliding window
+   * are less than the previous reading we call this a 'slowdown'. Note: these calculations are for
+   * example purposes only, and are unrealistic and oversimplified.
    */
-  static class GatherStats
-      extends DoFn<KV<String, Iterable<StationSpeed>>, KV<String, RouteInfo>> {
+  static class GatherStats extends DoFn<KV<String, Iterable<StationSpeed>>, KV<String, RouteInfo>> {
     @ProcessElement
     public void processElement(ProcessContext c) throws IOException {
       String route = c.element().getKey();
@@ -255,24 +249,21 @@ public class TrafficRoutes {
     }
   }
 
-  /**
-   * Format the results of the slowdown calculations to a TableRow, to save to BigQuery.
-   */
+  /** Format the results of the slowdown calculations to a TableRow, to save to BigQuery. */
   static class FormatStatsFn extends DoFn<KV<String, RouteInfo>, TableRow> {
     @ProcessElement
     public void processElement(ProcessContext c) {
       RouteInfo routeInfo = c.element().getValue();
-      TableRow row = new TableRow()
-          .set("avg_speed", routeInfo.getAvgSpeed())
-          .set("slowdown_event", routeInfo.getSlowdownEvent())
-          .set("route", c.element().getKey())
-          .set("window_timestamp", c.timestamp().toString());
+      TableRow row =
+          new TableRow()
+              .set("avg_speed", routeInfo.getAvgSpeed())
+              .set("slowdown_event", routeInfo.getSlowdownEvent())
+              .set("route", c.element().getKey())
+              .set("window_timestamp", c.timestamp().toString());
       c.output(row);
     }
 
-    /**
-     * Defines the BigQuery schema used for the output.
-     */
+    /** Defines the BigQuery schema used for the output. */
     static TableSchema getSchema() {
       List<TableFieldSchema> fields = new ArrayList<>();
       fields.add(new TableFieldSchema().setName("route").setType("STRING"));
@@ -285,12 +276,12 @@ public class TrafficRoutes {
   }
 
   /**
-   * This PTransform extracts speed info from traffic station readings.
-   * It groups the readings by 'route' and analyzes traffic slowdown for that route.
-   * Lastly, it formats the results for BigQuery.
+   * This PTransform extracts speed info from traffic station readings. It groups the readings by
+   * 'route' and analyzes traffic slowdown for that route. Lastly, it formats the results for
+   * BigQuery.
    */
-  static class TrackSpeed extends
-      PTransform<PCollection<KV<String, StationSpeed>>, PCollection<TableRow>> {
+  static class TrackSpeed
+      extends PTransform<PCollection<KV<String, StationSpeed>>, PCollection<TableRow>> {
     @Override
     public PCollection<TableRow> expand(PCollection<KV<String, StationSpeed>> stationSpeed) {
       // Apply a GroupByKey transform to collect a list of all station
@@ -302,8 +293,7 @@ public class TrafficRoutes {
       PCollection<KV<String, RouteInfo>> stats = timeGroup.apply(ParDo.of(new GatherStats()));
 
       // Format the results for writing to BigQuery
-      PCollection<TableRow> results = stats.apply(
-          ParDo.of(new FormatStatsFn()));
+      PCollection<TableRow> results = stats.apply(ParDo.of(new FormatStatsFn()));
 
       return results;
     }
@@ -318,46 +308,38 @@ public class TrafficRoutes {
 
     @Override
     public PCollection<String> expand(PBegin begin) {
-      return begin
-          .apply(TextIO.read().from(inputFile))
-          .apply(ParDo.of(new ExtractTimestamps()));
+      return begin.apply(TextIO.read().from(inputFile)).apply(ParDo.of(new ExtractTimestamps()));
     }
   }
 
   /**
-  * Options supported by {@link TrafficRoutes}.
-  *
-  * <p>Inherits standard configuration options.
-  */
+   * Options supported by {@link TrafficRoutes}.
+   *
+   * <p>Inherits standard configuration options.
+   */
   public interface TrafficRoutesOptions extends ExampleOptions, ExampleBigQueryTableOptions {
     @Description("Path of the file to read from")
-    @Default.String("gs://apache-beam-samples/traffic_sensor/"
-        + "Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv")
+    @Default.String(
+        "gs://apache-beam-samples/traffic_sensor/"
+            + "Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv")
     String getInputFile();
+
     void setInputFile(String value);
 
     @Description("Numeric value of sliding window duration, in minutes")
     @Default.Integer(WINDOW_DURATION)
     Integer getWindowDuration();
+
     void setWindowDuration(Integer value);
 
     @Description("Numeric value of window 'slide every' setting, in minutes")
     @Default.Integer(WINDOW_SLIDE_EVERY)
     Integer getWindowSlideEvery();
+
     void setWindowSlideEvery(Integer value);
   }
 
-  /**
-   * Sets up and starts streaming pipeline.
-   *
-   * @throws IOException if there is a problem setting up resources
-   */
-  public static void main(String[] args) throws IOException {
-    TrafficRoutesOptions options = PipelineOptionsFactory.fromArgs(args)
-        .withValidation()
-        .as(TrafficRoutesOptions.class);
-
-    options.setBigQuerySchema(FormatStatsFn.getSchema());
+  public static void runTrafficRoutes(TrafficRoutesOptions options) throws IOException {
     // Using ExampleUtils to set up required resources.
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
@@ -387,12 +369,24 @@ public class TrafficRoutes {
     exampleUtils.waitToFinish(result);
   }
 
+  /**
+   * Sets up and starts streaming pipeline.
+   *
+   * @throws IOException if there is a problem setting up resources
+   */
+  public static void main(String[] args) throws IOException {
+    TrafficRoutesOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficRoutesOptions.class);
+
+    options.setBigQuerySchema(FormatStatsFn.getSchema());
+
+    runTrafficRoutes(options);
+  }
+
   private static Double tryParseAvgSpeed(String[] inputItems) {
     try {
       return Double.parseDouble(tryParseString(inputItems, 9));
-    } catch (NumberFormatException e) {
-      return null;
-    } catch (NullPointerException e) {
+    } catch (NumberFormatException | NullPointerException e) {
       return null;
     }
   }
@@ -413,14 +407,12 @@ public class TrafficRoutes {
     return inputItems.length >= index ? inputItems[index] : null;
   }
 
-  /**
-   * Define some small hard-wired San Diego 'routes' to track based on sensor station ID.
-   */
+  /** Define some small hard-wired San Diego 'routes' to track based on sensor station ID. */
   private static Map<String, String> buildStationInfo() {
-    Map<String, String> stations = new Hashtable<>();
-      stations.put("1108413", "SDRoute1"); // from freeway 805 S
-      stations.put("1108699", "SDRoute2"); // from freeway 78 E
-      stations.put("1108702", "SDRoute2");
+    Map<String, String> stations = new LinkedHashMap<>();
+    stations.put("1108413", "SDRoute1"); // from freeway 805 S
+    stations.put("1108699", "SDRoute2"); // from freeway 78 E
+    stations.put("1108702", "SDRoute2");
     return stations;
   }
 }

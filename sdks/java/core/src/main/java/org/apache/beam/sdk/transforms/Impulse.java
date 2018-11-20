@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.annotations.Internal;
@@ -38,9 +37,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  */
 @Internal
 public class Impulse extends PTransform<PBegin, PCollection<byte[]>> {
-  /**
-   * Create a new {@link Impulse} {@link PTransform}.
-   */
+  /** Create a new {@link Impulse} {@link PTransform}. */
   public static Impulse create() {
     return new Impulse();
   }

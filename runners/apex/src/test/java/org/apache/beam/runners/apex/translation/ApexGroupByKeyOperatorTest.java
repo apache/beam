@@ -45,43 +45,41 @@ import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test for {@link ApexGroupByKeyOperator}.
- */
+/** Test for {@link ApexGroupByKeyOperator}. */
 public class ApexGroupByKeyOperatorTest {
 
   @Test
   public void testGlobalWindowMinTimestamp() throws Exception {
-    ApexPipelineOptions options = PipelineOptionsFactory.create()
-        .as(ApexPipelineOptions.class);
+    ApexPipelineOptions options = PipelineOptionsFactory.create().as(ApexPipelineOptions.class);
     options.setRunner(TestApexRunner.class);
     Pipeline pipeline = Pipeline.create(options);
 
-    WindowingStrategy<?, ?> ws = WindowingStrategy.of(FixedWindows.of(
-        Duration.standardSeconds(10)));
+    WindowingStrategy<?, ?> ws =
+        WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(10)));
     PCollection<KV<String, Integer>> input =
         PCollection.createPrimitiveOutputInternal(
             pipeline, ws, IsBounded.BOUNDED, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
-    ApexGroupByKeyOperator<String, Integer> operator = new ApexGroupByKeyOperator<>(options,
-        input, new ApexStateInternals.ApexStateBackend()
-        );
+    ApexGroupByKeyOperator<String, Integer> operator =
+        new ApexGroupByKeyOperator<>(options, input, new ApexStateInternals.ApexStateBackend());
 
     operator.setup(null);
     operator.beginWindow(1);
     Assert.assertNotNull("Serialization", operator = KryoCloneUtils.cloneObject(operator));
 
     final List<Object> results = Lists.newArrayList();
-    Sink<Object> sink =  new Sink<Object>() {
-      @Override
-      public void put(Object tuple) {
-        results.add(tuple);
-      }
-      @Override
-      public int getCount(boolean reset) {
-        return 0;
-      }
-    };
+    Sink<Object> sink =
+        new Sink<Object>() {
+          @Override
+          public void put(Object tuple) {
+            results.add(tuple);
+          }
+
+          @Override
+          public int getCount(boolean reset) {
+            return 0;
+          }
+        };
     operator.output.setSink(sink);
     operator.setup(null);
     operator.beginWindow(1);
@@ -104,12 +102,11 @@ public class ApexGroupByKeyOperatorTest {
     Assert.assertEquals("number outputs", 0, results.size());
     operator.input.process(watermark);
     Assert.assertEquals("number outputs", 2, results.size());
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({"unchecked", "rawtypes"})
     ApexStreamTuple.DataTuple<WindowedValue<KV<String, Iterable<Integer>>>> dataTuple =
         (ApexStreamTuple.DataTuple) results.get(0);
     List<Integer> counts = Lists.newArrayList(1, 1);
     Assert.assertEquals("iterable", KV.of("foo", counts), dataTuple.getValue().getValue());
     Assert.assertEquals("expected watermark", watermark, results.get(1));
   }
-
 }

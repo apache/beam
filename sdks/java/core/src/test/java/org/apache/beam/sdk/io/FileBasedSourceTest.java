@@ -64,9 +64,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests code common to all file-based sources.
- */
+/** Tests code common to all file-based sources. */
 @RunWith(JUnit4.class)
 public class FileBasedSourceTest {
 
@@ -133,9 +131,7 @@ public class FileBasedSourceTest {
     }
   }
 
-  /**
-   * A utility class that starts reading lines from a given offset in a file until EOF.
-   */
+  /** A utility class that starts reading lines from a given offset in a file until EOF. */
   private static class LineReader {
     private ReadableByteChannel channel = null;
     private long nextLineStart = 0;
@@ -519,8 +515,7 @@ public class FileBasedSourceTest {
 
     Metadata metadata = FileSystems.matchSingleFileSpec(file.getPath());
     TestFileBasedSource source1 = new TestFileBasedSource(metadata, 64, 0, 25, null);
-    TestFileBasedSource source2 =
-        new TestFileBasedSource(metadata, 64, 25, Long.MAX_VALUE, null);
+    TestFileBasedSource source2 = new TestFileBasedSource(metadata, 64, 25, Long.MAX_VALUE, null);
 
     List<String> results = new ArrayList<>();
     results.addAll(readFromSource(source1, options));
@@ -564,8 +559,7 @@ public class FileBasedSourceTest {
 
     Metadata metadata = FileSystems.matchSingleFileSpec(file.getPath());
     TestFileBasedSource source1 = new TestFileBasedSource(metadata, 64, 0, 60, header);
-    TestFileBasedSource source2 =
-        new TestFileBasedSource(metadata, 64, 60, Long.MAX_VALUE, header);
+    TestFileBasedSource source2 = new TestFileBasedSource(metadata, 64, 60, Long.MAX_VALUE, header);
 
     List<String> expectedResults = new ArrayList<>();
     expectedResults.addAll(data);
@@ -626,8 +620,7 @@ public class FileBasedSourceTest {
     Metadata metadata = FileSystems.matchSingleFileSpec(file.getPath());
     TestFileBasedSource source1 = new TestFileBasedSource(metadata, 64, 0, 42, header);
     TestFileBasedSource source2 = new TestFileBasedSource(metadata, 64, 42, 62, header);
-    TestFileBasedSource source3 =
-        new TestFileBasedSource(metadata, 64, 62, Long.MAX_VALUE, header);
+    TestFileBasedSource source3 = new TestFileBasedSource(metadata, 64, 62, Long.MAX_VALUE, header);
 
     List<String> expectedResults = new ArrayList<>();
 
@@ -662,8 +655,7 @@ public class FileBasedSourceTest {
 
     Metadata metadata = FileSystems.matchSingleFileSpec(file.getPath());
     // Split starts after "<" of the header
-    TestFileBasedSource source =
-        new TestFileBasedSource(metadata, 64, 1, Long.MAX_VALUE, header);
+    TestFileBasedSource source = new TestFileBasedSource(metadata, 64, 1, Long.MAX_VALUE, header);
     assertThat(expectedResults, containsInAnyOrder(readFromSource(source, options).toArray()));
 
     // Split starts after "<h" of the header
@@ -685,8 +677,7 @@ public class FileBasedSourceTest {
     Metadata metadata = FileSystems.matchSingleFileSpec(file.getPath());
     TestFileBasedSource source1 = new TestFileBasedSource(metadata, 64, 0, 52, null);
     TestFileBasedSource source2 = new TestFileBasedSource(metadata, 64, 52, 72, null);
-    TestFileBasedSource source3 =
-        new TestFileBasedSource(metadata, 64, 72, Long.MAX_VALUE, null);
+    TestFileBasedSource source3 = new TestFileBasedSource(metadata, 64, 72, Long.MAX_VALUE, null);
 
     List<String> results = new ArrayList<>();
     results.addAll(readFromSource(source1, options));

@@ -42,6 +42,32 @@ func makeValues(vs ...interface{}) []FullValue {
 	return ret
 }
 
+// makeKVValues returns a list of KV<K,V> inputs as a list of main inputs.
+func makeKVInput(key interface{}, vs ...interface{}) []MainInput {
+	var ret []MainInput
+	for _, v := range makeKVValues(key, vs...) {
+		ret = append(ret, MainInput{Key: v})
+	}
+	return ret
+}
+
+// makeKVValues returns a list of KV<K,V> inputs.
+func makeKVValues(key interface{}, vs ...interface{}) []FullValue {
+	var ret []FullValue
+	for _, v := range vs {
+		k := FullValue{
+			Windows:   window.SingleGlobalWindow,
+			Timestamp: mtime.ZeroTimestamp,
+			Elm:       key,
+			Elm2:      v,
+		}
+		ret = append(ret, k)
+	}
+	return ret
+}
+
+// makeKeyedInput returns a CoGBK<K, V> where the list of values are a stream
+// in a single main input.
 func makeKeyedInput(key interface{}, vs ...interface{}) []MainInput {
 	k := FullValue{
 		Windows:   window.SingleGlobalWindow,

@@ -21,10 +21,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.buildMockedS3FileSystem;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.getSSECustomerKeyMd5;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3Options;
+import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithCustomEndpointAndPathStyleAccessEnabled;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSECustomerKey;
+import static org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions.builder;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyObject;
@@ -35,6 +38,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import akka.http.scaladsl.Http;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.CopyObjectRequest;
@@ -50,12 +59,20 @@ import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.collect.ImmutableList;
+import io.findify.s3mock.S3Mock;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -64,6 +81,29 @@ import org.mockito.ArgumentMatcher;
 /** Test case for {@link S3FileSystem}. */
 @RunWith(JUnit4.class)
 public class S3FileSystemTest {
+  private static S3Mock api;
+  private static AmazonS3 client;
+
+  @BeforeClass
+  public static void beforeClass() {
+    api = new S3Mock.Builder().withInMemoryBackend().build();
+    Http.ServerBinding binding = api.start();
+
+    EndpointConfiguration endpoint =
+        new EndpointConfiguration(
+            "http://localhost:" + binding.localAddress().getPort(), "us-west-2");
+    client =
+        AmazonS3ClientBuilder.standard()
+            .withPathStyleAccessEnabled(true)
+            .withEndpointConfiguration(endpoint)
+            .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+            .build();
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    api.stop();
+  }
 
   @Test
   public void testGlobTranslation() {
@@ -85,6 +125,14 @@ public class S3FileSystemTest {
   public void testGetScheme() {
     S3FileSystem s3FileSystem = new S3FileSystem(s3Options());
     assertEquals("s3", s3FileSystem.getScheme());
+  }
+
+  @Test
+  public void testGetPathStyleAccessEnabled() throws URISyntaxException {
+    S3FileSystem s3FileSystem =
+        new S3FileSystem(s3OptionsWithCustomEndpointAndPathStyleAccessEnabled());
+    URL s3Url = s3FileSystem.getAmazonS3Client().getUrl("bucket", "file");
+    assertEquals("https://s3.custom.dns/bucket/file", s3Url.toURI().toString());
   }
 
   @Test
@@ -220,8 +268,7 @@ public class S3FileSystemTest {
             .getSSECustomerKeyMd5());
 
     ObjectMetadata sourceObjectMetadata = new ObjectMetadata();
-    sourceObjectMetadata.setContentLength(
-        (long) (options.getS3UploadBufferSizeBytes() * 1.5));
+    sourceObjectMetadata.setContentLength((long) (options.getS3UploadBufferSizeBytes() * 1.5));
     sourceObjectMetadata.setContentEncoding("read-seek-efficient");
     if (getSSECustomerKeyMd5(options) != null) {
       sourceObjectMetadata.setSSECustomerKeyMd5(getSSECustomerKeyMd5(options));
@@ -637,6 +684,34 @@ public class S3FileSystemTest {
                 200,
                 S3ResourceId.fromComponents(pathGlob.getBucket(), foundListObject.getKey()),
                 true)));
+  }
+
+  @Test
+  public void testWriteAndRead() throws IOException {
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options(), client);
+
+    client.createBucket("testbucket");
+
+    byte[] writtenArray = new byte[] {0};
+    ByteBuffer bb = ByteBuffer.allocate(writtenArray.length);
+    bb.put(writtenArray);
+
+    //First create an object and write data to it
+    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/foo/bar.txt");
+    WritableByteChannel writableByteChannel =
+        s3FileSystem.create(path, builder().setMimeType("application/text").build());
+    writableByteChannel.write(bb);
+    writableByteChannel.close();
+
+    //Now read the same object
+    ByteBuffer bb2 = ByteBuffer.allocate(writtenArray.length);
+    ReadableByteChannel open = s3FileSystem.open(path);
+    open.read(bb2);
+
+    //And compare the content with the one that was written
+    byte[] readArray = bb2.array();
+    assertArrayEquals(readArray, writtenArray);
+    open.close();
   }
 
   /** A mockito argument matcher to implement equality on GetObjectMetadataRequest. */

@@ -188,8 +188,7 @@ public class TriggerTranslation implements Serializable {
     private RunnerApi.Trigger convertSpecific(Repeatedly v) {
       return RunnerApi.Trigger.newBuilder()
           .setRepeat(
-              RunnerApi.Trigger.Repeat.newBuilder()
-                  .setSubtrigger(toProto(v.getRepeatedTrigger())))
+              RunnerApi.Trigger.Repeat.newBuilder().setSubtrigger(toProto(v.getRepeatedTrigger())))
           .build();
     }
 
@@ -264,8 +263,7 @@ public class TriggerTranslation implements Serializable {
           if (triggerProto.getAfterEndOfWindow().hasLateFirings()) {
             trigger =
                 trigger.withLateFirings(
-                    (OnceTrigger)
-                        fromProto(triggerProto.getAfterEndOfWindow().getLateFirings()));
+                    (OnceTrigger) fromProto(triggerProto.getAfterEndOfWindow().getLateFirings()));
           }
           return trigger;
         } else {
@@ -289,8 +287,7 @@ public class TriggerTranslation implements Serializable {
               break;
             case TIMESTAMPTRANSFORM_NOT_SET:
               throw new IllegalArgumentException(
-                  String.format(
-                      "Required field 'timestamp_transform' not set in %s", transform));
+                  String.format("Required field 'timestamp_transform' not set in %s", transform));
             default:
               throw new IllegalArgumentException(
                   String.format(

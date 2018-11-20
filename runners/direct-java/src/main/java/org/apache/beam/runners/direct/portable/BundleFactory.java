@@ -22,9 +22,7 @@ import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * A factory that creates {@link UncommittedBundle UncommittedBundles}.
- */
+/** A factory that creates {@link UncommittedBundle UncommittedBundles}. */
 interface BundleFactory {
   /**
    * Create an {@link UncommittedBundle} from an empty input. Elements added to the bundle do not

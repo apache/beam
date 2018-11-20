@@ -56,6 +56,7 @@ import org.apache.beam.sdk.coders.SnappyCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
@@ -291,8 +292,8 @@ public class Watch {
     }
 
     /**
-     * Wraps a given input-independent {@link TerminationCondition} as an equivalent condition
-     * with a given input type, passing {@code null} to the original condition as input.
+     * Wraps a given input-independent {@link TerminationCondition} as an equivalent condition with
+     * a given input type, passing {@code null} to the original condition as input.
      */
     public static <InputT, StateT> TerminationCondition<InputT, StateT> ignoreInput(
         TerminationCondition<?, StateT> condition) {
@@ -684,12 +685,14 @@ public class Watch {
       }
 
       return input
-          .apply(ParDo.of(new WatchGrowthFn<>(this, outputCoder, outputKeyFn, outputKeyCoder))
-          .withSideInputs(getPollFn().getRequirements().getSideInputs()))
+          .apply(
+              ParDo.of(new WatchGrowthFn<>(this, outputCoder, outputKeyFn, outputKeyCoder))
+                  .withSideInputs(getPollFn().getRequirements().getSideInputs()))
           .setCoder(KvCoder.of(input.getCoder(), outputCoder));
     }
   }
 
+  @UnboundedPerElement
   private static class WatchGrowthFn<InputT, OutputT, KeyT, TerminationStateT>
       extends DoFn<InputT, KV<InputT, OutputT>> {
     private final Watch.Growth<InputT, OutputT, KeyT> spec;
@@ -795,8 +798,8 @@ public class Watch {
     @GetRestrictionCoder
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Coder<GrowthState<OutputT, KeyT, TerminationStateT>> getRestrictionCoder() {
-      return SnappyCoder.of(GrowthStateCoder.of(
-          outputCoder, (Coder) spec.getTerminationPerInput().getStateCoder()));
+      return SnappyCoder.of(
+          GrowthStateCoder.of(outputCoder, (Coder) spec.getTerminationPerInput().getStateCoder()));
     }
   }
 
@@ -933,8 +936,7 @@ public class Watch {
       ImmutableMap.Builder<HashCode, Instant> newCompleted = ImmutableMap.builder();
       newCompleted.putAll(state.completed);
       for (Map.Entry<HashCode, TimestampedValue<OutputT>> claimedOutput : claimed.entrySet()) {
-        newCompleted.put(
-            claimedOutput.getKey(), claimedOutput.getValue().getTimestamp());
+        newCompleted.put(claimedOutput.getKey(), claimedOutput.getValue().getTimestamp());
       }
       GrowthState<OutputT, KeyT, TerminationStateT> residual =
           new GrowthState<>(
@@ -988,7 +990,7 @@ public class Watch {
     }
 
     @Override
-    protected synchronized boolean tryClaimImpl(HashCode hash) {
+    public synchronized boolean tryClaim(HashCode hash) {
       if (shouldStop) {
         return false;
       }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import java.io.IOException;
@@ -40,8 +39,7 @@ public class TableDestinationCoder extends AtomicCoder<TableDestination> {
   }
 
   @Override
-  public void encode(TableDestination value, OutputStream outStream)
-      throws IOException {
+  public void encode(TableDestination value, OutputStream outStream) throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null value");
     }

@@ -24,4 +24,3 @@ package org.apache.beam.sdk.testing;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
 import edu.umd.cs.findbugs.annotations.NonNull;
-

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util;
 
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTE;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.DECIMAL;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.DOUBLE;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.FLOAT;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT16;
@@ -31,13 +32,13 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * Validates if the types specified in {@link Row} {@link Schema}
- * are supported for conversion from Json.
+ * Validates if the types specified in {@link Row} {@link Schema} are supported for conversion from
+ * Json.
  */
 class RowJsonValidation {
 
   private static final ImmutableSet<Schema.TypeName> SUPPORTED_TYPES =
-      ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING);
+      ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL);
 
   static void verifyFieldTypeSupported(Schema.Field field) {
     Schema.FieldType fieldType = field.getType();
@@ -60,8 +61,10 @@ class RowJsonValidation {
 
     if (!SUPPORTED_TYPES.contains(fieldTypeName)) {
       throw new RowJsonDeserializer.UnsupportedRowJsonException(
-          fieldTypeName.name() + " is not supported when converting JSON objects to Rows. "
-          + "Supported types are: " + SUPPORTED_TYPES.toString());
+          fieldTypeName.name()
+              + " is not supported when converting JSON objects to Rows. "
+              + "Supported types are: "
+              + SUPPORTED_TYPES.toString());
     }
   }
 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.data;
 
 import org.apache.beam.sdk.coders.Coder;
@@ -38,9 +37,9 @@ public interface FnDataService {
    * <p>The provided coder is used to decode inbound elements. The decoded elements are passed to
    * the provided receiver.
    *
-   * <p>Any failure during decoding or processing of the element will put the
-   * {@link InboundDataClient} into an error state such that
-   * {@link InboundDataClient#awaitCompletion()} will throw an exception.
+   * <p>Any failure during decoding or processing of the element will put the {@link
+   * InboundDataClient} into an error state such that {@link InboundDataClient#awaitCompletion()}
+   * will throw an exception.
    *
    * <p>The provided receiver is not required to be thread safe.
    */

@@ -19,9 +19,6 @@ package org.apache.beam.sdk.io.solr;
 
 import static org.apache.beam.sdk.io.solr.SolrIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.solr.SolrIOTestUtils.namedThreadIsAlive;
-import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
 
 import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.collect.ImmutableSet;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
@@ -31,13 +28,9 @@ import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.solr.SolrIOTestUtils.LenientRetryPredicate;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -78,14 +71,14 @@ public class SolrIOTest extends SolrCloudTestCase {
   private static final long NUM_DOCS = 400L;
   private static final int NUM_SCIENTISTS = 10;
   private static final int BATCH_SIZE = 200;
+  private static final int DEFAULT_BATCH_SIZE = 1000;
 
   private static AuthorizedSolrClient<CloudSolrClient> solrClient;
   private static SolrIO.ConnectionConfiguration connectionConfiguration;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  @Rule
-  public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(SolrIO.class);
+  @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(SolrIO.class);
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -143,28 +136,6 @@ public class SolrIOTest extends SolrCloudTestCase {
     try (AuthorizedSolrClient solrClient = connectionConfiguration.createClient()) {
       SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
     }
-  }
-
-  @Test
-  public void testSizes() throws Exception {
-    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
-
-    PipelineOptions options = PipelineOptionsFactory.create();
-    SolrIO.Read read =
-        SolrIO.read().withConnectionConfiguration(connectionConfiguration).from(SOLR_COLLECTION);
-    SolrIO.BoundedSolrSource initialSource = new SolrIO.BoundedSolrSource(read, null);
-    // can't use equal assert as Solr collections never have same size
-    // (due to internal Lucene implementation)
-    long estimatedSize = initialSource.getEstimatedSizeBytes(options);
-    LOG.info("Estimated size: {}", estimatedSize);
-    assertThat(
-        "Wrong estimated size bellow minimum",
-        estimatedSize,
-        greaterThan(SolrIOTestUtils.MIN_DOC_SIZE * NUM_DOCS));
-    assertThat(
-        "Wrong estimated size beyond maximum",
-        estimatedSize,
-        lessThan(SolrIOTestUtils.MAX_DOC_SIZE * NUM_DOCS));
   }
 
   @Test
@@ -253,33 +224,6 @@ public class SolrIOTest extends SolrCloudTestCase {
     }
   }
 
-  @Test
-  public void testSplit() throws Exception {
-    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
-
-    PipelineOptions options = PipelineOptionsFactory.create();
-    SolrIO.Read read =
-        SolrIO.read().withConnectionConfiguration(connectionConfiguration).from(SOLR_COLLECTION);
-    SolrIO.BoundedSolrSource initialSource = new SolrIO.BoundedSolrSource(read, null);
-    //desiredBundleSize is ignored for now
-    int desiredBundleSizeBytes = 0;
-    List<? extends BoundedSource<SolrDocument>> splits =
-        initialSource.split(desiredBundleSizeBytes, options);
-    SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
-
-    int expectedNumSplits = NUM_SHARDS;
-    assertEquals(expectedNumSplits, splits.size());
-    int nonEmptySplits = 0;
-    for (BoundedSource<SolrDocument> subSource : splits) {
-      if (readFromSource(subSource, options).size() > 0) {
-        nonEmptySplits += 1;
-      }
-    }
-    // docs are hashed by id to shards, in this test, NUM_DOCS >> NUM_SHARDS
-    // therefore, can not exist an empty shard.
-    assertEquals("Wrong number of empty splits", expectedNumSplits, nonEmptySplits);
-  }
-
   /**
    * Test that retries are invoked when Solr returns error. We invoke this by calling a non existing
    * collection, and use a strategy that will retry on any SolrException. The logger is used to
@@ -333,9 +277,7 @@ public class SolrIOTest extends SolrCloudTestCase {
     fail("Pipeline should not have run to completion");
   }
 
-  /**
-   * Tests predicate performs as documented.
-   */
+  /** Tests predicate performs as documented. */
   @Test
   public void testDefaultRetryPredicate() {
     assertTrue(DEFAULT_RETRY_PREDICATE.test(new IOException("test")));
@@ -375,5 +317,17 @@ public class SolrIOTest extends SolrCloudTestCase {
     assertFalse(
         DEFAULT_RETRY_PREDICATE.test(
             new SolrException(SolrException.ErrorCode.UNSUPPORTED_MEDIA_TYPE, "test")));
+  }
+
+  /** Tests batch size default and changed value. */
+  @Test
+  public void testBatchSize() {
+    SolrIO.Write write1 =
+        SolrIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withMaxBatchSize(BATCH_SIZE);
+    assertTrue(write1.getMaxBatchSize() == BATCH_SIZE);
+    SolrIO.Write write2 = SolrIO.write().withConnectionConfiguration(connectionConfiguration);
+    assertTrue(write2.getMaxBatchSize() == DEFAULT_BATCH_SIZE);
   }
 }

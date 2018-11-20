@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.examples;
 
 import java.io.IOException;
@@ -30,9 +29,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Instant;
 
-/**
- * unbounded source that reads from text.
- */
+/** unbounded source that reads from text. */
 public class UnboundedTextSource extends UnboundedSource<String, UnboundedSource.CheckpointMark> {
   private static final long serialVersionUID = 1L;
 
@@ -43,8 +40,8 @@ public class UnboundedTextSource extends UnboundedSource<String, UnboundedSource
   }
 
   @Override
-  public UnboundedReader<String> createReader(PipelineOptions options,
-      @Nullable CheckpointMark checkpointMark) {
+  public UnboundedReader<String> createReader(
+      PipelineOptions options, @Nullable CheckpointMark checkpointMark) {
     return new UnboundedTextReader(this);
   }
 
@@ -59,16 +56,14 @@ public class UnboundedTextSource extends UnboundedSource<String, UnboundedSource
     return StringUtf8Coder.of();
   }
 
-  /**
-   * reads from text.
-   */
+  /** reads from text. */
   public static class UnboundedTextReader extends UnboundedReader<String> implements Serializable {
 
     private static final long serialVersionUID = 7526472295622776147L;
 
     private final UnboundedTextSource source;
 
-    private final String[] texts = new String[]{"foo foo foo bar bar", "foo foo bar bar bar"};
+    private final String[] texts = new String[] {"foo foo foo bar bar", "foo foo bar bar bar"};
     private long index = 0;
 
     private String currentRecord;
@@ -115,8 +110,7 @@ public class UnboundedTextSource extends UnboundedSource<String, UnboundedSource
     }
 
     @Override
-    public void close() throws IOException {
-    }
+    public void close() throws IOException {}
 
     @Override
     public Instant getWatermark() {

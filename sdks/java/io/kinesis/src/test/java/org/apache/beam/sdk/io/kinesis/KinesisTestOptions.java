@@ -21,9 +21,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
-/**
- * Options for Kinesis integration tests.
- */
+/** Options for Kinesis integration tests. */
 public interface KinesisTestOptions extends TestPipelineOptions {
 
   @Description("AWS region where Kinesis stream resided")

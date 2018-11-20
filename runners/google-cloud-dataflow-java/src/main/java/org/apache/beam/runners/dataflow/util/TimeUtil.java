@@ -29,30 +29,25 @@ import org.joda.time.ReadableInstant;
 import org.joda.time.chrono.ISOChronology;
 
 /**
- * A helper class for converting between Dataflow API and SDK time
- * representations.
+ * A helper class for converting between Dataflow API and SDK time representations.
  *
- * <p>Dataflow API times are strings of the form
- * {@code YYYY-MM-dd'T'HH:mm:ss[.nnnn]'Z'}: that is, RFC 3339
- * strings with optional fractional seconds and a 'Z' offset.
+ * <p>Dataflow API times are strings of the form {@code YYYY-MM-dd'T'HH:mm:ss[.nnnn]'Z'}: that is,
+ * RFC 3339 strings with optional fractional seconds and a 'Z' offset.
  *
- * <p>Dataflow API durations are strings of the form {@code ['-']sssss[.nnnn]'s'}:
- * that is, seconds with optional fractional seconds and a literal 's' at the end.
+ * <p>Dataflow API durations are strings of the form {@code ['-']sssss[.nnnn]'s'}: that is, seconds
+ * with optional fractional seconds and a literal 's' at the end.
  *
- * <p>In both formats, fractional seconds are either three digits (millisecond
- * resolution), six digits (microsecond resolution), or nine digits (nanosecond
- * resolution).
+ * <p>In both formats, fractional seconds are either three digits (millisecond resolution), six
+ * digits (microsecond resolution), or nine digits (nanosecond resolution).
  */
 public final class TimeUtil {
-  private TimeUtil() {}  // Non-instantiable.
+  private TimeUtil() {} // Non-instantiable.
 
   private static final Pattern DURATION_PATTERN = Pattern.compile("(\\d+)(?:\\.(\\d+))?s");
   private static final Pattern TIME_PATTERN =
       Pattern.compile("(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d+))?Z");
 
-  /**
-   * Converts a {@link ReadableInstant} into a Dateflow API time value.
-   */
+  /** Converts a {@link ReadableInstant} into a Dateflow API time value. */
   public static String toCloudTime(ReadableInstant instant) {
     // Note that since Joda objects use millisecond resolution, we always
     // produce either no fractional seconds or fractional seconds with
@@ -63,7 +58,8 @@ public final class TimeUtil {
 
     int millis = time.getMillisOfSecond();
     if (millis == 0) {
-      return String.format("%04d-%02d-%02dT%02d:%02d:%02dZ",
+      return String.format(
+          "%04d-%02d-%02dT%02d:%02d:%02dZ",
           time.getYear(),
           time.getMonthOfYear(),
           time.getDayOfMonth(),
@@ -71,7 +67,8 @@ public final class TimeUtil {
           time.getMinuteOfHour(),
           time.getSecondOfMinute());
     } else {
-      return String.format("%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
+      return String.format(
+          "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
           time.getYear(),
           time.getMonthOfYear(),
           time.getDayOfMonth(),
@@ -83,8 +80,8 @@ public final class TimeUtil {
   }
 
   /**
-   * Converts a time value received via the Dataflow API into the corresponding
-   * {@link Instant}.
+   * Converts a time value received via the Dataflow API into the corresponding {@link Instant}.
+   *
    * @return the parsed time, or null if a parse error occurs
    */
   @Nullable
@@ -101,21 +98,20 @@ public final class TimeUtil {
     int second = Integer.parseInt(matcher.group(6));
     int millis = computeMillis(matcher.group(7));
 
-    return new DateTime(year, month, day, hour, minute, second, millis,
-        ISOChronology.getInstanceUTC()).toInstant();
+    return new DateTime(
+            year, month, day, hour, minute, second, millis, ISOChronology.getInstanceUTC())
+        .toInstant();
   }
 
   private static int computeMillis(String frac) {
     if (frac == null) {
       return 0;
     }
-    return Integer.parseInt(frac.length() > 3 ? frac.substring(0, 3)
-      : Strings.padEnd(frac, 3, '0'));
+    return Integer.parseInt(
+        frac.length() > 3 ? frac.substring(0, 3) : Strings.padEnd(frac, 3, '0'));
   }
 
-  /**
-   * Converts a {@link ReadableDuration} into a Dataflow API duration string.
-   */
+  /** Converts a {@link ReadableDuration} into a Dataflow API duration string. */
   public static String toCloudDuration(ReadableDuration duration) {
     // Note that since Joda objects use millisecond resolution, we always
     // produce either no fractional seconds or fractional seconds with
@@ -132,6 +128,7 @@ public final class TimeUtil {
 
   /**
    * Converts a Dataflow API duration string into a {@link Duration}.
+   *
    * @return the parsed duration, or null if a parse error occurs
    */
   @Nullable
@@ -144,11 +141,11 @@ public final class TimeUtil {
     String frac = matcher.group(2);
     if (frac != null) {
       long fracs = Long.parseLong(frac);
-      if (frac.length() == 3) {  // millisecond resolution
+      if (frac.length() == 3) { // millisecond resolution
         millis += fracs;
-      } else if (frac.length() == 6) {  // microsecond resolution
+      } else if (frac.length() == 6) { // microsecond resolution
         millis += fracs / 1000;
-      } else if (frac.length() == 9) {  // nanosecond resolution
+      } else if (frac.length() == 9) { // nanosecond resolution
         millis += fracs / 1000000;
       } else {
         return null;

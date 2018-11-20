@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.parquet;
 
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import org.apache.avro.Schema;
@@ -29,8 +29,8 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
+import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -51,6 +51,7 @@ import org.junit.runners.JUnit4;
  * Integration tests for {@link org.apache.beam.sdk.io.parquet.ParquetIO}.
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
+ *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
@@ -60,32 +61,33 @@ import org.junit.runners.JUnit4;
  *  --tests org.apache.beam.sdk.io.parquet.ParquetIOIT
  *  -DintegrationTestRunner=direct
  * </pre>
- * </p>
  *
- * <p>Please see 'build_rules.gradle' file for instructions regarding
- * running this test using Beam performance testing framework.</p>
+ * <p>Please see 'build_rules.gradle' file for instructions regarding running this test using Beam
+ * performance testing framework.
  */
 @RunWith(JUnit4.class)
 public class ParquetIOIT {
 
-  private static final Schema SCHEMA = new Schema.Parser().parse("{\n"
-    + " \"namespace\": \"ioitavro\",\n"
-    + " \"type\": \"record\",\n"
-    + " \"name\": \"TestAvroLine\",\n"
-    + " \"fields\": [\n"
-    + "     {\"name\": \"row\", \"type\": \"string\"}\n"
-    + " ]\n"
-    + "}");
+  private static final Schema SCHEMA =
+      new Schema.Parser()
+          .parse(
+              "{\n"
+                  + " \"namespace\": \"ioitavro\",\n"
+                  + " \"type\": \"record\",\n"
+                  + " \"name\": \"TestAvroLine\",\n"
+                  + " \"fields\": [\n"
+                  + "     {\"name\": \"row\", \"type\": \"string\"}\n"
+                  + " ]\n"
+                  + "}");
 
   private static String filenamePrefix;
   private static Integer numberOfRecords;
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setup() {
-    IOTestPipelineOptions options = readTestPipelineOptions();
+    FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
     numberOfRecords = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
@@ -94,29 +96,39 @@ public class ParquetIOIT {
   @Test
   public void writeThenReadAll() {
     PCollection<String> testFiles =
-      pipeline.apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
-      .apply("Produce text lines",
-        ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
-      .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
-        .setCoder(AvroCoder.of(SCHEMA))
-      .apply("Write Parquet files",
-        FileIO.<GenericRecord>write().via(ParquetIO.sink(SCHEMA)).to(filenamePrefix))
-      .getPerDestinationOutputFilenames()
-      .apply("Get file names", Values.create());
+        pipeline
+            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
+            .apply(
+                "Produce text lines",
+                ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
+            .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
+            .setCoder(AvroCoder.of(SCHEMA))
+            .apply(
+                "Write Parquet files",
+                FileIO.<GenericRecord>write().via(ParquetIO.sink(SCHEMA)).to(filenamePrefix))
+            .getPerDestinationOutputFilenames()
+            .apply("Get file names", Values.create());
 
-    PCollection<String> consolidatedHashcode = testFiles.apply("Find files", FileIO.matchAll())
-      .apply("Read matched files", FileIO.readMatches())
-      .apply("Read parquet files", ParquetIO.readFiles(SCHEMA))
-      .apply("Map records to strings", MapElements.into(strings())
-        .via((SerializableFunction<GenericRecord, String>) record -> String
-          .valueOf(record.get("row"))))
-      .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+    PCollection<String> consolidatedHashcode =
+        testFiles
+            .apply("Find files", FileIO.matchAll())
+            .apply("Read matched files", FileIO.readMatches())
+            .apply("Read parquet files", ParquetIO.readFiles(SCHEMA))
+            .apply(
+                "Map records to strings",
+                MapElements.into(strings())
+                    .via(
+                        (SerializableFunction<GenericRecord, String>)
+                            record -> String.valueOf(record.get("row"))))
+            .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     String expectedHash = getExpectedHashForLineCount(numberOfRecords);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    testFiles.apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
-      .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
+    testFiles.apply(
+        "Delete test files",
+        ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
+            .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
   }
@@ -124,9 +136,7 @@ public class ParquetIOIT {
   private static class DeterministicallyConstructAvroRecordsFn extends DoFn<String, GenericRecord> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      c.output(
-        new GenericRecordBuilder(SCHEMA).set("row", c.element()).build()
-      );
+      c.output(new GenericRecordBuilder(SCHEMA).set("row", c.element()).build());
     }
   }
 }

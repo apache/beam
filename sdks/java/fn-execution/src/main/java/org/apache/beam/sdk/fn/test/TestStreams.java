@@ -15,62 +15,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.test;
 
-import io.grpc.stub.CallStreamObserver;
-import io.grpc.stub.StreamObserver;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 
 /** Utility methods which enable testing of {@link StreamObserver}s. */
 public class TestStreams {
   /**
-   * Creates a test {@link CallStreamObserver}  {@link Builder} that forwards
-   * {@link StreamObserver#onNext} calls to the supplied {@link Consumer}.
+   * Creates a test {@link CallStreamObserver} {@link Builder} that forwards {@link
+   * StreamObserver#onNext} calls to the supplied {@link Consumer}.
    */
   public static <T> Builder<T> withOnNext(Consumer<T> onNext) {
-    return new Builder<>(new ForwardingCallStreamObserver<>(
-        onNext,
-        TestStreams.throwingErrorHandler(),
-        TestStreams.noopRunnable(),
-        TestStreams.alwaysTrueSupplier()));
+    return new Builder<>(
+        new ForwardingCallStreamObserver<>(
+            onNext,
+            TestStreams.throwingErrorHandler(),
+            TestStreams.noopRunnable(),
+            TestStreams.alwaysTrueSupplier()));
   }
 
   /** A builder for a test {@link CallStreamObserver} that performs various callbacks. */
   public static class Builder<T> {
     private final ForwardingCallStreamObserver<T> observer;
+
     private Builder(ForwardingCallStreamObserver<T> observer) {
       this.observer = observer;
     }
 
     /**
-     * Returns a new {@link Builder} like this one with the specified
-     * {@link CallStreamObserver#isReady} callback.
+     * Returns a new {@link Builder} like this one with the specified {@link
+     * CallStreamObserver#isReady} callback.
      */
     public Builder<T> withIsReady(Supplier<Boolean> isReady) {
-      return new Builder<>(new ForwardingCallStreamObserver<>(
-          observer.onNext,
-          observer.onError,
-          observer.onCompleted,
-          isReady));
+      return new Builder<>(
+          new ForwardingCallStreamObserver<>(
+              observer.onNext, observer.onError, observer.onCompleted, isReady));
     }
 
     /**
-     * Returns a new {@link Builder} like this one with the specified
-     * {@link StreamObserver#onCompleted} callback.
+     * Returns a new {@link Builder} like this one with the specified {@link
+     * StreamObserver#onCompleted} callback.
      */
     public Builder<T> withOnCompleted(Runnable onCompleted) {
-      return new Builder<>(new ForwardingCallStreamObserver<>(
-          observer.onNext,
-          observer.onError,
-          onCompleted,
-          observer.isReady));
+      return new Builder<>(
+          new ForwardingCallStreamObserver<>(
+              observer.onNext, observer.onError, onCompleted, observer.isReady));
     }
 
     /**
-     * Returns a new {@link Builder} like this one with the specified
-     * {@link StreamObserver#onError} callback.
+     * Returns a new {@link Builder} like this one with the specified {@link StreamObserver#onError}
+     * callback.
      */
     public Builder<T> withOnError(final Runnable onError) {
       return new Builder<>(
@@ -79,12 +76,13 @@ public class TestStreams {
     }
 
     /**
-     * Returns a new {@link Builder} like this one with the specified
-     * {@link StreamObserver#onError} consumer.
+     * Returns a new {@link Builder} like this one with the specified {@link StreamObserver#onError}
+     * consumer.
      */
     public Builder<T> withOnError(Consumer<Throwable> onError) {
-      return new Builder<>(new ForwardingCallStreamObserver<>(
-          observer.onNext, onError, observer.onCompleted, observer.isReady));
+      return new Builder<>(
+          new ForwardingCallStreamObserver<>(
+              observer.onNext, onError, observer.onCompleted, observer.isReady));
     }
 
     public CallStreamObserver<T> build() {
@@ -98,15 +96,13 @@ public class TestStreams {
     };
   }
 
-  private static void noop() {
-  }
+  private static void noop() {}
 
   private static Runnable noopRunnable() {
     return () -> {};
   }
 
-  private static void noop(Throwable t) {
-  }
+  private static void noop(Throwable t) {}
 
   private static <T> Consumer<T> noopConsumer() {
     return item -> {};

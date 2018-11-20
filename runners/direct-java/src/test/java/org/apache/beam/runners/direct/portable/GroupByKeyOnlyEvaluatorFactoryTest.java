@@ -24,13 +24,13 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
-import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -61,25 +61,20 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
   @Test
   public void testInMemoryEvaluator() throws Exception {
     KvCoder<String, Integer> javaCoder = KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
-    SdkComponents components = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
     String windowingStrategyId =
-        components.registerWindowingStrategy(WindowingStrategy.globalDefault());
-    String coderId = components.registerCoder(javaCoder);
-    MessageWithComponents javaWireCoderAndComponents =
-        LengthPrefixUnknownCoders.forCoder(coderId, components.toComponents(), false);
+        sdkComponents.registerWindowingStrategy(WindowingStrategy.globalDefault());
+    String coderId = sdkComponents.registerCoder(javaCoder);
+    Components.Builder builder = sdkComponents.toComponents().toBuilder();
+    String javaWireCoderId =
+        LengthPrefixUnknownCoders.addLengthPrefixedCoder(coderId, builder, false);
+    String runnerWireCoderId =
+        LengthPrefixUnknownCoders.addLengthPrefixedCoder(coderId, builder, true);
+    RehydratedComponents components = RehydratedComponents.forComponents(builder.build());
     Coder<KV<String, Integer>> javaWireCoder =
-        (Coder<KV<String, Integer>>)
-            CoderTranslation.fromProto(
-                javaWireCoderAndComponents.getCoder(),
-                RehydratedComponents.forComponents(javaWireCoderAndComponents.getComponents()));
-
-    MessageWithComponents runnerWireCoderAndComponents =
-        LengthPrefixUnknownCoders.forCoder(coderId, components.toComponents(), true);
-    Coder<KV<?, ?>> runnerWireCoder =
-        (Coder<KV<?, ?>>)
-            CoderTranslation.fromProto(
-                runnerWireCoderAndComponents.getCoder(),
-                RehydratedComponents.forComponents(runnerWireCoderAndComponents.getComponents()));
+        (Coder<KV<String, Integer>>) components.getCoder(javaWireCoderId);
+    Coder<KV<?, ?>> runnerWireCoder = (Coder<KV<?, ?>>) components.getCoder(runnerWireCoderId);
 
     KV<?, ?> firstFoo = asRunnerKV(javaWireCoder, runnerWireCoder, KV.of("foo", -1));
     KV<?, ?> secondFoo = asRunnerKV(javaWireCoder, runnerWireCoder, KV.of("foo", 1));
@@ -101,10 +96,7 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
                 .build());
     PCollectionNode groupedKvs =
         PipelineNode.pCollection(
-            "groupedKvs",
-            RunnerApi.PCollection.newBuilder()
-                .setUniqueName("groupedKvs")
-                .build());
+            "groupedKvs", RunnerApi.PCollection.newBuilder().setUniqueName("groupedKvs").build());
     PTransformNode groupByKeyOnly =
         PipelineNode.pTransform(
             "gbko",
@@ -118,9 +110,7 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
             .addRootTransformIds(inputTransform.getId())
             .addRootTransformIds(groupByKeyOnly.getId())
             .setComponents(
-                components
-                    .toComponents()
-                    .toBuilder()
+                builder
                     .putTransforms(inputTransform.getId(), inputTransform.getTransform())
                     .putTransforms(groupByKeyOnly.getId(), groupByKeyOnly.getTransform())
                     .putPcollections(values.getId(), values.getPCollection())

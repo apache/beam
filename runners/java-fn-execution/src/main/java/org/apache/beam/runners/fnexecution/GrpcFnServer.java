@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution;
 
-import io.grpc.Server;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
 
 /**
  * A {@link Server gRPC Server} which manages a single {@link FnService}. The lifetime of the
@@ -29,8 +28,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
  */
 public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   /**
-   * Create a {@link GrpcFnServer} for the provided {@link FnService} running on an arbitrary
-   * port.
+   * Create a {@link GrpcFnServer} for the provided {@link FnService} running on an arbitrary port.
    */
   public static <ServiceT extends FnService> GrpcFnServer<ServiceT> allocatePortAndCreateFor(
       ServiceT service, ServerFactory factory) throws IOException {
@@ -40,8 +38,8 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   }
 
   /**
-   * Create a {@link GrpcFnServer} for the provided {@link FnService} which will run at the
-   * endpoint specified in the {@link ApiServiceDescriptor}.
+   * Create a {@link GrpcFnServer} for the provided {@link FnService} which will run at the endpoint
+   * specified in the {@link ApiServiceDescriptor}.
    */
   public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
       ServiceT service, ApiServiceDescriptor endpoint, ServerFactory factory) throws IOException {
@@ -71,9 +69,7 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
     return service;
   }
 
-  /**
-   * Get the underlying {@link Server} contained by this {@link GrpcFnServer}.
-   */
+  /** Get the underlying {@link Server} contained by this {@link GrpcFnServer}. */
   public Server getServer() {
     return server;
   }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRel;
@@ -37,6 +36,7 @@ public class BeamJoinRule extends ConverterRule {
   @Override
   public RelNode convert(RelNode rel) {
     Join join = (Join) rel;
+
     return new BeamJoinRel(
         join.getCluster(),
         join.getTraitSet().replace(BeamLogicalConvention.INSTANCE),

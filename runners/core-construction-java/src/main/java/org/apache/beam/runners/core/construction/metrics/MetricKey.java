@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.metrics;
 
 import com.google.auto.value.AutoValue;
@@ -24,9 +23,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricName;
 
-/**
- * Metrics are keyed by the step name they are associated with and the name of the metric.
- */
+/** Metrics are keyed by the step name they are associated with and the name of the metric. */
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricKey implements Serializable {

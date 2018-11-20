@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
 import java.util.ArrayList;
@@ -46,12 +45,10 @@ import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.joda.time.Instant;
 
-/**
- * An implementation of {@link GroupAlsoByWindow}
- * for the Spark runner.
- */
+/** An implementation of {@link GroupAlsoByWindow} for the Spark runner. */
 public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow>
-    implements FlatMapFunction<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>,
+    implements FlatMapFunction<
+        WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>,
         WindowedValue<KV<K, Iterable<InputT>>>> {
 
   private final WindowingStrategy<?, W> windowingStrategy;
@@ -119,8 +116,10 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
     return outputter.getOutputs().iterator();
   }
 
-  private void fireEligibleTimers(InMemoryTimerInternals timerInternals,
-      ReduceFnRunner<K, InputT, Iterable<InputT>, W> reduceFnRunner) throws Exception {
+  private void fireEligibleTimers(
+      InMemoryTimerInternals timerInternals,
+      ReduceFnRunner<K, InputT, Iterable<InputT>, W> reduceFnRunner)
+      throws Exception {
     List<TimerInternals.TimerData> timers = new ArrayList<>();
     while (true) {
       TimerInternals.TimerData timer;
@@ -159,7 +158,8 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
         TupleTag<AdditionalOutputT> tag,
         AdditionalOutputT output,
         Instant timestamp,
-        Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
       throw new UnsupportedOperationException("GroupAlsoByWindow should not use tagged outputs.");
     }
 

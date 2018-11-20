@@ -15,33 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.io.BaseEncoding;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
-import io.grpc.internal.ServerImpl;
+import com.google.common.hash.Hashing;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.inprocess.InProcessServerBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -50,14 +47,12 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link ArtifactServiceStager}.
- */
+/** Tests for {@link ArtifactServiceStager}. */
 @RunWith(JUnit4.class)
 public class ArtifactServiceStagerTest {
   @Rule public TemporaryFolder temp = new TemporaryFolder();
 
-  private ServerImpl server;
+  private Server server;
   private InMemoryArtifactStagerService service;
   private ArtifactServiceStager stager;
 
@@ -82,14 +77,15 @@ public class ArtifactServiceStagerTest {
 
   @Test
   public void testStage() throws Exception {
+    String stagingSessionToken = "token";
     File file = temp.newFile();
     byte[] content = "foo-bar-baz".getBytes(StandardCharsets.UTF_8);
-    byte[] contentMd5 = MessageDigest.getInstance("MD5").digest(content);
+    String contentSha256 = Hashing.sha256().newHasher().putBytes(content).hash().toString();
     try (FileChannel contentChannel = new FileOutputStream(file).getChannel()) {
       contentChannel.write(ByteBuffer.wrap(content));
     }
 
-    stager.stage(Collections.singleton(StagedFile.of(file, file.getName())));
+    stager.stage(stagingSessionToken, Collections.singleton(StagedFile.of(file, file.getName())));
 
     assertThat(service.getStagedArtifacts().entrySet(), hasSize(1));
     byte[] stagedContent = Iterables.getOnlyElement(service.getStagedArtifacts().values());
@@ -97,8 +93,8 @@ public class ArtifactServiceStagerTest {
 
     ArtifactMetadata staged = service.getManifest().getArtifact(0);
     assertThat(staged.getName(), equalTo(file.getName()));
-    byte[] manifestMd5 = BaseEncoding.base64().decode(staged.getMd5());
-    assertArrayEquals(contentMd5, manifestMd5);
+    String manifestSha256 = staged.getSha256();
+    assertThat(contentSha256, equalTo(manifestSha256));
 
     assertThat(service.getManifest().getArtifactCount(), equalTo(1));
     assertThat(staged, equalTo(Iterables.getOnlyElement(service.getStagedArtifacts().keySet())));
@@ -106,6 +102,8 @@ public class ArtifactServiceStagerTest {
 
   @Test
   public void testStagingMultipleFiles() throws Exception {
+    String stagingSessionToken = "token";
+
     File file = temp.newFile();
     byte[] content = "foo-bar-baz".getBytes(StandardCharsets.UTF_8);
     try (FileChannel contentChannel = new FileOutputStream(file).getChannel()) {
@@ -125,6 +123,7 @@ public class ArtifactServiceStagerTest {
     }
 
     stager.stage(
+        stagingSessionToken,
         ImmutableList.of(
             StagedFile.of(file, file.getName()),
             StagedFile.of(otherFile, otherFile.getName()),

@@ -28,8 +28,8 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 
 /**
- * A {@link WindowFn} for use during tests that returns the input window for calls to
- * {@link #getSideInputWindow(BoundedWindow)}.
+ * A {@link WindowFn} for use during tests that returns the input window for calls to {@link
+ * #getSideInputWindow(BoundedWindow)}.
  */
 public class IdentitySideInputWindowFn extends NonMergingWindowFn<Integer, BoundedWindow> {
   @Override

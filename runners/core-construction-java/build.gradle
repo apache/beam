@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: true)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Core Construction Java"
 ext.summary = """Beam Runners Core provides utilities to aid runner authors interact with a Pipeline
@@ -34,24 +34,19 @@ test {
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-job-management", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-vendor-grpc-v1_13_1", configuration: "shadow")
   shadow library.java.jackson_core
   shadow library.java.jackson_databind
-  shadow library.java.protobuf_java
-  shadow library.java.protobuf_java_util
-  shadow library.java.findbugs_jsr305
   shadow library.java.joda_time
   shadow library.java.slf4j_api
-  shadow library.java.grpc_core
-  shadow library.java.grpc_stub
-  testCompileOnly library.java.findbugs_annotations
   shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_annotations
   shadowTest library.java.jackson_dataformat_yaml
-  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadowTest")
+  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
 }

@@ -93,10 +93,9 @@ import org.junit.rules.TemporaryFolder;
  * Tests DStream recovery from checkpoint.
  *
  * <p>Runs the pipeline reading from a Kafka backlog with a WM function that will move to infinity
- * on a EOF signal.
- * After resuming from checkpoint, a single output (guaranteed by the WM) is asserted, along with
- * {@link Metrics} values that are expected to resume from previous count and a side-input that is
- * expected to recover as well.
+ * on a EOF signal. After resuming from checkpoint, a single output (guaranteed by the WM) is
+ * asserted, along with {@link Metrics} values that are expected to resume from previous count and a
+ * side-input that is expected to recover as well.
  */
 public class ResumeFromCheckpointStreamingTest implements Serializable {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
@@ -107,8 +106,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
 
   private transient TemporaryFolder temporaryFolder;
 
-  @Rule
-  public final transient ReuseSparkContextRule noContextReuse = ReuseSparkContextRule.no();
+  @Rule public final transient ReuseSparkContextRule noContextReuse = ReuseSparkContextRule.no();
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -126,6 +124,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     }
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   private static void produce(Map<String, Instant> messages) {
     Properties producerProps = new Properties();
     producerProps.putAll(EMBEDDED_KAFKA_CLUSTER.getProps());
@@ -134,25 +133,26 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     Serializer<String> stringSerializer = new StringSerializer();
     Serializer<Instant> instantSerializer = new InstantSerializer();
 
-    try (@SuppressWarnings("unchecked") KafkaProducer<String, Instant> kafkaProducer =
-        new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
-          for (Map.Entry<String, Instant> en : messages.entrySet()) {
-            kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
-          }
-          kafkaProducer.close();
-        }
+    try (@SuppressWarnings("unchecked")
+        KafkaProducer<String, Instant> kafkaProducer =
+            new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
+      for (Map.Entry<String, Instant> en : messages.entrySet()) {
+        kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
+      }
+      kafkaProducer.close();
+    }
   }
 
   @Test
   @Category(UsesCheckpointRecovery.class)
   public void testWithResume() throws Exception {
     // write to Kafka
-    produce(ImmutableMap.of(
-        "k1", new Instant(100),
-        "k2", new Instant(200),
-        "k3", new Instant(300),
-        "k4", new Instant(400)
-    ));
+    produce(
+        ImmutableMap.of(
+            "k1", new Instant(100),
+            "k2", new Instant(200),
+            "k3", new Instant(300),
+            "k4", new Instant(400)));
 
     MetricsFilter metricsFilter =
         MetricsFilter.builder()
@@ -162,12 +162,22 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     // first run should expect EOT matching the last injected element.
     SparkPipelineResult res = run(Optional.of(new Instant(400)), 0);
 
-    assertThat(res.metrics().queryMetrics(metricsFilter).getCounters(),
-        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
-            "allMessages", "EOFShallNotPassFn", 4L)));
-    assertThat(res.metrics().queryMetrics(metricsFilter).getCounters(),
-        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
-            "processedMessages", "EOFShallNotPassFn", 4L)));
+    assertThat(
+        res.metrics().queryMetrics(metricsFilter).getCounters(),
+        hasItem(
+            attemptedMetricsResult(
+                ResumeFromCheckpointStreamingTest.class.getName(),
+                "allMessages",
+                "EOFShallNotPassFn",
+                4L)));
+    assertThat(
+        res.metrics().queryMetrics(metricsFilter).getCounters(),
+        hasItem(
+            attemptedMetricsResult(
+                ResumeFromCheckpointStreamingTest.class.getName(),
+                "processedMessages",
+                "EOFShallNotPassFn",
+                4L)));
 
     //--- between executions:
 
@@ -175,52 +185,68 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     clean();
 
     //- write a bit more.
-    produce(ImmutableMap.of(
-        "k5", new Instant(499),
-        "EOF", new Instant(500) // to be dropped from [0, 500).
-    ));
+    produce(
+        ImmutableMap.of(
+            "k5", new Instant(499),
+            "EOF", new Instant(500) // to be dropped from [0, 500).
+            ));
 
     // recovery should resume from last read offset, and read the second batch of input.
     res = runAgain(1);
     // assertions 2:
-    assertThat(res.metrics().queryMetrics(metricsFilter).getCounters(),
-        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
-            "processedMessages", "EOFShallNotPassFn", 5L)));
-    assertThat(res.metrics().queryMetrics(metricsFilter).getCounters(),
-        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
-            "allMessages", "EOFShallNotPassFn", 6L)));
+    assertThat(
+        res.metrics().queryMetrics(metricsFilter).getCounters(),
+        hasItem(
+            attemptedMetricsResult(
+                ResumeFromCheckpointStreamingTest.class.getName(),
+                "processedMessages",
+                "EOFShallNotPassFn",
+                5L)));
+    assertThat(
+        res.metrics().queryMetrics(metricsFilter).getCounters(),
+        hasItem(
+            attemptedMetricsResult(
+                ResumeFromCheckpointStreamingTest.class.getName(),
+                "allMessages",
+                "EOFShallNotPassFn",
+                6L)));
     long successAssertions = 0;
-    Iterable<MetricResult<Long>> counterResults = res.metrics().queryMetrics(
-        MetricsFilter.builder()
-            .addNameFilter(
-                MetricNameFilter.named(PAssertWithoutFlatten.class, PAssert.SUCCESS_COUNTER))
-            .build()).getCounters();
+    Iterable<MetricResult<Long>> counterResults =
+        res.metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(
+                            PAssertWithoutFlatten.class, PAssert.SUCCESS_COUNTER))
+                    .build())
+            .getCounters();
     for (MetricResult<Long> counter : counterResults) {
       if (counter.getAttempted() > 0) {
         successAssertions++;
       }
     }
     assertThat(
-        String.format(
-            "Expected %d successful assertions, but found %d.", 1L, successAssertions),
-            successAssertions,
-            is(1L));
+        String.format("Expected %d successful assertions, but found %d.", 1L, successAssertions),
+        successAssertions,
+        is(1L));
     // validate assertion didn't fail.
     long failedAssertions = 0;
-    Iterable<MetricResult<Long>> failCounterResults = res.metrics().queryMetrics(
-        MetricsFilter.builder()
-            .addNameFilter(MetricNameFilter.named(
-                PAssertWithoutFlatten.class, PAssert.FAILURE_COUNTER))
-            .build()).getCounters();
+    Iterable<MetricResult<Long>> failCounterResults =
+        res.metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(
+                            PAssertWithoutFlatten.class, PAssert.FAILURE_COUNTER))
+                    .build())
+            .getCounters();
     for (MetricResult<Long> counter : failCounterResults) {
       if (counter.getAttempted() > 0) {
         failedAssertions++;
       }
     }
     assertThat(
-        String.format("Found %d failed assertions.", failedAssertions),
-        failedAssertions,
-        is(0L));
+        String.format("Found %d failed assertions.", failedAssertions), failedAssertions, is(0L));
   }
 
   private SparkPipelineResult runAgain(int expectedAssertions) {
@@ -230,9 +256,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
   }
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-  private SparkPipelineResult run(
-      Optional<Instant> stopWatermarkOption,
-      int expectedAssertions) {
+  private SparkPipelineResult run(Optional<Instant> stopWatermarkOption, int expectedAssertions) {
     KafkaIO.Read<String, Instant> read =
         KafkaIO.<String, Instant>read()
             .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
@@ -306,10 +330,9 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
   /** A pass-through fn that prevents EOF event from passing. */
   private static class EOFShallNotPassFn extends DoFn<String, String> {
     final PCollectionView<List<String>> view;
-    private final Counter aggregator = Metrics.counter(
-        ResumeFromCheckpointStreamingTest.class, "processedMessages");
-    Counter counter =
-        Metrics.counter(ResumeFromCheckpointStreamingTest.class, "allMessages");
+    private final Counter aggregator =
+        Metrics.counter(ResumeFromCheckpointStreamingTest.class, "processedMessages");
+    Counter counter = Metrics.counter(ResumeFromCheckpointStreamingTest.class, "allMessages");
 
     private EOFShallNotPassFn(PCollectionView<List<String>> view) {
       this.view = view;
@@ -329,8 +352,8 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
   }
 
   /**
-   * A custom PAssert that avoids using {@link org.apache.beam.sdk.transforms.Flatten}
-   * until BEAM-1444 is resolved.
+   * A custom PAssert that avoids using {@link org.apache.beam.sdk.transforms.Flatten} until
+   * BEAM-1444 is resolved.
    */
   private static class PAssertWithoutFlatten<T>
       extends PTransform<PCollection<Iterable<T>>, PDone> {

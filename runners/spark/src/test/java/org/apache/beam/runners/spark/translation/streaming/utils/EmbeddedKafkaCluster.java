@@ -35,10 +35,7 @@ import org.apache.zookeeper.server.ZooKeeperServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Embedded Kafka cluster.
- * https://gist.github.com/fjavieralba/7930018
- */
+/** Embedded Kafka cluster. https://gist.github.com/fjavieralba/7930018 */
 public class EmbeddedKafkaCluster {
 
   private static final Logger LOG = LoggerFactory.getLogger(EmbeddedKafkaCluster.class);
@@ -122,7 +119,6 @@ public class EmbeddedKafkaCluster {
     }
   }
 
-
   private static KafkaServerStartable startBroker(Properties props) {
     KafkaServerStartable server = new KafkaServerStartable(new KafkaConfig(props));
     server.startup();
@@ -170,9 +166,7 @@ public class EmbeddedKafkaCluster {
     return "EmbeddedKafkaCluster{" + "brokerList='" + brokerList + "'}";
   }
 
-  /**
-   * Embedded Zookeeper.
-   */
+  /** Embedded Zookeeper. */
   public static class EmbeddedZookeeper {
     private int port = -1;
     private int tickTime = 500;
@@ -205,8 +199,8 @@ public class EmbeddedKafkaCluster {
       if (this.port == -1) {
         this.port = TestUtils.getAvailablePort();
       }
-      this.factory = NIOServerCnxnFactory.createFactory(new InetSocketAddress("127.0.0.1", port),
-              1024);
+      this.factory =
+          NIOServerCnxnFactory.createFactory(new InetSocketAddress("127.0.0.1", port), 1024);
       this.snapshotDir = TestUtils.constructTempDir("embedded-zk/snapshot");
       this.logDir = TestUtils.constructTempDir("embedded-zk/log");
 
@@ -216,7 +210,6 @@ public class EmbeddedKafkaCluster {
         throw new IOException(e);
       }
     }
-
 
     public void shutdown() {
       if (factory != null) {
@@ -263,12 +256,11 @@ public class EmbeddedKafkaCluster {
   static final class TestUtils {
     private static final Random RANDOM = new Random();
 
-    private TestUtils() {
-    }
+    private TestUtils() {}
 
     static File constructTempDir(String dirPrefix) {
-      File file = new File(System.getProperty("java.io.tmpdir"), dirPrefix + RANDOM.nextInt
-              (10000000));
+      File file =
+          new File(System.getProperty("java.io.tmpdir"), dirPrefix + RANDOM.nextInt(10000000));
       if (!file.mkdirs()) {
         throw new RuntimeException("could not create temp directory: " + file.getAbsolutePath());
       }

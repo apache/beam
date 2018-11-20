@@ -18,6 +18,8 @@
 """Utility functions for efficiently processing with the job API
 """
 
+from __future__ import absolute_import
+
 import json
 
 from google.protobuf import json_format
@@ -25,7 +27,7 @@ from google.protobuf import struct_pb2
 
 
 def dict_to_struct(dict_obj):
-  return json_format.Parse(json.dumps(dict_obj), struct_pb2.Struct())
+  return json_format.ParseDict(dict_obj, struct_pb2.Struct())
 
 
 def struct_to_dict(struct_obj):

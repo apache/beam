@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.allOf;
@@ -37,9 +36,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DoFnLifecycleManagers}.
- */
+/** Tests for {@link DoFnLifecycleManagers}. */
 @RunWith(JUnit4.class)
 public class DoFnLifecycleManagersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -54,15 +51,18 @@ public class DoFnLifecycleManagersTest {
     third.get();
 
     final Collection<Matcher<? super Throwable>> suppressions = new ArrayList<>();
-    suppressions.add(allOf(
-        instanceOf(UserCodeException.class),
-        new CausedByMatcher(new ThrowableMessageMatcher("foo"))));
-    suppressions.add(allOf(
-        instanceOf(UserCodeException.class),
-        new CausedByMatcher(new ThrowableMessageMatcher("bar"))));
-    suppressions.add(allOf(
-        instanceOf(UserCodeException.class),
-        new CausedByMatcher(new ThrowableMessageMatcher("baz"))));
+    suppressions.add(
+        allOf(
+            instanceOf(UserCodeException.class),
+            new CausedByMatcher(new ThrowableMessageMatcher("foo"))));
+    suppressions.add(
+        allOf(
+            instanceOf(UserCodeException.class),
+            new CausedByMatcher(new ThrowableMessageMatcher("bar"))));
+    suppressions.add(
+        allOf(
+            instanceOf(UserCodeException.class),
+            new CausedByMatcher(new ThrowableMessageMatcher("baz"))));
 
     thrown.expect(
         new BaseMatcher<Exception>() {
@@ -107,15 +107,13 @@ public class DoFnLifecycleManagersTest {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-    }
+    public void processElement(ProcessContext c) throws Exception {}
 
     @Teardown
     public void teardown() throws Exception {
       throw new Exception(message);
     }
   }
-
 
   private static class ThrowableMessageMatcher extends BaseMatcher<Throwable> {
     private final Matcher<String> messageMatcher;
@@ -142,8 +140,7 @@ public class DoFnLifecycleManagersTest {
   private static class CausedByMatcher extends BaseMatcher<Throwable> {
     private final Matcher<Throwable> causeMatcher;
 
-    public CausedByMatcher(
-        Matcher<Throwable> causeMatcher) {
+    public CausedByMatcher(Matcher<Throwable> causeMatcher) {
       this.causeMatcher = causeMatcher;
     }
 
@@ -162,10 +159,8 @@ public class DoFnLifecycleManagersTest {
     }
   }
 
-
   private static class EmptyFn extends DoFn<Object, Object> {
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-    }
+    public void processElement(ProcessContext c) throws Exception {}
   }
 }

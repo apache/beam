@@ -42,20 +42,24 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ValueProvider}. */
 @RunWith(JUnit4.class)
 public class ValueProviderTest {
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   /** A test interface. */
   public interface TestOptions extends PipelineOptions {
     @Default.String("bar")
     ValueProvider<String> getBar();
+
     void setBar(ValueProvider<String> bar);
 
     ValueProvider<String> getFoo();
+
     void setFoo(ValueProvider<String> foo);
 
     ValueProvider<List<Integer>> getList();
+
     void setList(ValueProvider<List<Integer>> list);
   }
 
@@ -108,9 +112,7 @@ public class ValueProviderTest {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getFoo();
     assertEquals("foo", ((RuntimeValueProvider) provider).propertyName());
-    assertEquals(
-        "RuntimeValueProvider{propertyName=foo, default=null}",
-        provider.toString());
+    assertEquals("RuntimeValueProvider{propertyName=foo, default=null}", provider.toString());
   }
 
   @Test
@@ -122,9 +124,10 @@ public class ValueProviderTest {
 
   @Test
   public void testNoDefaultRuntimeProviderWithOverride() throws Exception {
-    TestOptions runtime = MAPPER.readValue(
-      "{ \"options\": { \"foo\": \"quux\" }}", PipelineOptions.class)
-      .as(TestOptions.class);
+    TestOptions runtime =
+        MAPPER
+            .readValue("{ \"options\": { \"foo\": \"quux\" }}", PipelineOptions.class)
+            .as(TestOptions.class);
 
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     runtime.setOptionsId(options.getOptionsId());
@@ -137,9 +140,10 @@ public class ValueProviderTest {
 
   @Test
   public void testDefaultRuntimeProviderWithOverride() throws Exception {
-    TestOptions runtime = MAPPER.readValue(
-      "{ \"options\": { \"bar\": \"quux\" }}", PipelineOptions.class)
-      .as(TestOptions.class);
+    TestOptions runtime =
+        MAPPER
+            .readValue("{ \"options\": { \"bar\": \"quux\" }}", PipelineOptions.class)
+            .as(TestOptions.class);
 
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     runtime.setOptionsId(options.getOptionsId());
@@ -165,6 +169,7 @@ public class ValueProviderTest {
   /** A test interface. */
   public interface BadOptionsRuntime extends PipelineOptions {
     RuntimeValueProvider<String> getBar();
+
     void setBar(RuntimeValueProvider<String> bar);
   }
 
@@ -173,14 +178,15 @@ public class ValueProviderTest {
     BadOptionsRuntime options = PipelineOptionsFactory.as(BadOptionsRuntime.class);
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage(
-      "Method getBar should not have return type "
-      + "RuntimeValueProvider, use ValueProvider instead.");
+        "Method getBar should not have return type "
+            + "RuntimeValueProvider, use ValueProvider instead.");
     options.getBar();
   }
 
   /** A test interface. */
   public interface BadOptionsStatic extends PipelineOptions {
     StaticValueProvider<String> getBar();
+
     void setBar(StaticValueProvider<String> bar);
   }
 
@@ -189,11 +195,10 @@ public class ValueProviderTest {
     BadOptionsStatic options = PipelineOptionsFactory.as(BadOptionsStatic.class);
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage(
-      "Method getBar should not have return type "
-      + "StaticValueProvider, use ValueProvider instead.");
+        "Method getBar should not have return type "
+            + "StaticValueProvider, use ValueProvider instead.");
     options.getBar();
   }
-
 
   @Test
   public void testSerializeDeserializeNoArg() throws Exception {
@@ -202,8 +207,7 @@ public class ValueProviderTest {
 
     ObjectNode root = MAPPER.valueToTree(submitOptions);
     ((ObjectNode) root.get("options")).put("foo", "quux");
-    TestOptions runtime =
-        MAPPER.convertValue(root, PipelineOptions.class).as(TestOptions.class);
+    TestOptions runtime = MAPPER.convertValue(root, PipelineOptions.class).as(TestOptions.class);
 
     ValueProvider<String> vp = runtime.getFoo();
     assertTrue(vp.isAccessible());
@@ -219,8 +223,7 @@ public class ValueProviderTest {
 
     ObjectNode root = MAPPER.valueToTree(submitOptions);
     ((ObjectNode) root.get("options")).put("foo", "quux");
-    TestOptions runtime =
-        MAPPER.convertValue(root, PipelineOptions.class).as(TestOptions.class);
+    TestOptions runtime = MAPPER.convertValue(root, PipelineOptions.class).as(TestOptions.class);
 
     ValueProvider<String> vp = runtime.getFoo();
     assertTrue(vp.isAccessible());
@@ -262,8 +265,8 @@ public class ValueProviderTest {
 
   @Test
   public void testNestedValueProviderSerialize() throws Exception {
-    ValueProvider<NonSerializable> nvp = NestedValueProvider.of(
-        StaticValueProvider.of("foo"), new NonSerializableTranslator());
+    ValueProvider<NonSerializable> nvp =
+        NestedValueProvider.of(StaticValueProvider.of("foo"), new NonSerializableTranslator());
     SerializableUtils.ensureSerializable(nvp);
   }
 
@@ -278,8 +281,9 @@ public class ValueProviderTest {
   @Test
   public void testNestedValueProviderCached() throws Exception {
     AtomicInteger increment = new AtomicInteger();
-    ValueProvider<Integer> nvp = NestedValueProvider.of(
-        StaticValueProvider.of(increment), new IncrementAtomicIntegerTranslator());
+    ValueProvider<Integer> nvp =
+        NestedValueProvider.of(
+            StaticValueProvider.of(increment), new IncrementAtomicIntegerTranslator());
     Integer originalValue = nvp.get();
     Integer cachedValue = nvp.get();
     Integer incrementValue = increment.incrementAndGet();

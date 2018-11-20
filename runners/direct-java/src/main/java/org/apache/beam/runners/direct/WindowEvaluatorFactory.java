@@ -31,8 +31,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 
 /**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
- * {@link Window.Assign} primitive {@link PTransform}.
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Window.Assign}
+ * primitive {@link PTransform}.
  */
 class WindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
@@ -43,9 +43,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      @Nullable CommittedBundle<?> inputBundle
- )
+      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle)
       throws Exception {
     return createTransformEvaluator((AppliedPTransform) application);
   }
@@ -99,16 +97,14 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     private <W extends BoundedWindow> Collection<? extends BoundedWindow> assignWindows(
         WindowFn<InputT, W> windowFn, WindowedValue<InputT> element) throws Exception {
       WindowFn<InputT, W>.AssignContext assignContext =
-          new DirectAssignContext<InputT, W>(windowFn, element);
+          new DirectAssignContext<>(windowFn, element);
       Collection<? extends BoundedWindow> windows = windowFn.assignWindows(assignContext);
       return windows;
     }
 
     @Override
     public TransformResult<InputT> finishBundle() throws Exception {
-      return StepTransformResult.<InputT>withoutHold(transform)
-          .addOutput(outputBundle)
-          .build();
+      return StepTransformResult.<InputT>withoutHold(transform).addOutput(outputBundle).build();
     }
   }
 
@@ -135,6 +131,5 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     public BoundedWindow window() {
       return Iterables.getOnlyElement(value.getWindows());
     }
-
   }
 }

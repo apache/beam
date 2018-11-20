@@ -16,39 +16,31 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
+
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-job('beam_PostCommit_Java_GradleBuild') {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_GradleBuild', 'Run Java PostCommit',
+  'Java SDK Post Commit Tests', this) {
+
   description('Runs PostCommit tests on the Java SDK.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 240)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
   // Publish all test results to Jenkins
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
   }
 
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Java SDK Post Commit Tests',
-      'Run Java PostCommit')
-
   // Gradle goals for this job.
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':javaPostCommit')
-      common_job_properties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
       // Specify maven home on Jenkins, needed by Maven archetype integration tests.
       switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2')
     }

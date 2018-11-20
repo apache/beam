@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -51,9 +52,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
-/**
- * A {@link RichGroupReduceFunction} for stateful {@link ParDo} in Flink Batch Runner.
- */
+/** A {@link RichGroupReduceFunction} for stateful {@link ParDo} in Flink Batch Runner. */
 public class FlinkStatefulDoFnFunction<K, V, OutputT>
     extends RichGroupReduceFunction<WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
 
@@ -64,6 +63,8 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
   private final SerializablePipelineOptions serializedOptions;
   private final Map<TupleTag<?>, Integer> outputMap;
   private final TupleTag<OutputT> mainOutputTag;
+  private final Coder<KV<K, V>> inputCoder;
+  private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
   private transient DoFnInvoker doFnInvoker;
 
   public FlinkStatefulDoFnFunction(
@@ -73,7 +74,9 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions,
       Map<TupleTag<?>, Integer> outputMap,
-      TupleTag<OutputT> mainOutputTag) {
+      TupleTag<OutputT> mainOutputTag,
+      Coder<KV<K, V>> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoderMap) {
 
     this.dofn = dofn;
     this.stepName = stepName;
@@ -82,12 +85,14 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
     this.outputMap = outputMap;
     this.mainOutputTag = mainOutputTag;
+    this.inputCoder = inputCoder;
+    this.outputCoderMap = outputCoderMap;
   }
 
   @Override
   public void reduce(
-      Iterable<WindowedValue<KV<K, V>>> values,
-      Collector<WindowedValue<OutputT>> out) throws Exception {
+      Iterable<WindowedValue<KV<K, V>>> values, Collector<WindowedValue<OutputT>> out)
+      throws Exception {
     RuntimeContext runtimeContext = getRuntimeContext();
 
     DoFnRunners.OutputManager outputManager;
@@ -95,8 +100,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
       outputManager = new FlinkDoFnFunction.DoFnOutputManager(out);
     } else {
       // it has some additional Outputs
-      outputManager =
-          new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
+      outputManager = new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
     }
 
     final Iterator<WindowedValue<KV<K, V>>> iterator = values.iterator();
@@ -117,26 +121,30 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
 
     List<TupleTag<?>> additionalOutputTags = Lists.newArrayList(outputMap.keySet());
 
-    DoFnRunner<KV<K, V>, OutputT> doFnRunner = DoFnRunners.simpleRunner(
-        serializedOptions.get(), dofn,
-        new FlinkSideInputReader(sideInputs, runtimeContext),
-        outputManager,
-        mainOutputTag,
-        additionalOutputTags,
-        new FlinkNoOpStepContext() {
-          @Override
-          public StateInternals stateInternals() {
-            return stateInternals;
-          }
-          @Override
-          public TimerInternals timerInternals() {
-            return timerInternals;
-          }
-        },
-        windowingStrategy);
+    DoFnRunner<KV<K, V>, OutputT> doFnRunner =
+        DoFnRunners.simpleRunner(
+            serializedOptions.get(),
+            dofn,
+            new FlinkSideInputReader(sideInputs, runtimeContext),
+            outputManager,
+            mainOutputTag,
+            additionalOutputTags,
+            new FlinkNoOpStepContext() {
+              @Override
+              public StateInternals stateInternals() {
+                return stateInternals;
+              }
 
-    if ((serializedOptions.get().as(FlinkPipelineOptions.class))
-        .getEnableMetrics()) {
+              @Override
+              public TimerInternals timerInternals() {
+                return timerInternals;
+              }
+            },
+            inputCoder,
+            outputCoderMap,
+            windowingStrategy);
+
+    if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
     }
 
@@ -187,8 +195,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     }
   }
 
-  private void fireTimer(
-      TimerInternals.TimerData timer, DoFnRunner<KV<K, V>, OutputT> doFnRunner) {
+  private void fireTimer(TimerInternals.TimerData timer, DoFnRunner<KV<K, V>, OutputT> doFnRunner) {
     StateNamespace namespace = timer.getNamespace();
     checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
     BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
@@ -205,5 +212,4 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
   public void close() throws Exception {
     doFnInvoker.invokeTeardown();
   }
-
 }

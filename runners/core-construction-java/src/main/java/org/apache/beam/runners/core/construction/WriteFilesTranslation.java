@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -26,7 +25,6 @@ import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
@@ -51,6 +49,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 
 /**
  * Utility methods for translating a {@link WriteFiles} to and from {@link RunnerApi}
@@ -145,7 +144,7 @@ public class WriteFilesTranslation {
               ? extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
-    SdkComponents sdkComponents = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create(transform.getPipeline().getOptions());
     RunnerApi.PTransform transformProto = PTransformTranslation.toProto(transform, sdkComponents);
     List<PCollectionView<?>> views = Lists.newArrayList();
     Map<String, SideInput> sideInputs = getWriteFilesPayload(transform).getSideInputsMap();
@@ -190,8 +189,9 @@ public class WriteFilesTranslation {
               ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
+    SdkComponents components = SdkComponents.create(transform.getPipeline().getOptions());
     return WriteFilesPayload.parseFrom(
-        PTransformTranslation.toProto(transform, Collections.emptyList(), SdkComponents.create())
+        PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()
             .getPayload());
   }
@@ -286,13 +286,6 @@ public class WriteFilesTranslation {
           .setPayload(payloadForWriteFiles(transform.getTransform(), components).toByteString())
           .build();
     }
-
-    @Override
-    public PTransformTranslation.RawPTransform<?, ?> rehydrate(
-        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
-        throws IOException {
-      return new RawWriteFiles(protoTransform, rehydratedComponents);
-    }
   }
 
   /** Registers {@link WriteFilesTranslator}. */
@@ -302,11 +295,6 @@ public class WriteFilesTranslation {
     public Map<Class<? extends PTransform>, TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(WriteFiles.CONCRETE_CLASS, new WriteFilesTranslator());
-    }
-
-    @Override
-    public Map<String, ? extends TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.singletonMap(WRITE_FILES_TRANSFORM_URN, new WriteFilesTranslator());
     }
   }
 

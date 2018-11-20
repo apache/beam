@@ -21,25 +21,19 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 
-/**
- * The interface for things that might be output from a {@link PTransform}.
- */
+/** The interface for things that might be output from a {@link PTransform}. */
 public interface POutput {
 
-  /**
-   * Returns the owning {@link Pipeline} of this {@link POutput}.
-   */
+  /** Returns the owning {@link Pipeline} of this {@link POutput}. */
   Pipeline getPipeline();
 
   /**
-   * Expands this {@link POutput} into a list of its component output
-   * {@link PValue PValues}.
+   * Expands this {@link POutput} into a list of its component output {@link PValue PValues}.
    *
    * <ul>
-   *   <li>A {@link PValue} expands to itself.</li>
-   *   <li>A tuple or list of {@link PValue PValues} (such as
-   *     {@link PCollectionTuple} or {@link PCollectionList})
-   *     expands to its component {@code PValue PValues}.</li>
+   *   <li>A {@link PValue} expands to itself.
+   *   <li>A tuple or list of {@link PValue PValues} (such as {@link PCollectionTuple} or {@link
+   *       PCollectionList}) expands to its component {@code PValue PValues}.
    * </ul>
    *
    * <p>Not intended to be invoked directly by user code.
@@ -53,9 +47,9 @@ public interface POutput {
    * <p>This includes ensuring that all {@link PCollection PCollections} have {@link
    * org.apache.beam.sdk.coders.Coder Coders} specified or defaulted.
    *
-   * <p>Automatically invoked whenever this {@link POutput} is output, after
-   * {@link PValue#finishSpecifyingOutput(String, PInput, PTransform)} has been called on each
-   * component {@link PValue} returned by {@link #expand()}.
+   * <p>Automatically invoked whenever this {@link POutput} is output, after {@link
+   * PValue#finishSpecifyingOutput(String, PInput, PTransform)} has been called on each component
+   * {@link PValue} returned by {@link #expand()}.
    */
   void finishSpecifyingOutput(String transformName, PInput input, PTransform<?, ?> transform);
 }

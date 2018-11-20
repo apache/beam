@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 
 /**
  * {@link BeamSqlCompareExpression} is used for compare operations.
@@ -50,9 +51,9 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive<Boolean> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Object leftValue = operands.get(0).evaluate(inputRow, window, correlateEnv).getValue();
-    Object rightValue = operands.get(1).evaluate(inputRow, window, correlateEnv).getValue();
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    Object leftValue = operands.get(0).evaluate(inputRow, window, env).getValue();
+    Object rightValue = operands.get(1).evaluate(inputRow, window, env).getValue();
     switch (operands.get(0).getOutputType()) {
       case BIGINT:
       case DECIMAL:
@@ -66,9 +67,13 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
       case BOOLEAN:
         return BeamSqlPrimitive.of(
             SqlTypeName.BOOLEAN, compare((Boolean) leftValue, (Boolean) rightValue));
+      case CHAR:
       case VARCHAR:
         return BeamSqlPrimitive.of(
             SqlTypeName.BOOLEAN, compare((CharSequence) leftValue, (CharSequence) rightValue));
+      case DATE:
+        return BeamSqlPrimitive.of(
+            SqlTypeName.BOOLEAN, compare((DateTime) leftValue, (DateTime) rightValue));
       default:
         throw new UnsupportedOperationException(toString());
     }
@@ -86,4 +91,7 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
    * SqlTypeName#INTEGER}, {@link SqlTypeName#SMALLINT} and {@link SqlTypeName#TINYINT}.
    */
   public abstract Boolean compare(Number leftValue, Number rightValue);
+
+  /** Compare between DateTime values, mapping to {@link SqlTypeName#DATETIME_TYPES}. */
+  public abstract Boolean compare(DateTime leftValue, DateTime rightValue);
 }

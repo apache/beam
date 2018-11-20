@@ -15,29 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness.data;
 
-import io.grpc.ManagedChannel;
-import io.grpc.stub.StreamObserver;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.BeamFnDataBufferingOutboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ManagedChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,25 +49,20 @@ import org.slf4j.LoggerFactory;
  */
 public class BeamFnDataGrpcClient implements BeamFnDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
+  private static final String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
 
   private final ConcurrentMap<Endpoints.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer> cache;
   private final Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
-  private final BiFunction<
-          StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements>,
-          StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
-      outboundStreamObserverFactory;
+  private final OutboundObserverFactory outboundObserverFactory;
   private final PipelineOptions options;
 
   public BeamFnDataGrpcClient(
       PipelineOptions options,
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
-      BiFunction<
-              StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements>,
-              StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
-          outboundStreamObserverFactory) {
+      OutboundObserverFactory outboundObserverFactory) {
     this.options = options;
     this.channelFactory = channelFactory;
-    this.outboundStreamObserverFactory = outboundStreamObserverFactory;
+    this.outboundObserverFactory = outboundObserverFactory;
     this.cache = new ConcurrentHashMap<>();
   }
 
@@ -84,7 +80,8 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       LogicalEndpoint inputLocation,
       Coder<WindowedValue<T>> coder,
       FnDataReceiver<WindowedValue<T>> consumer) {
-    LOG.debug("Registering consumer for instruction {} and target {}",
+    LOG.debug(
+        "Registering consumer for instruction {} and target {}",
         inputLocation.getInstructionId(),
         inputLocation.getTarget());
 
@@ -100,8 +97,8 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
    *
    * <p>The provided coder is used to encode elements on the outbound stream.
    *
-   * <p>On closing the returned consumer, an empty data block is sent as a signal of the
-   * logical data stream finishing.
+   * <p>On closing the returned consumer, an empty data block is sent as a signal of the logical
+   * data stream finishing.
    *
    * <p>The returned closeable consumer is not thread safe.
    */
@@ -116,8 +113,26 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
         "Creating output consumer for instruction {} and target {}",
         outputLocation.getInstructionId(),
         outputLocation.getTarget());
-    return new BeamFnDataBufferingOutboundObserver<>(
-        options, outputLocation, coder, client.getOutboundObserver());
+    Optional<Integer> bufferLimit = getBufferLimit(options);
+    if (bufferLimit.isPresent()) {
+      return BeamFnDataBufferingOutboundObserver.forLocationWithBufferLimit(
+          bufferLimit.get(), outputLocation, coder, client.getOutboundObserver());
+    } else {
+      return BeamFnDataBufferingOutboundObserver.forLocation(
+          outputLocation, coder, client.getOutboundObserver());
+    }
+  }
+
+  /** Returns the {@code beam_fn_api_data_buffer_limit=<int>} experiment value if set. */
+  private static Optional<Integer> getBufferLimit(PipelineOptions options) {
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
+    for (String experiment : experiments == null ? Collections.<String>emptyList() : experiments) {
+      if (experiment.startsWith(BEAM_FN_API_DATA_BUFFER_LIMIT)) {
+        return Optional.of(
+            Integer.parseInt(experiment.substring(BEAM_FN_API_DATA_BUFFER_LIMIT.length())));
+      }
+    }
+    return Optional.empty();
   }
 
   private BeamFnDataGrpcMultiplexer getClientFor(
@@ -127,9 +142,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
         (Endpoints.ApiServiceDescriptor descriptor) ->
             new BeamFnDataGrpcMultiplexer(
                 descriptor,
-                (StreamObserver<BeamFnApi.Elements> inboundObserver) ->
-                    outboundStreamObserverFactory.apply(
-                        BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data,
-                        inboundObserver)));
+                outboundObserverFactory,
+                BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data));
   }
 }

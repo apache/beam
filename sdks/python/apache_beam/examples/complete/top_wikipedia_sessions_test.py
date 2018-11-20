@@ -17,6 +17,8 @@
 
 """Test for the top wikipedia sessions example."""
 
+from __future__ import absolute_import
+
 import json
 import unittest
 

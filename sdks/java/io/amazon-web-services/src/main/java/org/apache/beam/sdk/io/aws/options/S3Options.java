@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws.options;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.aws.s3.DefaultS3ClientBuilderFactory;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -31,6 +32,7 @@ public interface S3Options extends AwsOptions {
   @Description("AWS S3 storage class used for creating S3 objects")
   @Default.String("STANDARD")
   String getS3StorageClass();
+
   void setS3StorageClass(String value);
 
   @Description(
@@ -44,11 +46,13 @@ public interface S3Options extends AwsOptions {
   @Description("Thread pool size, limiting max concurrent S3 operations")
   @Default.Integer(50)
   int getS3ThreadPoolSize();
+
   void setS3ThreadPoolSize(int value);
 
   @Description("Algorithm for SSE-S3 encryption, e.g. AES256.")
   @Nullable
   String getSSEAlgorithm();
+
   void setSSEAlgorithm(String value);
 
   @Description(
@@ -57,6 +61,7 @@ public interface S3Options extends AwsOptions {
           + " --SSECustomerKey={\"key\": \"86glyTlCN...\", \"algorithm\": \"AES256\"}")
   @Nullable
   SSECustomerKey getSSECustomerKey();
+
   void setSSECustomerKey(SSECustomerKey value);
 
   @Description(
@@ -65,7 +70,16 @@ public interface S3Options extends AwsOptions {
           + " --SSEAwsKeyManagementParams={\"awsKmsKeyId\": \"arn:aws:kms:...\"}")
   @Nullable
   SSEAwsKeyManagementParams getSSEAwsKeyManagementParams();
+
   void setSSEAwsKeyManagementParams(SSEAwsKeyManagementParams value);
+
+  @Description(
+      "Factory class that should be created and used to create a builder of AmazonS3 client."
+          + "Override the default value if you need a S3 client with custom properties, like path style access, etc.")
+  @Default.Class(DefaultS3ClientBuilderFactory.class)
+  Class<? extends S3ClientBuilderFactory> getS3ClientFactoryClass();
+
+  void setS3ClientFactoryClass(Class<? extends S3ClientBuilderFactory> s3ClientFactoryClass);
 
   /**
    * Provide the default s3 upload buffer size in bytes: 64MB if more than 512MB in RAM are

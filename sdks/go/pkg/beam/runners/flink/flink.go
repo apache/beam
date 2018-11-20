@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal"
 )
 
@@ -31,8 +30,5 @@ func init() {
 // Execute runs the given pipeline on Flink. Convenience wrapper over the
 // universal runner.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
-	if *jobopts.InternalJavaRunner == "" {
-		*jobopts.InternalJavaRunner = "org.apache.beam.runners.flink.FlinkRunner"
-	}
 	return universal.Execute(ctx, p)
 }

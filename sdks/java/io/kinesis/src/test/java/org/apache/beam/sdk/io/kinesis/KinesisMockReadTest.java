@@ -31,13 +31,10 @@ import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * Tests {@link AmazonKinesisMock}.
- */
+/** Tests {@link AmazonKinesisMock}. */
 public class KinesisMockReadTest {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Test
   public void readsDataFromMockKinesis() {
@@ -46,20 +43,19 @@ public class KinesisMockReadTest {
     List<List<AmazonKinesisMock.TestData>> testData =
         provideTestData(noOfShards, noOfEventsPerShard);
 
-    PCollection<AmazonKinesisMock.TestData> result = p
-        .apply(
-            KinesisIO.read()
-                .withStreamName("stream")
-                .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON)
-                .withAWSClientsProvider(new AmazonKinesisMock.Provider(testData, 10))
-                .withMaxNumRecords(noOfShards * noOfEventsPerShard))
-        .apply(ParDo.of(new KinesisRecordToTestData()));
+    PCollection<AmazonKinesisMock.TestData> result =
+        p.apply(
+                KinesisIO.read()
+                    .withStreamName("stream")
+                    .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON)
+                    .withAWSClientsProvider(new AmazonKinesisMock.Provider(testData, 10))
+                    .withMaxNumRecords(noOfShards * noOfEventsPerShard))
+            .apply(ParDo.of(new KinesisRecordToTestData()));
     PAssert.that(result).containsInAnyOrder(Iterables.concat(testData));
     p.run();
   }
 
-  static class KinesisRecordToTestData extends
-      DoFn<KinesisRecord, AmazonKinesisMock.TestData> {
+  static class KinesisRecordToTestData extends DoFn<KinesisRecord, AmazonKinesisMock.TestData> {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
@@ -68,8 +64,7 @@ public class KinesisMockReadTest {
   }
 
   private List<List<AmazonKinesisMock.TestData>> provideTestData(
-      int noOfShards,
-      int noOfEventsPerShard) {
+      int noOfShards, int noOfEventsPerShard) {
 
     int seqNumber = 0;
 
@@ -83,11 +78,9 @@ public class KinesisMockReadTest {
         arrival = arrival.plusSeconds(1);
 
         seqNumber++;
-        shardData.add(new AmazonKinesisMock.TestData(
-            Integer.toString(seqNumber),
-            arrival.toInstant(),
-            Integer.toString(seqNumber))
-        );
+        shardData.add(
+            new AmazonKinesisMock.TestData(
+                Integer.toString(seqNumber), arrival.toInstant(), Integer.toString(seqNumber)));
       }
     }
 

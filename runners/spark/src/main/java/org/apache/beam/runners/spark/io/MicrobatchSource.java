@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.io;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -42,10 +41,9 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
- * A {@link Source} that accommodates Spark's micro-batch oriented nature and wraps an
- * {@link UnboundedSource}.
+ * A {@link Source} that accommodates Spark's micro-batch oriented nature and wraps an {@link
+ * UnboundedSource}.
  */
 public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends Source<T> {
@@ -86,15 +84,15 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       LOG.info("Creating reader cache. Cache interval = {} ms.", readerCacheInterval);
       readerCache =
           CacheBuilder.newBuilder()
-                      .expireAfterAccess(readerCacheInterval, TimeUnit.MILLISECONDS)
-                      .removalListener(new ReaderCacheRemovalListener())
-                      .build();
+              .expireAfterAccess(readerCacheInterval, TimeUnit.MILLISECONDS)
+              .removalListener(new ReaderCacheRemovalListener())
+              .build();
     }
   }
 
   /**
-   * Divide the given number of records into {@code numSplits} approximately
-   * equal parts that sum to {@code numRecords}.
+   * Divide the given number of records into {@code numSplits} approximately equal parts that sum to
+   * {@code numRecords}.
    */
   private static long[] splitNumRecords(final long numRecords, final int numSplits) {
     final long[] splitNumRecords = new long[numSplits];
@@ -165,7 +163,6 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       return false;
     }
     return splitId == that.splitId;
-
   }
 
   @Override
@@ -176,15 +173,14 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
   }
 
   /**
-   * Mostly based on
-   * {@link org.apache.beam.sdk.io.BoundedReadFromUnboundedSource}'s
-   * <code>UnboundedToBoundedSourceAdapter</code>,
-   * with some adjustments for Spark specifics.
+   * Mostly based on {@link org.apache.beam.sdk.io.BoundedReadFromUnboundedSource}'s <code>
+   * UnboundedToBoundedSourceAdapter</code>, with some adjustments for Spark specifics.
    *
    * <p>This Reader reads until one of the following thresholds has been reached:
+   *
    * <ol>
-   *   <li>max records (per batch)</li>
-   *   <li>max read duration (per batch)</li>
+   *   <li>max records (per batch)
+   *   <li>max read duration (per batch)
    * </ol>
    */
   public class Reader extends Source.Reader<T> {
@@ -259,8 +255,11 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
     private void finalizeCheckpoint() throws IOException {
       unboundedReader.getCheckpointMark().finalizeCheckpoint();
-      LOG.debug("MicrobatchReader-{}: finalized CheckpointMark successfully after "
-          + "reading {} records.", splitId, recordsRead);
+      LOG.debug(
+          "MicrobatchReader-{}: finalized CheckpointMark successfully after "
+              + "reading {} records.",
+          splitId,
+          recordsRead);
     }
 
     @Override
@@ -293,9 +292,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
     }
   }
 
-  /**
-   * {@link Callable} which creates a {@link Reader}.
-   */
+  /** {@link Callable} which creates a {@link Reader}. */
   private class ReaderLoader implements Callable<Source.Reader<T>> {
     private final PipelineOptions options;
     private final CheckpointMarkT checkpointMark;
@@ -307,15 +304,16 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
     @Override
     public Reader call() throws Exception {
-      LOG.info("No cached reader found for split: [" + source
-          + "]. Creating new reader at checkpoint mark " + checkpointMark);
+      LOG.info(
+          "No cached reader found for split: ["
+              + source
+              + "]. Creating new reader at checkpoint mark "
+              + checkpointMark);
       return new Reader(source.createReader(options, checkpointMark));
     }
   }
 
-  /**
-   * Listener to be called when a reader is removed from {@link MicrobatchSource#readerCache}.
-   */
+  /** Listener to be called when a reader is removed from {@link MicrobatchSource#readerCache}. */
   private static class ReaderCacheRemovalListener
       implements RemovalListener<MicrobatchSource<?, ?>, Source.Reader<?>> {
 

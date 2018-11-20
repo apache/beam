@@ -39,39 +39,36 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 
-/**
- * An {@link ActiveWindowSet} for merging {@link WindowFn} implementations.
- */
+/** An {@link ActiveWindowSet} for merging {@link WindowFn} implementations. */
 public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWindowSet<W> {
   private final WindowFn<Object, W> windowFn;
 
   /**
    * Map ACTIVE and NEW windows to their state address windows. Persisted.
+   *
    * <ul>
-   * <li>A NEW window has the empty set as its value.
-   * <li>An ACTIVE window has its (typically singleton) set of state address windows as
-   * its value.
+   *   <li>A NEW window has the empty set as its value.
+   *   <li>An ACTIVE window has its (typically singleton) set of state address windows as its value.
    * </ul>
    */
   private final Map<W, Set<W>> activeWindowToStateAddressWindows;
 
   /**
-   * Deep clone of {@link #activeWindowToStateAddressWindows} as of last commit.
-   * Used to avoid writing to state if no changes have been made during the work unit.
+   * Deep clone of {@link #activeWindowToStateAddressWindows} as of last commit. Used to avoid
+   * writing to state if no changes have been made during the work unit.
    */
   private final Map<W, Set<W>> originalActiveWindowToStateAddressWindows;
 
-  /**
-   * Handle representing our state in the backend.
-   */
+  /** Handle representing our state in the backend. */
   private final ValueState<Map<W, Set<W>>> valueState;
 
   public MergingActiveWindowSet(WindowFn<Object, W> windowFn, StateInternals state) {
     this.windowFn = windowFn;
 
     StateTag<ValueState<Map<W, Set<W>>>> tag =
-        StateTags.makeSystemTagInternal(StateTags.value(
-            "tree", MapCoder.of(windowFn.windowCoder(), SetCoder.of(windowFn.windowCoder()))));
+        StateTags.makeSystemTagInternal(
+            StateTags.value(
+                "tree", MapCoder.of(windowFn.windowCoder(), SetCoder.of(windowFn.windowCoder()))));
     valueState = state.state(StateNamespaces.global(), tag);
     // Little use trying to prefetch this state since the ReduceFnRunner
     // is stymied until it is available.
@@ -130,9 +127,10 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   @Override
   public void ensureWindowIsActive(W window) {
     Set<W> stateAddressWindows = activeWindowToStateAddressWindows.get(window);
-    checkState(stateAddressWindows != null,
-                             "Cannot ensure window %s is active since it is neither ACTIVE nor NEW",
-                             window);
+    checkState(
+        stateAddressWindows != null,
+        "Cannot ensure window %s is active since it is neither ACTIVE nor NEW",
+        window);
     if (stateAddressWindows.isEmpty()) {
       // Window was NEW, make it ACTIVE with itself as its state address window.
       stateAddressWindows.add(window);
@@ -232,10 +230,9 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   }
 
   /**
-   * A {@link WindowFn#mergeWindows} call has determined that {@code toBeMerged} (which must
-   * all be ACTIVE}) should be considered equivalent to {@code activeWindow} (which is either a
-   * member of {@code toBeMerged} or is a new window). Make the corresponding change in
-   * the active window set.
+   * A {@link WindowFn#mergeWindows} call has determined that {@code toBeMerged} (which must all be
+   * ACTIVE}) should be considered equivalent to {@code activeWindow} (which is either a member of
+   * {@code toBeMerged} or is a new window). Make the corresponding change in the active window set.
    */
   private void recordMerge(Collection<W> toBeMerged, W mergeResult) throws Exception {
     // Note that mergedWriteStateAddress must predict the result of writeStateAddress
@@ -252,15 +249,12 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
 
     for (W other : toBeMerged) {
       Set<W> otherStateAddressWindows = activeWindowToStateAddressWindows.get(other);
-      checkState(otherStateAddressWindows != null,
-                               "Window %s is not ACTIVE or NEW", other);
+      checkState(otherStateAddressWindows != null, "Window %s is not ACTIVE or NEW", other);
 
-      if (otherStateAddressWindows != null) {
-        for (W otherStateAddressWindow : otherStateAddressWindows) {
-          // Since otherTarget equiv other AND other equiv mergeResult
-          // THEN otherTarget equiv mergeResult.
-          newStateAddressWindows.add(otherStateAddressWindow);
-        }
+      for (W otherStateAddressWindow : otherStateAddressWindows) {
+        // Since otherTarget equiv other AND other equiv mergeResult
+        // THEN otherTarget equiv mergeResult.
+        newStateAddressWindows.add(otherStateAddressWindow);
       }
       activeWindowToStateAddressWindows.remove(other);
 
@@ -332,13 +326,15 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     Set<W> knownStateAddressWindows = new HashSet<>();
     for (Map.Entry<W, Set<W>> entry : activeWindowToStateAddressWindows.entrySet()) {
       W active = entry.getKey();
-      checkState(!entry.getValue().isEmpty(),
-                               "Unexpected empty state address window set for ACTIVE window %s",
-                               active);
+      checkState(
+          !entry.getValue().isEmpty(),
+          "Unexpected empty state address window set for ACTIVE window %s",
+          active);
       for (W stateAddressWindow : entry.getValue()) {
-        checkState(knownStateAddressWindows.add(stateAddressWindow),
-                                 "%s is in more than one state address window set",
-                                 stateAddressWindow);
+        checkState(
+            knownStateAddressWindows.add(stateAddressWindow),
+            "%s is in more than one state address window set",
+            stateAddressWindow);
       }
     }
   }
@@ -387,8 +383,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   }
 
   /**
-   * Replace null {@code multimap} with empty map, and replace null entries in {@code multimap}
-   * with
+   * Replace null {@code multimap} with empty map, and replace null entries in {@code multimap} with
    * empty sets.
    */
   private static <W> Map<W, Set<W>> emptyIfNull(@Nullable Map<W, Set<W>> multimap) {
@@ -404,9 +399,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     }
   }
 
-  /**
-   * Return a deep copy of {@code multimap}.
-   */
+  /** Return a deep copy of {@code multimap}. */
   private static <W> Map<W, Set<W>> deepCopy(Map<W, Set<W>> multimap) {
     Map<W, Set<W>> newMultimap = new HashMap<>();
     for (Map.Entry<W, Set<W>> entry : multimap.entrySet()) {

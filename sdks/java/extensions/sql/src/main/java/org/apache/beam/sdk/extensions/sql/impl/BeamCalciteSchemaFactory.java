@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.KafkaTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
+import java.util.ServiceLoader;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.calcite.schema.Schema;
@@ -37,10 +35,10 @@ public class BeamCalciteSchemaFactory implements SchemaFactory {
   @Override
   public Schema create(SchemaPlus parentSchema, String name, Map<String, Object> operand) {
     MetaStore metaStore = new InMemoryMetaStore();
-    metaStore.registerProvider(new BigQueryTableProvider());
-    metaStore.registerProvider(new KafkaTableProvider());
-    metaStore.registerProvider(new PubsubJsonTableProvider());
-    metaStore.registerProvider(new TextTableProvider());
+    for (TableProvider provider :
+        ServiceLoader.load(TableProvider.class, getClass().getClassLoader())) {
+      metaStore.registerProvider(provider);
+    }
     return new BeamCalciteSchema(metaStore);
   }
 }

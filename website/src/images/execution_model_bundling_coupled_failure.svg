@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg id="svg2" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://www.w3.org/2000/svg" height="256.37" width="679.06" version="1.1" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/">
+ <metadata id="metadata7">
+  <rdf:RDF>
+   <cc:Work rdf:about="">
+    <dc:format>image/svg+xml</dc:format>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:title/>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <g id="layer1" transform="translate(16.157673,-773.52648)">
+  <g id="g3140-54" transform="matrix(1.4703519,0,0,1.2733995,38.653989,-84.095098)" stroke="#000" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="0.39496601" fill="#add8e6">
+   <rect id="rect3025-7-1-9-8-74" height="36.429" width="55" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" y="806.93" x="14.143" stroke-width="0.39497" fill="#add8e6"/>
+  </g>
+  <g id="g3140-54-9" transform="matrix(1.7799058,0,0,1.2747744,115.81366,-85.229582)" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" stroke-width="0.32553703" fill="#1e90ff">
+   <rect id="rect3025-7-1-9-8-74-5" stroke-dasharray="none" height="36.429" width="55" stroke="#000" stroke-miterlimit="4" y="806.93" x="14.143" stroke-width="0.32554" fill="#1e90ff"/>
+  </g>
+  <g id="g3140-54-1" transform="matrix(1.6807803,0,0,1.2732496,36.109093,-142.39997)" stroke="#000" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="0.3731702" fill="#d8bfd8">
+   <rect id="rect3025-7-1-9-8-74-7" height="36.429" width="55" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" y="806.93" x="14.143" stroke-width="0.37317" fill="#d8bfd8"/>
+  </g>
+  <g id="g3140-54-9-6" transform="matrix(1.1255822,0,0,1.2770216,141.67597,-145.5124)" stroke="#000" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="0.34072345" fill="#9370db">
+   <rect id="rect3025-7-1-9-8-74-5-1" height="36.429" width="63.501" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" y="806.93" x="9.8924" stroke-width="0.34072" fill="#9370db"/>
+  </g>
+  <path id="path3207-9" stroke-linejoin="miter" d="m49.897,826.21,0,175.89h435.32" stroke="#000" stroke-linecap="butt" stroke-width="0.94508249px" fill="none"/>
+  <text id="text7100" font-size="40px" font-family="Sans" style="letter-spacing:0px;word-spacing:0px;" font-style="normal" xml:space="preserve" y="812.71613" x="51.514202" font-weight="normal" line-height="125%" fill="#000000"><tspan id="tspan7104" y="812.71613" x="51.514202" font-size="16px" style="text-anchor:middle;text-align:center;">Worker</tspan></text>
+  <text id="text6762" font-size="16px" font-family="Sans" style="letter-spacing:0px;word-spacing:0px;" font-style="normal" xml:space="preserve" y="994.6684" x="529.6355" font-weight="normal" line-height="125%" fill="#000000"><tspan id="tspan6764" y="994.6684" x="529.6355" style="text-anchor:middle;text-align:center;">Processing</tspan><tspan id="tspan6766" y="1014.6685" x="529.6355" style="text-anchor:middle;text-align:center;">Time</tspan></text>
+  <g id="g3140-54-1-5" transform="matrix(0.45891321,0,0,0.41422951,427.99183,478.05141)" stroke="#000" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="1.00000155" fill="#d8bfd8">
+   <rect id="rect3025-7-1-9-8-74-7-6" height="36.429" width="55" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" y="806.93" x="14.143" stroke-width="1" fill="#d8bfd8"/>
+  </g>
+  <g id="g3140-54-4" transform="matrix(0.49362044,0,0,0.44268692,428.24508,431.02429)" stroke="#000" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="0.99901491" fill="#87cefa">
+   <rect id="rect3025-7-1-9-8-74-8" height="34.087" width="51.484" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" y="808.1" x="11.799" stroke-width="0.99901" fill="#87cefa"/>
+  </g>
+  <text id="text6979" font-size="40px" font-family="Sans" style="letter-spacing:0px;word-spacing:0px;" font-style="normal" xml:space="preserve" y="800.12573" x="467.31888" font-weight="normal" line-height="125%" fill="#000000"><tspan id="tspan6981" y="800.12573" x="467.31888" font-size="12px">Bundle A (ParDo1 input)</tspan></text>
+  <text id="text6979-3" font-size="40px" font-family="Sans" style="letter-spacing:0px;word-spacing:0px;" font-style="normal" xml:space="preserve" y="848.48145" x="468.29507" font-weight="normal" line-height="125%" fill="#000000"><tspan id="tspan6981-9" y="848.48145" x="468.29507" font-size="12px">Bundle C (ParDo2 input)</tspan></text>
+  <text id="text6979-0" font-size="40px" font-family="Sans" style="letter-spacing:0px;word-spacing:0px;" font-style="normal" xml:space="preserve" y="823.63007" x="468.2951" font-weight="normal" line-height="125%" fill="#000000"><tspan id="tspan6981-8" y="823.63007" x="468.2951" font-size="12px">Bundle B (ParDo1 input)</tspan></text>
+  <text id="text6979-0-8" font-size="40px" font-family="Sans" style="letter-spacing:0px;word-spacing:0px;" font-style="normal" xml:space="preserve" y="872.59741" x="468.65836" font-weight="normal" line-height="125%" fill="#000000"><tspan id="tspan6981-8-5" y="872.59741" x="468.65836" font-size="12px">Bundle D (ParDo2 input)</tspan></text>
+  <text id="text6979-0-0" font-size="40px" font-family="Sans" style="letter-spacing:0px;word-spacing:0px;" font-style="normal" xml:space="preserve" y="898.10181" x="468.69962" font-weight="normal" line-height="125%" fill="#000000"><tspan id="tspan6981-8-9" y="898.10181" x="468.69962" font-size="12px">Element processing failed</tspan></text>
+  <text id="text7061" font-size="40px" font-family="Sans" style="letter-spacing:0px;word-spacing:0px;" font-style="normal" xml:space="preserve" y="914.45178" x="29.878115" font-weight="normal" line-height="125%" fill="#000000"><tspan id="tspan7063" y="914.45178" x="29.878115" font-size="14px">2</tspan></text>
+  <text id="text7061-6" font-size="40px" font-family="Sans" style="letter-spacing:0px;word-spacing:0px;" font-style="normal" xml:space="preserve" y="973.8656" x="29.225224" font-weight="normal" line-height="125%" fill="#000000"><tspan id="tspan7063-3" y="973.8656" x="29.225224" font-size="14px">1</tspan></text>
+  <path id="path6657-3-5-62-2-2" stroke-linejoin="miter" d="m41.658,909.91h11.088" stroke="#000" stroke-linecap="butt" stroke-width="1.09913433px" fill="none"/>
+  <path id="path6657-3-5-62-2-2-8" stroke-linejoin="miter" d="M41.005,967.98h11.088" stroke="#000" stroke-linecap="butt" stroke-width="1.09913433px" fill="none"/>
+  <g id="g3140-54-1-4" transform="matrix(1.0418535,0,0,1.2764221,224.78434,-145.282)" stroke="#000" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="0.3731702" fill="#d8bfd8">
+   <rect id="rect3025-7-1-9-8-74-7-0" height="36.429" width="55" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" y="806.93" x="14.143" stroke-width="0.37317" fill="#d8bfd8"/>
+  </g>
+  <g id="g3140-54-9-6-5" transform="matrix(1.5768018,0,0,1.2749736,281.03685,-144.08674)" stroke="#000" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="0.34072345" fill="#9370db">
+   <rect id="rect3025-7-1-9-8-74-5-1-94" height="36.429" width="63.501" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" y="806.93" x="9.8924" stroke-width="0.34072" fill="#9370db"/>
+  </g>
+  <g id="g3140-54-1-5-4" transform="matrix(0.45891321,0,0,0.41422951,428.31828,502.82028)" stroke="#000" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="1.00000155" fill="#1e90ff">
+   <rect id="rect3025-7-1-9-8-74-7-6-8" height="36.429" width="55" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" y="806.93" x="14.143" stroke-width="1" fill="#1e90ff"/>
+  </g>
+  <g id="g3140-54-1-5-1" transform="matrix(0.45891321,0,0,0.41422951,428.31828,527.63044)" stroke="#000" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="1.00000155" fill="#9370db">
+   <rect id="rect3025-7-1-9-8-74-7-6-2" height="36.429" width="55" stroke="#000" stroke-dasharray="none" stroke-miterlimit="4" y="806.93" x="14.143" stroke-width="1" fill="#9370db"/>
+  </g>
+  <text id="text18024-8" style="letter-spacing:0px;word-spacing:0px;" font-family="Sans" font-weight="normal" xml:space="preserve" stroke-dasharray="none" font-size="40px" stroke="#000000" stroke-miterlimit="4" font-style="normal" y="899.92407" x="441.27896" stroke-width="0.2" line-height="125%" fill="#000000"><tspan id="tspan18026-9" stroke-width="0.2" stroke-dasharray="none" font-size="16px" stroke="#000000" stroke-miterlimit="4" y="899.92407" x="441.27896" font-weight="bold" fill="#ff0000">X</tspan></text>
+  <text id="text18024-8-3" style="letter-spacing:0px;word-spacing:0px;" font-family="Sans" font-weight="normal" xml:space="preserve" stroke-dasharray="none" font-size="40px" stroke="#000000" stroke-miterlimit="4" font-style="normal" y="913.63501" x="181.38664" stroke-width="0.2" line-height="125%" fill="#000000"><tspan id="tspan18026-9-6" stroke-width="0.2" stroke-dasharray="none" font-size="16px" stroke="#000000" stroke-miterlimit="4" y="913.63501" x="181.38664" font-weight="bold" fill="#ff0000">X</tspan></text>
+ </g>
+</svg>

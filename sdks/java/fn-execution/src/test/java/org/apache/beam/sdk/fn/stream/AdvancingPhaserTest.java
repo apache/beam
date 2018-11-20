@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.stream;
 
 import static org.hamcrest.collection.IsEmptyCollection.empty;
@@ -37,7 +36,7 @@ public class AdvancingPhaserTest {
     final AdvancingPhaser phaser = new AdvancingPhaser(1);
     int currentPhase = phaser.getPhase();
     ExecutorService service = Executors.newSingleThreadExecutor();
-    service.submit((Runnable) phaser::arrive);
+    service.submit((Runnable) phaser::arrive).get();
     phaser.awaitAdvance(currentPhase);
     assertFalse(phaser.isTerminated());
     service.shutdown();

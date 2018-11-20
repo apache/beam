@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTE;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.DECIMAL;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.DOUBLE;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.FLOAT;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT16;
@@ -28,6 +29,7 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.INT64;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.booleanValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.byteValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.decimalValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.doubleValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.floatValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.intValueExtractor;
@@ -57,15 +59,16 @@ import org.apache.beam.sdk.values.Row;
  * Jackson deserializer for {@link Row Rows}.
  *
  * <p>Supports converting JSON primitive types to:
+ *
  * <ul>
- *   <li>{@link Schema.TypeName#BYTE}</li>
- *   <li>{@link Schema.TypeName#INT16}</li>
- *   <li>{@link Schema.TypeName#INT32}</li>
- *   <li>{@link Schema.TypeName#INT64}</li>
- *   <li>{@link Schema.TypeName#FLOAT}</li>
- *   <li>{@link Schema.TypeName#DOUBLE}</li>
- *   <li>{@link Schema.TypeName#BOOLEAN}</li>
- *   <li>{@link Schema.TypeName#STRING}</li>
+ *   <li>{@link Schema.TypeName#BYTE}
+ *   <li>{@link Schema.TypeName#INT16}
+ *   <li>{@link Schema.TypeName#INT32}
+ *   <li>{@link Schema.TypeName#INT64}
+ *   <li>{@link Schema.TypeName#FLOAT}
+ *   <li>{@link Schema.TypeName#DOUBLE}
+ *   <li>{@link Schema.TypeName#BOOLEAN}
+ *   <li>{@link Schema.TypeName#STRING}
  * </ul>
  */
 public class RowJsonDeserializer extends StdDeserializer<Row> {
@@ -82,13 +85,12 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
           .put(DOUBLE, doubleValueExtractor())
           .put(BOOLEAN, booleanValueExtractor())
           .put(STRING, stringValueExtractor())
+          .put(DECIMAL, decimalValueExtractor())
           .build();
 
   private Schema schema;
 
-  /**
-   * Creates a deserializer for a {@link Row} {@link Schema}.
-   */
+  /** Creates a deserializer for a {@link Row} {@link Schema}. */
   public static RowJsonDeserializer forSchema(Schema schema) {
     schema.getFields().forEach(RowJsonValidation::verifyFieldTypeSupported);
     return new RowJsonDeserializer(schema);
@@ -104,13 +106,9 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
       throws IOException {
 
     // Parse and convert the root object to Row as if it's a nested field with name 'root'
-    return
-        (Row) extractJsonNodeValue(
-            FieldValue.of(
-                "root",
-                FieldType.row(schema),
-                jsonParser
-                    .readValueAsTree()));
+    return (Row)
+        extractJsonNodeValue(
+            FieldValue.of("root", FieldType.row(schema), jsonParser.readValueAsTree()));
   }
 
   private static Object extractJsonNodeValue(FieldValue fieldValue) {
@@ -137,67 +135,76 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
   private static Row jsonObjectToRow(FieldValue rowFieldValue) {
     if (!rowFieldValue.isJsonObject()) {
       throw new UnsupportedRowJsonException(
-          "Expected JSON object for field '" + rowFieldValue.name() + "'. "
-          + "Unable to convert '" + rowFieldValue.jsonValue().asText() + "'"
-          + " to Beam Row, it is not a JSON object. Currently only JSON objects "
-          + "can be parsed to Beam Rows");
+          "Expected JSON object for field '"
+              + rowFieldValue.name()
+              + "'. "
+              + "Unable to convert '"
+              + rowFieldValue.jsonValue().asText()
+              + "'"
+              + " to Beam Row, it is not a JSON object. Currently only JSON objects "
+              + "can be parsed to Beam Rows");
     }
 
-    return
-        rowFieldValue
-            .rowSchema()
-            .getFields()
-            .stream()
-            .map(schemaField ->
-                     extractJsonNodeValue(
-                         FieldValue.of(
-                             schemaField.getName(),
-                             schemaField.getType(),
-                             rowFieldValue.jsonFieldValue(schemaField.getName()))))
-            .collect(toRow(rowFieldValue.rowSchema()));
+    return rowFieldValue
+        .rowSchema()
+        .getFields()
+        .stream()
+        .map(
+            schemaField ->
+                extractJsonNodeValue(
+                    FieldValue.of(
+                        schemaField.getName(),
+                        schemaField.getType(),
+                        rowFieldValue.jsonFieldValue(schemaField.getName()))))
+        .collect(toRow(rowFieldValue.rowSchema()));
   }
 
   private static Object jsonArrayToList(FieldValue arrayFieldValue) {
     if (!arrayFieldValue.isJsonArray()) {
       throw new UnsupportedRowJsonException(
-          "Expected JSON array for field '" + arrayFieldValue.name() + "'. "
-          + "Instead got " + arrayFieldValue.jsonNodeType().name());
+          "Expected JSON array for field '"
+              + arrayFieldValue.name()
+              + "'. "
+              + "Instead got "
+              + arrayFieldValue.jsonNodeType().name());
     }
 
-    return
-        arrayFieldValue
-            .jsonArrayElements()
-            .map(jsonArrayElement ->
-                     extractJsonNodeValue(
-                         FieldValue.of(
-                             arrayFieldValue.name() + "[]",
-                             arrayFieldValue.arrayElementType(),
-                             jsonArrayElement)))
-            .collect(toList());
+    return arrayFieldValue
+        .jsonArrayElements()
+        .map(
+            jsonArrayElement ->
+                extractJsonNodeValue(
+                    FieldValue.of(
+                        arrayFieldValue.name() + "[]",
+                        arrayFieldValue.arrayElementType(),
+                        jsonArrayElement)))
+        .collect(toList());
   }
 
   private static Object extractJsonPrimitiveValue(FieldValue fieldValue) {
     try {
-      return
-          JSON_VALUE_GETTERS
-              .get(fieldValue.typeName())
-              .extractValue(fieldValue.jsonValue());
+      return JSON_VALUE_GETTERS.get(fieldValue.typeName()).extractValue(fieldValue.jsonValue());
     } catch (RuntimeException e) {
       throw new UnsupportedRowJsonException(
-          "Unable to get value from field '" + fieldValue.name() + "'. "
-          + "Schema type '" + fieldValue.typeName() + "'. "
-          + "JSON node type " + fieldValue.jsonNodeType().name(), e);
+          "Unable to get value from field '"
+              + fieldValue.name()
+              + "'. "
+              + "Schema type '"
+              + fieldValue.typeName()
+              + "'. "
+              + "JSON node type "
+              + fieldValue.jsonNodeType().name(),
+          e);
     }
   }
 
-  /**
-   * Helper class to keep track of schema field type, name,
-   * and actual json value for the field.
-   */
+  /** Helper class to keep track of schema field type, name, and actual json value for the field. */
   @AutoValue
   abstract static class FieldValue {
     abstract String name();
+
     abstract FieldType type();
+
     abstract @Nullable JsonNode jsonValue();
 
     TypeName typeName() {
@@ -253,9 +260,7 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
     }
   }
 
-  /**
-   * Gets thrown when Row parsing fails for any reason.
-   */
+  /** Gets thrown when Row parsing fails for any reason. */
   public static class UnsupportedRowJsonException extends RuntimeException {
 
     UnsupportedRowJsonException(String message, Throwable reason) {

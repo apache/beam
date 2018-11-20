@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -24,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import java.util.ArrayDeque;
@@ -33,13 +33,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.NavigableSet;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.OutputDeduplicator.DeduplicationResult;
@@ -58,6 +61,8 @@ public class GreedyPipelineFuser {
   private final FusedPipeline fusedPipeline;
 
   private GreedyPipelineFuser(Pipeline p) {
+    // Validate that the original pipeline is well-formed.
+    PipelineValidator.validate(p);
     this.pipeline = QueryablePipeline.forPrimitivesIn(p.getComponents());
     Set<PTransformNode> unfusedRootNodes = new LinkedHashSet<>();
     NavigableSet<CollectionConsumer> rootConsumers = new TreeSet<>();
@@ -75,9 +80,9 @@ public class GreedyPipelineFuser {
    *
    * <p>This fuser expects each ExecutableStage to have exactly one input. This means that pipelines
    * must be rooted at Impulse, or other runner-executed primitive transforms, instead of primitive
-   * Read nodes. The utilities in
-   * {@link org.apache.beam.runners.core.construction.JavaReadViaImpulse} can be used to convert
-   * bounded pipelines using the Read primitive.
+   * Read nodes. The utilities in {@link
+   * org.apache.beam.runners.core.construction.JavaReadViaImpulse} can be used to convert bounded
+   * pipelines using the Read primitive.
    */
   public static FusedPipeline fuse(Pipeline p) {
     return new GreedyPipelineFuser(p).fusedPipeline;
@@ -163,6 +168,7 @@ public class GreedyPipelineFuser {
         stages
             .stream()
             .map(stage -> deduplicated.getDeduplicatedStages().getOrDefault(stage, stage))
+            .map(GreedyPipelineFuser::sanitizeDanglingPTransformInputs)
             .collect(Collectors.toSet()),
         Sets.union(
             deduplicated.getIntroducedTransforms(),
@@ -179,14 +185,17 @@ public class GreedyPipelineFuser {
   private DescendantConsumers getRootConsumers(PTransformNode rootNode) {
     checkArgument(
         rootNode.getTransform().getInputsCount() == 0,
-        "%s is not at the root of the graph (consumes %s)",
-        PTransformNode.class.getSimpleName(),
+        "Transform %s is not at the root of the graph (consumes %s)",
+        rootNode.getId(),
         rootNode.getTransform().getInputsMap());
     checkArgument(
         !pipeline.getEnvironment(rootNode).isPresent(),
-        "%s requires all root nodes to be runner-implemented %s primitives",
+        "%s requires all root nodes to be runner-implemented %s primitives, "
+            + "but transform %s executes in environment %s",
         GreedyPipelineFuser.class.getSimpleName(),
-        PTransformTranslation.IMPULSE_TRANSFORM_URN);
+        PTransformTranslation.IMPULSE_TRANSFORM_URN,
+        rootNode.getId(),
+        pipeline.getEnvironment(rootNode));
     Set<PTransformNode> unfused = new HashSet<>();
     unfused.add(rootNode);
     NavigableSet<CollectionConsumer> environmentNodes = new TreeSet<>();
@@ -337,13 +346,104 @@ public class GreedyPipelineFuser {
             .collect(Collectors.toSet()));
   }
 
+  private static ExecutableStage sanitizeDanglingPTransformInputs(ExecutableStage stage) {
+    /* Possible inputs to a PTransform can only be those which are:
+     * <ul>
+     *  <li>Explicit input PCollection to the stage
+     *  <li>Outputs of a PTransform within the same stage
+     *  <li>Timer PCollections
+     *  <li>Side input PCollections
+     *  <li>Explicit outputs from the stage
+     * </ul>
+     */
+    Set<String> possibleInputs = new HashSet<>();
+    possibleInputs.add(stage.getInputPCollection().getId());
+    possibleInputs.addAll(
+        stage
+            .getOutputPCollections()
+            .stream()
+            .map(PCollectionNode::getId)
+            .collect(Collectors.toSet()));
+    possibleInputs.addAll(
+        stage
+            .getSideInputs()
+            .stream()
+            .map(s -> s.collection().getId())
+            .collect(Collectors.toSet()));
+    possibleInputs.addAll(
+        stage
+            .getTransforms()
+            .stream()
+            .flatMap(t -> t.getTransform().getOutputsMap().values().stream())
+            .collect(Collectors.toSet()));
+    Set<String> danglingInputs =
+        stage
+            .getTransforms()
+            .stream()
+            .flatMap(t -> t.getTransform().getInputsMap().values().stream())
+            .filter(in -> !possibleInputs.contains(in))
+            .collect(Collectors.toSet());
+
+    ImmutableList.Builder<PTransformNode> pTransformNodesBuilder = ImmutableList.builder();
+    for (PTransformNode transformNode : stage.getTransforms()) {
+      PTransform transform = transformNode.getTransform();
+      Map<String, String> validInputs =
+          transform
+              .getInputsMap()
+              .entrySet()
+              .stream()
+              .filter(e -> !danglingInputs.contains(e.getValue()))
+              .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+
+      if (!validInputs.equals(transform.getInputsMap())) {
+        // Dangling inputs found so recreate pTransform without the dangling inputs.
+        transformNode =
+            PipelineNode.pTransform(
+                transformNode.getId(),
+                transform.toBuilder().clearInputs().putAllInputs(validInputs).build());
+      }
+
+      pTransformNodesBuilder.add(transformNode);
+    }
+    ImmutableList<PTransformNode> pTransformNodes = pTransformNodesBuilder.build();
+    Components.Builder componentBuilder = stage.getComponents().toBuilder();
+    // Update the pTransforms in components.
+    componentBuilder
+        .clearTransforms()
+        .putAllTransforms(
+            pTransformNodes
+                .stream()
+                .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform)));
+    Map<String, PCollection> validPCollectionMap =
+        stage
+            .getComponents()
+            .getPcollectionsMap()
+            .entrySet()
+            .stream()
+            .filter(e -> !danglingInputs.contains(e.getKey()))
+            .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+
+    // Update pCollections in the components.
+    componentBuilder.clearPcollections().putAllPcollections(validPCollectionMap);
+
+    return ImmutableExecutableStage.of(
+        componentBuilder.build(),
+        stage.getEnvironment(),
+        stage.getInputPCollection(),
+        stage.getSideInputs(),
+        stage.getUserStates(),
+        stage.getTimers(),
+        pTransformNodes,
+        stage.getOutputPCollections());
+  }
+
   /**
    * A ({@link PCollectionNode}, {@link PTransformNode}) pair representing a single {@link
    * PTransformNode} consuming a single materialized {@link PCollectionNode}.
    *
    * <p>For convenience, {@link CollectionConsumer} implements {@link Comparable}. The natural
-   * ordering of {@link CollectionConsumer} is first by the ID of the {@link #consumedCollection()},
-   * then by the ID of the {@link #consumingTransform()}.
+   * ordering of {@link CollectionConsumer} is first by the IDs of the {@link
+   * #consumedCollection()}, then by the ID of the {@link #consumingTransform()}.
    */
   @AutoValue
   abstract static class CollectionConsumer implements Comparable<CollectionConsumer> {

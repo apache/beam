@@ -31,9 +31,10 @@ import org.junit.runners.JUnit4;
 public class DataflowPipelineDebugOptionsTest {
   @Test
   public void testTransformNameMapping() throws Exception {
-    DataflowPipelineDebugOptions options = PipelineOptionsFactory
-        .fromArgs("--transformNameMapping={\"a\":\"b\",\"foo\":\"\",\"bar\":\"baz\"}")
-        .as(DataflowPipelineDebugOptions.class);
+    DataflowPipelineDebugOptions options =
+        PipelineOptionsFactory.fromArgs(
+                "--transformNameMapping={\"a\":\"b\",\"foo\":\"\",\"bar\":\"baz\"}")
+            .as(DataflowPipelineDebugOptions.class);
     assertEquals(3, options.getTransformNameMapping().size());
     assertThat(options.getTransformNameMapping(), hasEntry("a", "b"));
     assertThat(options.getTransformNameMapping(), hasEntry("foo", ""));

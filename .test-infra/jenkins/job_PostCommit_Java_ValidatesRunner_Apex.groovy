@@ -16,37 +16,30 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Apex runner.
-job('beam_PostCommit_Java_ValidatesRunner_Apex_Gradle') {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Apex_Gradle',
+  'Run Apex ValidatesRunner', 'Apache Apex Runner ValidatesRunner Tests', this) {
   description('Runs the ValidatesRunner suite on the Apex runner.')
   previousNames('beam_PostCommit_Java_ValidatesRunner_Apex')
   previousNames('beam_PostCommit_Java_RunnableOnService_Apex')
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Publish all test results to Jenkins
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
   }
 
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-    delegate,
-    'Apache Apex Runner ValidatesRunner Tests',
-    'Run Apex ValidatesRunner')
-
   // Gradle goals for this job.
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-runners-apex:validatesRunner')
-      common_job_properties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
     }
   }
 }

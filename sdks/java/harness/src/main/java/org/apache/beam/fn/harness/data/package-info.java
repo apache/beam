@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Data service client and logical stream multiplexing.
- */
+/** Data service client and logical stream multiplexing. */
 package org.apache.beam.fn.harness.data;

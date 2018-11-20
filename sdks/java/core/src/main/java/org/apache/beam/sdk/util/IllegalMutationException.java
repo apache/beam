@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-/**
- * Thrown when a value appears to have been mutated, but that mutation is forbidden.
- */
+/** Thrown when a value appears to have been mutated, but that mutation is forbidden. */
 public class IllegalMutationException extends RuntimeException {
   private Object savedValue;
   private Object newValue;
@@ -37,16 +35,12 @@ public class IllegalMutationException extends RuntimeException {
     this.newValue = newValue;
   }
 
-  /**
-   * The original value, before the illegal mutation.
-   */
+  /** The original value, before the illegal mutation. */
   public Object getSavedValue() {
     return savedValue;
   }
 
-  /**
-   * The value after the illegal mutation.
-   */
+  /** The value after the illegal mutation. */
   public Object getNewValue() {
     return newValue;
   }

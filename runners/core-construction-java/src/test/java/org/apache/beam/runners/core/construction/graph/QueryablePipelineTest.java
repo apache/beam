@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -92,11 +91,18 @@ public class QueryablePipelineTest {
     Components components =
         Components.newBuilder()
             .putTransforms(
-                "root", PTransform.newBuilder().putOutputs("output", "output.out").build())
+                "root",
+                PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN)
+                            .build())
+                    .putOutputs("output", "output.out")
+                    .build())
             .build();
 
     thrown.expect(IllegalArgumentException.class);
-    QueryablePipeline.forPrimitivesIn(components);
+    QueryablePipeline.forPrimitivesIn(components).getComponents();
   }
 
   @Test
@@ -236,7 +242,15 @@ public class QueryablePipelineTest {
         Components.newBuilder()
             .putPcollections("read_pc", RunnerApi.PCollection.getDefaultInstance())
             .putPcollections("pardo_out", RunnerApi.PCollection.getDefaultInstance())
-            .putTransforms("root", PTransform.newBuilder().putOutputs("out", "read_pc").build())
+            .putTransforms(
+                "root",
+                PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN)
+                            .build())
+                    .putOutputs("out", "read_pc")
+                    .build())
             .putTransforms(
                 "multiConsumer",
                 PTransform.newBuilder()

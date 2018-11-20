@@ -1,17 +1,20 @@
 /*
- * Copyright (C) 2016 Google Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software distributed under the License
- * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
- * or implied. See the License for the specific language governing permissions and limitations under
- * the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.util;
 
 import com.google.api.client.util.NanoClock;
@@ -21,12 +24,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.joda.time.Duration;
 
-/**
- * A {@link DataflowPipelineJob} that is returned when {@code --templateRunner} is set.
- */
+/** A {@link DataflowPipelineJob} that is returned when {@code --templateRunner} is set. */
 public class DataflowTemplateJob extends DataflowPipelineJob {
-  private static final String ERROR =
-      "The result of template creation should not be used.";
+  private static final String ERROR = "The result of template creation should not be used.";
 
   public DataflowTemplateJob() {
     super(null, null, null, null);

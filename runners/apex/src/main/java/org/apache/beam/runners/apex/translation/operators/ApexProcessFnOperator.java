@@ -40,13 +40,12 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Apex operator for simple native map operations.
- */
+/** Apex operator for simple native map operations. */
 public class ApexProcessFnOperator<InputT> extends BaseOperator {
 
   private static final Logger LOG = LoggerFactory.getLogger(ApexProcessFnOperator.class);
   private boolean traceTuples = false;
+
   @Bind(JavaSerializer.class)
   private final ApexOperatorFn<InputT> fn;
 
@@ -64,33 +63,29 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
 
   private final transient OutputEmitter<ApexStreamTuple<? extends WindowedValue<?>>> outputEmitter =
       new OutputEmitter<ApexStreamTuple<? extends WindowedValue<?>>>() {
-    @Override
-    public void emit(ApexStreamTuple<? extends WindowedValue<?>> tuple) {
-      if (traceTuples) {
-        LOG.debug("\nemitting {}\n", tuple);
-      }
-      outputPort.emit(tuple);
-    }
-  };
+        @Override
+        public void emit(ApexStreamTuple<? extends WindowedValue<?>> tuple) {
+          if (traceTuples) {
+            LOG.debug("\nemitting {}\n", tuple);
+          }
+          outputPort.emit(tuple);
+        }
+      };
 
-  /**
-   * Something that emits results.
-   */
+  /** Something that emits results. */
   public interface OutputEmitter<T> {
     void emit(T tuple);
   }
 
-  /**
-   * The processing logic for this operator.
-   */
+  /** The processing logic for this operator. */
   public interface ApexOperatorFn<InputT> extends Serializable {
-    void process(ApexStreamTuple<WindowedValue<InputT>> input,
-        OutputEmitter<ApexStreamTuple<? extends WindowedValue<?>>> outputEmitter) throws Exception;
+    void process(
+        ApexStreamTuple<WindowedValue<InputT>> input,
+        OutputEmitter<ApexStreamTuple<? extends WindowedValue<?>>> outputEmitter)
+        throws Exception;
   }
 
-  /**
-   * Convert {@link KV} into {@link KeyedWorkItem}s.
-   */
+  /** Convert {@link KV} into {@link KeyedWorkItem}s. */
   public static <K, V> ApexProcessFnOperator<KV<K, V>> toKeyedWorkItems(
       ApexPipelineOptions options) {
     ApexOperatorFn<KV<K, V>> fn = new ToKeyedWorkItems<>();
@@ -99,15 +94,18 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
 
   private static class ToKeyedWorkItems<K, V> implements ApexOperatorFn<KV<K, V>> {
     @Override
-    public final void process(ApexStreamTuple<WindowedValue<KV<K, V>>> tuple,
+    public final void process(
+        ApexStreamTuple<WindowedValue<KV<K, V>>> tuple,
         OutputEmitter<ApexStreamTuple<? extends WindowedValue<?>>> outputEmitter) {
 
       if (tuple instanceof ApexStreamTuple.WatermarkTuple) {
         outputEmitter.emit(tuple);
       } else {
         for (WindowedValue<KV<K, V>> in : tuple.getValue().explodeWindows()) {
-          KeyedWorkItem<K, V> kwi = KeyedWorkItems.elementsWorkItem(in.getValue().getKey(),
-              Collections.singletonList(in.withValue(in.getValue().getValue())));
+          KeyedWorkItem<K, V> kwi =
+              KeyedWorkItems.elementsWorkItem(
+                  in.getValue().getKey(),
+                  Collections.singletonList(in.withValue(in.getValue().getValue())));
           outputEmitter.emit(ApexStreamTuple.DataTuple.of(in.withValue(kwi)));
         }
       }
@@ -120,9 +118,7 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
     return new ApexProcessFnOperator<>(fn, options.isTupleTracingEnabled());
   }
 
-  /**
-   * Function for implementing {@link org.apache.beam.sdk.transforms.windowing.Window.Assign}.
-   */
+  /** Function for implementing {@link org.apache.beam.sdk.transforms.windowing.Window.Assign}. */
   private static class AssignWindows<T, W extends BoundedWindow> implements ApexOperatorFn<T> {
     private final WindowFn<T, W> windowFn;
 
@@ -131,60 +127,58 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
     }
 
     @Override
-    public final void process(ApexStreamTuple<WindowedValue<T>> tuple,
-        OutputEmitter<ApexStreamTuple<? extends WindowedValue<?>>> outputEmitter) throws Exception {
+    public final void process(
+        ApexStreamTuple<WindowedValue<T>> tuple,
+        OutputEmitter<ApexStreamTuple<? extends WindowedValue<?>>> outputEmitter)
+        throws Exception {
       if (tuple instanceof ApexStreamTuple.WatermarkTuple) {
         outputEmitter.emit(tuple);
       } else {
         final WindowedValue<T> input = tuple.getValue();
         Collection<W> windows =
-            (windowFn).assignWindows(
-                (windowFn).new AssignContext() {
-                    @Override
-                    public T element() {
-                      return input.getValue();
-                    }
+            (windowFn)
+                .assignWindows(
+                    windowFn.new AssignContext() {
+                      @Override
+                      public T element() {
+                        return input.getValue();
+                      }
 
-                    @Override
-                    public Instant timestamp() {
-                      return input.getTimestamp();
-                    }
+                      @Override
+                      public Instant timestamp() {
+                        return input.getTimestamp();
+                      }
 
-                    @Override
-                    public BoundedWindow window() {
-                      return Iterables.getOnlyElement(input.getWindows());
-                    }
-                  });
-        for (W w: windows) {
-          WindowedValue<T> wv = WindowedValue.of(input.getValue(), input.getTimestamp(),
-              w, input.getPane());
+                      @Override
+                      public BoundedWindow window() {
+                        return Iterables.getOnlyElement(input.getWindows());
+                      }
+                    });
+        for (W w : windows) {
+          WindowedValue<T> wv =
+              WindowedValue.of(input.getValue(), input.getTimestamp(), w, input.getPane());
           outputEmitter.emit(ApexStreamTuple.DataTuple.of(wv));
         }
       }
     }
   }
 
-  /**
-   * Input port.
-   */
+  /** Input port. */
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> inputPort =
       new DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>>() {
-    @Override
-    public void process(ApexStreamTuple<WindowedValue<InputT>> tuple) {
-      try {
-        fn.process(tuple, outputEmitter);
-      } catch (Exception e) {
-        Throwables.throwIfUnchecked(e);
-        throw new RuntimeException(e);
-      }
-    }
-  };
+        @Override
+        public void process(ApexStreamTuple<WindowedValue<InputT>> tuple) {
+          try {
+            fn.process(tuple, outputEmitter);
+          } catch (Exception e) {
+            Throwables.throwIfUnchecked(e);
+            throw new RuntimeException(e);
+          }
+        }
+      };
 
-  /**
-   * Output port.
-   */
+  /** Output port. */
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<ApexStreamTuple<? extends WindowedValue<?>>>
-    outputPort = new DefaultOutputPort<>();
-
+  public final transient DefaultOutputPort<ApexStreamTuple<? extends WindowedValue<?>>> outputPort =
+      new DefaultOutputPort<>();
 }

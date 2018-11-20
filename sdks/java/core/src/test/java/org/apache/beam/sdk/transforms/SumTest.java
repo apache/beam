@@ -32,9 +32,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Sum.
- */
+/** Tests for Sum. */
 @RunWith(JUnit4.class)
 public class SumTest {
   private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
@@ -51,26 +49,17 @@ public class SumTest {
 
   @Test
   public void testSumIntegerFn() {
-    testCombineFn(
-        Sum.ofIntegers(),
-        Lists.newArrayList(1, 2, 3, 4),
-        10);
+    testCombineFn(Sum.ofIntegers(), Lists.newArrayList(1, 2, 3, 4), 10);
   }
 
   @Test
   public void testSumLongFn() {
-    testCombineFn(
-        Sum.ofLongs(),
-        Lists.newArrayList(1L, 2L, 3L, 4L),
-        10L);
+    testCombineFn(Sum.ofLongs(), Lists.newArrayList(1L, 2L, 3L, 4L), 10L);
   }
 
   @Test
   public void testSumDoubleFn() {
-    testCombineFn(
-        Sum.ofDoubles(),
-        Lists.newArrayList(1.0, 2.0, 3.0, 4.0),
-        10.0);
+    testCombineFn(Sum.ofDoubles(), Lists.newArrayList(1.0, 2.0, 3.0, 4.0), 10.0);
   }
 
   @Test

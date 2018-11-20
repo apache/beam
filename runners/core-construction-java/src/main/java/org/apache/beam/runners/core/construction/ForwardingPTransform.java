@@ -30,8 +30,8 @@ import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A base class for implementing {@link PTransform} overrides, which behave identically to the
- * delegate transform but with overridden methods. Implementors are required to implement
- * {@link #delegate()}, which returns the object to forward calls to, and {@link #expand(PInput)}.
+ * delegate transform but with overridden methods. Implementors are required to implement {@link
+ * #delegate()}, which returns the object to forward calls to, and {@link #expand(PInput)}.
  */
 public abstract class ForwardingPTransform<InputT extends PInput, OutputT extends POutput>
     extends PTransform<InputT, OutputT> {

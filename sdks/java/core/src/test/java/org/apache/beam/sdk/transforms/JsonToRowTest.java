@@ -30,28 +30,24 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@link JsonToRow}.
- */
+/** Unit tests for {@link JsonToRow}. */
 @RunWith(JUnit4.class)
 public class JsonToRowTest implements Serializable {
 
-  @Rule
-  public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   @Category(NeedsRunner.class)
   public void testParsesRows() throws Exception {
     Schema personSchema =
-        Schema
-            .builder()
+        Schema.builder()
             .addStringField("name")
             .addInt32Field("height")
             .addBooleanField("knowsJavascript")
             .build();
 
-    PCollection<String> jsonPersons = pipeline
-        .apply(
+    PCollection<String> jsonPersons =
+        pipeline.apply(
             "jsonPersons",
             Create.of(
                 jsonPerson("person1", "80", "true"),
@@ -61,12 +57,9 @@ public class JsonToRowTest implements Serializable {
                 jsonPerson("person5", "40", "true")));
 
     PCollection<Row> personRows =
-        jsonPersons
-            .apply(JsonToRow.withSchema(personSchema))
-            .setCoder(personSchema.getRowCoder());
+        jsonPersons.apply(JsonToRow.withSchema(personSchema)).setRowSchema(personSchema);
 
-    PAssert
-        .that(personRows)
+    PAssert.that(personRows)
         .containsInAnyOrder(
             row(personSchema, "person1", 80, true),
             row(personSchema, "person2", 70, false),
@@ -78,11 +71,16 @@ public class JsonToRowTest implements Serializable {
   }
 
   private String jsonPerson(String name, String height, String knowsJs) {
-    return
-        "{\n"
-        + "  \"name\": \"" + name + "\",\n"
-        + "  \"height\": " + height + ",\n"
-        + "  \"knowsJavascript\": " + knowsJs + "\n"
+    return "{\n"
+        + "  \"name\": \""
+        + name
+        + "\",\n"
+        + "  \"height\": "
+        + height
+        + ",\n"
+        + "  \"knowsJavascript\": "
+        + knowsJs
+        + "\n"
         + "}";
   }
 

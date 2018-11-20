@@ -34,25 +34,26 @@ import org.apache.beam.sdk.io.fs.ResourceId;
  *
  * <p>It defines APIs for writing file systems agnostic code.
  *
- * <p>All methods are protected, and they are for file system providers to implement.
- * Clients should use {@link FileSystems} utility.
+ * <p>All methods are protected, and they are for file system providers to implement. Clients should
+ * use {@link FileSystems} utility.
  */
 @Experimental(Kind.FILESYSTEM)
 public abstract class FileSystem<ResourceIdT extends ResourceId> {
   /**
    * This is the entry point to convert user-provided specs to {@link ResourceIdT ResourceIds}.
-   * Callers should use {@link #match} to resolve users specs ambiguities before
-   * calling other methods.
+   * Callers should use {@link #match} to resolve users specs ambiguities before calling other
+   * methods.
    *
    * <p>Implementation should handle the following ambiguities of a user-provided spec:
+   *
    * <ol>
-   * <li>{@code spec} could be a glob or a uri. {@link #match} should be able to tell and
-   * choose efficient implementations.
-   * <li>The user-provided {@code spec} might refer to files or directories. It is common that
-   * users that wish to indicate a directory will omit the trailing {@code /}, such as in a spec of
-   * {@code "/tmp/dir"}. The {@link FileSystem} should be able to recognize a directory with
-   * the trailing {@code /} omitted, but should always return a correct {@link ResourceIdT}
-   * (e.g., {@code "/tmp/dir/"} inside the returned {@link MatchResult}.
+   *   <li>{@code spec} could be a glob or a uri. {@link #match} should be able to tell and choose
+   *       efficient implementations.
+   *   <li>The user-provided {@code spec} might refer to files or directories. It is common that
+   *       users that wish to indicate a directory will omit the trailing {@code /}, such as in a
+   *       spec of {@code "/tmp/dir"}. The {@link FileSystem} should be able to recognize a
+   *       directory with the trailing {@code /} omitted, but should always return a correct {@link
+   *       ResourceIdT} (e.g., {@code "/tmp/dir/"} inside the returned {@link MatchResult}.
    * </ol>
    *
    * <p>All {@link FileSystem} implementations should support glob in the final hierarchical path
@@ -60,12 +61,10 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    * spec. {@link FileSystem FileSystems} can support additional patterns for user-provided specs.
    *
    * @return {@code List<MatchResult>} in the same order of the input specs.
-   *
    * @throws IllegalArgumentException if specs are invalid.
-   * @throws IOException if all specs failed to match due to issues like:
-   * network connection, authorization.
-   * Exception for individual spec need to be deferred until callers retrieve
-   * metadata with {@link MatchResult#metadata()}.
+   * @throws IOException if all specs failed to match due to issues like: network connection,
+   *     authorization. Exception for individual spec need to be deferred until callers retrieve
+   *     metadata with {@link MatchResult#metadata()}.
    */
   protected abstract List<MatchResult> match(List<String> specs) throws IOException;
 
@@ -77,16 +76,15 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    * @param resourceId the reference of the file-like resource to create
    * @param createOptions the configuration of the create operation
    */
-  protected abstract WritableByteChannel create(
-      ResourceIdT resourceId, CreateOptions createOptions) throws IOException;
+  protected abstract WritableByteChannel create(ResourceIdT resourceId, CreateOptions createOptions)
+      throws IOException;
 
   /**
    * Returns a read channel for the given {@link ResourceIdT}.
    *
    * <p>The resource is not expanded; it is used verbatim.
    *
-   * <p>If seeking is supported, then this returns a
-   * {@link java.nio.channels.SeekableByteChannel}.
+   * <p>If seeking is supported, then this returns a {@link java.nio.channels.SeekableByteChannel}.
    *
    * @param resourceId the reference of the file-like resource to open
    */
@@ -95,60 +93,52 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
   /**
    * Copies a {@link List} of file-like resources from one location to another.
    *
-   * <p>The number of source resources must equal the number of destination resources.
-   * Destination resources will be created recursively.
+   * <p>The number of source resources must equal the number of destination resources. Destination
+   * resources will be created recursively.
    *
    * @param srcResourceIds the references of the source resources
    * @param destResourceIds the references of the destination resources
-   *
-   * @throws FileNotFoundException if the source resources are missing. When copy throws,
-   * each resource might or might not be copied. In such scenarios, callers can use {@code match()}
-   * to determine the state of the resources.
+   * @throws FileNotFoundException if the source resources are missing. When copy throws, each
+   *     resource might or might not be copied. In such scenarios, callers can use {@code match()}
+   *     to determine the state of the resources.
    */
-  protected abstract void copy(
-      List<ResourceIdT> srcResourceIds,
-      List<ResourceIdT> destResourceIds) throws IOException;
+  protected abstract void copy(List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds)
+      throws IOException;
 
   /**
    * Renames a {@link List} of file-like resources from one location to another.
    *
-   * <p>The number of source resources must equal the number of destination resources.
-   * Destination resources will be created recursively.
+   * <p>The number of source resources must equal the number of destination resources. Destination
+   * resources will be created recursively.
    *
    * @param srcResourceIds the references of the source resources
    * @param destResourceIds the references of the destination resources
-   *
-   * @throws FileNotFoundException if the source resources are missing. When rename throws,
-   * the state of the resources is unknown but safe:
-   * for every (source, destination) pair of resources, the following are possible:
-   * a) source exists, b) destination exists, c) source and destination both exist.
-   * Thus no data is lost, however, duplicated resource are possible.
-   * In such scenarios, callers can use {@code match()} to determine the state of the resource.
+   * @throws FileNotFoundException if the source resources are missing. When rename throws, the
+   *     state of the resources is unknown but safe: for every (source, destination) pair of
+   *     resources, the following are possible: a) source exists, b) destination exists, c) source
+   *     and destination both exist. Thus no data is lost, however, duplicated resource are
+   *     possible. In such scenarios, callers can use {@code match()} to determine the state of the
+   *     resource.
    */
   protected abstract void rename(
-      List<ResourceIdT> srcResourceIds,
-      List<ResourceIdT> destResourceIds) throws IOException;
+      List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds) throws IOException;
 
   /**
    * Deletes a collection of resources.
    *
-   * <p>It is allowed but not recommended to delete directories recursively.
-   * Callers depends on {@link FileSystems} and uses {@code DeleteOptions}.
-   *
    * @param resourceIds the references of the resources to delete.
-   *
-   * @throws FileNotFoundException if resources are missing. When delete throws,
-   * each resource might or might not be deleted. In such scenarios, callers can use {@code match()}
-   * to determine the state of the resources.
+   * @throws FileNotFoundException if resources are missing. When delete throws, each resource might
+   *     or might not be deleted. In such scenarios, callers can use {@code match()} to determine
+   *     the state of the resources.
    */
   protected abstract void delete(Collection<ResourceIdT> resourceIds) throws IOException;
 
   /**
-   * Returns a new {@link ResourceId} for this filesystem that represents the named resource.
-   * The user supplies both the resource spec and whether it is a directory.
+   * Returns a new {@link ResourceId} for this filesystem that represents the named resource. The
+   * user supplies both the resource spec and whether it is a directory.
    *
-   * <p>The supplied {@code singleResourceSpec} is expected to be in a proper format, including
-   * any necessary escaping, for this {@link FileSystem}.
+   * <p>The supplied {@code singleResourceSpec} is expected to be in a proper format, including any
+   * necessary escaping, for this {@link FileSystem}.
    *
    * <p>This function may throw an {@link IllegalArgumentException} if given an invalid argument,
    * such as when the specified {@code singleResourceSpec} is not a valid resource name.

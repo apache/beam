@@ -62,8 +62,10 @@ final class ExecutorServiceParallelExecutor
   private final int targetParallelism;
   private final ExecutorService executorService;
 
+  private final RootProviderRegistry rootRegistry;
   private final TransformEvaluatorRegistry registry;
 
+  private final ExecutableGraph<PTransformNode, PCollectionNode> graph;
   private final EvaluationContext evaluationContext;
 
   private final TransformExecutorFactory executorFactory;
@@ -75,12 +77,21 @@ final class ExecutorServiceParallelExecutor
   private AtomicReference<State> pipelineState = new AtomicReference<>(State.RUNNING);
 
   public static ExecutorServiceParallelExecutor create(
-      int targetParallelism, TransformEvaluatorRegistry registry, EvaluationContext context) {
-    return new ExecutorServiceParallelExecutor(targetParallelism, registry, context);
+      int targetParallelism,
+      RootProviderRegistry rootRegistry,
+      TransformEvaluatorRegistry transformRegistry,
+      ExecutableGraph<PTransformNode, PCollectionNode> graph,
+      EvaluationContext context) {
+    return new ExecutorServiceParallelExecutor(
+        targetParallelism, rootRegistry, transformRegistry, graph, context);
   }
 
   private ExecutorServiceParallelExecutor(
-      int targetParallelism, TransformEvaluatorRegistry registry, EvaluationContext context) {
+      int targetParallelism,
+      RootProviderRegistry rootRegistry,
+      TransformEvaluatorRegistry registry,
+      ExecutableGraph<PTransformNode, PCollectionNode> graph,
+      EvaluationContext context) {
     this.targetParallelism = targetParallelism;
     // Don't use Daemon threads for workers. The Pipeline should continue to execute even if there
     // are no other active threads (for example, because waitUntilFinish was not called)
@@ -91,7 +102,9 @@ final class ExecutorServiceParallelExecutor
                 .setThreadFactory(MoreExecutors.platformThreadFactory())
                 .setNameFormat("direct-runner-worker")
                 .build());
+    this.rootRegistry = rootRegistry;
     this.registry = registry;
+    this.graph = graph;
     this.evaluationContext = context;
 
     // Weak Values allows TransformExecutorServices that are no longer in use to be reclaimed.
@@ -129,9 +142,9 @@ final class ExecutorServiceParallelExecutor
   }
 
   @Override
-  public void start(
-      ExecutableGraph<PTransformNode, PCollectionNode> graph,
-      RootProviderRegistry rootProviderRegistry) {
+  // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+  @SuppressWarnings("FutureReturnValueIgnored")
+  public void start() {
     int numTargetSplits = Math.max(3, targetParallelism);
     ImmutableMap.Builder<PTransformNode, ConcurrentLinkedQueue<CommittedBundle<?>>>
         pendingRootBundles = ImmutableMap.builder();
@@ -139,7 +152,7 @@ final class ExecutorServiceParallelExecutor
       ConcurrentLinkedQueue<CommittedBundle<?>> pending = new ConcurrentLinkedQueue<>();
       try {
         Collection<CommittedBundle<?>> initialInputs =
-            rootProviderRegistry.getInitialInputs(root, numTargetSplits);
+            rootRegistry.getInitialInputs(root, numTargetSplits);
         pending.addAll(initialInputs);
       } catch (Exception e) {
         throw UserCodeException.wrap(e);
@@ -182,9 +195,7 @@ final class ExecutorServiceParallelExecutor
   @SuppressWarnings("unchecked")
   @Override
   public void process(
-      CommittedBundle<?> bundle,
-      PTransformNode consumer,
-      CompletionCallback onComplete) {
+      CommittedBundle<?> bundle, PTransformNode consumer, CompletionCallback onComplete) {
     evaluateBundle(consumer, bundle, onComplete);
   }
 
@@ -301,10 +312,15 @@ final class ExecutorServiceParallelExecutor
     }
     pipelineState.compareAndSet(State.RUNNING, newState); // ensure we hit a terminal node
     if (!errors.isEmpty()) {
-      final IllegalStateException exception = new IllegalStateException(
-        "Error" + (errors.size() == 1 ? "" : "s") + " during executor shutdown:\n"
-        + errors.stream().map(Exception::getMessage)
-          .collect(Collectors.joining("\n- ", "- ", "")));
+      final IllegalStateException exception =
+          new IllegalStateException(
+              "Error"
+                  + (errors.size() == 1 ? "" : "s")
+                  + " during executor shutdown:\n"
+                  + errors
+                      .stream()
+                      .map(Exception::getMessage)
+                      .collect(Collectors.joining("\n- ", "- ", "")));
       visibleUpdates.failed(exception);
       throw exception;
     }
@@ -368,9 +384,7 @@ final class ExecutorServiceParallelExecutor
       updates.offer(VisibleExecutorUpdate.finished());
     }
 
-    /**
-     * Try to get the next unconsumed message in this {@link QueueMessageReceiver}.
-     */
+    /** Try to get the next unconsumed message in this {@link QueueMessageReceiver}. */
     @Nullable
     private VisibleExecutorUpdate tryNext(Duration timeout) throws InterruptedException {
       return updates.poll(timeout.getMillis(), TimeUnit.MILLISECONDS);

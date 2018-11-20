@@ -31,13 +31,12 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.util.Collector;
 
 /**
- * This is the second part for executing a {@link org.apache.beam.sdk.transforms.Combine.PerKey}
- * on Flink, the second part is {@link FlinkReduceFunction}. This function performs the final
+ * This is the second part for executing a {@link org.apache.beam.sdk.transforms.Combine.PerKey} on
+ * Flink, the second part is {@link FlinkReduceFunction}. This function performs the final
  * combination of the pre-combined values after a shuffle.
  *
- * <p>The input to {@link #reduce(Iterable, Collector)} are elements of the same key but
- * for different windows. We have to ensure that we only combine elements of matching
- * windows.
+ * <p>The input to {@link #reduce(Iterable, Collector)} are elements of the same key but for
+ * different windows. We have to ensure that we only combine elements of matching windows.
  */
 public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
     extends RichGroupReduceFunction<WindowedValue<KV<K, AccumT>>, WindowedValue<KV<K, OutputT>>> {
@@ -63,13 +62,12 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
     this.sideInputs = sideInputs;
 
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
-
   }
 
   @Override
   public void reduce(
-      Iterable<WindowedValue<KV<K, AccumT>>> elements,
-      Collector<WindowedValue<KV<K, OutputT>>> out) throws Exception {
+      Iterable<WindowedValue<KV<K, AccumT>>> elements, Collector<WindowedValue<KV<K, OutputT>>> out)
+      throws Exception {
 
     PipelineOptions options = serializedOptions.get();
 
@@ -92,5 +90,4 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
         elements,
         out);
   }
-
 }

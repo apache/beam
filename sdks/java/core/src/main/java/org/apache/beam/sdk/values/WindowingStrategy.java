@@ -35,18 +35,16 @@ import org.joda.time.Duration;
 
 /**
  * A {@code WindowingStrategy} describes the windowing behavior for a specific collection of values.
- * It has both a {@link WindowFn} describing how elements are assigned to windows and a
- * {@link Trigger} that controls when output is produced for each window.
+ * It has both a {@link WindowFn} describing how elements are assigned to windows and a {@link
+ * Trigger} that controls when output is produced for each window.
  *
  * @param <T> type of elements being windowed
- * @param <W> {@link BoundedWindow} subclass used to represent the
- *            windows used by this {@code WindowingStrategy}
+ * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this {@code
+ *     WindowingStrategy}
  */
 public class WindowingStrategy<T, W extends BoundedWindow> implements Serializable {
 
-  /**
-   * The accumulation modes that can be used with windowing.
-   */
+  /** The accumulation modes that can be used with windowing. */
   public enum AccumulationMode {
     DISCARDING_FIRED_PANES,
     ACCUMULATING_FIRED_PANES
@@ -69,10 +67,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   private WindowingStrategy(
       WindowFn<T, W> windowFn,
-      Trigger trigger, boolean triggerSpecified,
-      AccumulationMode mode, boolean modeSpecified,
-      Duration allowedLateness, boolean allowedLatenessSpecified,
-      TimestampCombiner timestampCombiner, boolean timestampCombinerSpecified,
+      Trigger trigger,
+      boolean triggerSpecified,
+      AccumulationMode mode,
+      boolean modeSpecified,
+      Duration allowedLateness,
+      boolean allowedLatenessSpecified,
+      TimestampCombiner timestampCombiner,
+      boolean timestampCombinerSpecified,
       ClosingBehavior closingBehavior,
       OnTimeBehavior onTimeBehavior) {
     this.windowFn = windowFn;
@@ -88,20 +90,22 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     this.timestampCombinerSpecified = timestampCombinerSpecified;
   }
 
-  /**
-   * Return a fully specified, default windowing strategy.
-   */
+  /** Return a fully specified, default windowing strategy. */
   public static WindowingStrategy<Object, GlobalWindow> globalDefault() {
     return DEFAULT;
   }
 
-  public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(
-      WindowFn<T, W> windowFn) {
-    return new WindowingStrategy<>(windowFn,
-        DefaultTrigger.of(), false,
-        AccumulationMode.DISCARDING_FIRED_PANES, false,
-        DEFAULT_ALLOWED_LATENESS, false,
-        TimestampCombiner.END_OF_WINDOW, false,
+  public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(WindowFn<T, W> windowFn) {
+    return new WindowingStrategy<>(
+        windowFn,
+        DefaultTrigger.of(),
+        false,
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        false,
+        DEFAULT_ALLOWED_LATENESS,
+        false,
+        TimestampCombiner.END_OF_WINDOW,
+        false,
         ClosingBehavior.FIRE_IF_NON_EMPTY,
         OnTimeBehavior.FIRE_ALWAYS);
   }
@@ -189,8 +193,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   }
 
   /**
-   * Returns a {@link WindowingStrategy} identical to {@code this} but with the window function
-   * set to {@code wildcardWindowFn}.
+   * Returns a {@link WindowingStrategy} identical to {@code this} but with the window function set
+   * to {@code wildcardWindowFn}.
    */
   public WindowingStrategy<T, W> withWindowFn(WindowFn<?, ?> wildcardWindowFn) {
     @SuppressWarnings("unchecked")
@@ -211,8 +215,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   }
 
   /**
-   * Returns a {@link WindowingStrategy} identical to {@code this} but with the allowed lateness
-   * set to {@code allowedLateness}.
+   * Returns a {@link WindowingStrategy} identical to {@code this} but with the allowed lateness set
+   * to {@code allowedLateness}.
    */
   public WindowingStrategy<T, W> withAllowedLateness(Duration allowedLateness) {
     return new WindowingStrategy<>(
@@ -327,10 +331,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public WindowingStrategy<T, W> fixDefaults() {
     return new WindowingStrategy<>(
         windowFn,
-        trigger, true,
-        mode, true,
-        allowedLateness, true,
-        timestampCombiner, true,
+        trigger,
+        true,
+        mode,
+        true,
+        allowedLateness,
+        true,
+        timestampCombiner,
+        true,
         closingBehavior,
         onTimeBehavior);
   }

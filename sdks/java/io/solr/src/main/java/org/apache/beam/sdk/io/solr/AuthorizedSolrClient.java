@@ -37,6 +37,7 @@ import org.apache.solr.common.params.SolrParams;
 
 /**
  * Client for interact with Solr.
+ *
  * @param <ClientT> type of SolrClient
  */
 class AuthorizedSolrClient<ClientT extends SolrClient> implements Closeable {
@@ -45,12 +46,8 @@ class AuthorizedSolrClient<ClientT extends SolrClient> implements Closeable {
   private final String password;
 
   AuthorizedSolrClient(ClientT solrClient, ConnectionConfiguration configuration) {
-    checkArgument(
-        solrClient != null,
-        "solrClient can not be null");
-    checkArgument(
-        configuration != null,
-        "configuration can not be null");
+    checkArgument(solrClient != null, "solrClient can not be null");
+    checkArgument(configuration != null, "configuration can not be null");
     this.solrClient = solrClient;
     this.username = configuration.getUsername();
     this.password = configuration.getPassword();
@@ -62,29 +59,27 @@ class AuthorizedSolrClient<ClientT extends SolrClient> implements Closeable {
     return process(collection, query);
   }
 
-  <ResponseT extends SolrResponse> ResponseT process(String collection,
-      SolrRequest<ResponseT> request) throws IOException, SolrServerException {
+  <ResponseT extends SolrResponse> ResponseT process(
+      String collection, SolrRequest<ResponseT> request) throws IOException, SolrServerException {
     request.setBasicAuthCredentials(username, password);
     return request.process(solrClient, collection);
   }
 
-  CoreAdminResponse process(CoreAdminRequest request)
-      throws IOException, SolrServerException {
+  CoreAdminResponse process(CoreAdminRequest request) throws IOException, SolrServerException {
     return process(null, request);
   }
 
-  SolrResponse process(CollectionAdminRequest request)
-      throws IOException, SolrServerException {
+  SolrResponse process(CollectionAdminRequest request) throws IOException, SolrServerException {
     return process(null, request);
   }
 
-  static ClusterState getClusterState(
-      AuthorizedSolrClient<CloudSolrClient> authorizedSolrClient) {
+  static ClusterState getClusterState(AuthorizedSolrClient<CloudSolrClient> authorizedSolrClient) {
     authorizedSolrClient.solrClient.connect();
     return authorizedSolrClient.solrClient.getZkStateReader().getClusterState();
   }
 
-  @Override public void close() throws IOException {
+  @Override
+  public void close() throws IOException {
     solrClient.close();
   }
 }

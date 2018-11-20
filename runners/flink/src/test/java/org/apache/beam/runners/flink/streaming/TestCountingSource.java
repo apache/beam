@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -38,11 +39,10 @@ import org.slf4j.LoggerFactory;
 /**
  * An unbounded source for testing the unbounded sources framework code.
  *
- * <p>Each split of this sources produces records of the form KV(split_id, i),
- * where i counts up from 0.  Each record has a timestamp of i, and the watermark
- * accurately tracks these timestamps.  The reader will occasionally return false
- * from {@code advance}, in order to simulate a source where not all the data is
- * available immediately.
+ * <p>Each split of this sources produces records of the form KV(split_id, i), where i counts up
+ * from 0. Each record has a timestamp of i, and the watermark accurately tracks these timestamps.
+ * The reader will occasionally return false from {@code advance}, in order to simulate a source
+ * where not all the data is available immediately.
  */
 public class TestCountingSource
     extends UnboundedSource<KV<Integer, Integer>, TestCountingSource.CounterMark> {
@@ -53,12 +53,12 @@ public class TestCountingSource
   private final int shardNumber;
   private final boolean dedup;
   private final boolean throwOnFirstSnapshot;
-  private final boolean allowSplitting;
+  private final int fixedNumSplits;
 
   /**
-   * We only allow an exception to be thrown from getCheckpointMark
-   * at most once. This must be static since the entire TestCountingSource
-   * instance may re-serialized when the pipeline recovers and retries.
+   * We only allow an exception to be thrown from getCheckpointMark at most once. This must be
+   * static since the entire TestCountingSource instance may re-serialized when the pipeline
+   * recovers and retries.
    */
   private static boolean thrown = false;
 
@@ -67,36 +67,43 @@ public class TestCountingSource
   }
 
   public TestCountingSource(int numMessagesPerShard) {
-    this(numMessagesPerShard, 0, false, false, true);
+    this(numMessagesPerShard, 0, false, false, -1);
   }
 
   public TestCountingSource withDedup() {
-    return new TestCountingSource(
-        numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, true);
+    return new TestCountingSource(numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, -1);
   }
 
   private TestCountingSource withShardNumber(int shardNumber) {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, -1);
   }
 
   public TestCountingSource withThrowOnFirstSnapshot(boolean throwOnFirstSnapshot) {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, -1);
   }
 
   public TestCountingSource withoutSplitting() {
-    return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, false);
+    return new TestCountingSource(numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, 1);
   }
 
-  private TestCountingSource(int numMessagesPerShard, int shardNumber, boolean dedup,
-                             boolean throwOnFirstSnapshot, boolean allowSplitting) {
+  public TestCountingSource withFixedNumSplits(int maxNumSplits) {
+    return new TestCountingSource(
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, maxNumSplits);
+  }
+
+  private TestCountingSource(
+      int numMessagesPerShard,
+      int shardNumber,
+      boolean dedup,
+      boolean throwOnFirstSnapshot,
+      int fixedNumSplits) {
     this.numMessagesPerShard = numMessagesPerShard;
     this.shardNumber = shardNumber;
     this.dedup = dedup;
     this.throwOnFirstSnapshot = throwOnFirstSnapshot;
-    this.allowSplitting = allowSplitting;
+    this.fixedNumSplits = fixedNumSplits;
   }
 
   public int getShardNumber() {
@@ -104,17 +111,16 @@ public class TestCountingSource
   }
 
   @Override
-  public List<TestCountingSource> split(
-      int desiredNumSplits, PipelineOptions options) {
+  public List<TestCountingSource> split(int desiredNumSplits, PipelineOptions options) {
     List<TestCountingSource> splits = new ArrayList<>();
-    int numSplits = allowSplitting ? desiredNumSplits : 1;
-    for (int i = 0; i < numSplits; i++) {
+    int actualNumSplits = (fixedNumSplits == -1) ? desiredNumSplits : fixedNumSplits;
+    for (int i = 0; i < actualNumSplits; i++) {
       splits.add(withShardNumber(i));
     }
     return splits;
   }
 
-  class CounterMark implements UnboundedSource.CheckpointMark {
+  static class CounterMark implements UnboundedSource.CheckpointMark {
     int current;
 
     public CounterMark(int current) {
@@ -131,10 +137,7 @@ public class TestCountingSource
 
   @Override
   public Coder<CounterMark> getCheckpointMarkCoder() {
-    return DelegateCoder.of(
-        VarIntCoder.of(),
-        new FromCounterMark(),
-        new ToCounterMark());
+    return DelegateCoder.of(VarIntCoder.of(), new FromCounterMark(), new ToCounterMark());
   }
 
   @Override
@@ -143,8 +146,8 @@ public class TestCountingSource
   }
 
   /**
-   * Public only so that the checkpoint can be conveyed from {@link #getCheckpointMark()} to
-   * {@link TestCountingSource#createReader(PipelineOptions, CounterMark)} without cast.
+   * Public only so that the checkpoint can be conveyed from {@link #getCheckpointMark()} to {@link
+   * TestCountingSource#createReader(PipelineOptions, CounterMark)} without cast.
    */
   public class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>> {
     private int current;
@@ -200,6 +203,11 @@ public class TestCountingSource
 
     @Override
     public Instant getWatermark() {
+      if (current >= numMessagesPerShard - 1) {
+        // we won't emit further data, signal this with the final watermark
+        return new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE);
+      }
+
       // The watermark is a promise about future elements, and the timestamps of elements are
       // strictly increasing for this source.
       return new Instant(current + 1);
@@ -239,7 +247,8 @@ public class TestCountingSource
     return KvCoder.of(VarIntCoder.of(), VarIntCoder.of());
   }
 
-  private class FromCounterMark implements DelegateCoder.CodingFunction<CounterMark, Integer> {
+  private static class FromCounterMark
+      implements DelegateCoder.CodingFunction<CounterMark, Integer> {
     @Override
     public Integer apply(CounterMark input) {
       return input.current;
@@ -256,7 +265,7 @@ public class TestCountingSource
     }
   }
 
-  private class ToCounterMark implements DelegateCoder.CodingFunction<Integer, CounterMark> {
+  private static class ToCounterMark implements DelegateCoder.CodingFunction<Integer, CounterMark> {
     @Override
     public CounterMark apply(Integer input) {
       return new CounterMark(input);

@@ -29,16 +29,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link LocalFileSystemRegistrar}.
- */
+/** Tests for {@link LocalFileSystemRegistrar}. */
 @RunWith(JUnit4.class)
 public class LocalFileSystemRegistrarTest {
 
   @Test
   public void testServiceLoader() {
-    for (FileSystemRegistrar registrar
-        : Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
+    for (FileSystemRegistrar registrar :
+        Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof LocalFileSystemRegistrar) {
         Iterable<FileSystem> fileSystems = registrar.fromOptions(PipelineOptionsFactory.create());
         assertThat(fileSystems, contains(instanceOf(LocalFileSystem.class)));

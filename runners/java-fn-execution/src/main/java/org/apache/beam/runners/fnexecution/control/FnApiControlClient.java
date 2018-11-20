@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Set;
@@ -32,6 +29,9 @@ import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,9 +136,7 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
     onCloseListeners.add(onCloseListener);
   }
 
-  /**
-   * A private view of this class as a {@link StreamObserver} for connecting as a gRPC listener.
-   */
+  /** A private view of this class as a {@link StreamObserver} for connecting as a gRPC listener. */
   private class ResponseStreamObserver implements StreamObserver<BeamFnApi.InstructionResponse> {
     /**
      * Processes an incoming {@link BeamFnApi.InstructionResponse} by correlating it with the
@@ -155,10 +153,10 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
           responseFuture.complete(response);
         } else {
           responseFuture.completeExceptionally(
-              new RuntimeException(String.format(
-                  "Error received from SDK harness for instruction %s: %s",
-                  response.getInstructionId(),
-                  response.getError())));
+              new RuntimeException(
+                  String.format(
+                      "Error received from SDK harness for instruction %s: %s",
+                      response.getInstructionId(), response.getError())));
         }
       }
     }

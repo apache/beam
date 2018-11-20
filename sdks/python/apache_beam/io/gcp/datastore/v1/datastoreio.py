@@ -16,9 +16,13 @@
 #
 
 """A connector for reading from and writing to Google Cloud Datastore"""
+from __future__ import absolute_import
+from __future__ import division
 
 import logging
 import time
+from builtins import object
+from builtins import round
 
 from apache_beam.io.gcp.datastore.v1 import helper
 from apache_beam.io.gcp.datastore.v1 import query_splitter
@@ -362,11 +366,11 @@ class _Mutate(PTransform):
         return _Mutate._WRITE_BATCH_INITIAL_SIZE
 
       recent_mean_latency_ms = (self._commit_time_per_entity_ms.sum(now)
-                                / self._commit_time_per_entity_ms.count(now))
+                                // self._commit_time_per_entity_ms.count(now))
       return max(_Mutate._WRITE_BATCH_MIN_SIZE,
                  min(_Mutate._WRITE_BATCH_MAX_SIZE,
                      _Mutate._WRITE_BATCH_TARGET_LATENCY_MS
-                     / max(recent_mean_latency_ms, 1)
+                     // max(recent_mean_latency_ms, 1)
                     ))
 
     def report_latency(self, now, latency_ms, num_mutations):
@@ -444,7 +448,7 @@ class _Mutate(PTransform):
       _, latency_ms = helper.write_mutations(
           self._datastore, self._project, self._mutations,
           self._throttler, self._update_rpc_stats,
-          throttle_delay=_Mutate._WRITE_BATCH_TARGET_LATENCY_MS/1000)
+          throttle_delay=_Mutate._WRITE_BATCH_TARGET_LATENCY_MS//1000)
       logging.debug("Successfully wrote %d mutations in %dms.",
                     len(self._mutations), latency_ms)
 

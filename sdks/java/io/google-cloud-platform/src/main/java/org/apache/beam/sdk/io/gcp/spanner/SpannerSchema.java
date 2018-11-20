@@ -28,34 +28,38 @@ import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.util.List;
 
-/**
- * Encapsulates Cloud Spanner Schema.
- */
+/** Encapsulates Cloud Spanner Schema. */
 @AutoValue
 abstract class SpannerSchema implements Serializable {
   abstract ImmutableList<String> tables();
+
   abstract ImmutableListMultimap<String, Column> columns();
+
   abstract ImmutableListMultimap<String, KeyPart> keyParts();
+
   abstract ImmutableTable<String, String, Long> cellsMutatedPerColumn();
+
   abstract ImmutableMap<String, Long> cellsMutatedPerRow();
 
   public static Builder builder() {
     return new AutoValue_SpannerSchema.Builder();
   }
 
-  /**
-   * Builder for {@link SpannerSchema}.
-   */
+  /** Builder for {@link SpannerSchema}. */
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setTables(ImmutableList<String> tablesBuilder);
 
     abstract ImmutableListMultimap.Builder<String, Column> columnsBuilder();
+
     abstract ImmutableListMultimap.Builder<String, KeyPart> keyPartsBuilder();
+
     abstract ImmutableTable.Builder<String, String, Long> cellsMutatedPerColumnBuilder();
+
     abstract ImmutableMap.Builder<String, Long> cellsMutatedPerRowBuilder();
 
     abstract ImmutableListMultimap<String, Column> columns();
+
     abstract ImmutableTable<String, String, Long> cellsMutatedPerColumn();
 
     @VisibleForTesting
@@ -82,9 +86,11 @@ abstract class SpannerSchema implements Serializable {
     public final SpannerSchema build() {
       // precompute the number of cells that are mutated for operations affecting
       // an entire row such as a single key delete.
-      cellsMutatedPerRowBuilder().putAll(Maps.transformValues(
-          cellsMutatedPerColumn().rowMap(),
-          entry -> entry.values().stream().mapToLong(Long::longValue).sum()));
+      cellsMutatedPerRowBuilder()
+          .putAll(
+              Maps.transformValues(
+                  cellsMutatedPerColumn().rowMap(),
+                  entry -> entry.values().stream().mapToLong(Long::longValue).sum()));
 
       setTables(ImmutableList.copyOf(columns().keySet()));
 
@@ -104,21 +110,14 @@ abstract class SpannerSchema implements Serializable {
     return keyParts().get(table.toLowerCase());
   }
 
-  /**
-   * Return the total number of cells affected when the specified column is mutated.
-   */
+  /** Return the total number of cells affected when the specified column is mutated. */
   public long getCellsMutatedPerColumn(String table, String column) {
-    return cellsMutatedPerColumn()
-        .row(table.toLowerCase())
-        .getOrDefault(column.toLowerCase(), 1L);
+    return cellsMutatedPerColumn().row(table.toLowerCase()).getOrDefault(column.toLowerCase(), 1L);
   }
 
-  /**
-   * Return the total number of cells affected with the given row is deleted.
-   */
+  /** Return the total number of cells affected with the given row is deleted. */
   public long getCellsMutatedPerRow(String table) {
-    return cellsMutatedPerRow()
-        .getOrDefault(table.toLowerCase(), 1L);
+    return cellsMutatedPerRow().getOrDefault(table.toLowerCase(), 1L);
   }
 
   @AutoValue

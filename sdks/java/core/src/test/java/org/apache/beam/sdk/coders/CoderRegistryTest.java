@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
@@ -51,25 +52,19 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for CoderRegistry.
- */
+/** Tests for CoderRegistry. */
 @RunWith(JUnit4.class)
 public class CoderRegistryTest {
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Rule
-  public ExpectedLogs expectedLogs = ExpectedLogs.none(CoderRegistry.class);
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(CoderRegistry.class);
 
-  private static class SerializableClass implements Serializable {
-  }
+  private static class SerializableClass implements Serializable {}
 
-  private static class NotSerializableClass { }
+  private static class NotSerializableClass {}
 
   @Test
   public void testRegisterInstantiatedCoder() throws Exception {
@@ -88,9 +83,10 @@ public class CoderRegistryTest {
   public void testSimpleUnknownDefaultCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     thrown.expect(CannotProvideCoderException.class);
-    thrown.expectMessage(allOf(
-        containsString(UnknownType.class.getName()),
-        containsString("Unable to provide a Coder for")));
+    thrown.expectMessage(
+        allOf(
+            containsString(UnknownType.class.getName()),
+            containsString("Unable to provide a Coder for")));
     registry.getCoder(UnknownType.class);
   }
 
@@ -98,25 +94,22 @@ public class CoderRegistryTest {
   public void testParameterizedDefaultListCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     TypeDescriptor<List<Integer>> listToken = new TypeDescriptor<List<Integer>>() {};
-    assertEquals(ListCoder.of(VarIntCoder.of()),
-                 registry.getCoder(listToken));
+    assertEquals(ListCoder.of(VarIntCoder.of()), registry.getCoder(listToken));
 
     registry.registerCoderProvider(
         CoderProviders.fromStaticMethods(MyValue.class, MyValueCoder.class));
     TypeDescriptor<KV<String, List<MyValue>>> kvToken =
         new TypeDescriptor<KV<String, List<MyValue>>>() {};
-    assertEquals(KvCoder.of(StringUtf8Coder.of(),
-                            ListCoder.of(MyValueCoder.of())),
-                 registry.getCoder(kvToken));
-
+    assertEquals(
+        KvCoder.of(StringUtf8Coder.of(), ListCoder.of(MyValueCoder.of())),
+        registry.getCoder(kvToken));
   }
 
   @Test
   public void testParameterizedDefaultMapCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     TypeDescriptor<Map<Integer, String>> mapToken = new TypeDescriptor<Map<Integer, String>>() {};
-    assertEquals(MapCoder.of(VarIntCoder.of(), StringUtf8Coder.of()),
-                 registry.getCoder(mapToken));
+    assertEquals(MapCoder.of(VarIntCoder.of(), StringUtf8Coder.of()), registry.getCoder(mapToken));
   }
 
   @Test
@@ -149,12 +142,27 @@ public class CoderRegistryTest {
     TypeDescriptor<List<UnknownType>> listUnknownToken = new TypeDescriptor<List<UnknownType>>() {};
 
     thrown.expect(CannotProvideCoderException.class);
-    thrown.expectMessage(String.format(
-        "Cannot provide coder for parameterized type %s: Unable to provide a Coder for %s",
-        listUnknownToken,
-        UnknownType.class.getName()));
+    thrown.expectMessage(
+        String.format(
+            "Cannot provide coder for parameterized type %s: Unable to provide a Coder for %s",
+            listUnknownToken, UnknownType.class.getName()));
 
     registry.getCoder(listUnknownToken);
+  }
+
+  @Test
+  public void testParameterizedWildcardTypeIsUnknown() throws Exception {
+    CoderRegistry registry = CoderRegistry.createDefault();
+    TypeDescriptor<List<? extends MyValue>> wildcardUnknownToken =
+        new TypeDescriptor<List<? extends MyValue>>() {};
+
+    thrown.expect(CannotProvideCoderException.class);
+    thrown.expectMessage(
+        String.format(
+            "Cannot provide coder for parameterized type %s: Cannot provide a coder for wildcard type %s.",
+            wildcardUnknownToken,
+            ((ParameterizedType) wildcardUnknownToken.getType()).getActualTypeArguments()[0]));
+    registry.getCoder(wildcardUnknownToken);
   }
 
   @Test
@@ -163,12 +171,14 @@ public class CoderRegistryTest {
     MyGenericClass<MyValue, List<MyValue>> instance =
         new MyGenericClass<MyValue, List<MyValue>>() {};
 
-    Coder<?> bazCoder = registry.getCoder(
-        instance.getClass(),
-        MyGenericClass.class,
-        Collections.<Type, Coder<?>>singletonMap(
-            TypeDescriptor.of(MyGenericClass.class).getTypeParameter("FooT"), MyValueCoder.of()),
-        TypeDescriptor.of(MyGenericClass.class).getTypeParameter("BazT"));
+    Coder<?> bazCoder =
+        registry.getCoder(
+            instance.getClass(),
+            MyGenericClass.class,
+            Collections.<Type, Coder<?>>singletonMap(
+                TypeDescriptor.of(MyGenericClass.class).getTypeParameter("FooT"),
+                MyValueCoder.of()),
+            TypeDescriptor.of(MyGenericClass.class).getTypeParameter("BazT"));
 
     assertEquals(ListCoder.of(MyValueCoder.of()), bazCoder);
   }
@@ -179,13 +189,14 @@ public class CoderRegistryTest {
     MyGenericClass<MyValue, List<MyValue>> instance =
         new MyGenericClass<MyValue, List<MyValue>>() {};
 
-    Coder<?> fooCoder = registry.getCoder(
-        instance.getClass(),
-        MyGenericClass.class,
-        Collections.<Type, Coder<?>>singletonMap(
-            TypeDescriptor.of(MyGenericClass.class).getTypeParameter("BazT"),
-            ListCoder.of(MyValueCoder.of())),
-        TypeDescriptor.of(MyGenericClass.class).getTypeParameter("FooT"));
+    Coder<?> fooCoder =
+        registry.getCoder(
+            instance.getClass(),
+            MyGenericClass.class,
+            Collections.<Type, Coder<?>>singletonMap(
+                TypeDescriptor.of(MyGenericClass.class).getTypeParameter("BazT"),
+                ListCoder.of(MyValueCoder.of())),
+            TypeDescriptor.of(MyGenericClass.class).getTypeParameter("FooT"));
 
     assertEquals(MyValueCoder.of(), fooCoder);
   }
@@ -194,8 +205,7 @@ public class CoderRegistryTest {
   public void testTypeCompatibility() throws Exception {
     CoderRegistry.verifyCompatible(BigEndianIntegerCoder.of(), Integer.class);
     CoderRegistry.verifyCompatible(
-        ListCoder.of(BigEndianIntegerCoder.of()),
-        new TypeDescriptor<List<Integer>>() {}.getType());
+        ListCoder.of(BigEndianIntegerCoder.of()), new TypeDescriptor<List<Integer>>() {}.getType());
   }
 
   @Test
@@ -211,10 +221,11 @@ public class CoderRegistryTest {
   public void testTypeOverSpecifiedWithMultipleCoders() throws Exception {
     thrown.expect(CannotProvideCoderException.class);
     thrown.expectMessage("type is over specified");
-    CoderRegistry.createDefault().getCoder(
-        new TypeDescriptor<Integer>() {},
-        new TypeDescriptor<KV<Integer, Integer>>() {},
-        KvCoder.of(BigEndianIntegerCoder.of(), VarIntCoder.of()));
+    CoderRegistry.createDefault()
+        .getCoder(
+            new TypeDescriptor<Integer>() {},
+            new TypeDescriptor<KV<Integer, Integer>>() {},
+            KvCoder.of(BigEndianIntegerCoder.of(), VarIntCoder.of()));
   }
 
   private static class TooManyComponentCoders<T> extends ListCoder<T> {
@@ -245,8 +256,7 @@ public class CoderRegistryTest {
     thrown.expect(IncompatibleCoderException.class);
     thrown.expectMessage("component coder is incompatible");
     CoderRegistry.verifyCompatible(
-        ListCoder.of(BigEndianIntegerCoder.of()),
-        new TypeDescriptor<List<String>>() {}.getType());
+        ListCoder.of(BigEndianIntegerCoder.of()), new TypeDescriptor<List<String>>() {}.getType());
   }
 
   @Test
@@ -266,24 +276,25 @@ public class CoderRegistryTest {
   }
 
   private static class PTransformOutputingMySerializableGeneric
-  extends PTransform<PCollection<String>, PCollection<KV<String, MySerializableGeneric<String>>>> {
+      extends PTransform<
+          PCollection<String>, PCollection<KV<String, MySerializableGeneric<String>>>> {
 
     private static class OutputDoFn
-    extends DoFn<String, KV<String, MySerializableGeneric<String>>> {
+        extends DoFn<String, KV<String, MySerializableGeneric<String>>> {
       @ProcessElement
-      public void processElement(ProcessContext c) { }
+      public void processElement(ProcessContext c) {}
     }
 
     @Override
-    public PCollection<KV<String, MySerializableGeneric<String>>>
-    expand(PCollection<String> input) {
+    public PCollection<KV<String, MySerializableGeneric<String>>> expand(
+        PCollection<String> input) {
       return input.apply(ParDo.of(new OutputDoFn()));
     }
   }
 
   /**
-   * Tests that the error message for a type variable includes a mention of where the
-   * type variable was declared.
+   * Tests that the error message for a type variable includes a mention of where the type variable
+   * was declared.
    */
   @Test
   public void testTypeVariableErrorMessage() throws Exception {
@@ -291,27 +302,26 @@ public class CoderRegistryTest {
 
     thrown.expect(CannotProvideCoderException.class);
     thrown.expectMessage("Unable to provide a Coder");
-    registry.getCoder(TypeDescriptor.of(
-        TestGenericClass.class.getTypeParameters()[0]));
+    registry.getCoder(TypeDescriptor.of(TestGenericClass.class.getTypeParameters()[0]));
   }
 
-  private static class TestGenericClass<TestGenericT> { }
+  private static class TestGenericClass<TestGenericT> {}
 
   @Test
   @SuppressWarnings("rawtypes")
   public void testSerializableTypeVariableDefaultCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
 
-    TypeDescriptor type = TypeDescriptor.of(
-        TestSerializableGenericClass.class.getTypeParameters()[0]);
+    TypeDescriptor type =
+        TypeDescriptor.of(TestSerializableGenericClass.class.getTypeParameters()[0]);
     assertEquals(SerializableCoder.of(type), registry.getCoder(type));
   }
 
   private static class TestSerializableGenericClass<TestGenericT extends Serializable> {}
 
   /**
-   * In-context test that assures the functionality tested in
-   * {@link #testDefaultCoderAnnotationGeneric} is invoked in the right ways.
+   * In-context test that assures the functionality tested in {@link
+   * #testDefaultCoderAnnotationGeneric} is invoked in the right ways.
    */
   @Test
   @Category(NeedsRunner.class)
@@ -325,18 +335,15 @@ public class CoderRegistryTest {
   }
 
   private static class GenericOutputMySerializedGeneric<T extends Serializable>
-  extends PTransform<
-      PCollection<String>,
-      PCollection<KV<String, MySerializableGeneric<T>>>> {
+      extends PTransform<PCollection<String>, PCollection<KV<String, MySerializableGeneric<T>>>> {
 
     private class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<T>>> {
       @ProcessElement
-      public void processElement(ProcessContext c) { }
+      public void processElement(ProcessContext c) {}
     }
 
     @Override
-    public PCollection<KV<String, MySerializableGeneric<T>>>
-    expand(PCollection<String> input) {
+    public PCollection<KV<String, MySerializableGeneric<T>>> expand(PCollection<String> input) {
       return input.apply(ParDo.of(new OutputDoFn()));
     }
   }
@@ -352,9 +359,9 @@ public class CoderRegistryTest {
     pipeline.run();
   }
 
-  private static class MyGenericClass<FooT, BazT> { }
+  private static class MyGenericClass<FooT, BazT> {}
 
-  private static class MyValue { }
+  private static class MyValue {}
 
   private static class MyValueCoder extends AtomicCoder<MyValue> {
 
@@ -366,18 +373,15 @@ public class CoderRegistryTest {
     }
 
     @Override
-    public void encode(MyValue value, OutputStream outStream)
-        throws CoderException, IOException {
-    }
+    public void encode(MyValue value, OutputStream outStream) throws CoderException, IOException {}
 
     @Override
-    public MyValue decode(InputStream inStream)
-        throws CoderException, IOException {
+    public MyValue decode(InputStream inStream) throws CoderException, IOException {
       return new MyValue();
     }
 
     @Override
-    public void verifyDeterministic() { }
+    public void verifyDeterministic() {}
 
     @Override
     public boolean consistentWithEquals() {
@@ -395,8 +399,7 @@ public class CoderRegistryTest {
     }
 
     @Override
-    public void registerByteSizeObserver(
-        MyValue value, ElementByteSizeObserver observer)
+    public void registerByteSizeObserver(MyValue value, ElementByteSizeObserver observer)
         throws Exception {
       observer.update(0L);
     }
@@ -411,8 +414,7 @@ public class CoderRegistryTest {
    * This type is incompatible with all known coder providers such as Serializable,
    * {@code @DefaultCoder} which allows testing scenarios where coder lookup fails.
    */
-  private static class UnknownType {
-  }
+  private static class UnknownType {}
 
   @DefaultCoder(SerializableCoder.class)
   private static class MySerializableGeneric<T extends Serializable> implements Serializable {
@@ -424,8 +426,7 @@ public class CoderRegistryTest {
    * This type is incompatible with all known coder providers such as Serializable,
    * {@code @DefaultCoder} which allows testing the automatic registration mechanism.
    */
-  private static class AutoRegistrationClass {
-  }
+  private static class AutoRegistrationClass {}
 
   private static class AutoRegistrationClassCoder extends CustomCoder<AutoRegistrationClass> {
     private static final AutoRegistrationClassCoder INSTANCE = new AutoRegistrationClassCoder();
@@ -441,21 +442,19 @@ public class CoderRegistryTest {
 
   @Test
   public void testAutomaticRegistrationOfCoderProviders() throws Exception {
-    assertEquals(AutoRegistrationClassCoder.INSTANCE,
+    assertEquals(
+        AutoRegistrationClassCoder.INSTANCE,
         CoderRegistry.createDefault().getCoder(AutoRegistrationClass.class));
   }
 
-  /**
-   * A {@link CoderProviderRegistrar} to demonstrate default {@link Coder} registration.
-   */
+  /** A {@link CoderProviderRegistrar} to demonstrate default {@link Coder} registration. */
   @AutoService(CoderProviderRegistrar.class)
   public static class RegisteredTestCoderProviderRegistrar implements CoderProviderRegistrar {
     @Override
     public List<CoderProvider> getCoderProviders() {
       return ImmutableList.of(
           CoderProviders.forCoder(
-              TypeDescriptor.of(AutoRegistrationClass.class),
-              AutoRegistrationClassCoder.INSTANCE));
+              TypeDescriptor.of(AutoRegistrationClass.class), AutoRegistrationClassCoder.INSTANCE));
     }
   }
 
@@ -492,9 +491,7 @@ public class CoderRegistryTest {
     }
   }
 
-  /**
-   * A {@link CoderProviderRegistrar} to demonstrate default {@link Coder} registration.
-   */
+  /** A {@link CoderProviderRegistrar} to demonstrate default {@link Coder} registration. */
   @AutoService(CoderProviderRegistrar.class)
   public static class MyValueACoderProviderRegistrar implements CoderProviderRegistrar {
     @Override
@@ -516,9 +513,7 @@ public class CoderRegistryTest {
     }
   }
 
-  /**
-   * A {@link CoderProviderRegistrar} to demonstrate default {@link Coder} registration.
-   */
+  /** A {@link CoderProviderRegistrar} to demonstrate default {@link Coder} registration. */
   @AutoService(CoderProviderRegistrar.class)
   public static class MyValueBCoderProviderRegistrar implements CoderProviderRegistrar {
     @Override

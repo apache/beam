@@ -28,15 +28,13 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
-/**
- * A UnionCoder encodes RawUnionValues.
- */
+/** A UnionCoder encodes RawUnionValues. */
 public class UnionCoder extends StructuredCoder<RawUnionValue> {
   // TODO: Think about how to integrate this with a schema object (i.e.
   // a tuple of tuple tags).
   /**
-   * Builds a union coder with the given list of element coders.  This list
-   * corresponds to a mapping of union tag to Coder.  Union tags start at 0.
+   * Builds a union coder with the given list of element coders. This list corresponds to a mapping
+   * of union tag to Coder. Union tags start at 0.
    */
   public static UnionCoder of(List<Coder<?>> elementCoders) {
     return new UnionCoder(elementCoders);
@@ -49,8 +47,7 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
     int index = union.getUnionTag();
     if (index < 0 || index >= elementCoders.size()) {
       throw new IllegalArgumentException(
-          "union value index " + index + " not in range [0.."
-          + (elementCoders.size() - 1) + "]");
+          "union value index " + index + " not in range [0.." + (elementCoders.size() - 1) + "]");
     }
     return index;
   }
@@ -63,21 +60,15 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
 
   @SuppressWarnings("unchecked")
   @Override
-  public void encode(
-      RawUnionValue union,
-      OutputStream outStream,
-      Context context)
-      throws IOException, CoderException  {
+  public void encode(RawUnionValue union, OutputStream outStream, Context context)
+      throws IOException, CoderException {
     int index = getIndexForEncoding(union);
     // Write out the union tag.
     VarInt.encode(index, outStream);
 
     // Write out the actual value.
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
-    coder.encode(
-        union.getValue(),
-        outStream,
-        context);
+    coder.encode(union.getValue(), outStream, context);
   }
 
   @Override
@@ -119,12 +110,9 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
     return coder.isRegisterByteSizeObserverCheap(union.getValue());
   }
 
-  /**
-   * Notifies ElementByteSizeObserver about the byte size of the encoded value using this coder.
-   */
+  /** Notifies ElementByteSizeObserver about the byte size of the encoded value using this coder. */
   @Override
-  public void registerByteSizeObserver(
-      RawUnionValue union, ElementByteSizeObserver observer)
+  public void registerByteSizeObserver(RawUnionValue union, ElementByteSizeObserver observer)
       throws Exception {
     int index = getIndexForEncoding(union);
     // Write out the union tag.

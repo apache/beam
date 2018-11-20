@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
+import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
 
 /**
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.schemas.Schema;
  * LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
  * }</pre>
  */
+@AutoService(TableProvider.class)
 public class BigQueryTableProvider extends InMemoryMetaTableProvider {
 
   @Override

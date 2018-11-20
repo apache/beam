@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // See build_rules.gradle for documentation on default build tasks
 // and properties that are enabled in addition to natures
 // that can be applied to configure a project for certain common
 // tasks.
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 
 // Add performanceTest task to this build.gradle file
 // so that running Performance tests using PerfKitBenchmarker is possible.
@@ -50,20 +49,27 @@ buildscript {
   }
   dependencies {
     classpath 'net.researchgate:gradle-release:2.6.0'                                                   // Enable gradle-based release management
-    classpath "com.gradle:build-scan-plugin:1.13.1"                                                     // Enable publishing build scans
     classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
     classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                        // Enable proto code generation
     classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
     classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"                              // Enable Apache license enforcement
     classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                 // Enable Avro code generation
-    classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0"                                      // Enable a code formatting plugin
-    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.9"                                       // Enable Go code compilation
-    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"                           // Enable building Docker containers
+    classpath "com.diffplug.spotless:spotless-plugin-gradle:3.7.0"                                      // Enable a code formatting plugin
+    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.10"                                      // Enable Go code compilation
+    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.20.1"                           // Enable building Docker containers
     classpath "cz.malohlava:visteg:1.0.3"                                                               // Enable generating Gradle task dependencies as ".dot" files
     classpath "com.github.jengelman.gradle.plugins:shadow:2.0.4"                                        // Enable shading Java dependencies
     classpath "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                   // Enable the JavaCC parser generator
     classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
     classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
+    classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
+    classpath "org.ajoberstar.grgit:grgit-gradle:3.0.0-beta.1"                                          // Enable website git publish to asf-site branch
+    classpath "com.avast.gradle:gradle-docker-compose-plugin:0.8.8"                                     // Enable docker compose tasks
+
+    // Plugins which require online access should not be enabled when running in offline mode.
+    if (!gradle.startParameter.isOffline()) {
+      classpath "com.gradle:build-scan-plugin:1.13.1"                                                   // Enable publishing build scans
+    }
   }
 }
 
@@ -72,7 +78,24 @@ buildscript {
 
 apply plugin: "base"
 
-apply plugin: "com.gradle.build-scan"
+// Plugins which require online access should not be enabled when running in offline mode.
+if (!gradle.startParameter.isOffline()) {
+  apply plugin: "com.gradle.build-scan"
+}
+
+// Apply a task dependency visualization plugin which creates a ".dot" file containing the
+// task dependencies for the current build. This command can help create a visual representation:
+//   dot -Tsvg build/reports/visteg.dot > build_dependencies.svg
+//
+// See https://github.com/mmalohlava/gradle-visteg for further details.
+apply plugin: "cz.malohlava.visteg"
+
+// This plugin provides a task to determine which dependencies have updates.
+// Additionally, the plugin checks for updates to Gradle itself.
+//
+// See https://github.com/ben-manes/gradle-versions-plugin for further details.
+apply plugin: 'com.github.ben-manes.versions'
+
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
 if (isCIBuild) {
@@ -89,9 +112,13 @@ if (isCIBuild) {
 apply plugin: "org.nosphere.apache.rat"
 
 rat {
+  // Set input directory to that of the root project instead of the CWD. This
+  // makes .gitignore rules (added below) work properly.
+  inputDir = project.rootDir
+
   def exclusions = [
     // Ignore files we track but do not distribute
-    ".github/**/*",
+    "**/.github/**/*",
 
     "**/package-list",
     "**/user.avsc",
@@ -112,6 +139,22 @@ rat {
 
     // JDBC package config files
     "**/META-INF/services/java.sql.Driver",
+
+    // Ruby build files
+    "**/Gemfile.lock",
+    "**/Rakefile",
+    "**/.htaccess",
+    "website/src/_sass/_bootstrap.scss",
+    "website/src/_sass/bootstrap/**/*",
+    "website/src/js/bootstrap*.js",
+    "website/src/js/bootstrap/**/*",
+
+    // Ignore ownership files
+    "ownership/**/*",
+    "**/OWNERS",
+
+    // Json doesn't support comments.
+    "**/*.json",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -120,12 +163,14 @@ rat {
   def gitIgnore = project(':').file('.gitignore')
   if (gitIgnore.exists()) {
     def gitIgnoreExcludes = gitIgnore.readLines().findAll { !it.isEmpty() && !it.startsWith('#') }
-    println "Adding ${gitIgnoreExcludes.size()} .gitignore exclusions to Apache Rat"
     exclusions.addAll(gitIgnoreExcludes)
   }
 
-  plainOutput = true
-  xmlOutput = false
+  // Combining verbose with only XML output has each failing license logged.
+  // See https://github.com/eskatos/creadur-rat-gradle/issues/8 for further details.
+  verbose = true
+  plainOutput = false
+  xmlOutput = true
   htmlOutput = false
   failOnError = true
   excludes = exclusions
@@ -137,21 +182,46 @@ check.dependsOn rat
 // This indirection also makes Jenkins use the branch of the PR
 // for the test definitions.
 task javaPreCommit() {
-  dependsOn ":rat"
+  // We need to list the model/* builds since sdks/java/core doesn't
+  // depend on any of the model.
+  dependsOn ":beam-model-pipeline:build"
+  dependsOn ":beam-model-job-management:build"
+  dependsOn ":beam-model-fn-execution:build"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:build"
   dependsOn ":beam-sdks-java-core:buildNeeded"
   dependsOn ":beam-sdks-java-core:buildDependents"
   dependsOn ":beam-examples-java:preCommit"
+  dependsOn ":beam-sdks-java-extensions-sql-jdbc:preCommit"
+  dependsOn ":beam-sdks-java-javadoc:allJavadoc"
+}
+
+task javaPreCommitPortabilityApi() {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:build"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommitPortabilityApi"
 }
 
 task javaPostCommit() {
   dependsOn ":javaPreCommit"
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
+  dependsOn ":beam-sdks-java-io-google-cloud-platform:postCommit"
   dependsOn ":beam-sdks-java-extensions-sql:postCommit"
+  dependsOn ":beam-sdks-java-extensions-sql-jdbc:postCommit"
+}
+
+task javaPostCommitPortabilityApi () {
+  dependsOn ":beam-runners-google-cloud-dataflow-java:postCommitPortabilityApi"
 }
 
 task goPreCommit() {
-  dependsOn ":rat"
   dependsOn ":beam-sdks-go:test"
+
+  dependsOn ":beam-sdks-go-examples:build"
+  dependsOn ":beam-sdks-go-test:build"
+
+  // Ensure all container Go boot code builds as well.
+  dependsOn ":beam-sdks-java-container:build"
+  dependsOn ":beam-sdks-python-container:build"
+  dependsOn ":beam-sdks-go-container:build"
 }
 
 task goPostCommit() {
@@ -167,15 +237,37 @@ task goIntegrationTests() {
     }
   }
   dependsOn ":beam-sdks-go-test:build"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
 }
 
 task pythonPreCommit() {
-  dependsOn ":rat"
   dependsOn ":beam-sdks-python:preCommit"
 }
 
 task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
+}
+
+task websitePreCommit() {
+  dependsOn ":beam-website:preCommit"
+}
+
+task communityMetricsPreCommit() {
+  dependsOn ":beam-test-infra-metrics:preCommit"
+}
+
+task communityMetricsProber() {
+  dependsOn ":beam-test-infra-metrics:checkProber"
+}
+
+task javaExamplesDataflowPrecommit() {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommit"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples-streaming:preCommit"
+}
+
+task runBeamDependencyCheck() {
+  dependsOn ":dependencyUpdates"
+  dependsOn ":beam-sdks-python:dependencyUpdates"
 }
 
 apply plugin: 'net.researchgate.release'

@@ -28,25 +28,26 @@ import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 /**
- * This example uses as input Shakespeare's plays as plaintext files, and will remove any
- * duplicate lines across all the files. (The output does not preserve any input order).
+ * This example uses as input Shakespeare's plays as plaintext files, and will remove any duplicate
+ * lines across all the files. (The output does not preserve any input order).
  *
- * <p>Concepts: the Distinct transform, and how to wire transforms together.
- * Demonstrates {@link org.apache.beam.sdk.io.TextIO.Read}/
- * {@link Distinct}/{@link org.apache.beam.sdk.io.TextIO.Write}.
+ * <p>Concepts: the Distinct transform, and how to wire transforms together. Demonstrates {@link
+ * org.apache.beam.sdk.io.TextIO.Read}/ {@link Distinct}/{@link
+ * org.apache.beam.sdk.io.TextIO.Write}.
  *
  * <p>To execute this pipeline locally, specify a local output file or output prefix on GCS:
- *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
+ * --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  *
  * <p>To change the runner, specify:
+ *
  * <pre>{@code
- *   --runner=YOUR_SELECTED_RUNNER
- * }
- * </pre>
+ * --runner=YOUR_SELECTED_RUNNER
+ * }</pre>
+ *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/*} and can be
- * overridden with {@code --input}.
+ * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/*} and can be overridden
+ * with {@code --input}.
  */
 public class DistinctExample {
 
@@ -55,15 +56,17 @@ public class DistinctExample {
    *
    * <p>Inherits standard configuration options.
    */
-  private interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
     @Default.String("gs://apache-beam-samples/shakespeare/*")
     String getInput();
+
     void setInput(String value);
 
     @Description("Path of the file to write to")
     @Default.InstanceFactory(OutputFactory.class)
     String getOutput();
+
     void setOutput(String value);
 
     /** Returns gs://${TEMP_LOCATION}/"deduped.txt". */
@@ -71,8 +74,7 @@ public class DistinctExample {
       @Override
       public String create(PipelineOptions options) {
         if (options.getTempLocation() != null) {
-          return GcsPath.fromUri(options.getTempLocation())
-              .resolve("deduped.txt").toString();
+          return GcsPath.fromUri(options.getTempLocation()).resolve("deduped.txt").toString();
         } else {
           throw new IllegalArgumentException("Must specify --output or --tempLocation");
         }
@@ -80,9 +82,7 @@ public class DistinctExample {
     }
   }
 
-
-  public static void main(String[] args)
-      throws Exception {
+  public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     Pipeline p = Pipeline.create(options);

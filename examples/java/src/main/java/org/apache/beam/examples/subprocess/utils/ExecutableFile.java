@@ -23,9 +23,7 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Contains the configuration for the external library.
- */
+/** Contains the configuration for the external library. */
 @DefaultCoder(AvroCoder.class)
 public class ExecutableFile {
 

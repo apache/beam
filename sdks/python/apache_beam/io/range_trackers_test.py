@@ -16,13 +16,17 @@
 #
 
 """Unit tests for the range_trackers module."""
+from __future__ import absolute_import
+from __future__ import division
 
 import copy
 import logging
 import math
+import os
+import sys
 import unittest
 
-from six import integer_types
+from past.builtins import long
 
 from apache_beam.io import range_trackers
 
@@ -102,7 +106,7 @@ class OffsetRangeTrackerTest(unittest.TestCase):
 
     # Position must be an integer type.
     self.assertTrue(isinstance(tracker.position_at_fraction(0.0),
-                               integer_types))
+                               (int, long)))
     # [3, 3) represents 0.0 of [3, 6)
     self.assertEqual(3, tracker.position_at_fraction(0.0))
     # [3, 4) represents up to 1/3 of [3, 6)
@@ -163,7 +167,7 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     tracker = range_trackers.OffsetRangeTracker(100, 400)
 
     def dummy_callback(stop_position):
-      return int(stop_position / 5)
+      return int(stop_position // 5)
 
     tracker.set_split_points_unclaimed_callback(dummy_callback)
 
@@ -322,17 +326,32 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
       self.assertEqual(computed_fraction, fraction, str(locals()))
     self.assertEqual(computed_key, key, str(locals()))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be '
+                   'fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_key_to_fraction_no_endpoints(self):
     self._check(key='\x07', fraction=7/256.)
     self._check(key='\xFF', fraction=255/256.)
     self._check(key='\x01\x02\x03', fraction=(2**16 + 2**9 + 3) / (2.0**24))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be '
+                   'fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_key_to_fraction(self):
     self._check(key='\x87', start='\x80', fraction=7/128.)
     self._check(key='\x07', end='\x10', fraction=7/16.)
     self._check(key='\x47', start='\x40', end='\x80', fraction=7/64.)
     self._check(key='\x47\x80', start='\x40', end='\x80', fraction=15/128.)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be '
+                   'fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_key_to_fraction_common_prefix(self):
     self._check(
         key='a' * 100 + 'b', start='a' * 100 + 'a', end='a' * 100 + 'c',
@@ -347,6 +366,11 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
                 end='foob\x00\x00\x00\x00\x00\x00\x00\x00\x02',
                 fraction=0.5)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be '
+                   'fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_tiny(self):
     self._check(fraction=.5**20, key='\0\0\x10')
     self._check(fraction=.5**20, start='a', end='b', key='a\0\0\x10')
@@ -361,6 +385,11 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
                 delta=1e-15)
     self._check(fraction=.5**100, key='\0' * 12 + '\x10')
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be '
+                   'fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_lots(self):
     for fraction in (0, 1, .5, .75, 7./512, 1 - 7./4096):
       self._check(fraction)
@@ -382,6 +411,11 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
       self._check(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81',
                   delta=1e-14)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be '
+                   'fixed on Python 3'
+                   'TODO: BEAM-5627')
   def test_good_prec(self):
     # There should be about 7 characters (~53 bits) of precision
     # (beyond the common prefix of start and end).

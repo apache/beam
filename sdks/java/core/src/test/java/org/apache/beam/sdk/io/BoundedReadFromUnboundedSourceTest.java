@@ -37,9 +37,9 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -56,38 +56,38 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link BoundedReadFromUnboundedSource}. */
 @RunWith(JUnit4.class)
-public class BoundedReadFromUnboundedSourceTest implements Serializable{
+public class BoundedReadFromUnboundedSourceTest implements Serializable {
   private static final int NUM_RECORDS = 100;
 
-  @Rule
-  public transient TestPipeline p = TestPipeline.create();
+  @Rule public transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testNoDedup() throws Exception {
     test(false, false);
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testDedup() throws Exception {
     test(true, false);
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testTimeBound() throws Exception {
     test(false, true);
   }
 
   @Test
   public void testForwardsDisplayData() {
-    TestCountingSource src = new TestCountingSource(1234) {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
+    TestCountingSource src =
+        new TestCountingSource(1234) {
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "bar"));
+          }
+        };
 
     BoundedReadFromUnboundedSource<KV<Integer, Integer>> read = Read.from(src).withMaxNumRecords(5);
     assertThat(DisplayData.from(read), includesDisplayDataFor("source", src));
@@ -135,8 +135,8 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
     }
     PCollection<KV<Integer, Integer>> output =
         timeBound
-        ? p.apply(Read.from(source).withMaxReadTime(Duration.millis(200)))
-        : p.apply(Read.from(source).withMaxNumRecords(NUM_RECORDS));
+            ? p.apply(Read.from(source).withMaxReadTime(Duration.millis(200)))
+            : p.apply(Read.from(source).withMaxNumRecords(NUM_RECORDS));
 
     // Because some of the NUM_RECORDS elements read are dupes, the final output
     // will only have output from 0 to n where n < NUM_RECORDS.
@@ -148,11 +148,10 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
   /**
    * An unbounded source for testing the unbounded sources framework code.
    *
-   * <p>Each split of this sources produces records of the form KV(split_id, i),
-   * where i counts up from 0.  Each record has a timestamp of i, and the watermark
-   * accurately tracks these timestamps.  The reader will occasionally return false
-   * from {@code advance}, in order to simulate a source where not all the data is
-   * available immediately.
+   * <p>Each split of this sources produces records of the form KV(split_id, i), where i counts up
+   * from 0. Each record has a timestamp of i, and the watermark accurately tracks these timestamps.
+   * The reader will occasionally return false from {@code advance}, in order to simulate a source
+   * where not all the data is available immediately.
    */
   public static class TestCountingSource
       extends UnboundedSource<KV<Integer, Integer>, TestCountingSource.CounterMark> {
@@ -166,9 +165,9 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
     private final boolean allowSplitting;
 
     /**
-     * We only allow an exception to be thrown from getCheckpointMark
-     * at most once. This must be static since the entire TestCountingSource
-     * instance may re-serialized when the pipeline recovers and retries.
+     * We only allow an exception to be thrown from getCheckpointMark at most once. This must be
+     * static since the entire TestCountingSource instance may re-serialized when the pipeline
+     * recovers and retries.
      */
     private static boolean thrown = false;
 
@@ -200,8 +199,12 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
           numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, false);
     }
 
-    private TestCountingSource(int numMessagesPerShard, int shardNumber, boolean dedup,
-        boolean throwOnFirstSnapshot, boolean allowSplitting) {
+    private TestCountingSource(
+        int numMessagesPerShard,
+        int shardNumber,
+        boolean dedup,
+        boolean throwOnFirstSnapshot,
+        boolean allowSplitting) {
       this.numMessagesPerShard = numMessagesPerShard;
       this.shardNumber = shardNumber;
       this.dedup = dedup;
@@ -214,8 +217,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
     }
 
     @Override
-    public List<TestCountingSource> split(
-        int desiredNumSplits, PipelineOptions options) {
+    public List<TestCountingSource> split(int desiredNumSplits, PipelineOptions options) {
       List<TestCountingSource> splits = new ArrayList<>();
       int numSplits = allowSplitting ? desiredNumSplits : 1;
       for (int i = 0; i < numSplits; i++) {

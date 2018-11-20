@@ -33,11 +33,8 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 
-/**
- * Helpers for cloud communication.
- */
+/** Helpers for cloud communication. */
 public class DataflowTransport {
-
 
   private static class ApiComponents {
     public String rootUrl;
@@ -52,17 +49,18 @@ public class DataflowTransport {
   private static ApiComponents apiComponentsFromUrl(String urlString) {
     try {
       URL url = new URL(urlString);
-      String rootUrl = url.getProtocol() + "://" + url.getHost()
-          + (url.getPort() > 0 ? ":" + url.getPort() : "");
+      String rootUrl =
+          url.getProtocol()
+              + "://"
+              + url.getHost()
+              + (url.getPort() > 0 ? ":" + url.getPort() : "");
       return new ApiComponents(rootUrl, url.getPath());
     } catch (MalformedURLException e) {
       throw new RuntimeException("Invalid URL: " + urlString);
     }
   }
 
-  /**
-   * Returns a Google Cloud Dataflow client builder.
-   */
+  /** Returns a Google Cloud Dataflow client builder. */
   public static Dataflow.Builder newDataflowClient(DataflowPipelineOptions options) {
     String servicePath = options.getDataflowEndpoint();
     ApiComponents components;
@@ -72,12 +70,13 @@ public class DataflowTransport {
       components = new ApiComponents(options.getApiRootUrl(), servicePath);
     }
 
-    return new Dataflow.Builder(getTransport(),
-        getJsonFactory(),
-        chainHttpRequestInitializer(
-            options.getGcpCredential(),
-            // Do not log 404. It clutters the output and is possibly even required by the caller.
-            new RetryHttpRequestInitializer(ImmutableList.of(404))))
+    return new Dataflow.Builder(
+            getTransport(),
+            getJsonFactory(),
+            chainHttpRequestInitializer(
+                options.getGcpCredential(),
+                // Do not log 404. It clutters the output and is possibly even required by the caller.
+                new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setApplicationName(options.getAppName())
         .setRootUrl(components.rootUrl)
         .setServicePath(components.servicePath)
@@ -85,9 +84,11 @@ public class DataflowTransport {
   }
 
   public static CloudDebugger.Builder newClouddebuggerClient(DataflowPipelineOptions options) {
-    return new CloudDebugger.Builder(getTransport(),
-        getJsonFactory(),
-        chainHttpRequestInitializer(options.getGcpCredential(), new RetryHttpRequestInitializer()))
+    return new CloudDebugger.Builder(
+            getTransport(),
+            getJsonFactory(),
+            chainHttpRequestInitializer(
+                options.getGcpCredential(), new RetryHttpRequestInitializer()))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
@@ -98,7 +99,6 @@ public class DataflowTransport {
       NullCredentialInitializer.throwNullCredentialException();
     }
     return new ChainingHttpRequestInitializer(
-        new HttpCredentialsAdapter(credential),
-        httpRequestInitializer);
+        new HttpCredentialsAdapter(credential), httpRequestInitializer);
   }
 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
@@ -36,17 +35,16 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
-/**
- * Implementation of DoFn to perform streaming BigQuery write.
- */
+/** Implementation of DoFn to perform streaming BigQuery write. */
 @SystemDoFnInternal
 @VisibleForTesting
-class StreamingWriteFn
-    extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
+class StreamingWriteFn<ErrorT> extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
   private final BigQueryServices bqServices;
   private final InsertRetryPolicy retryPolicy;
-  private final TupleTag<TableRow> failedOutputTag;
-
+  private final TupleTag<ErrorT> failedOutputTag;
+  private final ErrorContainer<ErrorT> errorContainer;
+  private final boolean skipInvalidRows;
+  private final boolean ignoreUnknownValues;
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
   private transient Map<String, List<ValueInSingleWindow<TableRow>>> tableRows;
@@ -57,11 +55,19 @@ class StreamingWriteFn
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
   private Counter byteCounter = SinkMetrics.bytesWritten();
 
-  StreamingWriteFn(BigQueryServices bqServices, InsertRetryPolicy retryPolicy,
-                   TupleTag<TableRow> failedOutputTag) {
+  StreamingWriteFn(
+      BigQueryServices bqServices,
+      InsertRetryPolicy retryPolicy,
+      TupleTag<ErrorT> failedOutputTag,
+      ErrorContainer<ErrorT> errorContainer,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues) {
     this.bqServices = bqServices;
     this.retryPolicy = retryPolicy;
     this.failedOutputTag = failedOutputTag;
+    this.errorContainer = errorContainer;
+    this.skipInvalidRows = skipInvalidRows;
+    this.ignoreUnknownValues = ignoreUnknownValues;
   }
 
   /** Prepares a target BigQuery table. */
@@ -89,7 +95,7 @@ class StreamingWriteFn
   /** Writes the accumulated rows into BigQuery with streaming API. */
   @FinishBundle
   public void finishBundle(FinishBundleContext context) throws Exception {
-    List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
+    List<ValueInSingleWindow<ErrorT>> failedInserts = Lists.newArrayList();
     BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
     for (Map.Entry<String, List<ValueInSingleWindow<TableRow>>> entry : tableRows.entrySet()) {
       TableReference tableReference = BigQueryHelpers.parseTableSpec(entry.getKey());
@@ -103,23 +109,33 @@ class StreamingWriteFn
     tableRows.clear();
     uniqueIdsForTableRows.clear();
 
-    for (ValueInSingleWindow<TableRow> row : failedInserts) {
+    for (ValueInSingleWindow<ErrorT> row : failedInserts) {
       context.output(failedOutputTag, row.getValue(), row.getTimestamp(), row.getWindow());
     }
   }
 
-  /**
-   * Writes the accumulated rows into BigQuery with streaming API.
-   */
-  private void flushRows(TableReference tableReference,
-                         List<ValueInSingleWindow<TableRow>> tableRows,
-                         List<String> uniqueIds, BigQueryOptions options,
-                         List<ValueInSingleWindow<TableRow>> failedInserts)
+  /** Writes the accumulated rows into BigQuery with streaming API. */
+  private void flushRows(
+      TableReference tableReference,
+      List<ValueInSingleWindow<TableRow>> tableRows,
+      List<String> uniqueIds,
+      BigQueryOptions options,
+      List<ValueInSingleWindow<ErrorT>> failedInserts)
       throws InterruptedException {
     if (!tableRows.isEmpty()) {
       try {
-        long totalBytes = bqServices.getDatasetService(options).insertAll(
-            tableReference, tableRows, uniqueIds, retryPolicy, failedInserts);
+        long totalBytes =
+            bqServices
+                .getDatasetService(options)
+                .insertAll(
+                    tableReference,
+                    tableRows,
+                    uniqueIds,
+                    retryPolicy,
+                    failedInserts,
+                    errorContainer,
+                    skipInvalidRows,
+                    ignoreUnknownValues);
         byteCounter.inc(totalBytes);
       } catch (IOException e) {
         throw new RuntimeException(e);

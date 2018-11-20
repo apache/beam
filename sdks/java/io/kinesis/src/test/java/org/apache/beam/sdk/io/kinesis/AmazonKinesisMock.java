@@ -91,9 +91,7 @@ import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
 import org.mockito.Mockito;
 
-/**
- * Mock implemenation of {@link AmazonKinesis} for testing.
- */
+/** Mock implemenation of {@link AmazonKinesis} for testing. */
 class AmazonKinesisMock implements AmazonKinesis {
 
   static class TestData implements Serializable {
@@ -103,7 +101,8 @@ class AmazonKinesisMock implements AmazonKinesis {
     private final String sequenceNumber;
 
     public TestData(KinesisRecord record) {
-      this(new String(record.getData().array(), StandardCharsets.UTF_8),
+      this(
+          new String(record.getData().array(), StandardCharsets.UTF_8),
           record.getApproximateArrivalTimestamp(),
           record.getSequenceNumber());
     }
@@ -115,11 +114,11 @@ class AmazonKinesisMock implements AmazonKinesis {
     }
 
     public Record convertToRecord() {
-      return new Record().
-          withApproximateArrivalTimestamp(arrivalTimestamp.toDate()).
-          withData(ByteBuffer.wrap(data.getBytes(StandardCharsets.UTF_8))).
-          withSequenceNumber(sequenceNumber).
-          withPartitionKey("");
+      return new Record()
+          .withApproximateArrivalTimestamp(arrivalTimestamp.toDate())
+          .withData(ByteBuffer.wrap(data.getBytes(StandardCharsets.UTF_8)))
+          .withSequenceNumber(sequenceNumber)
+          .withPartitionKey("");
     }
 
     @Override
@@ -132,9 +131,18 @@ class AmazonKinesisMock implements AmazonKinesis {
       return reflectionHashCode(this);
     }
 
-    @Override public String toString() {
-      return "TestData{" + "data='" + data + '\'' + ", arrivalTimestamp=" + arrivalTimestamp
-          + ", sequenceNumber='" + sequenceNumber + '\'' + '}';
+    @Override
+    public String toString() {
+      return "TestData{"
+          + "data='"
+          + data
+          + '\''
+          + ", arrivalTimestamp="
+          + arrivalTimestamp
+          + ", sequenceNumber='"
+          + sequenceNumber
+          + '\''
+          + '}';
     }
   }
 
@@ -163,7 +171,8 @@ class AmazonKinesisMock implements AmazonKinesis {
       return Mockito.mock(AmazonCloudWatch.class);
     }
 
-    @Override public IKinesisProducer createKinesisProducer(KinesisProducerConfiguration config) {
+    @Override
+    public IKinesisProducer createKinesisProducer(KinesisProducerConfiguration config) {
       throw new RuntimeException("Not implemented");
     }
   }
@@ -193,10 +202,9 @@ class AmazonKinesisMock implements AmazonKinesis {
   }
 
   @Override
-  public GetShardIteratorResult getShardIterator(
-      GetShardIteratorRequest getShardIteratorRequest) {
-    ShardIteratorType shardIteratorType = ShardIteratorType.fromValue(
-        getShardIteratorRequest.getShardIteratorType());
+  public GetShardIteratorResult getShardIterator(GetShardIteratorRequest getShardIteratorRequest) {
+    ShardIteratorType shardIteratorType =
+        ShardIteratorType.fromValue(getShardIteratorRequest.getShardIteratorType());
 
     String shardIterator;
     if (shardIteratorType == ShardIteratorType.TRIM_HORIZON) {
@@ -234,14 +242,10 @@ class AmazonKinesisMock implements AmazonKinesis {
   }
 
   @Override
-  public void setEndpoint(String endpoint) {
-
-  }
+  public void setEndpoint(String endpoint) {}
 
   @Override
-  public void setRegion(Region region) {
-
-  }
+  public void setRegion(Region region) {}
 
   @Override
   public AddTagsToStreamResult addTagsToStream(AddTagsToStreamRequest addTagsToStreamRequest) {
@@ -290,8 +294,8 @@ class AmazonKinesisMock implements AmazonKinesis {
   }
 
   @Override
-  public DescribeStreamResult describeStream(String streamName,
-      Integer limit, String exclusiveStartShardId) {
+  public DescribeStreamResult describeStream(
+      String streamName, Integer limit, String exclusiveStartShardId) {
     throw new RuntimeException("Not implemented");
   }
 
@@ -314,17 +318,14 @@ class AmazonKinesisMock implements AmazonKinesis {
   }
 
   @Override
-  public GetShardIteratorResult getShardIterator(String streamName,
-      String shardId,
-      String shardIteratorType) {
+  public GetShardIteratorResult getShardIterator(
+      String streamName, String shardId, String shardIteratorType) {
     throw new RuntimeException("Not implemented");
   }
 
   @Override
-  public GetShardIteratorResult getShardIterator(String streamName,
-      String shardId,
-      String shardIteratorType,
-      String startingSequenceNumber) {
+  public GetShardIteratorResult getShardIterator(
+      String streamName, String shardId, String shardIteratorType, String startingSequenceNumber) {
     throw new RuntimeException("Not implemented");
   }
 
@@ -366,8 +367,8 @@ class AmazonKinesisMock implements AmazonKinesis {
   }
 
   @Override
-  public MergeShardsResult mergeShards(String streamName,
-      String shardToMerge, String adjacentShardToMerge) {
+  public MergeShardsResult mergeShards(
+      String streamName, String shardToMerge, String adjacentShardToMerge) {
     throw new RuntimeException("Not implemented");
   }
 
@@ -382,8 +383,8 @@ class AmazonKinesisMock implements AmazonKinesis {
   }
 
   @Override
-  public PutRecordResult putRecord(String streamName, ByteBuffer data,
-      String partitionKey, String sequenceNumberForOrdering) {
+  public PutRecordResult putRecord(
+      String streamName, ByteBuffer data, String partitionKey, String sequenceNumberForOrdering) {
     throw new RuntimeException("Not implemented");
   }
 
@@ -404,8 +405,8 @@ class AmazonKinesisMock implements AmazonKinesis {
   }
 
   @Override
-  public SplitShardResult splitShard(String streamName,
-      String shardToSplit, String newStartingHashKey) {
+  public SplitShardResult splitShard(
+      String streamName, String shardToSplit, String newStartingHashKey) {
     throw new RuntimeException("Not implemented");
   }
 
@@ -427,9 +428,7 @@ class AmazonKinesisMock implements AmazonKinesis {
   }
 
   @Override
-  public void shutdown() {
-
-  }
+  public void shutdown() {}
 
   @Override
   public ResponseMetadata getCachedResponseMetadata(AmazonWebServiceRequest request) {

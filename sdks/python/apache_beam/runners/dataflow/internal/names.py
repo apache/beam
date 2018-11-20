@@ -20,12 +20,12 @@
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
-# TODO (altay): Move shared names to a common location.
+from __future__ import absolute_import
+
 # Standard file names used for staging files.
-PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
+from builtins import object
+
 DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
-STAGED_PIPELINE_FILENAME = "pipeline.pb"
-STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
 
 # String constants related to sources framework
 SOURCE_FORMAT = 'custom_source'
@@ -38,20 +38,24 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20180518'
+BEAM_CONTAINER_VERSION = 'beam-master-20181106'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20180413'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20181106'
+
+# TODO(BEAM-5939): Remove these shared names once Dataflow worker is updated.
+PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
+STAGED_PIPELINE_FILENAME = "pipeline.pb"
+STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
 
 # Package names for different distributions
-GOOGLE_PACKAGE_NAME = 'google-cloud-dataflow'
 BEAM_PACKAGE_NAME = 'apache-beam'
 
 # SDK identifiers for different distributions
-GOOGLE_SDK_NAME = 'Google Cloud Dataflow SDK for Python'
 BEAM_SDK_NAME = 'Apache Beam SDK for Python'
+# TODO(BEAM-5393): End duplicated constants (see above).
 
-DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
+DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 
 
 class TransformNames(object):
@@ -91,6 +95,7 @@ class PropertyNames(object):
   FILE_NAME_SUFFIX = 'filename_suffix'
   FORMAT = 'format'
   INPUTS = 'inputs'
+  IMPULSE_ELEMENT = 'impulse_element'
   NON_PARALLEL_INPUTS = 'non_parallel_inputs'
   NUM_SHARDS = 'num_shards'
   OUT = 'out'

@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable.job;
 
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.Struct;
 import java.nio.file.Path;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.direct.portable.artifact.LocalFileSystemArtifactStagerService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Struct;
 
 /** A Job with a {@code prepare} call but no corresponding {@code run} call. */
 @AutoValue

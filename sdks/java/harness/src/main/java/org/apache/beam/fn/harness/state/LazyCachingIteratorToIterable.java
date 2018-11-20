@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * Converts an iterator to an iterable lazily loading values from the underlying iterator
- * and caching them to support reiteration.
+ * Converts an iterator to an iterable lazily loading values from the underlying iterator and
+ * caching them to support reiteration.
  */
 class LazyCachingIteratorToIterable<T> implements Iterable<T> {
   private final List<T> cachedElements;
@@ -45,8 +45,7 @@ class LazyCachingIteratorToIterable<T> implements Iterable<T> {
   private class CachingIterator implements Iterator<T> {
     private int position = 0;
 
-    private CachingIterator() {
-    }
+    private CachingIterator() {}
 
     @Override
     public boolean hasNext() {
@@ -78,8 +77,7 @@ class LazyCachingIteratorToIterable<T> implements Iterable<T> {
 
   @Override
   public boolean equals(Object obj) {
-    return obj instanceof Iterable
-        && Iterables.elementsEqual(this, (Iterable) obj);
+    return obj instanceof Iterable && Iterables.elementsEqual(this, (Iterable) obj);
   }
 
   @Override

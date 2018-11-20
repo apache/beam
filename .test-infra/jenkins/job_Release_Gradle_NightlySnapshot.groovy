@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 // This creates the nightly snapshot build.
 // Into https://repository.apache.org/content/groups/snapshots/org/apache/beam.
@@ -26,33 +26,44 @@ job('beam_Release_Gradle_NightlySnapshot') {
   // Execute concurrent builds if necessary.
   concurrentBuild()
 
-  // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  // Set common parameters. Timeout is longer, to avoid [BEAM-5774].
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 140)
 
   // This is a post-commit job that runs once per day, not for every push.
-  common_job_properties.setPostCommit(
+  commonJobProperties.setAutoJob(
       delegate,
       '0 7 * * *',
-      false,
-      'dev@beam.apache.org')
+      'builds@beam.apache.org')
 
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
       './gradlew publish',
       'Run Gradle Publish')
 
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks('clean')
+    }
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks('build')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('--no-parallel')
+      switches('--continue')
+    }
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks('publish')
-      common_job_properties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
       // Publish a snapshot build.
       switches("-Ppublishing")
       // Don't run tasks in parallel, currently the maven-publish/signing plugins
       // cause build failures when run in parallel with messages like 'error snapshotting'
       switches('--no-parallel')
+      switches('--continue')
     }
   }
 }

@@ -56,33 +56,33 @@ import org.joda.time.Instant;
  * arriving data.
  *
  * <p>This pipeline processes an unbounded stream of 'game events'. The calculation of the team
- * scores uses fixed windowing based on event time (the time of the game play event), not
- * processing time (the time that an event is processed by the pipeline). The pipeline calculates
- * the sum of scores per team, for each window. By default, the team scores are calculated using
- * one-hour windows.
+ * scores uses fixed windowing based on event time (the time of the game play event), not processing
+ * time (the time that an event is processed by the pipeline). The pipeline calculates the sum of
+ * scores per team, for each window. By default, the team scores are calculated using one-hour
+ * windows.
  *
- * <p>In contrast-- to demo another windowing option-- the user scores are calculated using a
- * global window, which periodically (every ten minutes) emits cumulative user score sums.
+ * <p>In contrast-- to demo another windowing option-- the user scores are calculated using a global
+ * window, which periodically (every ten minutes) emits cumulative user score sums.
  *
  * <p>In contrast to the previous pipelines in the series, which used static, finite input data,
  * here we're using an unbounded data source, which lets us provide speculative results, and allows
  * handling of late data, at much lower latency. We can use the early/speculative results to keep a
  * 'leaderboard' updated in near-realtime. Our handling of late data lets us generate correct
- * results, e.g. for 'team prizes'. We're now outputting window results as they're
- * calculated, giving us much lower latency than with the previous batch examples.
+ * results, e.g. for 'team prizes'. We're now outputting window results as they're calculated,
+ * giving us much lower latency than with the previous batch examples.
  *
- * <p>Run {@code injector.Injector} to generate pubsub data for this pipeline.  The Injector
+ * <p>Run {@code injector.Injector} to generate pubsub data for this pipeline. The Injector
  * documentation provides more detail on how to do this.
  *
  * <p>To execute this pipeline, specify the pipeline configuration like this:
+ *
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=YOUR_RUNNER
- *   --dataset=YOUR-DATASET
- *   --topic=projects/YOUR-PROJECT/topics/YOUR-TOPIC
- * }
- * </pre>
+ * --project=YOUR_PROJECT_ID
+ * --tempLocation=gs://YOUR_TEMP_DIRECTORY
+ * --runner=YOUR_RUNNER
+ * --dataset=YOUR-DATASET
+ * --topic=projects/YOUR-PROJECT/topics/YOUR-TOPIC
+ * }</pre>
  *
  * <p>The BigQuery dataset you specify must already exist. The PubSub topic you specify should be
  * the same topic to which the Injector is publishing.
@@ -92,35 +92,37 @@ public class LeaderBoard extends HourlyTeamScore {
   static final Duration FIVE_MINUTES = Duration.standardMinutes(5);
   static final Duration TEN_MINUTES = Duration.standardMinutes(10);
 
-
-  /**
-   * Options supported by {@link LeaderBoard}.
-   */
-  public interface Options extends HourlyTeamScore.Options, ExampleOptions, StreamingOptions {
+  /** Options supported by {@link LeaderBoard}. */
+  public interface Options extends ExampleOptions, StreamingOptions {
 
     @Description("BigQuery Dataset to write tables to. Must already exist.")
     @Validation.Required
     String getDataset();
+
     void setDataset(String value);
 
     @Description("Pub/Sub topic to read from")
     @Validation.Required
     String getTopic();
+
     void setTopic(String value);
 
     @Description("Numeric value of fixed window duration for team analysis, in minutes")
     @Default.Integer(60)
     Integer getTeamWindowDuration();
+
     void setTeamWindowDuration(Integer value);
 
     @Description("Numeric value of allowed data lateness, in minutes")
     @Default.Integer(120)
     Integer getAllowedLateness();
+
     void setAllowedLateness(Integer value);
 
     @Description("Prefix used for the BigQuery table names")
     @Default.String("leaderboard")
     String getLeaderBoardTableName();
+
     void setLeaderBoardTableName(String value);
   }
 
@@ -157,13 +159,12 @@ public class LeaderBoard extends HourlyTeamScore {
     return tableConfigure;
   }
 
-
   /**
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
    * is passed to the {@link WriteToBigQuery} constructor to write user score sums.
    */
   protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
-  configureBigQueryWrite() {
+      configureBigQueryWrite() {
     Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure = new HashMap<>();
     tableConfigure.put(
         "user", new WriteToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
@@ -172,7 +173,6 @@ public class LeaderBoard extends HourlyTeamScore {
         new WriteToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     return tableConfigure;
   }
-
 
   /**
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
@@ -190,7 +190,6 @@ public class LeaderBoard extends HourlyTeamScore {
     return tableConfigure;
   }
 
-
   public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
@@ -201,11 +200,13 @@ public class LeaderBoard extends HourlyTeamScore {
 
     // Read game events from Pub/Sub using custom timestamps, which are extracted from the pubsub
     // data elements, and parse the data.
-    PCollection<GameActionInfo> gameEvents = pipeline
-        .apply(PubsubIO.readStrings()
-            .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
-            .fromTopic(options.getTopic()))
-        .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
+    PCollection<GameActionInfo> gameEvents =
+        pipeline
+            .apply(
+                PubsubIO.readStrings()
+                    .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
+                    .fromTopic(options.getTopic()))
+            .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     gameEvents
         .apply(
@@ -240,9 +241,7 @@ public class LeaderBoard extends HourlyTeamScore {
     exampleUtils.waitToFinish(result);
   }
 
-  /**
-   * Calculates scores for each team within the configured window duration.
-   */
+  /** Calculates scores for each team within the configured window duration. */
   // [START DocInclude_WindowAndTrigger]
   // Extract team/score pairs from the event stream, using hour-long windows by default.
   @VisibleForTesting
@@ -258,17 +257,22 @@ public class LeaderBoard extends HourlyTeamScore {
 
     @Override
     public PCollection<KV<String, Integer>> expand(PCollection<GameActionInfo> infos) {
-      return infos.apply("LeaderboardTeamFixedWindows",
-          Window.<GameActionInfo>into(FixedWindows.of(teamWindowDuration))
-              // We will get early (speculative) results as well as cumulative
-              // processing of late data.
-              .triggering(AfterWatermark.pastEndOfWindow()
-                  .withEarlyFirings(AfterProcessingTime.pastFirstElementInPane()
-                      .plusDelayOf(FIVE_MINUTES))
-                  .withLateFirings(AfterProcessingTime.pastFirstElementInPane()
-                      .plusDelayOf(TEN_MINUTES)))
-              .withAllowedLateness(allowedLateness)
-              .accumulatingFiredPanes())
+      return infos
+          .apply(
+              "LeaderboardTeamFixedWindows",
+              Window.<GameActionInfo>into(FixedWindows.of(teamWindowDuration))
+                  // We will get early (speculative) results as well as cumulative
+                  // processing of late data.
+                  .triggering(
+                      AfterWatermark.pastEndOfWindow()
+                          .withEarlyFirings(
+                              AfterProcessingTime.pastFirstElementInPane()
+                                  .plusDelayOf(FIVE_MINUTES))
+                          .withLateFirings(
+                              AfterProcessingTime.pastFirstElementInPane()
+                                  .plusDelayOf(TEN_MINUTES)))
+                  .withAllowedLateness(allowedLateness)
+                  .accumulatingFiredPanes())
           // Extract and sum teamname/score pairs from the event data.
           .apply("ExtractTeamScore", new ExtractAndSumScore("team"));
     }
@@ -277,8 +281,8 @@ public class LeaderBoard extends HourlyTeamScore {
 
   // [START DocInclude_ProcTimeTrigger]
   /**
-   * Extract user/score pairs from the event stream using processing time, via global windowing.
-   * Get periodic updates on all users' running scores.
+   * Extract user/score pairs from the event stream using processing time, via global windowing. Get
+   * periodic updates on all users' running scores.
    */
   @VisibleForTesting
   static class CalculateUserScores
@@ -291,13 +295,16 @@ public class LeaderBoard extends HourlyTeamScore {
 
     @Override
     public PCollection<KV<String, Integer>> expand(PCollection<GameActionInfo> input) {
-      return input.apply("LeaderboardUserGlobalWindow",
-          Window.<GameActionInfo>into(new GlobalWindows())
-              // Get periodic results every ten minutes.
-              .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()
-                  .plusDelayOf(TEN_MINUTES)))
-              .accumulatingFiredPanes()
-              .withAllowedLateness(allowedLateness))
+      return input
+          .apply(
+              "LeaderboardUserGlobalWindow",
+              Window.<GameActionInfo>into(new GlobalWindows())
+                  // Get periodic results every ten minutes.
+                  .triggering(
+                      Repeatedly.forever(
+                          AfterProcessingTime.pastFirstElementInPane().plusDelayOf(TEN_MINUTES)))
+                  .accumulatingFiredPanes()
+                  .withAllowedLateness(allowedLateness))
           // Extract and sum username/score pairs from the event data.
           .apply("ExtractUserScore", new ExtractAndSumScore("user"));
     }

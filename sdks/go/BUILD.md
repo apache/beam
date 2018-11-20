@@ -61,3 +61,6 @@ to match the package structure expected by the code imports. Go users can just
 go get github.com/apache/beam/sdks/go/...
 ```
 Developers must invoke Go for cross-compilation manually, if desired.
+
+If you make changes to .proto files, you will need to rebuild the generated code.
+Consult `pkg/beam/model/PROTOBUF.md`.

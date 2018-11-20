@@ -74,8 +74,8 @@ import org.joda.time.Duration;
  * PCollection}, apply {@link TextIO#readAll()} or {@link TextIO#readFiles}.
  *
  * <p>{@link #read} returns a {@link PCollection} of {@link String Strings}, each corresponding to
- * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n',
- * or specified delimiter see {@link TextIO.Read#withDelimiter}).
+ * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n', or
+ * specified delimiter see {@link TextIO.Read#withDelimiter}).
  *
  * <h3>Filepattern expansion and watching</h3>
  *
@@ -163,21 +163,20 @@ import org.joda.time.Duration;
  * <p>For example, to write events of different type to different filenames:
  *
  * <pre>{@code
- *   PCollection<Event> events = ...;
- *   events.apply(FileIO.<EventType, Event>writeDynamic()
- *         .by(Event::getTypeName)
- *         .via(TextIO.sink(), Event::toString)
- *         .to(type -> nameFilesUsingWindowPaneAndShard(".../events/" + type + "/data", ".txt")));
+ * PCollection<Event> events = ...;
+ * events.apply(FileIO.<EventType, Event>writeDynamic()
+ *       .by(Event::getTypeName)
+ *       .via(TextIO.sink(), Event::toString)
+ *       .to(type -> nameFilesUsingWindowPaneAndShard(".../events/" + type + "/data", ".txt")));
  * }</pre>
  *
- * <p>For backwards compatibility, {@link TextIO} also supports the legacy
- * {@link DynamicDestinations} interface for advanced features via {@link
- * Write#to(DynamicDestinations)}.
+ * <p>For backwards compatibility, {@link TextIO} also supports the legacy {@link
+ * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  */
 public class TextIO {
   /**
-   * A {@link PTransform} that reads from one or more text files and returns a bounded
-   * {@link PCollection} containing one element for each line of the input files.
+   * A {@link PTransform} that reads from one or more text files and returns a bounded {@link
+   * PCollection} containing one element for each line of the input files.
    */
   public static Read read() {
     return new AutoValue_TextIO_Read.Builder()
@@ -249,6 +248,7 @@ public class TextIO {
         .setFilenameSuffix(null)
         .setFilenamePolicy(null)
         .setDynamicDestinations(null)
+        .setDelimiter(new char[] {'\n'})
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNumShards(0)
@@ -276,9 +276,13 @@ public class TextIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
+
       abstract Builder setMatchConfiguration(MatchConfiguration matchConfiguration);
+
       abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
+
       abstract Builder setCompression(Compression compression);
+
       abstract Builder setDelimiter(byte[] delimiter);
 
       abstract Read build();
@@ -345,8 +349,8 @@ public class TextIO {
      * files.
      *
      * <p>This hint may cause a runner to execute the transform differently, in a way that improves
-     * performance for this case, but it may worsen performance if the filepattern matches only
-     * a small number of files (e.g., in a runner that supports dynamic work rebalancing, it will
+     * performance for this case, but it may worsen performance if the filepattern matches only a
+     * small number of files (e.g., in a runner that supports dynamic work rebalancing, it will
      * happen less efficiently within individual files).
      */
     public Read withHintMatchesManyFiles() {
@@ -358,9 +362,7 @@ public class TextIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
-    /**
-     * Set the custom delimiter to be used in place of the default ones ('\r', '\n' or '\r\n').
-     */
+    /** Set the custom delimiter to be used in place of the default ones ('\r', '\n' or '\r\n'). */
     public Read withDelimiter(byte[] delimiter) {
       checkArgument(delimiter != null, "delimiter can not be null");
       checkArgument(!isSelfOverlapping(delimiter), "delimiter must not self-overlap");
@@ -411,12 +413,11 @@ public class TextIO {
           .add(
               DisplayData.item("compressionType", getCompression().toString())
                   .withLabel("Compression Type"))
-          .addIfNotNull(
-              DisplayData.item("filePattern", getFilepattern()).withLabel("File Pattern"))
+          .addIfNotNull(DisplayData.item("filePattern", getFilepattern()).withLabel("File Pattern"))
           .include("matchConfiguration", getMatchConfiguration())
           .addIfNotNull(
               DisplayData.item("delimiter", Arrays.toString(getDelimiter()))
-              .withLabel("Custom delimiter to split records"));
+                  .withLabel("Custom delimiter to split records"));
     }
   }
 
@@ -439,8 +440,11 @@ public class TextIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setMatchConfiguration(MatchConfiguration matchConfiguration);
+
       abstract Builder setCompression(Compression compression);
+
       abstract Builder setDelimiter(byte[] delimiter);
+
       abstract ReadAll build();
     }
 
@@ -505,7 +509,6 @@ public class TextIO {
                   .withLabel("Custom delimiter to split records"))
           .include("matchConfiguration", getMatchConfiguration());
     }
-
   }
 
   /** Implementation of {@link #readFiles}. */
@@ -523,7 +526,9 @@ public class TextIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+
       abstract Builder setDelimiter(byte[] delimiter);
+
       abstract ReadFiles build();
     }
 
@@ -569,30 +574,41 @@ public class TextIO {
   @AutoValue
   public abstract static class TypedWrite<UserT, DestinationT>
       extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
+
     /** The prefix of each file written, combined with suffix and shardTemplate. */
-    @Nullable abstract ValueProvider<ResourceId> getFilenamePrefix();
+    @Nullable
+    abstract ValueProvider<ResourceId> getFilenamePrefix();
 
     /** The suffix of each file written, combined with prefix and shardTemplate. */
-    @Nullable abstract String getFilenameSuffix();
+    @Nullable
+    abstract String getFilenameSuffix();
 
     /** The base directory used for generating temporary files. */
     @Nullable
     abstract ValueProvider<ResourceId> getTempDirectory();
 
+    /** The delimiter between string records. */
+    @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
+    abstract char[] getDelimiter();
+
     /** An optional header to add to each file. */
-    @Nullable abstract String getHeader();
+    @Nullable
+    abstract String getHeader();
 
     /** An optional footer to add to each file. */
-    @Nullable abstract String getFooter();
+    @Nullable
+    abstract String getFooter();
 
     /** Requested number of shards. 0 for automatic. */
     abstract int getNumShards();
 
     /** The shard template of each file written, combined with prefix and suffix. */
-    @Nullable abstract String getShardTemplate();
+    @Nullable
+    abstract String getShardTemplate();
 
     /** A policy for naming output files. */
-    @Nullable abstract FilenamePolicy getFilenamePolicy();
+    @Nullable
+    abstract FilenamePolicy getFilenamePolicy();
 
     /** Allows for value-dependent {@link DynamicDestinations} to be vended. */
     @Nullable
@@ -636,6 +652,8 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setHeader(@Nullable String header);
 
       abstract Builder<UserT, DestinationT> setFooter(@Nullable String footer);
+
+      abstract Builder<UserT, DestinationT> setDelimiter(char[] delimiter);
 
       abstract Builder<UserT, DestinationT> setFilenamePolicy(
           @Nullable FilenamePolicy filenamePolicy);
@@ -691,8 +709,7 @@ public class TextIO {
     /** Like {@link #to(String)}. */
     public TypedWrite<UserT, DestinationT> to(ValueProvider<String> outputPrefix) {
       return toResource(
-          NestedValueProvider.of(
-              outputPrefix, FileBasedSink::convertToFileResourceIfPossible));
+          NestedValueProvider.of(outputPrefix, FileBasedSink::convertToFileResourceIfPossible));
     }
 
     /**
@@ -731,10 +748,11 @@ public class TextIO {
     @Deprecated
     public TypedWrite<UserT, Params> to(
         SerializableFunction<UserT, Params> destinationFunction, Params emptyDestination) {
-      return (TypedWrite) toBuilder()
-          .setDestinationFunction(destinationFunction)
-          .setEmptyDestination(emptyDestination)
-          .build();
+      return (TypedWrite)
+          toBuilder()
+              .setDestinationFunction(destinationFunction)
+              .setEmptyDestination(emptyDestination)
+              .build();
     }
 
     /** Like {@link #to(ResourceId)}. */
@@ -820,6 +838,15 @@ public class TextIO {
      */
     public TypedWrite<UserT, DestinationT> withoutSharding() {
       return withNumShards(1).withShardNameTemplate("");
+    }
+
+    /**
+     * Specifies the delimiter after each string written.
+     *
+     * <p>Defaults to '\n'.
+     */
+    public TypedWrite<UserT, DestinationT> withDelimiter(char[] delimiter) {
+      return toBuilder().setDelimiter(delimiter).build();
     }
 
     /**
@@ -945,6 +972,7 @@ public class TextIO {
               new TextSink<>(
                   tempDirectory,
                   resolveDynamicDestinations(),
+                  getDelimiter(),
                   getHeader(),
                   getFooter(),
                   getWritableByteChannelFactory()));
@@ -1087,6 +1115,11 @@ public class TextIO {
       return new Write(inner.withoutSharding());
     }
 
+    /** See {@link TypedWrite#withDelimiter(char[])}. */
+    public Write withDelimiter(char[] delimiter) {
+      return new Write(inner.withDelimiter(delimiter));
+    }
+
     /** See {@link TypedWrite#withHeader(String)}. */
     public Write withHeader(@Nullable String header) {
       return new Write(inner.withHeader(header));
@@ -1101,6 +1134,11 @@ public class TextIO {
     public Write withWritableByteChannelFactory(
         WritableByteChannelFactory writableByteChannelFactory) {
       return new Write(inner.withWritableByteChannelFactory(writableByteChannelFactory));
+    }
+
+    /** See {@link TypedWrite#withCompression(Compression)}. */
+    public Write withCompression(Compression compression) {
+      return new Write(inner.withCompression(compression));
     }
 
     /** See {@link TypedWrite#withWindowedWrites}. */
@@ -1182,14 +1220,20 @@ public class TextIO {
   /** Implementation of {@link #sink}. */
   @AutoValue
   public abstract static class Sink implements FileIO.Sink<String> {
-    @Nullable abstract String getHeader();
-    @Nullable abstract String getFooter();
+    @Nullable
+    abstract String getHeader();
+
+    @Nullable
+    abstract String getFooter();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setHeader(String header);
+
       abstract Builder setFooter(String footer);
+
       abstract Sink build();
     }
 
@@ -1207,8 +1251,9 @@ public class TextIO {
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
-      writer = new PrintWriter(new BufferedWriter(
-          new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
+      writer =
+          new PrintWriter(
+              new BufferedWriter(new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
       if (getHeader() != null) {
         writer.println(getHeader());
       }

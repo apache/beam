@@ -38,7 +38,7 @@ import argparse
 import logging
 import re
 
-import six
+from past.builtins import unicode
 
 import apache_beam as beam
 import apache_beam.transforms.window as window
@@ -105,10 +105,10 @@ def run(argv=None):
 
   # Read from PubSub into a PCollection.
   if known_args.input_subscription:
-    lines = p | beam.io.ReadStringsFromPubSub(
+    lines = p | beam.io.ReadFromPubSub(
         subscription=known_args.input_subscription)
   else:
-    lines = p | beam.io.ReadStringsFromPubSub(topic=known_args.input_topic)
+    lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
 
   # Count the occurrences of each word.
   def count_ones(word_ones):
@@ -119,7 +119,7 @@ def run(argv=None):
             | 'AddTimestampFn' >> beam.ParDo(AddTimestampFn())
             | 'After AddTimestampFn' >> ParDo(PrintFn('After AddTimestampFn'))
             | 'Split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(six.text_type))
+                          .with_output_types(unicode))
             | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
             | beam.WindowInto(window.FixedWindows(5, 0))
             | 'GroupByKey' >> beam.GroupByKey()

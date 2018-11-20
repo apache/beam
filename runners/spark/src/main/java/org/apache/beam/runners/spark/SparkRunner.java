@@ -15,23 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import com.google.common.collect.Iterables;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.beam.runners.core.construction.PipelineResources;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
 import org.apache.beam.runners.spark.metrics.CompositeSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
@@ -46,16 +44,17 @@ import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingC
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.WatermarkAdvancingStreamingListener;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -126,9 +125,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
 
     if (sparkOptions.getFilesToStage() == null) {
-      sparkOptions.setFilesToStage(detectClassPathResourcesToStage(
-          SparkRunner.class.getClassLoader()));
-      LOG.info("PipelineOptions.filesToStage was not specified. "
+      sparkOptions.setFilesToStage(
+          detectClassPathResourcesToStage(SparkRunner.class.getClassLoader()));
+      LOG.info(
+          "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "
               + "Enable logging at DEBUG level to see which files will be staged.",
           sparkOptions.getFilesToStage().size());
@@ -161,6 +161,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     // visit the pipeline to determine the translation mode
     detectTranslationMode(pipeline);
+
+    pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(mOptions.isStreaming()));
+
+    prepareFilesToStageForRemoteClusterExecution(mOptions);
 
     if (mOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());
@@ -270,6 +274,19 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
   }
 
+  /**
+   * Local configurations work in the same JVM and have no problems with improperly formatted files
+   * on classpath (eg. directories with .class files or empty directories). Prepare files for
+   * staging only when using remote cluster (passing the master address explicitly).
+   */
+  private static void prepareFilesToStageForRemoteClusterExecution(SparkPipelineOptions options) {
+    if (!options.getSparkMaster().matches("local\\[?\\d*\\]?")) {
+      options.setFilesToStage(
+          PipelineResources.prepareFilesForStaging(
+              options.getFilesToStage(), options.getTempLocation()));
+    }
+  }
+
   /** Evaluator that update/populate the cache candidates. */
   public static void updateCacheCandidates(
       Pipeline pipeline, SparkPipelineTranslator translator, EvaluationContext evaluationContext) {
@@ -288,8 +305,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   /** Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline. */
   private static class TranslationModeDetector extends Pipeline.PipelineVisitor.Defaults {
     private static final Logger LOG = LoggerFactory.getLogger(TranslationModeDetector.class);
-    private static final Collection<Class<? extends PTransform>> UNBOUNDED_INPUTS =
-        Arrays.asList(Read.Unbounded.class, CreateStream.class);
 
     private TranslationMode translationMode;
 
@@ -306,11 +321,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
 
     @Override
-    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+    public void visitValue(PValue value, Node producer) {
       if (translationMode.equals(TranslationMode.BATCH)) {
-        Class<? extends PTransform> transformClass = node.getTransform().getClass();
-        if (UNBOUNDED_INPUTS.contains(transformClass)) {
-          LOG.info("Found {}. Switching to streaming execution.", transformClass);
+        if (value instanceof PCollection
+            && ((PCollection) value).isBounded() == IsBounded.UNBOUNDED) {
+          LOG.info(
+              "Found unbounded PCollection {}. Switching to streaming execution.", value.getName());
           translationMode = TranslationMode.STREAMING;
         }
       }
@@ -358,13 +374,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     @Override
     public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-      if (node.getTransform() != null) {
-        @SuppressWarnings("unchecked")
-        Class<PTransform<?, ?>> transformClass =
-            (Class<PTransform<?, ?>>) node.getTransform().getClass();
-        if (translator.hasTranslation(transformClass) && !shouldDefer(node)) {
+      PTransform<?, ?> transform = node.getTransform();
+      if (transform != null) {
+        if (translator.hasTranslation(transform) && !shouldDefer(node)) {
           LOG.info("Entering directly-translatable composite transform: '{}'", node.getFullName());
-          LOG.debug("Composite transform class: '{}'", transformClass);
+          LOG.debug("Composite transform class: '{}'", transform);
           doVisitTransform(node);
           return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
         }
@@ -417,9 +431,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       @SuppressWarnings("unchecked")
       TransformT transform = (TransformT) node.getTransform();
       @SuppressWarnings("unchecked")
-      Class<TransformT> transformClass = (Class<TransformT>) (Class<?>) transform.getClass();
-      @SuppressWarnings("unchecked")
-      TransformEvaluator<TransformT> evaluator = translate(node, transform, transformClass);
+      TransformEvaluator<TransformT> evaluator = translate(node, transform);
       LOG.info("Evaluating {}", transform);
       AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform(getPipeline());
       ctxt.setCurrentTransform(appliedTransform);
@@ -433,8 +445,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
      */
     protected <TransformT extends PTransform<? super PInput, POutput>>
         TransformEvaluator<TransformT> translate(
-            TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
-      //--- determine if node is bounded/unbounded.
+            TransformHierarchy.Node node, TransformT transform) {
+      // --- determine if node is bounded/unbounded.
       // usually, the input determines if the PCollection to apply the next transformation to
       // is BOUNDED or UNBOUNDED, meaning RDD/DStream.
       Map<TupleTag<?>, PValue> pValues;
@@ -448,8 +460,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // translate accordingly.
       LOG.debug("Translating {} as {}", transform, isNodeBounded);
       return isNodeBounded.equals(PCollection.IsBounded.BOUNDED)
-          ? translator.translateBounded(transformClass)
-          : translator.translateUnbounded(transformClass);
+          ? translator.translateBounded(transform)
+          : translator.translateUnbounded(transform);
     }
 
     protected PCollection.IsBounded isBoundedCollection(Collection<PValue> pValues) {

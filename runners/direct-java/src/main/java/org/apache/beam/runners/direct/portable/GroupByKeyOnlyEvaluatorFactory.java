@@ -26,12 +26,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components.Builder;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
-import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -104,14 +103,11 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
       try {
         // We know the type restrictions on the input PCollection, and the restrictions on the
         // Wire coder
-        MessageWithComponents wireCoderProto =
-            WireCoders.createRunnerWireCoder(
-                inputPCollection, components, components::containsCoders);
+        Builder builder = GroupByKeyOnlyEvaluatorFactory.this.components.toBuilder();
+        String wireCoderId = WireCoders.addRunnerWireCoder(inputPCollection, builder);
         Coder<WindowedValue<KV<K, V>>> wireCoder =
             (Coder<WindowedValue<KV<K, V>>>)
-                CoderTranslation.fromProto(
-                    wireCoderProto.getCoder(),
-                    RehydratedComponents.forComponents(wireCoderProto.getComponents()));
+                RehydratedComponents.forComponents(builder.build()).getCoder(wireCoderId);
 
         checkArgument(
             wireCoder instanceof WindowedValue.WindowedValueCoder,

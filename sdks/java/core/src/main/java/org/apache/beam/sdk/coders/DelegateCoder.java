@@ -28,16 +28,13 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@code DelegateCoder<T, IntermediateT>} wraps a {@link Coder} for {@code IntermediateT} and
- * encodes/decodes values of type {@code T} by converting
- * to/from {@code IntermediateT} and then encoding/decoding using the underlying
- * {@code Coder<IntermediateT>}.
+ * encodes/decodes values of type {@code T} by converting to/from {@code IntermediateT} and then
+ * encoding/decoding using the underlying {@code Coder<IntermediateT>}.
  *
- * <p>The conversions from {@code T} to {@code IntermediateT} and vice versa
- * must be supplied as {@link CodingFunction}, a serializable
- * function that may throw any {@code Exception}. If a thrown
- * exception is an instance of {@link CoderException} or
- * {@link IOException}, it will be re-thrown, otherwise it will be wrapped as
- * a {@link CoderException}.
+ * <p>The conversions from {@code T} to {@code IntermediateT} and vice versa must be supplied as
+ * {@link CodingFunction}, a serializable function that may throw any {@code Exception}. If a thrown
+ * exception is an instance of {@link CoderException} or {@link IOException}, it will be re-thrown,
+ * otherwise it will be wrapped as a {@link CoderException}.
  *
  * @param <T> The type of objects coded by this Coder.
  * @param <IntermediateT> The type of objects a {@code T} will be converted to for coding.
@@ -48,10 +45,11 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
    * function from {@code InputT} to {@code OutputT} that may throw any {@link Exception}.
    */
   public interface CodingFunction<InputT, OutputT> extends Serializable {
-     OutputT apply(InputT input) throws Exception;
+    OutputT apply(InputT input) throws Exception;
   }
 
-  public static <T, IntermediateT> DelegateCoder<T, IntermediateT> of(Coder<IntermediateT> coder,
+  public static <T, IntermediateT> DelegateCoder<T, IntermediateT> of(
+      Coder<IntermediateT> coder,
       CodingFunction<T, IntermediateT> toFn,
       CodingFunction<IntermediateT, T> fromFn) {
     return of(coder, toFn, fromFn, null);
@@ -66,8 +64,7 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream)
-      throws CoderException, IOException {
+  public void encode(T value, OutputStream outStream) throws CoderException, IOException {
     encode(value, outStream, Context.NESTED);
   }
 
@@ -88,8 +85,8 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   }
 
   /**
-   * Returns the coder used to encode/decode the intermediate values produced/consumed by the
-   * coding functions of this {@code DelegateCoder}.
+   * Returns the coder used to encode/decode the intermediate values produced/consumed by the coding
+   * functions of this {@code DelegateCoder}.
    */
   public Coder<IntermediateT> getCoder() {
     return coder;
@@ -99,8 +96,8 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
    * {@inheritDoc}
    *
    * @throws NonDeterministicException when the underlying coder's {@code verifyDeterministic()}
-   *         throws a {@link Coder.NonDeterministicException}. For this to be safe, the
-   *         intermediate {@code CodingFunction<T, IntermediateT>} must also be deterministic.
+   *     throws a {@link Coder.NonDeterministicException}. For this to be safe, the intermediate
+   *     {@code CodingFunction<T, IntermediateT>} must also be deterministic.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
@@ -110,9 +107,8 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   /**
    * {@inheritDoc}
    *
-   * @return a structural for a value of type {@code T} obtained by first converting to
-   *         {@code IntermediateT} and then obtaining a structural value according to the underlying
-   *         coder.
+   * @return a structural for a value of type {@code T} obtained by first converting to {@code
+   *     IntermediateT} and then obtaining a structural value according to the underlying coder.
    */
   @Override
   public Object structuralValue(T value) {
@@ -165,8 +161,7 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   /////////////////////////////////////////////////////////////////////////////
 
   private <InputT, OutputT> OutputT applyAndWrapExceptions(
-      CodingFunction<InputT, OutputT> fn,
-      InputT input) throws CoderException, IOException {
+      CodingFunction<InputT, OutputT> fn, InputT input) throws CoderException, IOException {
     try {
       return fn.apply(input);
     } catch (IOException exc) {
@@ -185,7 +180,8 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   // to try to deduce a good type descriptor.
   @Nullable private final TypeDescriptor<T> typeDescriptor;
 
-  protected DelegateCoder(Coder<IntermediateT> coder,
+  protected DelegateCoder(
+      Coder<IntermediateT> coder,
       CodingFunction<T, IntermediateT> toFn,
       CodingFunction<IntermediateT, T> fromFn,
       @Nullable TypeDescriptor<T> typeDescriptor) {

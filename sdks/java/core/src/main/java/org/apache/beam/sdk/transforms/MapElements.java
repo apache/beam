@@ -30,11 +30,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
-/**
- * {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}.
- */
+/** {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}. */
 public class MapElements<InputT, OutputT>
-extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+    extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   @Nullable private final transient TypeDescriptor<InputT> inputType;
   @Nullable private final transient TypeDescriptor<OutputT> outputType;
   @Nullable private final transient Object originalFnForDisplayData;
@@ -78,11 +76,10 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   }
 
   /**
-   * Returns a new {@link MapElements} transform with the given type descriptor for the output
-   * type, but the mapping function yet to be specified using {@link #via(SerializableFunction)}.
+   * Returns a new {@link MapElements} transform with the given type descriptor for the output type,
+   * but the mapping function yet to be specified using {@link #via(SerializableFunction)}.
    */
-  public static <OutputT> MapElements<?, OutputT>
-  into(final TypeDescriptor<OutputT> outputType) {
+  public static <OutputT> MapElements<?, OutputT> into(final TypeDescriptor<OutputT> outputType) {
     return new MapElements<>(null, null, null, outputType);
   }
 
@@ -123,34 +120,38 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     return input.apply(
         "Map",
         ParDo.of(
-            new DoFn<InputT, OutputT>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) throws Exception {
-                c.output(fn.getClosure().apply(c.element(), Fn.Context.wrapProcessContext(c)));
-              }
+                new DoFn<InputT, OutputT>() {
+                  @ProcessElement
+                  public void processElement(
+                      @Element InputT element, OutputReceiver<OutputT> receiver, ProcessContext c)
+                      throws Exception {
+                    receiver.output(
+                        fn.getClosure().apply(element, Fn.Context.wrapProcessContext(c)));
+                  }
 
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.delegate(MapElements.this);
-              }
+                  @Override
+                  public void populateDisplayData(DisplayData.Builder builder) {
+                    builder.delegate(MapElements.this);
+                  }
 
-              @Override
-              public TypeDescriptor<InputT> getInputTypeDescriptor() {
-                return inputType;
-              }
+                  @Override
+                  public TypeDescriptor<InputT> getInputTypeDescriptor() {
+                    return inputType;
+                  }
 
-              @Override
-              public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-                checkState(
-                    outputType != null,
-                    "%s output type descriptor was null; "
-                        + "this probably means that getOutputTypeDescriptor() was called after "
-                        + "serialization/deserialization, but it is only available prior to "
-                        + "serialization, for constructing a pipeline and inferring coders",
-                    MapElements.class.getSimpleName());
-                return outputType;
-              }
-            }).withSideInputs(fn.getRequirements().getSideInputs()));
+                  @Override
+                  public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+                    checkState(
+                        outputType != null,
+                        "%s output type descriptor was null; "
+                            + "this probably means that getOutputTypeDescriptor() was called after "
+                            + "serialization/deserialization, but it is only available prior to "
+                            + "serialization, for constructing a pipeline and inferring coders",
+                        MapElements.class.getSimpleName());
+                    return outputType;
+                  }
+                })
+            .withSideInputs(fn.getRequirements().getSideInputs()));
   }
 
   @Override

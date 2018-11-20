@@ -40,53 +40,48 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test on the {@link ParquetIO}.
- */
+/** Test on the {@link ParquetIO}. */
 @RunWith(JUnit4.class)
 public class ParquetIOTest implements Serializable {
 
-  @Rule
-  public transient TestPipeline mainPipeline = TestPipeline.create();
+  @Rule public transient TestPipeline mainPipeline = TestPipeline.create();
 
-  @Rule
-  public transient TestPipeline readPipeline = TestPipeline.create();
+  @Rule public transient TestPipeline readPipeline = TestPipeline.create();
 
-  @Rule
-  public transient TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public transient TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   private static final String SCHEMA_STRING =
-    "{"
-      + "\"type\":\"record\", "
-      + "\"name\":\"testrecord\","
-      + "\"fields\":["
-      + "    {\"name\":\"name\",\"type\":\"string\"}"
-      + "  ]"
-      + "}";
+      "{"
+          + "\"type\":\"record\", "
+          + "\"name\":\"testrecord\","
+          + "\"fields\":["
+          + "    {\"name\":\"name\",\"type\":\"string\"}"
+          + "  ]"
+          + "}";
 
   private static final Schema SCHEMA = new Schema.Parser().parse(SCHEMA_STRING);
 
-  private static final String[] SCIENTISTS = new String[] {
-    "Einstein", "Darwin", "Copernicus", "Pasteur", "Curie",
-    "Faraday", "Newton", "Bohr", "Galilei", "Maxwell"
-  };
+  private static final String[] SCIENTISTS =
+      new String[] {
+        "Einstein", "Darwin", "Copernicus", "Pasteur", "Curie",
+        "Faraday", "Newton", "Bohr", "Galilei", "Maxwell"
+      };
 
   @Test
   public void testWriteAndRead() {
     List<GenericRecord> records = generateGenericRecords(1000);
 
     mainPipeline
-      .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
-      .apply(
-        FileIO.<GenericRecord>write()
-          .via(ParquetIO.sink(SCHEMA))
-          .to(temporaryFolder.getRoot().getAbsolutePath()));
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
     mainPipeline.run().waitUntilFinish();
 
     PCollection<GenericRecord> readBack =
-      readPipeline.apply(
-        ParquetIO.read(SCHEMA)
-          .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA).from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
 
     PAssert.that(readBack).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
@@ -96,17 +91,18 @@ public class ParquetIOTest implements Serializable {
   public void testWriteAndReadFiles() {
     List<GenericRecord> records = generateGenericRecords(1000);
 
-    PCollection<GenericRecord> writeThenRead = mainPipeline
-      .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
-      .apply(FileIO.<GenericRecord>
-        write()
-        .via(ParquetIO.sink(SCHEMA))
-        .to(temporaryFolder.getRoot().getAbsolutePath()))
-      .getPerDestinationOutputFilenames()
-      .apply(Values.create())
-      .apply(FileIO.matchAll())
-      .apply(FileIO.readMatches())
-      .apply(ParquetIO.readFiles(SCHEMA));
+    PCollection<GenericRecord> writeThenRead =
+        mainPipeline
+            .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+            .apply(
+                FileIO.<GenericRecord>write()
+                    .via(ParquetIO.sink(SCHEMA))
+                    .to(temporaryFolder.getRoot().getAbsolutePath()))
+            .getPerDestinationOutputFilenames()
+            .apply(Values.create())
+            .apply(FileIO.matchAll())
+            .apply(FileIO.readMatches())
+            .apply(ParquetIO.readFiles(SCHEMA));
 
     PAssert.that(writeThenRead).containsInAnyOrder(records);
 
@@ -126,10 +122,7 @@ public class ParquetIOTest implements Serializable {
 
   @Test
   public void testReadDisplayData() {
-    DisplayData displayData =
-      DisplayData.from(
-        ParquetIO.read(SCHEMA)
-          .from("foo.parquet"));
+    DisplayData displayData = DisplayData.from(ParquetIO.read(SCHEMA).from("foo.parquet"));
 
     Assert.assertThat(displayData, hasDisplayItem("filePattern", "foo.parquet"));
   }

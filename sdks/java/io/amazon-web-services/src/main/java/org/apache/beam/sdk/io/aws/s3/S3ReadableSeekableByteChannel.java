@@ -131,9 +131,11 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
       return this;
     }
 
-    // The position has changed, so close the object to induce a re-open on the next call to read()
+    // The position has changed, so close and destroy the object to induce a re-creation on the next
+    // call to read()
     if (s3Object != null) {
       s3Object.close();
+      s3Object = null;
     }
     position = newPosition;
     return this;

@@ -75,9 +75,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests that Java SDK coders standardized by the Fn API meet the common spec.
- */
+/** Tests that Java SDK coders standardized by the Fn API meet the common spec. */
 @RunWith(Parameterized.class)
 public class CommonCoderTest {
   private static final String STANDARD_CODERS_YAML_PATH =
@@ -90,6 +88,7 @@ public class CommonCoderTest {
           .put(getUrn(StandardCoders.Enum.VARINT), VarLongCoder.class)
           .put(getUrn(StandardCoders.Enum.INTERVAL_WINDOW), IntervalWindowCoder.class)
           .put(getUrn(StandardCoders.Enum.ITERABLE), IterableCoder.class)
+          .put(getUrn(StandardCoders.Enum.TIMER), Timer.Coder.class)
           .put(getUrn(StandardCoders.Enum.GLOBAL_WINDOW), GlobalWindow.Coder.class)
           .put(
               getUrn(StandardCoders.Enum.WINDOWED_VALUE),
@@ -99,8 +98,11 @@ public class CommonCoderTest {
   @AutoValue
   abstract static class CommonCoder {
     abstract String getUrn();
+
     abstract List<CommonCoder> getComponents();
+
     abstract Boolean getNonDeterministic();
+
     @JsonCreator
     static CommonCoder create(
         @JsonProperty("urn") String urn,
@@ -116,8 +118,11 @@ public class CommonCoderTest {
   @AutoValue
   abstract static class CommonCoderTestSpec {
     abstract CommonCoder getCoder();
+
     abstract @Nullable Boolean getNested();
+
     abstract Map<String, Object> getExamples();
+
     @JsonCreator
     static CommonCoderTestSpec create(
         @JsonProperty("coder") CommonCoder coder,
@@ -130,10 +135,14 @@ public class CommonCoderTest {
   @AutoValue
   abstract static class OneCoderTestSpec {
     abstract CommonCoder getCoder();
+
     abstract boolean getNested();
+
     @SuppressWarnings("mutable")
     abstract byte[] getSerialized();
+
     abstract Object getValue();
+
     static OneCoderTestSpec create(
         CommonCoder coder, boolean nested, byte[] serialized, Object value) {
       return new AutoValue_CommonCoderTest_OneCoderTestSpec(coder, nested, serialized, value);
@@ -175,11 +184,12 @@ public class CommonCoderTest {
     ImmutableList.Builder<Object[]> ret = ImmutableList.builder();
     for (OneCoderTestSpec test : loadStandardCodersSuite()) {
       // Some tools cannot handle Unicode in test names, so omit the problematic value field.
-      String testname = MoreObjects.toStringHelper(OneCoderTestSpec.class)
-          .add("coder", test.getCoder())
-          .add("nested", test.getNested())
-          .add("serialized", test.getSerialized())
-          .toString();
+      String testname =
+          MoreObjects.toStringHelper(OneCoderTestSpec.class)
+              .add("coder", test.getCoder())
+              .add("nested", test.getNested())
+              .add("serialized", test.getSerialized())
+              .toString();
       ret.add(new Object[] {test, testname});
     }
     return ret.build();
@@ -217,6 +227,12 @@ public class CommonCoderTest {
       return KV.of(k, v);
     } else if (s.equals(getUrn(StandardCoders.Enum.VARINT))) {
       return ((Number) value).longValue();
+    } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
+      Map<String, Object> kvMap = (Map<String, Object>) value;
+      Coder<?> payloadCoder = (Coder) coder.getCoderArguments().get(0);
+      return Timer.of(
+          new Instant(((Number) kvMap.get("timestamp")).longValue()),
+          convertValue(kvMap.get("payload"), coderSpec.getComponents().get(0), payloadCoder));
     } else if (s.equals(getUrn(StandardCoders.Enum.INTERVAL_WINDOW))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Instant end = new Instant(((Number) kvMap.get("end")).longValue());
@@ -237,21 +253,22 @@ public class CommonCoderTest {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Coder valueCoder = ((WindowedValue.FullWindowedValueCoder) coder).getValueCoder();
       Coder windowCoder = ((WindowedValue.FullWindowedValueCoder) coder).getWindowCoder();
-      Object windowValue = convertValue(
-          kvMap.get("value"), coderSpec.getComponents().get(0), valueCoder);
+      Object windowValue =
+          convertValue(kvMap.get("value"), coderSpec.getComponents().get(0), valueCoder);
       Instant timestamp = new Instant(((Number) kvMap.get("timestamp")).longValue());
       List<BoundedWindow> windows = new ArrayList<>();
       for (Object window : ((List<Object>) kvMap.get("windows"))) {
-        windows.add((BoundedWindow) convertValue(window, coderSpec.getComponents().get(1),
-            windowCoder));
+        windows.add(
+            (BoundedWindow) convertValue(window, coderSpec.getComponents().get(1), windowCoder));
       }
       Map<String, Object> paneInfoMap = (Map<String, Object>) kvMap.get("pane");
-      PaneInfo paneInfo = PaneInfo.createPane(
-          (boolean) paneInfoMap.get("is_first"),
-          (boolean) paneInfoMap.get("is_last"),
-          PaneInfo.Timing.valueOf((String) paneInfoMap.get("timing")),
-          (int) paneInfoMap.get("index"),
-          (int) paneInfoMap.get("on_time_index"));
+      PaneInfo paneInfo =
+          PaneInfo.createPane(
+              (boolean) paneInfoMap.get("is_first"),
+              (boolean) paneInfoMap.get("is_last"),
+              PaneInfo.Timing.valueOf((String) paneInfoMap.get("timing")),
+              (int) paneInfoMap.get("index"),
+              (int) paneInfoMap.get("on_time_index"));
       return WindowedValue.of(windowValue, timestamp, windows, paneInfo);
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
@@ -274,11 +291,13 @@ public class CommonCoderTest {
       return IntervalWindowCoder.of();
     } else if (s.equals(getUrn(StandardCoders.Enum.ITERABLE))) {
       return IterableCoder.of(components.get(0));
+    } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
+      return Timer.Coder.of(components.get(0));
     } else if (s.equals(getUrn(StandardCoders.Enum.GLOBAL_WINDOW))) {
       return GlobalWindow.Coder.INSTANCE;
     } else if (s.equals(getUrn(StandardCoders.Enum.WINDOWED_VALUE))) {
-      return WindowedValue.FullWindowedValueCoder.of(components.get(0),
-          (Coder<BoundedWindow>) components.get(1));
+      return WindowedValue.FullWindowedValueCoder.of(
+          components.get(0), (Coder<BoundedWindow>) components.get(1));
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
     }
@@ -306,10 +325,12 @@ public class CommonCoderTest {
 
     } else if (s.equals(getUrn(StandardCoders.Enum.KV))) {
       assertThat(actualValue, instanceOf(KV.class));
-      verifyDecodedValue(coder.getComponents().get(0),
-          ((KV) expectedValue).getKey(), ((KV) actualValue).getKey());
-      verifyDecodedValue(coder.getComponents().get(0),
-          ((KV) expectedValue).getValue(), ((KV) actualValue).getValue());
+      verifyDecodedValue(
+          coder.getComponents().get(0), ((KV) expectedValue).getKey(), ((KV) actualValue).getKey());
+      verifyDecodedValue(
+          coder.getComponents().get(0),
+          ((KV) expectedValue).getValue(),
+          ((KV) actualValue).getValue());
 
     } else if (s.equals(getUrn(StandardCoders.Enum.VARINT))) {
       assertEquals(expectedValue, actualValue);
@@ -326,6 +347,10 @@ public class CommonCoderTest {
       }
       assertFalse(expectedValueIterator.hasNext());
 
+    } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
+      assertEquals(((Timer) expectedValue).getTimestamp(), ((Timer) actualValue).getTimestamp());
+      assertThat(((Timer) expectedValue).getPayload(), equalTo(((Timer) actualValue).getPayload()));
+
     } else if (s.equals(getUrn(StandardCoders.Enum.GLOBAL_WINDOW))) {
       assertEquals(expectedValue, actualValue);
 
@@ -338,8 +363,8 @@ public class CommonCoderTest {
   }
 
   /**
-   * Utility for adding new entries to the common coder spec -- prints the serialized bytes of
-   * the given value in the given context using JSON-escaped strings.
+   * Utility for adding new entries to the common coder spec -- prints the serialized bytes of the
+   * given value in the given context using JSON-escaped strings.
    */
   private static <T> String jsonByteString(Coder<T> coder, T value, Context context)
       throws CoderException {

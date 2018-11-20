@@ -42,14 +42,14 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * A {@link Coder Coder&lt;T&gt;} defines how to encode and decode values of type {@code T} into
  * byte streams.
  *
- * <p>{@link Coder} instances are serialized during job creation and deserialized
- * before use. This will generally be performed by serializing the object via Java Serialization.
+ * <p>{@link Coder} instances are serialized during job creation and deserialized before use. This
+ * will generally be performed by serializing the object via Java Serialization.
  *
  * <p>{@link Coder} classes for compound types are often composed from coder classes for types
- * contains therein. The composition of {@link Coder} instances into a coder for the compound
- * class is the subject of the {@link CoderProvider} type, which enables automatic generic
- * composition of {@link Coder} classes within the {@link CoderRegistry}. See {@link CoderProvider}
- * and {@link CoderRegistry} for more information about how coders are inferred.
+ * contains therein. The composition of {@link Coder} instances into a coder for the compound class
+ * is the subject of the {@link CoderProvider} type, which enables automatic generic composition of
+ * {@link Coder} classes within the {@link CoderRegistry}. See {@link CoderProvider} and {@link
+ * CoderRegistry} for more information about how coders are inferred.
  *
  * <p>All methods of a {@link Coder} are required to be thread safe.
  *
@@ -60,31 +60,28 @@ public abstract class Coder<T> implements Serializable {
    * The context in which encoding or decoding is being done.
    *
    * @deprecated To implement a coder, do not use any {@link Context}. Just implement only those
-   * abstract methods which do not accept a {@link Context} and leave the default implementations
-   * for methods accepting a {@link Context}.
+   *     abstract methods which do not accept a {@link Context} and leave the default
+   *     implementations for methods accepting a {@link Context}.
    */
   @Deprecated
   @Experimental(Kind.CODER_CONTEXT)
   public static class Context {
     /**
-     * The outer context: the value being encoded or decoded takes
-     * up the remainder of the record/stream contents.
+     * The outer context: the value being encoded or decoded takes up the remainder of the
+     * record/stream contents.
      */
     public static final Context OUTER = new Context(true);
 
     /**
-     * The nested context: the value being encoded or decoded is
-     * (potentially) a part of a larger record/stream contents, and
-     * may have other parts encoded or decoded after it.
+     * The nested context: the value being encoded or decoded is (potentially) a part of a larger
+     * record/stream contents, and may have other parts encoded or decoded after it.
      */
     public static final Context NESTED = new Context(false);
 
     /**
-     * Whether the encoded or decoded value fills the remainder of the
-     * output or input (resp.) record/stream contents.  If so, then
-     * the size of the decoded value can be determined from the
-     * remaining size of the record/stream contents, and so explicit
-     * lengths aren't required.
+     * Whether the encoded or decoded value fills the remainder of the output or input (resp.)
+     * record/stream contents. If so, then the size of the decoded value can be determined from the
+     * remaining size of the record/stream contents, and so explicit lengths aren't required.
      */
     public final boolean isWholeStream;
 
@@ -112,28 +109,24 @@ public abstract class Coder<T> implements Serializable {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(Context.class)
-          .addValue(isWholeStream ? "OUTER" : "NESTED").toString();
+          .addValue(isWholeStream ? "OUTER" : "NESTED")
+          .toString();
     }
   }
 
   /**
    * Encodes the given value of type {@code T} onto the given output stream.
    *
-   * @throws IOException if writing to the {@code OutputStream} fails
-   * for some reason
+   * @throws IOException if writing to the {@code OutputStream} fails for some reason
    * @throws CoderException if the value could not be encoded for some reason
    */
-  public abstract void encode(T value, OutputStream outStream)
-      throws CoderException, IOException;
+  public abstract void encode(T value, OutputStream outStream) throws CoderException, IOException;
 
   /**
-   * Encodes the given value of type {@code T} onto the given output stream
-   * in the given context.
+   * Encodes the given value of type {@code T} onto the given output stream in the given context.
    *
-   * @throws IOException if writing to the {@code OutputStream} fails
-   * for some reason
+   * @throws IOException if writing to the {@code OutputStream} fails for some reason
    * @throws CoderException if the value could not be encoded for some reason
-   *
    * @deprecated only implement and call {@link #encode(Object value, OutputStream)}
    */
   @Deprecated
@@ -144,52 +137,46 @@ public abstract class Coder<T> implements Serializable {
   }
 
   /**
-   * Decodes a value of type {@code T} from the given input stream in
-   * the given context.  Returns the decoded value.
+   * Decodes a value of type {@code T} from the given input stream in the given context. Returns the
+   * decoded value.
    *
-   * @throws IOException if reading from the {@code InputStream} fails
-   * for some reason
+   * @throws IOException if reading from the {@code InputStream} fails for some reason
    * @throws CoderException if the value could not be decoded for some reason
    */
   public abstract T decode(InputStream inStream) throws CoderException, IOException;
 
   /**
-   * Decodes a value of type {@code T} from the given input stream in
-   * the given context.  Returns the decoded value.
+   * Decodes a value of type {@code T} from the given input stream in the given context. Returns the
+   * decoded value.
    *
-   * @throws IOException if reading from the {@code InputStream} fails
-   * for some reason
+   * @throws IOException if reading from the {@code InputStream} fails for some reason
    * @throws CoderException if the value could not be decoded for some reason
-   *
    * @deprecated only implement and call {@link #decode(InputStream)}
    */
   @Deprecated
   @Experimental(Kind.CODER_CONTEXT)
-  public T decode(InputStream inStream, Context context)
-      throws CoderException, IOException {
+  public T decode(InputStream inStream, Context context) throws CoderException, IOException {
     return decode(inStream);
   }
 
   /**
-   * If this is a {@link Coder} for a parameterized type, returns the
-   * list of {@link Coder}s being used for each of the parameters in the same order they appear
-   * within the parameterized type's type signature. If this cannot be done, or this
-   * {@link Coder} does not encode/decode a parameterized type, returns the empty list.
+   * If this is a {@link Coder} for a parameterized type, returns the list of {@link Coder}s being
+   * used for each of the parameters in the same order they appear within the parameterized type's
+   * type signature. If this cannot be done, or this {@link Coder} does not encode/decode a
+   * parameterized type, returns the empty list.
    */
   public abstract List<? extends Coder<?>> getCoderArguments();
 
   /**
    * Throw {@link NonDeterministicException} if the coding is not deterministic.
    *
-   * <p>In order for a {@code Coder} to be considered deterministic,
-   * the following must be true:
+   * <p>In order for a {@code Coder} to be considered deterministic, the following must be true:
+   *
    * <ul>
-   *   <li>two values that compare as equal (via {@code Object.equals()}
-   *       or {@code Comparable.compareTo()}, if supported) have the same
-   *       encoding.
-   *   <li>the {@code Coder} always produces a canonical encoding, which is the
-   *       same for an instance of an object even if produced on different
-   *       computers at different times.
+   *   <li>two values that compare as equal (via {@code Object.equals()} or {@code
+   *       Comparable.compareTo()}, if supported) have the same encoding.
+   *   <li>the {@code Coder} always produces a canonical encoding, which is the same for an instance
+   *       of an object even if produced on different computers at different times.
    * </ul>
    *
    * @throws Coder.NonDeterministicException if this coder is not deterministic.
@@ -256,8 +243,8 @@ public abstract class Coder<T> implements Serializable {
    * <p>See also {@link #consistentWithEquals()}.
    *
    * <p>By default, if this coder is {@link #consistentWithEquals()}, and the value is not null,
-   * returns the provided object. Otherwise, encodes the value into a {@code byte[]}, and returns
-   * an object that performs array equality on the encoded bytes.
+   * returns the provided object. Otherwise, encodes the value into a {@code byte[]}, and returns an
+   * object that performs array equality on the encoded bytes.
    */
   public Object structuralValue(T value) {
     if (value != null && consistentWithEquals()) {
@@ -275,42 +262,36 @@ public abstract class Coder<T> implements Serializable {
   }
 
   /**
-   * Returns whether {@link #registerByteSizeObserver} cheap enough to
-   * call for every element, that is, if this {@code Coder} can
-   * calculate the byte size of the element to be coded in roughly
+   * Returns whether {@link #registerByteSizeObserver} cheap enough to call for every element, that
+   * is, if this {@code Coder} can calculate the byte size of the element to be coded in roughly
    * constant time (or lazily).
    *
-   * <p>Not intended to be called by user code, but instead by
-   * {@link PipelineRunner}
+   * <p>Not intended to be called by user code, but instead by {@link PipelineRunner}
    * implementations.
    *
    * <p>By default, returns false. The default {@link #registerByteSizeObserver} implementation
-   *         invokes {@link #getEncodedElementByteSize} which requires re-encoding an element
-   *         unless it is overridden. This is considered expensive.
+   * invokes {@link #getEncodedElementByteSize} which requires re-encoding an element unless it is
+   * overridden. This is considered expensive.
    */
   public boolean isRegisterByteSizeObserverCheap(T value) {
     return false;
   }
 
   /**
-   * Notifies the {@code ElementByteSizeObserver} about the byte size
-   * of the encoded value using this {@code Coder}.
+   * Notifies the {@code ElementByteSizeObserver} about the byte size of the encoded value using
+   * this {@code Coder}.
    *
-   * <p>Not intended to be called by user code, but instead by
-   * {@link PipelineRunner}
+   * <p>Not intended to be called by user code, but instead by {@link PipelineRunner}
    * implementations.
    *
-   * <p>By default, this notifies {@code observer} about the byte size
-   * of the encoded value using this coder as returned by {@link #getEncodedElementByteSize}.
+   * <p>By default, this notifies {@code observer} about the byte size of the encoded value using
+   * this coder as returned by {@link #getEncodedElementByteSize}.
    */
-  public void registerByteSizeObserver(T value, ElementByteSizeObserver observer)
-      throws Exception {
+  public void registerByteSizeObserver(T value, ElementByteSizeObserver observer) throws Exception {
     observer.update(getEncodedElementByteSize(value));
   }
 
-  /**
-   * Returns the size in bytes of the encoded value using this coder.
-   */
+  /** Returns the size in bytes of the encoded value using this coder. */
   protected long getEncodedElementByteSize(T value) throws Exception {
     try (CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream())) {
       encode(value, os);
@@ -321,9 +302,7 @@ public abstract class Coder<T> implements Serializable {
     }
   }
 
-  /**
-   * Returns the {@link TypeDescriptor} for the type encoded.
-   */
+  /** Returns the {@link TypeDescriptor} for the type encoded. */
   @Experimental(Kind.CODER_TYPE_ENCODING)
   public TypeDescriptor<T> getEncodedTypeDescriptor() {
     return (TypeDescriptor<T>)
@@ -331,8 +310,8 @@ public abstract class Coder<T> implements Serializable {
   }
 
   /**
-   * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is
-   * not deterministic, including details of why the encoding is not deterministic.
+   * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is not deterministic,
+   * including details of why the encoding is not deterministic.
    */
   public static class NonDeterministicException extends Exception {
     private Coder<?> coder;
@@ -352,9 +331,7 @@ public abstract class Coder<T> implements Serializable {
     }
 
     public NonDeterministicException(
-        Coder<?> coder,
-        List<String> reasons,
-        @Nullable NonDeterministicException cause) {
+        Coder<?> coder, List<String> reasons, @Nullable NonDeterministicException cause) {
       super(cause);
       checkArgument(reasons.size() > 0, "Reasons must not be empty.");
       this.reasons = reasons;
@@ -367,8 +344,8 @@ public abstract class Coder<T> implements Serializable {
 
     @Override
     public String getMessage() {
-      return String.format("%s is not deterministic because:%n  %s",
-          coder, Joiner.on("%n  ").join(reasons));
+      String reasonsStr = Joiner.on("\n\t").join(reasons);
+      return coder + " is not deterministic because:\n\t" + reasonsStr;
     }
   }
 }

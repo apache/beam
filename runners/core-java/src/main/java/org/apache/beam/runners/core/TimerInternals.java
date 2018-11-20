@@ -38,14 +38,14 @@ import org.joda.time.Instant;
 /**
  * Encapsulate interaction with time within the execution environment.
  *
- * <p>This class allows setting and deleting timers, and also retrieving an
- * estimate of the current time.
+ * <p>This class allows setting and deleting timers, and also retrieving an estimate of the current
+ * time.
  */
 public interface TimerInternals {
 
   /**
-   * Sets a timer to be fired when the current time in the specified time domain reaches the
-   * target timestamp.
+   * Sets a timer to be fired when the current time in the specified time domain reaches the target
+   * timestamp.
    *
    * <p>The combination of {@code namespace} and {@code timerId} uniquely identify a timer.
    *
@@ -56,36 +56,28 @@ public interface TimerInternals {
    */
   void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain);
 
-  /**
-   * @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}.
-   */
+  /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
   @Deprecated
   void setTimer(TimerData timerData);
 
   /**
    * Deletes the given timer.
    *
-   * <p>A timer's ID is enforced to be unique in validation of a {@link DoFn}, but runners
-   * often manage timers for different time domains in very different ways, thus the
-   * {@link TimeDomain} is a required parameter.
+   * <p>A timer's ID is enforced to be unique in validation of a {@link DoFn}, but runners often
+   * manage timers for different time domains in very different ways, thus the {@link TimeDomain} is
+   * a required parameter.
    */
   void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain);
 
-  /**
-   * @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}.
-   */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
   @Deprecated
   void deleteTimer(StateNamespace namespace, String timerId);
 
-  /**
-   * @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}.
-   */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
   @Deprecated
   void deleteTimer(TimerData timerKey);
 
-  /**
-   * Returns the current timestamp in the {@link TimeDomain#PROCESSING_TIME} time domain.
-   */
+  /** Returns the current timestamp in the {@link TimeDomain#PROCESSING_TIME} time domain. */
   Instant currentProcessingTime();
 
   /**
@@ -96,39 +88,41 @@ public interface TimerInternals {
   Instant currentSynchronizedProcessingTime();
 
   /**
-   * Return the current, local input watermark timestamp for this computation
-   * in the {@link TimeDomain#EVENT_TIME} time domain.
+   * Return the current, local input watermark timestamp for this computation in the {@link
+   * TimeDomain#EVENT_TIME} time domain.
    *
    * <p>This value:
+   *
    * <ol>
-   * <li>Is never {@literal null}, but may be {@link BoundedWindow#TIMESTAMP_MIN_VALUE}.
-   * <li>Is monotonically increasing.
-   * <li>May differ between workers due to network and other delays.
-   * <li>Will never be ahead of the global input watermark for this computation. But it
-   * may be arbitrarily behind the global input watermark.
-   * <li>Any element with a timestamp before the local input watermark can be considered
-   * 'locally late' and be subject to special processing or be dropped entirely.
+   *   <li>Is never {@literal null}, but may be {@link BoundedWindow#TIMESTAMP_MIN_VALUE}.
+   *   <li>Is monotonically increasing.
+   *   <li>May differ between workers due to network and other delays.
+   *   <li>Will never be ahead of the global input watermark for this computation. But it may be
+   *       arbitrarily behind the global input watermark.
+   *   <li>Any element with a timestamp before the local input watermark can be considered 'locally
+   *       late' and be subject to special processing or be dropped entirely.
    * </ol>
    *
-   * <p>Note that because the local input watermark can be behind the global input watermark,
-   * it is possible for an element to be considered locally on-time even though it is
-   * globally late.
+   * <p>Note that because the local input watermark can be behind the global input watermark, it is
+   * possible for an element to be considered locally on-time even though it is globally late.
    */
   Instant currentInputWatermarkTime();
 
   /**
-   * Return the current, local output watermark timestamp for this computation
-   * in the {@link TimeDomain#EVENT_TIME} time domain. Return {@code null} if unknown.
+   * Return the current, local output watermark timestamp for this computation in the {@link
+   * TimeDomain#EVENT_TIME} time domain. Return {@code null} if unknown.
    *
    * <p>This value:
+   *
    * <ol>
-   * <li>Is monotonically increasing.
-   * <li>Will never be ahead of {@link #currentInputWatermarkTime} as returned above.
-   * <li>May differ between workers due to network and other delays.
-   * <li>However will never be behind the global input watermark for any following computation.
+   *   <li>Is monotonically increasing.
+   *   <li>Will never be ahead of {@link #currentInputWatermarkTime} as returned above.
+   *   <li>May differ between workers due to network and other delays.
+   *   <li>However will never be behind the global input watermark for any following computation.
    * </ol>
    *
    * <p>In pictures:
+   *
    * <pre>{@code
    *  |              |       |       |       |
    *  |              |   D   |   C   |   B   |   A
@@ -141,19 +135,19 @@ public interface TimerInternals {
    * <p>where
    *
    * <ul>
-   * <li> LOWM = local output water mark.
-   * <li> GOWM = global output water mark.
-   * <li> GIWM = global input water mark.
-   * <li> LIWM = local input water mark.
-   * <li> A = A globally on-time element.
-   * <li> B = A globally late, but locally on-time element.
-   * <li> C = A locally late element which may still contribute to the timestamp of a pane.
-   * <li> D = A locally late element which cannot contribute to the timestamp of a pane.
+   *   <li>LOWM = local output water mark.
+   *   <li>GOWM = global output water mark.
+   *   <li>GIWM = global input water mark.
+   *   <li>LIWM = local input water mark.
+   *   <li>A = A globally on-time element.
+   *   <li>B = A globally late, but locally on-time element.
+   *   <li>C = A locally late element which may still contribute to the timestamp of a pane.
+   *   <li>D = A locally late element which cannot contribute to the timestamp of a pane.
    * </ul>
    *
    * <p>Note that if a computation emits an element which is not before the current output watermark
-   * then that element will always appear locally on-time in all following computations. However,
-   * it is possible for an element emitted before the current output watermark to appear locally
+   * then that element will always appear locally on-time in all following computations. However, it
+   * is possible for an element emitted before the current output watermark to appear locally
    * on-time in a following computation. Thus we must be careful to never assume locally late data
    * viewed on the output of a computation remains locally late on the input of a following
    * computation.
@@ -161,9 +155,7 @@ public interface TimerInternals {
   @Nullable
   Instant currentOutputWatermarkTime();
 
-  /**
-   * Data about a timer as represented within {@link TimerInternals}.
-   */
+  /** Data about a timer as represented within {@link TimerInternals}. */
   @AutoValue
   abstract class TimerData implements Comparable<TimerData> {
 
@@ -204,8 +196,8 @@ public interface TimerInternals {
      * {@inheritDoc}.
      *
      * <p>Used for sorting {@link TimerData} by timestamp. Furthermore, we compare timers by all the
-     * other fields so that {@code compareTo()} only returns 0 when {@code equals()} returns 0.
-     * This ensures consistent sort order.
+     * other fields so that {@code compareTo()} only returns 0 when {@code equals()} returns 0. This
+     * ensures consistent sort order.
      */
     @Override
     public int compareTo(TimerData that) {
@@ -225,9 +217,7 @@ public interface TimerInternals {
     }
   }
 
-  /**
-   * A {@link Coder} for {@link TimerData}.
-   */
+  /** A {@link Coder} for {@link TimerData}. */
   class TimerDataCoder extends StructuredCoder<TimerData> {
     private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
     private static final InstantCoder INSTANT_CODER = InstantCoder.of();
@@ -242,8 +232,7 @@ public interface TimerInternals {
     }
 
     @Override
-    public void encode(TimerData timer, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(TimerData timer, OutputStream outStream) throws CoderException, IOException {
       STRING_CODER.encode(timer.getTimerId(), outStream);
       STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
@@ -251,8 +240,7 @@ public interface TimerInternals {
     }
 
     @Override
-    public TimerData decode(InputStream inStream)
-        throws CoderException, IOException {
+    public TimerData decode(InputStream inStream) throws CoderException, IOException {
       String timerId = STRING_CODER.decode(inStream);
       StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);

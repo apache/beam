@@ -21,16 +21,20 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
+import collections
 import contextlib
 import logging
-import Queue as queue
+import queue
 import sys
 import threading
 import traceback
+from builtins import object
+from builtins import range
 from concurrent import futures
 
 import grpc
-import six
+from future.utils import raise_
+from future.utils import with_metaclass
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -42,22 +46,25 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
 
-  def __init__(self, control_address, worker_count, credentials=None):
+  def __init__(self, control_address, worker_count, credentials=None,
+               profiler_factory=None):
     self._worker_count = worker_count
     self._worker_index = 0
     if credentials is None:
-      logging.info('Creating insecure channel.')
+      logging.info('Creating insecure control channel.')
       self._control_channel = grpc.insecure_channel(control_address)
     else:
-      logging.info('Creating secure channel.')
+      logging.info('Creating secure control channel.')
       self._control_channel = grpc.secure_channel(control_address, credentials)
-      grpc.channel_ready_future(self._control_channel).result()
-      logging.info('Secure channel established.')
+    grpc.channel_ready_future(self._control_channel).result(timeout=60)
+    logging.info('Control channel established.')
+
     self._control_channel = grpc.intercept_channel(
         self._control_channel, WorkerIdInterceptor())
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
         credentials)
     self._state_handler_factory = GrpcStateHandlerFactory()
+    self._profiler_factory = profiler_factory
     self.workers = queue.Queue()
     # one thread is enough for getting the progress report.
     # Assumption:
@@ -92,7 +99,8 @@ class SdkHarness(object):
           SdkWorker(
               state_handler_factory=self._state_handler_factory,
               data_channel_factory=self._data_channel_factory,
-              fns=self._fns))
+              fns=self._fns,
+              profiler_factory=self._profiler_factory))
 
     def get_responses():
       while True:
@@ -102,7 +110,7 @@ class SdkHarness(object):
         yield response
 
     for work_request in control_stub.Control(get_responses()):
-      logging.info('Got work %s', work_request.instruction_id)
+      logging.debug('Got work %s', work_request.instruction_id)
       request_type = work_request.WhichOneof('request')
       # Name spacing the request method with 'request_'. The called method
       # will be like self.request_register(request)
@@ -170,13 +178,15 @@ class SdkHarness(object):
     self._process_bundle_queue.put(request)
     self._unscheduled_process_bundle.add(request.instruction_id)
     self._process_thread_pool.submit(task)
+    logging.debug(
+        "Currently using %s threads." % len(self._process_thread_pool._threads))
 
   def _request_process_bundle_progress(self, request):
 
     def task():
       instruction_reference = getattr(
           request, request.WhichOneof('request')).instruction_reference
-      if self._instruction_id_vs_worker.has_key(instruction_reference):
+      if instruction_reference in self._instruction_id_vs_worker:
         self._execute(
             lambda: self._instruction_id_vs_worker[
                 instruction_reference
@@ -194,11 +204,14 @@ class SdkHarness(object):
 
 class SdkWorker(object):
 
-  def __init__(self, state_handler_factory, data_channel_factory, fns):
+  def __init__(self, state_handler_factory, data_channel_factory, fns,
+               profiler_factory=None):
     self.fns = fns
     self.state_handler_factory = state_handler_factory
     self.data_channel_factory = data_channel_factory
-    self.bundle_processors = {}
+    self.active_bundle_processors = {}
+    self.cached_bundle_processors = collections.defaultdict(list)
+    self.profiler_factory = profiler_factory
 
   def do_instruction(self, request):
     request_type = request.WhichOneof('request')
@@ -217,38 +230,65 @@ class SdkWorker(object):
         register=beam_fn_api_pb2.RegisterResponse())
 
   def process_bundle(self, request, instruction_id):
-    process_bundle_desc = self.fns[request.process_bundle_descriptor_reference]
-    state_handler = self.state_handler_factory.create_state_handler(
-        process_bundle_desc.state_api_service_descriptor)
-    self.bundle_processors[
-        instruction_id] = processor = bundle_processor.BundleProcessor(
-            process_bundle_desc,
-            state_handler,
-            self.data_channel_factory)
-    try:
-      with state_handler.process_instruction_id(instruction_id):
-        processor.process_bundle(instruction_id)
-    finally:
-      del self.bundle_processors[instruction_id]
+    with self.get_bundle_processor(
+        instruction_id,
+        request.process_bundle_descriptor_reference) as bundle_processor:
+      with self.maybe_profile(instruction_id):
+        bundle_processor.process_bundle(instruction_id)
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=instruction_id,
+          process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+              metrics=bundle_processor.metrics(),
+              monitoring_infos=bundle_processor.monitoring_infos()))
 
-    return beam_fn_api_pb2.InstructionResponse(
-        instruction_id=instruction_id,
-        process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
-            metrics=processor.metrics()))
+  @contextlib.contextmanager
+  def get_bundle_processor(self, instruction_id, bundle_descriptor_id):
+    try:
+      # pop() is threadsafe
+      processor = self.cached_bundle_processors[bundle_descriptor_id].pop()
+      state_handler = processor.state_handler
+    except IndexError:
+      process_bundle_desc = self.fns[bundle_descriptor_id]
+      state_handler = self.state_handler_factory.create_state_handler(
+          process_bundle_desc.state_api_service_descriptor)
+      processor = bundle_processor.BundleProcessor(
+          process_bundle_desc,
+          state_handler,
+          self.data_channel_factory)
+    try:
+      self.active_bundle_processors[instruction_id] = processor
+      with state_handler.process_instruction_id(instruction_id):
+        yield processor
+    finally:
+      del self.active_bundle_processors[instruction_id]
+    # Outside the finally block as we only want to re-use on success.
+    processor.reset()
+    self.cached_bundle_processors[bundle_descriptor_id].append(processor)
 
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
-    processor = self.bundle_processors.get(request.instruction_reference)
+    processor = self.active_bundle_processors.get(request.instruction_reference)
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
-            metrics=processor.metrics() if processor else None))
+            metrics=processor.metrics() if processor else None,
+            monitoring_infos=processor.monitoring_infos() if processor else []))
+
+  @contextlib.contextmanager
+  def maybe_profile(self, instruction_id):
+    if self.profiler_factory:
+      profiler = self.profiler_factory(instruction_id)
+      if profiler:
+        with profiler:
+          yield
+      else:
+        yield
+    else:
+      yield
 
 
-class StateHandlerFactory(object):
+class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
   """An abstract factory for creating ``DataChannel``."""
-
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def create_state_handler(self, api_service_descriptor):
@@ -407,7 +447,7 @@ class GrpcStateHandler(object):
     while not future.wait(timeout=1):
       if self._exc_info:
         t, v, tb = self._exc_info
-        six.reraise(t, v, tb)
+        raise_(t, v, tb)
       elif self._done:
         raise RuntimeError()
     del self._responses_by_id[request.id]

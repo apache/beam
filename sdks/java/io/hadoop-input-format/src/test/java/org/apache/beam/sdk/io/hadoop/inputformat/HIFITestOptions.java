@@ -21,44 +21,56 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
-/**
- * Properties needed when using HadoopInputFormatIO with the Beam SDK.
- */
-interface HIFITestOptions extends TestPipelineOptions {
+/** Properties needed when using HadoopInputFormatIO with the Beam SDK. */
+public interface HIFITestOptions extends TestPipelineOptions {
 
   //Cassandra test options
   @Description("Cassandra Server IP")
   @Default.String("cassandraServerIp")
   String getCassandraServerIp();
+
   void setCassandraServerIp(String cassandraServerIp);
+
   @Description("Cassandra Server port")
   @Default.Integer(0)
   Integer getCassandraServerPort();
+
   void setCassandraServerPort(Integer cassandraServerPort);
+
   @Description("Cassandra User name")
   @Default.String("cassandraUserName")
   String getCassandraUserName();
+
   void setCassandraUserName(String cassandraUserName);
+
   @Description("Cassandra Password")
   @Default.String("cassandraPassword")
   String getCassandraPassword();
+
   void setCassandraPassword(String cassandraPassword);
 
   //Elasticsearch test options
   @Description("Elasticsearch Server IP")
   @Default.String("elasticServerIp")
   String getElasticServerIp();
+
   void setElasticServerIp(String elasticServerIp);
+
   @Description("Elasticsearch Server port")
   @Default.Integer(0)
   Integer getElasticServerPort();
+
   void setElasticServerPort(Integer elasticServerPort);
+
   @Description("Elasticsearch User name")
   @Default.String("elasticUserName")
   String getElasticUserName();
+
   void setElasticUserName(String elasticUserName);
+
   @Description("Elastic Password")
   @Default.String("elasticPassword")
   String getElasticPassword();
+
   void setElasticPassword(String elasticPassword);
 }

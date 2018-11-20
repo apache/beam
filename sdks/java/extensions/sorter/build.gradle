@@ -16,20 +16,19 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: true)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   provided library.java.hadoop_mapreduce_client_core
   provided library.java.hadoop_common
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
-  testCompileOnly library.java.findbugs_annotations
 }

@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
-import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLine2BeamRow;
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLines2BeamRows;
 
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
@@ -67,16 +68,20 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
 
     @Override
     public PCollection<Row> expand(PCollection<KV<byte[], byte[]>> input) {
-      return input.apply(
-          "decodeRecord",
-          ParDo.of(
-              new DoFn<KV<byte[], byte[]>, Row>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  String rowInString = new String(c.element().getValue());
-                  c.output(csvLine2BeamRow(format, rowInString, schema));
-                }
-              }));
+      return input
+          .apply(
+              "decodeRecord",
+              ParDo.of(
+                  new DoFn<KV<byte[], byte[]>, Row>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      String rowInString = new String(c.element().getValue(), UTF_8);
+                      for (Row row : csvLines2BeamRows(format, rowInString, schema)) {
+                        c.output(row);
+                      }
+                    }
+                  }))
+          .setRowSchema(schema);
     }
   }
 
@@ -100,7 +105,7 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   Row in = c.element();
-                  c.output(KV.of(new byte[] {}, beamRow2CsvLine(in, format).getBytes()));
+                  c.output(KV.of(new byte[] {}, beamRow2CsvLine(in, format).getBytes(UTF_8)));
                 }
               }));
     }

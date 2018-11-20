@@ -37,22 +37,30 @@ import org.apache.beam.sdk.options.Validation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Options that can be used to configure the {@link DataflowRunner}.
- */
+/** Options that can be used to configure the {@link DataflowRunner}. */
 @Description("Options that configure the Dataflow pipeline.")
 public interface DataflowPipelineOptions
-    extends PipelineOptions, GcpOptions, ApplicationNameOptions, DataflowPipelineDebugOptions,
-        DataflowPipelineWorkerPoolOptions, BigQueryOptions, GcsOptions, StreamingOptions,
-        CloudDebuggerOptions, DataflowWorkerLoggingOptions, DataflowProfilingOptions,
+    extends PipelineOptions,
+        GcpOptions,
+        ApplicationNameOptions,
+        DataflowPipelineDebugOptions,
+        DataflowPipelineWorkerPoolOptions,
+        BigQueryOptions,
+        GcsOptions,
+        StreamingOptions,
+        CloudDebuggerOptions,
+        DataflowWorkerLoggingOptions,
+        DataflowProfilingOptions,
         PubsubOptions {
 
-  @Description("Project id. Required when running a Dataflow in the cloud. "
-      + "See https://cloud.google.com/storage/docs/projects for further details.")
+  @Description(
+      "Project id. Required when running a Dataflow in the cloud. "
+          + "See https://cloud.google.com/storage/docs/projects for further details.")
   @Override
   @Validation.Required
   @Default.InstanceFactory(DefaultProjectFactory.class)
   String getProject();
+
   @Override
   void setProject(String value);
 
@@ -61,78 +69,79 @@ public interface DataflowPipelineOptions
    *
    * <p>Must be a valid Cloud Storage URL, beginning with the prefix "gs://"
    *
-   * <p>If {@link #getStagingLocation()} is not set, it will default to
-   * {@link GcpOptions#getGcpTempLocation()}. {@link GcpOptions#getGcpTempLocation()}
-   * must be a valid GCS path.
+   * <p>If {@link #getStagingLocation()} is not set, it will default to {@link
+   * GcpOptions#getGcpTempLocation()}. {@link GcpOptions#getGcpTempLocation()} must be a valid GCS
+   * path.
    */
-  @Description("GCS path for staging local files, e.g. \"gs://bucket/object\". "
-      + "Must be a valid Cloud Storage URL, beginning with the prefix \"gs://\". "
-      + "If stagingLocation is unset, defaults to gcpTempLocation with \"/staging\" suffix.")
+  @Description(
+      "GCS path for staging local files, e.g. \"gs://bucket/object\". "
+          + "Must be a valid Cloud Storage URL, beginning with the prefix \"gs://\". "
+          + "If stagingLocation is unset, defaults to gcpTempLocation with \"/staging\" suffix.")
   @Default.InstanceFactory(StagingLocationFactory.class)
   String getStagingLocation();
+
   void setStagingLocation(String value);
 
-  /**
-   * Whether to update the currently running pipeline with the same name as this one.
-   */
+  /** Whether to update the currently running pipeline with the same name as this one. */
   @Description(
       "If set, replace the existing pipeline with the name specified by --jobName with "
           + "this pipeline, preserving state.")
   boolean isUpdate();
+
   void setUpdate(boolean value);
 
-  /**
-   * Where the runner should generate a template file. Must either be local or Cloud Storage.
-   */
-  @Description("Where the runner should generate a template file. "
-      + "Must either be local or Cloud Storage.")
+  /** Where the runner should generate a template file. Must either be local or Cloud Storage. */
+  @Description(
+      "Where the runner should generate a template file. "
+          + "Must either be local or Cloud Storage.")
   String getTemplateLocation();
+
   void setTemplateLocation(String value);
 
+  /** Run the job as a specific service account, instead of the default GCE robot. */
+  @Hidden
+  @Experimental
+  @Description("Run the job as a specific service account, instead of the default GCE robot.")
+  String getServiceAccount();
+
+  void setServiceAccount(String value);
+
   /**
-   * Run the job as a specific service account, instead of the default GCE robot.
+   * The Google Compute Engine <a
+   * href="https://cloud.google.com/compute/docs/regions-zones/regions-zones">region</a> for
+   * creating Dataflow jobs.
+   *
+   * <p>NOTE: The Cloud Dataflow now also supports the region flag.
    */
   @Hidden
   @Experimental
   @Description(
-      "Run the job as a specific service account, instead of the default GCE robot.")
-  String getServiceAccount();
-  void setServiceAccount(String value);
-
-  /**
-   * The Google Compute Engine
-   * <a href="https://cloud.google.com/compute/docs/regions-zones/regions-zones">region</a>
-   * for creating Dataflow jobs.
-   *
-   * <p>NOTE: The Cloud Dataflow service does not yet honor this setting. However, once service
-   * support is added then users of this SDK will be able to control the region.
-   */
-  @Hidden
-  @Experimental
-  @Description("The Google Compute Engine region for creating Dataflow jobs. See "
-      + "https://cloud.google.com/compute/docs/regions-zones/regions-zones for a list of valid "
-      + "options. Default is up to the Dataflow service.")
+      "The Google Compute Engine region for creating Dataflow jobs. See "
+          + "https://cloud.google.com/compute/docs/regions-zones/regions-zones for a list of valid "
+          + "options. Default is up to the Dataflow service.")
   @Default.String("us-central1")
   String getRegion();
+
   void setRegion(String region);
 
-  /**
-   * Labels that will be applied to the billing records for this job.
-   */
+  /** Labels that will be applied to the billing records for this job. */
   @Description("Labels that will be applied to the billing records for this job.")
   Map<String, String> getLabels();
+
   void setLabels(Map<String, String> labels);
 
-  /**
-   * The URL of the staged portable pipeline.
-   */
+  /** The URL of the staged portable pipeline. */
   @Description("The URL of the staged portable pipeline")
   String getPipelineUrl();
+
   void setPipelineUrl(String urlString);
 
-  /**
-   * Returns a default staging location under {@link GcpOptions#getGcpTempLocation}.
-   */
+  @Description("The customized dataflow worker jar")
+  String getDataflowWorkerJar();
+
+  void setDataflowWorkerJar(String dataflowWorkerJar);
+
+  /** Returns a default staging location under {@link GcpOptions#getGcpTempLocation}. */
   class StagingLocationFactory implements DefaultValueFactory<String> {
     private static final Logger LOG = LoggerFactory.getLogger(StagingLocationFactory.class);
 
@@ -145,16 +154,20 @@ public interface DataflowPipelineOptions
         gcpTempLocation = gcsOptions.getGcpTempLocation();
       } catch (Exception e) {
         throw new IllegalArgumentException(
-        "Error constructing default value for stagingLocation: failed to retrieve gcpTempLocation. "
-            + "Either stagingLocation must be set explicitly or a valid value must be provided"
-            + "for gcpTempLocation.", e);
+            "Error constructing default value for stagingLocation: failed to retrieve gcpTempLocation. "
+                + "Either stagingLocation must be set explicitly or a valid value must be provided"
+                + "for gcpTempLocation.",
+            e);
       }
       try {
         gcsOptions.getPathValidator().validateOutputFilePrefixSupported(gcpTempLocation);
       } catch (Exception e) {
-        throw new IllegalArgumentException(String.format(
-            "Error constructing default value for stagingLocation: gcpTempLocation is not"
-            + " a valid GCS path, %s. ", gcpTempLocation), e);
+        throw new IllegalArgumentException(
+            String.format(
+                "Error constructing default value for stagingLocation: gcpTempLocation is not"
+                    + " a valid GCS path, %s. ",
+                gcpTempLocation),
+            e);
       }
       return FileSystems.matchNewResource(gcpTempLocation, true /* isDirectory */)
           .resolve("staging", StandardResolveOptions.RESOLVE_DIRECTORY)

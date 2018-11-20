@@ -34,9 +34,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
-/**
- * A {@link SideInputReader} for the Flink Batch Runner.
- */
+/** A {@link SideInputReader} for the Flink Batch Runner. */
 public class FlinkSideInputReader implements SideInputReader {
   /** A {@link MultimapView} which always returns an empty iterable. */
   private static final MultimapView EMPTY_MULTMAP_VIEW = o -> Collections.EMPTY_LIST;
@@ -45,8 +43,8 @@ public class FlinkSideInputReader implements SideInputReader {
 
   private RuntimeContext runtimeContext;
 
-  public FlinkSideInputReader(Map<PCollectionView<?>, WindowingStrategy<?, ?>> indexByView,
-                              RuntimeContext runtimeContext) {
+  public FlinkSideInputReader(
+      Map<PCollectionView<?>, WindowingStrategy<?, ?>> indexByView, RuntimeContext runtimeContext) {
     for (PCollectionView<?> view : indexByView.keySet()) {
       checkArgument(
           Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
@@ -69,9 +67,7 @@ public class FlinkSideInputReader implements SideInputReader {
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     checkNotNull(view, "View passed to sideInput cannot be null");
     TupleTag<?> tag = view.getTagInternal();
-    checkNotNull(
-        sideInputs.get(tag),
-        "Side input for " + view + " not available.");
+    checkNotNull(sideInputs.get(tag), "Side input for " + view + " not available.");
 
     Map<BoundedWindow, T> sideInputs =
         runtimeContext.getBroadcastVariableWithInitializer(

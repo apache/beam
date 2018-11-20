@@ -21,8 +21,12 @@ responding to queries of current metrics by going to the dataflow
 service.
 """
 
+from __future__ import absolute_import
+
 import numbers
 from collections import defaultdict
+
+from future.utils import iteritems
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
@@ -145,7 +149,7 @@ class DataflowMetrics(MetricResults):
 
     # Now we create the MetricResult elements.
     result = []
-    for metric_key, metric in metrics_by_name.iteritems():
+    for metric_key, metric in iteritems(metrics_by_name):
       attempted = self._get_metric_value(metric['tentative'])
       committed = self._get_metric_value(metric['committed'])
       if attempted is None or committed is None:
@@ -199,10 +203,10 @@ class DataflowMetrics(MetricResults):
   def query(self, filter=None):
     response = self._get_metrics_from_dataflow()
     metric_results = self._populate_metric_results(response)
-    return {'counters': [elm for elm in metric_results
-                         if self.matches(filter, elm.key)
-                         and DataflowMetrics._is_counter(elm)],
-            'distributions': [elm for elm in metric_results
-                              if self.matches(filter, elm.key)
-                              and DataflowMetrics._is_distribution(elm)],
-            'gauges': []}  # TODO(pabloem): Add Gauge support for dataflow.
+    return {self.COUNTERS: [elm for elm in metric_results
+                            if self.matches(filter, elm.key)
+                            and DataflowMetrics._is_counter(elm)],
+            self.DISTRIBUTIONS: [elm for elm in metric_results
+                                 if self.matches(filter, elm.key)
+                                 and DataflowMetrics._is_distribution(elm)],
+            self.GAUGES: []}  # TODO(pabloem): Add Gauge support for dataflow.

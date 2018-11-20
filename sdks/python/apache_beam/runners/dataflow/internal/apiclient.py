@@ -19,6 +19,9 @@
 
 Dataflow client utility functions."""
 
+from __future__ import absolute_import
+
+from builtins import object
 import codecs
 import getpass
 import json
@@ -28,12 +31,13 @@ import re
 import tempfile
 import time
 from datetime import datetime
-from StringIO import StringIO
+import io
+import httplib2
 
-import pkg_resources
+from past.builtins import unicode
+
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
-import six
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
@@ -47,17 +51,27 @@ from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.names import PropertyNames
+from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
 
+# Protect against environments where google storage library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud import storage as gcloud_storage
+  from google.cloud.exceptions import GoogleCloudError
+except ImportError:
+  gcloud_storage = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
 # are expected by the workers.
 _LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
-_FNAPI_ENVIRONMENT_MAJOR_VERSION = '1'
+_FNAPI_ENVIRONMENT_MAJOR_VERSION = '7'
 
 
 class Step(object):
@@ -145,14 +159,12 @@ class Environment(object):
       self.proto.serviceAccountEmail = (
           self.google_cloud_options.service_account_email)
 
-    sdk_name, version_string = get_sdk_name_and_version()
-
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='name',
-            value=to_json_value(sdk_name)),
+            value=to_json_value(shared_names.BEAM_SDK_NAME)),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
-            key='version', value=to_json_value(version_string))])
+            key='version', value=to_json_value(beam_version.__version__))])
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
     if self.standard_options.streaming:
@@ -262,7 +274,7 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue())
 
       options_dict = {k: v
-                      for k, v in sdk_pipeline_options.iteritems()
+                      for k, v in sdk_pipeline_options.items()
                       if v is not None}
       options_dict["pipelineUrl"] = pipeline_url
       self.proto.sdkPipelineOptions.additionalProperties.append(
@@ -298,7 +310,7 @@ class Job(object):
     def decode_shortstrings(input_buffer, errors='strict'):
       """Decoder (to Unicode) that suppresses long base64 strings."""
       shortened, length = encode_shortstrings(input_buffer, errors)
-      return six.text_type(shortened), length
+      return unicode(shortened), length
 
     def shortstrings_registerer(encoding_name):
       if encoding_name == 'shortstrings':
@@ -379,6 +391,8 @@ class Job(object):
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING
     else:
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH
+    if self.google_cloud_options.update:
+      self.proto.replaceJobId = self.job_id_for_name(self.proto.name)
 
     # Labels.
     if self.google_cloud_options.labels:
@@ -392,6 +406,10 @@ class Job(object):
 
     self.base64_str_re = re.compile(r'^[A-Za-z0-9+/]*=*$')
     self.coder_str_re = re.compile(r'^([A-Za-z]+\$)([A-Za-z0-9+/]*=*)$')
+
+  def job_id_for_name(self, job_name):
+    return DataflowApplicationClient(
+        self.google_cloud_options).job_id_for_name(job_name)
 
   def json(self):
     return encoding.MessageToJson(self.proto)
@@ -418,14 +436,19 @@ class DataflowApplicationClient(object):
       credentials = None
     else:
       credentials = get_service_credentials()
+
+    # Use 60 second socket timeout avoid hangs during network flakiness.
+    http_client = httplib2.Http(timeout=60)
     self._client = dataflow.DataflowV1b3(
         url=self.google_cloud_options.dataflow_endpoint,
         credentials=credentials,
-        get_credentials=(not self.google_cloud_options.no_auth))
+        get_credentials=(not self.google_cloud_options.no_auth),
+        http=http_client)
     self._storage_client = storage.StorageV1(
         url='https://www.googleapis.com/storage/v1',
         credentials=credentials,
-        get_credentials=(not self.google_cloud_options.no_auth))
+        get_credentials=(not self.google_cloud_options.no_auth),
+        http=http_client)
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -442,13 +465,13 @@ class DataflowApplicationClient(object):
       raise RuntimeError('The --temp_location option must be specified.')
 
     resource_stager = _LegacyDataflowStager(self)
-    return resource_stager.stage_job_resources(
+    _, resources = resource_stager.stage_job_resources(
         options,
         temp_dir=tempfile.mkdtemp(),
         staging_location=google_cloud_options.staging_location)
+    return resources
 
-  def stage_file(self, gcs_or_local_path, file_name, stream,
-                 mime_type='application/octet-stream'):
+  def stage_file(self, gcs_or_local_path, file_name, stream):
     """Stages a file at a GCS or local path with stream-supplied contents."""
     if not gcs_or_local_path.startswith('gs://'):
       local_path = FileSystems.join(gcs_or_local_path, file_name)
@@ -457,27 +480,25 @@ class DataflowApplicationClient(object):
         f.write(stream.read())
       return
     gcs_location = FileSystems.join(gcs_or_local_path, file_name)
-    bucket, name = gcs_location[5:].split('/', 1)
+    bucket_name, file_name = gcs_location[5:].split('/', 1)
 
-    request = storage.StorageObjectsInsertRequest(
-        bucket=bucket, name=name)
+    client = gcloud_storage.Client(project=self.google_cloud_options.project)
+    blob = client.get_bucket(bucket_name).blob(file_name)
     logging.info('Starting GCS upload to %s...', gcs_location)
-    upload = storage.Upload(stream, mime_type)
     try:
-      response = self._storage_client.objects.Insert(request, upload=upload)
-    except exceptions.HttpError as e:
+      blob.upload_from_file(stream)
+    except GoogleCloudError as e:
       reportable_errors = {
           403: 'access denied',
           404: 'bucket not found',
       }
-      if e.status_code in reportable_errors:
+      if e.code in reportable_errors:
         raise IOError(('Could not upload to GCS path %s: %s. Please verify '
                        'that credentials are valid and that you have write '
                        'access to the specified path.') %
-                      (gcs_or_local_path, reportable_errors[e.status_code]))
+                      (gcs_or_local_path, reportable_errors[e.code]))
       raise
     logging.info('Completed GCS upload to %s', gcs_location)
-    return response
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):
@@ -493,7 +514,7 @@ class DataflowApplicationClient(object):
     if job_location:
       gcs_or_local_path = os.path.dirname(job_location)
       file_name = os.path.basename(job_location)
-      self.stage_file(gcs_or_local_path, file_name, StringIO(job.json()))
+      self.stage_file(gcs_or_local_path, file_name, io.BytesIO(job.json()))
 
     if not template_location:
       return self.submit_job_description(job)
@@ -507,15 +528,15 @@ class DataflowApplicationClient(object):
 
     # Stage the pipeline for the runner harness
     self.stage_file(job.google_cloud_options.staging_location,
-                    names.STAGED_PIPELINE_FILENAME,
-                    StringIO(job.proto_pipeline.SerializeToString()))
+                    shared_names.STAGED_PIPELINE_FILENAME,
+                    io.BytesIO(job.proto_pipeline.SerializeToString()))
 
     # Stage other resources for the SDK harness
     resources = self._stage_resources(job.options)
 
     job.proto.environment = Environment(
         pipeline_url=FileSystems.join(job.google_cloud_options.staging_location,
-                                      names.STAGED_PIPELINE_FILENAME),
+                                      shared_names.STAGED_PIPELINE_FILENAME),
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
     logging.debug('JOB: %s', job)
@@ -704,10 +725,27 @@ class DataflowApplicationClient(object):
             .JOB_MESSAGE_ERROR)
       else:
         raise RuntimeError(
-            'Unexpected value for minimum_importance argument: %r',
-            minimum_importance)
+            'Unexpected value for minimum_importance argument: %r'
+            % minimum_importance)
     response = self._client.projects_locations_jobs_messages.List(request)
     return response.jobMessages, response.nextPageToken
+
+  def job_id_for_name(self, job_name):
+    token = None
+    while True:
+      request = dataflow.DataflowProjectsLocationsJobsListRequest(
+          projectId=self.google_cloud_options.project,
+          location=self.google_cloud_options.region,
+          pageToken=token)
+      response = self._client.projects_locations_jobs.List(request)
+      for job in response.jobs:
+        if (job.name == job_name
+            and job.currentState
+            == dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING):
+          return job.id
+      token = response.nextPageToken
+      if token is None:
+        raise ValueError("No running job found with name '%s'" % job_name)
 
 
 class MetricUpdateTranslators(object):
@@ -763,11 +801,7 @@ class _LegacyDataflowStager(Stager):
 
           Returns the PyPI package name to be staged to Google Cloud Dataflow.
     """
-    sdk_name, _ = get_sdk_name_and_version()
-    if sdk_name == names.GOOGLE_SDK_NAME:
-      return names.GOOGLE_PACKAGE_NAME
-    else:
-      return names.BEAM_PACKAGE_NAME
+    return shared_names.BEAM_PACKAGE_NAME
 
 
 def to_split_int(n):
@@ -817,17 +851,6 @@ def _use_fnapi(pipeline_options):
 
   return standard_options.streaming or (
       debug_options.experiments and 'beam_fn_api' in debug_options.experiments)
-
-
-def get_sdk_name_and_version():
-  """For internal use only; no backwards-compatibility guarantees.
-
-    Returns name and version of SDK reported to Google Cloud Dataflow."""
-  try:
-    pkg_resources.get_distribution(names.GOOGLE_PACKAGE_NAME)
-    return (names.GOOGLE_SDK_NAME, beam_version.__version__)
-  except pkg_resources.DistributionNotFound:
-    return (names.BEAM_SDK_NAME, beam_version.__version__)
 
 
 def get_default_container_image_for_current_sdk(job_type):

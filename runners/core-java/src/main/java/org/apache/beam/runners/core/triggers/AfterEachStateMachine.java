@@ -25,19 +25,20 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * A composite {@link TriggerStateMachine} that executes its sub-triggers in order.
- * Only one sub-trigger is executing at a time,
- * and any time it fires the {@code AfterEach} fires. When the currently executing
- * sub-trigger finishes, the {@code AfterEach} starts executing the next sub-trigger.
+ * A composite {@link TriggerStateMachine} that executes its sub-triggers in order. Only one
+ * sub-trigger is executing at a time, and any time it fires the {@code AfterEach} fires. When the
+ * currently executing sub-trigger finishes, the {@code AfterEach} starts executing the next
+ * sub-trigger.
  *
  * <p>{@code AfterEach.inOrder(t1, t2, ...)} finishes when all of the sub-triggers have finished.
  *
  * <p>The following properties hold:
+ *
  * <ul>
- *   <li> {@code AfterEach.inOrder(AfterEach.inOrder(a, b), c)} behaves the same as
- *   {@code AfterEach.inOrder(a, b, c)} and {@code AfterEach.inOrder(a, AfterEach.inOrder(b, c)}.
- *   <li> {@code AfterEach.inOrder(Repeatedly.forever(a), b)} behaves the same as
- *   {@code Repeatedly.forever(a)}, since the repeated trigger never finishes.
+ *   <li>{@code AfterEach.inOrder(AfterEach.inOrder(a, b), c)} behaves the same as {@code
+ *       AfterEach.inOrder(a, b, c)} and {@code AfterEach.inOrder(a, AfterEach.inOrder(b, c)}.
+ *   <li>{@code AfterEach.inOrder(Repeatedly.forever(a), b)} behaves the same as {@code
+ *       Repeatedly.forever(a)}, since the repeated trigger never finishes.
  * </ul>
  */
 public class AfterEachStateMachine extends TriggerStateMachine {
@@ -47,9 +48,7 @@ public class AfterEachStateMachine extends TriggerStateMachine {
     checkArgument(subTriggers.size() > 1);
   }
 
-  /**
-   * Returns an {@code AfterEach} {@code Trigger} with the given subtriggers.
-   */
+  /** Returns an {@code AfterEach} {@code Trigger} with the given subtriggers. */
   @SafeVarargs
   public static TriggerStateMachine inOrder(TriggerStateMachine... triggers) {
     return new AfterEachStateMachine(Arrays.asList(triggers));
@@ -66,7 +65,7 @@ public class AfterEachStateMachine extends TriggerStateMachine {
       c.trigger().firstUnfinishedSubTrigger().invokeOnElement(c);
     } else {
       // If merges are possible, we need to run all subtriggers in parallel
-      for (ExecutableTriggerStateMachine subTrigger :  c.trigger().subTriggers()) {
+      for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
         // Even if the subTrigger is done, it may be revived via merging and must have
         // adequate state.
         subTrigger.invokeOnElement(c);

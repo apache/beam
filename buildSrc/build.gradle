@@ -1,0 +1,56 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Define the set of repositories and dependencies required to
+// fetch and enable plugins.
+buildscript { dependencies { classpath "com.diffplug.spotless:spotless-plugin-gradle:3.15.0" } }
+
+// Plugins for configuring _this build_ of the module
+plugins { id 'groovy' }
+
+apply plugin: "com.diffplug.gradle.spotless"
+
+// Dependencies on other plugins used when this plugin
+// is invoked
+repositories { jcenter() }
+
+dependencies {
+  compile gradleApi()
+  compile localGroovy()
+  compile 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
+}
+
+// Because buildSrc is built and tested automatically _before_ gradle
+// does anything else, it is not possible to spotlessApply because
+// spotlessCheck fails before that. So this hack allows disabling
+// the check for the moment of application.
+//
+// ./gradlew :buildSrc:spotlessApply -PdisableSpotlessCheck=true
+def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
+        project.disableSpotlessCheck == 'true'
+
+spotless {
+  enforceCheck !disableSpotlessCheck
+  groovy {
+    excludeJava()
+    greclipse().configFile('greclipse.properties')
+  }
+  groovyGradle {
+    greclipse().configFile('greclipse.properties')
+  }
+}

@@ -42,15 +42,13 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link MutationDetectors}.
- */
+/** Tests for {@link MutationDetectors}. */
 @RunWith(JUnit4.class)
 public class MutationDetectorsTest {
   /**
    * Solely used to test that immutability is enforced from the SDK's perspective and not from
-   * Java's {@link Object#equals} method. Note that we do not expect users to create such
-   * an implementation.
+   * Java's {@link Object#equals} method. Note that we do not expect users to create such an
+   * implementation.
    */
   private static class ForSDKMutationDetectionTestCoder extends AtomicCoder<Object> {
     // Use a unique instance that is returned as the structural value making all structural
@@ -58,11 +56,10 @@ public class MutationDetectorsTest {
     private final Object uniqueInstance = new Object();
 
     @Override
-    public void encode(Object value, OutputStream outStream) throws  IOException {
-    }
+    public void encode(Object value, OutputStream outStream) throws IOException {}
 
     @Override
-    public Object decode(InputStream inStream) throws  IOException {
+    public Object decode(InputStream inStream) throws IOException {
       return new AtomicInteger();
     }
 
@@ -75,8 +72,8 @@ public class MutationDetectorsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   /**
-   * Tests that mutation detection is enforced from the SDK point of view
-   * (Based on the {@link Coder#structuralValue}) and not from the Java's equals method.
+   * Tests that mutation detection is enforced from the SDK point of view (Based on the {@link
+   * Coder#structuralValue}) and not from the Java's equals method.
    */
   @Test
   public void testMutationBasedOnStructuralValue() throws Exception {
@@ -125,9 +122,7 @@ public class MutationDetectorsTest {
     detector.verifyUnmodified();
   }
 
-  /**
-   * Tests that {@link MutationDetectors#forValueWithCoder} detects a mutation to a list.
-   */
+  /** Tests that {@link MutationDetectors#forValueWithCoder} detects a mutation to a list. */
   @Test
   public void testMutatingList() throws Exception {
     List<Integer> value = Arrays.asList(1, 2, 3, 4);
@@ -140,8 +135,8 @@ public class MutationDetectorsTest {
   }
 
   /**
-   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on a
-   * {@link LinkedList} that will clone as an {@code ArrayList}.
+   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on a {@link
+   * LinkedList} that will clone as an {@code ArrayList}.
    */
   @Test
   public void testUnmodifiedLinkedList() throws Exception {
@@ -152,8 +147,8 @@ public class MutationDetectorsTest {
   }
 
   /**
-   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on a
-   * {@link LinkedList} coded as an {@link Iterable}.
+   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on a {@link
+   * LinkedList} coded as an {@link Iterable}.
    */
   @Test
   public void testImmutableList() throws Exception {
@@ -164,8 +159,8 @@ public class MutationDetectorsTest {
   }
 
   /**
-   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on a
-   * {@link Set} coded as an {@link Iterable}.
+   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on a {@link Set}
+   * coded as an {@link Iterable}.
    */
   @Test
   public void testImmutableSet() throws Exception {
@@ -176,22 +171,21 @@ public class MutationDetectorsTest {
   }
 
   /**
-   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on a
-   * {@link Set} coded as an {@link Iterable}.
+   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on a {@link Set}
+   * coded as an {@link Iterable}.
    */
   @Test
   public void testStructuralValue() throws Exception {
     Set<Integer> value = Sets.newHashSet(Arrays.asList(1, 2, 3, 4));
     MutationDetector detector =
-            MutationDetectors.forValueWithCoder(value, IterableCoder.of(VarIntCoder.of()));
+        MutationDetectors.forValueWithCoder(value, IterableCoder.of(VarIntCoder.of()));
     detector.verifyUnmodified();
   }
 
   /**
-   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on an
-   * {@link Iterable} that is not known to be bounded; after coder-based cloning the bound
-   * will be known and it will be a {@link List} so it will encode more compactly the second
-   * time around.
+   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on an {@link
+   * Iterable} that is not known to be bounded; after coder-based cloning the bound will be known
+   * and it will be a {@link List} so it will encode more compactly the second time around.
    */
   @Test
   public void testImmutableIterable() throws Exception {
@@ -201,41 +195,37 @@ public class MutationDetectorsTest {
     detector.verifyUnmodified();
   }
 
-  /**
-   * Tests that {@link MutationDetectors#forValueWithCoder} detects a mutation to a byte array.
-   */
+  /** Tests that {@link MutationDetectors#forValueWithCoder} detects a mutation to a byte array. */
   @Test
   public void testMutatingArray() throws Exception {
-    byte[] value = new byte[]{0x1, 0x2, 0x3, 0x4};
-    MutationDetector detector =
-        MutationDetectors.forValueWithCoder(value, ByteArrayCoder.of());
+    byte[] value = new byte[] {0x1, 0x2, 0x3, 0x4};
+    MutationDetector detector = MutationDetectors.forValueWithCoder(value, ByteArrayCoder.of());
     value[0] = 0xa;
     thrown.expect(IllegalMutationException.class);
     detector.verifyUnmodified();
   }
 
   /**
-   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on an
-   * array, even though it will decode is another array which Java will not say is {@code equals}.
+   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on an array,
+   * even though it will decode is another array which Java will not say is {@code equals}.
    */
   @Test
   public void testUnmodifiedArray() throws Exception {
-    byte[] value = new byte[]{0x1, 0x2, 0x3, 0x4};
-    MutationDetector detector =
-        MutationDetectors.forValueWithCoder(value, ByteArrayCoder.of());
+    byte[] value = new byte[] {0x1, 0x2, 0x3, 0x4};
+    MutationDetector detector = MutationDetectors.forValueWithCoder(value, ByteArrayCoder.of());
     detector.verifyUnmodified();
   }
 
   /**
-   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on an
-   * list of arrays, even when some array is set to a deeply equal array that is not {@code equals}.
+   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on an list of
+   * arrays, even when some array is set to a deeply equal array that is not {@code equals}.
    */
   @Test
   public void testEquivalentListOfArrays() throws Exception {
-    List<byte[]> value = Arrays.asList(new byte[]{0x1}, new byte[]{0x2, 0x3}, new byte[]{0x4});
+    List<byte[]> value = Arrays.asList(new byte[] {0x1}, new byte[] {0x2, 0x3}, new byte[] {0x4});
     MutationDetector detector =
         MutationDetectors.forValueWithCoder(value, ListCoder.of(ByteArrayCoder.of()));
-    value.set(0, new byte[]{0x1});
+    value.set(0, new byte[] {0x1});
     detector.verifyUnmodified();
   }
 }

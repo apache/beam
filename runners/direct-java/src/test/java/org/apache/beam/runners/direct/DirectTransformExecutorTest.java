@@ -74,8 +74,7 @@ public class DirectTransformExecutorTest {
   @Mock private EvaluationContext evaluationContext;
   @Mock private TransformEvaluatorRegistry registry;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
@@ -191,9 +190,10 @@ public class DirectTransformExecutorTest {
             completionCallback,
             transformEvaluationState);
 
-    Executors.newSingleThreadExecutor().submit(executor);
+    Future<?> future = Executors.newSingleThreadExecutor().submit(executor);
 
     evaluatorCompleted.await();
+    future.get();
 
     assertThat(elementsProcessed, containsInAnyOrder(spam, third, foo));
     assertThat(completionCallback.handledResult, equalTo(result));
@@ -201,6 +201,7 @@ public class DirectTransformExecutorTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored") // expected exception checked via completionCallback
   public void processElementThrowsExceptionCallsback() throws Exception {
     final TransformResult<String> result =
         StepTransformResult.<String>withoutHold(downstreamProducer).build();
@@ -241,6 +242,7 @@ public class DirectTransformExecutorTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored") // expected exception checked via completionCallback
   public void finishBundleThrowsExceptionCallsback() throws Exception {
     final Exception exception = new Exception();
     TransformEvaluator<String> evaluator =
@@ -316,8 +318,7 @@ public class DirectTransformExecutorTest {
 
   @Test
   public void callWithEnforcementThrowsOnFinishPropagates() throws Exception {
-    final TransformResult<Object> result =
-        StepTransformResult.withoutHold(createdProducer).build();
+    final TransformResult<Object> result = StepTransformResult.withoutHold(createdProducer).build();
 
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {
@@ -355,8 +356,7 @@ public class DirectTransformExecutorTest {
 
   @Test
   public void callWithEnforcementThrowsOnElementPropagates() throws Exception {
-    final TransformResult<Object> result =
-        StepTransformResult.withoutHold(createdProducer).build();
+    final TransformResult<Object> result = StepTransformResult.withoutHold(createdProducer).build();
 
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {

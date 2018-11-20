@@ -21,8 +21,10 @@ We use the quadratic polinomial f(z) = z*z + c, with c = -.62772 +.42193i
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
 import argparse
+from builtins import range
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
@@ -70,7 +72,7 @@ def generate_julia_set_visualization(data, n, max_iterations):
 
   xy = np.zeros((n, n, 3), dtype=np.uint8)
   for x, y, iteration in data:
-    xy[x, y] = colors[iteration * len(colors) / max_iterations]
+    xy[x, y] = colors[iteration * len(colors) // max_iterations]
 
   return xy
 

@@ -36,13 +36,13 @@ import org.apache.beam.sdk.values.PCollection;
 /**
  * {@link PTransform PTransforms} to count the elements in a {@link PCollection}.
  *
- * <p>{@link Count#perElement()} can be used to count the number of occurrences of each
- * distinct element in the PCollection, {@link Count#perKey()} can be used to count the
- * number of values per key, and {@link Count#globally()} can be used to count the total
- * number of elements in a PCollection.
+ * <p>{@link Count#perElement()} can be used to count the number of occurrences of each distinct
+ * element in the PCollection, {@link Count#perKey()} can be used to count the number of values per
+ * key, and {@link Count#globally()} can be used to count the total number of elements in a
+ * PCollection.
  *
- * <p>{@link #combineFn} can also be used manually, in combination with state and with the
- * {@link Combine} transform.
+ * <p>{@link #combineFn} can also be used manually, in combination with state and with the {@link
+ * Combine} transform.
  */
 public class Count {
   private Count() {
@@ -55,8 +55,8 @@ public class Count {
   }
 
   /**
-   * Returns a {@link PTransform} that counts the number of elements in
-   * its input {@link PCollection}.
+   * Returns a {@link PTransform} that counts the number of elements in its input {@link
+   * PCollection}.
    *
    * <p>Note: if the input collection uses a windowing strategy other than {@link GlobalWindows},
    * use {@code Combine.globally(Count.<T>combineFn()).withoutDefaults()} instead.
@@ -66,37 +66,38 @@ public class Count {
   }
 
   /**
-   * Returns a {@link PTransform} that counts the number of elements
-   * associated with each key of its input {@link PCollection}.
+   * Returns a {@link PTransform} that counts the number of elements associated with each key of its
+   * input {@link PCollection}.
    */
   public static <K, V> PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> perKey() {
     return Combine.perKey(new CountFn<V>());
   }
 
   /**
-   * Returns a {@link PTransform} that counts the number of occurrences of each element
-   * in its input {@link PCollection}.
+   * Returns a {@link PTransform} that counts the number of occurrences of each element in its input
+   * {@link PCollection}.
    *
-   * <p>The returned {@code PTransform} takes a {@code PCollection<T>} and returns a
-   * {@code PCollection<KV<T, Long>>} representing a map from each distinct element of the input
-   * {@code PCollection} to the number of times that element occurs in the input. Each key in the
-   * output {@code PCollection} is unique.
+   * <p>The returned {@code PTransform} takes a {@code PCollection<T>} and returns a {@code
+   * PCollection<KV<T, Long>>} representing a map from each distinct element of the input {@code
+   * PCollection} to the number of times that element occurs in the input. Each key in the output
+   * {@code PCollection} is unique.
    *
-   * <p>The returned transform compares two values of type {@code T} by first encoding each
-   * element using the input {@code PCollection}'s {@code Coder}, then comparing the encoded
-   * bytes. Because of this, the input coder must be deterministic.
-   * (See {@link org.apache.beam.sdk.coders.Coder#verifyDeterministic()} for more detail).
-   * Performing the comparison in this manner admits efficient parallel evaluation.
+   * <p>The returned transform compares two values of type {@code T} by first encoding each element
+   * using the input {@code PCollection}'s {@code Coder}, then comparing the encoded bytes. Because
+   * of this, the input coder must be deterministic. (See {@link
+   * org.apache.beam.sdk.coders.Coder#verifyDeterministic()} for more detail). Performing the
+   * comparison in this manner admits efficient parallel evaluation.
    *
    * <p>By default, the {@code Coder} of the keys of the output {@code PCollection} is the same as
    * the {@code Coder} of the elements of the input {@code PCollection}.
    *
    * <p>Example of use:
-   * <pre> {@code
+   *
+   * <pre>{@code
    * PCollection<String> words = ...;
    * PCollection<KV<String, Long>> wordCounts =
    *     words.apply(Count.<String>perElement());
-   * } </pre>
+   * }</pre>
    */
   public static <T> PTransform<PCollection<T>, PCollection<KV<T, Long>>> perElement() {
     return new PerElement<>();
@@ -106,12 +107,11 @@ public class Count {
    * Private implementation of {@link #perElement()}.
    *
    * @param <T> the type of the elements of the input {@code PCollection}, and the type of the keys
-   * of the output {@code PCollection}
+   *     of the output {@code PCollection}
    */
-  private static class PerElement<T>
-      extends PTransform<PCollection<T>, PCollection<KV<T, Long>>> {
+  private static class PerElement<T> extends PTransform<PCollection<T>, PCollection<KV<T, Long>>> {
 
-    private PerElement() { }
+    private PerElement() {}
 
     @Override
     public PCollection<KV<T, Long>> expand(PCollection<T> input) {
@@ -129,9 +129,7 @@ public class Count {
     }
   }
 
-  /**
-   * A {@link CombineFn} that counts elements.
-   */
+  /** A {@link CombineFn} that counts elements. */
   private static class CountFn<T> extends CombineFn<T, long[], Long> {
     // Note that the long[] accumulator always has size 1, used as
     // a box for a mutable long.
@@ -166,18 +164,15 @@ public class Count {
     }
 
     @Override
-    public Coder<long[]> getAccumulatorCoder(CoderRegistry registry,
-                                             Coder<T> inputCoder) {
+    public Coder<long[]> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder) {
       return new AtomicCoder<long[]>() {
         @Override
-        public void encode(long[] value, OutputStream outStream)
-            throws IOException {
+        public void encode(long[] value, OutputStream outStream) throws IOException {
           VarInt.encode(value[0], outStream);
         }
 
         @Override
-        public long[] decode(InputStream inStream)
-            throws IOException, CoderException {
+        public long[] decode(InputStream inStream) throws IOException, CoderException {
           try {
             return new long[] {VarInt.decodeLong(inStream)};
           } catch (EOFException | UTFDataFormatException exn) {
@@ -205,6 +200,12 @@ public class Count {
     @Override
     public int hashCode() {
       return getClass().hashCode();
+    }
+
+    @Override
+    public String getIncompatibleGlobalWindowErrorMessage() {
+      return "If the input collection uses a windowing strategy other than GlobalWindows, "
+          + "use Combine.globally(Count.<T>combineFn()).withoutDefaults() instead.";
     }
   }
 }

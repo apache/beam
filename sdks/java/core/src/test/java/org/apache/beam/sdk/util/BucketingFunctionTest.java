@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
@@ -27,9 +26,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests {@link BucketingFunction}.
- */
+/** Tests {@link BucketingFunction}. */
 @RunWith(JUnit4.class)
 public class BucketingFunctionTest {
 
@@ -51,9 +48,9 @@ public class BucketingFunctionTest {
       };
 
   private BucketingFunction newFunc() {
-    return new
-        BucketingFunction(BUCKET_WIDTH, SIGNIFICANT_BUCKETS,
-                          SIGNIFICANT_SAMPLES, SUM);
+    return new BucketingFunction(
+        BUCKET_WIDTH, SIGNIFICANT_BUCKETS,
+        SIGNIFICANT_SAMPLES, SUM);
   }
 
   @Test

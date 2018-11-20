@@ -21,7 +21,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Collections;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -39,14 +39,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 /**
  * A streaming Beam Example using BigQuery output.
  *
- * <p>This pipeline example reads lines of the input text file, splits each line
- * into individual words, capitalizes those words, and writes the output to
- * a BigQuery table.
+ * <p>This pipeline example reads lines of the input text file, splits each line into individual
+ * words, capitalizes those words, and writes the output to a BigQuery table.
  *
  * <p>The example is configured to use the default BigQuery table from the example common package
- * (there are no defaults for a general Beam pipeline).
- * You can override them by using the {@literal --bigQueryDataset}, and {@literal --bigQueryTable}
- * options. If the BigQuery table do not exist, the example will try to create them.
+ * (there are no defaults for a general Beam pipeline). You can override them by using the {@literal
+ * --bigQueryDataset}, and {@literal --bigQueryTable} options. If the BigQuery table do not exist,
+ * the example will try to create them.
  *
  * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
  * and then exits.
@@ -57,7 +56,8 @@ public class StreamingWordExtract {
   static class ExtractWords extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN);
+      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN, -1);
+
       for (String word : words) {
         if (!word.isEmpty()) {
           c.output(word);
@@ -74,25 +74,19 @@ public class StreamingWordExtract {
     }
   }
 
-  /**
-   * Converts strings into BigQuery rows.
-   */
+  /** Converts strings into BigQuery rows. */
   static class StringToRowConverter extends DoFn<String, TableRow> {
-    /**
-     * In this example, put the whole string into single BigQuery field.
-     */
+    /** In this example, put the whole string into single BigQuery field. */
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new TableRow().set("string_field", c.element()));
     }
 
     static TableSchema getSchema() {
-      return new TableSchema().setFields(new ArrayList<TableFieldSchema>() {
-            // Compose the list of TableFieldSchema from tableSchema.
-            {
-              add(new TableFieldSchema().setName("string_field").setType("STRING"));
-            }
-      });
+      return new TableSchema()
+          .setFields(
+              Collections.singletonList(
+                  new TableFieldSchema().setName("string_field").setType("STRING")));
     }
   }
 
@@ -101,11 +95,12 @@ public class StreamingWordExtract {
    *
    * <p>Inherits standard configuration options.
    */
-  private interface StreamingWordExtractOptions
+  public interface StreamingWordExtractOptions
       extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Path of the file to read from")
     @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
     String getInputFile();
+
     void setInputFile(String value);
   }
 
@@ -115,9 +110,10 @@ public class StreamingWordExtract {
    * @throws IOException if there is a problem setting up resources
    */
   public static void main(String[] args) throws IOException {
-    StreamingWordExtractOptions options = PipelineOptionsFactory.fromArgs(args)
-        .withValidation()
-        .as(StreamingWordExtractOptions.class);
+    StreamingWordExtractOptions options =
+        PipelineOptionsFactory.fromArgs(args)
+            .withValidation()
+            .as(StreamingWordExtractOptions.class);
     options.setStreaming(true);
 
     options.setBigQuerySchema(StringToRowConverter.getSchema());
@@ -126,18 +122,21 @@ public class StreamingWordExtract {
 
     Pipeline pipeline = Pipeline.create(options);
 
-    String tableSpec = new StringBuilder()
-        .append(options.getProject()).append(":")
-        .append(options.getBigQueryDataset()).append(".")
-        .append(options.getBigQueryTable())
-        .toString();
+    String tableSpec =
+        new StringBuilder()
+            .append(options.getProject())
+            .append(":")
+            .append(options.getBigQueryDataset())
+            .append(".")
+            .append(options.getBigQueryTable())
+            .toString();
     pipeline
         .apply("ReadLines", TextIO.read().from(options.getInputFile()))
         .apply(ParDo.of(new ExtractWords()))
         .apply(ParDo.of(new Uppercase()))
         .apply(ParDo.of(new StringToRowConverter()))
-        .apply(BigQueryIO.writeTableRows().to(tableSpec)
-            .withSchema(StringToRowConverter.getSchema()));
+        .apply(
+            BigQueryIO.writeTableRows().to(tableSpec).withSchema(StringToRowConverter.getSchema()));
 
     PipelineResult result = pipeline.run();
 

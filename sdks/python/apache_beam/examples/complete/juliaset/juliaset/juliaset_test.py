@@ -17,6 +17,8 @@
 
 """Test for the juliaset example."""
 
+from __future__ import absolute_import
+
 import logging
 import os
 import re

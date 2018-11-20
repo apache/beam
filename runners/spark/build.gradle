@@ -18,7 +18,7 @@
 
 import groovy.json.JsonOutput
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Spark"
@@ -57,7 +57,6 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
-  shadow library.java.findbugs_jsr305
   shadow library.java.guava
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api
@@ -73,6 +72,7 @@ dependencies {
   provided library.java.commons_lang3
   provided library.java.commons_io_2x
   provided library.java.hamcrest_core
+  provided library.java.hamcrest_library
   provided "org.apache.zookeeper:zookeeper:3.4.11"
   provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"
@@ -122,12 +122,12 @@ task validatesRunnerBatch(type: Test) {
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
   }
 }
 

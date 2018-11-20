@@ -41,81 +41,75 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 
-/**
- * Static utility methods for creating {@link StateTag} instances.
- */
+/** Static utility methods for creating {@link StateTag} instances. */
 @Experimental(Kind.STATE)
 public class StateTags {
 
   private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
 
-  public static final Equivalence<StateTag> ID_EQUIVALENCE = new Equivalence<StateTag>() {
-    @Override
-    protected boolean doEquivalent(StateTag a, StateTag b) {
-      return a.getId().equals(b.getId());
-    }
+  public static final Equivalence<StateTag> ID_EQUIVALENCE =
+      new Equivalence<StateTag>() {
+        @Override
+        protected boolean doEquivalent(StateTag a, StateTag b) {
+          return a.getId().equals(b.getId());
+        }
 
-    @Override
-    protected int doHash(StateTag stateTag) {
-      return stateTag.getId().hashCode();
-    }
-  };
+        @Override
+        protected int doHash(StateTag stateTag) {
+          return stateTag.getId().hashCode();
+        }
+      };
 
   /** @deprecated for migration purposes only */
   @Deprecated
   private static StateBinder adaptTagBinder(final StateTag.StateBinder binder) {
     return new StateBinder() {
       @Override
-      public <T> ValueState<T> bindValue(
-          String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
+      public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
         return binder.bindValue(tagForSpec(id, spec), coder);
       }
 
       @Override
-      public <T> BagState<T> bindBag(
-          String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
+      public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
         return binder.bindBag(tagForSpec(id, spec), elemCoder);
       }
 
       @Override
-      public <T> SetState<T> bindSet(
-          String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
+      public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
         return binder.bindSet(tagForSpec(id, spec), elemCoder);
       }
 
       @Override
       public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-          String id, StateSpec<MapState<KeyT, ValueT>> spec,
-          Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
+          String id,
+          StateSpec<MapState<KeyT, ValueT>> spec,
+          Coder<KeyT> mapKeyCoder,
+          Coder<ValueT> mapValueCoder) {
         return binder.bindMap(tagForSpec(id, spec), mapKeyCoder, mapValueCoder);
       }
 
       @Override
-      public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT> bindCombining(
-              String id,
-              StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
-              Coder<AccumT> accumCoder,
-              CombineFn<InputT, AccumT, OutputT> combineFn) {
+      public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombining(
+          String id,
+          StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
+          Coder<AccumT> accumCoder,
+          CombineFn<InputT, AccumT, OutputT> combineFn) {
         return binder.bindCombiningValue(tagForSpec(id, spec), accumCoder, combineFn);
       }
 
       @Override
       public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT> bindCombiningWithContext(
+          CombiningState<InputT, AccumT, OutputT> bindCombiningWithContext(
               String id,
               StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
               CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-        return binder.bindCombiningValueWithContext(
-            tagForSpec(id, spec), accumCoder, combineFn);
+        return binder.bindCombiningValueWithContext(tagForSpec(id, spec), accumCoder, combineFn);
       }
 
       @Override
       public WatermarkHoldState bindWatermark(
-          String id,
-          StateSpec<WatermarkHoldState> spec,
-          TimestampCombiner timestampCombiner) {
+          String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
         return binder.bindWatermark(tagForSpec(id, spec), timestampCombiner);
       }
     };
@@ -132,7 +126,7 @@ public class StateTags {
     }
   }
 
-  private StateTags() { }
+  private StateTags() {}
 
   private interface SystemStateTag<StateT extends State> {
     StateTag<StateT> asKind(StateKind kind);
@@ -144,82 +138,69 @@ public class StateTags {
     return new SimpleStateTag<>(new StructuredId(id), spec);
   }
 
-  /**
-   * Create a simple state tag for values of type {@code T}.
-   */
+  /** Create a simple state tag for values of type {@code T}. */
   public static <T> StateTag<ValueState<T>> value(String id, Coder<T> valueCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.value(valueCoder));
   }
 
   /**
-   * Create a state tag for values that use a {@link CombineFn} to automatically merge
-   * multiple {@code InputT}s into a single {@code OutputT}.
+   * Create a state tag for values that use a {@link CombineFn} to automatically merge multiple
+   * {@code InputT}s into a single {@code OutputT}.
    */
   public static <InputT, AccumT, OutputT>
-    StateTag<CombiningState<InputT, AccumT, OutputT>>
-    combiningValue(
-      String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-    return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.combining(accumCoder, combineFn));
+      StateTag<CombiningState<InputT, AccumT, OutputT>> combiningValue(
+          String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.combining(accumCoder, combineFn));
   }
 
   /**
-   * Create a state tag for values that use a {@link CombineFnWithContext} to automatically
-   * merge multiple {@code InputT}s into a single {@code OutputT}.
+   * Create a state tag for values that use a {@link CombineFnWithContext} to automatically merge
+   * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <InputT, AccumT, OutputT>
-      StateTag<CombiningState<InputT, AccumT, OutputT>>
-      combiningValueWithContext(
+      StateTag<CombiningState<InputT, AccumT, OutputT>> combiningValueWithContext(
           String id,
           Coder<AccumT> accumCoder,
           CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-    return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.combining(accumCoder, combineFn));
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.combining(accumCoder, combineFn));
   }
 
   /**
-   * Create a state tag for values that use a {@link CombineFn} to automatically merge
-   * multiple {@code InputT}s into a single {@code OutputT}.
+   * Create a state tag for values that use a {@link CombineFn} to automatically merge multiple
+   * {@code InputT}s into a single {@code OutputT}.
    *
-   * <p>This determines the {@code Coder<AccumT>} from the given {@code Coder<InputT>}, and
-   * should only be used to initialize static values.
+   * <p>This determines the {@code Coder<AccumT>} from the given {@code Coder<InputT>}, and should
+   * only be used to initialize static values.
    */
   public static <InputT, AccumT, OutputT>
-      StateTag<CombiningState<InputT, AccumT, OutputT>>
-      combiningValueFromInputInternal(
+      StateTag<CombiningState<InputT, AccumT, OutputT>> combiningValueFromInputInternal(
           String id, Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
         new StructuredId(id), StateSpecs.combiningFromInputInternal(inputCoder, combineFn));
   }
 
   /**
-   * Create a state tag that is optimized for adding values frequently, and
-   * occasionally retrieving all the values that have been added.
+   * Create a state tag that is optimized for adding values frequently, and occasionally retrieving
+   * all the values that have been added.
    */
   public static <T> StateTag<BagState<T>> bag(String id, Coder<T> elemCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.bag(elemCoder));
   }
 
-  /**
-   * Create a state spec that supporting for {@link java.util.Set} like access patterns.
-   */
+  /** Create a state spec that supporting for {@link java.util.Set} like access patterns. */
   public static <T> StateTag<SetState<T>> set(String id, Coder<T> elemCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.set(elemCoder));
   }
 
-  /**
-   * Create a state spec that supporting for {@link java.util.Map} like access patterns.
-   */
+  /** Create a state spec that supporting for {@link java.util.Map} like access patterns. */
   public static <K, V> StateTag<MapState<K, V>> map(
       String id, Coder<K> keyCoder, Coder<V> valueCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.map(keyCoder, valueCoder));
   }
 
-  /**
-   * Create a state tag for holding the watermark.
-   */
-  public static <W extends BoundedWindow> StateTag<WatermarkHoldState>
-      watermarkStateInternal(String id, TimestampCombiner timestampCombiner) {
+  /** Create a state tag for holding the watermark. */
+  public static <W extends BoundedWindow> StateTag<WatermarkHoldState> watermarkStateInternal(
+      String id, TimestampCombiner timestampCombiner) {
     return new SimpleStateTag<>(
         new StructuredId(id), StateSpecs.watermarkStateInternal(timestampCombiner));
   }
@@ -239,9 +220,8 @@ public class StateTags {
     return typedTag.asKind(StateKind.SYSTEM);
   }
 
-  public static <InputT, AccumT, OutputT> StateTag<BagState<AccumT>>
-      convertToBagTagInternal(
-          StateTag<CombiningState<InputT, AccumT, OutputT>> combiningTag) {
+  public static <InputT, AccumT, OutputT> StateTag<BagState<AccumT>> convertToBagTagInternal(
+      StateTag<CombiningState<InputT, AccumT, OutputT>> combiningTag) {
     return new SimpleStateTag<>(
         new StructuredId(combiningTag.getId()),
         StateSpecs.convertToBagSpecInternal(combiningTag.getSpec()));
@@ -274,10 +254,7 @@ public class StateTags {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(getClass())
-          .add("id", rawId)
-          .add("kind", kind)
-          .toString();
+      return MoreObjects.toStringHelper(getClass()).add("id", rawId).add("kind", kind).toString();
     }
 
     @Override
@@ -291,8 +268,7 @@ public class StateTags {
       }
 
       StructuredId that = (StructuredId) obj;
-      return Objects.equals(this.kind, that.kind)
-          && Objects.equals(this.rawId, that.rawId);
+      return Objects.equals(this.kind, that.kind) && Objects.equals(this.rawId, that.rawId);
     }
 
     @Override
@@ -301,9 +277,7 @@ public class StateTags {
     }
   }
 
-  /**
-   * A basic {@link StateTag} implementation that manages the structured ids.
-   */
+  /** A basic {@link StateTag} implementation that manages the structured ids. */
   private static class SimpleStateTag<StateT extends State>
       implements StateTag<StateT>, SystemStateTag<StateT> {
 
@@ -315,14 +289,11 @@ public class StateTags {
       this.spec = spec;
     }
 
-    /**
-     * @deprecated use {@link StateSpec#bind} method via {@link #getSpec} for now.
-     */
+    /** @deprecated use {@link StateSpec#bind} method via {@link #getSpec} for now. */
     @Override
     @Deprecated
     public StateT bind(StateTag.StateBinder binder) {
-      return spec.bind(
-          this.id.getRawId(), adaptTagBinder(binder));
+      return spec.bind(this.id.getRawId(), adaptTagBinder(binder));
     }
 
     @Override
@@ -337,9 +308,7 @@ public class StateTags {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(getClass())
-          .add("id", id)
-          .toString();
+      return MoreObjects.toStringHelper(getClass()).add("id", id).toString();
     }
 
     @Override

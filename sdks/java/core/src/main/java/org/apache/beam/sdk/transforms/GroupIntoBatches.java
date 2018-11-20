@@ -44,11 +44,11 @@ import org.slf4j.LoggerFactory;
  * A {@link PTransform} that batches inputs to a desired batch size. Batches will contain only
  * elements of a single key.
  *
- * <p>Elements are buffered until there are {@code batchSize} elements
- * buffered, at which point they are output to the output {@link PCollection}.
+ * <p>Elements are buffered until there are {@code batchSize} elements buffered, at which point they
+ * are output to the output {@link PCollection}.
  *
- * <p>Windows are preserved (batches contain elements from the same window).
- * Batches may contain elements from more than one bundle
+ * <p>Windows are preserved (batches contain elements from the same window). Batches may contain
+ * elements from more than one bundle
  *
  * <p>Example (batch call a webservice and get return codes)
  *
@@ -60,8 +60,9 @@ import org.slf4j.LoggerFactory;
  * .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())))
  * .apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, String>>() {
  * {@literal @}ProcessElement
- * public void processElement(ProcessContext c) {
- * c.output(KV.of(c.element().getKey(), callWebService(c.element().getValue())));
+ * public void processElement({@literal @}Element KV<String, Iterable<String>> element,
+ *                            OutputReceiver<KV<String, String>> r) {
+ * r.output(KV.of(element.getKey(), callWebService(element.getValue())));
  * }
  * }));
  *  pipeline.run();
@@ -114,8 +115,7 @@ public class GroupIntoBatches<K, InputT>
     private final StateSpec<BagState<InputT>> batchSpec;
 
     @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-    private final StateSpec<CombiningState<Long, long[], Long>>
-        numElementsInBatchSpec;
+    private final StateSpec<CombiningState<Long, long[], Long>> numElementsInBatchSpec;
 
     @StateId(KEY_ID)
     private final StateSpec<ValueState<K>> keySpec;
@@ -130,19 +130,20 @@ public class GroupIntoBatches<K, InputT>
       this.batchSize = batchSize;
       this.allowedLateness = allowedLateness;
       this.batchSpec = StateSpecs.bag(inputValueCoder);
-      this.numElementsInBatchSpec = StateSpecs.combining(new Combine.BinaryCombineLongFn() {
+      this.numElementsInBatchSpec =
+          StateSpecs.combining(
+              new Combine.BinaryCombineLongFn() {
 
-        @Override
-        public long identity() {
-          return 0L;
-        }
+                @Override
+                public long identity() {
+                  return 0L;
+                }
 
-        @Override
-        public long apply(long left, long right) {
-          return left + right;
-        }
-
-      });
+                @Override
+                public long apply(long left, long right) {
+                  return left + right;
+                }
+              });
 
       this.keySpec = StateSpecs.value(inputKeyCoder);
       // prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
@@ -153,19 +154,20 @@ public class GroupIntoBatches<K, InputT>
     public void processElement(
         @TimerId(END_OF_WINDOW_ID) Timer timer,
         @StateId(BATCH_ID) BagState<InputT> batch,
-        @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-            CombiningState<Long, long[], Long> numElementsInBatch,
+        @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> numElementsInBatch,
         @StateId(KEY_ID) ValueState<K> key,
-        ProcessContext c,
-        BoundedWindow window) {
+        @Element KV<K, InputT> element,
+        BoundedWindow window,
+        OutputReceiver<KV<K, Iterable<InputT>>> receiver) {
       Instant windowExpires = window.maxTimestamp().plus(allowedLateness);
 
       LOG.debug(
           "*** SET TIMER *** to point in time {} for window {}",
-          windowExpires.toString(), window.toString());
+          windowExpires.toString(),
+          window.toString());
       timer.set(windowExpires);
-      key.write(c.element().getKey());
-      batch.add(c.element().getValue());
+      key.write(element.getKey());
+      batch.add(element.getValue());
       LOG.debug("*** BATCH *** Add element for window {} ", window.toString());
       // blind add is supported with combiningState
       numElementsInBatch.add(1L);
@@ -176,33 +178,34 @@ public class GroupIntoBatches<K, InputT>
       }
       if (num >= batchSize) {
         LOG.debug("*** END OF BATCH *** for window {}", window.toString());
-        flushBatch(c, key, batch, numElementsInBatch);
+        flushBatch(receiver, key, batch, numElementsInBatch);
       }
     }
 
     @OnTimer(END_OF_WINDOW_ID)
     public void onTimerCallback(
-        OnTimerContext context,
+        OutputReceiver<KV<K, Iterable<InputT>>> receiver,
+        @Timestamp Instant timestamp,
         @StateId(KEY_ID) ValueState<K> key,
         @StateId(BATCH_ID) BagState<InputT> batch,
-        @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-            CombiningState<Long, long[], Long> numElementsInBatch,
+        @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> numElementsInBatch,
         BoundedWindow window) {
       LOG.debug(
           "*** END OF WINDOW *** for timer timestamp {} in windows {}",
-          context.timestamp(), window.toString());
-      flushBatch(context, key, batch, numElementsInBatch);
+          timestamp,
+          window.toString());
+      flushBatch(receiver, key, batch, numElementsInBatch);
     }
 
     private void flushBatch(
-        WindowedContext c,
+        OutputReceiver<KV<K, Iterable<InputT>>> receiver,
         ValueState<K> key,
         BagState<InputT> batch,
         CombiningState<Long, long[], Long> numElementsInBatch) {
       Iterable<InputT> values = batch.read();
       // when the timer fires, batch state might be empty
       if (!Iterables.isEmpty(values)) {
-        c.output(KV.of(key.read(), values));
+        receiver.output(KV.of(key.read(), values));
       }
       batch.clear();
       LOG.debug("*** BATCH *** clear");

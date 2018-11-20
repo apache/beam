@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.io;
 
 import static org.junit.Assert.assertEquals;
@@ -41,23 +40,20 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Number of shards test.
- */
+/** Number of shards test. */
 public class NumShardsTest {
 
   private static final String[] WORDS_ARRAY = {
-      "hi there", "hi", "hi sue bob",
-      "hi sue", "", "bob hi"};
+    "hi there", "hi", "hi sue bob",
+    "hi sue", "", "bob hi"
+  };
   private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
 
   private File outputDir;
 
-  @Rule
-  public final TemporaryFolder tmpDir = new TemporaryFolder();
+  @Rule public final TemporaryFolder tmpDir = new TemporaryFolder();
 
-  @Rule
-  public final TestPipeline p = TestPipeline.create();
+  @Rule public final TestPipeline p = TestPipeline.create();
 
   @Before
   public void setUp() throws IOException {
@@ -68,8 +64,10 @@ public class NumShardsTest {
   @Test
   public void testText() throws Exception {
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
-    PCollection<String> output = inputWords.apply(new WordCount.CountWords())
-        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+    PCollection<String> output =
+        inputWords
+            .apply(new WordCount.CountWords())
+            .apply(MapElements.via(new WordCount.FormatAsTextFn()));
     output.apply(
         TextIO.write().to(outputDir.getAbsolutePath()).withNumShards(3).withSuffix(".txt"));
     p.run().waitUntilFinish();
@@ -86,5 +84,4 @@ public class NumShardsTest {
     assertEquals(3, count);
     assertTrue(expected.isEmpty());
   }
-
 }

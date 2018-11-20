@@ -18,8 +18,8 @@
 
 import groovy.json.JsonOutput
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: true)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Apex"
 
@@ -35,7 +35,6 @@ configurations {
 }
 
 dependencies {
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
@@ -44,9 +43,7 @@ dependencies {
   shadow library.java.malhar_library
   shadow library.java.apex_engine
   shadow library.java.commons_lang3
-  shadow library.java.findbugs_jsr305
   shadow library.java.apex_engine
-  testCompileOnly library.java.findbugs_annotations
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // ApexStateInternalsTest extends abstract StateInternalsTest
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
@@ -55,6 +52,7 @@ dependencies {
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_dataformat_yaml
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
 }
 
@@ -95,9 +93,11 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
   }
 }
 

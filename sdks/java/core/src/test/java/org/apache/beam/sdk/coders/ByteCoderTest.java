@@ -31,22 +31,15 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test case for {@link ByteCoder}.
- */
+/** Test case for {@link ByteCoder}. */
 @RunWith(JUnit4.class)
 public class ByteCoderTest {
 
   private static final Coder<Byte> TEST_CODER = ByteCoder.of();
 
-  private static final List<Byte> TEST_VALUES = Arrays.asList(
-      (byte) 1,
-      (byte) 4,
-      (byte) 6,
-      (byte) 50,
-      (byte) 124,
-      Byte.MAX_VALUE,
-      Byte.MIN_VALUE);
+  private static final List<Byte> TEST_VALUES =
+      Arrays.asList(
+          (byte) 1, (byte) 4, (byte) 6, (byte) 50, (byte) 124, Byte.MAX_VALUE, Byte.MIN_VALUE);
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
@@ -56,25 +49,18 @@ public class ByteCoderTest {
   }
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AQ",
-      "BA",
-      "Bg",
-      "Mg",
-      "fA",
-      "fw",
-      "gA");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList("AQ", "BA", "Bg", "Mg", "fA", "fw", "gA");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

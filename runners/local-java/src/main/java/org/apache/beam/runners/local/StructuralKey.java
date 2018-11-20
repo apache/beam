@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.local;
 
 import org.apache.beam.sdk.coders.Coder;
@@ -23,8 +22,8 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
 
 /**
- * A (Key, Coder) pair that uses the structural value of the key (as provided by
- * {@link Coder#structuralValue(Object)}) to perform equality and hashing.
+ * A (Key, Coder) pair that uses the structural value of the key (as provided by {@link
+ * Coder#structuralValue(Object)}) to perform equality and hashing.
  */
 public abstract class StructuralKey<K> {
 
@@ -32,27 +31,22 @@ public abstract class StructuralKey<K> {
     // Prevents extending outside of this class
   }
 
-  /**
-   * Returns the key that this {@link StructuralKey} was created from.
-   */
+  /** Returns the key that this {@link StructuralKey} was created from. */
   public abstract K getKey();
 
-  /**
-   * Get the empty {@link StructuralKey}. All instances of the empty key are considered equal.
-   */
+  /** Get the empty {@link StructuralKey}. All instances of the empty key are considered equal. */
   public static StructuralKey<?> empty() {
-    StructuralKey<Object> emptyKey = new StructuralKey<Object>() {
-      @Override
-      public Object getKey() {
-        return this;
-      }
-    };
+    StructuralKey<Object> emptyKey =
+        new StructuralKey<Object>() {
+          @Override
+          public Object getKey() {
+            return this;
+          }
+        };
     return emptyKey;
   }
 
-  /**
-   * Create a new Structural Key of the provided key that can be encoded by the provided coder.
-   */
+  /** Create a new Structural Key of the provided key that can be encoded by the provided coder. */
   public static <K> StructuralKey<K> of(K key, Coder<K> coder) {
     try {
       return new CoderStructuralKey<>(coder, key);

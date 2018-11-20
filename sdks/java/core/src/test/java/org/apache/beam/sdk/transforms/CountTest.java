@@ -26,27 +26,29 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for Count.
- */
+/** Tests for Count. */
 @RunWith(JUnit4.class)
 public class CountTest {
-  static final String[] WORDS_ARRAY = new String[] {
-    "hi", "there", "hi", "hi", "sue", "bob",
-    "hi", "sue", "", "", "ZOW", "bob", "" };
+  static final String[] WORDS_ARRAY =
+      new String[] {"hi", "there", "hi", "hi", "sue", "bob", "hi", "sue", "", "", "ZOW", "bob", ""};
 
   static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
+
+  @Rule public ExpectedException exceptionRule = ExpectedException.none();
 
   @Test
   @Category(NeedsRunner.class)
@@ -86,8 +88,7 @@ public class CountTest {
 
     PCollection<Long> output = input.apply(Count.globally());
 
-    PAssert.that(output)
-        .containsInAnyOrder(13L);
+    PAssert.that(output).containsInAnyOrder(13L);
     p.run();
   }
 
@@ -98,8 +99,7 @@ public class CountTest {
 
     PCollection<Long> output = input.apply(Count.globally());
 
-    PAssert.that(output)
-        .containsInAnyOrder(0L);
+    PAssert.that(output).containsInAnyOrder(0L);
     p.run();
   }
 
@@ -107,5 +107,17 @@ public class CountTest {
   public void testCountGetName() {
     assertEquals("Count.PerElement", Count.perElement().getName());
     assertEquals("Combine.globally(Count)", Count.globally().getName());
+  }
+
+  @Test
+  public void testGlobalWindowErrorMessageShows() {
+    PCollection<String> input = p.apply(Create.of(NO_LINES).withCoder(StringUtf8Coder.of()));
+    PCollection<String> windowed =
+        input.apply(Window.into(FixedWindows.of(Duration.standardDays(1))));
+
+    String expected = Count.combineFn().getIncompatibleGlobalWindowErrorMessage();
+    exceptionRule.expect(IllegalStateException.class);
+    exceptionRule.expectMessage(expected);
+    windowed.apply(Count.globally());
   }
 }

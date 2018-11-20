@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.junit.Assert.assertEquals;
@@ -24,16 +23,14 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
@@ -98,27 +95,18 @@ public class BeamEnumerableConverterTest {
     enumerator.close();
   }
 
-  private static class FakeTable implements BeamSqlTable {
-    public BeamIOType getSourceType() {
-      return null;
+  private static class FakeTable extends BaseBeamTable {
+    public FakeTable() {
+      super(null);
     }
 
-    public PCollection<Row> buildIOReader(Pipeline pipeline) {
-      return null;
-    }
-
-    public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
-      return new FakeIOWriter();
-    }
-
-    public Schema getSchema() {
-      return null;
-    }
-  }
-
-  private static class FakeIOWriter extends PTransform<PCollection<Row>, POutput> {
     @Override
-    public POutput expand(PCollection<Row> input) {
+    public PCollection<Row> buildIOReader(PBegin begin) {
+      return null;
+    }
+
+    @Override
+    public POutput buildIOWriter(PCollection<Row> input) {
       input.apply(
           ParDo.of(
               new DoFn<Row, Void>() {
@@ -147,7 +135,8 @@ public class BeamEnumerableConverterTest {
             null,
             null,
             false,
-            new FakeTable());
+            new FakeTable(),
+            null);
 
     Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
     Enumerator<Object> enumerator = enumerable.enumerator();

@@ -16,36 +16,27 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
 // This is the Go postcommit which runs a gradle build, and the current set
 // of postcommit tests.
-job('beam_PostCommit_Go_GradleBuild') {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go PostCommit',
+  './gradlew :goPostCommit', this) {
   description('Runs Go PostCommit tests against master.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(
+  commonJobProperties.setTopLevelMainJobProperties(
     delegate,
     'master',
     150)
 
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate, '15 */6 * * *', false)
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      './gradlew :goPostCommit',
-      'Run Go PostCommit')
-
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':goPostCommit')
-      common_job_properties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('--no-parallel')
     }
   }
 }

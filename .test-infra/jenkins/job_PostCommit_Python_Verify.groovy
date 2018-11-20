@@ -16,32 +16,31 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
 // This job defines the Python postcommit tests.
-job('beam_PostCommit_Python_Verify') {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Verify', 'Run Python PostCommit',
+  'Python SDK PostCommit Tests', this) {
   description('Runs postcommit tests on the Python SDK.')
 
   previousNames('beam_PostCommit_PythonVerify')
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
-
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate, '0 3-22/6 * * *')
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-    delegate,
-    'Python SDK PostCommit Tests',
-    'Run Python PostCommit')
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Execute shell command to test Python SDK.
   steps {
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':pythonPostCommit')
-      common_job_properties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
     }
+  }
+
+  // Publish all test results to Jenkins. Note that Nose documentation
+  // specifically mentions that it produces JUnit compatible test results.
+  publishers {
+    archiveJunit('**/nosetests.xml')
   }
 }

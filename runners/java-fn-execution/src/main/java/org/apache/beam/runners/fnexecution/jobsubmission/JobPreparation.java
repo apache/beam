@@ -18,8 +18,8 @@
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.Struct;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Struct;
 
 /** A job that has been prepared, but not invoked. */
 @AutoValue
@@ -29,14 +29,19 @@ public abstract class JobPreparation {
   }
 
   public abstract String id();
+
   public abstract Pipeline pipeline();
+
   public abstract Struct options();
 
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setId(String id);
+
     abstract Builder setPipeline(Pipeline pipeline);
+
     abstract Builder setOptions(Struct options);
+
     abstract JobPreparation build();
   }
 }

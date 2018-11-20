@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.example;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamSql;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.example.model.Customer;
 import org.apache.beam.sdk.extensions.sql.example.model.Order;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -27,12 +27,10 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.reflect.InferredRowCoder;
 
 /**
  * This example uses Beam SQL DSL to query a data pipeline with Java objects in it.
@@ -53,9 +51,6 @@ import org.apache.beam.sdk.values.reflect.InferredRowCoder;
  *   <li>{@link Customer} represents a customer
  *   <li>{@link Order} represents an order by a customer
  * </ul>
- *
- * <p>{@link InferredRowCoder} is used to adapt Java objects to {@link Row Rows} that are understood
- * by Beam SQL.
  */
 class BeamSqlPojoExample {
   public static void main(String[] args) {
@@ -74,7 +69,7 @@ class BeamSqlPojoExample {
     // Example 1. Run a simple query over java objects:
     PCollection<Row> customersFromWonderland =
         customers.apply(
-            BeamSql.query(
+            SqlTransform.query(
                 "SELECT id, name "
                     + " FROM PCOLLECTION "
                     + " WHERE countryOfResidence = 'Wonderland'"));
@@ -84,7 +79,7 @@ class BeamSqlPojoExample {
 
     // Example 2. Query the results of the first query:
     PCollection<Row> totalInWonderland =
-        customersFromWonderland.apply(BeamSql.query("SELECT COUNT(id) FROM PCOLLECTION"));
+        customersFromWonderland.apply(SqlTransform.query("SELECT COUNT(id) FROM PCOLLECTION"));
 
     // Output the results of the query:
     totalInWonderland.apply(logRecords(": total customers in Wonderland"));
@@ -94,7 +89,7 @@ class BeamSqlPojoExample {
         PCollectionTuple.of(new TupleTag<>("customers"), customers)
             .and(new TupleTag<>("orders"), orders)
             .apply(
-                BeamSql.query(
+                SqlTransform.query(
                     "SELECT customers.name, ('order id:' || CAST(orders.id AS VARCHAR))"
                         + " FROM orders "
                         + "   JOIN customers ON orders.customerId = customers.id"
@@ -109,6 +104,7 @@ class BeamSqlPojoExample {
   private static MapElements<Row, Void> logRecords(String suffix) {
     return MapElements.via(
         new SimpleFunction<Row, Void>() {
+          @Override
           public @Nullable Void apply(Row input) {
             System.out.println(input.getValues() + suffix);
             return null;
@@ -122,30 +118,26 @@ class BeamSqlPojoExample {
   }
 
   private static PCollection<Customer> loadCustomers(Pipeline pipeline) {
-    return PBegin.in(pipeline)
-        .apply(
-            Create.of(
-                    new Customer(1, "Foo", "Wonderland"),
-                    new Customer(2, "Bar", "Super Kingdom"),
-                    new Customer(3, "Baz", "Wonderland"),
-                    new Customer(4, "Grault", "Wonderland"),
-                    new Customer(5, "Qux", "Super Kingdom"))
-                .withCoder(InferredRowCoder.ofSerializable(Customer.class)));
+    return pipeline.apply(
+        Create.of(
+            new Customer(1, "Foo", "Wonderland"),
+            new Customer(2, "Bar", "Super Kingdom"),
+            new Customer(3, "Baz", "Wonderland"),
+            new Customer(4, "Grault", "Wonderland"),
+            new Customer(5, "Qux", "Super Kingdom")));
   }
 
   private static PCollection<Order> loadOrders(Pipeline pipeline) {
-    return PBegin.in(pipeline)
-        .apply(
-            Create.of(
-                    new Order(1, 5),
-                    new Order(2, 2),
-                    new Order(3, 1),
-                    new Order(4, 3),
-                    new Order(5, 1),
-                    new Order(6, 5),
-                    new Order(7, 4),
-                    new Order(8, 4),
-                    new Order(9, 1))
-                .withCoder(InferredRowCoder.ofSerializable(Order.class)));
+    return pipeline.apply(
+        Create.of(
+            new Order(1, 5),
+            new Order(2, 2),
+            new Order(3, 1),
+            new Order(4, 3),
+            new Order(5, 1),
+            new Order(6, 5),
+            new Order(7, 4),
+            new Order(8, 4),
+            new Order(9, 1)));
   }
 }

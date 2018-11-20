@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -33,8 +32,7 @@ public interface BeamSqlExpressionExecutor extends Serializable {
   void prepare();
 
   /** apply transformation to input record {@link Row} with {@link BoundedWindow}. */
-  List<Object> execute(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv);
+  List<Object> execute(Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env);
 
   void close();
 }

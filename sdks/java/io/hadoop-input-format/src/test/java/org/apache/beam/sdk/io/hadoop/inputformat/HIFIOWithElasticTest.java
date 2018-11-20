@@ -63,13 +63,12 @@ import org.slf4j.LoggerFactory;
 /**
  * Tests to validate HadoopInputFormatIO for embedded Elasticsearch instance.
  *
- * {@link EsInputFormat} can be used to read data from Elasticsearch. EsInputFormat by default
+ * <p>{@link EsInputFormat} can be used to read data from Elasticsearch. EsInputFormat by default
  * returns key class as Text and value class as LinkedMapWritable. You can also set MapWritable as
  * value class, provided that you set the property "mapred.mapoutput.value.class" with
  * MapWritable.class. If this property is not set then, using MapWritable as value class may give
  * org.apache.beam.sdk.coders.CoderException due to unexpected extra bytes after decoding.
  */
-
 @RunWith(JUnit4.class)
 public class HIFIOWithElasticTest implements Serializable {
 
@@ -85,15 +84,12 @@ public class HIFIOWithElasticTest implements Serializable {
   private static final int TEST_DATA_ROW_COUNT = 10;
   private static final String ELASTIC_TYPE_ID_PREFIX = "s";
 
-  @ClassRule
-  public static TemporaryFolder elasticTempFolder = new TemporaryFolder();
+  @ClassRule public static TemporaryFolder elasticTempFolder = new TemporaryFolder();
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void startServer()
-      throws NodeValidationException, IOException {
+  public static void startServer() throws NodeValidationException, IOException {
     ServerSocket serverSocket = new ServerSocket(0);
     int port = serverSocket.getLocalPort();
     serverSocket.close();
@@ -142,16 +138,19 @@ public class HIFIOWithElasticTest implements Serializable {
     String expectedHashCode = "cfbf3e5c993d44e57535a114e25f782d";
     Configuration conf = getConfiguration();
     String fieldValue = ELASTIC_TYPE_ID_PREFIX + "2";
-    String query = "{"
-                  + "  \"query\": {"
-                  + "  \"match\" : {"
-                  + "    \"id\" : {"
-                  + "      \"query\" : \"" + fieldValue + "\","
-                  + "      \"type\" : \"boolean\""
-                  + "    }"
-                  + "  }"
-                  + "  }"
-                  + "}";
+    String query =
+        "{"
+            + "  \"query\": {"
+            + "  \"match\" : {"
+            + "    \"id\" : {"
+            + "      \"query\" : \""
+            + fieldValue
+            + "\","
+            + "      \"type\" : \"boolean\""
+            + "    }"
+            + "  }"
+            + "  }"
+            + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
@@ -171,8 +170,8 @@ public class HIFIOWithElasticTest implements Serializable {
    * Set the Elasticsearch configuration parameters in the Hadoop configuration object.
    * Configuration object should have InputFormat class, key class and value class set. Mandatory
    * fields for ESInputFormat to be set are es.resource, es.nodes, es.port, es.internal.es.version.
-   * Please refer to
-   * <a href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
+   * Please refer to <a
+   * href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
    * >Elasticsearch Configuration</a> for more details.
    */
   private Configuration getConfiguration() {
@@ -183,12 +182,11 @@ public class HIFIOWithElasticTest implements Serializable {
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
     conf.set(ConfigurationOptions.ES_NODES_DISCOVERY, TRUE);
     conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
-    conf.setClass("mapreduce.job.inputformat.class",
-        EsInputFormat.class, InputFormat.class);
+    conf.setClass("mapreduce.job.inputformat.class", EsInputFormat.class, InputFormat.class);
     conf.setClass("key.class", Text.class, Object.class);
     conf.setClass("value.class", LinkedMapWritable.class, Object.class);
     return conf;
- }
+  }
 
   private static Map<String, String> createElasticRow(String id, String name) {
     Map<String, String> data = new HashMap<>();
@@ -202,47 +200,49 @@ public class HIFIOWithElasticTest implements Serializable {
     ElasticEmbeddedServer.shutdown();
   }
 
-  /**
-   * Class for in memory Elasticsearch server.
-   */
+  /** Class for in memory Elasticsearch server. */
   static class ElasticEmbeddedServer implements Serializable {
     private static final long serialVersionUID = 1L;
     private static Node node;
 
-    static void startElasticEmbeddedServer()
-        throws NodeValidationException {
-      Settings settings = Settings.builder()
-          .put("node.data", TRUE)
-          .put("network.host", ELASTIC_IN_MEM_HOSTNAME)
-          .put("http.port", elasticInMemPort)
-          .put("path.data", elasticTempFolder.getRoot().getPath())
-          .put("path.home", elasticTempFolder.getRoot().getPath())
-          .put("transport.type", "local")
-          .put("http.enabled", TRUE)
-          .put("node.ingest", TRUE).build();
+    static void startElasticEmbeddedServer() throws NodeValidationException {
+      Settings settings =
+          Settings.builder()
+              .put("node.data", TRUE)
+              .put("network.host", ELASTIC_IN_MEM_HOSTNAME)
+              .put("http.port", elasticInMemPort)
+              .put("path.data", elasticTempFolder.getRoot().getPath())
+              .put("path.home", elasticTempFolder.getRoot().getPath())
+              .put("transport.type", "local")
+              .put("http.enabled", TRUE)
+              .put("node.ingest", TRUE)
+              .build();
       node = new PluginNode(settings);
       node.start();
       LOG.info("Elastic in memory server started.");
       prepareElasticIndex();
-      LOG.info("Prepared index " + ELASTIC_INDEX_NAME
-          + "and populated data on elastic in memory server.");
+      LOG.info(
+          "Prepared index "
+              + ELASTIC_INDEX_NAME
+              + "and populated data on elastic in memory server.");
     }
 
-    /**
-     * Prepares Elastic index, by adding rows.
-     */
+    /** Prepares Elastic index, by adding rows. */
     private static void prepareElasticIndex() {
       CreateIndexRequest indexRequest = new CreateIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().create(indexRequest).actionGet();
       for (int i = 0; i < TEST_DATA_ROW_COUNT; i++) {
-        node.client().prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
-            .setSource(createElasticRow(ELASTIC_TYPE_ID_PREFIX + i, "Faraday" + i)).execute()
+        node.client()
+            .prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
+            .setSource(createElasticRow(ELASTIC_TYPE_ID_PREFIX + i, "Faraday" + i))
+            .execute()
             .actionGet();
       }
       node.client().admin().indices().prepareRefresh(ELASTIC_INDEX_NAME).get();
     }
     /**
      * Shutdown the embedded instance.
+     *
      * @throws IOException
      */
     static void shutdown() throws IOException {
@@ -263,9 +263,7 @@ public class HIFIOWithElasticTest implements Serializable {
     }
   }
 
-  /**
-   * Class created for handling "http.enabled" property as "true" for Elasticsearch node.
-   */
+  /** Class created for handling "http.enabled" property as "true" for Elasticsearch node. */
   static class PluginNode extends Node implements Serializable {
 
     private static final long serialVersionUID = 1L;

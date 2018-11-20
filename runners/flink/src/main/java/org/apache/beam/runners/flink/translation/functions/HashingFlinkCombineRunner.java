@@ -41,12 +41,10 @@ import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
 /**
- * A Flink combine runner that builds a map of merged windows and produces output after
- * seeing all input. This is similar to what{@link org.apache.beam.runners.core.ReduceFnRunner}
- * does.
+ * A Flink combine runner that builds a map of merged windows and produces output after seeing all
+ * input. This is similar to what{@link org.apache.beam.runners.core.ReduceFnRunner} does.
  */
-public class HashingFlinkCombineRunner<
-    K, InputT, AccumT, OutputT, W extends BoundedWindow>
+public class HashingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends AbstractFlinkCombineRunner<K, InputT, AccumT, OutputT, W> {
 
   @Override
@@ -56,8 +54,8 @@ public class HashingFlinkCombineRunner<
       SideInputReader sideInputReader,
       PipelineOptions options,
       Iterable<WindowedValue<KV<K, InputT>>> elements,
-      Collector<WindowedValue<KV<K, OutputT>>> out) throws Exception {
-
+      Collector<WindowedValue<KV<K, OutputT>>> out)
+      throws Exception {
 
     @SuppressWarnings("unchecked")
     TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
@@ -84,16 +82,23 @@ public class HashingFlinkCombineRunner<
         Set<W> singletonW = Collections.singleton(mergedWindow);
         Tuple2<AccumT, Instant> accumAndInstant = mapState.get(mergedWindow);
         if (accumAndInstant == null) {
-          AccumT accumT = flinkCombiner.firstInput(key, currentValue.getValue().getValue(),
-              options, sideInputReader, singletonW);
+          AccumT accumT =
+              flinkCombiner.firstInput(
+                  key, currentValue.getValue().getValue(), options, sideInputReader, singletonW);
           Instant windowTimestamp =
               timestampCombiner.assign(
                   mergedWindow, windowFn.getOutputTime(currentValue.getTimestamp(), mergedWindow));
           accumAndInstant = new Tuple2<>(accumT, windowTimestamp);
           mapState.put(mergedWindow, accumAndInstant);
         } else {
-          accumAndInstant.f0 = flinkCombiner.addInput(key, accumAndInstant.f0,
-              currentValue.getValue().getValue(), options, sideInputReader, singletonW);
+          accumAndInstant.f0 =
+              flinkCombiner.addInput(
+                  key,
+                  accumAndInstant.f0,
+                  currentValue.getValue().getValue(),
+                  options,
+                  sideInputReader,
+                  singletonW);
           accumAndInstant.f1 =
               timestampCombiner.combine(
                   accumAndInstant.f1,
@@ -117,18 +122,22 @@ public class HashingFlinkCombineRunner<
       Instant windowTimestamp = entry.getValue().f1;
       out.collect(
           WindowedValue.of(
-              KV.of(key, flinkCombiner.extractOutput(key, accumulator,
-                  options, sideInputReader, Collections.singleton(entry.getKey()))),
+              KV.of(
+                  key,
+                  flinkCombiner.extractOutput(
+                      key,
+                      accumulator,
+                      options,
+                      sideInputReader,
+                      Collections.singleton(entry.getKey()))),
               windowTimestamp,
               entry.getKey(),
               PaneInfo.NO_FIRING));
     }
-
   }
 
-  private Map<W, W> mergeWindows(
-      WindowingStrategy<Object, W> windowingStrategy,
-      Set<W> windows) throws Exception {
+  private Map<W, W> mergeWindows(WindowingStrategy<Object, W> windowingStrategy, Set<W> windows)
+      throws Exception {
     WindowFn<Object, W> windowFn = windowingStrategy.getWindowFn();
 
     if (windowingStrategy.getWindowFn().isNonMerging()) {
@@ -176,5 +185,4 @@ public class HashingFlinkCombineRunner<
     }
     return windows;
   }
-
 }

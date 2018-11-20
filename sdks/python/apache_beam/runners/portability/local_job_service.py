@@ -14,15 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import absolute_import
+
 import functools
 import logging
 import os
-import Queue as queue
+import queue
 import subprocess
 import threading
 import time
 import traceback
 import uuid
+from builtins import object
 from concurrent import futures
 
 import grpc
@@ -87,7 +90,10 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         use_grpc=self._use_grpc,
         sdk_harness_factory=sdk_harness_factory)
     logging.debug("Prepared job '%s' as '%s'", request.job_name, preparation_id)
-    return beam_job_api_pb2.PrepareJobResponse(preparation_id=preparation_id)
+    # TODO(angoenka): Pass an appropriate staging_session_token. The token can
+    # be obtained in PutArtifactResponse from JobService
+    return beam_job_api_pb2.PrepareJobResponse(
+        preparation_id=preparation_id, staging_session_token='token')
 
   def Run(self, request, context=None):
     job_id = request.preparation_id
@@ -202,6 +208,7 @@ class BeamJob(threading.Thread):
 
   def add_state_change_callback(self, f):
     self._state_change_callbacks.append(f)
+    f(self.state)
 
   @property
   def log_queue(self):

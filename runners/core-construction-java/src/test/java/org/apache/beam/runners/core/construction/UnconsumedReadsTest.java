@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertThat;
@@ -39,9 +38,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link UnconsumedReads}.
- */
+/** Tests for {@link UnconsumedReads}. */
 @RunWith(JUnit4.class)
 public class UnconsumedReadsTest {
   @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);

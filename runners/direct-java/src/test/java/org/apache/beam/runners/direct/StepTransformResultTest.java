@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -34,17 +33,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link StepTransformResult}.
- */
+/** Tests for {@link StepTransformResult}. */
 @RunWith(JUnit4.class)
 public class StepTransformResultTest {
   private AppliedPTransform<?, ?, ?> transform;
   private BundleFactory bundleFactory;
   private PCollection<Integer> pc;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {

@@ -1,7 +1,11 @@
 /*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -112,11 +116,11 @@ public final class SplitGeneratorTest {
         "[(85070591730234615865843651857942052863,113427455640312821154458202477256070484],"
             + " (113427455640312821154458202477256070484,113427455640312821154458202477256070485]]",
         segments.get(1).toString());
-    assertEquals("[(113427455640312821154458202477256070485,"
-        + "141784319550391026443072753096570088109]]", segments.get(2).toString());
     assertEquals(
-        "[(141784319550391026443072753096570088109,5], (5,6]]",
-        segments.get(3).toString());
+        "[(113427455640312821154458202477256070485," + "141784319550391026443072753096570088109]]",
+        segments.get(2).toString());
+    assertEquals(
+        "[(141784319550391026443072753096570088109,5], (5,6]]", segments.get(3).toString());
   }
 
   @Test(expected = RuntimeException.class)

@@ -34,9 +34,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link Filter}.
- */
+/** Tests for {@link Filter}. */
 @RunWith(JUnit4.class)
 public class FilterTest implements Serializable {
 
@@ -60,18 +58,16 @@ public class FilterTest implements Serializable {
     }
   }
 
-  @Rule
-  public final TestPipeline p = TestPipeline.create();
+  @Rule public final TestPipeline p = TestPipeline.create();
 
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   @Category(NeedsRunner.class)
   public void testIdentityFilterByPredicate() {
-    PCollection<Integer> output = p
-        .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
-        .apply(Filter.by(new TrivialFn(true)));
+    PCollection<Integer> output =
+        p.apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
+            .apply(Filter.by(new TrivialFn(true)));
 
     PAssert.that(output).containsInAnyOrder(591, 11789, 1257, 24578, 24799, 307);
     p.run();
@@ -80,9 +76,8 @@ public class FilterTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testNoFilterByPredicate() {
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 4, 5))
-        .apply(Filter.by(new TrivialFn(false)));
+    PCollection<Integer> output =
+        p.apply(Create.of(1, 2, 4, 5)).apply(Filter.by(new TrivialFn(false)));
 
     PAssert.that(output).empty();
     p.run();
@@ -91,9 +86,8 @@ public class FilterTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFilterByPredicate() {
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.by(new EvenFn()));
+    PCollection<Integer> output =
+        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.by(new EvenFn()));
 
     PAssert.that(output).containsInAnyOrder(2, 4, 6);
     p.run();
@@ -102,9 +96,7 @@ public class FilterTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFilterLessThan() {
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.lessThan(4));
+    PCollection<Integer> output = p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.lessThan(4));
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3);
     p.run();
@@ -113,9 +105,8 @@ public class FilterTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFilterGreaterThan() {
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.greaterThan(4));
+    PCollection<Integer> output =
+        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.greaterThan(4));
 
     PAssert.that(output).containsInAnyOrder(5, 6, 7);
     p.run();
@@ -124,9 +115,8 @@ public class FilterTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFilterLessThanEq() {
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.lessThanEq(4));
+    PCollection<Integer> output =
+        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.lessThanEq(4));
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
     p.run();
@@ -135,9 +125,8 @@ public class FilterTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFilterGreaterThanEq() {
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.greaterThanEq(4));
+    PCollection<Integer> output =
+        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.greaterThanEq(4));
 
     PAssert.that(output).containsInAnyOrder(4, 5, 6, 7);
     p.run();
@@ -146,9 +135,7 @@ public class FilterTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFilterEqual() {
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.equal(4));
+    PCollection<Integer> output = p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.equal(4));
 
     PAssert.that(output).containsInAnyOrder(4);
     p.run();
@@ -171,9 +158,8 @@ public class FilterTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testIdentityFilterByPredicateWithLambda() {
 
-    PCollection<Integer> output = p
-        .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
-        .apply(Filter.by(i -> true));
+    PCollection<Integer> output =
+        p.apply(Create.of(591, 11789, 1257, 24578, 24799, 307)).apply(Filter.by(i -> true));
 
     PAssert.that(output).containsInAnyOrder(591, 11789, 1257, 24578, 24799, 307);
     p.run();
@@ -183,9 +169,7 @@ public class FilterTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testNoFilterByPredicateWithLambda() {
 
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 4, 5))
-        .apply(Filter.by(i -> false));
+    PCollection<Integer> output = p.apply(Create.of(1, 2, 4, 5)).apply(Filter.by(i -> false));
 
     PAssert.that(output).empty();
     p.run();
@@ -195,9 +179,8 @@ public class FilterTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testFilterByPredicateWithLambda() {
 
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.by(i -> i % 2 == 0));
+    PCollection<Integer> output =
+        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.by(i -> i % 2 == 0));
 
     PAssert.that(output).containsInAnyOrder(2, 4, 6);
     p.run();
@@ -211,9 +194,7 @@ public class FilterTest implements Serializable {
   public void testFilterParDoOutputTypeDescriptorRawWithLambda() throws Exception {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    PCollection<String> output = p
-        .apply(Create.of("hello"))
-        .apply(Filter.by(s -> true));
+    PCollection<String> output = p.apply(Create.of("hello")).apply(Filter.by(s -> true));
 
     thrown.expect(CannotProvideCoderException.class);
     p.getCoderRegistry().getCoder(output.getTypeDescriptor());
@@ -223,9 +204,8 @@ public class FilterTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testFilterByMethodReferenceWithLambda() {
 
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.by(new EvenFilter()::isEven));
+    PCollection<Integer> output =
+        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.by(new EvenFilter()::isEven));
 
     PAssert.that(output).containsInAnyOrder(2, 4, 6);
     p.run();

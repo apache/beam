@@ -30,13 +30,12 @@ import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 
-/**
- * Helpers for cloud communication.
- */
+/** Helpers for cloud communication. */
 public class Transport {
 
   private static class SingletonHelper {
@@ -77,33 +76,37 @@ public class Transport {
   private static ApiComponents apiComponentsFromUrl(String urlString) {
     try {
       URL url = new URL(urlString);
-      String rootUrl = url.getProtocol() + "://" + url.getHost()
-          + (url.getPort() > 0 ? ":" + url.getPort() : "");
+      String rootUrl =
+          url.getProtocol()
+              + "://"
+              + url.getHost()
+              + (url.getPort() > 0 ? ":" + url.getPort() : "");
       return new ApiComponents(rootUrl, url.getPath());
     } catch (MalformedURLException e) {
       throw new RuntimeException("Invalid URL: " + urlString);
     }
   }
 
-  /**
-   * Returns a Cloud Storage client builder using the specified {@link GcsOptions}.
-   */
-  public static Storage.Builder
-      newStorageClient(GcsOptions options) {
+  /** Returns a Cloud Storage client builder using the specified {@link GcsOptions}. */
+  public static Storage.Builder newStorageClient(GcsOptions options) {
     String servicePath = options.getGcsEndpoint();
-    Storage.Builder storageBuilder = new Storage.Builder(getTransport(), getJsonFactory(),
-        chainHttpRequestInitializer(
-            options.getGcpCredential(),
-            // Do not log the code 404. Code up the stack will deal with 404's if needed, and
-            // logging it by default clutters the output during file staging.
-            new RetryHttpRequestInitializer(
-                ImmutableList.of(404), new UploadIdResponseInterceptor())))
-        .setApplicationName(options.getAppName())
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
+    Storage.Builder storageBuilder =
+        new Storage.Builder(
+                getTransport(),
+                getJsonFactory(),
+                chainHttpRequestInitializer(
+                    options.getGcpCredential(),
+                    // Do not log the code 404. Code up the stack will deal with 404's if needed, and
+                    // logging it by default clutters the output during file staging.
+                    new RetryHttpRequestInitializer(
+                        ImmutableList.of(404), new UploadIdResponseInterceptor())))
+            .setApplicationName(options.getAppName())
+            .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     if (servicePath != null) {
       ApiComponents components = apiComponentsFromUrl(servicePath);
       storageBuilder.setRootUrl(components.rootUrl);
       storageBuilder.setServicePath(components.servicePath);
+      storageBuilder.setBatchPath(Paths.get("batch/", components.servicePath).toString());
     }
     return storageBuilder;
   }
@@ -115,8 +118,7 @@ public class Transport {
           new NullCredentialInitializer(), httpRequestInitializer);
     } else {
       return new ChainingHttpRequestInitializer(
-          new HttpCredentialsAdapter(credential),
-          httpRequestInitializer);
+          new HttpCredentialsAdapter(credential), httpRequestInitializer);
     }
   }
 }

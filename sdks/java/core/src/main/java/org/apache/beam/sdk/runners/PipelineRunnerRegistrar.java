@@ -25,22 +25,19 @@ import org.apache.beam.sdk.annotations.Internal;
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
- * {@link PipelineRunner} creators have the ability to automatically have their
- * {@link PipelineRunner} registered with this SDK by creating a {@link ServiceLoader} entry
- * and a concrete implementation of this interface.
+ * <p>{@link PipelineRunner} creators have the ability to automatically have their {@link
+ * PipelineRunner} registered with this SDK by creating a {@link ServiceLoader} entry and a concrete
+ * implementation of this interface.
  *
- * <p>Note that automatic registration of any
- * {@link org.apache.beam.sdk.options.PipelineOptions} requires users
- * conform to the limit that each {@link PipelineRunner}'s
- * {@link Class#getSimpleName() simple name} must be unique.
+ * <p>Note that automatic registration of any {@link org.apache.beam.sdk.options.PipelineOptions}
+ * requires users conform to the limit that each {@link PipelineRunner}'s {@link
+ * Class#getSimpleName() simple name} must be unique.
  *
- * <p>It is optional but recommended to use one of the many build time tools such as
- * {@link AutoService} to generate the necessary META-INF files automatically.
+ * <p>It is optional but recommended to use one of the many build time tools such as {@link
+ * AutoService} to generate the necessary META-INF files automatically.
  */
 @Internal
 public interface PipelineRunnerRegistrar {
-  /**
-   * Get the set of {@link PipelineRunner PipelineRunners} to register.
-   */
+  /** Get the set of {@link PipelineRunner PipelineRunners} to register. */
   Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners();
 }

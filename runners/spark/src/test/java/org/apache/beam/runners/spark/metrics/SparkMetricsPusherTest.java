@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.metrics;
 
 import static org.hamcrest.Matchers.is;
@@ -44,17 +43,17 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * A test that verifies that metrics push system works in spark runner.
- */
+/** A test that verifies that metrics push system works in spark runner. */
 public class SparkMetricsPusherTest {
 
-  @Rule
-  public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
+  private static final Logger LOG = LoggerFactory.getLogger(SparkMetricsPusherTest.class);
 
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
+
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   private Duration batchDuration() {
     return Duration.millis(
@@ -62,7 +61,7 @@ public class SparkMetricsPusherTest {
   }
 
   @Before
-  public void init(){
+  public void init() {
     TestMetricsSink.clear();
     PipelineOptions options = pipeline.getOptions();
     options.setMetricsSink(TestMetricsSink.class);
@@ -99,16 +98,16 @@ public class SparkMetricsPusherTest {
     assertThat(TestMetricsSink.getCounterValue(), is(6L));
   }
 
-  private static class CountingDoFn extends DoFn<Integer, Integer>{
-    private final Counter counter = Metrics
-        .counter(SparkMetricsPusherTest.class, "counter");
+  private static class CountingDoFn extends DoFn<Integer, Integer> {
+    private final Counter counter = Metrics.counter(SparkMetricsPusherTest.class, "counter");
+
     @ProcessElement
     public void processElement(ProcessContext context) {
       try {
         counter.inc();
         context.output(context.element());
       } catch (Exception e) {
-        e.printStackTrace();
+        LOG.warn("Exception caught" + e);
       }
     }
   }
@@ -116,13 +115,11 @@ public class SparkMetricsPusherTest {
   @Category(ValidatesRunner.class)
   @Test
   public void testInSBatchMode() throws Exception {
-    pipeline.apply(Create.of(1, 2, 3, 4, 5, 6))
-        .apply(ParDo.of(new CountingDoFn()));
+    pipeline.apply(Create.of(1, 2, 3, 4, 5, 6)).apply(ParDo.of(new CountingDoFn()));
 
     pipeline.run();
     // give metrics pusher time to push
     Thread.sleep((pipeline.getOptions().getMetricsPushPeriod() + 1L) * 1000);
     assertThat(TestMetricsSink.getCounterValue(), is(6L));
   }
-
 }

@@ -55,33 +55,31 @@ import org.joda.time.Instant;
  * corresponding scores required to pass each level of the game. By default, this threshold is set
  * to 5000.
  *
- * <p>Stateful processing allows us to write pipelines that output based on a runtime state (when
- * a team reaches a certain score, in every 100 game events etc) without time triggers. See
+ * <p>Stateful processing allows us to write pipelines that output based on a runtime state (when a
+ * team reaches a certain score, in every 100 game events etc) without time triggers. See
  * https://beam.apache.org/blog/2017/02/13/stateful-processing.html for more information on using
  * stateful processing.
  *
- * <p>Run {@code injector.Injector} to generate pubsub data for this pipeline.  The Injector
+ * <p>Run {@code injector.Injector} to generate pubsub data for this pipeline. The Injector
  * documentation provides more detail on how to do this.
  *
  * <p>To execute this pipeline, specify the pipeline configuration like this:
+ *
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=YOUR_RUNNER
- *   --dataset=YOUR-DATASET
- *   --topic=projects/YOUR-PROJECT/topics/YOUR-TOPIC
- * }
- * </pre>
+ * --project=YOUR_PROJECT_ID
+ * --tempLocation=gs://YOUR_TEMP_DIRECTORY
+ * --runner=YOUR_RUNNER
+ * --dataset=YOUR-DATASET
+ * --topic=projects/YOUR-PROJECT/topics/YOUR-TOPIC
+ * }</pre>
  *
  * <p>The BigQuery dataset you specify must already exist. The PubSub topic you specify should be
  * the same topic to which the Injector is publishing.
  */
 public class StatefulTeamScore extends LeaderBoard {
 
-  /**
-   * Options supported by {@link StatefulTeamScore}.
-   */
-  interface Options extends LeaderBoard.Options {
+  /** Options supported by {@link StatefulTeamScore}. */
+  public interface Options extends LeaderBoard.Options {
 
     @Description("Numeric value, multiple of which is used as threshold for outputting team score.")
     @Default.Integer(5000)
@@ -109,7 +107,6 @@ public class StatefulTeamScore extends LeaderBoard {
             "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
-
 
   public static void main(String[] args) throws Exception {
 
@@ -156,10 +153,11 @@ public class StatefulTeamScore extends LeaderBoard {
    * passes a new multiple of a threshold.
    *
    * <p>We use stateful {@link DoFn} because:
+   *
    * <ul>
-   *   <li>State is key-partitioned. Therefore, the score is calculated per team.</li>
+   *   <li>State is key-partitioned. Therefore, the score is calculated per team.
    *   <li>Stateful {@link DoFn} can determine when to output based on the state. This only allows
-   *       outputting when a team's score passes a given threshold.</li>
+   *       outputting when a team's score passes a given threshold.
    * </ul>
    */
   @VisibleForTesting
@@ -176,36 +174,34 @@ public class StatefulTeamScore extends LeaderBoard {
     /**
      * Describes the state for storing team score. Let's break down this statement.
      *
-     * {@link StateSpec} configures the state cell, which is provided by a runner during pipeline
+     * <p>{@link StateSpec} configures the state cell, which is provided by a runner during pipeline
      * execution.
      *
-     * {@link org.apache.beam.sdk.transforms.DoFn.StateId} annotation assigns an identifier to the
-     * state, which is used to refer the state in
-     * {@link org.apache.beam.sdk.transforms.DoFn.ProcessElement}.
+     * <p>{@link org.apache.beam.sdk.transforms.DoFn.StateId} annotation assigns an identifier to
+     * the state, which is used to refer the state in {@link
+     * org.apache.beam.sdk.transforms.DoFn.ProcessElement}.
      *
      * <p>A {@link ValueState} stores single value per key and per window. Because our pipeline is
      * globally windowed in this example, this {@link ValueState} is just key partitioned, with one
      * score per team. Any other class that extends {@link org.apache.beam.sdk.state.State} can be
-     * used.</p>
+     * used.
      *
      * <p>In order to store the value, the state must be encoded. Therefore, we provide a coder, in
-     * this case the {@link VarIntCoder}. If the coder is not provided as in
-     * {@code StateSpecs.value()}, Beam's coder inference will try to provide a coder automatically.
-     * </p>
+     * this case the {@link VarIntCoder}. If the coder is not provided as in {@code
+     * StateSpecs.value()}, Beam's coder inference will try to provide a coder automatically.
      */
     @StateId(TOTAL_SCORE)
     private final StateSpec<ValueState<Integer>> totalScoreSpec =
         StateSpecs.value(VarIntCoder.of());
 
     /**
-     * To use a state cell, annotate a parameter with
-     * {@link org.apache.beam.sdk.transforms.DoFn.StateId} that matches the state declaration. The
-     * type of the parameter should match the {@link StateSpec} type.
+     * To use a state cell, annotate a parameter with {@link
+     * org.apache.beam.sdk.transforms.DoFn.StateId} that matches the state declaration. The type of
+     * the parameter should match the {@link StateSpec} type.
      */
     @ProcessElement
     public void processElement(
-        ProcessContext c,
-        @StateId(TOTAL_SCORE) ValueState<Integer> totalScore) {
+        ProcessContext c, @StateId(TOTAL_SCORE) ValueState<Integer> totalScore) {
       String teamName = c.element().getKey();
       GameActionInfo gInfo = c.element().getValue();
 

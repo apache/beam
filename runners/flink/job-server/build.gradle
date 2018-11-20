@@ -1,0 +1,80 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import groovy.json.JsonOutput
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature(
+  validateShadowJar: false,
+  shadowClosure: {
+    append "reference.conf"
+  },
+)
+
+description = "Apache Beam :: Runners :: Flink :: Job Server"
+
+apply plugin: "application"
+
+mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
+
+configurations {
+  validatesPortableRunner
+}
+
+configurations.all {
+    // replace commons logging with the jcl-over-slf4j bridge
+    exclude group: "commons-logging", module: "commons-logging"
+}
+
+dependencies {
+  compile project(path: ":beam-runners-flink_2.11", configuration: "shadow")
+  compile group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
+  validatesPortableRunner project(path: ":beam-runners-flink_2.11", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
+  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  compile library.java.slf4j_simple
+//  TODO: Enable AWS and HDFS file system.
+}
+
+// NOTE: runShadow must be used in order to run the job server. The standard run
+// task will not work because the flink runner classes only exist in the shadow
+// jar.
+runShadow {
+  args = []
+  if (project.hasProperty('jobHost'))
+    args += ["--job-host=${project.property('jobHost')}"]
+  if (project.hasProperty('artifactsDir'))
+    args += ["--artifacts-dir=${project.property('artifactsDir')}"]
+  if (project.hasProperty('cleanArtifactsPerJob'))
+    args += ["--clean-artifacts-per-job"]
+  if (project.hasProperty('flinkMasterUrl'))
+    args += ["--flink-master-url=${project.property('flinkMasterUrl')}"]
+
+  // Enable remote debugging.
+  jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
+  if (project.hasProperty("logLevel"))
+    jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
+}
+
+createPortableValidatesRunnerTask(
+        jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
+        jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0",
+        testClasspathConfiguration: configurations.validatesPortableRunner,
+        parallelism: 2,
+)

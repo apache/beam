@@ -15,13 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -35,6 +33,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.Assign;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Utility methods for translating a {@link Window.Assign} to and from {@link RunnerApi}
@@ -42,8 +41,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
  */
 public class WindowIntoTranslation {
 
-  static class WindowAssignTranslator
-      extends TransformPayloadTranslator.WithDefaultRehydration<Window.Assign<?>> {
+  static class WindowAssignTranslator implements TransformPayloadTranslator<Window.Assign<?>> {
 
     @Override
     public String getUrn(Assign<?> transform) {
@@ -70,9 +68,9 @@ public class WindowIntoTranslation {
   public static WindowIntoPayload getWindowIntoPayload(AppliedPTransform<?, ?, ?> application) {
     RunnerApi.PTransform transformProto;
     try {
+      SdkComponents components = SdkComponents.create(application.getPipeline().getOptions());
       transformProto =
-          PTransformTranslation.toProto(
-              application, Collections.emptyList(), SdkComponents.create());
+          PTransformTranslation.toProto(application, Collections.emptyList(), components);
     } catch (IOException exc) {
       throw new RuntimeException(exc);
     }
@@ -107,8 +105,7 @@ public class WindowIntoTranslation {
 
   /** A {@link TransformPayloadTranslator} for {@link Window}. */
   public static class WindowIntoPayloadTranslator
-      extends PTransformTranslation.TransformPayloadTranslator.WithDefaultRehydration<
-          Window.Assign<?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<Window.Assign<?>> {
     public static TransformPayloadTranslator create() {
       return new WindowIntoPayloadTranslator();
     }
@@ -138,11 +135,6 @@ public class WindowIntoTranslation {
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(Window.Assign.class, new WindowIntoPayloadTranslator());
-    }
-
-    @Override
-    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
-      return Collections.emptyMap();
     }
   }
 }

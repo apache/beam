@@ -22,9 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
@@ -72,9 +70,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystem;
+import org.apache.beam.sdk.io.aws.options.S3ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +82,6 @@ import org.slf4j.LoggerFactory;
 class S3FileSystem extends FileSystem<S3ResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3FileSystem.class);
-
 
   // Amazon S3 API: You can create a copy of your object up to 5 GB in a single atomic operation
   // Ref. https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjectsExamples.html
@@ -106,7 +105,12 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
           "The AWS S3 Beam extension was included in this build, but the awsRegion flag "
               + "was not specified. If you don't plan to use S3, then ignore this message.");
     }
-    this.amazonS3 = buildAmazonS3Client(options);
+    this.amazonS3 =
+        InstanceBuilder.ofType(S3ClientBuilderFactory.class)
+            .fromClass(options.getS3ClientFactoryClass())
+            .build()
+            .createBuilder(options)
+            .build();
 
     checkNotNull(options.getS3StorageClass(), "storageClass");
     checkArgument(options.getS3ThreadPoolSize() > 0, "threadPoolSize");
@@ -114,19 +118,6 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         MoreExecutors.listeningDecorator(
             Executors.newFixedThreadPool(
                 options.getS3ThreadPoolSize(), new ThreadFactoryBuilder().setDaemon(true).build()));
-  }
-
-  private static AmazonS3 buildAmazonS3Client(S3Options options) {
-    AmazonS3ClientBuilder builder =
-        AmazonS3ClientBuilder.standard().withCredentials(options.getAwsCredentialsProvider());
-    if (Strings.isNullOrEmpty(options.getAwsServiceEndpoint())) {
-      builder = builder.withRegion(options.getAwsRegion());
-    } else {
-      builder =
-          builder.withEndpointConfiguration(
-              new EndpointConfiguration(options.getAwsServiceEndpoint(), options.getAwsRegion()));
-    }
-    return builder.build();
   }
 
   @Override
@@ -677,7 +668,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     } catch (ExecutionException e) {
       if (e.getCause() != null) {
         if (e.getCause() instanceof IOException) {
-          throw ((IOException) e.getCause());
+          throw (IOException) e.getCause();
         }
         throw new IOException(e.getCause());
       }

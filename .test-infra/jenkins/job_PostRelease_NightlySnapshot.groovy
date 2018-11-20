@@ -16,18 +16,15 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 // This verifies the nightly snapshot build.
 // From https://repository.apache.org/content/groups/snapshots/org/apache/beam.
 job('beam_PostRelease_NightlySnapshot') {
   description('Runs post release verification of the nightly snapshot.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
-
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   parameters {
     stringParam('snapshot_version',
@@ -39,14 +36,13 @@ job('beam_PostRelease_NightlySnapshot') {
   }
 
   // This is a post-commit job that runs once per day, not for every push.
-  common_job_properties.setPostCommit(
+  commonJobProperties.setAutoJob(
       delegate,
-      '0 11 * * *',
-      false)
+      '0 11 * * *')
 
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
       './gradlew :release:runJavaExamplesValidationTask',
       'Run Dataflow PostRelease')
@@ -54,9 +50,9 @@ job('beam_PostRelease_NightlySnapshot') {
   steps {
     // Run a quickstart from https://beam.apache.org/get-started/quickstart-java
     gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':release:runJavaExamplesValidationTask')
-      common_job_properties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
       switches('-Pver=$snapshot_version -Prepourl=$snapshot_url')
     }
   }

@@ -40,26 +40,25 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 /**
- * Functions for zipping a directory (including a subdirectory) into a ZIP-file
- * or unzipping it again.
+ * Functions for zipping a directory (including a subdirectory) into a ZIP-file or unzipping it
+ * again.
  */
 public final class ZipFiles {
   private ZipFiles() {}
 
   /**
-   * Returns a new {@link ByteSource} for reading the contents of the given
-   * entry in the given zip file.
+   * Returns a new {@link ByteSource} for reading the contents of the given entry in the given zip
+   * file.
    */
   static ByteSource asByteSource(ZipFile file, ZipEntry entry) {
     return new ZipEntryByteSource(file, entry);
   }
 
   /**
-   * Returns a new {@link CharSource} for reading the contents of the given
-   * entry in the given zip file as text using the given charset.
+   * Returns a new {@link CharSource} for reading the contents of the given entry in the given zip
+   * file as text using the given charset.
    */
-  static CharSource asCharSource(
-      ZipFile file, ZipEntry entry, Charset charset) {
+  static CharSource asCharSource(ZipFile file, ZipEntry entry, Charset charset) {
     return asByteSource(file, entry).asCharSource(charset);
   }
 
@@ -86,9 +85,7 @@ public final class ZipFiles {
     }
   }
 
-  /**
-   * Returns a {@link FluentIterable} of all the entries in the given zip file.
-   */
+  /** Returns a {@link FluentIterable} of all the entries in the given zip file. */
   // unmodifiable Iterator<? extends ZipEntry> can be safely cast
   // to Iterator<ZipEntry>
   @SuppressWarnings("unchecked")
@@ -103,22 +100,20 @@ public final class ZipFiles {
   }
 
   /**
-   * Unzips the zip file specified by the path and creates the directory structure <i>inside</i>
-   * the target directory. Refuses to unzip files that refer to a parent directory, for security
+   * Unzips the zip file specified by the path and creates the directory structure <i>inside</i> the
+   * target directory. Refuses to unzip files that refer to a parent directory, for security
    * reasons.
    *
    * @param zipFile the source zip-file to unzip
-   * @param targetDirectory the directory to unzip to. If the zip-file contains
-   *     any subdirectories, they will be created within our target directory.
+   * @param targetDirectory the directory to unzip to. If the zip-file contains any subdirectories,
+   *     they will be created within our target directory.
    * @throws IOException the unzipping failed, e.g. because the output was not writable, the {@code
    *     zipFile} was not readable, or contains an illegal entry (contains "..", pointing outside
    *     the target directory)
    * @throws IllegalArgumentException the target directory is not a valid directory (e.g. does not
    *     exist, or is a file instead of a directory)
    */
-  static void unzipFile(
-      File zipFile,
-      File targetDirectory) throws IOException {
+  static void unzipFile(File zipFile, File targetDirectory) throws IOException {
     checkNotNull(zipFile);
     checkNotNull(targetDirectory);
     checkArgument(
@@ -131,15 +126,12 @@ public final class ZipFiles {
         File targetFile = new File(targetDirectory, entry.getName());
         if (entry.isDirectory()) {
           if (!targetFile.isDirectory() && !targetFile.mkdirs()) {
-            throw new IOException(
-                    "Failed to create directory: " + targetFile.getAbsolutePath());
+            throw new IOException("Failed to create directory: " + targetFile.getAbsolutePath());
           }
         } else {
           File parentFile = targetFile.getParentFile();
           if (!parentFile.isDirectory() && !parentFile.mkdirs()) {
-            throw new IOException(
-                    "Failed to create directory: "
-                            + parentFile.getAbsolutePath());
+            throw new IOException("Failed to create directory: " + parentFile.getAbsolutePath());
           }
           // Write the file to the destination.
           asByteSource(zipFileObj, entry).copyTo(Files.asByteSink(targetFile));
@@ -149,9 +141,8 @@ public final class ZipFiles {
   }
 
   /**
-   * Checks that the given entry name is legal for unzipping: if it contains
-   * ".." as a name element, it could cause the entry to be unzipped outside
-   * the directory we're unzipping to.
+   * Checks that the given entry name is legal for unzipping: if it contains ".." as a name element,
+   * it could cause the entry to be unzipped outside the directory we're unzipping to.
    *
    * @throws IOException if the name is illegal
    */
@@ -166,8 +157,8 @@ public final class ZipFiles {
       File file = new File(name);
       while (file != null) {
         if ("..".equals(file.getName())) {
-          throw new IOException("Cannot unzip file containing an entry with "
-              + "\"..\" in the name: " + name);
+          throw new IOException(
+              "Cannot unzip file containing an entry with " + "\"..\" in the name: " + name);
         }
         file = file.getParentFile();
       }
@@ -177,16 +168,13 @@ public final class ZipFiles {
   /**
    * Zips an entire directory specified by the path.
    *
-   * @param sourceDirectory the directory to read from. This directory and all
-   *     subdirectories will be added to the zip-file. The path within the zip
-   *     file is relative to the directory given as parameter, not absolute.
+   * @param sourceDirectory the directory to read from. This directory and all subdirectories will
+   *     be added to the zip-file. The path within the zip file is relative to the directory given
+   *     as parameter, not absolute.
    * @param zipFile the zip-file to write to.
-   * @throws IOException the zipping failed, e.g. because the input was not
-   *     readable.
+   * @throws IOException the zipping failed, e.g. because the input was not readable.
    */
-  static void zipDirectory(
-      File sourceDirectory,
-      File zipFile) throws IOException {
+  static void zipDirectory(File sourceDirectory, File zipFile) throws IOException {
     checkNotNull(sourceDirectory);
     checkNotNull(zipFile);
     checkArgument(
@@ -199,8 +187,8 @@ public final class ZipFiles {
         zipFile.getAbsolutePath());
     Closer closer = Closer.create();
     try {
-      OutputStream outputStream = closer.register(new BufferedOutputStream(
-          new FileOutputStream(zipFile)));
+      OutputStream outputStream =
+          closer.register(new BufferedOutputStream(new FileOutputStream(zipFile)));
       zipDirectory(sourceDirectory, outputStream);
     } catch (Throwable t) {
       throw closer.rethrow(t);
@@ -212,17 +200,15 @@ public final class ZipFiles {
   /**
    * Zips an entire directory specified by the path.
    *
-   * @param sourceDirectory the directory to read from. This directory and all
-   *     subdirectories will be added to the zip-file. The path within the zip
-   *     file is relative to the directory given as parameter, not absolute.
+   * @param sourceDirectory the directory to read from. This directory and all subdirectories will
+   *     be added to the zip-file. The path within the zip file is relative to the directory given
+   *     as parameter, not absolute.
    * @param outputStream the stream to write the zip-file to. This method does not close
    *     outputStream.
-   * @throws IOException the zipping failed, e.g. because the input was not
-   *     readable.
+   * @throws IOException the zipping failed, e.g. because the input was not readable.
    */
-  public static void zipDirectory(
-      File sourceDirectory,
-      OutputStream outputStream) throws IOException {
+  public static void zipDirectory(File sourceDirectory, OutputStream outputStream)
+      throws IOException {
     checkNotNull(sourceDirectory);
     checkNotNull(outputStream);
     checkArgument(
@@ -238,24 +224,19 @@ public final class ZipFiles {
   }
 
   /**
-   * Private helper function for zipping files. This one goes recursively
-   * through the input directory and all of its subdirectories and adds the
-   * single zip entries.
+   * Private helper function for zipping files. This one goes recursively through the input
+   * directory and all of its subdirectories and adds the single zip entries.
    *
    * @param inputFile the file or directory to be added to the zip file
-   * @param directoryName the string-representation of the parent directory
-   *     name. Might be an empty name, or a name containing multiple directory
-   *     names separated by "/". The directory name must be a valid name
-   *     according to the file system limitations. The directory name should be
+   * @param directoryName the string-representation of the parent directory name. Might be an empty
+   *     name, or a name containing multiple directory names separated by "/". The directory name
+   *     must be a valid name according to the file system limitations. The directory name should be
    *     empty or should end in "/".
    * @param zos the zipstream to write to
-   * @throws IOException the zipping failed, e.g. because the output was not
-   *     writeable.
+   * @throws IOException the zipping failed, e.g. because the output was not writeable.
    */
   private static void zipDirectoryInternal(
-      File inputFile,
-      String directoryName,
-      ZipOutputStream zos) throws IOException {
+      File inputFile, String directoryName, ZipOutputStream zos) throws IOException {
     String entryName = directoryName + inputFile.getName();
     if (inputFile.isDirectory()) {
       entryName += "/";

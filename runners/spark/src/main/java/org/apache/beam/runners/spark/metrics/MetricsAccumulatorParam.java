@@ -15,28 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.metrics;
 
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.spark.AccumulatorParam;
 
-
-/**
- * Metrics accumulator param.
- */
+/** Metrics accumulator param. */
 class MetricsAccumulatorParam implements AccumulatorParam<MetricsContainerStepMap> {
   @Override
   public MetricsContainerStepMap addAccumulator(
-      MetricsContainerStepMap c1,
-      MetricsContainerStepMap c2) {
+      MetricsContainerStepMap c1, MetricsContainerStepMap c2) {
     return addInPlace(c1, c2);
   }
 
   @Override
   public MetricsContainerStepMap addInPlace(
-      MetricsContainerStepMap c1,
-      MetricsContainerStepMap c2) {
+      MetricsContainerStepMap c1, MetricsContainerStepMap c2) {
     c1.updateAll(c2);
     return c1;
   }

@@ -55,8 +55,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -64,17 +64,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link WindowDoFnOperator}.
- */
+/** Tests for {@link WindowDoFnOperator}. */
 @RunWith(JUnit4.class)
 public class WindowDoFnOperatorTest {
 
   @Test
   public void testRestore() throws Exception {
     // test harness
-    KeyedOneInputStreamOperatorTestHarness<ByteBuffer, WindowedValue<KeyedWorkItem<Long, Long>>,
-        WindowedValue<KV<Long, Long>>> testHarness = createTestHarness(getWindowDoFnOperator());
+    KeyedOneInputStreamOperatorTestHarness<
+            ByteBuffer, WindowedValue<KeyedWorkItem<Long, Long>>, WindowedValue<KV<Long, Long>>>
+        testHarness = createTestHarness(getWindowDoFnOperator());
     testHarness.open();
 
     // process elements
@@ -88,7 +87,7 @@ public class WindowDoFnOperatorTest {
         Item.builder().key(2L).timestamp(3L).value(77L).window(window).build().toStreamRecord());
 
     // create snapshot
-    OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
     testHarness.close();
 
     // restore from the snapshot
@@ -99,17 +98,23 @@ public class WindowDoFnOperatorTest {
     // close window
     testHarness.processWatermark(10_000L);
 
-    Iterable<WindowedValue<KV<Long, Long>>> output = stripStreamRecordFromWindowedValue(
-        testHarness.getOutput());
+    Iterable<WindowedValue<KV<Long, Long>>> output =
+        stripStreamRecordFromWindowedValue(testHarness.getOutput());
 
     assertEquals(2, Iterables.size(output));
-    assertThat(output, containsInAnyOrder(
-        WindowedValue.of(KV.of(1L, 120L), new Instant(9_999), window,
-            PaneInfo.createPane(true, true, ON_TIME)),
-        WindowedValue.of(KV.of(2L, 77L), new Instant(9_999), window,
-            PaneInfo.createPane(true, true, ON_TIME))
-        )
-    );
+    assertThat(
+        output,
+        containsInAnyOrder(
+            WindowedValue.of(
+                KV.of(1L, 120L),
+                new Instant(9_999),
+                window,
+                PaneInfo.createPane(true, true, ON_TIME)),
+            WindowedValue.of(
+                KV.of(2L, 77L),
+                new Instant(9_999),
+                window,
+                PaneInfo.createPane(true, true, ON_TIME))));
     // cleanup
     testHarness.close();
   }
@@ -120,22 +125,21 @@ public class WindowDoFnOperatorTest {
 
     TupleTag<KV<Long, Long>> outputTag = new TupleTag<>("main-output");
 
-    SystemReduceFn<Long, Long, long[], Long, BoundedWindow> reduceFn = SystemReduceFn.combining(
-        VarLongCoder.of(),
-        AppliedCombineFn.withInputCoder(
-            Sum.ofLongs(),
-            CoderRegistry.createDefault(),
-            KvCoder.of(VarLongCoder.of(), VarLongCoder.of())
-        )
-    );
+    SystemReduceFn<Long, Long, long[], Long, BoundedWindow> reduceFn =
+        SystemReduceFn.combining(
+            VarLongCoder.of(),
+            AppliedCombineFn.withInputCoder(
+                Sum.ofLongs(),
+                CoderRegistry.createDefault(),
+                KvCoder.of(VarLongCoder.of(), VarLongCoder.of())));
 
     Coder<IntervalWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
-    SingletonKeyedWorkItemCoder<Long, Long> workItemCoder = SingletonKeyedWorkItemCoder
-        .of(VarLongCoder.of(), VarLongCoder.of(), windowCoder);
-    FullWindowedValueCoder<SingletonKeyedWorkItem<Long, Long>> inputCoder = WindowedValue
-        .getFullCoder(workItemCoder, windowCoder);
-    FullWindowedValueCoder<KV<Long, Long>> outputCoder = WindowedValue
-        .getFullCoder(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()), windowCoder);
+    SingletonKeyedWorkItemCoder<Long, Long> workItemCoder =
+        SingletonKeyedWorkItemCoder.of(VarLongCoder.of(), VarLongCoder.of(), windowCoder);
+    FullWindowedValueCoder<SingletonKeyedWorkItem<Long, Long>> inputCoder =
+        WindowedValue.getFullCoder(workItemCoder, windowCoder);
+    FullWindowedValueCoder<KV<Long, Long>> outputCoder =
+        WindowedValue.getFullCoder(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()), windowCoder);
 
     return new WindowDoFnOperator<Long, Long, Long>(
         reduceFn,
@@ -148,23 +152,23 @@ public class WindowDoFnOperatorTest {
         emptyMap(),
         emptyList(),
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-        VarLongCoder.of()
-    );
+        VarLongCoder.of(),
+        null /* key selector */);
   }
 
-  private KeyedOneInputStreamOperatorTestHarness<ByteBuffer,
-      WindowedValue<KeyedWorkItem<Long, Long>>, WindowedValue<KV<Long, Long>>> createTestHarness(
-      WindowDoFnOperator<Long, Long, Long> windowDoFnOperator) throws Exception {
+  private KeyedOneInputStreamOperatorTestHarness<
+          ByteBuffer, WindowedValue<KeyedWorkItem<Long, Long>>, WindowedValue<KV<Long, Long>>>
+      createTestHarness(WindowDoFnOperator<Long, Long, Long> windowDoFnOperator) throws Exception {
     return new KeyedOneInputStreamOperatorTestHarness<>(
         windowDoFnOperator,
-        (KeySelector<WindowedValue<KeyedWorkItem<Long, Long>>, ByteBuffer>) o -> {
-          try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            VarLongCoder.of().encode(o.getValue().key(), baos);
-            return ByteBuffer.wrap(baos.toByteArray());
-          }
-        },
-        new GenericTypeInfo<>(ByteBuffer.class)
-    );
+        (KeySelector<WindowedValue<KeyedWorkItem<Long, Long>>, ByteBuffer>)
+            o -> {
+              try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                VarLongCoder.of().encode(o.getValue().key(), baos);
+                return ByteBuffer.wrap(baos.toByteArray());
+              }
+            },
+        new GenericTypeInfo<>(ByteBuffer.class));
   }
 
   private static class Item {
@@ -180,8 +184,9 @@ public class WindowDoFnOperatorTest {
 
     StreamRecord<WindowedValue<KeyedWorkItem<Long, Long>>> toStreamRecord() {
       WindowedValue<Long> item = WindowedValue.of(value, new Instant(timestamp), window, NO_FIRING);
-      WindowedValue<KeyedWorkItem<Long, Long>> keyedItem = WindowedValue
-          .of(new SingletonKeyedWorkItem<>(key, item), new Instant(timestamp), window, NO_FIRING);
+      WindowedValue<KeyedWorkItem<Long, Long>> keyedItem =
+          WindowedValue.of(
+              new SingletonKeyedWorkItem<>(key, item), new Instant(timestamp), window, NO_FIRING);
       return new StreamRecord<>(keyedItem);
     }
 
@@ -221,7 +226,5 @@ public class WindowDoFnOperatorTest {
         return item;
       }
     }
-
   }
-
 }

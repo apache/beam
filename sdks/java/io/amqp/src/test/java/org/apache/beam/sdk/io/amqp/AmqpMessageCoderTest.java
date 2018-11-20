@@ -31,14 +31,11 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test on {@link AmqpMessageCoder}.
- */
+/** Test on {@link AmqpMessageCoder}. */
 @RunWith(JUnit4.class)
 public class AmqpMessageCoderTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeDecode() throws Exception {
@@ -83,5 +80,4 @@ public class AmqpMessageCoderTest {
 
     clone.getBody().toString().equals(message.getBody().toString());
   }
-
 }

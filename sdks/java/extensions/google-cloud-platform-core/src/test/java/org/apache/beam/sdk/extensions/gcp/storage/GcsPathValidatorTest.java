@@ -60,8 +60,7 @@ public class GcsPathValidatorTest {
   @Test
   public void testInvalidFilePattern() {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "Expected a valid 'gs://' path but was given '/local/path'");
+    expectedException.expectMessage("Expected a valid 'gs://' path but was given '/local/path'");
     validator.validateInputFilePatternSupported("/local/path");
   }
 
@@ -78,8 +77,7 @@ public class GcsPathValidatorTest {
   public void testWhenBucketDoesNotExist() throws Exception {
     when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(false);
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "Could not find file gs://non-existent-bucket/location");
+    expectedException.expectMessage("Could not find file gs://non-existent-bucket/location");
     validator.validateInputFilePatternSupported("gs://non-existent-bucket/location");
   }
 
@@ -91,8 +89,7 @@ public class GcsPathValidatorTest {
   @Test
   public void testInvalidOutputPrefix() {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "Expected a valid 'gs://' path but was given '/local/path'");
+    expectedException.expectMessage("Expected a valid 'gs://' path but was given '/local/path'");
     validator.validateOutputFilePrefixSupported("/local/path");
   }
 

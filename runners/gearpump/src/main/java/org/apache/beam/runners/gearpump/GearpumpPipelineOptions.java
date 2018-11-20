@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -26,9 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.gearpump.cluster.client.ClientContext;
 import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
 
-/**
- * Options that configure the Gearpump pipeline.
- */
+/** Options that configure the Gearpump pipeline. */
 public interface GearpumpPipelineOptions extends PipelineOptions {
 
   @Description("set unique application name for Gearpump runner")
@@ -59,6 +56,4 @@ public interface GearpumpPipelineOptions extends PipelineOptions {
   @JsonIgnore
   @Description("get client context to query application status")
   ClientContext getClientContext();
-
 }
-

@@ -26,9 +26,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.RowJsonDeserializer.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
 
-/**
- * JsonToRowUtils.
- */
+/** JsonToRowUtils. */
 @Internal
 public class JsonToRowUtils {
 

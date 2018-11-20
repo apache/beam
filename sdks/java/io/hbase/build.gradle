@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: true)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HBase"
 ext.summary = "Library to read and write from/to HBase"
@@ -35,17 +38,17 @@ def hbase_version = "1.2.6"
 
 dependencies {
   compile library.java.guava
-  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
-  shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow "org.apache.hbase:hbase-shaded-client:$hbase_version"
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.commons_lang3
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   testCompile library.java.hadoop_minicluster
   testCompile library.java.hadoop_hdfs
   testCompile library.java.hadoop_common
@@ -62,6 +65,5 @@ dependencies {
   }
   testCompile "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
   testCompile "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
-  testCompileOnly library.java.findbugs_annotations
 }
 

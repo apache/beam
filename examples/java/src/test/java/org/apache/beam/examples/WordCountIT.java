@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.examples;
 
 import java.util.Date;
@@ -31,9 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * End-to-end tests of WordCount.
- */
+/** End-to-end tests of WordCount. */
 @RunWith(JUnit4.class)
 public class WordCountIT {
   private static final String DEFAULT_INPUT =
@@ -43,11 +40,10 @@ public class WordCountIT {
   /**
    * Options for the WordCount Integration Test.
    *
-   * <p>Define expected output file checksum to verify WordCount pipeline result
-   * with customized input.
+   * <p>Define expected output file checksum to verify WordCount pipeline result with customized
+   * input.
    */
-  public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {
-  }
+  public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {}
 
   @BeforeClass
   public static void setUp() {
@@ -59,11 +55,14 @@ public class WordCountIT {
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
 
     options.setInputFile(DEFAULT_INPUT);
-    options.setOutput(FileSystems.matchNewResource(options.getTempRoot(), true)
-        .resolve(String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
-            StandardResolveOptions.RESOLVE_DIRECTORY)
-        .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
-        .resolve("results", StandardResolveOptions.RESOLVE_FILE).toString());
+    options.setOutput(
+        FileSystems.matchNewResource(options.getTempRoot(), true)
+            .resolve(
+                String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("results", StandardResolveOptions.RESOLVE_FILE)
+            .toString());
     options.setOnSuccessMatcher(
         new FileChecksumMatcher(DEFAULT_OUTPUT_CHECKSUM, options.getOutput() + "*-of-*"));
 

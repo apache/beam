@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
@@ -30,20 +29,20 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 public interface MetricsContainer extends Serializable {
 
   /**
-   * Return the {@link Counter} that should be used for implementing the given
-   * {@code metricName} in this container.
+   * Return the {@link Counter} that should be used for implementing the given {@code metricName} in
+   * this container.
    */
   Counter getCounter(MetricName metricName);
 
   /**
-   * Return the {@link Distribution} that should be used for implementing the given
-   * {@code metricName} in this container.
+   * Return the {@link Distribution} that should be used for implementing the given {@code
+   * metricName} in this container.
    */
   Distribution getDistribution(MetricName metricName);
 
   /**
-   * Return the {@link Gauge} that should be used for implementing the given
-   * {@code metricName} in this container.
+   * Return the {@link Gauge} that should be used for implementing the given {@code metricName} in
+   * this container.
    */
   Gauge getGauge(MetricName metricName);
 }

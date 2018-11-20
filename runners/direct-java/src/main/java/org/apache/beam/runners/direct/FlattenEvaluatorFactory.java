@@ -27,8 +27,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
 /**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Flatten}
- * {@link PTransform}.
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Flatten} {@link
+ * PTransform}.
  */
 class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
@@ -50,8 +50,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   public void cleanup() throws Exception {}
 
   private <InputT> TransformEvaluator<InputT> createInMemoryEvaluator(
-      final AppliedPTransform<
-              PCollectionList<InputT>, PCollection<InputT>, PCollections<InputT>>
+      final AppliedPTransform<PCollectionList<InputT>, PCollection<InputT>, PCollections<InputT>>
           application) {
     final UncommittedBundle<InputT> outputBundle =
         evaluationContext.createBundle(

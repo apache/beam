@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.reference;
 
-import com.google.protobuf.ByteString;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -31,11 +30,12 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingStub;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class JobServicePipelineResult implements PipelineResult {
+class JobServicePipelineResult implements PipelineResult, AutoCloseable {
 
   private static final long POLL_INTERVAL_MS = 10 * 1000;
 
@@ -43,14 +43,19 @@ class JobServicePipelineResult implements PipelineResult {
 
   private final ByteString jobId;
   private final CloseableResource<JobServiceBlockingStub> jobService;
+  @Nullable private State terminationState;
 
   JobServicePipelineResult(ByteString jobId, CloseableResource<JobServiceBlockingStub> jobService) {
     this.jobId = jobId;
     this.jobService = jobService;
+    this.terminationState = null;
   }
 
   @Override
   public State getState() {
+    if (terminationState != null) {
+      return terminationState;
+    }
     JobServiceBlockingStub stub = jobService.get();
     GetJobStateResponse response =
         stub.getState(GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build());
@@ -89,6 +94,9 @@ class JobServicePipelineResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
+    if (terminationState != null) {
+      return terminationState;
+    }
     JobServiceBlockingStub stub = jobService.get();
     GetJobStateRequest request = GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build();
     GetJobStateResponse response = stub.getState(request);
@@ -103,17 +111,22 @@ class JobServicePipelineResult implements PipelineResult {
       response = stub.getState(request);
       lastState = getJavaState(response.getState());
     }
-    try {
-      jobService.close();
-    } catch (Exception e) {
-      LOG.warn("Error cleaning up job service", e);
-    }
+    close();
+    terminationState = lastState;
     return lastState;
   }
 
   @Override
   public MetricResults metrics() {
     throw new UnsupportedOperationException("Not yet implemented.");
+  }
+
+  @Override
+  public void close() {
+    try (CloseableResource<JobServiceBlockingStub> jobService = this.jobService) {
+    } catch (Exception e) {
+      LOG.warn("Error cleaning up job service", e);
+    }
   }
 
   private static State getJavaState(JobApi.JobState.Enum protoState) {

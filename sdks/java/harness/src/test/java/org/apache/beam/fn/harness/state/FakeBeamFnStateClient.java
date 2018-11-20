@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness.state;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.protobuf.ByteString;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -33,6 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 
 /** A fake implementation of a {@link BeamFnStateClient} to aid with testing. */
 public class FakeBeamFnStateClient implements BeamFnStateClient {
@@ -48,8 +48,8 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
   }
 
   @Override
-  public void handle(StateRequest.Builder requestBuilder,
-      CompletableFuture<StateResponse> responseFuture) {
+  public void handle(
+      StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> responseFuture) {
     // The id should never be filled out
     assertEquals("", requestBuilder.getId());
     requestBuilder.setId(generateId());
@@ -61,8 +61,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
     assertNotEquals(RequestCase.REQUEST_NOT_SET, request.getRequestCase());
     assertNotEquals(TypeCase.TYPE_NOT_SET, key.getTypeCase());
     // multimap side input and runner based state keys only support get requests
-    if (key.getTypeCase() == TypeCase.MULTIMAP_SIDE_INPUT
-        || key.getTypeCase() == TypeCase.RUNNER) {
+    if (key.getTypeCase() == TypeCase.MULTIMAP_SIDE_INPUT || key.getTypeCase() == TypeCase.RUNNER) {
       assertEquals(RequestCase.GET, request.getRequestCase());
     }
 
@@ -74,15 +73,18 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
         if (request.getGet().getContinuationToken().size() > 0) {
           block = Integer.parseInt(request.getGet().getContinuationToken().toStringUtf8());
         }
-        ByteString returnBlock = byteString.substring(
-            block * 5, Math.min(byteString.size(), (block + 1) * 5));
+        ByteString returnBlock =
+            byteString.substring(block * 5, Math.min(byteString.size(), (block + 1) * 5));
         ByteString continuationToken = ByteString.EMPTY;
         if (byteString.size() > (block + 1) * 5) {
           continuationToken = ByteString.copyFromUtf8(Integer.toString(block + 1));
         }
-        response = StateResponse.newBuilder().setGet(StateGetResponse.newBuilder()
-            .setData(returnBlock)
-            .setContinuationToken(continuationToken));
+        response =
+            StateResponse.newBuilder()
+                .setGet(
+                    StateGetResponse.newBuilder()
+                        .setData(returnBlock)
+                        .setContinuationToken(continuationToken));
         break;
 
       case CLEAR:

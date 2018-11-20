@@ -19,9 +19,7 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * Always returns the same instance of checkpoint.
- */
+/** Always returns the same instance of checkpoint. */
 class StaticCheckpointGenerator implements CheckpointGenerator {
 
   private final KinesisReaderCheckpoint checkpoint;

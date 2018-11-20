@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.runtime.SqlFunctions;
@@ -74,54 +73,56 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     SqlTypeName castOutputType = getOutputType();
     switch (castOutputType) {
+      case BOOLEAN:
+        return BeamSqlPrimitive.of(
+            SqlTypeName.BOOLEAN,
+            SqlFunctions.toBoolean(opValueEvaluated(index, inputRow, window, env)));
       case INTEGER:
         return BeamSqlPrimitive.of(
             SqlTypeName.INTEGER,
-            SqlFunctions.toInt((Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
+            SqlFunctions.toInt(opValueEvaluated(index, inputRow, window, env)));
       case DOUBLE:
         return BeamSqlPrimitive.of(
             SqlTypeName.DOUBLE,
-            SqlFunctions.toDouble(
-                (Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
+            SqlFunctions.toDouble(opValueEvaluated(index, inputRow, window, env)));
       case SMALLINT:
         return BeamSqlPrimitive.of(
             SqlTypeName.SMALLINT,
-            SqlFunctions.toShort((Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
+            SqlFunctions.toShort(opValueEvaluated(index, inputRow, window, env)));
       case TINYINT:
         return BeamSqlPrimitive.of(
             SqlTypeName.TINYINT,
-            SqlFunctions.toByte(opValueEvaluated(index, inputRow, window, correlateEnv)));
+            SqlFunctions.toByte(opValueEvaluated(index, inputRow, window, env)));
       case BIGINT:
         return BeamSqlPrimitive.of(
             SqlTypeName.BIGINT,
-            SqlFunctions.toLong((Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
+            SqlFunctions.toLong(opValueEvaluated(index, inputRow, window, env)));
       case DECIMAL:
         return BeamSqlPrimitive.of(
             SqlTypeName.DECIMAL,
-            SqlFunctions.toBigDecimal(
-                (Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
+            SqlFunctions.toBigDecimal(opValueEvaluated(index, inputRow, window, env)));
       case FLOAT:
         return BeamSqlPrimitive.of(
             SqlTypeName.FLOAT,
-            SqlFunctions.toFloat((Object) opValueEvaluated(index, inputRow, window, correlateEnv)));
+            SqlFunctions.toFloat(opValueEvaluated(index, inputRow, window, env)));
       case CHAR:
       case VARCHAR:
+        // TODO: We should do standards-compliant string conversions here.
         return BeamSqlPrimitive.of(
-            SqlTypeName.VARCHAR,
-            opValueEvaluated(index, inputRow, window, correlateEnv).toString());
+            SqlTypeName.VARCHAR, opValueEvaluated(index, inputRow, window, env).toString());
       case DATE:
         return BeamSqlPrimitive.of(
-            SqlTypeName.DATE, toDate(opValueEvaluated(index, inputRow, window, correlateEnv)));
+            SqlTypeName.DATE, toDate(opValueEvaluated(index, inputRow, window, env)));
       case TIMESTAMP:
         return BeamSqlPrimitive.of(
-            SqlTypeName.TIMESTAMP,
-            toTimeStamp(opValueEvaluated(index, inputRow, window, correlateEnv)));
+            SqlTypeName.TIMESTAMP, toTimeStamp(opValueEvaluated(index, inputRow, window, env)));
+      default:
+        throw new UnsupportedOperationException(
+            String.format("Cast to type %s not supported", castOutputType));
     }
-    throw new UnsupportedOperationException(
-        String.format("Cast to type %s not supported", castOutputType));
   }
 
   private ReadableInstant toDate(Object inputDate) {

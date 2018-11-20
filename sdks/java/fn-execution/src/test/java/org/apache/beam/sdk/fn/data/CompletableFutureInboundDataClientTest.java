@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.data;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -35,13 +35,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CompletableFutureInboundDataClient}.
- */
+/** Tests for {@link CompletableFutureInboundDataClient}. */
 @RunWith(JUnit4.class)
 public class CompletableFutureInboundDataClientTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testComplete() throws Exception {
@@ -100,6 +97,7 @@ public class CompletableFutureInboundDataClientTest {
 
     try {
       waitingFuture.get(50, TimeUnit.MILLISECONDS);
+      fail();
     } catch (TimeoutException expected) {
       // This should time out, as the client should never complete without external completion
     }

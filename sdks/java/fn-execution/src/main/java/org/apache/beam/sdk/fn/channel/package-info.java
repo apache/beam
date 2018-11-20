@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * gRPC channel management.
- */
+/** gRPC channel management. */
 package org.apache.beam.sdk.fn.channel;

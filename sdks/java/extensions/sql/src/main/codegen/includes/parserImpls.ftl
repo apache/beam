@@ -30,7 +30,7 @@ boolean IfExistsOpt() :
 SqlNodeList Options() :
 {
     final Span s;
-    final List<SqlNode> list = Lists.newArrayList();
+    final List<SqlNode> list = new ArrayList<SqlNode>();
 }
 {
     <OPTIONS> { s = span(); } <LPAREN>
@@ -87,7 +87,7 @@ List<Schema.Field> FieldListAngular() :
 
 List<Schema.Field> FieldListBody() :
 {
-    final List<Schema.Field> fields = Lists.newArrayList();
+    final List<Schema.Field> fields = new ArrayList<Schema.Field>();
     Schema.Field field = null;
 }
 {
@@ -112,7 +112,7 @@ Schema.Field Field() :
     name = Identifier()
     type = FieldType()
     {
-        field = Schema.Field.of(name.toLowerCase(), type);
+        field = Schema.Field.of(name, type);
     }
     (
         <NULL> { field = field.withNullable(true); }
@@ -146,27 +146,39 @@ Schema.Field Field() :
  *   ( LOCATION location_string )?
  *   ( TBLPROPERTIES tbl_properties )?
  */
-SqlCreate SqlCreateTable(Span s, boolean replace) :
+SqlCreate SqlCreateExternalTable() :
 {
+    final Span s = Span.of();
+    final boolean replace = false;
     final boolean ifNotExists;
     final SqlIdentifier id;
     List<Schema.Field> fieldList = null;
-    SqlNode type = null;
+    final SqlNode type;
     SqlNode comment = null;
     SqlNode location = null;
     SqlNode tblProperties = null;
 }
 {
-    <TABLE> ifNotExists = IfNotExistsOpt()
+
+    <CREATE> <EXTERNAL> <TABLE> {
+        s.add(this);
+    }
+
+    ifNotExists = IfNotExistsOpt()
     id = CompoundIdentifier()
     fieldList = FieldListParens()
-    <TYPE> type = StringLiteral()
+    <TYPE>
+    (
+        type = StringLiteral()
+    |
+        type = SimpleIdentifier()
+    )
     [ <COMMENT> comment = StringLiteral() ]
     [ <LOCATION> location = StringLiteral() ]
     [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
     {
         return
-            new SqlCreateTable(
+            new SqlCreateExternalTable(
                 s.end(this),
                 replace,
                 ifNotExists,
@@ -177,6 +189,18 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
                 location,
                 tblProperties);
     }
+}
+
+SqlCreate SqlCreateTableNotSupportedMessage(Span s, boolean replace) :
+{
+}
+{
+  <TABLE>
+  {
+    throw new ParseException("'CREATE TABLE' is not supported in SQL. You can use "
+    + "'CREATE EXTERNAL TABLE' to register an external data source to SQL. For more details, "
+    + "please check: https://beam.apache.org/documentation/dsls/sql/create-external-table");
+  }
 }
 
 SqlDrop SqlDropTable(Span s, boolean replace) :
@@ -278,6 +302,50 @@ Schema.FieldType SimpleType() :
         s.end(this);
         return CalciteUtils.toFieldType(simpleTypeName);
     }
+}
+
+SqlSetOptionBeam SqlSetOptionBeam(Span s, String scope) :
+{
+    SqlIdentifier name;
+    final SqlNode val;
+}
+{
+    (
+        <SET> {
+            s.add(this);
+        }
+        name = CompoundIdentifier()
+        <EQ>
+        (
+            val = Literal()
+        |
+            val = SimpleIdentifier()
+        |
+            <ON> {
+                // OFF is handled by SimpleIdentifier, ON handled here.
+                val = new SqlIdentifier(token.image.toUpperCase(Locale.ROOT),
+                    getPos());
+            }
+        )
+        {
+            return new SqlSetOptionBeam(s.end(val), scope, name, val);
+        }
+    |
+        <RESET> {
+            s.add(this);
+        }
+        (
+            name = CompoundIdentifier()
+        |
+            <ALL> {
+                name = new SqlIdentifier(token.image.toUpperCase(Locale.ROOT),
+                    getPos());
+            }
+        )
+        {
+            return new SqlSetOptionBeam(s.end(name), scope, name, null);
+        }
+    )
 }
 
 // End parserImpls.ftl

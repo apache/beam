@@ -18,7 +18,9 @@
 cimport cython
 
 from apache_beam.utils.windowed_value cimport WindowedValue
-from apache_beam.metrics.execution cimport ScopedMetricsContainer
+from apache_beam.transforms.cy_dataflow_distribution_counter cimport DataflowDistributionCounter
+
+from libc.stdint cimport int64_t
 
 
 cdef type TaggedOutput, TimestampedValue
@@ -32,6 +34,9 @@ cdef class MethodWrapper(object):
   cdef public object args
   cdef public object defaults
   cdef public object method_value
+  cdef bint has_userstate_arguments
+  cdef object state_args_to_replace
+  cdef object timer_args_to_replace
 
 
 cdef class DoFnSignature(object):
@@ -43,11 +48,14 @@ cdef class DoFnSignature(object):
   cdef public MethodWrapper create_tracker_method
   cdef public MethodWrapper split_method
   cdef public object do_fn
+  cdef public object timer_methods
+  cdef bint _is_stateful_dofn
 
 
 cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
   cdef OutputProcessor output_processor
+  cdef object user_state_context
 
   cpdef invoke_process(self, WindowedValue windowed_value,
                        restriction_tracker=*,
@@ -78,9 +86,7 @@ cdef class PerWindowInvoker(DoFnInvoker):
 
 cdef class DoFnRunner(Receiver):
   cdef DoFnContext context
-  cdef LoggingContext logging_context
   cdef object step_name
-  cdef ScopedMetricsContainer scoped_metrics_container
   cdef list side_inputs
   cdef DoFnInvoker do_fn_invoker
 
@@ -88,7 +94,8 @@ cdef class DoFnRunner(Receiver):
 
 
 cdef class OutputProcessor(object):
-  @cython.locals(windowed_value=WindowedValue)
+  @cython.locals(windowed_value=WindowedValue,
+                 output_element_count=int64_t)
   cpdef process_outputs(self, WindowedValue element, results)
 
 
@@ -96,23 +103,16 @@ cdef class _OutputProcessor(OutputProcessor):
   cdef object window_fn
   cdef Receiver main_receivers
   cdef object tagged_receivers
-
+  cdef DataflowDistributionCounter per_element_output_counter
+  @cython.locals(windowed_value=WindowedValue,
+                 output_element_count=int64_t)
+  cpdef process_outputs(self, WindowedValue element, results)
 
 cdef class DoFnContext(object):
   cdef object label
   cdef object state
   cdef WindowedValue windowed_value
   cpdef set_element(self, WindowedValue windowed_value)
-
-
-cdef class LoggingContext(object):
-  # TODO(robertwb): Optimize "with [cdef class]"
-  cpdef enter(self)
-  cpdef exit(self)
-
-
-cdef class _LoggingContextAdapter(LoggingContext):
-  cdef object underlying
 
 
 cdef class _ReceiverAdapter(Receiver):

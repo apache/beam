@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.util;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -53,11 +52,17 @@ public class ExplicitShardedFile implements ShardedFile {
   /** Constructs an {@link ExplicitShardedFile} for the given files. */
   public ExplicitShardedFile(Collection<String> files) throws IOException {
     this.files = new ArrayList<>();
-    for (String file: files) {
+    for (String file : files) {
       this.files.add(FileSystems.matchSingleFileSpec(file));
     }
   }
 
+  /**
+   * Discovers all shards of this file using the provided {@link Sleeper} and {@link BackOff}.
+   *
+   * <p>Because of eventual consistency, reads may discover no files or fewer files than the
+   * explicit list of files implies. In this case, the read is considered to have failed.
+   */
   @Override
   public List<String> readFilesWithRetries(Sleeper sleeper, BackOff backOff)
       throws IOException, InterruptedException {
@@ -84,7 +89,7 @@ public class ExplicitShardedFile implements ShardedFile {
   }
 
   /**
-   * Discovers all shards of this file using the provided {@link Sleeper} and {@link BackOff}.
+   * Discovers all shards of this file.
    *
    * <p>Because of eventual consistency, reads may discover no files or fewer files than the shard
    * template implies. In this case, the read is considered to have failed.
@@ -109,8 +114,8 @@ public class ExplicitShardedFile implements ShardedFile {
     List<String> allLines = Lists.newArrayList();
     int i = 1;
     for (Metadata file : files) {
-      try (Reader reader = Channels.newReader(FileSystems.open(file.resourceId()),
-          StandardCharsets.UTF_8.name())) {
+      try (Reader reader =
+          Channels.newReader(FileSystems.open(file.resourceId()), StandardCharsets.UTF_8.name())) {
         List<String> lines = CharStreams.readLines(reader);
         allLines.addAll(lines);
         LOG.debug("[{} of {}] Read {} lines from file: {}", i, files.size(), lines.size(), file);

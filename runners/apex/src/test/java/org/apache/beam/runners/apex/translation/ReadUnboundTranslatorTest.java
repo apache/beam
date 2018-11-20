@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.translation;
 
 import com.datatorrent.api.DAG;
@@ -45,16 +44,13 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * integration test for {@link ReadUnboundedTranslator}.
- */
+/** integration test for {@link ReadUnboundedTranslator}. */
 public class ReadUnboundTranslatorTest {
   private static final Logger LOG = LoggerFactory.getLogger(ReadUnboundTranslatorTest.class);
 
   @Test
   public void test() throws Exception {
-    ApexPipelineOptions options = PipelineOptionsFactory.create()
-        .as(ApexPipelineOptions.class);
+    ApexPipelineOptions options = PipelineOptionsFactory.create().as(ApexPipelineOptions.class);
     EmbeddedCollector.RESULTS.clear();
     options.setApplicationName("ReadUnbound");
     options.setRunner(ApexRunner.class);
@@ -62,8 +58,7 @@ public class ReadUnboundTranslatorTest {
 
     List<String> collection = Lists.newArrayList("1", "2", "3", "4", "5");
     CollectionSource<String> source = new CollectionSource<>(collection, StringUtf8Coder.of());
-    p.apply(Read.from(source))
-        .apply(ParDo.of(new EmbeddedCollector()));
+    p.apply(Read.from(source)).apply(ParDo.of(new EmbeddedCollector()));
 
     ApexRunnerResult result = (ApexRunnerResult) p.run();
     DAG dag = result.getApexDAG();
@@ -84,16 +79,14 @@ public class ReadUnboundTranslatorTest {
 
   @Test
   public void testReadBounded() throws Exception {
-    ApexPipelineOptions options = PipelineOptionsFactory.create()
-        .as(ApexPipelineOptions.class);
+    ApexPipelineOptions options = PipelineOptionsFactory.create().as(ApexPipelineOptions.class);
     EmbeddedCollector.RESULTS.clear();
     options.setApplicationName("ReadBounded");
     options.setRunner(ApexRunner.class);
     Pipeline p = Pipeline.create(options);
 
     Set<Long> expected = ContiguousSet.create(Range.closedOpen(0L, 10L), DiscreteDomain.longs());
-    p.apply(GenerateSequence.from(0).to(10))
-        .apply(ParDo.of(new EmbeddedCollector()));
+    p.apply(GenerateSequence.from(0).to(10)).apply(ParDo.of(new EmbeddedCollector()));
 
     ApexRunnerResult result = (ApexRunnerResult) p.run();
     DAG dag = result.getApexDAG();
@@ -122,5 +115,4 @@ public class ReadUnboundTranslatorTest {
       RESULTS.add(c.element());
     }
   }
-
 }

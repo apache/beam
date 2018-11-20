@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static junit.framework.TestCase.assertFalse;
@@ -60,9 +59,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test PubsubUnboundedSource.
- */
+/** Test PubsubUnboundedSource. */
 @RunWith(JUnit4.class)
 public class PubsubUnboundedSourceTest {
   private static final SubscriptionPath SUBSCRIPTION =
@@ -81,8 +78,7 @@ public class PubsubUnboundedSourceTest {
   private PubsubTestClientFactory factory;
   private PubsubSource primSource;
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   private void setupOneMessage(Iterable<IncomingMessage> incoming) {
     now = new AtomicLong(REQ_TIME);
@@ -90,8 +86,14 @@ public class PubsubUnboundedSourceTest {
     factory = PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
     PubsubUnboundedSource source =
         new PubsubUnboundedSource(
-            clock, factory, null, null, StaticValueProvider.of(SUBSCRIPTION),
-            TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, true /* needsAttributes */);
+            clock,
+            factory,
+            null,
+            null,
+            StaticValueProvider.of(SUBSCRIPTION),
+            TIMESTAMP_ATTRIBUTE,
+            ID_ATTRIBUTE,
+            true /* needsAttributes */);
     primSource = new PubsubSource(source);
   }
 
@@ -239,8 +241,8 @@ public class PubsubUnboundedSourceTest {
     // Restore from checkpoint.
     byte[] checkpointBytes =
         CoderUtils.encodeToByteArray(primSource.getCheckpointMarkCoder(), checkpoint);
-    checkpoint = CoderUtils.decodeFromByteArray(primSource.getCheckpointMarkCoder(),
-                                                checkpointBytes);
+    checkpoint =
+        CoderUtils.decodeFromByteArray(primSource.getCheckpointMarkCoder(), checkpointBytes);
     assertEquals(1, checkpoint.notYetReadIds.size());
     assertEquals("ackid_1", checkpoint.notYetReadIds.get(0));
 
@@ -350,8 +352,7 @@ public class PubsubUnboundedSourceTest {
     assertThat(source.getSubscription(), nullValue());
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    List<PubsubSource> splits =
-        (new PubsubSource(source)).split(3, options);
+    List<PubsubSource> splits = (new PubsubSource(source)).split(3, options);
     // We have at least one returned split
     assertThat(splits, hasSize(greaterThan(0)));
     for (PubsubSource split : splits) {
@@ -401,9 +402,7 @@ public class PubsubUnboundedSourceTest {
     assertThat(readerFromDeser.subscription, equalTo(createdSubscription));
   }
 
-  /**
-   * Tests that checkpoints finalized after the reader is closed succeed.
-   */
+  /** Tests that checkpoints finalized after the reader is closed succeed. */
   @Test
   public void closeWithActiveCheckpoints() throws Exception {
     setupOneMessage();

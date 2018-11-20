@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -794,11 +793,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 ? writeOperation.finalizeDestination(
                     defaultDest, GlobalWindow.INSTANCE, fixedNumShards, fileResults)
                 : finalizeAllDestinations(fileResults, fixedNumShards);
+        writeOperation.moveToOutputFiles(resultsToFinalFilenames);
         for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
           FileResult<DestinationT> res = entry.getKey();
           c.output(KV.of(res.getDestination(), entry.getValue().toString()));
         }
-        writeOperation.moveToOutputFiles(resultsToFinalFilenames);
       }
     }
   }

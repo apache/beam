@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -193,9 +194,10 @@ public class DirectTransformExecutorTest {
             completionCallback,
             transformEvaluationState);
 
-    Executors.newSingleThreadExecutor().submit(executor);
+    Future<?> future = Executors.newSingleThreadExecutor().submit(executor);
 
     evaluatorCompleted.await();
+    future.get();
 
     assertThat(elementsProcessed, containsInAnyOrder(spam, third, foo));
     assertThat(completionCallback.handledResult, Matchers.equalTo(result));
@@ -203,6 +205,7 @@ public class DirectTransformExecutorTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored") // expected exception checked via completionCallback
   public void processElementThrowsExceptionCallsback() throws Exception {
     final TransformResult<String> result =
         StepTransformResult.<String>withoutHold(downstreamProducer).build();
@@ -242,6 +245,7 @@ public class DirectTransformExecutorTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored") // expected exception checked via completionCallback
   public void finishBundleThrowsExceptionCallsback() throws Exception {
     final Exception exception = new Exception();
     TransformEvaluator<String> evaluator =

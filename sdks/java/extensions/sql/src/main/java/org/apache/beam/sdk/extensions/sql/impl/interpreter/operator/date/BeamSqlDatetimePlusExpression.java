@@ -15,17 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.TimeUnitUtils.timeUnitInternalMultiplier;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.SqlTypeUtils.findExpressionOfType;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Set;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -40,16 +37,6 @@ import org.joda.time.DateTime;
  * <p>Input and output are expected to be of type TIMESTAMP.
  */
 public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
-
-  private static final Set<SqlTypeName> SUPPORTED_INTERVAL_TYPES =
-      ImmutableSet.of(
-          SqlTypeName.INTERVAL_SECOND,
-          SqlTypeName.INTERVAL_MINUTE,
-          SqlTypeName.INTERVAL_HOUR,
-          SqlTypeName.INTERVAL_DAY,
-          SqlTypeName.INTERVAL_MONTH,
-          SqlTypeName.INTERVAL_YEAR);
-
   public BeamSqlDatetimePlusExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.TIMESTAMP);
   }
@@ -58,8 +45,8 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
   @Override
   public boolean accept() {
     return operands.size() == 2
-        && SqlTypeName.TIMESTAMP.equals(operands.get(0).getOutputType())
-        && SUPPORTED_INTERVAL_TYPES.contains(operands.get(1).getOutputType());
+        && SqlTypeName.DATETIME_TYPES.contains(operands.get(0).getOutputType())
+        && TimeUnitUtils.INTERVALS_DURATIONS_TYPES.containsKey(operands.get(1).getOutputType());
   }
 
   /**
@@ -74,9 +61,9 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
    */
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    DateTime timestamp = getTimestampOperand(inputRow, window, correlateEnv);
-    BeamSqlPrimitive intervalOperandPrimitive = getIntervalOperand(inputRow, window, correlateEnv);
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    DateTime timestamp = getTimestampOperand(inputRow, window, env);
+    BeamSqlPrimitive intervalOperandPrimitive = getIntervalOperand(inputRow, window, env);
     SqlTypeName intervalOperandType = intervalOperandPrimitive.getOutputType();
     int intervalMultiplier = getIntervalMultiplier(intervalOperandPrimitive);
 
@@ -94,23 +81,22 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
   }
 
   private BeamSqlPrimitive getIntervalOperand(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    return findExpressionOfType(operands, SUPPORTED_INTERVAL_TYPES)
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    return findExpressionOfType(operands, TimeUnitUtils.INTERVALS_DURATIONS_TYPES.keySet())
         .get()
-        .evaluate(inputRow, window, correlateEnv);
+        .evaluate(inputRow, window, env);
   }
 
   private DateTime getTimestampOperand(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     BeamSqlPrimitive timestampOperandPrimitive =
-        findExpressionOfType(operands, SqlTypeName.TIMESTAMP)
+        findExpressionOfType(operands, SqlTypeName.DATETIME_TYPES)
             .get()
-            .evaluate(inputRow, window, correlateEnv);
+            .evaluate(inputRow, window, env);
     return new DateTime(timestampOperandPrimitive.getDate());
   }
 
   private DateTime addInterval(DateTime dateTime, SqlTypeName intervalType, int numberOfIntervals) {
-
     switch (intervalType) {
       case INTERVAL_SECOND:
         return dateTime.plusSeconds(numberOfIntervals);

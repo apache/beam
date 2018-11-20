@@ -39,19 +39,20 @@ func TestStage(t *testing.T) {
 	defer os.RemoveAll(src)
 	md5s := makeTempFiles(t, src, keys, 300)
 
+	st := "whatever"
 	var artifacts []*pb.ArtifactMetadata
 	for _, key := range keys {
-		a, err := Stage(ctx, client, key, makeFilename(src, key))
+		a, err := Stage(ctx, client, key, makeFilename(src, key), st)
 		if err != nil {
 			t.Errorf("failed to stage %v: %v", key, err)
 		}
 		artifacts = append(artifacts, a)
 	}
-	if _, err := Commit(ctx, client, artifacts); err != nil {
+	if rt, err := Commit(ctx, client, artifacts, st); err != nil {
 		t.Fatalf("failed to commit: %v", err)
+	} else {
+		validate(ctx, cc, t, keys, md5s, rt)
 	}
-
-	validate(ctx, cc, t, keys, md5s)
 }
 
 // TestStageDir validates that local files can be staged concurrently.
@@ -65,24 +66,25 @@ func TestStageDir(t *testing.T) {
 
 	src := makeTempDir(t)
 	defer os.RemoveAll(src)
-	md5s := makeTempFiles(t, src, keys, 300)
+	sha256s := makeTempFiles(t, src, keys, 300)
 
-	artifacts, err := StageDir(ctx, client, src)
+	st := "whatever"
+	artifacts, err := StageDir(ctx, client, src, st)
 	if err != nil {
 		t.Errorf("failed to stage dir %v: %v", src, err)
 	}
-	if _, err := Commit(ctx, client, artifacts); err != nil {
+	if rt, err := Commit(ctx, client, artifacts, st); err != nil {
 		t.Fatalf("failed to commit: %v", err)
+	} else {
+		validate(ctx, cc, t, keys, sha256s, rt)
 	}
-
-	validate(ctx, cc, t, keys, md5s)
 }
 
-func validate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys, md5s []string) {
+func validate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys, sha256s []string, rt string) {
 	rcl := pb.NewArtifactRetrievalServiceClient(cc)
 
 	for i, key := range keys {
-		stream, err := rcl.GetArtifact(ctx, &pb.GetArtifactRequest{Name: key})
+		stream, err := rcl.GetArtifact(ctx, &pb.GetArtifactRequest{Name: key, RetrievalToken: rt})
 		if err != nil {
 			t.Fatalf("failed to get artifact for %v: %v", key, err)
 		}
@@ -91,8 +93,8 @@ func validate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys, md5s
 		if err != nil {
 			t.Fatalf("failed to get chunks for %v: %v", key, err)
 		}
-		if hash != md5s[i] {
-			t.Errorf("incorrect MD5: %v, want %v", hash, md5s[i])
+		if hash != sha256s[i] {
+			t.Errorf("incorrect SHA256: %v, want %v", hash, sha256s[i])
 		}
 	}
 }

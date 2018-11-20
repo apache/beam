@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -40,9 +39,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link PTransformReplacements}.
- */
+/** Tests for {@link PTransformReplacements}. */
 @RunWith(JUnit4.class)
 public class PTransformReplacementsTest {
   @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
@@ -126,6 +123,7 @@ public class PTransformReplacementsTest {
   }
 
   private static class TestDoFn extends DoFn<Long, Long> {
-    @ProcessElement public void process(ProcessContext context) {}
+    @ProcessElement
+    public void process(ProcessContext context) {}
   }
 }

@@ -15,31 +15,35 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
 # cython: profile=True
 
 """Worker operations executor."""
 
+from __future__ import absolute_import
+
 import collections
-import itertools
 import logging
+from builtins import filter
+from builtins import object
+from builtins import zip
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.metrics.execution import ScopedMetricsContainer
-from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
-from apache_beam.runners.worker import logger
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
 from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
+from apache_beam.transforms import userstate
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
@@ -122,54 +126,58 @@ class Operation(object):
     else:
       self.name_context = common.NameContext(name_context)
 
-    # TODO(BEAM-4028): Remove following two lines. Rely on name context.
-    self.operation_name = self.name_context.step_name
-    self.step_name = self.name_context.logging_name()
-
     self.spec = spec
     self.counter_factory = counter_factory
     self.consumers = collections.defaultdict(list)
 
     # These are overwritten in the legacy harness.
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
-    # TODO(BEAM-4094): Remove ScopedMetricsContainer after Dataflow no longer
-    # depends on it.
-    self.scoped_metrics_container = ScopedMetricsContainer()
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'start',
-        metrics_container=self.metrics_container)
+        self.name_context, 'start', metrics_container=self.metrics_container)
     self.scoped_process_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'process',
-        metrics_container=self.metrics_container)
+        self.name_context, 'process', metrics_container=self.metrics_container)
     self.scoped_finish_state = self.state_sampler.scoped_state(
-        self.name_context.metrics_name(), 'finish',
-        metrics_container=self.metrics_container)
+        self.name_context, 'finish', metrics_container=self.metrics_container)
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []
+    # Legacy workers cannot call setup() until after setting additional state
+    # on the operation.
+    self.setup_done = False
+
+  def setup(self):
+    with self.scoped_start_state:
+      self.debug_logging_enabled = logging.getLogger().isEnabledFor(
+          logging.DEBUG)
+      # Everything except WorkerSideInputSource, which is not a
+      # top-level operation, should have output_coders
+      #TODO(pabloem): Define better what step name is used here.
+      if getattr(self.spec, 'output_coders', None):
+        self.receivers = [ConsumerSet(self.counter_factory,
+                                      self.name_context.logging_name(),
+                                      i,
+                                      self.consumers[i], coder)
+                          for i, coder in enumerate(self.spec.output_coders)]
+    self.setup_done = True
 
   def start(self):
     """Start operation."""
-    self.debug_logging_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
-    # Everything except WorkerSideInputSource, which is not a
-    # top-level operation, should have output_coders
-    #TODO(pabloem): Define better what step name is used here.
-    if getattr(self.spec, 'output_coders', None):
-      self.receivers = [ConsumerSet(self.counter_factory,
-                                    self.name_context.logging_name(),
-                                    i,
-                                    self.consumers[i], coder)
-                        for i, coder in enumerate(self.spec.output_coders)]
+    if not self.setup_done:
+      # For legacy workers.
+      self.setup()
+
+  def process(self, o):
+    """Process element in operation."""
+    pass
 
   def finish(self):
     """Finish operation."""
     pass
 
-  def process(self, o):
-    """Process element in operation."""
-    pass
+  def reset(self):
+    self.metrics_container.reset()
 
   def output(self, windowed_value, output_index=0):
     cython.cast(Receiver, self.receivers[output_index]).receive(windowed_value)
@@ -196,6 +204,62 @@ class Operation(object):
                     if len(self.receivers) == 1
                     else None))),
         user=self.metrics_container.to_runner_api())
+
+  def monitoring_infos(self, transform_id):
+    """Returns the list of MonitoringInfos collected by this operation."""
+    all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
+    all_monitoring_infos.update(
+        self.element_count_monitoring_infos(transform_id))
+    all_monitoring_infos.update(self.user_monitoring_infos(transform_id))
+    return all_monitoring_infos
+
+  def element_count_monitoring_infos(self, transform_id):
+    """Returns the element count MonitoringInfo collected by this operation."""
+    if len(self.receivers) == 1:
+      # If there is exactly one output, we can unambiguously
+      # fix its name later, which we do.
+      # TODO(robertwb): Plumb the actual name here.
+      mi = monitoring_infos.int64_counter(
+          monitoring_infos.ELEMENT_COUNT_URN,
+          self.receivers[0].opcounter.element_counter.value(),
+          ptransform=transform_id,
+          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
+      )
+      return {monitoring_infos.to_key(mi) : mi}
+    return {}
+
+  def user_monitoring_infos(self, transform_id):
+    """Returns the user MonitoringInfos collected by this operation."""
+    return self.metrics_container.to_runner_api_monitoring_infos(transform_id)
+
+  def execution_time_monitoring_infos(self, transform_id):
+    total_time_spent_msecs = (
+        self.scoped_start_state.sampled_msecs_int()
+        + self.scoped_process_state.sampled_msecs_int()
+        + self.scoped_finish_state.sampled_msecs_int())
+    mis = [
+        monitoring_infos.int64_counter(
+            monitoring_infos.START_BUNDLE_MSECS_URN,
+            self.scoped_start_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
+            self.scoped_process_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.FINISH_BUNDLE_MSECS_URN,
+            self.scoped_finish_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        monitoring_infos.int64_counter(
+            monitoring_infos.TOTAL_MSECS_URN,
+            total_time_spent_msecs,
+            ptransform=transform_id
+        ),
+    ]
+    return {monitoring_infos.to_key(mi) : mi for mi in mis}
 
   def __str__(self):
     """Generates a useful string for this object.
@@ -253,6 +317,29 @@ class ReadOperation(Operation):
         self.output(windowed_value)
 
 
+class ImpulseReadOperation(Operation):
+
+  def __init__(self, name_context, counter_factory, state_sampler,
+               consumers, source, output_coder):
+    super(ImpulseReadOperation, self).__init__(
+        name_context, None, counter_factory, state_sampler)
+    self.source = source
+    self.receivers = [
+        ConsumerSet(
+            self.counter_factory, self.name_context.step_name, 0,
+            next(iter(consumers.values())), output_coder)]
+
+  def process(self, unused_impulse):
+    with self.scoped_process_state:
+      range_tracker = self.source.get_range_tracker(None, None)
+      for value in self.source.read(range_tracker):
+        if isinstance(value, WindowedValue):
+          windowed_value = value
+        else:
+          windowed_value = _globally_windowed_value.with_value(value)
+        self.output(windowed_value)
+
+
 class InMemoryWriteOperation(Operation):
   """A write operation that will write to an in-memory sink."""
 
@@ -280,10 +367,14 @@ class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
   def __init__(
-      self, name, spec, counter_factory, sampler, side_input_maps=None):
+      self, name, spec, counter_factory, sampler, side_input_maps=None,
+      user_state_context=None, timer_inputs=None):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
+    self.user_state_context = user_state_context
     self.tagged_receivers = None
+    # A mapping of timer tags to the input "PCollections" they come in on.
+    self.timer_inputs = timer_inputs or {}
 
   def _read_side_inputs(self, tags_and_types):
     """Generator reading side inputs in the order prescribed by tags_and_types.
@@ -318,22 +409,19 @@ class DoOperation(Operation):
       # while the variable has the value assigned by the current iteration of
       # the for loop.
       # pylint: disable=cell-var-from-loop
-      for si in itertools.ifilter(
+      for si in filter(
           lambda o: o.tag == side_tag, self.spec.side_inputs):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
         # The tracking of time spend reading and bytes read from side inputs is
         # behind an experiment flag to test its performance impact.
-        if 'sideinput_io_metrics' in RuntimeValueProvider.experiments:
-          si_counter = opcounters.SideInputReadCounter(
-              self.counter_factory,
-              self.state_sampler,
-              declaring_step=self.name_context.step_name,
-              # Inputs are 1-indexed, so we add 1 to i in the side input id
-              input_index=i + 1)
-        else:
-          si_counter = opcounters.NoOpTransformIOCounter()
+        si_counter = opcounters.SideInputReadCounter(
+            self.counter_factory,
+            self.state_sampler,
+            declaring_step=self.name_context.step_name,
+            # Inputs are 1-indexed, so we add 1 to i in the side input id
+            input_index=i + 1)
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter)
 
@@ -348,9 +436,9 @@ class DoOperation(Operation):
       yield apache_sideinputs.SideInputMap(
           view_class, view_options, sideinputs.EmulatedIterable(iterator_fn))
 
-  def start(self):
+  def setup(self):
     with self.scoped_start_state:
-      super(DoOperation, self).start()
+      super(DoOperation, self).setup()
 
       # See fn_data in dataflow_runner.py
       fn, args, kwargs, tags_and_types, window_fn = (
@@ -375,6 +463,13 @@ class DoOperation(Operation):
           raise ValueError('Unexpected output name for operation: %s' % tag)
         self.tagged_receivers[original_tag] = self.receivers[index]
 
+      if self.user_state_context:
+        self.user_state_context.update_timer_receivers(self.tagged_receivers)
+        self.timer_specs = {
+            spec.name: spec
+            for spec in userstate.get_dofn_specs(fn)[1]
+        }
+
       if self.side_input_maps is None:
         if tags_and_types:
           self.side_input_maps = list(self._read_side_inputs(tags_and_types))
@@ -385,23 +480,39 @@ class DoOperation(Operation):
           fn, args, kwargs, self.side_input_maps, window_fn,
           tagged_receivers=self.tagged_receivers,
           step_name=self.name_context.logging_name(),
-          logging_context=logger.PerThreadLoggingContext(
-              step_name=self.name_context.logging_name()),
           state=state,
-          scoped_metrics_container=None)
+          user_state_context=self.user_state_context,
+          operation_name=self.name_context.metrics_name())
+
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
                             else DoFnRunnerReceiver(self.dofn_runner))
 
+  def start(self):
+    with self.scoped_start_state:
+      super(DoOperation, self).start()
       self.dofn_runner.start()
+
+  def process(self, o):
+    with self.scoped_process_state:
+      self.dofn_receiver.receive(o)
+
+  def process_timer(self, tag, windowed_timer):
+    key, timer_data = windowed_timer.value
+    timer_spec = self.timer_specs[tag]
+    self.dofn_receiver.process_user_timer(
+        timer_spec, key, windowed_timer.windows[0], timer_data['timestamp'])
 
   def finish(self):
     with self.scoped_finish_state:
       self.dofn_runner.finish()
 
-  def process(self, o):
-    with self.scoped_process_state:
-      self.dofn_receiver.receive(o)
+  def reset(self):
+    super(DoOperation, self).reset()
+    for side_input_map in self.side_input_maps:
+      side_input_map.reset()
+    if self.user_state_context:
+      self.user_state_context.reset()
 
   def progress_metrics(self):
     metrics = super(DoOperation, self).progress_metrics()
@@ -411,6 +522,19 @@ class DoOperation(Operation):
         metrics.processed_elements.measured.output_element_counts[
             str(tag)] = receiver.opcounter.element_counter.value()
     return metrics
+
+  def monitoring_infos(self, transform_id):
+    infos = super(DoOperation, self).monitoring_infos(transform_id)
+    if self.tagged_receivers:
+      for tag, receiver in self.tagged_receivers.items():
+        mi = monitoring_infos.int64_counter(
+            monitoring_infos.ELEMENT_COUNT_URN,
+            receiver.opcounter.element_counter.value(),
+            ptransform=transform_id,
+            tag=str(tag)
+        )
+        infos[monitoring_infos.to_key(mi)] = mi
+    return infos
 
 
 class DoFnRunnerReceiver(Receiver):
@@ -435,9 +559,6 @@ class CombineOperation(Operation):
     self.phased_combine_fn = (
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
 
-  def finish(self):
-    logging.debug('Finishing %s', self)
-
   def process(self, o):
     with self.scoped_process_state:
       if self.debug_logging_enabled:
@@ -445,6 +566,9 @@ class CombineOperation(Operation):
       key, values = o.value
       self.output(
           o.with_value((key, self.phased_combine_fn.apply(values))))
+
+  def finish(self):
+    logging.debug('Finishing %s', self)
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
@@ -507,13 +631,7 @@ class PGBKCVOperation(Operation):
     # simpler than for the DoFn's of ParDo.
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
-    if (getattr(fn.add_input, 'im_func', None)
-        is core.CombineFn.add_input.__func__):
-      # Old versions of the SDK have CombineFns that don't implement add_input.
-      self.combine_fn_add_input = (
-          lambda a, e: self.combine_fn.add_inputs(a, [e]))
-    else:
-      self.combine_fn_add_input = self.combine_fn.add_input
+    self.combine_fn_add_input = self.combine_fn.add_input
     # Optimization for the (known tiny accumulator, often wide keyspace)
     # combine functions.
     # TODO(b/36567833): Bound by in-memory size rather than key count.
@@ -542,7 +660,7 @@ class PGBKCVOperation(Operation):
           target = self.key_count * 9 // 10
           old_wkeys = []
           # TODO(robertwb): Use an LRU cache?
-          for old_wkey, old_wvalue in self.table.iteritems():
+          for old_wkey, old_wvalue in self.table.items():
             old_wkeys.append(old_wkey)  # Can't mutate while iterating.
             self.output_key(old_wkey, old_wvalue[0])
             self.key_count -= 1
@@ -557,7 +675,7 @@ class PGBKCVOperation(Operation):
       entry[0] = self.combine_fn_add_input(entry[0], value)
 
   def finish(self):
-    for wkey, value in self.table.iteritems():
+    for wkey, value in self.table.items():
       self.output_key(wkey, value[0])
     self.table = {}
     self.key_count = 0
@@ -584,15 +702,14 @@ class FlattenOperation(Operation):
       self.output(o)
 
 
-def create_operation(name_context, spec, counter_factory, step_name,
-                     state_sampler, test_shuffle_source=None,
+def create_operation(name_context, spec, counter_factory, step_name=None,
+                     state_sampler=None, test_shuffle_source=None,
                      test_shuffle_sink=None, is_streaming=False):
   """Create Operation object for given operation specification."""
+
+  # TODO(pabloem): Document arguments to this function call.
   if not isinstance(name_context, common.NameContext):
-    # TODO(BEAM-4028): Remove ad-hoc NameContext once all has been migrated.
-    name_context = common.DataflowNameContext(step_name=name_context,
-                                              user_name=step_name,
-                                              system_name=None)
+    name_context = common.NameContext(step_name=name_context)
 
   if isinstance(spec, operation_specs.WorkerRead):
     if isinstance(spec.source, iobase.SourceBundle):

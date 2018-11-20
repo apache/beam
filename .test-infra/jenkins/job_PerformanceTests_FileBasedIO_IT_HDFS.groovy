@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+import CommonJobProperties as commonJobProperties
 
 def testsConfigurations = [
         [
@@ -78,6 +78,17 @@ def testsConfigurations = [
                         numberOfRecords: '100000',
                         charset: 'UTF-8'
                 ]
+        ],
+        [
+                jobName           : 'beam_PerformanceTests_ParquetIOIT_HDFS',
+                jobDescription    : 'Runs PerfKit tests for beam_PerformanceTests_ParquetIOIT on HDFS',
+                itClass           : 'org.apache.beam.sdk.io.parquet.ParquetIOIT',
+                bqTable           : 'beam_performance.parquetioit_hdfs_pkb_results',
+                prCommitStatusName: 'Java ParquetIOPerformance Test on HDFS',
+                prTriggerPhase    : 'Run Java ParquetIO Performance Test HDFS',
+                extraPipelineArgs: [
+                        numberOfRecords: '1000000'
+                ]
         ]
 ]
 
@@ -93,22 +104,19 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         description(testConfiguration.jobDescription)
 
         // Set default Beam job properties.
-        common_job_properties.setTopLevelMainJobProperties(delegate)
+        commonJobProperties.setTopLevelMainJobProperties(delegate)
 
         // Allows triggering this build against pull requests.
-        common_job_properties.enablePhraseTriggeringFromPullRequest(
+        commonJobProperties.enablePhraseTriggeringFromPullRequest(
                 delegate,
                 testConfiguration.prCommitStatusName,
                 testConfiguration.prTriggerPhase)
 
         // Run job in postcommit every 6 hours, don't trigger every push, and
         // don't email individual committers.
-        common_job_properties.setPostCommit(
+        commonJobProperties.setAutoJob(
                 delegate,
-                '0 */6 * * *',
-                false,
-                'commits@beam.apache.org',
-                false)
+                'H */6 * * *')
 
         def pipelineArgs = [
                 project        : 'apache-beam-testing',
@@ -124,27 +132,26 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         })
         def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
 
-        String namespace = common_job_properties.getKubernetesNamespace('filebasedioithdfs')
-        String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
+        String namespace = commonJobProperties.getKubernetesNamespace(testConfiguration.jobName)
+        String kubeconfig = commonJobProperties.getKubeconfigLocationForNamespace(namespace)
 
         def argMap = [
-                kubeconfig               : kubeconfig,
-                benchmarks               : 'beam_integration_benchmark',
-                beam_it_timeout          : '1200',
-                beam_it_profile          : 'io-it',
-                beam_prebuilt            : 'false',
-                beam_sdk                 : 'java',
-                beam_it_module           : 'sdks/java/io/file-based-io-tests',
-                beam_it_class            : testConfiguration.itClass,
-                beam_it_options          : pipelineArgsJoined,
-                beam_extra_mvn_properties: '["filesystem=hdfs"]',
-                bigquery_table           : testConfiguration.bqTable,
-                beam_options_config_file : makePathAbsolute('pkb-config.yml'),
-                beam_kubernetes_scripts  : makePathAbsolute('hdfs-multi-datanode-cluster.yml')
+                kubeconfig              : kubeconfig,
+                benchmarks              : 'beam_integration_benchmark',
+                beam_it_timeout         : '1200',
+                beam_prebuilt           : 'false',
+                beam_sdk                : 'java',
+                beam_it_module          : 'sdks/java/io/file-based-io-tests',
+                beam_it_class           : testConfiguration.itClass,
+                beam_it_options         : pipelineArgsJoined,
+                beam_extra_properties   : '["filesystem=hdfs"]',
+                bigquery_table          : testConfiguration.bqTable,
+                beam_options_config_file: makePathAbsolute('pkb-config.yml'),
+                beam_kubernetes_scripts : makePathAbsolute('hdfs-multi-datanode-cluster.yml')
         ]
-        common_job_properties.setupKubernetes(delegate, namespace, kubeconfig)
-        common_job_properties.buildPerformanceTest(delegate, argMap)
-        common_job_properties.cleanupKubernetes(delegate, namespace, kubeconfig)
+        commonJobProperties.setupKubernetes(delegate, namespace, kubeconfig)
+        commonJobProperties.buildPerformanceTest(delegate, argMap)
+        commonJobProperties.cleanupKubernetes(delegate, namespace, kubeconfig)
     }
 }
 

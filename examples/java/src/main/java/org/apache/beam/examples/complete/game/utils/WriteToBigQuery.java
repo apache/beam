@@ -36,20 +36,17 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
 /**
- * Generate, format, and write BigQuery table row information. Use provided information about
- * the field names and types, as well as lambda functions that describe how to generate their
- * values.
+ * Generate, format, and write BigQuery table row information. Use provided information about the
+ * field names and types, as well as lambda functions that describe how to generate their values.
  */
-public class WriteToBigQuery<InputT>
-    extends PTransform<PCollection<InputT>, PDone> {
+public class WriteToBigQuery<InputT> extends PTransform<PCollection<InputT>, PDone> {
 
   protected String projectId;
   protected String datasetId;
   protected String tableName;
   protected Map<String, FieldInfo<InputT>> fieldInfo;
 
-  public WriteToBigQuery() {
-  }
+  public WriteToBigQuery() {}
 
   public WriteToBigQuery(
       String projectId,
@@ -63,8 +60,8 @@ public class WriteToBigQuery<InputT>
   }
 
   /**
-   * A {@link Serializable} function from a {@link DoFn.ProcessContext}
-   * and {@link BoundedWindow} to the value for that field.
+   * A {@link Serializable} function from a {@link DoFn.ProcessContext} and {@link BoundedWindow} to
+   * the value for that field.
    */
   public interface FieldFn<InputT> extends Serializable {
     Object apply(DoFn<InputT, TableRow>.ProcessContext context, BoundedWindow window);
@@ -77,8 +74,7 @@ public class WriteToBigQuery<InputT>
     // A lambda function to generate the field value
     private FieldFn<InputT> fieldFn;
 
-    public FieldInfo(String fieldType,
-        FieldFn<InputT> fieldFn) {
+    public FieldInfo(String fieldType, FieldFn<InputT> fieldFn) {
       this.fieldType = fieldType;
       this.fieldFn = fieldFn;
     }
@@ -100,11 +96,11 @@ public class WriteToBigQuery<InputT>
 
       TableRow row = new TableRow();
       for (Map.Entry<String, FieldInfo<InputT>> entry : fieldInfo.entrySet()) {
-          String key = entry.getKey();
-          FieldInfo<InputT> fcnInfo = entry.getValue();
-          FieldFn<InputT> fcn = fcnInfo.getFieldFn();
-          row.set(key, fcn.apply(c, window));
-        }
+        String key = entry.getKey();
+        FieldInfo<InputT> fcnInfo = entry.getValue();
+        FieldFn<InputT> fcn = fcnInfo.getFieldFn();
+        row.set(key, fcn.apply(c, window));
+      }
       c.output(row);
     }
   }

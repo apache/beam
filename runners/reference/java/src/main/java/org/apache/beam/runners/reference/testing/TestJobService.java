@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.reference.testing;
 
-import io.grpc.stub.StreamObserver;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
@@ -27,6 +26,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceImplBase;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 
 /**
  * A JobService for tests.
@@ -59,6 +59,7 @@ public class TestJobService extends JobServiceImplBase {
         PrepareJobResponse.newBuilder()
             .setPreparationId(preparationId)
             .setArtifactStagingEndpoint(stagingEndpoint)
+            .setStagingSessionToken("TestStagingToken")
             .build());
     responseObserver.onCompleted();
   }

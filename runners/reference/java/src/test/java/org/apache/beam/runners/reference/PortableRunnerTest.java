@@ -20,8 +20,6 @@ package org.apache.beam.runners.reference;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-import io.grpc.Server;
-import io.grpc.inprocess.InProcessServerBuilder;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
@@ -34,6 +32,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.inprocess.InProcessServerBuilder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
