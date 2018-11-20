@@ -22,6 +22,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.samza.operators.MessageStream;
+import org.apache.samza.operators.OutputStream;
 import org.apache.samza.operators.StreamGraph;
 
 /**
@@ -88,6 +89,11 @@ public class PortableTranslationContext {
   /** Register an input stream, using the PCollection id as the config id. */
   public void registerInputMessageStream(String id) {
     registerInputMessageStreamWithStreamId(id, id);
+  }
+
+  /** Get output stream by stream id. */
+  public <T> OutputStream<T> getOutputStreamById(String outputStreamId) {
+    return streamGraph.getOutputStream(outputStreamId);
   }
 
   /**
