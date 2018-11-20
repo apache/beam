@@ -142,7 +142,8 @@ def fnApiWorkerExcludeCategories = [
   'org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported',
   'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders',
   'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
-  'org.apache.beam.sdk.testing.UsesSchema'
+  'org.apache.beam.sdk.testing.UsesSchema',
+  'org.apache.beam.sdk.testing.NeedsRunner',
 ]
 
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
@@ -229,13 +230,14 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
     useJUnit {
-      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      commonExcludeCategories.each {
-        excludeCategories it
-      }
-      fnApiWorkerExcludeCategories.each {
-        excludeCategories it
-      }
+      includeCategories 'org.apache.beam.sdk.testing.SideInputValidatesRunner'
+//      include "**/ViewTest.class"
+//      commonExcludeCategories.each {
+//        excludeCategories it
+//      }
+//      fnApiWorkerExcludeCategories.each {
+//        excludeCategories it
+//      }
     }
 }
 

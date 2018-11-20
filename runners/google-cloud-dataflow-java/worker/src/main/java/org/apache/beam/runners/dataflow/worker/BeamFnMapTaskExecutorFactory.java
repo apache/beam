@@ -44,8 +44,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
@@ -169,8 +171,10 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             executionContext.createOperationContext(
                 NameContext.create(stageName, stageName, stageName, stageName))));
     if (DataflowRunner.hasExperiment(
-        options.as(DataflowPipelineDebugOptions.class), "use_executable_stage_bundle_execution")) {
-      LOG.debug("Using SingleEnvironmentInstanceJobBundleFactory");
+            options.as(DataflowPipelineDebugOptions.class), "use_executable_stage_bundle_execution")
+        || true) {
+      LOG.warn("Using SingleEnvironmentInstanceJobBundleFactory");
+      LOG.warn("batbat: SingleEnvironmentInstanceJobBundleFactory");
       JobBundleFactory jobBundleFactory =
           SingleEnvironmentInstanceJobBundleFactory.create(
               StaticRemoteEnvironmentFactory.forService(instructionRequestHandler),
@@ -353,6 +357,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
     return new TypeSafeNodeFunction<ExecutableStageNode>(ExecutableStageNode.class) {
       @Override
       public Node typedApply(ExecutableStageNode input) {
+        LOG.warn("batbat: create operation transform");
         StageBundleFactory stageBundleFactory =
             jobBundleFactory.forStage(input.getExecutableStage());
         Iterable<OutputReceiverNode> outputReceiverNodes =
@@ -365,12 +370,48 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             .collect(Collectors.toList())
             .toArray(outputReceivers);
 
+        ImmutableMap.Builder<String, DataflowOperationContext>
+            ptransformIdToOperationContextBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<String, DataflowStepContext> ptransformIdToStepContext =
+            ImmutableMap.builder();
+        for (Map.Entry<String, NameContext> entry :
+            input.getPTransformIdToPartialNameContextMap().entrySet()) {
+          NameContext fullNameContext =
+              NameContext.create(
+                  stageName,
+                  entry.getValue().originalName(),
+                  entry.getValue().systemName(),
+                  entry.getValue().userName());
+
+          DataflowOperationContext operationContext =
+              executionContext.createOperationContext(fullNameContext);
+          ptransformIdToOperationContextBuilder.put(entry.getKey(), operationContext);
+
+          // used for State, not needed for SideInput
+          ptransformIdToStepContext.put(
+              entry.getKey(), executionContext.getStepContext(operationContext));
+        }
+
+        ImmutableMap<String, DataflowOperationContext> ptransformIdToOperationContexts =
+            ptransformIdToOperationContextBuilder.build();
+
+        ImmutableMap<String, SideInputReader> ptransformIdToSideInputReaders =
+            buildPTransformIdToSideInputReadersMap(
+                executionContext, input, ptransformIdToOperationContexts);
+
+        Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>
+            ptransformIdToSideInputIdToPCollectionView =
+            buildPTransformIdToSideInputIdToPCollectionView(input);
+
         return OperationNode.create(
             new ProcessRemoteBundleOperation(
                 executionContext.createOperationContext(
                     NameContext.create(stageName, stageName, stageName, stageName)),
                 stageBundleFactory,
-                outputReceivers));
+                outputReceivers,
+                input.getExecutableStage(),
+                ptransformIdToSideInputReaders,
+                ptransformIdToSideInputIdToPCollectionView));
       }
     };
   }
@@ -459,6 +500,33 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
     return ptransformIdToSideInputReaders.build();
   }
 
+  /** Returns a map from PTransform id to side input reader. */
+  private static ImmutableMap<String, SideInputReader> buildPTransformIdToSideInputReadersMap(
+      DataflowExecutionContext executionContext,
+      ExecutableStageNode registerRequestNode,
+      ImmutableMap<String, DataflowOperationContext> ptransformIdToOperationContexts) {
+
+    ImmutableMap.Builder<String, SideInputReader> ptransformIdToSideInputReaders =
+        ImmutableMap.builder();
+    for (Map.Entry<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionView :
+        registerRequestNode.getPTransformIdToPCollectionViewMap().entrySet()) {
+      try {
+        ptransformIdToSideInputReaders.put(
+            ptransformIdToPCollectionView.getKey(),
+            executionContext.getSideInputReader(
+                // Note that the side input infos will only be populated for a batch pipeline
+                registerRequestNode
+                    .getPTransformIdToSideInputInfoMap()
+                    .get(ptransformIdToPCollectionView.getKey()),
+                ptransformIdToPCollectionView.getValue(),
+                ptransformIdToOperationContexts.get(ptransformIdToPCollectionView.getKey())));
+      } catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
+    return ptransformIdToSideInputReaders.build();
+  }
+
   /**
    * Returns a table where the row key is the PTransform id, the column key is the side input id,
    * and the value is the corresponding PCollectionView.
@@ -478,6 +546,29 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
     }
 
     return ptransformIdToSideInputIdToPCollectionViewBuilder.build();
+  }
+
+  /**
+   * Returns a table where the row key is the PTransform id, the column key is the side input id,
+   * and the value is the corresponding PCollectionView.
+   */
+  private static Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>
+  buildPTransformIdToSideInputIdToPCollectionView(ExecutableStageNode executableStageNode) {
+    ImmutableMap.Builder<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputIdToPCollectionViewMapBuilder = ImmutableMap.builder();
+
+    for (Map.Entry<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViews :
+        executableStageNode.getPTransformIdToPCollectionViewMap().entrySet()) {
+      for (PCollectionView<?> pCollectionView : ptransformIdToPCollectionViews.getValue()) {
+        sideInputIdToPCollectionViewMapBuilder.put(
+            RunnerApi.ExecutableStagePayload.SideInputId.newBuilder()
+                .setTransformId(ptransformIdToPCollectionViews.getKey())
+                .setLocalName(pCollectionView.getTagInternal().getId())
+                .build(),
+            pCollectionView);
+      }
+    }
+
+    return sideInputIdToPCollectionViewMapBuilder.build();
   }
 
   /**

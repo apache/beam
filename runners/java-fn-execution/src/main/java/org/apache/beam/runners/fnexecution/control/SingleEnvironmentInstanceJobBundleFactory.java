@@ -109,7 +109,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
     try {
       descriptor =
           ProcessBundleDescriptors.fromExecutableStage(
-              idGenerator.getId(), stage, dataService.getApiServiceDescriptor());
+              idGenerator.getId(), stage, dataService.getApiServiceDescriptor(), stateService.getApiServiceDescriptor());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

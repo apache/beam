@@ -219,11 +219,13 @@ public class BatchDataflowWorker implements Closeable {
     // TODO: this conditional -> two implementations of common interface, or
     // param/injection
     if (DataflowRunner.hasExperiment(options, "beam_fn_api")) {
+      LOG.info("batbat: fn_api");
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork;
       Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
-      if (DataflowRunner.hasExperiment(options, "use_executable_stage_bundle_execution")) {
+      if (DataflowRunner.hasExperiment(options, "use_executable_stage_bundle_execution") || true) {
+        LOG.info("batbat: experiment");
         sdkFusedStage = new CreateExecutableStageNodeFunction(pipeline, idGenerator);
         transformToRunnerNetwork =
             new CreateRegisterFnOperationFunction(
@@ -232,6 +234,7 @@ public class BatchDataflowWorker implements Closeable {
                 lengthPrefixUnknownCoders.andThen(sdkFusedStage),
                 true);
       } else {
+        LOG.info("batbat: no experiment");
         sdkFusedStage =
             pipeline == null
                 ? RegisterNodeFunction.withoutPipeline(

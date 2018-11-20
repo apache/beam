@@ -64,10 +64,14 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utility methods for creating {@link ProcessBundleDescriptor} instances. */
 // TODO: Rename to ExecutableStages?
 public class ProcessBundleDescriptors {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleDescriptors.class);
 
   /**
    * Note that the {@link ProcessBundleDescriptor} is constructed by:
@@ -131,6 +135,8 @@ public class ProcessBundleDescriptors {
     outputTargetCodersBuilder.putAll(
         addStageOutputs(dataEndpoint, stage.getOutputPCollections(), components));
 
+
+    LOG.warn("batbat: executable stage being created");
     Map<String, Map<String, SideInputSpec>> sideInputSpecs = addSideInputs(stage, components);
 
     Map<String, Map<String, BagUserStateSpec>> bagUserStateSpecs =
@@ -243,6 +249,7 @@ public class ProcessBundleDescriptors {
   private static Map<String, Map<String, SideInputSpec>> addSideInputs(
       ExecutableStage stage, Components.Builder components) throws IOException {
     ImmutableTable.Builder<String, String, SideInputSpec> idsToSpec = ImmutableTable.builder();
+    LOG.warn("SIDEINPUT COUNT: " + stage.getSideInputs().size());
     for (SideInputReference sideInputReference : stage.getSideInputs()) {
       // Update the coder specification for side inputs to be length prefixed so that the
       // SDK and Runner agree on how to encode/decode the key, window, and values for
@@ -253,10 +260,12 @@ public class ProcessBundleDescriptors {
           LengthPrefixUnknownCoders.addLengthPrefixedCoder(pc.getCoderId(), components, false);
       components.putPcollections(
           pcNode.getId(), pc.toBuilder().setCoderId(lengthPrefixedCoderId).build());
+      LOG.warn("SIDEINPUT PCNODEID: " + pcNode.getId());
 
       FullWindowedValueCoder<KV<?, ?>> coder =
           (FullWindowedValueCoder)
               WireCoders.instantiateRunnerWireCoder(pcNode, components.build());
+      LOG.warn("SIDEINPUT: " + sideInputReference.localName());
       idsToSpec.put(
           sideInputReference.transform().getId(),
           sideInputReference.localName(),

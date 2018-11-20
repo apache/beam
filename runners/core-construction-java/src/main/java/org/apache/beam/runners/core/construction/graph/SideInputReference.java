@@ -58,4 +58,14 @@ public abstract class SideInputReference {
   public abstract String localName();
   /** The PCollection that backs this side input. */
   public abstract PCollectionNode collection();
+
+  @Override
+  public String toString() {
+    String answer = "\nSIDEINPUT reference printing\n";
+    answer += transform().getId() + "\n";
+    answer += transform().getTransform() + "\n";
+    answer += collection().getId() + "\n";
+    answer += collection().getPCollection() + "\n\n";
+    return answer;
+  }
 }

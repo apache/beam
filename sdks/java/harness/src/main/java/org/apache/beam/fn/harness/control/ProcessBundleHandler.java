@@ -43,6 +43,7 @@ import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
+import org.apache.beam.fn.harness.state.MultimapSideInput;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
@@ -333,6 +334,9 @@ public class ProcessBundleHandler {
       // completes.
       phaser.register();
       response.whenComplete((stateResponse, throwable) -> phaser.arriveAndDeregister());
+      BeamFnApi.StateKey.MultimapSideInput m = requestBuilder.getStateKey().getMultimapSideInput();
+      LOG.warn("SIDEINPUT STATEHANDLER PT: " + m.getPtransformId());
+      LOG.warn("SIDEINPUT STATEHANDLER SideInput ID: " + m.getSideInputId());
       beamFnStateClient.handle(requestBuilder, response);
     }
   }
@@ -355,6 +359,9 @@ public class ProcessBundleHandler {
 
     @Override
     public void handle(Builder requestBuilder, CompletableFuture<StateResponse> response) {
+      BeamFnApi.StateKey.MultimapSideInput m = requestBuilder.getStateKey().getMultimapSideInput();
+      LOG.warn("SIDEINPUT STATEHANDLER PT: " + m.getPtransformId());
+      LOG.warn("SIDEINPUT STATEHANDLER SideInput ID: " + m.getSideInputId());
       throw new IllegalStateException(
           String.format(
               "State API calls are unsupported because the "

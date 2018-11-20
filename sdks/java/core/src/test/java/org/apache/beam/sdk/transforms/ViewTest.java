@@ -46,11 +46,7 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
-import org.apache.beam.sdk.testing.NeedsRunner;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.testing.*;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
@@ -86,7 +82,7 @@ public class ViewTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, SideInputValidatesRunner.class})
   public void testSingletonSideInput() {
 
     final PCollectionView<Integer> view =
@@ -112,7 +108,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class})
   public void testWindowedSingletonSideInput() {
 
     final PCollectionView<Integer> view =

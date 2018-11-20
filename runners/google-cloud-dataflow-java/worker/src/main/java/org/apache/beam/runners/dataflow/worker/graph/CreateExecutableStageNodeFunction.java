@@ -20,37 +20,27 @@ package org.apache.beam.runners.dataflow.worker.graph;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.forSideInputInfos;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.services.dataflow.model.InstructionOutput;
-import com.google.api.services.dataflow.model.MapTask;
-import com.google.api.services.dataflow.model.MultiOutputInfo;
-import com.google.api.services.dataflow.model.ParDoInstruction;
-import com.google.api.services.dataflow.model.ParallelInstruction;
-import com.google.api.services.dataflow.model.ReadInstruction;
+import com.google.api.services.dataflow.model.*;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.Network;
 import java.io.IOException;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
-import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.runners.core.construction.CoderTranslation;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
+import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.construction.*;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -63,6 +53,7 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.CombinePhase;
+import org.apache.beam.runners.dataflow.worker.DataflowPortabilityPCollectionView;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.DefaultEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -74,12 +65,22 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNo
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.RemoteGrpcPortNode;
 import org.apache.beam.runners.dataflow.worker.util.CloudSourceUtils;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
+import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
+import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into an
@@ -87,6 +88,8 @@ import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBu
  */
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
+  private static final Logger LOG = LoggerFactory.getLogger(CreateExecutableStageNodeFunction.class);
+
   private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
 
   private static final String DATA_OUTPUT_URN = "urn:org.apache.beam:sink:runner:0.1";
@@ -181,6 +184,14 @@ public class CreateExecutableStageNodeFunction
 
     Map<Node, String> nodesToPCollections = new HashMap<>();
     ImmutableMap.Builder<String, NameContext> ptransformIdToNameContexts = ImmutableMap.builder();
+
+
+    ImmutableMap.Builder<String, Iterable<SideInputInfo>> ptransformIdToSideInputInfos =
+        ImmutableMap.builder();
+    ImmutableMap.Builder<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViews =
+        ImmutableMap.builder();
+
+
     // A field of ExecutableStage which includes the PCollection goes to worker side.
     Set<PCollectionNode> executableStageOutputs = new HashSet<>();
     // A field of ExecutableStage which includes the PCollection goes to runner side.
@@ -246,10 +257,14 @@ public class CreateExecutableStageNodeFunction
     }
 
     componentsBuilder.putAllCoders(sdkComponents.toComponents().getCodersMap());
+    RunnerApi.Components executableStageComponents = componentsBuilder.build();
+
     Set<PTransformNode> executableStageTransforms = new HashSet<>();
+    Set<SideInputReference> executableStageSideInputs = new HashSet<>();
 
     for (ParallelInstructionNode node :
         Iterables.filter(input.nodes(), ParallelInstructionNode.class)) {
+      ImmutableMap.Builder<String, PCollectionNode> sideInputIds = ImmutableMap.builder();
       ParallelInstruction parallelInstruction = node.getParallelInstruction();
       String ptransformId = "generatedPtransform" + idGenerator.getId();
       ptransformIdToNameContexts.put(
@@ -270,6 +285,7 @@ public class CreateExecutableStageNodeFunction
 
         if (userFnClassName.equals("CombineValuesFn") || userFnClassName.equals("KeyedCombineFn")) {
           transformSpec = transformCombineValuesFnToFunctionSpec(userFnSpec);
+          ptransformIdToPCollectionViews.put(ptransformId, Collections.emptyList());
         } else {
           String parDoPTransformId = getString(userFnSpec, PropertyNames.SERIALIZED_FN);
 
@@ -299,6 +315,55 @@ public class CreateExecutableStageNodeFunction
               throw new RuntimeException("ParDo did not have a ParDoPayload", exc);
             }
 
+//            for (Map.Entry<String, RunnerApi.SideInput> sideInputEntry :
+//                parDoPayload.getSideInputsMap().entrySet()) {
+//              transformSideInputForSdk(
+//                  pipeline,
+//                  parDoPTransform,
+//                  sideInputEntry.getKey(),
+//                  processBundleDescriptor,
+//                  pTransform);
+//            }
+
+//            List<SideInputReference> sideInputs
+            LOG.warn("SIDEINPUT getSideInputsMap.size" + parDoPayload.getSideInputsMap().size());
+
+            for (String sideInputTag: parDoPayload.getSideInputsMap().keySet()) {
+              String sideInputPCollectionId = parDoPTransform.getInputsOrThrow(sideInputTag);
+              RunnerApi.PCollection sideInputPCollection =
+                  pipeline
+                      .getComponents()
+                      .getPcollectionsOrThrow(sideInputPCollectionId);
+
+              LOG.warn("SIDEINPUT IDS: " + sideInputTag); // org.apache.beam.sdk.values.PCollectionViews$SimplePCollectionView.<init>:389#629bc2229cefe94d
+              LOG.warn("SIDEINPUT PTRANSFORM IDS: " + ptransformId); // generatedPtransform-637
+              LOG.warn("SIDEINPUT PCollection: " + parDoPTransform.getInputsOrThrow(sideInputTag)); // View.AsSingleton/Combine.GloballyAsSingletonView/View.VoidKeyToMultimapMaterialization/ParDo(VoidKeyToMultimapMaterialization)/ParMultiDo(VoidKeyToMultimapMaterialization).output"
+              pTransform.putInputs(sideInputTag, sideInputPCollectionId);
+
+              PCollectionNode pCollectionNode = PipelineNode.pCollection(sideInputPCollectionId, sideInputPCollection);
+              sideInputIds.put(sideInputTag, pCollectionNode);
+            }
+//            List<SideInputReference> sideInputs =
+//                parDoPayload.getSideInputsMap().keySet()
+//                    .stream()
+//                    .map(sideInputId -> SideInputReference.of(
+//                        sideInputId,
+//                        PipelineNode.pCollection()
+//                    ))
+//                    .collect(Collectors.toList());
+
+            ImmutableList.Builder<PCollectionView<?>> pcollectionViews = ImmutableList.builder();
+            for (Map.Entry<String, RunnerApi.SideInput> sideInputEntry :
+                parDoPayload.getSideInputsMap().entrySet()) {
+              pcollectionViews.add(
+                  RegisterNodeFunction.transformSideInputForRunner(
+                      pipeline,
+                      parDoPTransform,
+                      sideInputEntry.getKey(),
+                      sideInputEntry.getValue()));
+            }
+            ptransformIdToPCollectionViews.put(ptransformId, pcollectionViews.build());
+
             transformSpec
                 .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                 .setPayload(parDoPayload.toByteString());
@@ -309,6 +374,13 @@ public class CreateExecutableStageNodeFunction
             transformSpec
                 .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
                 .setPayload(ByteString.copyFrom(userFnBytes));
+          }
+
+
+          // Add side input information for batch pipelines
+          if (parDoInstruction.getSideInputs() != null) {
+            ptransformIdToSideInputInfos.put(
+                ptransformId, forSideInputInfos(parDoInstruction.getSideInputs(), true));
           }
         }
       } else if (parallelInstruction.getRead() != null) {
@@ -347,11 +419,26 @@ public class CreateExecutableStageNodeFunction
       }
 
       pTransform.setSpec(transformSpec);
-      executableStageTransforms.add(PipelineNode.pTransform(ptransformId, pTransform.build()));
+
+
+      // ---------------------------------------------------------------------------------------
+
+      PTransformNode pTransformNode = PipelineNode.pTransform(ptransformId, pTransform.build());
+
+      ImmutableMap<String, PCollectionNode> sideInputIdToPCollectionNodes = sideInputIds.build();
+      for (String sideInputTag: sideInputIdToPCollectionNodes.keySet()) {
+
+        SideInputReference sideInputReference = SideInputReference.of(pTransformNode, sideInputTag,
+            sideInputIdToPCollectionNodes.get(sideInputTag));
+        executableStageSideInputs.add(sideInputReference);
+        LOG.warn(sideInputReference.toString());
+      }
+
+
+      executableStageTransforms.add(pTransformNode);
     }
 
     PCollectionNode executableInput = executableStageInputs.iterator().next();
-    RunnerApi.Components executableStageComponents = componentsBuilder.build();
 
     // Get Environment from ptransform, otherwise, use JAVA_SDK_HARNESS_ENVIRONMENT as default.
     Environment executableStageEnv =
@@ -360,7 +447,7 @@ public class CreateExecutableStageNodeFunction
       executableStageEnv = Environments.JAVA_SDK_HARNESS_ENVIRONMENT;
     }
 
-    Set<SideInputReference> executableStageSideInputs = new HashSet<>();
+
     Set<TimerReference> executableStageTimers = new HashSet<>();
     Set<UserStateReference> executableStageUserStateReference = new HashSet<>();
     ExecutableStage executableStage =
@@ -373,7 +460,11 @@ public class CreateExecutableStageNodeFunction
             executableStageTimers,
             executableStageTransforms,
             executableStageOutputs);
-    return ExecutableStageNode.create(executableStage, ptransformIdToNameContexts.build());
+    return ExecutableStageNode.create(
+        executableStage,
+        ptransformIdToNameContexts.build(),
+        ptransformIdToSideInputInfos.build(),
+        ptransformIdToPCollectionViews.build());
   }
 
   private Environment getEnvironmentFromPTransform(

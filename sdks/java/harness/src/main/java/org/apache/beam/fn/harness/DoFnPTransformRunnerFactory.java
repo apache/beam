@@ -59,6 +59,8 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A {@link PTransformRunnerFactory} for transforms invoking a {@link DoFn}. */
 abstract class DoFnPTransformRunnerFactory<
@@ -67,6 +69,8 @@ abstract class DoFnPTransformRunnerFactory<
         OutputT,
         RunnerT extends DoFnPTransformRunnerFactory.DoFnPTransformRunner<TransformInputT>>
     implements PTransformRunnerFactory<RunnerT> {
+  private static final Logger LOG = LoggerFactory.getLogger(DoFnPTransformRunnerFactory.class);
+
   interface DoFnPTransformRunner<T> {
     void startBundle() throws Exception;
 
@@ -258,8 +262,12 @@ abstract class DoFnPTransformRunnerFactory<
               sideInput.getAccessPattern().getUrn(),
               sideInputTag);
 
+          LOG.warn("SIDEINPUT Harness tag: " + sideInputTag); // org.apache.beam.sdk.values.PCollectionViews$SimplePCollectionView.<init>:389#629bc2229cefe94d
+          LOG.warn("SIDEINPUT Harness PT id: " + pTransform.getUniqueName());
+
           PCollection sideInputPCollection =
               pCollections.get(pTransform.getInputsOrThrow(sideInputTag));
+          LOG.warn("SIDEINPUT Harness PC id: " + sideInputPCollection); // View.AsSingleton/Combine.GloballyAsSingletonView/View.VoidKeyToMultimapMaterialization/ParDo(VoidKeyToMultimapMaterialization)/ParMultiDo(VoidKeyToMultimapMaterialization).output
           WindowingStrategy sideInputWindowingStrategy =
               rehydratedComponents.getWindowingStrategy(
                   sideInputPCollection.getWindowingStrategyId());

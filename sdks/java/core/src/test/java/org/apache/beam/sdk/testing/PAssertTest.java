@@ -297,7 +297,7 @@ public class PAssertTest implements Serializable {
 
   /** Basic test for {@code isEqualTo}. */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, SideInputValidatesRunner.class})
   public void testIsEqualTo() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(43));
     PAssert.thatSingleton(pcollection).isEqualTo(43);
