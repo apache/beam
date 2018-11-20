@@ -67,34 +67,6 @@ message Components {
   map<string, Environment> environments = 5;
 }
 
-// A disjoint union of all the things that may contain references
-// that require Components to resolve.
-message MessageWithComponents {
-
-  // (Optional) The by-reference components of the root message,
-  // enabling a standalone message.
-  //
-  // If this is absent, it is expected that there are no
-  // references.
-  Components components = 1;
-
-  // (Required) The root message that may contain pointers
-  // that should be resolved by looking inside components.
-  oneof root {
-    Coder coder = 2;
-    CombinePayload combine_payload = 3;
-    SdkFunctionSpec sdk_function_spec = 4;
-    ParDoPayload par_do_payload = 6;
-    PTransform ptransform = 7;
-    PCollection pcollection = 8;
-    ReadPayload read_payload = 9;
-    SideInput side_input = 11;
-    WindowIntoPayload window_into_payload = 12;
-    WindowingStrategy windowing_strategy = 13;
-    FunctionSpec function_spec = 14;
-  }
-}
-
 // A Pipeline is a hierarchical graph of PTransforms, linked
 // by PCollections.
 //
@@ -365,75 +337,6 @@ message PCollection {
   // there is none, or it is not relevant (such as use by the Fn API)
   // then it may be omitted.
   DisplayData display_data = 5;
-}
-
-// The payload for an executable stage. This will eventually be passed to an SDK in the form of a
-// ProcessBundleDescriptor.
-message ExecutableStagePayload {
-
-  // (Required) Environment in which this stage executes.
-  //
-  // We use an environment rather than environment id
-  // because ExecutableStages use environments directly. This may change in the future.
-  Environment environment = 1;
-
-  // (Required) Input PCollection id. This must be present as a value in the inputs of any
-  // PTransform the ExecutableStagePayload is the payload of.
-  string input = 2;
-
-  // The side inputs required for this executable stage. Each side input of each PTransform within
-  // this ExecutableStagePayload must be represented within this field.
-  repeated SideInputId side_inputs = 3;
-
-  // PTransform ids contained within this executable stage. This must contain at least one
-  // PTransform id.
-  repeated string transforms = 4;
-
-  // Output PCollection ids. This must be equal to the values of the outputs of any
-  // PTransform the ExecutableStagePayload is the payload of.
-  repeated string outputs = 5;
-
-  // (Required) The components for the Executable Stage. This must contain all of the Transforms
-  // in transforms, and the closure of all of the components they recognize.
-  Components components = 6;
-
-  // The user states required for this executable stage. Each user state of each PTransform within
-  // this ExecutableStagePayload must be represented within this field.
-  repeated UserStateId user_states = 7;
-
-  // The timers required for this executable stage. Each timer of each PTransform within
-  // this ExecutableStagePayload must be represented within this field.
-  repeated TimerId timers = 8;
-
-  // A reference to a side input. Side inputs are uniquely identified by PTransform id and
-  // local name.
-  message SideInputId {
-    // (Required) The id of the PTransform that references this side input.
-    string transform_id = 1;
-
-    // (Required) The local name of this side input from the PTransform that references it.
-    string local_name = 2;
-  }
-
-  // A reference to user state. User states are uniquely identified by PTransform id and
-  // local name.
-  message UserStateId {
-    // (Required) The id of the PTransform that references this user state.
-    string transform_id = 1;
-
-    // (Required) The local name of this user state for the PTransform that references it.
-    string local_name = 2;
-  }
-
-  // A reference to a timer. Timers are uniquely identified by PTransform id and
-  // local name.
-  message TimerId {
-    // (Required) The id of the PTransform that references this timer.
-    string transform_id = 1;
-
-    // (Required) The local name of this timer for the PTransform that references it.
-    string local_name = 2;
-  }
 }
 
 // The payload for the primitive ParDo transform.
@@ -1180,5 +1083,107 @@ message DisplayData {
       DURATION = 6;
       JAVA_CLASS = 7;
     }
+  }
+}
+
+
+// The following transforms are not part of the RunnerApi specification,
+// but may be useful for graph construction and manipulation.
+
+
+// A disjoint union of all the things that may contain references
+// that require Components to resolve.
+message MessageWithComponents {
+
+  // (Optional) The by-reference components of the root message,
+  // enabling a standalone message.
+  //
+  // If this is absent, it is expected that there are no
+  // references.
+  Components components = 1;
+
+  // (Required) The root message that may contain pointers
+  // that should be resolved by looking inside components.
+  oneof root {
+    Coder coder = 2;
+    CombinePayload combine_payload = 3;
+    SdkFunctionSpec sdk_function_spec = 4;
+    ParDoPayload par_do_payload = 6;
+    PTransform ptransform = 7;
+    PCollection pcollection = 8;
+    ReadPayload read_payload = 9;
+    SideInput side_input = 11;
+    WindowIntoPayload window_into_payload = 12;
+    WindowingStrategy windowing_strategy = 13;
+    FunctionSpec function_spec = 14;
+  }
+}
+
+// The payload for an executable stage. This will eventually be passed to an SDK in the form of a
+// ProcessBundleDescriptor.
+message ExecutableStagePayload {
+
+  // (Required) Environment in which this stage executes.
+  //
+  // We use an environment rather than environment id
+  // because ExecutableStages use environments directly. This may change in the future.
+  Environment environment = 1;
+
+  // (Required) Input PCollection id. This must be present as a value in the inputs of any
+  // PTransform the ExecutableStagePayload is the payload of.
+  string input = 2;
+
+  // The side inputs required for this executable stage. Each side input of each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
+  repeated SideInputId side_inputs = 3;
+
+  // PTransform ids contained within this executable stage. This must contain at least one
+  // PTransform id.
+  repeated string transforms = 4;
+
+  // Output PCollection ids. This must be equal to the values of the outputs of any
+  // PTransform the ExecutableStagePayload is the payload of.
+  repeated string outputs = 5;
+
+  // (Required) The components for the Executable Stage. This must contain all of the Transforms
+  // in transforms, and the closure of all of the components they recognize.
+  Components components = 6;
+
+  // The user states required for this executable stage. Each user state of each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
+  repeated UserStateId user_states = 7;
+
+  // The timers required for this executable stage. Each timer of each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
+  repeated TimerId timers = 8;
+
+  // A reference to a side input. Side inputs are uniquely identified by PTransform id and
+  // local name.
+  message SideInputId {
+    // (Required) The id of the PTransform that references this side input.
+    string transform_id = 1;
+
+    // (Required) The local name of this side input from the PTransform that references it.
+    string local_name = 2;
+  }
+
+  // A reference to user state. User states are uniquely identified by PTransform id and
+  // local name.
+  message UserStateId {
+    // (Required) The id of the PTransform that references this user state.
+    string transform_id = 1;
+
+    // (Required) The local name of this user state for the PTransform that references it.
+    string local_name = 2;
+  }
+
+  // A reference to a timer. Timers are uniquely identified by PTransform id and
+  // local name.
+  message TimerId {
+    // (Required) The id of the PTransform that references this timer.
+    string transform_id = 1;
+
+    // (Required) The local name of this timer for the PTransform that references it.
+    string local_name = 2;
   }
 }
