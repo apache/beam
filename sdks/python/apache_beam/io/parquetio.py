@@ -276,6 +276,10 @@ class WriteToParquet(PTransform):
     records. Each record is a dictionary with keys of a string type that
     represent column names. Schema must be specified like the example below.
 
+    .. testsetup::
+
+      import pyarrow
+
     .. testcode::
 
       with beam.Pipeline() as p:

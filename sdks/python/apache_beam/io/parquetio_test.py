@@ -25,6 +25,7 @@ import tempfile
 import unittest
 
 import hamcrest as hc
+import pandas
 import pyarrow as pa
 import pyarrow.parquet as pq
 
@@ -348,24 +349,18 @@ class TestParquet(unittest.TestCase):
     self.assertNotEquals(len(splits), 1)
 
   def _convert_to_timestamped_record(self, record):
-    import pandas
     timestamped_record = record.copy()
     timestamped_record['favorite_number'] =\
       pandas.Timestamp(timestamped_record['favorite_number'])
     return timestamped_record
 
-  def test_type_conversion(self):
+  def test_int96_type_conversion(self):
     file_name = self._write_data(
         count=120, row_group_size=20, schema=self.SCHEMA96)
-    try:
-      expected_result = [
-          self._convert_to_timestamped_record(x) for x in self.RECORDS
-      ] * 20
-      self._run_parquet_test(file_name, None, None, False, expected_result)
-    except ImportError:
-      with self.assertRaises(ValueError):
-        source = _create_parquet_source(file_name)
-        source_test_utils.read_from_source(source)
+    expected_result = [
+        self._convert_to_timestamped_record(x) for x in self.RECORDS
+    ] * 20
+    self._run_parquet_test(file_name, None, None, False, expected_result)
 
   def test_split_points(self):
     file_name = self._write_data(count=12000, row_group_size=3000)
