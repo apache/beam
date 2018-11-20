@@ -202,7 +202,7 @@ public class RedisIOTest {
     writePipeline.run();
 
     long count = jedis.pfcount(key);
-    Assert.assertTrue(0.9 * values.length <= count && count <= values.length);
+    Assert.assertTrue(count == values.length);
   }
 
   @Test
