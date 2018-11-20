@@ -169,6 +169,24 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
 
 
+class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
+
+  @classmethod
+  def setUpClass(cls):
+    cls._worker_address, cls._worker_server = (
+        portable_runner.BeamFnExternalWorkerPoolServicer.start())
+
+  @classmethod
+  def tearDownClass(cls):
+    cls._worker_server.stop(1)
+
+  def create_options(self):
+    options = super(PortableRunnerTestWithExternalEnv, self).create_options()
+    options.view_as(PortableOptions).environment_type = 'EXTERNAL'
+    options.view_as(PortableOptions).environment_config = self._worker_address
+    return options
+
+
 @unittest.skip("BEAM-3040")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True

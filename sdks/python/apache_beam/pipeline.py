@@ -615,6 +615,9 @@ class Pipeline(object):
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
           default_environment=default_environment)
+    elif default_environment is not None:
+      raise ValueError(
+          'Only one of context or default_environment may be specificed.')
 
     # The RunnerAPI spec requires certain transforms to have KV inputs
     # (and corresponding outputs).

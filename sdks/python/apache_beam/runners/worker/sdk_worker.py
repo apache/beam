@@ -48,11 +48,13 @@ class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
   SCHEDULING_DELAY_THRESHOLD_SEC = 5*60  # 5 Minutes
 
-  def __init__(self, control_address, worker_count, credentials=None,
-               profiler_factory=None):
+  def __init__(
+      self, control_address, worker_count, credentials=None, worker_id=None,
+      profiler_factory=None):
     self._alive = True
     self._worker_count = worker_count
     self._worker_index = 0
+    self._worker_id = worker_id
     if credentials is None:
       logging.info('Creating insecure control channel.')
       self._control_channel = grpc.insecure_channel(control_address)
@@ -63,7 +65,7 @@ class SdkHarness(object):
     logging.info('Control channel established.')
 
     self._control_channel = grpc.intercept_channel(
-        self._control_channel, WorkerIdInterceptor())
+        self._control_channel, WorkerIdInterceptor(self._worker_id))
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
         credentials)
     self._state_handler_factory = GrpcStateHandlerFactory()
