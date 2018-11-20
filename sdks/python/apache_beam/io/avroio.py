@@ -360,10 +360,10 @@ class _AvroBlock(object):
   def records(self):
     decoder = avroio.BinaryDecoder(
         io.BytesIO(self._decompressed_block_bytes))
-    # Kwargs writers_schema and readers_schema were renamed to
-    # writer_schema and reader_schema in py3.
-    # Therefore, the kwargs were left out to be both py2 and py3 compatible.
-    reader = avroio.DatumReader(self._schema, self._schema)
+
+    writer_schema = self._schema
+    reader_schema = self._schema
+    reader = avroio.DatumReader(writer_schema, reader_schema)
 
     current_record = 0
     while current_record < self._num_records:
