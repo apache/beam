@@ -1323,6 +1323,28 @@ class GrpcWorkerHandler(WorkerHandler):
     super(GrpcWorkerHandler, self).close()
 
 
+@WorkerHandler.register_environment(
+    common_urns.environments.EXTERNAL.urn, beam_runner_api_pb2.ExternalPayload)
+class ExternalWorkerHandler(GrpcWorkerHandler):
+  def __init__(self, external_payload, state):
+    super(ExternalWorkerHandler, self).__init__(state)
+    self._external_payload = external_payload
+
+  def start_worker(self):
+    stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolStub(
+        grpc.insecure_channel(self._external_payload.endpoint.url))
+    response = stub.NotifyRunnerAvailable(
+        beam_fn_api_pb2.NotifyRunnerAvailableRequest(
+            control_endpoint=endpoints_pb2.ApiServiceDescriptor(
+                url=self.control_address),
+            params=self._external_payload.params))
+    if response.error:
+      raise RuntimeError("Error starting worker: %s" % response.error)
+
+  def stop_worker(self):
+    pass
+
+
 @WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
   def __init__(self, num_workers_payload, state):

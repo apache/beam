@@ -976,3 +976,23 @@ service BeamFnLogging {
     stream LogControl
   ) {}
 }
+
+
+message NotifyRunnerAvailableRequest {
+  string worker_id = 1;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 2;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor logging_endpoint = 3;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_endpoint = 4;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor provision_endpoint = 5;
+  map<string, string> params = 10;
+}
+
+message NotifyRunnerAvailableResponse {
+  string error = 1;
+}
+
+service BeamFnExternalWorkerPool {
+  rpc NotifyRunnerAvailable(NotifyRunnerAvailableRequest)
+    returns (NotifyRunnerAvailableResponse) {
+  }
+}

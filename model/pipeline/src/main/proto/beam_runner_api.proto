@@ -29,6 +29,7 @@ option go_package = "pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "RunnerApi";
 
+import "endpoints.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
 
@@ -980,6 +981,11 @@ message ProcessPayload {
   string arch = 2;  // "amd64", ..
   string command = 3; // process to execute
   map<string, string> env = 4; // Environment variables
+}
+
+message ExternalPayload {
+  ApiServiceDescriptor endpoint = 1;
+  map<string, string> params = 2;  // Arbitrary extra parameters to pass
 }
 
 // A specification of a user defined function.

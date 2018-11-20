@@ -18,9 +18,10 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
@@ -32,27 +33,23 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * An {@link EnvironmentFactory} which forks processes based on the parameters in the Environment.
- * The returned {@link ProcessEnvironment} has to make sure to stop the processes.
- */
-public class ProcessEnvironmentFactory implements EnvironmentFactory {
+/** An {@link EnvironmentFactory} which requests workers via the given URL in the Environment. */
+public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ProcessEnvironmentFactory.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ExternalEnvironmentFactory.class);
 
-  public static ProcessEnvironmentFactory create(
-      ProcessManager processManager,
+  public static ExternalEnvironmentFactory create(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator) {
-    return new ProcessEnvironmentFactory(
-        processManager,
+    return new ExternalEnvironmentFactory(
         controlServiceServer,
         loggingServiceServer,
         retrievalServiceServer,
@@ -61,7 +58,6 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
         clientSource);
   }
 
-  private final ProcessManager processManager;
   private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
@@ -69,15 +65,13 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
 
-  private ProcessEnvironmentFactory(
-      ProcessManager processManager,
+  private ExternalEnvironmentFactory(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource) {
-    this.processManager = processManager;
     this.controlServiceServer = controlServiceServer;
     this.loggingServiceServer = loggingServiceServer;
     this.retrievalServiceServer = retrievalServiceServer;
@@ -86,67 +80,68 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     this.clientSource = clientSource;
   }
 
-  /** Creates a new, active {@link RemoteEnvironment} backed by a forked process. */
+  /** Creates a new, active {@link RemoteEnvironment} backed by an unmanaged worker. */
   @Override
   public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
     Preconditions.checkState(
         environment
             .getUrn()
-            .equals(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.PROCESS)),
-        "The passed environment does not contain a ProcessPayload.");
-    final RunnerApi.ProcessPayload processPayload =
-        RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
+            .equals(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.EXTERNAL)),
+        "The passed environment does not contain an ExternalPayload.");
+    final RunnerApi.ExternalPayload externalPayload =
+        RunnerApi.ExternalPayload.parseFrom(environment.getPayload());
     final String workerId = idGenerator.getId();
 
-    String executable = processPayload.getCommand();
-    String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
-    String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
-    String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
-    String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
+    BeamFnApi.NotifyRunnerAvailableRequest notifyRunnerAvailableRequest =
+        BeamFnApi.NotifyRunnerAvailableRequest.newBuilder()
+            .setWorkerId(workerId)
+            .setControlEndpoint(controlServiceServer.getApiServiceDescriptor())
+            .setLoggingEndpoint(loggingServiceServer.getApiServiceDescriptor())
+            .setArtifactEndpoint(retrievalServiceServer.getApiServiceDescriptor())
+            .setProvisionEndpoint(provisioningServiceServer.getApiServiceDescriptor())
+            .putAllParams(externalPayload.getParamsMap())
+            .build();
 
-    ImmutableList<String> args =
-        ImmutableList.of(
-            String.format("--id=%s", workerId),
-            String.format("--logging_endpoint=%s", loggingEndpoint),
-            String.format("--artifact_endpoint=%s", artifactEndpoint),
-            String.format("--provision_endpoint=%s", provisionEndpoint),
-            String.format("--control_endpoint=%s", controlEndpoint));
-
-    LOG.debug("Creating Process for worker ID {}", workerId);
-    // Wrap the blocking call to clientSource.get in case an exception is thrown.
-    InstructionRequestHandler instructionHandler = null;
-    try {
-      ProcessManager.RunningProcess process =
-          processManager.startProcess(workerId, executable, args, processPayload.getEnvMap());
-      // Wait on a client from the gRPC server.
-      while (instructionHandler == null) {
-        try {
-          // If the process is not alive anymore, we abort.
-          process.isAliveOrThrow();
-          instructionHandler = clientSource.take(workerId, Duration.ofMinutes(2));
-        } catch (TimeoutException timeoutEx) {
-          LOG.info(
-              "Still waiting for startup of environment '{}' for worker id {}",
-              processPayload.getCommand(),
-              workerId);
-        } catch (InterruptedException interruptEx) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(interruptEx);
-        }
-      }
-    } catch (Exception e) {
-      try {
-        processManager.stopProcess(workerId);
-      } catch (Exception processKillException) {
-        e.addSuppressed(processKillException);
-      }
-      throw e;
+    LOG.debug("Requesting worker ID {}", workerId);
+    BeamFnApi.NotifyRunnerAvailableResponse notifyRunnerAvailableResponse =
+        BeamFnExternalWorkerPoolGrpc.newBlockingStub(
+                ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint()))
+            .notifyRunnerAvailable(notifyRunnerAvailableRequest);
+    if (!notifyRunnerAvailableResponse.getError().isEmpty()) {
+      throw new RuntimeException(notifyRunnerAvailableResponse.getError());
     }
 
-    return ProcessEnvironment.create(processManager, environment, workerId, instructionHandler);
+    // Wait on a client from the gRPC server.
+    InstructionRequestHandler instructionHandler = null;
+    while (instructionHandler == null) {
+      try {
+        instructionHandler = clientSource.take(workerId, Duration.ofMinutes(2));
+      } catch (TimeoutException timeoutEx) {
+        LOG.info(
+            "Still waiting for startup of environment from {} for worker id {}",
+            externalPayload.getEndpoint().getUrl(),
+            workerId);
+      } catch (InterruptedException interruptEx) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(interruptEx);
+      }
+    }
+    final InstructionRequestHandler finalInstructionHandler = instructionHandler;
+
+    return new RemoteEnvironment() {
+      @Override
+      public Environment getEnvironment() {
+        return environment;
+      }
+
+      @Override
+      public InstructionRequestHandler getInstructionRequestHandler() {
+        return finalInstructionHandler;
+      }
+    };
   }
 
-  /** Provider of ProcessEnvironmentFactory. */
+  /** Provider of ExternalEnvironmentFactory. */
   public static class Provider implements EnvironmentFactory.Provider {
     @Override
     public EnvironmentFactory createEnvironmentFactory(
@@ -157,7 +152,6 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
         ControlClientPool clientPool,
         IdGenerator idGenerator) {
       return create(
-          ProcessManager.create(),
           controlServiceServer,
           loggingServiceServer,
           retrievalServiceServer,
