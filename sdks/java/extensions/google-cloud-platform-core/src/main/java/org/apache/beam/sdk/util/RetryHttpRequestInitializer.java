@@ -58,6 +58,8 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
   /** Http response timeout to use for hanging gets. */
   private static final int HANGING_GET_TIMEOUT_SEC = 80;
 
+  private int writeTimeout;
+
   /** Handlers used to provide additional logging information on unsuccessful HTTP requests. */
   private static class LoggingHttpBackOffHandler
       implements HttpIOExceptionHandler, HttpUnsuccessfulResponseHandler {
@@ -214,6 +216,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     this.sleeper = sleeper;
     this.ignoredResponseCodes.addAll(additionalIgnoredResponseCodes);
     this.responseInterceptor = responseInterceptor;
+    this.writeTimeout = 0;
   }
 
   @Override
@@ -221,6 +224,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     // Set a timeout for hanging-gets.
     // TODO: Do this exclusively for work requests.
     request.setReadTimeout(HANGING_GET_TIMEOUT_SEC * 1000);
+    request.setWriteTimeout(this.writeTimeout);
 
     LoggingHttpBackOffHandler loggingHttpBackOffHandler =
         new LoggingHttpBackOffHandler(
@@ -240,5 +244,9 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     if (responseInterceptor != null) {
       request.setResponseInterceptor(responseInterceptor);
     }
+  }
+
+  public void setWriteTimeout(int writeTimeout) {
+    this.writeTimeout = writeTimeout;
   }
 }
