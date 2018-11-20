@@ -37,6 +37,7 @@ from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import coder_impl
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
+from apache_beam.metrics import monitoring_infos
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -150,7 +151,6 @@ class StateBackedSideInputMap(object):
     self._element_coder = coder.wrapped_value_coder
     self._target_window_coder = coder.window_coder
     # TODO(robertwb): Limit the cache size.
-    # TODO(robertwb): Cross-bundle caching respecting cache tokens.
     self._cache = {}
 
   def __getitem__(self, window):
@@ -203,6 +203,10 @@ class StateBackedSideInputMap(object):
   def is_globally_windowed(self):
     return (self._side_input_data.window_mapping_fn
             == sideinputs._global_window_mapping_fn)
+
+  def reset(self):
+    # TODO(BEAM-5428): Cross-bundle caching respecting cache tokens.
+    self._cache = {}
 
 
 class CombiningValueRuntimeState(userstate.RuntimeState):
@@ -309,6 +313,10 @@ class FnApiUserStateContext(userstate.UserStateContext):
     else:
       raise NotImplementedError(state_spec)
 
+  def reset(self):
+    # TODO(BEAM-5428): Implement cross-bundle state caching.
+    pass
+
 
 def memoize(func):
   cache = {}
@@ -341,6 +349,8 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+    for op in self.ops.values():
+      op.setup()
 
   def create_execution_tree(self, descriptor):
 
@@ -384,6 +394,13 @@ class BundleProcessor(object):
         for transform_id in sorted(
             descriptor.transforms, key=topological_height, reverse=True)])
 
+  def reset(self):
+    self.counter_factory.reset()
+    self.state_sampler.reset()
+    # Side input caches.
+    for op in self.ops.values():
+      op.reset()
+
   def process_bundle(self, instruction_id):
     expected_inputs = []
     for op in self.ops.values():
@@ -426,6 +443,7 @@ class BundleProcessor(object):
       self.state_sampler.stop_if_still_running()
 
   def metrics(self):
+    # DEPRECATED
     return beam_fn_api_pb2.Metrics(
         # TODO(robertwb): Rename to progress?
         ptransforms={
@@ -434,16 +452,18 @@ class BundleProcessor(object):
             for transform_id, op in self.ops.items()})
 
   def _fix_output_tags(self, transform_id, metrics):
+    # DEPRECATED
+    actual_output_tags = list(
+        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
     # Outputs are still referred to by index, not by name, in many Operations.
     # However, if there is exactly one output, we can fix up the name here.
+
     def fix_only_output_tag(actual_output_tag, mapping):
       if len(mapping) == 1:
         fake_output_tag, count = only_element(list(mapping.items()))
         if fake_output_tag != actual_output_tag:
           del mapping[fake_output_tag]
           mapping[actual_output_tag] = count
-    actual_output_tags = list(
-        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
     if len(actual_output_tags) == 1:
       fix_only_output_tag(
           actual_output_tags[0],
@@ -452,6 +472,25 @@ class BundleProcessor(object):
           actual_output_tags[0],
           metrics.active_elements.measured.output_element_counts)
     return metrics
+
+  def monitoring_infos(self):
+    """Returns the list of MonitoringInfos collected processing this bundle."""
+    # Construct a new dict first to remove duplciates.
+    all_monitoring_infos_dict = {}
+    for transform_id, op in self.ops.items():
+      for mi in op.monitoring_infos(transform_id).values():
+        fixed_mi = self._fix_output_tags_monitoring_info(transform_id, mi)
+        all_monitoring_infos_dict[monitoring_infos.to_key(fixed_mi)] = fixed_mi
+    return list(all_monitoring_infos_dict.values())
+
+  def _fix_output_tags_monitoring_info(self, transform_id, monitoring_info):
+    actual_output_tags = list(
+        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
+    if ('TAG' in monitoring_info.labels and
+        monitoring_info.labels['TAG'] == 'ONLY_OUTPUT'):
+      if len(actual_output_tags) == 1:
+        monitoring_info.labels['TAG'] = actual_output_tags[0]
+    return monitoring_info
 
 
 class BeamTransformFactory(object):
@@ -476,6 +515,9 @@ class BeamTransformFactory(object):
 
   def create_operation(self, transform_id, consumers):
     transform_proto = self.descriptor.transforms[transform_id]
+    if not transform_proto.unique_name:
+      logging.warn("No unique name set for transform %s" % transform_id)
+      transform_proto.unique_name = transform_id
     creator, parameter_type = self._known_urns[transform_proto.spec.urn]
     payload = proto_utils.parse_Bytes(
         transform_proto.spec.payload, parameter_type)
@@ -559,15 +601,21 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
       name=only_element(list(transform_proto.outputs.keys())))
+  if grpc_port.coder_id:
+    output_coder = factory.get_coder(grpc_port.coder_id)
+  else:
+    logging.error(
+        'Missing required coder_id on grpc_port for %s; '
+        'using deprecated fallback.',
+        transform_id)
+    output_coder = factory.get_only_output_coder(transform_proto)
   return DataInputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_coder(grpc_port.coder_id)
-      if grpc_port.coder_id
-      else factory.get_only_output_coder(transform_proto),
+      output_coder,
       input_target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
@@ -578,15 +626,21 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
       name=only_element(list(transform_proto.inputs.keys())))
+  if grpc_port.coder_id:
+    output_coder = factory.get_coder(grpc_port.coder_id)
+  else:
+    logging.error(
+        'Missing required coder_id on grpc_port for %s; '
+        'using deprecated fallback.',
+        transform_id)
+    output_coder = factory.get_only_input_coder(transform_proto)
   return DataOutputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_coder(grpc_port.coder_id)
-      if grpc_port.coder_id
-      else factory.get_only_input_coder(transform_proto),
+      output_coder,
       target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 

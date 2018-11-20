@@ -46,7 +46,7 @@ configurations {
   validatesRunner
 }
 
-def flink_version = "1.5.3"
+def flink_version = "1.5.5"
 
 dependencies {
   compile library.java.guava
@@ -54,6 +54,7 @@ dependencies {
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-vendor-grpc-v1_13_1", configuration: "shadow")
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api
   shadow library.java.joda_time

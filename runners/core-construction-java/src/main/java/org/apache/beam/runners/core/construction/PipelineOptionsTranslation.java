@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import com.fasterxml.jackson.core.TreeNode;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.ImmutableMap;
@@ -28,9 +28,9 @@ import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.util.JsonFormat;
 
 /**
  * Utilities for going to/from Runner API pipeline options.
@@ -97,9 +97,17 @@ public class PipelineOptionsTranslation {
   /** Converts the provided Json{@link String} into {@link PipelineOptions}. */
   public static PipelineOptions fromJson(String optionsJson) {
     try {
-      Struct.Builder builder = Struct.newBuilder();
-      JsonFormat.parser().merge(optionsJson, builder);
-      return fromProto(builder.build());
+      Map<String, Object> probingOptionsMap =
+          MAPPER.readValue(optionsJson, new TypeReference<Map<String, Object>>() {});
+      if (probingOptionsMap.containsKey("options")) {
+        //Legacy options.
+        return MAPPER.readValue(optionsJson, PipelineOptions.class);
+      } else {
+        // Fn Options with namespace and version.
+        Struct.Builder builder = Struct.newBuilder();
+        JsonFormat.parser().merge(optionsJson, builder);
+        return fromProto(builder.build());
+      }
     } catch (IOException e) {
       throw new RuntimeException("Failed to read PipelineOptions from JSON", e);
     }

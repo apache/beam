@@ -113,6 +113,10 @@ class PaneInfo(object):
             self.index == other.index and
             self.nonspeculative_index == other.nonspeculative_index)
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
   def __hash__(self):
     return hash((self.is_first, self.is_last, self.timing, self.index,
                  self.nonspeculative_index))
@@ -188,6 +192,10 @@ class WindowedValue(object):
             and self.value == other.value
             and self.windows == other.windows
             and self.pane_info == other.pane_info)
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __hash__(self):
     return (hash(self.value) +

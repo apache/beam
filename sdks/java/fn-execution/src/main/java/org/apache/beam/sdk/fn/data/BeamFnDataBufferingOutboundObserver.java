@@ -22,8 +22,8 @@ import java.io.IOException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,6 +113,13 @@ public class BeamFnDataBufferingOutboundObserver<T>
   }
 
   @Override
+  public void flush() throws IOException {
+    if (bufferedElements.size() > 0) {
+      outboundObserver.onNext(convertBufferForTransmission().build());
+    }
+  }
+
+  @Override
   public void accept(WindowedValue<T> t) throws IOException {
     if (closed) {
       throw new IllegalStateException("Already closed.");
@@ -120,7 +127,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
     coder.encode(t, bufferedElements);
     counter += 1;
     if (bufferedElements.size() >= bufferLimit) {
-      outboundObserver.onNext(convertBufferForTransmission().build());
+      flush();
     }
   }
 

@@ -370,14 +370,11 @@ func (w *dataWriter) Flush() error {
 }
 
 func (w *dataWriter) Write(p []byte) (n int, err error) {
-	if len(p) > chunkSize {
-		panic(fmt.Sprintf("Incoming message too big for transport: %d > %d", len(p), chunkSize))
-	}
-
 	if len(w.buf)+len(p) > chunkSize {
+		l := len(w.buf)
 		// We can't fit this message into the buffer. We need to flush the buffer
 		if err := w.Flush(); err != nil {
-			return 0, err
+			return 0, fmt.Errorf("datamgr.go: error flushing buffer of length %d: %v", l, err)
 		}
 	}
 

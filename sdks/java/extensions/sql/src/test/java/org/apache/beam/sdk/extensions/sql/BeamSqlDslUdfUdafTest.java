@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.linq4j.function.Parameter;
+import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for UDF/UDAF. */
@@ -60,6 +62,36 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
             .apply(
                 "testUdaf2", SqlTransform.query(sql2).registerUdaf("squaresum2", new SquareSum()));
     PAssert.that(result2).containsInAnyOrder(row);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /** Test Joda time UDF/UDAF. */
+  @Test
+  public void testJodaTimeUdfUdaf() throws Exception {
+    Schema resultType = Schema.builder().addDateTimeField("jodatime").build();
+
+    Row row1 =
+        Row.withSchema(resultType)
+            .addValues(parseTimestampWithoutTimeZone("2017-01-01 02:04:03"))
+            .build();
+
+    String sql1 = "SELECT MAX_JODA(f_timestamp) as jodatime FROM PCOLLECTION";
+    PCollection<Row> result1 =
+        boundedInput1.apply(
+            "testJodaUdaf", SqlTransform.query(sql1).registerUdaf("MAX_JODA", new JodaMax()));
+    PAssert.that(result1).containsInAnyOrder(row1);
+
+    Row row2 =
+        Row.withSchema(resultType)
+            .addValues(parseTimestampWithoutTimeZone("2016-12-31 01:01:03"))
+            .build();
+
+    String sql2 = "SELECT PRE_DAY(f_timestamp) as jodatime FROM PCOLLECTION WHERE f_int=1";
+    PCollection<Row> result2 =
+        boundedInput1.apply(
+            "testJodaUdf", SqlTransform.query(sql2).registerUdf("PRE_DAY", JodaPreviousDay.class));
+    PAssert.that(result2).containsInAnyOrder(row2);
 
     pipeline.run().waitUntilFinish();
   }
@@ -197,6 +229,33 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     }
   }
 
+  /** UDAF(CombineFn) to test support of Joda time. */
+  public static class JodaMax extends CombineFn<Instant, Instant, Instant> {
+    @Override
+    public Instant createAccumulator() {
+      return new Instant(0L);
+    }
+
+    @Override
+    public Instant addInput(Instant accumulator, Instant input) {
+      return accumulator.isBefore(input) ? input : accumulator;
+    }
+
+    @Override
+    public Instant mergeAccumulators(Iterable<Instant> accumulators) {
+      Instant v = new Instant(0L);
+      for (Instant accumulator : accumulators) {
+        v = accumulator.isBefore(v) ? v : accumulator;
+      }
+      return v;
+    }
+
+    @Override
+    public Instant extractOutput(Instant accumulator) {
+      return accumulator;
+    }
+  }
+
   /**
    * Non-parameterized CombineFn. Intended to test that non-parameterized CombineFns are correctly
    * rejected. The methods just return null, as they should never be called.
@@ -252,6 +311,13 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     public static String eval(
         @Parameter(name = "s") String s, @Parameter(name = "n", optional = true) Integer n) {
       return s.substring(0, n == null ? 1 : n);
+    }
+  }
+
+  /** A UDF to test support of Joda time. */
+  public static final class JodaPreviousDay implements BeamSqlUdf {
+    public static Instant eval(Instant time) {
+      return new Instant(time.getMillis() - 24 * 3600 * 1000L);
     }
   }
 }

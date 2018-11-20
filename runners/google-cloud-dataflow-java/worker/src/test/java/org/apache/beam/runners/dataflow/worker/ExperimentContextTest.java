@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertFalse;
@@ -38,7 +37,7 @@ public class ExperimentContextTest {
 
   @Test
   public void testAllExperiments() {
-    Set<String> experimentNames = new HashSet<String>();
+    Set<String> experimentNames = new HashSet<>();
     ExperimentContext ec = ExperimentContext.parseFrom(experimentNames);
     // So far nothing is enabled.
     for (Experiment experiment : Experiment.values()) {

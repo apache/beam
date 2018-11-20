@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.artifact;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -32,7 +31,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -42,11 +40,11 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,7 +130,7 @@ public class BeamFileSystemArtifactRetrievalService
       ResourceId artifactResourceId =
           FileSystems.matchNewResource(location.getUri(), false /* is directory */);
       LOG.debug("Artifact {} located in {}", name, artifactResourceId);
-      Hasher hasher = Hashing.md5().newHasher();
+      Hasher hasher = Hashing.sha256().newHasher();
       byte[] data = new byte[ARTIFACT_CHUNK_SIZE_BYTES];
       try (InputStream stream = Channels.newInputStream(FileSystems.open(artifactResourceId))) {
         int len;
@@ -144,15 +142,15 @@ public class BeamFileSystemArtifactRetrievalService
                   .build());
         }
       }
-      if (metadata.getMd5() != null && !metadata.getMd5().isEmpty()) {
-        ByteString expected = ByteString.copyFrom(Base64.getDecoder().decode(metadata.getMd5()));
-        ByteString actual = ByteString.copyFrom(hasher.hash().asBytes());
+      if (metadata.getSha256() != null && !metadata.getSha256().isEmpty()) {
+        String expected = metadata.getSha256();
+        String actual = hasher.hash().toString();
         if (!actual.equals(expected)) {
           throw new StatusRuntimeException(
               Status.DATA_LOSS.withDescription(
                   String.format(
-                      "Artifact %s is corrupt: expected md5 %s, actual %s",
-                      name, expected.toString(), actual.toString())));
+                      "Artifact %s is corrupt: expected sha256 %s, actual %s",
+                      name, expected, actual)));
         }
       }
       responseObserver.onCompleted();

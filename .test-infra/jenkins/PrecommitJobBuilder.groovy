@@ -29,6 +29,9 @@ class PrecommitJobBuilder {
   /**  The Gradle task to execute. */
   String gradleTask
 
+  /** If defined, set of additional switches to pass to Gradle. */
+  List<String> gradleSwitches = []
+
   /** Overall job timeout. */
   int timeoutMins = 120
 
@@ -68,7 +71,9 @@ class PrecommitJobBuilder {
       '^gradle.bat$',
       '^settings.gradle$'
     ]
-    triggerPathPatterns.addAll defaultPathTriggers
+    if (triggerPathPatterns) {
+      triggerPathPatterns.addAll defaultPathTriggers
+    }
     job.with {
       description buildDescription('for each commit push.')
       concurrentBuild()
@@ -102,12 +107,8 @@ class PrecommitJobBuilder {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(gradleTask)
+          gradleSwitches.each { switches(it) }
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-PgithubPullRequestId=${ghprbPullId}')
-	  if (nameBase == 'Java') {
-            // BEAM-5035: Parallel builds are very flaky
-            switches('--no-parallel')
-	  }
         }
       }
     }

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -24,6 +26,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
@@ -35,7 +38,6 @@ import org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.tools.RelConversionException;
@@ -75,9 +77,17 @@ public class BeamSqlEnv {
     return withTableProvider(inMemoryMetaStore);
   }
 
+  private void registerBuiltinUdf(Map<String, List<Method>> methods) {
+    for (Map.Entry<String, List<Method>> entry : methods.entrySet()) {
+      for (Method method : entry.getValue()) {
+        defaultSchema.add(entry.getKey(), UdfImpl.create(method));
+      }
+    }
+  }
+
   /** Register a UDF function which can be used in SQL expression. */
   public void registerUdf(String functionName, Class<?> clazz, String method) {
-    defaultSchema.add(functionName, ScalarFunctionImpl.create(clazz, method));
+    defaultSchema.add(functionName, UdfImpl.create(clazz, method));
   }
 
   /** Register a UDF function which can be used in SQL expression. */
@@ -111,6 +121,13 @@ public class BeamSqlEnv {
                   .forEach((udfName, udfFn) -> registerUdf(udfName, udfFn));
               ins.getUdafs().forEach((udafName, udafFn) -> registerUdaf(udafName, udafFn));
             });
+  }
+
+  public void loadBeamBuiltinFunctions() {
+    for (BeamBuiltinFunctionProvider provider :
+        ServiceLoader.load(BeamBuiltinFunctionProvider.class)) {
+      registerBuiltinUdf(provider.getBuiltinMethods());
+    }
   }
 
   public BeamRelNode parseQuery(String query) throws ParseException {

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
@@ -35,4 +34,6 @@ public interface StageBundleFactory extends AutoCloseable {
       StateRequestHandler stateRequestHandler,
       BundleProgressHandler progressHandler)
       throws Exception;
+
+  ProcessBundleDescriptors.ExecutableProcessBundleDescriptor getProcessBundleDescriptor();
 }

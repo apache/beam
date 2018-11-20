@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.buildMockedS3FileSystem;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.getSSECustomerKeyMd5;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3Options;
+import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithCustomEndpointAndPathStyleAccessEnabled;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSECustomerKey;
 import static org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions.builder;
 import static org.hamcrest.Matchers.contains;
@@ -61,6 +62,8 @@ import com.google.common.collect.ImmutableList;
 import io.findify.s3mock.S3Mock;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -122,6 +125,14 @@ public class S3FileSystemTest {
   public void testGetScheme() {
     S3FileSystem s3FileSystem = new S3FileSystem(s3Options());
     assertEquals("s3", s3FileSystem.getScheme());
+  }
+
+  @Test
+  public void testGetPathStyleAccessEnabled() throws URISyntaxException {
+    S3FileSystem s3FileSystem =
+        new S3FileSystem(s3OptionsWithCustomEndpointAndPathStyleAccessEnabled());
+    URL s3Url = s3FileSystem.getAmazonS3Client().getUrl("bucket", "file");
+    assertEquals("https://s3.custom.dns/bucket/file", s3Url.toURI().toString());
   }
 
   @Test

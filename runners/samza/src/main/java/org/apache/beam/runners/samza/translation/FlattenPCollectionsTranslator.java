@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.translation;
 
 import java.util.ArrayList;
@@ -58,7 +57,7 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       inputStreams.add(ctx.getMessageStream(input));
     }
 
-    if (inputStreams.size() == 0) {
+    if (inputStreams.isEmpty()) {
       final MessageStream<OpMessage<T>> noOpStream =
           ctx.getDummyStream()
               .flatMap(OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));

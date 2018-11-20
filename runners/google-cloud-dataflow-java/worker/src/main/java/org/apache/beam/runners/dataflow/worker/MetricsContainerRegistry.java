@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.common.collect.FluentIterable;
@@ -37,7 +36,7 @@ public abstract class MetricsContainerRegistry<T extends MetricsContainer> {
 
   /** Retrieve (creating if necessary) the {@link MetricsContainer} to use with the given step. */
   public T getContainer(String stepName) {
-    return containers.computeIfAbsent(stepName, (unused) -> createContainer(stepName));
+    return containers.computeIfAbsent(stepName, unused -> createContainer(stepName));
   }
 
   /**

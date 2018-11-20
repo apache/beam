@@ -51,7 +51,7 @@ cdef extern from "Python.h":
   cdef void* PyList_GET_ITEM(list, Py_ssize_t index) nogil
 
 cdef extern from "unistd.h" nogil:
-  void usleep(long)
+  void usleep(int)
 
 cdef extern from "<time.h>" nogil:
   struct timespec:
@@ -118,7 +118,7 @@ cdef class StateSampler(object):
     cdef int64_t sampling_period_us = self._sampling_period_ms_start * 1000
     with nogil:
       while True:
-        usleep(sampling_period_us)
+        usleep(<int>sampling_period_us)
         sampling_period_us = <int64_t>math.fmin(
             sampling_period_us * self._sampling_period_ratio,
             self._sampling_period_ms * 1000)
@@ -153,6 +153,11 @@ cdef class StateSampler(object):
     # May have to wait up to sampling_period_ms, but the platform-independent
     # pythread doesn't support conditions.
     self.sampling_thread.join()
+
+  def reset(self):
+    for state in self.scoped_states_by_index:
+      (<ScopedState>state)._nsecs = 0
+    self.started = self.finished = False
 
   def current_state(self):
     return self.scoped_states_by_index[self.current_state_index]
@@ -208,6 +213,9 @@ cdef class ScopedState(object):
 
   def sampled_seconds(self):
     return 1e-9 * self.nsecs
+
+  def sampled_msecs_int(self):
+    return int(1e-6 * self.nsecs)
 
   def __repr__(self):
     return "ScopedState[%s, %s]" % (self.name, self.nsecs)

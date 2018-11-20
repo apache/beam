@@ -4,18 +4,17 @@
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
- * License); you may not use this file except in compliance
+ * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an AS IS BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
@@ -435,7 +434,7 @@ public class GroupingShuffleReaderTest {
 
   private void expectShuffleReadCounterEquals(
       TestShuffleReadCounterFactory factory, long expectedReadBytes) {
-    Map<String, Long> expectedReadBytesMap = new HashMap<String, Long>();
+    Map<String, Long> expectedReadBytesMap = new HashMap<>();
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1, expectedReadBytes);
     expectShuffleReadCounterEquals(factory, expectedReadBytesMap);
   }
@@ -858,7 +857,7 @@ public class GroupingShuffleReaderTest {
   @Test
   public void testGetApproximateProgress() throws Exception {
     // Store the positions of all KVs returned.
-    List<ByteArrayShufflePosition> positionsList = new ArrayList<ByteArrayShufflePosition>();
+    List<ByteArrayShufflePosition> positionsList = new ArrayList<>();
 
     PipelineOptions options = PipelineOptionsFactory.create();
     BatchModeExecutionContext context = BatchModeExecutionContext.forTesting(options, "testStage");
@@ -973,7 +972,7 @@ public class GroupingShuffleReaderTest {
     }
     assertTrue(shuffleReader.isClosed());
 
-    Map<String, Long> expectedReadBytesMap = new HashMap<String, Long>();
+    Map<String, Long> expectedReadBytesMap = new HashMap<>();
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1, 48L);
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP2, 32L);
     expectShuffleReadCounterEquals(shuffleReadCounterFactory, expectedReadBytesMap);

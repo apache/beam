@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.CloudObject.fromSpec;
@@ -41,9 +40,9 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -91,7 +90,7 @@ class SplittableProcessFnFactory {
           doFnInfo.getWindowingStrategy(),
           doFnInfo.getSideInputViews(),
           KeyedWorkItemCoder.of(
-              StringUtf8Coder.of(),
+              ByteArrayCoder.of(),
               KvCoder.of(doFnInfo.getInputCoder(), restrictionCoder),
               doFnInfo.getWindowingStrategy().getWindowFn().windowCoder()),
           doFnInfo.getOutputCoders(),
@@ -105,16 +104,16 @@ class SplittableProcessFnFactory {
           RestrictionT,
           PositionT,
           TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
-      implements DoFnRunnerFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> {
+      implements DoFnRunnerFactory<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
     @Override
-    public DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> createRunner(
-        DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> fn,
+    public DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> createRunner(
+        DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fn,
         PipelineOptions options,
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> sideOutputTags,
         Iterable<PCollectionView<?>> sideInputViews,
         SideInputReader sideInputReader,
-        Coder<KeyedWorkItem<String, KV<InputT, RestrictionT>>> inputCoder,
+        Coder<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> inputCoder,
         Map<TupleTag<?>, Coder<?>> outputCoders,
         WindowingStrategy<?, ?> windowingStrategy,
         DataflowExecutionContext.DataflowStepContext stepContext,
@@ -156,7 +155,7 @@ class SplittableProcessFnFactory {
               // in the event of a crash.
               10000,
               Duration.standardSeconds(10)));
-      DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> simpleRunner =
+      DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner =
           new SimpleDoFnRunner<>(
               options,
               processFn,
@@ -168,17 +167,17 @@ class SplittableProcessFnFactory {
               inputCoder,
               outputCoders,
               processFn.getInputWindowingStrategy());
-      DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> fnRunner =
+      DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fnRunner =
           new DataflowProcessFnRunner<>(simpleRunner);
       boolean hasStreamingSideInput =
           options.as(StreamingOptions.class).isStreaming() && !sideInputReader.isEmpty();
-      KeyedWorkItemCoder<String, KV<InputT, RestrictionT>> kwiCoder =
-          (KeyedWorkItemCoder<String, KV<InputT, RestrictionT>>) inputCoder;
+      KeyedWorkItemCoder<byte[], KV<InputT, RestrictionT>> kwiCoder =
+          (KeyedWorkItemCoder<byte[], KV<InputT, RestrictionT>>) inputCoder;
       if (hasStreamingSideInput) {
         fnRunner =
             new StreamingKeyedWorkItemSideInputDoFnRunner<>(
                 fnRunner,
-                StringUtf8Coder.of(),
+                ByteArrayCoder.of(),
                 new StreamingSideInputFetcher<>(
                     sideInputViews,
                     kwiCoder.getElementCoder(),

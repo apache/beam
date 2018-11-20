@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql;
 
 import com.google.auto.value.AutoValue;
@@ -91,6 +90,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   public PCollection<Row> expand(PInput input) {
     BeamSqlEnv sqlEnv = BeamSqlEnv.readOnly(PCOLLECTION_NAME, toTableMap(input));
 
+    // TODO: validate duplicate functions.
+    sqlEnv.loadBeamBuiltinFunctions();
     registerFunctions(sqlEnv);
     if (autoUdfUdafLoad()) {
       sqlEnv.loadUdfUdafFromProvider();

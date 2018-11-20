@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import java.math.BigDecimal;
@@ -44,7 +43,9 @@ public class BeamSqlDatetimeMinusIntervalExpression extends BeamSqlExpression {
 
   static boolean accept(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     return operands.size() == 2
-        && SqlTypeName.TIMESTAMP.equals(outputType)
+        && (SqlTypeName.TIMESTAMP.equals(outputType)
+            || SqlTypeName.DATE.equals(outputType)
+            || SqlTypeName.TIME.equals(outputType))
         && SqlTypeName.DATETIME_TYPES.contains(operands.get(0).getOutputType())
         && TimeUnitUtils.INTERVALS_DURATIONS_TYPES.containsKey(operands.get(1).getOutputType());
   }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.graph;
 
 import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.LENGTH_PREFIXED_BYTE_ARRAY_CODER;
@@ -106,9 +105,10 @@ public class LengthPrefixUnknownCodersTest {
   @Test
   public void testLengthPrefixUnknownCoders() throws Exception {
     Map<String, Object> lengthPrefixedCoderCloudObject =
-        forCodec(CloudObjects.asCloudObject(windowedValueCoder), false);
+        forCodec(CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null), false);
     assertEquals(
-        CloudObjects.asCloudObject(prefixedWindowedValueCoder), lengthPrefixedCoderCloudObject);
+        CloudObjects.asCloudObject(prefixedWindowedValueCoder, /*sdkComponents=*/ null),
+        lengthPrefixedCoderCloudObject);
   }
 
   /** Test bypassing unknown coders that are already wrapped with {@code LengthPrefixCoder} */
@@ -120,7 +120,7 @@ public class LengthPrefixUnknownCodersTest {
             GlobalWindow.Coder.INSTANCE);
 
     Map<String, Object> lengthPrefixedCoderCloudObject =
-        forCodec(CloudObjects.asCloudObject(windowedValueCoder), false);
+        forCodec(CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null), false);
 
     Coder<WindowedValue<KV<String, Integer>>> expectedCoder =
         WindowedValue.getFullCoder(
@@ -128,7 +128,9 @@ public class LengthPrefixUnknownCodersTest {
                 LengthPrefixCoder.of(StringUtf8Coder.of()), LengthPrefixCoder.of(VarIntCoder.of())),
             GlobalWindow.Coder.INSTANCE);
 
-    assertEquals(CloudObjects.asCloudObject(expectedCoder), lengthPrefixedCoderCloudObject);
+    assertEquals(
+        CloudObjects.asCloudObject(expectedCoder, /*sdkComponents=*/ null),
+        lengthPrefixedCoderCloudObject);
   }
 
   /** Test replacing unknown coders with {@code LengthPrefixCoder<ByteArray>} */
@@ -140,71 +142,81 @@ public class LengthPrefixUnknownCodersTest {
             GlobalWindow.Coder.INSTANCE);
 
     Map<String, Object> lengthPrefixedCoderCloudObject =
-        forCodec(CloudObjects.asCloudObject(windowedValueCoder), true);
+        forCodec(CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null), true);
 
     assertEquals(
-        CloudObjects.asCloudObject(prefixedAndReplacedWindowedValueCoder),
+        CloudObjects.asCloudObject(prefixedAndReplacedWindowedValueCoder, /*sdkComponents=*/ null),
         lengthPrefixedCoderCloudObject);
   }
 
   @Test
   public void testLengthPrefixInstructionOutputCoder() throws Exception {
     InstructionOutput output = new InstructionOutput();
-    output.setCodec(CloudObjects.asCloudObject(windowedValueCoder));
+    output.setCodec(CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null));
     output.setFactory(new JacksonFactory());
 
     InstructionOutput prefixedOutput = forInstructionOutput(output, false);
-    assertEquals(CloudObjects.asCloudObject(prefixedWindowedValueCoder), prefixedOutput.getCodec());
+    assertEquals(
+        CloudObjects.asCloudObject(prefixedWindowedValueCoder, /*sdkComponents=*/ null),
+        prefixedOutput.getCodec());
     // Should not mutate the instruction.
-    assertEquals(output.getCodec(), CloudObjects.asCloudObject(windowedValueCoder));
+    assertEquals(
+        output.getCodec(), CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null));
   }
 
   @Test
   public void testLengthPrefixReadInstructionCoder() throws Exception {
     ReadInstruction readInstruction = new ReadInstruction();
     readInstruction.setSource(
-        new Source().setCodec(CloudObjects.asCloudObject(windowedValueCoder)));
+        new Source()
+            .setCodec(CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null)));
     instruction.setRead(readInstruction);
 
     ParallelInstruction prefixedInstruction = forParallelInstruction(instruction, false);
     assertEquals(
-        CloudObjects.asCloudObject(prefixedWindowedValueCoder),
+        CloudObjects.asCloudObject(prefixedWindowedValueCoder, /*sdkComponents=*/ null),
         prefixedInstruction.getRead().getSource().getCodec());
     // Should not mutate the instruction.
     assertEquals(
-        readInstruction.getSource().getCodec(), CloudObjects.asCloudObject(windowedValueCoder));
+        readInstruction.getSource().getCodec(),
+        CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null));
   }
 
   @Test
   public void testLengthPrefixWriteInstructionCoder() throws Exception {
     WriteInstruction writeInstruction = new WriteInstruction();
-    writeInstruction.setSink(new Sink().setCodec(CloudObjects.asCloudObject(windowedValueCoder)));
+    writeInstruction.setSink(
+        new Sink()
+            .setCodec(CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null)));
     instruction.setWrite(writeInstruction);
 
     ParallelInstruction prefixedInstruction = forParallelInstruction(instruction, false);
     assertEquals(
-        CloudObjects.asCloudObject(prefixedWindowedValueCoder),
+        CloudObjects.asCloudObject(prefixedWindowedValueCoder, /*sdkComponents=*/ null),
         prefixedInstruction.getWrite().getSink().getCodec());
     // Should not mutate the instruction.
     assertEquals(
-        CloudObjects.asCloudObject(windowedValueCoder), writeInstruction.getSink().getCodec());
+        CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null),
+        writeInstruction.getSink().getCodec());
   }
 
   @Test
   public void testLengthPrefixParDoInstructionCoder() throws Exception {
     ParDoInstruction parDo = new ParDoInstruction();
     CloudObject spec = CloudObject.forClassName(MERGE_BUCKETS_DO_FN);
-    spec.put(WorkerPropertyNames.INPUT_CODER, CloudObjects.asCloudObject(windowedValueCoder));
+    spec.put(
+        WorkerPropertyNames.INPUT_CODER,
+        CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null));
     parDo.setUserFn(spec);
     instruction.setParDo(parDo);
 
     ParallelInstruction prefixedInstruction = forParallelInstruction(instruction, false);
     assertEquals(
-        CloudObjects.asCloudObject(prefixedWindowedValueCoder),
+        CloudObjects.asCloudObject(prefixedWindowedValueCoder, /*sdkComponents=*/ null),
         prefixedInstruction.getParDo().getUserFn().get(WorkerPropertyNames.INPUT_CODER));
     // Should not mutate the instruction.
     assertEquals(
-        CloudObjects.asCloudObject(windowedValueCoder),
+        CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null),
         parDo.getUserFn().get(WorkerPropertyNames.INPUT_CODER));
   }
 
@@ -257,7 +269,7 @@ public class LengthPrefixUnknownCodersTest {
     network.addNode(grpcPortNode);
     network.addEdge(grpcPortNode, instructionOutputNode, DefaultEdge.create());
     assertEquals(
-        CloudObjects.asCloudObject(prefixedWindowedValueCoder),
+        CloudObjects.asCloudObject(prefixedWindowedValueCoder, /*sdkComponents=*/ null),
         ((InstructionOutputNode) forInstructionOutputNode(network).apply(instructionOutputNode))
             .getInstructionOutput()
             .getCodec());
@@ -270,7 +282,7 @@ public class LengthPrefixUnknownCodersTest {
     network.addNode(grpcPortNode);
     network.addEdge(instructionOutputNode, grpcPortNode, DefaultEdge.create());
     assertEquals(
-        CloudObjects.asCloudObject(prefixedWindowedValueCoder),
+        CloudObjects.asCloudObject(prefixedWindowedValueCoder, /*sdkComponents=*/ null),
         ((InstructionOutputNode) forInstructionOutputNode(network).apply(instructionOutputNode))
             .getInstructionOutput()
             .getCodec());
@@ -284,7 +296,7 @@ public class LengthPrefixUnknownCodersTest {
     network.addNode(readNode);
     network.addEdge(readNode, instructionOutputNode, DefaultEdge.create());
     assertEquals(
-        CloudObjects.asCloudObject(windowedValueCoder),
+        CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null),
         ((InstructionOutputNode) forInstructionOutputNode(network).apply(instructionOutputNode))
             .getInstructionOutput()
             .getCodec());
@@ -318,7 +330,8 @@ public class LengthPrefixUnknownCodersTest {
     SideInputInfo sideInputInfo = new SideInputInfo().setSources(new ArrayList<>());
     sideInputInfo.setFactory(new JacksonFactory());
     for (Coder<?> coder : coders) {
-      Source source = new Source().setCodec(CloudObjects.asCloudObject(coder));
+      Source source =
+          new Source().setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
       source.setFactory(new JacksonFactory());
       sideInputInfo.getSources().add(source);
     }
@@ -341,7 +354,7 @@ public class LengthPrefixUnknownCodersTest {
                 new ReadInstruction()
                     .setSource(
                         new Source()
-                            .setCodec(CloudObjects.asCloudObject(coder))
+                            .setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null))
                             .setSpec(CloudObject.forClassName(readClassName))));
 
     parallelInstruction.setFactory(new JacksonFactory());
@@ -350,7 +363,9 @@ public class LengthPrefixUnknownCodersTest {
 
   private static InstructionOutputNode createInstructionOutputNode(String name, Coder<?> coder) {
     InstructionOutput instructionOutput =
-        new InstructionOutput().setName(name).setCodec(CloudObjects.asCloudObject(coder));
+        new InstructionOutput()
+            .setName(name)
+            .setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
     instructionOutput.setFactory(new JacksonFactory());
     return InstructionOutputNode.create(instructionOutput);
   }

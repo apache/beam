@@ -24,12 +24,17 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,9 +109,31 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
     WrappedContext wrapper = getCache().get(jobInfo.jobId());
     Preconditions.checkState(
         wrapper != null, "Releasing context for unknown job: " + jobInfo.jobId());
-    // Do not release this asynchronously, as the releasing could fail due to the classloader not being
-    // available anymore after the tasks have been removed from the execution engine.
-    release(wrapper);
+
+    PipelineOptions pipelineOptions =
+        PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
+    int environmentCacheTTLMillis =
+        pipelineOptions.as(PortablePipelineOptions.class).getEnvironmentCacheMillis();
+    if (environmentCacheTTLMillis > 0) {
+      // Do immediate cleanup if this class is not loaded on Flink parent classloader.
+      if (this.getClass().getClassLoader() != ExecutionEnvironment.class.getClassLoader()) {
+        LOG.warn(
+            "{} is not loaded on parent Flink classloader. "
+                + "Falling back to synchronous environment release for job {}.",
+            this.getClass(),
+            jobInfo.jobId());
+        release(wrapper);
+      } else {
+        // Schedule task to clean the container later.
+        // Ensure that this class is loaded in the parent Flink classloader.
+        getExecutor()
+            .schedule(() -> release(wrapper), environmentCacheTTLMillis, TimeUnit.MILLISECONDS);
+      }
+    } else {
+      // Do not release this asynchronously, as the releasing could fail due to the classloader not
+      // being available anymore after the tasks have been removed from the execution engine.
+      release(wrapper);
+    }
   }
 
   private ConcurrentHashMap<String, WrappedContext> getCache() {
@@ -158,10 +185,11 @@ public class ReferenceCountingFlinkExecutableStageContextFactory
   /**
    * {@link WrappedContext} does not expose equals of actual {@link FlinkExecutableStageContext}.
    */
-  private class WrappedContext implements FlinkExecutableStageContext {
+  @VisibleForTesting
+  class WrappedContext implements FlinkExecutableStageContext {
     private JobInfo jobInfo;
     private AtomicInteger referenceCount;
-    private FlinkExecutableStageContext context;
+    @VisibleForTesting FlinkExecutableStageContext context;
 
     /** {@link WrappedContext#equals(Object)} is only based on {@link JobInfo#jobId()}. */
     WrappedContext(JobInfo jobInfo, FlinkExecutableStageContext context) {

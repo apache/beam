@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.coders;
 
 import com.google.common.collect.Lists;
@@ -113,7 +112,7 @@ public abstract class RowCoderGenerator {
           MethodInvocation.invoke(
               new ForLoadedType(entry.getValue().getClass())
                   .getDeclaredMethods()
-                  .filter(ElementMatchers.named(("of")))
+                  .filter(ElementMatchers.named("of"))
                   .getOnly());
       CODER_MAP.putIfAbsent(entry.getKey(), stackManipulation);
     }
@@ -341,7 +340,7 @@ public abstract class RowCoderGenerator {
       return listCoder(fieldType.getCollectionElementType());
     } else if (TypeName.MAP.equals(fieldType.getTypeName())) {
       return mapCoder(fieldType.getMapKeyType(), fieldType.getMapValueType());
-    } else if (TypeName.ROW.equals((fieldType.getTypeName()))) {
+    } else if (TypeName.ROW.equals(fieldType.getTypeName())) {
       Coder<Row> nestedCoder = generate(fieldType.getRowSchema(), UUID.randomUUID());
       return rowCoder(nestedCoder.getClass());
     } else {

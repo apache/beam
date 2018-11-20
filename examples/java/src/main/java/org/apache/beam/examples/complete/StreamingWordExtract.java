@@ -95,7 +95,7 @@ public class StreamingWordExtract {
    *
    * <p>Inherits standard configuration options.
    */
-  private interface StreamingWordExtractOptions
+  public interface StreamingWordExtractOptions
       extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Path of the file to read from")
     @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")

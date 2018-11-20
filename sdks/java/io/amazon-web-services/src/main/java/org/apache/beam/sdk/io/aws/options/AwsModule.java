@@ -171,7 +171,7 @@ public class AwsModule extends SimpleModule {
           Field field =
               PropertiesFileCredentialsProvider.class.getDeclaredField(CREDENTIALS_FILE_PATH);
           field.setAccessible(true);
-          String credentialsFilePath = ((String) field.get(specificProvider));
+          String credentialsFilePath = (String) field.get(specificProvider);
           jsonGenerator.writeStringField(CREDENTIALS_FILE_PATH, credentialsFilePath);
         } catch (NoSuchFieldException | IllegalAccessException e) {
           throw new IOException("failed to access private field with reflection", e);
@@ -187,7 +187,7 @@ public class AwsModule extends SimpleModule {
               ClasspathPropertiesFileCredentialsProvider.class.getDeclaredField(
                   CREDENTIALS_FILE_PATH);
           field.setAccessible(true);
-          String credentialsFilePath = ((String) field.get(specificProvider));
+          String credentialsFilePath = (String) field.get(specificProvider);
           jsonGenerator.writeStringField(CREDENTIALS_FILE_PATH, credentialsFilePath);
         } catch (NoSuchFieldException | IllegalAccessException e) {
           throw new IOException("failed to access private field with reflection", e);

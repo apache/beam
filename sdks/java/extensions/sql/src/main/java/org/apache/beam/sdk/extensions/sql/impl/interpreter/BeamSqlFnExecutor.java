@@ -22,6 +22,7 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.impl.UdfImpl;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCastExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCorrelVariableExpression;
@@ -102,7 +103,6 @@ import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.runtime.SqlFunctions;
-import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
@@ -167,9 +167,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         // it to string explicitly.
         ret = BeamSqlPrimitive.of(type, ((NlsString) value).getValue());
       } else if (isDateNode(type, value)) {
-        // does this actually make sense?
-        // Calcite actually treat Calendar as the java type of Date Literal
-        ret = BeamSqlPrimitive.of(type, new DateTime(((Calendar) value).getTimeInMillis()));
+        ret = BeamSqlPrimitive.of(type, new DateTime(value));
       } else {
         // node.getTypeName().getSqlTypeName() and node.getSqlTypeName() can be different
         // e.g. sql: "select 1"
@@ -505,7 +503,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           // handle UDF
           if (((RexCall) rexNode).getOperator() instanceof SqlUserDefinedFunction) {
             SqlUserDefinedFunction udf = (SqlUserDefinedFunction) ((RexCall) rexNode).getOperator();
-            ScalarFunctionImpl fn = (ScalarFunctionImpl) udf.getFunction();
+            UdfImpl fn = (UdfImpl) udf.getFunction();
             ret =
                 new BeamSqlUdfExpression(
                     fn.method, subExps, ((RexCall) rexNode).type.getSqlTypeName());

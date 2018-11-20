@@ -28,6 +28,7 @@ import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.joda.time.ReadableInstant;
+import org.joda.time.base.AbstractInstant;
 
 /**
  * {@link BeamSqlPrimitive} is a special, self-reference {@link BeamSqlExpression}. It holds the
@@ -132,12 +133,13 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
       case CHAR:
       case VARCHAR:
         return value instanceof String || value instanceof NlsString;
+      case BINARY:
       case VARBINARY:
         return value instanceof byte[] || value instanceof ByteString;
       case TIME:
       case TIMESTAMP:
       case DATE:
-        return value instanceof ReadableInstant;
+        return value instanceof AbstractInstant;
       case INTERVAL_SECOND:
       case INTERVAL_MINUTE:
       case INTERVAL_HOUR:

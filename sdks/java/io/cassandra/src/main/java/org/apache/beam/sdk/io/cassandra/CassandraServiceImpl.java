@@ -75,7 +75,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
               source.spec.password(),
               source.spec.localDc(),
               source.spec.consistencyLevel());
-      session = cluster.connect();
+      session = cluster.connect(source.spec.keyspace());
       LOG.debug("Queries: " + source.splitQueries);
       List<ResultSetFuture> futures = new ArrayList<>();
       for (String query : source.splitQueries) {

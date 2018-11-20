@@ -53,6 +53,8 @@ job('beam_PerformanceTests_Python'){
       beam_it_class            : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
       beam_prebuilt            : 'true',  // skip beam prebuild
       beam_python_sdk_location : 'build/apache-beam.tar.gz',
+      beam_runner              : 'TestDataflowRunner',
+      beam_it_timeout          : '1200',
       beam_it_args             : pipelineArgsJoined,
   ]
 

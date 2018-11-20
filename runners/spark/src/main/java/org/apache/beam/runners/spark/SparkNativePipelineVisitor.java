@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import com.google.common.base.Joiner;
@@ -92,9 +91,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
     @SuppressWarnings("unchecked")
     TransformT transform = (TransformT) node.getTransform();
     @SuppressWarnings("unchecked")
-    Class<TransformT> transformClass = (Class<TransformT>) transform.getClass();
-    @SuppressWarnings("unchecked")
-    TransformEvaluator<TransformT> evaluator = translate(node, transform, transformClass);
+    TransformEvaluator<TransformT> evaluator = translate(node, transform);
     if (shouldDebug(node)) {
       transforms.add(new NativeTransform(node, evaluator, transform, false));
     }

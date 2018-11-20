@@ -25,7 +25,7 @@ import org.apache.beam.fn.harness.state.StateFetchingIterators.LazyBlockingState
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -71,7 +71,6 @@ public class StateFetchingIteratorsTest {
       BeamFnStateClient fakeStateClient =
           (requestBuilder, response) -> {
             ByteString continuationToken = requestBuilder.getGet().getContinuationToken();
-            StateGetResponse.Builder builder = StateGetResponse.newBuilder();
 
             int requestedPosition = 0; // Default position is 0
             if (!ByteString.EMPTY.equals(continuationToken)) {

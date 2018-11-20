@@ -78,7 +78,7 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   private static final int EXPECTED_RETRIES = 2;
   private static final int MAX_ATTEMPTS = 3;
-  private static final String BAD_FORMATTED_DOC[] = {"{ \"x\" :a,\"y\":\"ab\" }"};
+  private static final String[] BAD_FORMATTED_DOC = {"{ \"x\" :a,\"y\":\"ab\" }"};
   private static final String OK_REQUEST =
       "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
           + "{ \"field1\" : 1 }\n";
@@ -235,19 +235,8 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   void testWrite() throws Exception {
-    List<String> data =
-        ElasticSearchIOTestUtils.createDocuments(
-            numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
-    pipeline
-        .apply(Create.of(data))
-        .apply(ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration));
-    pipeline.run();
-
-    long currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
-    assertEquals(numDocs, currentNumDocs);
-
-    int count = countByScientistName(connectionConfiguration, restClient, "Einstein");
-    assertEquals(numDocs / NUM_SCIENTISTS, count);
+    Write write = ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration);
+    executeWriteTest(write);
   }
 
   void testWriteWithErrors() throws Exception {
@@ -584,17 +573,17 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   /** Test that the default predicate correctly parses chosen error code. */
-  public void testDefaultRetryPredicate(RestClient restClient) throws IOException {
+  void testDefaultRetryPredicate(RestClient restClient) throws IOException {
 
     HttpEntity entity1 = new NStringEntity(BAD_REQUEST, ContentType.APPLICATION_JSON);
     Response response1 =
         restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity1);
-    assertTrue(CUSTOM_RETRY_PREDICATE.test(response1));
+    assertTrue(CUSTOM_RETRY_PREDICATE.test(response1.getEntity()));
 
     HttpEntity entity2 = new NStringEntity(OK_REQUEST, ContentType.APPLICATION_JSON);
     Response response2 =
         restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity2);
-    assertFalse(DEFAULT_RETRY_PREDICATE.test(response2));
+    assertFalse(DEFAULT_RETRY_PREDICATE.test(response2.getEntity()));
   }
 
   /**
@@ -603,7 +592,7 @@ class ElasticsearchIOTestCommon implements Serializable {
    * `429` only but that is difficult to simulate reliably. The logger is used to verify expected
    * behavior.
    */
-  public void testWriteRetry() throws Throwable {
+  void testWriteRetry() throws Throwable {
     expectedException.expectCause(isA(IOException.class));
     // max attempt is 3, but retry is 2 which excludes 1st attempt when error was identified and retry started.
     expectedException.expectMessage(
@@ -618,5 +607,29 @@ class ElasticsearchIOTestCommon implements Serializable {
     pipeline.apply(Create.of(Arrays.asList(BAD_FORMATTED_DOC))).apply(write);
 
     pipeline.run();
+  }
+
+  void testWriteRetryValidRequest() throws Exception {
+    Write write =
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withRetryConfiguration(
+                ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
+                    .withRetryPredicate(CUSTOM_RETRY_PREDICATE));
+    executeWriteTest(write);
+  }
+
+  private void executeWriteTest(ElasticsearchIO.Write write) throws Exception {
+    List<String> data =
+        ElasticSearchIOTestUtils.createDocuments(
+            numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    pipeline.apply(Create.of(data)).apply(write);
+    pipeline.run();
+
+    long currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+    assertEquals(numDocs, currentNumDocs);
+
+    int count = countByScientistName(connectionConfiguration, restClient, "Einstein");
+    assertEquals(numDocs / NUM_SCIENTISTS, count);
   }
 }

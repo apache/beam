@@ -15,33 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.coders.org.apache.beam.sdk.coders;
 
-import static org.junit.Assert.assertEquals;
-
 import com.google.common.collect.Lists;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /** Unit tests for {@link RowCoder}. */
 public class RowCoderTest {
-
-  void checkEncodeDecode(Row row) throws IOException {
-    RowCoder coder = RowCoder.of(row.getSchema());
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    coder.encode(row, out);
-    assertEquals(row, coder.decode(new ByteArrayInputStream(out.toByteArray())));
-  }
 
   @Test
   public void testPrimitiveTypes() throws Exception {
@@ -66,7 +60,8 @@ public class RowCoderTest {
             .addValues(
                 (byte) 0, (short) 1, 2, 3L, new BigDecimal(2.3), 1.2f, 3.0d, "str", dateTime, false)
             .build();
-    checkEncodeDecode(row);
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
 
   @Test
@@ -77,14 +72,16 @@ public class RowCoderTest {
 
     Row nestedRow = Row.withSchema(nestedSchema).addValues(18, "foobar").build();
     Row row = Row.withSchema(schema).addValues(42, nestedRow).build();
-    checkEncodeDecode(row);
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
 
   @Test
   public void testArrays() throws Exception {
     Schema schema = Schema.builder().addArrayField("f_array", FieldType.STRING).build();
     Row row = Row.withSchema(schema).addArray("one", "two", "three", "four").build();
-    checkEncodeDecode(row);
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
 
   @Test
@@ -99,7 +96,8 @@ public class RowCoderTest {
                 Row.withSchema(nestedSchema).addValues(2, "two").build(),
                 Row.withSchema(nestedSchema).addValues(3, "three").build())
             .build();
-    checkEncodeDecode(row);
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
 
   @Test
@@ -113,6 +111,103 @@ public class RowCoderTest {
                 Lists.newArrayList(5, 6, 7, 8),
                 Lists.newArrayList(9, 10, 11, 12))
             .build();
-    checkEncodeDecode(row);
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
+
+  @Test(expected = NonDeterministicException.class)
+  public void testVerifyDeterministic() throws NonDeterministicException {
+    Schema schema =
+        Schema.builder()
+            .addField("f1", FieldType.DOUBLE)
+            .addField("f2", FieldType.FLOAT)
+            .addField("f3", FieldType.INT32)
+            .build();
+    RowCoder coder = RowCoder.of(schema);
+
+    coder.verifyDeterministic();
+  }
+
+  @Test(expected = NonDeterministicException.class)
+  public void testVerifyDeterministicNestedRow() throws NonDeterministicException {
+    Schema schema =
+        Schema.builder()
+            .addField(
+                "f1",
+                FieldType.row(
+                    Schema.builder()
+                        .addField("a1", FieldType.DOUBLE)
+                        .addField("a2", FieldType.INT64)
+                        .build()))
+            .build();
+    RowCoder coder = RowCoder.of(schema);
+
+    coder.verifyDeterministic();
+  }
+
+  @Test
+  public void testConsistentWithEqualsBytesField() throws Exception {
+    Schema schema = Schema.of(Schema.Field.of("f1", FieldType.BYTES));
+    Row row1 = Row.withSchema(schema).addValue(new byte[] {1, 2, 3, 4}).build();
+    Row row2 = Row.withSchema(schema).addValue(new byte[] {1, 2, 3, 4}).build();
+    RowCoder coder = RowCoder.of(schema);
+
+    Assume.assumeTrue(coder.consistentWithEquals());
+
+    CoderProperties.coderConsistentWithEquals(coder, row1, row2);
+  }
+
+  @Test
+  @Ignore
+  public void testConsistentWithEqualsMapWithBytesKeyField() throws Exception {
+    FieldType fieldType = FieldType.map(FieldType.BYTES, FieldType.INT32);
+    Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
+    RowCoder coder = RowCoder.of(schema);
+
+    Map<byte[], Integer> map1 = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
+    Row row1 = Row.withSchema(schema).addValue(map1).build();
+
+    Map<byte[], Integer> map2 = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
+    Row row2 = Row.withSchema(schema).addValue(map2).build();
+
+    Assume.assumeTrue(coder.consistentWithEquals());
+
+    CoderProperties.coderConsistentWithEquals(coder, row1, row2);
+  }
+
+  @Test
+  public void testConsistentWithEqualsArrayOfBytes() throws Exception {
+    FieldType fieldType = FieldType.array(FieldType.BYTES);
+    Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
+    RowCoder coder = RowCoder.of(schema);
+
+    List<byte[]> list1 = Collections.singletonList(new byte[] {1, 2, 3, 4});
+    Row row1 = Row.withSchema(schema).addValue(list1).build();
+
+    List<byte[]> list2 = Collections.singletonList(new byte[] {1, 2, 3, 4});
+    Row row2 = Row.withSchema(schema).addValue(list2).build();
+
+    Assume.assumeTrue(coder.consistentWithEquals());
+
+    CoderProperties.coderConsistentWithEquals(coder, row1, row2);
+  }
+
+  @Test
+  public void testConsistentWithEqualsArrayOfArrayOfBytes() throws Exception {
+    FieldType fieldType = FieldType.array(FieldType.array(FieldType.BYTES));
+    Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
+    RowCoder coder = RowCoder.of(schema);
+
+    List<byte[]> innerList1 = Collections.singletonList(new byte[] {1, 2, 3, 4});
+    List<List<byte[]>> list1 = Collections.singletonList(innerList1);
+    Row row1 = Row.withSchema(schema).addValue(list1).build();
+
+    List<byte[]> innerList2 = Collections.singletonList(new byte[] {1, 2, 3, 4});
+    List<List<byte[]>> list2 = Collections.singletonList(innerList2);
+    Row row2 = Row.withSchema(schema).addValue(list2).build();
+
+    Assume.assumeTrue(coder.consistentWithEquals());
+
+    CoderProperties.coderConsistentWithEquals(coder, row1, row2);
   }
 }

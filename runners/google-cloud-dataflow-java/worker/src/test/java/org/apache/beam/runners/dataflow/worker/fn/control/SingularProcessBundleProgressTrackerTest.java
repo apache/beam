@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.junit.Assert.assertEquals;
@@ -68,6 +67,8 @@ public class SingularProcessBundleProgressTrackerTest {
     RemoteGrpcPortWriteOperation grpcWrite = Mockito.mock(RemoteGrpcPortWriteOperation.class);
     RegisterAndProcessBundleOperation process =
         Mockito.mock(RegisterAndProcessBundleOperation.class);
+
+    when(grpcWrite.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
 
     SingularProcessBundleProgressTracker tracker =
         new SingularProcessBundleProgressTracker(read, grpcWrite, process);

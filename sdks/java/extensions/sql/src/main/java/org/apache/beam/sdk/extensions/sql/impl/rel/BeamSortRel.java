@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -134,7 +133,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
   }
 
   public boolean isLimitOnly() {
-    return fieldIndices.size() == 0;
+    return fieldIndices.isEmpty();
   }
 
   public int getCount() {
@@ -161,7 +160,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       //  - GroupByKey (used in Top) is not allowed on unbounded data in global window so ORDER BY ... LIMIT
       //    works only on bounded data.
       //  - Just LIMIT operates on unbounded data, but across windows.
-      if (fieldIndices.size() == 0) {
+      if (fieldIndices.isEmpty()) {
         // TODO(https://issues.apache.org/jira/projects/BEAM/issues/BEAM-4702)
         // Figure out which operations are per-window and which are not.
         return upstream

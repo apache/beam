@@ -743,7 +743,7 @@ public class BigtableIOTest {
 
     List<BigtableSource> reducedSplits = source.reduceSplits(splits, null, maxSplit);
 
-    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<>();
 
     for (BigtableSource splitSource : reducedSplits) {
       actualRangesAfterSplit.addAll(splitSource.getRanges());
@@ -794,7 +794,7 @@ public class BigtableIOTest {
 
     List<BigtableSource> reducedSplits = source.reduceSplits(splits, null, maxSplit);
 
-    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<>();
 
     for (BigtableSource splitSource : reducedSplits) {
       actualRangesAfterSplit.addAll(splitSource.getRanges());
@@ -856,7 +856,7 @@ public class BigtableIOTest {
 
     List<BigtableSource> reducedSplits = source.reduceSplits(splits, null, maxSplit);
 
-    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<>();
 
     for (BigtableSource splitSource : reducedSplits) {
       actualRangesAfterSplit.addAll(splitSource.getRanges());

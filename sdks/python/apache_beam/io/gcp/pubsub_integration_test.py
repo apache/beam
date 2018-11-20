@@ -39,8 +39,11 @@ OUTPUT_TOPIC = 'psit_topic_output'
 INPUT_SUB = 'psit_subscription_input'
 OUTPUT_SUB = 'psit_subscription_output'
 
-TEST_PIPELINE_DURATION_MS = 30 * 1000
-# Takes into account Dataflow pipelines startup time.
+# How long TestXXXRunner will wait for pubsub_it_pipeline to run before
+# cancelling it.
+TEST_PIPELINE_DURATION_MS = 3 * 60 * 1000
+# How long PubSubMessageMatcher will wait for the correct set of messages to
+# appear.
 MESSAGE_MATCHER_TIMEOUT_S = 5 * 60
 
 

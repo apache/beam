@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -108,7 +107,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.joda.time.DateTimeUtils;
@@ -264,7 +263,7 @@ public class RemoteExecutionTest implements Serializable {
     // The impulse example
 
     try (ActiveBundle bundle =
-        processor.newBundle(outputReceivers, BundleProgressHandler.unsupported())) {
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow(new byte[0]));
     }
@@ -375,7 +374,7 @@ public class RemoteExecutionTest implements Serializable {
                 };
               }
             });
-    BundleProgressHandler progressHandler = BundleProgressHandler.unsupported();
+    BundleProgressHandler progressHandler = BundleProgressHandler.ignored();
 
     try (ActiveBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
@@ -529,7 +528,7 @@ public class RemoteExecutionTest implements Serializable {
 
     try (ActiveBundle bundle =
         processor.newBundle(
-            outputReceivers, stateRequestHandler, BundleProgressHandler.unsupported())) {
+            outputReceivers, stateRequestHandler, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow(kvBytes("X", "Y")));
     }
@@ -656,10 +655,10 @@ public class RemoteExecutionTest implements Serializable {
         descriptor.getTimerSpecs().values()) {
       for (ProcessBundleDescriptors.TimerSpec timerSpec : timerSpecs.values()) {
         if (TimeDomain.EVENT_TIME.equals(timerSpec.getTimerSpec().getTimeDomain())) {
-          eventTimeInputPCollectionId = timerSpec.collectionId();
+          eventTimeInputPCollectionId = timerSpec.inputCollectionId();
           eventTimeOutputTarget = timerSpec.outputTarget();
         } else if (TimeDomain.PROCESSING_TIME.equals(timerSpec.getTimerSpec().getTimeDomain())) {
-          processingTimeInputPCollectionId = timerSpec.collectionId();
+          processingTimeInputPCollectionId = timerSpec.inputCollectionId();
           processingTimeOutputTarget = timerSpec.outputTarget();
         } else {
           fail(String.format("Unknown timer specification %s", timerSpec));
@@ -672,9 +671,7 @@ public class RemoteExecutionTest implements Serializable {
 
     try (ActiveBundle bundle =
         processor.newBundle(
-            outputReceivers,
-            StateRequestHandler.unsupported(),
-            BundleProgressHandler.unsupported())) {
+            outputReceivers, StateRequestHandler.unsupported(), BundleProgressHandler.ignored())) {
       bundle
           .getInputReceivers()
           .get(stage.getInputPCollection().getId())
@@ -795,7 +792,7 @@ public class RemoteExecutionTest implements Serializable {
           processor.newBundle(
               outputReceivers,
               StateRequestHandler.unsupported(),
-              BundleProgressHandler.unsupported())) {
+              BundleProgressHandler.ignored())) {
         bundle
             .getInputReceivers()
             .get(stage.getInputPCollection().getId())

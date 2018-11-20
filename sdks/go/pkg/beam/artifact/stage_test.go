@@ -66,7 +66,7 @@ func TestStageDir(t *testing.T) {
 
 	src := makeTempDir(t)
 	defer os.RemoveAll(src)
-	md5s := makeTempFiles(t, src, keys, 300)
+	sha256s := makeTempFiles(t, src, keys, 300)
 
 	st := "whatever"
 	artifacts, err := StageDir(ctx, client, src, st)
@@ -76,11 +76,11 @@ func TestStageDir(t *testing.T) {
 	if rt, err := Commit(ctx, client, artifacts, st); err != nil {
 		t.Fatalf("failed to commit: %v", err)
 	} else {
-		validate(ctx, cc, t, keys, md5s, rt)
+		validate(ctx, cc, t, keys, sha256s, rt)
 	}
 }
 
-func validate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys, md5s []string, rt string) {
+func validate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys, sha256s []string, rt string) {
 	rcl := pb.NewArtifactRetrievalServiceClient(cc)
 
 	for i, key := range keys {
@@ -93,8 +93,8 @@ func validate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys, md5s
 		if err != nil {
 			t.Fatalf("failed to get chunks for %v: %v", key, err)
 		}
-		if hash != md5s[i] {
-			t.Errorf("incorrect MD5: %v, want %v", hash, md5s[i])
+		if hash != sha256s[i] {
+			t.Errorf("incorrect SHA256: %v, want %v", hash, sha256s[i])
 		}
 	}
 }

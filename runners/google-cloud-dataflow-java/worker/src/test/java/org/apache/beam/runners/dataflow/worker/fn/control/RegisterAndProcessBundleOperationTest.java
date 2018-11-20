@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.apache.beam.runners.dataflow.worker.fn.control.RegisterAndProcessBundleOperation.encodeAndConcat;
@@ -62,7 +61,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.dataflow.harness.util.ThrowingRunnable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowPortabilityPCollectionView;
 import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
@@ -77,12 +75,13 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.sdk.util.ThrowingRunnable;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow.Coder;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -628,6 +627,7 @@ public class RegisterAndProcessBundleOperationTest {
     DataflowStepContext mockUserStepContext = mock(DataflowStepContext.class);
     when(mockStepContext.namespacedToUser()).thenReturn(mockUserStepContext);
 
+    CountDownLatch waitForStateHandler = new CountDownLatch(1);
     // Issues state calls to the Runner after a process bundle request is sent.
     InstructionRequestHandler fakeClient =
         new InstructionRequestHandler() {
@@ -664,6 +664,7 @@ public class RegisterAndProcessBundleOperationTest {
                               .setGet(StateGetRequest.getDefaultInstance())
                               .build();
 
+                      waitForStateHandler.await();
                       StateRequestHandler stateHandler = stateHandlerCaptor.getValue();
 
                       StateResponse.Builder getResponse =
@@ -736,6 +737,7 @@ public class RegisterAndProcessBundleOperationTest {
     operation.start();
     verify(mockBeamFnStateDelegator)
         .registerForProcessBundleInstructionId(eq("778"), stateHandlerCaptor.capture());
+    waitForStateHandler.countDown();
 
     // This method blocks till the requests are completed
     operation.finish();

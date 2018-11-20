@@ -24,6 +24,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
@@ -32,6 +33,7 @@ public interface FlinkPipelineOptions
     extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
   String AUTO = "[auto]";
+  String PIPELINED = "PIPELINED";
 
   /**
    * List of local files to make available to workers.
@@ -72,8 +74,8 @@ public interface FlinkPipelineOptions
   void setParallelism(Integer value);
 
   @Description(
-      "The interval between consecutive checkpoints (i.e. snapshots of the current"
-          + "pipeline state used for fault tolerance).")
+      "The interval in milliseconds at which to trigger checkpoints of the running pipeline. "
+          + "Default: No checkpointing.")
   @Default.Long(-1L)
   Long getCheckpointingInterval();
 
@@ -85,13 +87,14 @@ public interface FlinkPipelineOptions
 
   void setCheckpointingMode(CheckpointingMode mode);
 
-  @Description("The maximum time that a checkpoint may take before being discarded.")
+  @Description(
+      "The maximum time in milliseconds that a checkpoint may take before being discarded.")
   @Default.Long(-1L)
   Long getCheckpointTimeoutMillis();
 
   void setCheckpointTimeoutMillis(Long checkpointTimeoutMillis);
 
-  @Description("The minimal pause before the next checkpoint is triggered.")
+  @Description("The minimal pause in milliseconds before the next checkpoint is triggered.")
   @Default.Long(-1L)
   Long getMinPauseBetweenCheckpoints();
 
@@ -107,7 +110,7 @@ public interface FlinkPipelineOptions
   void setNumberOfExecutionRetries(Integer retries);
 
   @Description(
-      "Sets the delay between executions. A value of {@code -1} "
+      "Sets the delay in milliseconds between executions. A value of {@code -1} "
           + "indicates that the default value should be used.")
   @Default.Long(-1L)
   Long getExecutionRetryDelay();
@@ -186,4 +189,19 @@ public interface FlinkPipelineOptions
   Long getLatencyTrackingInterval();
 
   void setLatencyTrackingInterval(Long interval);
+
+  @Description("The interval in milliseconds for automatic watermark emission.")
+  Long getAutoWatermarkInterval();
+
+  void setAutoWatermarkInterval(Long interval);
+
+  @Description(
+      "Flink mode for data exchange of batch pipelines. "
+          + "Reference {@link org.apache.flink.api.common.ExecutionMode}. "
+          + "Set this to BATCH_FORCED if pipelines get blocked, see "
+          + "https://issues.apache.org/jira/browse/FLINK-10672")
+  @Default.Enum(PIPELINED)
+  ExecutionMode getExecutionModeForBatch();
+
+  void setExecutionModeForBatch(ExecutionMode executionMode);
 }

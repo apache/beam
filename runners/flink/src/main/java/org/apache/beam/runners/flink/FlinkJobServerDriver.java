@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -32,7 +33,6 @@ import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -45,7 +45,7 @@ public class FlinkJobServerDriver implements Runnable {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobServerDriver.class);
 
   private final ListeningExecutorService executor;
-  private final ServerConfiguration configuration;
+  @VisibleForTesting ServerConfiguration configuration;
   private final ServerFactory jobServerFactory;
   private final ServerFactory artifactServerFactory;
   private GrpcFnServer<InMemoryJobService> jobServer;
@@ -54,34 +54,34 @@ public class FlinkJobServerDriver implements Runnable {
   /** Configuration for the jobServer. */
   public static class ServerConfiguration {
     @Option(name = "--job-host", usage = "The job server host name")
-    private String host = "";
+    String host = "localhost";
 
     @Option(
       name = "--job-port",
       usage = "The job service port. 0 to use a dynamic port. (Default: 8099)"
     )
-    private int port = 8099;
+    int port = 8099;
 
     @Option(
       name = "--artifact-port",
       usage = "The artifact service port. 0 to use a dynamic port. (Default: 8098)"
     )
-    private int artifactPort = 8098;
+    int artifactPort = 8098;
 
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
-    private String artifactStagingPath =
+    String artifactStagingPath =
         Paths.get(System.getProperty("java.io.tmpdir"), "beam-artifact-staging").toString();
 
     @Option(
       name = "--clean-artifacts-per-job",
       usage = "When true, remove each job's staged artifacts when it completes"
     )
-    private Boolean cleanArtifactsPerJob = false;
+    boolean cleanArtifactsPerJob = false;
 
     @Option(name = "--flink-master-url", usage = "Flink master url to submit job.")
-    private String flinkMasterUrl = "[auto]";
+    String flinkMasterUrl = "[auto]";
 
-    public String getFlinkMasterUrl() {
+    String getFlinkMasterUrl() {
       return this.flinkMasterUrl;
     }
 
@@ -89,9 +89,9 @@ public class FlinkJobServerDriver implements Runnable {
       name = "--sdk-worker-parallelism",
       usage = "Default parallelism for SDK worker processes (see portable pipeline options)"
     )
-    private String sdkWorkerParallelism = PortablePipelineOptions.SDK_WORKER_PARALLELISM_PIPELINE;
+    Long sdkWorkerParallelism = 1L;
 
-    public String getSdkWorkerParallelism() {
+    Long getSdkWorkerParallelism() {
       return this.sdkWorkerParallelism;
     }
   }
@@ -209,7 +209,7 @@ public class FlinkJobServerDriver implements Runnable {
               .build();
       jobServiceGrpcFnServer = GrpcFnServer.create(service, descriptor, jobServerFactory);
     }
-    LOG.info("JobServer started on {}", jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
+    LOG.info("JobService started on {}", jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
     return jobServiceGrpcFnServer;
   }
 

@@ -97,7 +97,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.stageIdGenerator = stageIdGenerator;
     this.environmentCache =
         createEnvironmentCache(
-            (environment) -> {
+            environment -> {
               synchronized (this) {
                 checkAndInitialize(jobInfo, environmentFactoryMap, environment);
               }
@@ -125,7 +125,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.dataServer = dataServer;
     this.stateServer = stateServer;
     this.environmentCache =
-        createEnvironmentCache((env) -> environmentFactory.createEnvironment(env));
+        createEnvironmentCache(env -> environmentFactory.createEnvironment(env));
   }
 
   private LoadingCache<Environment, WrappedSdkHarnessClient> createEnvironmentCache(
@@ -246,6 +246,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         outputReceivers.put(target, RemoteOutputReceiver.of(coder, outputReceiver));
       }
       return processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
+    }
+
+    @Override
+    public ExecutableProcessBundleDescriptor getProcessBundleDescriptor() {
+      return processBundleDescriptor;
     }
 
     @Override

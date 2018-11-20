@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.fn.data;
 
 import com.google.common.base.Optional;
@@ -47,7 +46,7 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -266,6 +265,6 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
 
   private CompletableFuture<BeamFnDataGrpcMultiplexer> getClientFuture(String sdkWorkerId) {
     Preconditions.checkNotNull(sdkWorkerId);
-    return connectedClients.computeIfAbsent(sdkWorkerId, (clientId) -> new CompletableFuture<>());
+    return connectedClients.computeIfAbsent(sdkWorkerId, clientId -> new CompletableFuture<>());
   }
 }

@@ -40,11 +40,11 @@ import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.fn.function.ThrowingConsumer;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,7 +176,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       String invocationId = invocation.getId();
 
       invocation.addStateListener(
-          (state) -> {
+          state -> {
             if (!JobInvocation.isTerminated(state)) {
               return;
             }
@@ -258,7 +258,12 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       Function<JobState.Enum, GetJobStateResponse> responseFunction =
           state -> GetJobStateResponse.newBuilder().setState(state).build();
       Consumer<JobState.Enum> stateListener =
-          state -> responseObserver.onNext(responseFunction.apply(state));
+          state -> {
+            responseObserver.onNext(responseFunction.apply(state));
+            if (JobInvocation.isTerminated(state)) {
+              responseObserver.onCompleted();
+            }
+          };
       invocation.addStateListener(stateListener);
     } catch (Exception e) {
       String errMessage =
@@ -279,11 +284,15 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       StreamObserver<JobMessagesResponse> syncResponseObserver =
           SynchronizedStreamObserver.wrapping(responseObserver);
       Consumer<JobState.Enum> stateListener =
-          state ->
-              syncResponseObserver.onNext(
-                  JobMessagesResponse.newBuilder()
-                      .setStateResponse(GetJobStateResponse.newBuilder().setState(state).build())
-                      .build());
+          state -> {
+            syncResponseObserver.onNext(
+                JobMessagesResponse.newBuilder()
+                    .setStateResponse(GetJobStateResponse.newBuilder().setState(state).build())
+                    .build());
+            if (JobInvocation.isTerminated(state)) {
+              responseObserver.onCompleted();
+            }
+          };
       Consumer<JobMessage> messageListener =
           message ->
               syncResponseObserver.onNext(

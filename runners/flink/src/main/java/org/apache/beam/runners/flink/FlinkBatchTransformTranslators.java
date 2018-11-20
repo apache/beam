@@ -584,7 +584,7 @@ class FlinkBatchTransformTranslators {
                 sideInputStrategies,
                 context.getPipelineOptions(),
                 outputMap,
-                (TupleTag<OutputT>) mainOutputTag,
+                mainOutputTag,
                 inputCoder,
                 outputCoderMap);
 

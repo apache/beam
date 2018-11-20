@@ -158,7 +158,7 @@ class FlinkBatchSideInputHandlerFactory implements SideInputHandlerFactory {
       }
     }
 
-    return new MultimapSideInputHandler(multimap.build(), keyCoder, valueCoder, windowCoder);
+    return new MultimapSideInputHandler<>(multimap.build(), keyCoder, valueCoder, windowCoder);
   }
 
   private static class MultimapSideInputHandler<K, V, W extends BoundedWindow>

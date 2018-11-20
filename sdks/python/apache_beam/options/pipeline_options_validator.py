@@ -170,6 +170,10 @@ class PipelineOptionsValidator(object):
       elif not self.is_full_string_match(self.PROJECT_ID_PATTERN, project):
         errors.extend(
             self._validate_error(self.ERR_INVALID_PROJECT_ID, project))
+    if view.update:
+      if not view.job_name:
+        errors.extend(self._validate_error(
+            'Existing job name must be provided when updating a pipeline.'))
     return errors
 
   def validate_optional_argument_positive(self, view, arg_name):
