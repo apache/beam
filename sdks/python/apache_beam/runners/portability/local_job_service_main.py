@@ -32,10 +32,8 @@ def run(argv):
   parser.add_argument('-p', '--port',
                       type=int,
                       help='port on which to serve the job api')
-  parser.add_argument('--worker_command_line',
-                      help='command line for starting up a worker process')
   options = parser.parse_args(argv)
-  job_servicer = local_job_service.LocalJobServicer(options.worker_command_line)
+  job_servicer = local_job_service.LocalJobServicer()
   port = job_servicer.start_grpc_server(options.port)
   while True:
     logging.info("Listening for jobs at %d", port)

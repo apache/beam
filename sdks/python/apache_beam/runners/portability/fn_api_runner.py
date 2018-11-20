@@ -212,15 +212,15 @@ class _WindowGroupingBuffer(object):
 
 class FnApiRunner(runner.PipelineRunner):
 
-  def __init__(self, use_grpc=False, sdk_harness_factory=None, bundle_repeat=0,
-               use_state_iterables=False):
+  def __init__(
+      self,
+      default_environment=None,
+      bundle_repeat=0,
+      use_state_iterables=False):
     """Creates a new Fn API Runner.
 
     Args:
-      use_grpc: whether to use grpc or simply make in-process calls
-          defaults to False
-      sdk_harness_factory: callable used to instantiate customized sdk harnesses
-          typcially not set by users
+      default_environment: the default environment to use for UserFns.
       bundle_repeat: replay every bundle this many extra times, for profiling
           and debugging
       use_state_iterables: Intentionally split gbk iterables over state API
@@ -228,10 +228,9 @@ class FnApiRunner(runner.PipelineRunner):
     """
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
-    self._use_grpc = use_grpc
-    if sdk_harness_factory and not use_grpc:
-      raise ValueError('GRPC must be used if a harness factory is provided.')
-    self._sdk_harness_factory = sdk_harness_factory
+    self._default_environment = (
+        default_environment
+        or beam_runner_api_pb2.Environment(urn=python_urns.EMBEDDED_PYTHON))
     self._bundle_repeat = bundle_repeat
     self._progress_frequency = None
     self._profiler_factory = None
@@ -253,7 +252,8 @@ class FnApiRunner(runner.PipelineRunner):
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
     self._profiler_factory = profiler.Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
-    return self.run_via_runner_api(pipeline.to_runner_api())
+    return self.run_via_runner_api(pipeline.to_runner_api(
+        default_environment=self._default_environment))
 
   def run_via_runner_api(self, pipeline_proto):
     return self.run_stages(*self.create_stages(pipeline_proto))
@@ -860,10 +860,8 @@ class FnApiRunner(runner.PipelineRunner):
     return pipeline_components, stages, safe_coders
 
   def run_stages(self, pipeline_components, stages, safe_coders):
-    if self._use_grpc:
-      controller = FnApiRunner.GrpcController(self._sdk_harness_factory)
-    else:
-      controller = FnApiRunner.DirectController()
+    worker_handler_manager = WorkerHandlerManager(
+        pipeline_components.environments)
     metrics_by_stage = {}
     monitoring_infos_by_stage = {}
 
@@ -872,18 +870,26 @@ class FnApiRunner(runner.PipelineRunner):
         pcoll_buffers = collections.defaultdict(list)
         for stage in stages:
           stage_results = self.run_stage(
-              controller, pipeline_components, stage,
-              pcoll_buffers, safe_coders)
+              worker_handler_manager.get_worker_handler,
+              pipeline_components,
+              stage,
+              pcoll_buffers,
+              safe_coders)
           metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
     finally:
-      controller.close()
+      worker_handler_manager.close_all()
     return RunnerResult(
         runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
 
   def run_stage(
-      self, controller, pipeline_components, stage, pcoll_buffers, safe_coders):
+      self,
+      worker_handler_factory,
+      pipeline_components,
+      stage,
+      pcoll_buffers,
+      safe_coders):
 
     def iterable_state_write(values, element_coder_impl):
       token = unique_name(None, 'iter').encode('ascii')
@@ -896,6 +902,7 @@ class FnApiRunner(runner.PipelineRunner):
           out.get())
       return token
 
+    controller = worker_handler_factory(stage.environment)
     context = pipeline_context.PipelineContext(
         pipeline_components, iterable_state_write=iterable_state_write)
     data_api_service_descriptor = controller.data_api_service_descriptor()
@@ -972,7 +979,7 @@ class FnApiRunner(runner.PipelineRunner):
                 side_input_id=tag,
                 window=window,
                 key=key))
-        controller.state_handler.blocking_append(state_key, elements_data)
+        controller.state.blocking_append(state_key, elements_data)
 
     def get_buffer(buffer_id):
       kind, name = split_buffer_id(buffer_id)
@@ -1005,12 +1012,12 @@ class FnApiRunner(runner.PipelineRunner):
 
     for k in range(self._bundle_repeat):
       try:
-        controller.state_handler.checkpoint()
+        controller.state.checkpoint()
         BundleManager(
             controller, lambda pcoll_id: [], process_bundle_descriptor,
             self._progress_frequency, k).process_bundle(data_input, data_output)
       finally:
-        controller.state_handler.restore()
+        controller.state.restore()
 
     result = BundleManager(
         controller, get_buffer, process_bundle_descriptor,
@@ -1138,8 +1145,10 @@ class FnApiRunner(runner.PipelineRunner):
     def _to_key(state_key):
       return state_key.SerializeToString()
 
-  class GrpcStateServicer(
-      StateServicer, beam_fn_api_pb2_grpc.BeamFnStateServicer):
+  class GrpcStateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
+    def __init__(self, state):
+      self._state = state
+
     def State(self, request_stream, context=None):
       # Note that this eagerly mutates state, assuming any failures are fatal.
       # Thus it is safe to ignore instruction_reference.
@@ -1149,14 +1158,14 @@ class FnApiRunner(runner.PipelineRunner):
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               get=beam_fn_api_pb2.StateGetResponse(
-                  data=self.blocking_get(request.state_key)))
+                  data=self._state.blocking_get(request.state_key)))
         elif request_type == 'append':
-          self.blocking_append(request.state_key, request.append.data)
+          self._state.blocking_append(request.state_key, request.append.data)
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               append=beam_fn_api_pb2.StateAppendResponse())
         elif request_type == 'clear':
-          self.blocking_clear(request.state_key)
+          self._state.blocking_clear(request.state_key)
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               clear=beam_fn_api_pb2.StateClearResponse())
@@ -1177,111 +1186,202 @@ class FnApiRunner(runner.PipelineRunner):
       """Does nothing."""
       pass
 
-  class DirectController(object):
-    """An in-memory controller for fn API control, state and data planes."""
 
-    def __init__(self):
-      self.control_handler = self
-      self.data_plane_handler = data_plane.InMemoryDataChannel()
-      self.state_handler = FnApiRunner.StateServicer()
-      self.worker = sdk_worker.SdkWorker(
-          FnApiRunner.SingletonStateHandlerFactory(self.state_handler),
-          data_plane.InMemoryDataChannelFactory(
-              self.data_plane_handler.inverse()), {})
-      self._uid_counter = 0
+class WorkerHandler(object):
 
-    def push(self, request):
-      if not request.instruction_id:
-        self._uid_counter += 1
-        request.instruction_id = 'control_%s' % self._uid_counter
-      logging.debug('CONTROL REQUEST %s', request)
-      response = self.worker.do_instruction(request)
-      logging.debug('CONTROL RESPONSE %s', response)
-      return ControlFuture(request.instruction_id, response)
+  _registered_environments = {}
 
-    def done(self):
-      pass
+  def __init__(self, control_handler, data_plane_handler, state):
+    self.control_handler = control_handler
+    self.data_plane_handler = data_plane_handler
+    self.state = state
 
-    def close(self):
-      pass
+  def close(self):
+    self.stop_worker()
 
-    def data_api_service_descriptor(self):
-      return None
+  def start_worker(self):
+    raise NotImplementedError
 
-    def state_api_service_descriptor(self):
-      return None
+  def stop_worker(self):
+    raise NotImplementedError
 
-  class GrpcController(object):
-    """An grpc based controller for fn API control, state and data planes."""
+  def data_api_service_descriptor(self):
+    raise NotImplementedError
 
-    def __init__(self, sdk_harness_factory=None):
-      self.sdk_harness_factory = sdk_harness_factory
-      self.control_server = grpc.server(
-          futures.ThreadPoolExecutor(max_workers=10))
-      self.control_port = self.control_server.add_insecure_port('[::]:0')
+  def state_api_service_descriptor(self):
+    raise NotImplementedError
 
-      # Options to have no limits (-1) on the size of the messages
-      # received or sent over the data plane. The actual buffer size
-      # is controlled in a layer above.
-      no_max_message_sizes = [("grpc.max_receive_message_length", -1),
-                              ("grpc.max_send_message_length", -1)]
-      self.data_server = grpc.server(
-          futures.ThreadPoolExecutor(max_workers=10),
-          options=no_max_message_sizes)
-      self.data_port = self.data_server.add_insecure_port('[::]:0')
+  @classmethod
+  def register_environment(cls, urn, payload_type):
+    def wrapper(constructor):
+      cls._registered_environments[urn] = constructor, payload_type
+      return constructor
+    return wrapper
 
-      self.state_server = grpc.server(
-          futures.ThreadPoolExecutor(max_workers=10),
-          options=no_max_message_sizes)
-      self.state_port = self.state_server.add_insecure_port('[::]:0')
+  @classmethod
+  def create(cls, environment, state):
+    constructor, payload_type = cls._registered_environments[environment.urn]
+    return constructor(
+        proto_utils.parse_Bytes(environment.payload, payload_type), state)
 
-      self.control_handler = BeamFnControlServicer()
-      beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
-          self.control_handler, self.control_server)
 
-      self.data_plane_handler = data_plane.GrpcServerDataChannel()
-      beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
-          self.data_plane_handler, self.data_server)
+@WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON, None)
+class EmbeddedWorkerHandler(WorkerHandler):
+  """An in-memory controller for fn API control, state and data planes."""
 
-      self.state_handler = FnApiRunner.GrpcStateServicer()
-      beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server(
-          self.state_handler, self.state_server)
+  def __init__(self, unused_payload, state):
+    super(EmbeddedWorkerHandler, self).__init__(
+        self, data_plane.InMemoryDataChannel(), state)
+    self.worker = sdk_worker.SdkWorker(
+        FnApiRunner.SingletonStateHandlerFactory(self.state),
+        data_plane.InMemoryDataChannelFactory(
+            self.data_plane_handler.inverse()), {})
+    self._uid_counter = 0
 
-      logging.info('starting control server on port %s', self.control_port)
-      logging.info('starting data server on port %s', self.data_port)
-      self.state_server.start()
-      self.data_server.start()
-      self.control_server.start()
+  def push(self, request):
+    if not request.instruction_id:
+      self._uid_counter += 1
+      request.instruction_id = 'control_%s' % self._uid_counter
+    logging.debug('CONTROL REQUEST %s', request)
+    response = self.worker.do_instruction(request)
+    logging.debug('CONTROL RESPONSE %s', response)
+    return ControlFuture(request.instruction_id, response)
 
-      self.worker = self.sdk_harness_factory(
-          'localhost:%s' % self.control_port
-      ) if self.sdk_harness_factory else sdk_worker.SdkHarness(
-          'localhost:%s' % self.control_port, worker_count=1)
+  def start_worker(self):
+    pass
 
-      self.worker_thread = threading.Thread(
-          name='run_worker', target=self.worker.run)
-      logging.info('starting worker')
-      self.worker_thread.start()
+  def stop_worker(self):
+    pass
 
-    def data_api_service_descriptor(self):
-      url = 'localhost:%s' % self.data_port
-      api_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
-      api_service_descriptor.url = url
-      return api_service_descriptor
+  def done(self):
+    pass
 
-    def state_api_service_descriptor(self):
-      url = 'localhost:%s' % self.state_port
-      api_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
-      api_service_descriptor.url = url
-      return api_service_descriptor
+  def data_api_service_descriptor(self):
+    return None
 
-    def close(self):
-      self.control_handler.done()
-      self.worker_thread.join()
-      self.data_plane_handler.close()
-      self.control_server.stop(5).wait()
-      self.data_server.stop(5).wait()
-      self.state_server.stop(5).wait()
+  def state_api_service_descriptor(self):
+    return None
+
+
+class GrpcWorkerHandler(WorkerHandler):
+  """An grpc based controller for fn API control, state and data planes."""
+
+  def __init__(self, state=None):
+    self.control_server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=10))
+    self.control_port = self.control_server.add_insecure_port('[::]:0')
+    self.control_address = 'localhost:%s' % self.control_port
+
+    # Options to have no limits (-1) on the size of the messages
+    # received or sent over the data plane. The actual buffer size
+    # is controlled in a layer above.
+    no_max_message_sizes = [("grpc.max_receive_message_length", -1),
+                            ("grpc.max_send_message_length", -1)]
+    self.data_server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=10),
+        options=no_max_message_sizes)
+    self.data_port = self.data_server.add_insecure_port('[::]:0')
+
+    self.state_server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=10),
+        options=no_max_message_sizes)
+    self.state_port = self.state_server.add_insecure_port('[::]:0')
+
+    self.control_handler = BeamFnControlServicer()
+    beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
+        self.control_handler, self.control_server)
+
+    self.data_plane_handler = data_plane.GrpcServerDataChannel()
+    beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
+        self.data_plane_handler, self.data_server)
+
+    self.state = state
+    beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server(
+        FnApiRunner.GrpcStateServicer(state),
+        self.state_server)
+
+    logging.info('starting control server on port %s', self.control_port)
+    logging.info('starting data server on port %s', self.data_port)
+    self.state_server.start()
+    self.data_server.start()
+    self.control_server.start()
+
+  def data_api_service_descriptor(self):
+    return endpoints_pb2.ApiServiceDescriptor(
+        url='localhost:%s' % self.data_port)
+
+  def state_api_service_descriptor(self):
+    return endpoints_pb2.ApiServiceDescriptor(
+        url='localhost:%s' % self.state_port)
+
+  def close(self):
+    self.control_handler.done()
+    self.data_plane_handler.close()
+    self.control_server.stop(5).wait()
+    self.data_server.stop(5).wait()
+    self.state_server.stop(5).wait()
+    super(GrpcWorkerHandler, self).close()
+
+
+@WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
+class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
+  def __init__(self, num_workers_payload, state):
+    super(EmbeddedGrpcWorkerHandler, self).__init__(state)
+    self._num_threads = int(num_workers_payload) if num_workers_payload else 1
+
+  def start_worker(self):
+    self.worker = sdk_worker.SdkHarness(
+        self.control_address, worker_count=self._num_threads)
+    self.worker_thread = threading.Thread(
+        name='run_worker', target=self.worker.run)
+    self.worker_thread.start()
+
+  def stop_worker(self):
+    self.worker_thread.join()
+
+
+@WorkerHandler.register_environment(python_urns.SUBPROCESS_SDK, bytes)
+class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
+  def __init__(self, worker_command_line, state):
+    super(SubprocessSdkWorkerHandler, self).__init__(state)
+    self._worker_command_line = worker_command_line
+
+  def start_worker(self):
+    from apache_beam.runners.portability import local_job_service
+    self.worker = local_job_service.SubprocessSdkWorker(
+        self._worker_command_line, self.control_address)
+    self.worker_thread = threading.Thread(
+        name='run_worker', target=self.worker.run)
+    self.worker_thread.start()
+
+  def stop_worker(self):
+    self.worker_thread.join()
+
+
+class WorkerHandlerManager(object):
+  def __init__(self, environments):
+    self._environments = environments
+    self._cached_handlers = {}
+    self._state = FnApiRunner.StateServicer() # rename?
+
+  def get_worker_handler(self, environment_id):
+    if environment_id is None:
+      # Any environment will do, pick one arbitrarily.
+      environment_id = next(iter(self._environments.keys()))
+    environment = self._environments[environment_id]
+
+    worker_handler = self._cached_handlers.get(environment_id)
+    if worker_handler is None:
+      worker_handler = self._cached_handlers[
+          environment_id] = WorkerHandler.create(
+              environment, self._state)
+      worker_handler.start_worker()
+    return worker_handler
+
+  def close_all(self):
+    for controller in set(self._cached_handlers.values()):
+      controller.close()
+    self._cached_handlers = {}
 
 
 class BundleManager(object):

@@ -606,13 +606,15 @@ class Pipeline(object):
     return Visitor.ok
 
   def to_runner_api(
-      self, return_context=False, context=None, use_fake_coders=False):
+      self, return_context=False, context=None, use_fake_coders=False,
+      default_environment=None):
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
     if context is None:
       context = pipeline_context.PipelineContext(
-          use_fake_coders=use_fake_coders)
+          use_fake_coders=use_fake_coders,
+          default_environment=default_environment)
 
     # The RunnerAPI spec requires certain transforms to have KV inputs
     # (and corresponding outputs).

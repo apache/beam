@@ -16,7 +16,6 @@
 #
 from __future__ import absolute_import
 
-import functools
 import logging
 import os
 import queue
@@ -61,9 +60,7 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     subprocesses for the runner and worker(s).
     """
 
-  def __init__(self, worker_command_line=None, use_grpc=True):
-    self._worker_command_line = worker_command_line
-    self._use_grpc = use_grpc or bool(worker_command_line)
+  def __init__(self):
     self._jobs = {}
 
   def start_grpc_server(self, port=0):
@@ -78,17 +75,10 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     # For now, just use the job name as the job id.
     logging.debug('Got Prepare request.')
     preparation_id = '%s-%s' % (request.job_name, uuid.uuid4())
-    if self._worker_command_line:
-      sdk_harness_factory = functools.partial(SubprocessSdkWorker,
-                                              self._worker_command_line)
-    else:
-      sdk_harness_factory = None
     self._jobs[preparation_id] = BeamJob(
         preparation_id,
         request.pipeline_options,
-        request.pipeline,
-        use_grpc=self._use_grpc,
-        sdk_harness_factory=sdk_harness_factory)
+        request.pipeline)
     logging.debug("Prepared job '%s' as '%s'", request.job_name, preparation_id)
     # TODO(angoenka): Pass an appropriate staging_session_token. The token can
     # be obtained in PutArtifactResponse from JobService
@@ -186,15 +176,11 @@ class BeamJob(threading.Thread):
   def __init__(self,
                job_id,
                pipeline_options,
-               pipeline_proto,
-               use_grpc=True,
-               sdk_harness_factory=None):
+               pipeline_proto):
     super(BeamJob, self).__init__()
     self._job_id = job_id
     self._pipeline_options = pipeline_options
     self._pipeline_proto = pipeline_proto
-    self._use_grpc = use_grpc
-    self._sdk_harness_factory = sdk_harness_factory
     self._log_queue = queue.Queue()
     self._state_change_callbacks = [
         lambda new_state: self._log_queue.put(
@@ -227,10 +213,7 @@ class BeamJob(threading.Thread):
   def run(self):
     with JobLogHandler(self._log_queue):
       try:
-        fn_api_runner.FnApiRunner(
-            use_grpc=self._use_grpc,
-            sdk_harness_factory=self._sdk_harness_factory).run_via_runner_api(
-                self._pipeline_proto)
+        fn_api_runner.FnApiRunner().run_via_runner_api(self._pipeline_proto)
         logging.info('Successfully completed job.')
         self.state = beam_job_api_pb2.JobState.DONE
       except:  # pylint: disable=bare-except
