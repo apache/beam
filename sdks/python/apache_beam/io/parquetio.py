@@ -291,11 +291,6 @@ class WriteToParquet(PTransform):
             )
         )
 
-    .. testoutput::
-      :hide:
-
-      <BLANKLINE>
-
     For more information on supported types and schema, please see the pyarrow
     document.
 
