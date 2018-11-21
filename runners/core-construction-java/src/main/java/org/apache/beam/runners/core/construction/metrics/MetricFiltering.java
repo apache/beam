@@ -58,11 +58,10 @@ public class MetricFiltering {
       return false; // needle not found
     } else if (location != 0 && haystack.charAt(location - 1) != '/') {
       return false; // the first entry in needle wasn't exactly matched
-    } else if (end != haystack.length() && haystack.charAt(end) != '/') {
-      return false; // the last entry in needle wasn't exactly matched
-    } else {
-      return true;
     }
+
+    // Otherwise, check if the last entry in needle wasn't exactly matched
+    return end == haystack.length() || haystack.charAt(end) == '/';
   }
 
   /**
