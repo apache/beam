@@ -16,7 +16,7 @@
 #
 """``PTransforms`` for reading from and writing to Parquet files.
 
-Provides two read ``PTransform``\s, ``ReadFromParquet`` and
+Provides two read ``PTransform``\\s, ``ReadFromParquet`` and
 ``ReadAllFromParquet``, that produces a ``PCollection`` of records.
 Each record of this ``PCollection`` will contain a single record read from
 a Parquet file. Records that are of simple types will be mapped into
@@ -32,9 +32,7 @@ from __future__ import absolute_import
 from functools import partial
 
 import pyarrow as pa
-from pyarrow.parquet import ParquetFile
-from pyarrow.parquet import ParquetWriter
-
+import pyarrow.parquet as pq
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
 from apache_beam.io.filesystem import CompressionTypes
@@ -219,7 +217,7 @@ class _ParquetSource(filebasedsource.FileBasedSource):
       start_offset = 0
 
     with self.open_file(file_name) as f:
-      pf = ParquetFile(f)
+      pf = pq.ParquetFile(f)
 
       # find the first dictionary page (or data page if there's no dictionary
       # page available) offset after the given start_offset. This offset is also
@@ -416,7 +414,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
 
   def open(self, temp_path):
     self._file_handle = super(_ParquetSink, self).open(temp_path)
-    return ParquetWriter(
+    return pq.ParquetWriter(
         self._file_handle, self._schema, compression=self._codec,
         use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps
     )

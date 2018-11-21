@@ -25,14 +25,13 @@ import tempfile
 import unittest
 
 import hamcrest as hc
-import pandas
-import pyarrow as pa
-import pyarrow.parquet as pq
-
 from parameterized import param
 from parameterized import parameterized
-from pyarrow.lib import ArrowInvalid
 
+import pandas
+import pyarrow as pa
+import pyarrow.lib as pl
+import pyarrow.parquet as pq
 from apache_beam import Create
 from apache_beam import Map
 from apache_beam.io import filebasedsource
@@ -257,7 +256,7 @@ class TestParquet(unittest.TestCase):
   def test_sink_transform_int96(self):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
-      with self.assertRaises(ArrowInvalid):
+      with self.assertRaises(pl.ArrowInvalid):
         with TestPipeline() as p:
           _ = p \
           | Create(self.RECORDS) \

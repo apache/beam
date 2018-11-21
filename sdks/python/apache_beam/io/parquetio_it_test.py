@@ -23,9 +23,9 @@ import sys
 import unittest
 from collections import Counter
 
-import pyarrow as pa
 from nose.plugins.attrib import attr
 
+import pyarrow as pa
 from apache_beam import Create
 from apache_beam import DoFn
 from apache_beam import FlatMap
@@ -40,7 +40,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms.combiners import Count
-
 
 
 class TestParquetIT(unittest.TestCase):
