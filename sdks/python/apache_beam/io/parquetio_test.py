@@ -25,13 +25,13 @@ import tempfile
 import unittest
 
 import hamcrest as hc
-from parameterized import param
-from parameterized import parameterized
-
 import pandas
 import pyarrow as pa
 import pyarrow.lib as pl
 import pyarrow.parquet as pq
+from parameterized import param
+from parameterized import parameterized
+
 from apache_beam import Create
 from apache_beam import Map
 from apache_beam.io import filebasedsource

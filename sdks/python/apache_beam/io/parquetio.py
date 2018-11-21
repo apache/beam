@@ -33,6 +33,7 @@ from functools import partial
 
 import pyarrow as pa
 import pyarrow.parquet as pq
+
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
 from apache_beam.io.filesystem import CompressionTypes

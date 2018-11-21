@@ -23,9 +23,9 @@ import sys
 import unittest
 from collections import Counter
 
+import pyarrow as pa
 from nose.plugins.attrib import attr
 
-import pyarrow as pa
 from apache_beam import Create
 from apache_beam import DoFn
 from apache_beam import FlatMap
