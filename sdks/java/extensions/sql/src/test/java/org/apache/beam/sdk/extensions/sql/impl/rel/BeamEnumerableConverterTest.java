@@ -101,6 +101,11 @@ public class BeamEnumerableConverterTest {
     }
 
     @Override
+    public PCollection.IsBounded isBounded() {
+      return null;
+    }
+
+    @Override
     public PCollection<Row> buildIOReader(PBegin begin) {
       return null;
     }
