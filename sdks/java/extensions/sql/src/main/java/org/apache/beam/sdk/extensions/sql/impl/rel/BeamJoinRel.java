@@ -157,9 +157,6 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       PCollection<Row> leftRows = pinput.get(0);
       PCollection<Row> rightRows = pinput.get(1);
 
-      verifySupportedTrigger(leftRows);
-      verifySupportedTrigger(rightRows);
-
       WindowFn leftWinFn = leftRows.getWindowingStrategy().getWindowFn();
       WindowFn rightWinFn = rightRows.getWindowingStrategy().getWindowFn();
 
@@ -198,6 +195,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       if ((leftRows.isBounded() == PCollection.IsBounded.BOUNDED
               && rightRows.isBounded() == PCollection.IsBounded.BOUNDED)
           || (leftRows.isBounded() == UNBOUNDED && rightRows.isBounded() == UNBOUNDED)) {
+        verifySupportedTrigger(leftRows);
+        verifySupportedTrigger(rightRows);
+
         try {
           leftWinFn.verifyCompatibility(rightWinFn);
         } catch (IncompatibleWindowException e) {
