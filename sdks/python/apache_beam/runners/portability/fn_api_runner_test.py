@@ -339,8 +339,10 @@ class FnApiRunnerTest(unittest.TestCase):
         yield buffer
 
     def is_buffered_correctly(actual):
-      self.assertEqual(sorted(sum((list(b) for b in actual), [])), elements)
-      self.assertEqual(max(len(list(buffer)) for buffer in actual), buffer_size)
+      assert sorted(sum((list(b) for b in actual), [])) == elements
+      assert max(len(list(buffer)) for buffer in actual) == buffer_size
+# self.assertEqual(sorted(sum((list(b) for b in actual), [])), elements)
+# self.assertEqual(max(len(list(buffer)) for buffer in actual), buffer_size)
 
     with self.create_pipeline() as p:
       actual = (
