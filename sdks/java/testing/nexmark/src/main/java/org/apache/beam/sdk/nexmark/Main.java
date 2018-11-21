@@ -40,7 +40,7 @@ import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testutils.publishing.BigQueryClient;
+import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -142,8 +142,19 @@ public class Main {
       }
 
       if (options.getExportSummaryToBigQuery()) {
-        BigQueryClient publisher = BigQueryClient.create(options.getBigQueryDataset());
-        savePerfsToBigQuery(publisher, options, actual, start);
+        ImmutableMap<String, String> schema =
+            ImmutableMap.<String, String>builder()
+                .put("timestamp", "timestamp")
+                .put("runtimeSec", "float")
+                .put("eventsPerSec", "float")
+                .put("numResults", "integer")
+                .build();
+
+        savePerfsToBigQuery(
+            BigQueryResultsPublisher.create(options.getBigQueryDataset(), schema),
+            options,
+            actual,
+            start);
       }
     } finally {
       if (options.getMonitorJobs()) {
@@ -161,7 +172,7 @@ public class Main {
 
   @VisibleForTesting
   static void savePerfsToBigQuery(
-      BigQueryClient bigQueryClient,
+      BigQueryResultsPublisher publisher,
       NexmarkOptions options,
       Map<NexmarkConfiguration, NexmarkPerf> perfs,
       Instant start) {
@@ -172,24 +183,7 @@ public class Main {
               options.getQueryLanguage(), entry.getKey().query.getNumberOrName());
       String tableName = NexmarkUtils.tableName(options, queryName, 0L, null);
 
-      ImmutableMap<String, String> schema =
-          ImmutableMap.<String, String>builder()
-              .put("timestamp", "timestamp")
-              .put("runtimeSec", "float")
-              .put("eventsPerSec", "float")
-              .put("numResults", "integer")
-              .build();
-
-      // convert millis to seconds (it's a BigQuery's requirement).
-      Map<String, Object> record =
-          ImmutableMap.<String, Object>builder()
-              .put("timestamp", start.getMillis() / 1000)
-              .put("runtimeSec", entry.getValue().runtimeSec)
-              .put("eventsPerSec", entry.getValue().eventsPerSec)
-              .put("numResults", entry.getValue().numResults)
-              .build();
-
-      bigQueryClient.insertRow(record, schema, tableName);
+      publisher.publish(entry.getValue(), tableName, start.getMillis());
     }
   }
 
