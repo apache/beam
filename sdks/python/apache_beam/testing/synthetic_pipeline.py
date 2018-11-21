@@ -71,7 +71,7 @@ def div_round_up(a, b):
 def rotate_key(element):
   """Returns a new key-value pair of the same size but with a different key."""
   (key, value) = element
-  return key[-1:] + key[:-1], value
+  return key[-1] + key[:-1], value
 
 
 class SyntheticStep(beam.DoFn):
