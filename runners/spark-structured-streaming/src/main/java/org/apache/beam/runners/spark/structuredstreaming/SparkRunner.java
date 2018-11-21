@@ -98,9 +98,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     PipelineTranslator.detectTranslationMode(pipeline, options);
     PipelineTranslator.replaceTransforms(pipeline, options);
     PipelineTranslator.prepareFilesToStageForRemoteClusterExecution(options);
-    PipelineTranslator translator = options.isStreaming() ? new StreamingPipelineTranslator() : new BatchPipelineTranslator();
-    //init translator with subclass based on mode and env
-    translator.translate(pipeline);
+    PipelineTranslator pipelineTranslator = options.isStreaming() ? new StreamingPipelineTranslator() : new BatchPipelineTranslator();
+    //init pipelineTranslator with subclass based on mode and env
+    pipelineTranslator.translate(pipeline);
   }
   private void executePipeline(Pipeline pipeline) {}
 
