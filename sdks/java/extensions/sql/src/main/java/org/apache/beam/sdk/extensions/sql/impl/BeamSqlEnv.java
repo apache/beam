@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
@@ -48,7 +49,7 @@ import org.apache.calcite.tools.ValidationException;
  * query/validate/optimize/translate SQL statements.
  */
 @Internal
-@Experimental
+@Experimental(Kind.SQL)
 public class BeamSqlEnv {
   final CalciteConnection connection;
   final SchemaPlus defaultSchema;

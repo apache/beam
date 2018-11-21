@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
@@ -40,7 +41,7 @@ import org.joda.time.Instant;
 
 /** A {@link DoFn} to convert {@link PubsubMessage} with JSON payload to {@link Row}. */
 @Internal
-@Experimental
+@Experimental(Kind.SQL)
 @AutoValue
 public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
   static final String TIMESTAMP_FIELD = "event_timestamp";

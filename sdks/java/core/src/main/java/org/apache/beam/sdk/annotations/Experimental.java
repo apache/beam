@@ -101,5 +101,8 @@ public @interface Experimental {
 
     /** PCollection Schema support in Beam. */
     SCHEMAS,
+
+    /** {@code BeamSql}. */
+    SQL,
   }
 }

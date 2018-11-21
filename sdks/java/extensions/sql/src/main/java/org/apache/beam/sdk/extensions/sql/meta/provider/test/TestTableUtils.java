@@ -25,12 +25,13 @@ import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
 
 /** Utility functions for mock classes. */
-@Experimental
+@Experimental(Kind.SQL)
 public class TestTableUtils {
 
   /**

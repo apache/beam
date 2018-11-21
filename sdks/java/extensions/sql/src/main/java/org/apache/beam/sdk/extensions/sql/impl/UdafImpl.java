@@ -22,6 +22,7 @@ import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -33,7 +34,7 @@ import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.ImplementableAggFunction;
 
 /** Implement {@link AggregateFunction} to take a {@link CombineFn} as UDAF. */
-@Experimental
+@Experimental(Kind.SQL)
 @Internal
 public final class UdafImpl<InputT, AccumT, OutputT>
     implements AggregateFunction, ImplementableAggFunction, Serializable {

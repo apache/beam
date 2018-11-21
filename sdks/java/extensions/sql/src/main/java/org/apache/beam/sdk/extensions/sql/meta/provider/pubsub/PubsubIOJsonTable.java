@@ -24,6 +24,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -85,7 +86,7 @@ import org.apache.beam.sdk.values.TupleTagList;
  */
 @AutoValue
 @Internal
-@Experimental
+@Experimental(Kind.SQL)
 abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
 
   /**

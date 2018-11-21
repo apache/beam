@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
@@ -27,7 +28,7 @@ import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /** {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client. */
-@Experimental
+@Experimental(Kind.SQL)
 public class BeamSqlCli {
   private BeamSqlEnv env;
   /** The store which persists all the table meta data. */

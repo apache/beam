@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
@@ -32,7 +33,7 @@ import org.apache.beam.sdk.values.Row;
  * {@code BeamBigQueryTable} represent a BigQuery table as a target. This provider does not
  * currently support being a source.
  */
-@Experimental
+@Experimental(Kind.SQL)
 public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
   private String tableSpec;
 

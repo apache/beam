@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
@@ -74,7 +75,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * }</pre>
  */
 @AutoValue
-@Experimental
+@Experimental(Kind.SQL)
 public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> {
   static final String PCOLLECTION_NAME = "PCOLLECTION";
 
