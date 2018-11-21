@@ -1492,5 +1492,78 @@ artifactId=${project.name}
         dependsOn ':beam-sdks-java-container:docker'
       }
     }
+
+    /** ***********************************************************************************************/
+
+    project.ext.applyPythonNature = {
+
+      // Define common lifecycle tasks and artifact types
+      project.apply plugin: "base"
+
+      // For some reason base doesn't define a test task  so we define it below and make
+      // check depend on it. This makes the Python project similar to the task layout like
+      // Java projects, see https://docs.gradle.org/4.2.1/userguide/img/javaPluginTasks.png
+      project.task('test', type: Test) {}
+      project.check.dependsOn project.test
+
+      project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
+
+      project.ext.envdir = "${project.rootProject.buildDir}/${project.name}/gradleenv"
+      project.ext.pythonRootDir = "${project.rootDir}/sdks/python"
+
+      project.task('setupVirtualenv')  {
+        doLast {
+          project.exec { commandLine 'virtualenv', "${project.ext.envdir}" }
+          project.exec {
+            executable 'sh'
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5"
+          }
+        }
+        // Gradle will delete outputs whenever it thinks they are stale. Putting a
+        // specific binary here could make gradle delete it while pip will believe
+        // the package is fully installed.
+        outputs.dirs(project.ext.envdir)
+      }
+
+      project.configurations { distConfig }
+
+      project.task('sdist', dependsOn: 'setupVirtualenv') {
+        doLast {
+          project.exec {
+            executable 'sh'
+            args '-c', ". ${project.ext.envdir}/bin/activate && python ${project.ext.pythonRootDir}/setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
+          }
+          def collection = project.fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz'}
+          println "sdist archive name: ${collection.singleFile}"
+          // we need a fixed name for the artifact
+          project.copy { from collection.singleFile; into "${project.buildDir}"; rename { 'apache-beam.tar.gz' } }
+        }
+      }
+
+      project.artifacts {
+        distConfig file: project.file("${project.buildDir}/apache-beam.tar.gz"), builtBy: project.sdist
+      }
+
+      project.task('installGcpTest', dependsOn: 'setupVirtualenv') {
+        doLast {
+          project.exec {
+            executable 'sh'
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e ${project.ext.pythonRootDir}/[gcp,test]"
+          }
+        }
+      }
+      project.installGcpTest.mustRunAfter project.sdist
+
+      project.task('cleanPython', dependsOn: 'setupVirtualenv') {
+        doLast {
+          project.exec {
+            executable 'sh'
+            args '-c', ". ${project.ext.envdir}/bin/activate && python ${project.ext.pythonRootDir}/setup.py clean"
+          }
+          project.delete project.buildDir
+        }
+      }
+      project.clean.dependsOn project.cleanPython
+    }
   }
 }
