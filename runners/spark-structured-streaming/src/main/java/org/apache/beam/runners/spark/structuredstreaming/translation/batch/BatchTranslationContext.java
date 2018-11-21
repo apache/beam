@@ -3,6 +3,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.spark.SparkConf;
@@ -12,7 +13,7 @@ import org.apache.spark.sql.SparkSession;
 /**
  * Keeps track of the {@link Dataset} and the step the translation is in.
  */
-public class BatchTranslationContext {
+public class BatchTranslationContext extends TranslationContext {
   private final Map<PValue, Dataset<?>> datasets;
 
   /**
@@ -24,9 +25,6 @@ public class BatchTranslationContext {
   private SparkSession sparkSession;
   private final SparkPipelineOptions options;
 
-  private AppliedPTransform<?, ?, ?> currentTransform;
-
-
   public BatchTranslationContext(SparkPipelineOptions options) {
     SparkConf sparkConf = new SparkConf();
     sparkConf.setMaster(options.getSparkMaster());
@@ -35,16 +33,12 @@ public class BatchTranslationContext {
       sparkConf.setJars(options.getFilesToStage().toArray(new String[0]));
     }
 
-    SparkSession sparkSession = SparkSession
+    this.sparkSession = SparkSession
         .builder()
         .config(sparkConf)
         .getOrCreate();
     this.options = options;
     this.datasets = new HashMap<>();
     this.danglingDataSets = new HashMap<>();
-  }
-
-  public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
-    this.currentTransform = currentTransform;
   }
 }
