@@ -43,3 +43,7 @@ Implementation of an easy to use Fluent API on top of Euphoria DSL.
 ## Side Outputs
 
 An convenient API for multiple outputs.
+
+## Table-stream joins
+
+Introduce API for converting streams to tables (KStream <-> KTable approach) and various types of (windowed and unwindowed) joins on them.
