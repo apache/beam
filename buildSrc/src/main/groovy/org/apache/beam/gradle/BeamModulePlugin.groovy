@@ -434,6 +434,8 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
+        vendored_grpc_1_13_1                        : "org.apache.beam:beam-vendor-grpc-1_13_1:0.1",
+        vendored_guava_20_0                         : "org.apache.beam:beam-vendor-guava-20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
       ],
@@ -1357,7 +1359,7 @@ artifactId=${project.name}
       project.ext.applyJavaNature(enableFindbugs: false, shadowClosure: GrpcVendoring.shadowClosure() << {
         // We perform all the code relocations but don't include
         // any of the actual dependencies since they will be supplied
-        // by beam-vendor-grpc-v1_13_1
+        // by org.apache.beam:beam-vendor-grpc-v1_13_1:0.1
         dependencies {
           exclude(dependency(".*:.*"))
         }
@@ -1394,9 +1396,7 @@ artifactId=${project.name}
         }
       }
 
-      project.dependencies GrpcVendoring.dependenciesClosure() << {
-        shadow it.project(path: ":beam-vendor-grpc-v1_13_1", configuration: "shadow")
-      }
+      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow 'org.apache.beam:beam-vendor-grpc-1_13_1:0.1' }
 
       project.task('validateShadedJarDoesntExportVendoredDependencies', dependsOn: 'shadowJar') {
         ext.outFile = project.file("${project.reportsDir}/${name}.out")

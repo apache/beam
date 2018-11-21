@@ -156,7 +156,6 @@ def common_compile_project_dependencies = [
         ":beam-runners-java-fn-execution",
         ":beam-sdks-java-fn-execution",
         ":beam-runners-google-cloud-dataflow-java-windmill",
-        ":beam-vendor-grpc-v1_13_1",
 ]
 
 def common_test_compile_project_dependencies = [
@@ -189,6 +188,7 @@ dependencies {
 
     compile library.java.guava
     compile library.java.slf4j_api
+    compile library.java.vendored_grpc_1_13_1
     compile "javax.servlet:javax.servlet-api:3.1.0"
     compile "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
     compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
