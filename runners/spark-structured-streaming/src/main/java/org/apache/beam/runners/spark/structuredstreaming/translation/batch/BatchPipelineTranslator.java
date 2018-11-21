@@ -4,10 +4,13 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.spark.SparkConf;
+import org.apache.spark.sql.SparkSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +48,9 @@ public class BatchPipelineTranslator extends PipelineTranslator {
   }
   private static final Logger LOG = LoggerFactory.getLogger(BatchPipelineTranslator.class);
 
-
+  public BatchPipelineTranslator(SparkPipelineOptions options) {
+    translationContext = new BatchTranslationContext(options);
+  }
 
   /** Returns a translator for the given node, if it is possible, otherwise null. */
   private static BatchTransformTranslator<?> getTransformTranslator(TransformHierarchy.Node node) {
