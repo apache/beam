@@ -21,6 +21,9 @@ import org.slf4j.LoggerFactory;
 
 public class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults{
 
+  // --------------------------------------------------------------------------------------------
+  //  Pipeline preparation methods
+  // --------------------------------------------------------------------------------------------
   /**
    * Local configurations work in the same JVM and have no problems with improperly formatted files
    * on classpath (eg. directories with .class files or empty directories). Prepare files for
@@ -48,32 +51,6 @@ public class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults{
       options.setStreaming(true);
     }
   }
-
-  /**
-   * Utility formatting method.
-   *
-   * @param n number of spaces to generate
-   * @return String with "|" followed by n spaces
-   */
-  protected static String genSpaces(int n) {
-    StringBuilder builder = new StringBuilder();
-    for (int i = 0; i < n; i++) {
-      builder.append("|   ");
-    }
-    return builder.toString();
-  }
-
-  /**
-   * Translates the pipeline by passing this class as a visitor.
-   *
-   * @param pipeline The pipeline to be translated
-   */
-  public void translate(Pipeline pipeline) {
-    pipeline.traverseTopologically(this);
-  }
-
-
-
 
   /** The translation mode of the Beam Pipeline. */
   private enum TranslationMode {
@@ -115,5 +92,40 @@ public class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults{
       }
     }
   }
+
+  // --------------------------------------------------------------------------------------------
+  //  Pipeline utility methods
+  // --------------------------------------------------------------------------------------------
+
+  /**
+   * Utility formatting method.
+   *
+   * @param n number of spaces to generate
+   * @return String with "|" followed by n spaces
+   */
+  protected static String genSpaces(int n) {
+    StringBuilder builder = new StringBuilder();
+    for (int i = 0; i < n; i++) {
+      builder.append("|   ");
+    }
+    return builder.toString();
+  }
+
+  // --------------------------------------------------------------------------------------------
+  //  Pipeline visitor methods
+  // --------------------------------------------------------------------------------------------
+
+  /**
+   * Translates the pipeline by passing this class as a visitor.
+   *
+   * @param pipeline The pipeline to be translated
+   */
+  public void translate(Pipeline pipeline) {
+    pipeline.traverseTopologically(this);
+  }
+
+
+
+
 
 }
