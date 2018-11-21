@@ -148,7 +148,7 @@ public class UnboundedSourceWrapperTest {
                 while (true) {
                   try {
                     testHarness.setProcessingTime(System.currentTimeMillis());
-                    Thread.sleep(1000);
+                    Thread.sleep(100);
                   } catch (InterruptedException e) {
                     // this is ok
                     break;
@@ -305,10 +305,14 @@ public class UnboundedSourceWrapperTest {
         if (seenWatermark.get()) {
           break;
         }
-        Thread.sleep(10);
+        Thread.sleep(50);
 
-        // need to advance this so that the watermark timers in the source wrapper fire
-        testHarness.setProcessingTime(Instant.now().getMillis());
+        // Need to advance this so that the watermark timers in the source wrapper fire
+        // Synchronize is necessary because this can interfere with updating the PriorityQueue
+        // of the ProcessingTimeService which is also accessed through UnboundedSourceWrapper.
+        synchronized (checkpointLock) {
+          testHarness.setProcessingTime(Instant.now().getMillis());
+        }
       }
 
       sourceOperator.cancel();
