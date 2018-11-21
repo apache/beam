@@ -156,6 +156,7 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowValidatesTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+          "--experiments=disable_conscrypt_security_provider",
           "--workerHarnessContainerImage=",
 
   ])
@@ -260,6 +261,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+          "--experiments=disable_conscrypt_security_provider",
           "--workerHarnessContainerImage=",
   ])
 
@@ -310,6 +312,7 @@ task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+          "--experiments=disable_conscrypt_security_provider",
           "--workerHarnessContainerImage=",
   ])
 
