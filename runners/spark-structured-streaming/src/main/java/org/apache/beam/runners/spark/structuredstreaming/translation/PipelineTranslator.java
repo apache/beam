@@ -3,6 +3,8 @@ package org.apache.beam.runners.spark.structuredstreaming.translation;
 import org.apache.beam.runners.core.construction.PipelineResources;
 import org.apache.beam.runners.spark.SparkTransformOverrides;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.BatchPipelineTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.StreamingPipelineTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PCollection;
@@ -11,7 +13,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Does all the translation work: mode detection, nodes translation.
+ /**
+ * The role of this class is to detect the pipeline mode and to translate the Beam operators to their Spark counterparts. If we have
+ * a streaming job, this is instantiated as a {@link StreamingPipelineTranslator}. In other
+ * case, i.e. for a batch job, a {@link BatchPipelineTranslator} is created. Correspondingly,
  */
 
 public class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults{
@@ -41,11 +46,18 @@ public class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults{
     TranslationModeDetector detector = new TranslationModeDetector();
     pipeline.traverseTopologically(detector);
     if (detector.getTranslationMode().equals(TranslationMode.STREAMING)) {
-      // set streaming mode if it's a streaming pipeline
       options.setStreaming(true);
     }
   }
 
+  /**
+   * Translates the pipeline by passing this class as a visitor.
+   *
+   * @param pipeline The pipeline to be translated
+   */
+  public void translate(Pipeline pipeline) {
+    pipeline.traverseTopologically(this);
+  }
 
 
 
