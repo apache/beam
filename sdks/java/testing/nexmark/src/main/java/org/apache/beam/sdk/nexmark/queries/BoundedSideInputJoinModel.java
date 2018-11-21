@@ -76,6 +76,6 @@ public class BoundedSideInputJoinModel extends NexmarkQueryModel<Bid> {
 
   @Override
   protected Collection<String> toCollection(Iterator<TimestampedValue<Bid>> itr) {
-    return toValueTimestamp(itr);
+    return toValue(itr);
   }
 }
