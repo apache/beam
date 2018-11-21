@@ -8,6 +8,8 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTra
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** {@link Pipeline.PipelineVisitor} for executing a {@link Pipeline} as a Spark batch job. */
 
@@ -17,6 +19,9 @@ public class BatchPipelineTranslator extends PipelineTranslator {
   // --------------------------------------------------------------------------------------------
   //  Transform Translator Registry
   // --------------------------------------------------------------------------------------------
+
+  private BatchTranslationContext translationContext;
+  private int depth = 0;
 
   @SuppressWarnings("rawtypes")
   private static final Map<String, BatchTransformTranslator>
@@ -39,6 +44,9 @@ public class BatchPipelineTranslator extends PipelineTranslator {
 
     TRANSLATORS.put(PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslatorBatch());
   }
+  private static final Logger LOG = LoggerFactory.getLogger(BatchPipelineTranslator.class);
+
+
 
   /** Returns a translator for the given node, if it is possible, otherwise null. */
   private static BatchTransformTranslator<?> getTranslator(TransformHierarchy.Node node) {
@@ -52,15 +60,61 @@ public class BatchPipelineTranslator extends PipelineTranslator {
   }
 
 
-  @Override public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-    return super.enterCompositeTransform(node);
-    //TODO impl
+  // --------------------------------------------------------------------------------------------
+  //  Pipeline Visitor Methods
+  // --------------------------------------------------------------------------------------------
+
+  @Override
+  public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+    LOG.info("{} enterCompositeTransform- {}", genSpaces(depth), node.getFullName());
+    depth++;
+
+    BatchTransformTranslator<?> translator = getTranslator(node);
+
+    if (translator != null) {
+      translateNode(node, translator);
+      LOG.info("{} translated- {}", genSpaces(depth), node.getFullName());
+      return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+    } else {
+      return CompositeBehavior.ENTER_TRANSFORM;
+    }
+  }
+
+  @Override
+  public void leaveCompositeTransform(TransformHierarchy.Node node) {
+    depth--;
+    LOG.info("{} leaveCompositeTransform- {}", genSpaces(depth), node.getFullName());
+  }
+
+  @Override
+  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+    LOG.info("{} visitPrimitiveTransform- {}", genSpaces(depth), node.getFullName());
+
+    // get the transformation corresponding to the node we are
+    // currently visiting and translate it into its Spark alternative.
+    BatchTransformTranslator<?> translator = getTranslator(node);
+    if (translator == null) {
+      String transformUrn = PTransformTranslation.urnForTransform(node.getTransform());
+      throw new UnsupportedOperationException(
+          "The transform " + transformUrn + " is currently not supported.");
+    }
+    translateNode(node, translator);
+  }
+
+  private <T extends PTransform<?, ?>> void translateNode(
+      TransformHierarchy.Node node,
+      BatchTransformTranslator<?> translator) {
+
+    @SuppressWarnings("unchecked")
+    T typedTransform = (T) node.getTransform();
+
+    @SuppressWarnings("unchecked")
+    BatchTransformTranslator<T> typedTranslator = (BatchTransformTranslator<T>) translator;
+
+    // create the applied PTransform on the translationContext
+    translationContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
+    typedTranslator.translateNode(typedTransform, translationContext);
   }
 
 
-  @Override public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    super.visitPrimitiveTransform(node);
-    //TODO impl
-  }
-
-  }
+}

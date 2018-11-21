@@ -33,4 +33,7 @@ public class BatchTranslationContext {
     this.danglingDataSets = new HashMap<>();
   }
 
+  public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
+    this.currentTransform = currentTransform;
+  }
 }

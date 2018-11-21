@@ -21,7 +21,6 @@ import org.slf4j.LoggerFactory;
 
 public class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults{
 
-
   /**
    * Local configurations work in the same JVM and have no problems with improperly formatted files
    * on classpath (eg. directories with .class files or empty directories). Prepare files for
@@ -48,6 +47,20 @@ public class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults{
     if (detector.getTranslationMode().equals(TranslationMode.STREAMING)) {
       options.setStreaming(true);
     }
+  }
+
+  /**
+   * Utility formatting method.
+   *
+   * @param n number of spaces to generate
+   * @return String with "|" followed by n spaces
+   */
+  protected static String genSpaces(int n) {
+    StringBuilder builder = new StringBuilder();
+    for (int i = 0; i < n; i++) {
+      builder.append("|   ");
+    }
+    return builder.toString();
   }
 
   /**
