@@ -5,6 +5,7 @@ import java.util.Map;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 
@@ -20,14 +21,24 @@ public class BatchTranslationContext {
    */
   private final Map<PValue, Dataset<?>> danglingDataSets;
 
-  private final SparkSession sparkSession;
+  private SparkSession sparkSession;
   private final SparkPipelineOptions options;
 
   private AppliedPTransform<?, ?, ?> currentTransform;
 
 
-  public BatchTranslationContext(SparkSession sparkSession, SparkPipelineOptions options) {
-    this.sparkSession = sparkSession;
+  public BatchTranslationContext(SparkPipelineOptions options) {
+    SparkConf sparkConf = new SparkConf();
+    sparkConf.setMaster(options.getSparkMaster());
+    sparkConf.setAppName(options.getAppName());
+    if (options.getFilesToStage() != null && !options.getFilesToStage().isEmpty()) {
+      sparkConf.setJars(options.getFilesToStage().toArray(new String[0]));
+    }
+
+    SparkSession sparkSession = SparkSession
+        .builder()
+        .config(sparkConf)
+        .getOrCreate();
     this.options = options;
     this.datasets = new HashMap<>();
     this.danglingDataSets = new HashMap<>();
