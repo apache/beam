@@ -206,6 +206,12 @@
 
 
 
+<ul class="nav">
+  <li><a href="#salted-join-implementation">“Salted” join implementation</a></li>
+  <li><a href="#pipeline-sampling">Pipeline sampling</a></li>
+  <li><a href="#fluent-api">Fluent API</a></li>
+  <li><a href="#side-outputs">Side Outputs</a></li>
+</ul>
 
 
       </nav>
@@ -229,12 +235,28 @@ limitations under the License.
 
 <p>Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction of Beam transformations, which is both easy to read and write. Can be used as a complement to existing Beam pipelines (convertible back and forth). You can have a glimpse of the API at <a href="/documentation/sdks/java/euphoria/#wordcount-example">WordCount example</a>.</p>
 
-<p>This roadmap is in progress. In the meantime, here are some resources:</p>
-
 <ul>
   <li>JIRA: <a href="https://issues.apache.org/jira/browse/BEAM-4366?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20dsl-euphoria">dsl-euphoria</a> / <a href="https://issues.apache.org/jira/browse/BEAM-3900">BEAM-3900</a></li>
-  <li>Contact: <a href="mailto:david.moravek@gmail.com">David Moravek</a></li>
+  <li>Contact: <a href="mailto:dmvk@apache.org">David Moravek</a></li>
 </ul>
+
+<h2 id="salted-join-implementation">“Salted” join implementation</h2>
+
+<p>Implementation of a join, that can handle large scale join of highly skewed data sets. This implementation breaks
+the large keys into multiple splits, using key distribution approximated by count min sketch data structure.</p>
+
+<h2 id="pipeline-sampling">Pipeline sampling</h2>
+
+<p>In order to pick the right translation for the operator without user interference, we can leverage knowledge from
+previous pipeline runs. We want to provide a convenient and portable way to gather this knowledge.</p>
+
+<h2 id="fluent-api">Fluent API</h2>
+
+<p>Implementation of an easy to use Fluent API on top of Euphoria DSL.</p>
+
+<h2 id="side-outputs">Side Outputs</h2>
+
+<p>An convenient API for multiple outputs.</p>
 
       </div>
     </div>
