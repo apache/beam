@@ -114,6 +114,11 @@ class CombineTest(unittest.TestCase):
                 label='key:cmp')
     pipeline.run()
 
+  def test_empty_global_top(self):
+    with TestPipeline() as p:
+      assert_that(p | beam.Create([]) | combine.Top.Largest(10),
+                  equal_to([[]]))
+
   def test_sharded_top(self):
     elements = list(range(100))
     random.shuffle(elements)
