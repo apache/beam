@@ -132,6 +132,8 @@ applyJavaNature(publish: false, enableFindbugs: false /* TODO(BEAM-5658): enable
     }
     relocate("org.apache.beam.runners.core.construction.",
             getWorkerRelocatedPath("org."))
+    relocate("org.apache.beam.runners.core.metrics",
+            getWorkerRelocatedPath("org."))
 
 })
 
