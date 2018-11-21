@@ -180,9 +180,6 @@ include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
 include "beam-sdks-python-container-py3"
 project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
-// Temporary version that will be deleted once we migrate to using the published version.
-include "beam-vendor-grpc-v1_13_1"
-project(":beam-vendor-grpc-v1_13_1").dir = file("vendor/grpc-v1_13_1")
 include "beam-vendor-grpc-1_13_1"
 project(":beam-vendor-grpc-1_13_1").dir = file("vendor/grpc-1_13_1")
 include "beam-sdks-java-test-utils"
