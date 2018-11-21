@@ -21,42 +21,32 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.testutils.publishing.BigQueryClient;
+import org.apache.beam.sdk.testutils.TestResult;
+import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 
-/**
- * A fake implementation of BigQuery client for testing purposes only.
- *
- * @see BigQueryClient
- */
-public class FakeBigQueryClient extends BigQueryClient {
+/** A fake implementation of {@link BigQueryResultsPublisher} for testing purposes only. */
+public class FakeBigQueryResultsPublisher extends BigQueryResultsPublisher {
 
-  private Map<String, List<Map<String, ?>>> rowsPerTable;
+  private Map<String, List<TestResult>> recordsPerTable;
 
-  public FakeBigQueryClient() {
-    super(null, null, null);
-    rowsPerTable = new HashMap<>();
+  public FakeBigQueryResultsPublisher() {
+    super(null, null);
+    this.recordsPerTable = new HashMap<>();
   }
 
   @Override
-  public void createTableIfNotExists(String tableName, Map<String, String> schema) {
-    // do nothing. Assume the table exists.
-  }
+  public void publish(TestResult result, String tableName, long nowInMillis) {
+    List<TestResult> results = recordsPerTable.get(tableName);
 
-  @Override
-  public void insertRow(Map<String, ?> newRow, String table) {
-    List<Map<String, ?>> rows = rowsPerTable.get(table);
-
-    if (rows == null) {
-      rows = new ArrayList<>();
-      rows.add(newRow);
-
-      rowsPerTable.put(table, rows);
-    } else {
-      rows.add(newRow);
+    if (results == null) {
+      results = new ArrayList<>();
     }
+    results.add(result);
+
+    recordsPerTable.put(tableName, results);
   }
 
-  public List<Map<String, ?>> getRows(String table) {
-    return rowsPerTable.get(table);
+  public List<TestResult> getRecords(String table) {
+    return recordsPerTable.get(table);
   }
 }
