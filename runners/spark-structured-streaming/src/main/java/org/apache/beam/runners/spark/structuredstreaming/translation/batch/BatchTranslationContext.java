@@ -11,10 +11,9 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 
 /**
- * Keeps track of context of the translation.
+ * This class contains only batch specific context components.
  */
 public class BatchTranslationContext extends TranslationContext {
-  private final Map<PValue, Dataset<?>> datasets;
 
   /**
    * For keeping track about which DataSets don't have a successor. We need to terminate these with
@@ -22,23 +21,8 @@ public class BatchTranslationContext extends TranslationContext {
    */
   private final Map<PValue, Dataset<?>> danglingDataSets;
 
-  private SparkSession sparkSession;
-  private final SparkPipelineOptions options;
-
   public BatchTranslationContext(SparkPipelineOptions options) {
-    SparkConf sparkConf = new SparkConf();
-    sparkConf.setMaster(options.getSparkMaster());
-    sparkConf.setAppName(options.getAppName());
-    if (options.getFilesToStage() != null && !options.getFilesToStage().isEmpty()) {
-      sparkConf.setJars(options.getFilesToStage().toArray(new String[0]));
-    }
-
-    this.sparkSession = SparkSession
-        .builder()
-        .config(sparkConf)
-        .getOrCreate();
-    this.options = options;
-    this.datasets = new HashMap<>();
+    super(options);
     this.danglingDataSets = new HashMap<>();
   }
 }
