@@ -43,7 +43,6 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.core.construction.graph.TimerReference;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
@@ -105,6 +104,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient StageBundleFactory stageBundleFactory;
   private transient ExecutableStage executableStage;
   private transient SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner;
+  private transient long backupWatermarkHold = Long.MIN_VALUE;
 
   public ExecutableStageDoFnOperator(
       String stepName,
@@ -353,7 +353,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             progressHandler,
             outputManager,
             outputMap,
-            executableStage.getTimers(),
             (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder(),
             keySelector,
             timerInternals);
@@ -394,11 +393,16 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       } else {
         // It is not safe to advance the output watermark yet, so add a hold on the current
         // output watermark.
-        setPushedBackWatermark(Math.min(currentOutputWatermark, getPushbackWatermarkHold()));
+        backupWatermarkHold = Math.max(backupWatermarkHold, getPushbackWatermarkHold());
+        setPushedBackWatermark(Math.min(currentOutputWatermark, backupWatermarkHold));
         sdkHarnessRunner.setBundleFinishedCallback(
             () -> {
               try {
-                processWatermark(mark);
+                LOG.debug("processing pushed back watermark: {}", mark);
+                // at this point the bundle is finished, allow the watermark to pass
+                // we are restoring the previous hold in case it was already set for side inputs
+                setPushedBackWatermark(backupWatermarkHold);
+                super.processWatermark(mark);
               } catch (Exception e) {
                 throw new RuntimeException(
                     "Failed to process pushed back watermark after finished bundle.", e);
@@ -442,7 +446,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         BundleProgressHandler progressHandler,
         BufferedOutputManager<OutputT> outputManager,
         Map<String, TupleTag<?>> outputMap,
-        Collection<TimerReference> timers,
         Coder<BoundedWindow> windowCoder,
         KeySelector<WindowedValue<InputT>, ?> keySelector,
         TimerInternals timerInternals) {
