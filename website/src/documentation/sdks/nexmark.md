@@ -675,6 +675,49 @@ Submit to the cluster:
             --streaming=false \
             --manageResources=false \
             --monitorJobs=true"
+	   
+### Running Nexmark Suites on Pull Requests
+
+Thanks to ghprb plugin it is possible to run Jenkins jobs when specific phrase is typed in a Github Pull Request’s comment. Nexmark suites also can be triggered this way. You can run Nexmark suites by typing the following comments:
+
+<table class="table">
+  <thead>
+    <tr>
+     <td>
+      <strong>Runner</strong>
+     </td>
+     <td>
+       <strong>Comment</strong>
+     </td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+     <td>Direct
+     </td>
+     <td>Run Direct Runner Nexmark Tests
+     </td>
+    </tr>
+    <tr>
+     <td>Dataflow
+     </td>
+     <td>Run Dataflow Runner Nexmark Tests
+     </td>
+    </tr>
+    <tr>
+     <td>Flink
+     </td>
+     <td>Run Flink Runner Nexmark Tests
+     </td>
+    </tr>
+    <tr>
+     <td>Spark
+     </td>
+     <td>Run Spark Runner Nexmark Tests 
+     </td>
+    </tr>
+  </tbody>
+</table>
 
 ## Nexmark dashboards
 Below dashboards are used as a CI mechanism to detect no-regression on the Beam components. They are not supposed to be benchmark comparision of the runners or engines. Especially because:
