@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark;
+package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
@@ -27,7 +27,7 @@ import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
 
-/** {@link PTransform} overrides for Flink runner. */
+/** {@link PTransform} overrides for Spark runner. */
 public class SparkTransformOverrides {
   public static List<PTransformOverride> getDefaultOverrides(boolean streaming) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
