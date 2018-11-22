@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -14,16 +31,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 /**
  * {@link Pipeline.PipelineVisitor} that translates the Beam operators to their Spark counterparts.
- * It also does the pipeline preparation: mode detection, transforms replacement, classpath preparation.
- * If we have a streaming job, it is instantiated as a {@link StreamingPipelineTranslator}.
- * If we have a batch job, it is instantiated as a {@link BatchPipelineTranslator}.
+ * It also does the pipeline preparation: mode detection, transforms replacement, classpath
+ * preparation. If we have a streaming job, it is instantiated as a {@link
+ * StreamingPipelineTranslator}. If we have a batch job, it is instantiated as a {@link
+ * BatchPipelineTranslator}.
  */
-
-public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults{
+public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   private int depth = 0;
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslator.class);
   protected TranslationContext translationContext;
-
 
   // --------------------------------------------------------------------------------------------
   //  Pipeline preparation methods
@@ -41,13 +57,14 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
     }
   }
 
-  public static void replaceTransforms(Pipeline pipeline, SparkPipelineOptions options){
+  public static void replaceTransforms(Pipeline pipeline, SparkPipelineOptions options) {
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(options.isStreaming()));
-
   }
 
-
-  /** Visit the pipeline to determine the translation mode (batch/streaming) and update options accordingly. */
+  /**
+   * Visit the pipeline to determine the translation mode (batch/streaming) and update options
+   * accordingly.
+   */
   public static void detectTranslationMode(Pipeline pipeline, SparkPipelineOptions options) {
     TranslationModeDetector detector = new TranslationModeDetector();
     pipeline.traverseTopologically(detector);
@@ -117,17 +134,15 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
 
   /**
    * get a {@link TransformTranslator} for the given {@link TransformHierarchy.Node}
+   *
    * @param node
    * @return
    */
   protected abstract TransformTranslator<?> getTransformTranslator(TransformHierarchy.Node node);
 
-  /**
-   * Apply the given TransformTranslator to the given node.
-   */
+  /** Apply the given TransformTranslator to the given node. */
   private <T extends PTransform<?, ?>> void applyTransformTranslator(
-      TransformHierarchy.Node node,
-      TransformTranslator<?> transformTranslator) {
+      TransformHierarchy.Node node, TransformTranslator<?> transformTranslator) {
     // create the applied PTransform on the translationContext
     translationContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
 
@@ -140,7 +155,6 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
     // apply the transformTranslator
     typedTransformTranslator.translateTransform(typedTransform, translationContext);
   }
-
 
   // --------------------------------------------------------------------------------------------
   //  Pipeline visitor entry point
