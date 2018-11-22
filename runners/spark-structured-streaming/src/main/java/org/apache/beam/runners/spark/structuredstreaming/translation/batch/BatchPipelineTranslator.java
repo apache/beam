@@ -11,7 +11,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 
-/** {@link Pipeline.PipelineVisitor} for executing a {@link Pipeline} as a Spark batch job. */
+/** {@link PipelineTranslator} for executing a {@link Pipeline} in Spark in batch mode.
+ * This contains only the components specific to batch: {@link BatchTranslationContext},
+ * registry of batch {@link TransformTranslator} and registry lookup code. */
 
 public class BatchPipelineTranslator extends PipelineTranslator {
 

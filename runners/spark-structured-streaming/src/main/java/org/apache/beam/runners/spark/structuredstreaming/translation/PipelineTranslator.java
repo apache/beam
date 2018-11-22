@@ -14,10 +14,10 @@ import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 /**
- /**
- * The role of this class is to detect the pipeline mode and to translate the Beam operators to their Spark counterparts. If we have
- * a streaming job, this is instantiated as a {@link StreamingPipelineTranslator}. In other
- * case, i.e. for a batch job, a {@link BatchPipelineTranslator} is created. Correspondingly,
+ * {@link Pipeline.PipelineVisitor} that translates the Beam operators to their Spark counterparts.
+ * It also does the pipeline preparation: mode detection, transforms replacement, classpath preparation.
+ * If we have a streaming job, it is instantiated as a {@link StreamingPipelineTranslator}.
+ * If we have a batch job, it is instantiated as a {@link BatchPipelineTranslator}.
  */
 
 public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults{
