@@ -6,7 +6,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 
 class BatchReshuffleTranslator<K, InputT> implements TransformTranslator<Reshuffle<K, InputT>> {
 
-  @Override public void translateNode(Reshuffle<K, InputT> transform, TranslationContext context) {
+  @Override public void translateTransform(Reshuffle<K, InputT> transform, TranslationContext context) {
 
   }
 }
