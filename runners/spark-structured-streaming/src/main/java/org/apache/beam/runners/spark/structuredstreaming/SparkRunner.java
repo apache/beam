@@ -1,9 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.runners.spark.structuredstreaming;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.BatchPipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.BatchPipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.StreamingPipelineTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
@@ -65,12 +82,14 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * @return A pipeline runner that will execute with specified options.
    */
   public static SparkRunner fromOptions(PipelineOptions options) {
-    SparkPipelineOptions sparkOptions = PipelineOptionsValidator
-        .validate(SparkPipelineOptions.class, options);
+    SparkPipelineOptions sparkOptions =
+        PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
 
     if (sparkOptions.getFilesToStage() == null) {
-      sparkOptions.setFilesToStage(detectClassPathResourcesToStage(SparkRunner.class.getClassLoader()));
-      LOG.info("PipelineOptions.filesToStage was not specified. "
+      sparkOptions.setFilesToStage(
+          detectClassPathResourcesToStage(SparkRunner.class.getClassLoader()));
+      LOG.info(
+          "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "
               + "Enable logging at DEBUG level to see which files will be staged.",
           sparkOptions.getFilesToStage().size());
@@ -88,19 +107,23 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     this.options = options;
   }
 
-  @Override public SparkPipelineResult run(final Pipeline pipeline) {
+  @Override
+  public SparkPipelineResult run(final Pipeline pipeline) {
     translatePipeline(pipeline);
     executePipeline(pipeline);
     return new SparkPipelineResult();
   }
 
-  private void translatePipeline(Pipeline pipeline){
+  private void translatePipeline(Pipeline pipeline) {
     PipelineTranslator.detectTranslationMode(pipeline, options);
     PipelineTranslator.replaceTransforms(pipeline, options);
     PipelineTranslator.prepareFilesToStageForRemoteClusterExecution(options);
-    PipelineTranslator pipelineTranslator = options.isStreaming() ? new StreamingPipelineTranslator(options) : new BatchPipelineTranslator(options);
+    PipelineTranslator pipelineTranslator =
+        options.isStreaming()
+            ? new StreamingPipelineTranslator(options)
+            : new BatchPipelineTranslator(options);
     pipelineTranslator.translate(pipeline);
   }
-  private void executePipeline(Pipeline pipeline) {}
 
+  private void executePipeline(Pipeline pipeline) {}
 }

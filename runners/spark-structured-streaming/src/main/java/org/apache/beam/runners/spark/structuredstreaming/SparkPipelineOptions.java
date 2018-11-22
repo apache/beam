@@ -89,7 +89,6 @@ public interface SparkPipelineOptions
 
   void setEnableSparkMetricSinks(Boolean enableSparkMetricSinks);
 
-
   /**
    * List of local files to make available to workers.
    *
