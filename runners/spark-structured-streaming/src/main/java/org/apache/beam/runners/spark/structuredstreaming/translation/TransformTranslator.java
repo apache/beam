@@ -6,6 +6,6 @@ public interface TransformTranslator<TransformT extends PTransform> {
 
   /** A translator of a {@link PTransform}. */
 
-  void translateNode(TransformT transform, TranslationContext context);
+  void translateTransform(TransformT transform, TranslationContext context);
   }
 
