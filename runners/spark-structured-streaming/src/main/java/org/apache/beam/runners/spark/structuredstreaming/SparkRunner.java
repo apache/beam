@@ -110,6 +110,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   @Override
   public SparkPipelineResult run(final Pipeline pipeline) {
     translatePipeline(pipeline);
+    //TODO initialise other services: checkpointing, metrics system, listeners, ...
     executePipeline(pipeline);
     return new SparkPipelineResult();
   }
