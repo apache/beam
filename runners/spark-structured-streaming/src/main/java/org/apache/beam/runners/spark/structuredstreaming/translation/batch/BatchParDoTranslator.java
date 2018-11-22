@@ -9,7 +9,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 class BatchParDoTranslator<InputT, OutputT> implements
     TransformTranslator<PTransform<PCollection<InputT>, PCollectionTuple>> {
 
-  @Override public void translateNode(PTransform<PCollection<InputT>, PCollectionTuple> transform,
+  @Override public void translateTransform(PTransform<PCollection<InputT>, PCollectionTuple> transform,
       TranslationContext context) {
 
   }

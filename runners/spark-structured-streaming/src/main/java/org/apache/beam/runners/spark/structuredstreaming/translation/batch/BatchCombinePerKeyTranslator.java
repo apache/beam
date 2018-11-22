@@ -9,7 +9,7 @@ import org.apache.beam.sdk.values.PCollection;
 class BatchCombinePerKeyTranslator<K, InputT, AccumT, OutputT> implements
     TransformTranslator<PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
 
-  @Override public void translateNode(
+  @Override public void translateTransform(
       PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
       TranslationContext context) {
 

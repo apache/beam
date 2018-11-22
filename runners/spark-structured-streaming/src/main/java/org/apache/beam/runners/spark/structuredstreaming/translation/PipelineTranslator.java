@@ -123,19 +123,23 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
    */
   protected abstract TransformTranslator<?> getTransformTranslator(TransformHierarchy.Node node);
 
-  private <T extends PTransform<?, ?>> void translateNode(
+  /**
+   * Apply the given TransformTranslator to the given node.
+   */
+  private <T extends PTransform<?, ?>> void applyTransformTranslator(
       TransformHierarchy.Node node,
       TransformTranslator<?> transformTranslator) {
+    // create the applied PTransform on the translationContext
+    translationContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
 
+    // avoid type capture
     @SuppressWarnings("unchecked")
     T typedTransform = (T) node.getTransform();
-
     @SuppressWarnings("unchecked")
     TransformTranslator<T> typedTransformTranslator = (TransformTranslator<T>) transformTranslator;
 
-    // create the applied PTransform on the translationContext
-    translationContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
-    typedTransformTranslator.translateNode(typedTransform, translationContext);
+    // apply the transformTranslator
+    typedTransformTranslator.translateTransform(typedTransform, translationContext);
   }
 
 
@@ -165,7 +169,7 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
     TransformTranslator<?> transformTranslator = getTransformTranslator(node);
 
     if (transformTranslator != null) {
-      translateNode(node, transformTranslator);
+      applyTransformTranslator(node, transformTranslator);
       LOG.info("{} translated- {}", genSpaces(depth), node.getFullName());
       return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
     } else {
@@ -191,6 +195,6 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
       throw new UnsupportedOperationException(
           "The transform " + transformUrn + " is currently not supported.");
     }
-    translateNode(node, transformTranslator);
+    applyTransformTranslator(node, transformTranslator);
   }
 }

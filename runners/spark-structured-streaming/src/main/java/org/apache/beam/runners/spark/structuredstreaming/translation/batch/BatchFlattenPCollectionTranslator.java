@@ -9,7 +9,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 class BatchFlattenPCollectionTranslator<T> implements
     TransformTranslator<PTransform<PCollectionList<T>, PCollection<T>>> {
 
-  @Override public void translateNode(PTransform<PCollectionList<T>, PCollection<T>> transform,
+  @Override public void translateTransform(PTransform<PCollectionList<T>, PCollection<T>> transform,
       TranslationContext context) {
 
   }

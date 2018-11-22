@@ -8,7 +8,7 @@ import org.apache.beam.sdk.values.PCollection;
 
 class BatchReadSourceTranslator<T> implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
 
-  @Override public void translateNode(PTransform<PBegin, PCollection<T>> transform,
+  @Override public void translateTransform(PTransform<PBegin, PCollection<T>> transform,
       TranslationContext context) {
 
   }

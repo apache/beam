@@ -9,7 +9,7 @@ import org.apache.beam.sdk.values.PCollection;
 class BatchGroupByKeyTranslator<K, InputT> implements
     TransformTranslator<PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>>> {
 
-  @Override public void translateNode(
+  @Override public void translateTransform(
       PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> transform,
       TranslationContext context) {
 
