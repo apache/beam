@@ -2,7 +2,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineResources;
-import org.apache.beam.runners.spark.SparkTransformOverrides;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.BatchPipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.StreamingPipelineTranslator;
