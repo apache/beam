@@ -11,7 +11,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 
 /**
- * Keeps track of the {@link Dataset} and the step the translation is in.
+ * Keeps track of context of the translation.
  */
 public class BatchTranslationContext extends TranslationContext {
   private final Map<PValue, Dataset<?>> datasets;
