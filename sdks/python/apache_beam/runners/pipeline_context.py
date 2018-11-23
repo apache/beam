@@ -111,7 +111,8 @@ class PipelineContext(object):
   }
 
   def __init__(
-      self, proto=None, default_environment=None, use_fake_coders=False):
+      self, proto=None, default_environment=None, use_fake_coders=False,
+      iterable_state_read=None, iterable_state_write=None):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
@@ -127,6 +128,8 @@ class PipelineContext(object):
     else:
       self._default_environment_id = None
     self.use_fake_coders = use_fake_coders
+    self.iterable_state_read = iterable_state_read
+    self.iterable_state_write = iterable_state_write
 
   # If fake coders are requested, return a pickled version of the element type
   # rather than an actual coder. The element type is required for some runners,
