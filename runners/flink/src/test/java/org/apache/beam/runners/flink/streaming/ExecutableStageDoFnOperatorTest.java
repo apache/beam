@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.streaming;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -273,13 +274,25 @@ public class ExecutableStageDoFnOperatorTest {
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<Integer>> testHarness =
         new OneInputStreamOperatorTestHarness<>(operator);
 
+    long watermark = testHarness.getCurrentWatermark() + 1;
     testHarness.open();
+
     testHarness.processElement(new StreamRecord<>(zero));
+
+    testHarness.processWatermark(watermark);
+    watermark++;
+    testHarness.processWatermark(watermark);
+
+    assertEquals(watermark, testHarness.getCurrentWatermark());
+    // watermark hold until bundle complete
+    assertEquals(0, testHarness.getOutput().size());
+
     testHarness.close(); // triggers finish bundle
 
     assertThat(
         testHarness.getOutput(),
-        contains(new StreamRecord<>(three), new Watermark(Long.MAX_VALUE)));
+        contains(
+            new StreamRecord<>(three), new Watermark(watermark), new Watermark(Long.MAX_VALUE)));
 
     assertThat(
         testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput1)),
