@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
@@ -33,9 +34,14 @@ import org.apache.spark.sql.SparkSession;
  */
 public class TranslationContext {
 
+  @SuppressFBWarnings("URF_UNREAD_FIELD") // make findbug happy
   private AppliedPTransform<?, ?, ?> currentTransform;
+
   private final Map<PValue, Dataset<?>> datasets;
+
+  @SuppressFBWarnings("URF_UNREAD_FIELD") // make findbug happy
   private SparkSession sparkSession;
+
   private final SparkPipelineOptions options;
 
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {

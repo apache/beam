@@ -133,7 +133,7 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
   }
 
   /**
-   * get a {@link TransformTranslator} for the given {@link TransformHierarchy.Node}
+   * Get a {@link TransformTranslator} for the given {@link TransformHierarchy.Node}.
    *
    * @param node
    * @return

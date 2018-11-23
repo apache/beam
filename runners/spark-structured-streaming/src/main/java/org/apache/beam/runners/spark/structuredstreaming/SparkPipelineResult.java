@@ -18,32 +18,39 @@
 package org.apache.beam.runners.spark.structuredstreaming;
 
 import java.io.IOException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
 
+/** Represents a Spark pipeline execution result. */
 public class SparkPipelineResult implements PipelineResult {
 
+  @Nullable // TODO: remove once method will be implemented
   @Override
   public State getState() {
     return null;
   }
 
+  @Nullable // TODO: remove once method will be implemented
   @Override
   public State cancel() throws IOException {
     return null;
   }
 
+  @Nullable // TODO: remove once method will be implemented
   @Override
   public State waitUntilFinish(Duration duration) {
     return null;
   }
 
+  @Nullable // TODO: remove once method will be implemented
   @Override
   public State waitUntilFinish() {
     return null;
   }
 
+  @Nullable // TODO: remove once method will be implemented
   @Override
   public MetricResults metrics() {
     return null;
