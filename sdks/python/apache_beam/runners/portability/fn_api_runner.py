@@ -212,7 +212,8 @@ class _WindowGroupingBuffer(object):
 
 class FnApiRunner(runner.PipelineRunner):
 
-  def __init__(self, use_grpc=False, sdk_harness_factory=None, bundle_repeat=0):
+  def __init__(self, use_grpc=False, sdk_harness_factory=None, bundle_repeat=0,
+               use_state_iterables=False):
     """Creates a new Fn API Runner.
 
     Args:
@@ -222,6 +223,8 @@ class FnApiRunner(runner.PipelineRunner):
           typcially not set by users
       bundle_repeat: replay every bundle this many extra times, for profiling
           and debugging
+      use_state_iterables: Intentionally split gbk iterables over state API
+          (for testing)
     """
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
@@ -232,6 +235,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._bundle_repeat = bundle_repeat
     self._progress_frequency = None
     self._profiler_factory = None
+    self._use_state_iterables = use_state_iterables
 
   def _next_uid(self):
     self._last_uid += 1
@@ -312,6 +316,35 @@ class FnApiRunner(runner.PipelineRunner):
                   urn=common_urns.coders.WINDOWED_VALUE.urn)),
           component_coder_ids=[coder_id, window_coder_id])
       return add_or_get_coder_id(proto)
+
+    _with_state_iterables_cache = {}
+
+    def with_state_iterables(coder_id):
+      if coder_id not in _with_state_iterables_cache:
+        _with_state_iterables_cache[
+            coder_id] = create_with_state_iterables(coder_id)
+      return _with_state_iterables_cache[coder_id]
+
+    def create_with_state_iterables(coder_id):
+      coder = pipeline_components.coders[coder_id]
+      if coder.spec.spec.urn == common_urns.coders.ITERABLE.urn:
+        new_coder_id = unique_name(pipeline_components.coders, 'coder')
+        new_coder = pipeline_components.coders[new_coder_id]
+        new_coder.CopyFrom(coder)
+        new_coder.spec.spec.urn = common_urns.coders.STATE_BACKED_ITERABLE.urn
+        new_coder.spec.spec.payload = b'1'
+        return new_coder_id
+      else:
+        new_component_ids = [
+            with_state_iterables(c) for c in coder.component_coder_ids]
+        if new_component_ids == coder.component_coder_ids:
+          return coder_id
+        else:
+          new_coder_id = unique_name(pipeline_components.coders, 'coder')
+          new_coder = pipeline_components.coders[new_coder_id]
+          new_coder.CopyFrom(coder)
+          new_coder.component_coder_ids[:] = new_component_ids
+          return new_coder_id
 
     safe_coders = {}
 
@@ -572,6 +605,10 @@ class FnApiRunner(runner.PipelineRunner):
             length_prefix_unknown_coders(
                 pipeline_components.pcollections[pcoll_id], pipeline_components)
           for pcoll_id in transform.outputs.values():
+            if self._use_state_iterables:
+              pipeline_components.pcollections[
+                  pcoll_id].coder_id = with_state_iterables(
+                      pipeline_components.pcollections[pcoll_id].coder_id)
             length_prefix_unknown_coders(
                 pipeline_components.pcollections[pcoll_id], pipeline_components)
 
@@ -967,7 +1004,19 @@ class FnApiRunner(runner.PipelineRunner):
   def run_stage(
       self, controller, pipeline_components, stage, pcoll_buffers, safe_coders):
 
-    context = pipeline_context.PipelineContext(pipeline_components)
+    def iterable_state_write(values, element_coder_impl):
+      token = unique_name(None, 'iter').encode('ascii')
+      out = create_OutputStream()
+      for element in values:
+        element_coder_impl.encode_to_stream(element, out, True)
+      controller.state_handler.blocking_append(
+          beam_fn_api_pb2.StateKey(
+              runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
+          out.get())
+      return token
+
+    context = pipeline_context.PipelineContext(
+        pipeline_components, iterable_state_write=iterable_state_write)
     data_api_service_descriptor = controller.data_api_service_descriptor()
 
     def extract_endpoints(stage):
