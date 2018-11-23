@@ -74,6 +74,14 @@ public interface FlinkPipelineOptions
   void setParallelism(Integer value);
 
   @Description(
+      "The pipeline wide maximum degree of parallelism to be used. The maximum parallelism specifies the upper limit "
+          + "for dynamic scaling and the number of key groups used for partitioned state.")
+  @Default.Integer(-1)
+  Integer getMaxParallelism();
+
+  void setMaxParallelism(Integer value);
+
+  @Description(
       "The interval in milliseconds at which to trigger checkpoints of the running pipeline. "
           + "Default: No checkpointing.")
   @Default.Long(-1L)
