@@ -339,10 +339,12 @@ class FnApiRunnerTest(unittest.TestCase):
         yield buffer
 
     def is_buffered_correctly(actual):
-      assert sorted(sum((list(b) for b in actual), [])) == elements
-      assert max(len(list(buffer)) for buffer in actual) == buffer_size
-# self.assertEqual(sorted(sum((list(b) for b in actual), [])), elements)
-# self.assertEqual(max(len(list(buffer)) for buffer in actual), buffer_size)
+      # Issues pickling closure of self on jenkins.
+      self = FnApiRunnerTest('__init__')
+      # assert sorted(sum((list(b) for b in actual), [])) == elements
+      # assert max(len(list(buffer)) for buffer in actual) == buffer_size
+      self.assertEqual(sorted(sum((list(b) for b in actual), [])), elements)
+      self.assertEqual(max(len(list(buffer)) for buffer in actual), buffer_size)
 
     with self.create_pipeline() as p:
       actual = (
