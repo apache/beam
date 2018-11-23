@@ -15,13 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation;
 
-import org.apache.beam.sdk.transforms.PTransform;
-
-/** Supports translation between a Beam transform, and Spark's operations on Datasets. */
-public interface TransformTranslator<TransformT extends PTransform> {
-
-  /** Base class for translators of {@link PTransform}. */
-  void translateTransform(TransformT transform, TranslationContext context);
-}
+/** Internal utilities to translate Beam pipelines to Spark streaming. */
+package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
