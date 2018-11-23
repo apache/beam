@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.spark.util;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import com.google.common.cache.Cache;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.spark.util.SideInputStorage.Key;
+import org.apache.beam.runners.spark.util.SideInputStorage.Value;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.spark.util.SizeEstimator;
@@ -34,6 +37,12 @@ public class CachedSideInputReader implements SideInputReader {
   private static final Logger LOG = LoggerFactory.getLogger(CachedSideInputReader.class);
 
   /**
+   * Keep references for the whole lifecycle of CachedSideInputReader otherwise sideInput needs to
+   * be de-serialized again.
+   */
+  private Set<?> sideInputReferences = new HashSet<>();
+
+  /**
    * Create a new cached {@link SideInputReader}.
    *
    * @param delegate wrapped reader
@@ -43,45 +52,8 @@ public class CachedSideInputReader implements SideInputReader {
     return new CachedSideInputReader(delegate);
   }
 
-  /**
-   * Composite key of {@link PCollectionView} and {@link BoundedWindow} used to identify
-   * materialized results.
-   *
-   * @param <T> type of result
-   */
-  private static class Key<T> {
-
-    private final PCollectionView<T> view;
-    private final BoundedWindow window;
-
-    Key(PCollectionView<T> view, BoundedWindow window) {
-      this.view = view;
-      this.window = window;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final Key<?> key = (Key<?>) o;
-      return Objects.equals(view, key.view) && Objects.equals(window, key.window);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(view, window);
-    }
-  }
-
   /** Wrapped {@link SideInputReader} which results will be cached. */
   private final SideInputReader delegate;
-
-  /** Materialized results. */
-  private final Map<Key<?>, ?> materialized = new HashMap<>();
 
   private CachedSideInputReader(SideInputReader delegate) {
     this.delegate = delegate;
@@ -91,16 +63,31 @@ public class CachedSideInputReader implements SideInputReader {
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     @SuppressWarnings("unchecked")
-    final Map<Key<T>, T> materializedCasted = (Map) materialized;
-    return materializedCasted.computeIfAbsent(
-        new Key<>(view, window),
-        key -> {
-          final T result = delegate.get(view, window);
-          LOG.info(
-              "Caching de-serialized side input of size [{}B] in memory.",
-              SizeEstimator.estimate(result));
-          return result;
-        });
+    final Cache<Key<T>, Value<T>> materializedCasted =
+        (Cache) SideInputStorage.getMaterializedSideInputs();
+
+    Key<T> sideInputKey = new Key<>(view, window);
+    @SuppressWarnings("unchecked")
+    final Set<Value<T>> sideInputReferencesCasted = (Set<Value<T>>) sideInputReferences;
+
+    Value<T> value;
+    try {
+      value =
+          materializedCasted.get(
+              sideInputKey,
+              () -> {
+                final T result = delegate.get(view, window);
+                LOG.info(
+                    "Caching de-serialized side input for {} of size [{}B] in memory.",
+                    sideInputKey,
+                    SizeEstimator.estimate(result));
+                return new Value<>(sideInputKey, result);
+              });
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e.getCause());
+    }
+    sideInputReferencesCasted.add(value);
+    return value.getData();
   }
 
   @Override
