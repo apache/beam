@@ -20,7 +20,7 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Flink',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Flink_Batch',
   'Run Java Flink PortableValidatesRunner Batch', 'Java Flink PortableValidatesRunner Batch Tests', this) {
   description('Runs the Java PortableValidatesRunner suite on the Flink runner.')
 
