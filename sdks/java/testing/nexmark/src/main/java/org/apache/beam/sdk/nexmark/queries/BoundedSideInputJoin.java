@@ -42,7 +42,7 @@ public class BoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
   private final NexmarkConfiguration configuration;
 
   public BoundedSideInputJoin(NexmarkConfiguration configuration) {
-    super("JoinToFiles");
+    super("BoundedSideInputJoin");
     this.configuration = configuration;
   }
 
