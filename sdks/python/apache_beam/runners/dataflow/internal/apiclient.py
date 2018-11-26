@@ -28,6 +28,7 @@ import json
 import logging
 import os
 import re
+import sys
 import tempfile
 import time
 from datetime import datetime
@@ -443,12 +444,14 @@ class DataflowApplicationClient(object):
         url=self.google_cloud_options.dataflow_endpoint,
         credentials=credentials,
         get_credentials=(not self.google_cloud_options.no_auth),
-        http=http_client)
+        http=http_client,
+        response_encoding=get_response_encoding())
     self._storage_client = storage.StorageV1(
         url='https://www.googleapis.com/storage/v1',
         credentials=credentials,
         get_credentials=(not self.google_cloud_options.no_auth),
-        http=http_client)
+        http=http_client,
+        response_encoding=get_response_encoding())
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -905,6 +908,11 @@ def get_runner_harness_container_image():
   # Don't pin runner harness for dev versions so that we can notice
   # potential incompatibility between runner and sdk harnesses.
   return None
+
+
+def get_response_encoding():
+  """Encoding to use to decode HTTP response from Google APIs."""
+  return None if sys.version_info[0] < 3 else 'utf8'
 
 
 # To enable a counter on the service, add it to this dictionary.
