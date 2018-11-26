@@ -29,7 +29,7 @@ from .stream cimport InputStream, OutputStream
 from apache_beam.utils cimport windowed_value
 
 
-cdef object loads, dumps, create_InputStream, create_OutputStream, ByteCountingOutputStream, get_varint_size
+cdef object loads, dumps, create_InputStream, create_OutputStream, ByteCountingOutputStream, get_varint_size, past_unicode
 # Temporarily untyped to allow monkeypatching on failed import.
 #cdef type WindowedValue
 
@@ -75,7 +75,8 @@ cdef unsigned char SET_TYPE
 
 cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef CoderImpl fallback_coder_impl
-  @cython.locals(dict_value=dict, int_value=libc.stdint.int64_t)
+  @cython.locals(dict_value=dict, int_value=libc.stdint.int64_t,
+                 unicode_value=unicode)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
   @cython.locals(t=int)
   cpdef decode_from_stream(self, InputStream stream, bint nested)

@@ -37,8 +37,8 @@ from __future__ import division
 from builtins import chr
 from builtins import object
 
+from past.builtins import unicode as past_unicode
 from past.builtins import long
-from past.builtins import unicode
 
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
@@ -216,7 +216,7 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
     self._step_label = step_label
 
   def _check_safe(self, value):
-    if isinstance(value, (bytes, unicode, long, int, float)):
+    if isinstance(value, (bytes, past_unicode, long, int, float)):
       pass
     elif value is None:
       pass
@@ -321,10 +321,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t is bytes:
       stream.write_byte(BYTES_TYPE)
       stream.write(value, nested)
-    elif t is unicode:
-      text_value = value  # for typing
+    elif t is past_unicode:
+      unicode_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
-      stream.write(text_value.encode('utf-8'), nested)
+      stream.write(unicode_value.encode('utf-8'), nested)
     elif t is list or t is tuple or t is set:
       stream.write_byte(
           LIST_TYPE if t is list else TUPLE_TYPE if t is tuple else SET_TYPE)
