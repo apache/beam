@@ -146,7 +146,7 @@ $ go get -u ./...
 $ go test ./...
 ```
 
-If you don’t have a GOPATH set, create a new directory in your home directory, and use that.
+If you don’t have a GOPATH set, follow [these instructions](https://github.com/golang/go/wiki/SettingGOPATH) to create a new directory in your home directory, and use that.
 
 Follow the [contribution guide](https://beam.apache.org/contribute/contribution-guide/#code) to create branches, and submit pull requests as normal.
 
