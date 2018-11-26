@@ -23,12 +23,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-class BatchGroupByKeyTranslator<K, InputT>
+class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
     implements TransformTranslator<
-        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>>> {
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
 
   @Override
   public void translateTransform(
-      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> transform,
+      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
       TranslationContext context) {}
 }

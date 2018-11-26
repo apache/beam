@@ -22,7 +22,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.Translation
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
-class BatchWindowAssignTranslator<T>
+class WindowAssignTranslatorBatch<T>
     implements TransformTranslator<PTransform<PCollection<T>, PCollection<T>>> {
 
   @Override

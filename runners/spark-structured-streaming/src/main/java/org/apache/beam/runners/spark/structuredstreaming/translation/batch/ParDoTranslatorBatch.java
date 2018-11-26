@@ -20,15 +20,13 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 
-class BatchCombinePerKeyTranslator<K, InputT, AccumT, OutputT>
-    implements TransformTranslator<
-        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
+class ParDoTranslatorBatch<InputT, OutputT>
+    implements TransformTranslator<PTransform<PCollection<InputT>, PCollectionTuple>> {
 
   @Override
   public void translateTransform(
-      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
-      TranslationContext context) {}
+      PTransform<PCollection<InputT>, PCollectionTuple> transform, TranslationContext context) {}
 }
