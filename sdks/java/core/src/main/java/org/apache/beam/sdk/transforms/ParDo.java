@@ -103,6 +103,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *       provided, will be called on the {@link DoFn} instance.
  *   <li>If a runner will no longer use a {@link DoFn}, the {@link DoFn.Teardown} method, if
  *       provided, will be called on the discarded instance.
+ *   <li>If a bundle requested bundle finalization by registering a {@link
+ *       DoFn.BundleFinalizer.Callback bundle finalization callback}, the callback will be invoked
+ *       after the runner has successfully committed the output of a successful bundle.
  * </ol>
  *
  * <p>Note also that calls to {@link DoFn.Teardown} are best effort, and may not be called before a
