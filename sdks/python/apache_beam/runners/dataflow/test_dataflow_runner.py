@@ -38,18 +38,19 @@ WAIT_IN_STATE_TIMEOUT = 10 * 60
 
 
 class TestDataflowRunner(DataflowRunner):
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     """Execute test pipeline and verify test matcher"""
-    options = pipeline._options.view_as(TestOptions)
-    on_success_matcher = options.on_success_matcher
-    wait_duration = options.wait_until_finish_duration
+    test_options = options.view_as(TestOptions)
+    on_success_matcher = test_options.on_success_matcher
+    wait_duration = test_options.wait_until_finish_duration
     is_streaming = options.view_as(StandardOptions).streaming
 
     # [BEAM-1889] Do not send this to remote workers also, there is no need to
     # send this option to remote executors.
-    options.on_success_matcher = None
+    test_options.on_success_matcher = None
 
-    self.result = super(TestDataflowRunner, self).run_pipeline(pipeline)
+    self.result = super(TestDataflowRunner, self).run_pipeline(
+        pipeline, options)
     if self.result.has_job:
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.
