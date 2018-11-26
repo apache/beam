@@ -71,6 +71,11 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
+_TIME_SHIFT = 1 << 63
+MIN_TIMESTAMP_micros = MIN_TIMESTAMP.micros
+MAX_TIMESTAMP_micros = MAX_TIMESTAMP.micros
+
+
 class CoderImpl(object):
   """For internal use only; no backwards-compatibility guarantees."""
 
@@ -740,25 +745,31 @@ class PaneInfoEncoding(object):
   TWO_INDICES = 2
 
 
+# These are cdef'd to ints to optimized the common case.
+PaneInfoTiming_UNKNOWN = windowed_value.PaneInfoTiming.UNKNOWN
+PaneInfoEncoding_FIRST = PaneInfoEncoding.FIRST
+
+
 class PaneInfoCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   Coder for a PaneInfo descriptor."""
 
   def _choose_encoding(self, value):
-    if ((value.index == 0 and value.nonspeculative_index == 0) or
-        value.timing == windowed_value.PaneInfoTiming.UNKNOWN):
-      return PaneInfoEncoding.FIRST
-    elif (value.index == value.nonspeculative_index or
-          value.timing == windowed_value.PaneInfoTiming.EARLY):
+    if ((value._index == 0 and value._nonspeculative_index == 0) or
+        value._timing == PaneInfoTiming_UNKNOWN):
+      return PaneInfoEncoding_FIRST
+    elif (value._index == value._nonspeculative_index or
+          value._timing == windowed_value.PaneInfoTiming.EARLY):
       return PaneInfoEncoding.ONE_INDEX
     else:
       return PaneInfoEncoding.TWO_INDICES
 
   def encode_to_stream(self, value, out, nested):
-    encoding_type = self._choose_encoding(value)
-    out.write_byte(value.encoded_byte | (encoding_type << 4))
-    if encoding_type == PaneInfoEncoding.FIRST:
+    pane_info = value  # cast
+    encoding_type = self._choose_encoding(pane_info)
+    out.write_byte(pane_info._encoded_byte | (encoding_type << 4))
+    if encoding_type == PaneInfoEncoding_FIRST:
       return
     elif encoding_type == PaneInfoEncoding.ONE_INDEX:
       out.write_var_int64(value.index)
@@ -773,7 +784,7 @@ class PaneInfoCoderImpl(StreamCoderImpl):
     base = windowed_value._BYTE_TO_PANE_INFO[encoded_first_byte & 0xF]
     assert base is not None
     encoding_type = encoded_first_byte >> 4
-    if encoding_type == PaneInfoEncoding.FIRST:
+    if encoding_type == PaneInfoEncoding_FIRST:
       return base
     elif encoding_type == PaneInfoEncoding.ONE_INDEX:
       index = in_stream.read_var_int64()
@@ -812,11 +823,11 @@ class WindowedValueCoderImpl(StreamCoderImpl):
   # byte representation of timestamps.
   def _to_normal_time(self, value):
     """Convert "lexicographically ordered unsigned" to signed."""
-    return value - (1 << 63)
+    return value - _TIME_SHIFT
 
   def _from_normal_time(self, value):
     """Convert signed to "lexicographically ordered unsigned"."""
-    return value + (1 << 63)
+    return value + _TIME_SHIFT
 
   def __init__(self, value_coder, timestamp_coder, window_coder):
     # TODO(lcwik): Remove the timestamp coder field
@@ -850,16 +861,12 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # were indeed MIN/MAX timestamps.
     # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
     # precision of timestamps.
-    if timestamp == -(abs(MIN_TIMESTAMP.micros) // 1000):
-      timestamp = MIN_TIMESTAMP.micros
-    elif timestamp == (MAX_TIMESTAMP.micros // 1000):
-      timestamp = MAX_TIMESTAMP.micros
+    if timestamp <= -(abs(MIN_TIMESTAMP_micros) // 1000):
+      timestamp = MIN_TIMESTAMP_micros
+    elif timestamp >= MAX_TIMESTAMP_micros // 1000:
+      timestamp = MAX_TIMESTAMP_micros
     else:
       timestamp *= 1000
-      if timestamp > MAX_TIMESTAMP.micros:
-        timestamp = MAX_TIMESTAMP.micros
-      if timestamp < MIN_TIMESTAMP.micros:
-        timestamp = MIN_TIMESTAMP.micros
 
     windows = self._windows_coder.decode_from_stream(in_stream, True)
     # Read PaneInfo encoded byte.
