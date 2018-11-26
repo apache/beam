@@ -77,6 +77,8 @@ cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef CoderImpl fallback_coder_impl
   @cython.locals(dict_value=dict, int_value=libc.stdint.int64_t)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
+  @cython.locals(t=int)
+  cpdef decode_from_stream(self, InputStream stream, bint nested)
 
 
 cdef class BytesCoderImpl(CoderImpl):

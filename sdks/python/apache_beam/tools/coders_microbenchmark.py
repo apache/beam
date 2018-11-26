@@ -104,7 +104,8 @@ def small_list():
 
 
 def large_list():
-  return list_int(1000)
+  # Bool is the last item in FastPrimitiveCoders before pickle.
+  return [bool(k) for k in list_int(1000)]
 
 
 def small_tuple():
