@@ -64,6 +64,11 @@ func Init() {
 	runtime.Init()
 }
 
+// Expose the initialization status for runners.
+func Initialized() bool {
+    return runtime.Initialized()
+}
+
 // PipelineOptions are global options for the active pipeline. Options can
 // be defined any time before execution and are re-created by the harness on
 // remote execution workers. Global options should be used sparingly.
