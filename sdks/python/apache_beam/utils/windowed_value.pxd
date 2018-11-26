@@ -21,6 +21,18 @@ from libc.stdint cimport int64_t
 
 cdef type Timestamp
 
+
+cdef list _BYTE_TO_PANE_INFO
+
+@cython.final
+cdef class PaneInfo(object):
+  cdef readonly bint _is_first
+  cdef readonly bint _is_last
+  cdef readonly int _timing
+  cdef readonly int _index
+  cdef readonly int _nonspeculative_index
+  cdef readonly unsigned char _encoded_byte
+
 @cython.final
 cdef class WindowedValue(object):
   cdef public object value

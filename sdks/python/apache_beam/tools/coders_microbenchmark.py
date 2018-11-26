@@ -131,6 +131,13 @@ def large_iterable():
     yield k
 
 
+def globally_windowed_value():
+  return windowed_value.WindowedValue(
+      value=small_int(),
+      timestamp=12345678,
+      windows=(window.GlobalWindow(),))
+
+
 def random_windowed_value(num_windows):
   return windowed_value.WindowedValue(
       value=small_int(),
@@ -195,8 +202,13 @@ def run_coder_benchmarks(
           coders.WindowedValueCoder(coders.FastPrimitivesCoder()),
           wv_with_one_window),
       coder_benchmark_factory(
-          coders.WindowedValueCoder(coders.FastPrimitivesCoder()),
+          coders.WindowedValueCoder(coders.FastPrimitivesCoder(),
+                                    coders.IntervalWindowCoder()),
           wv_with_multiple_windows),
+      coder_benchmark_factory(
+          coders.WindowedValueCoder(coders.FastPrimitivesCoder(),
+                                    coders.GlobalWindowCoder()),
+          globally_windowed_value),
       coder_benchmark_factory(
           coders.LengthPrefixCoder(coders.FastPrimitivesCoder()),
           small_int)

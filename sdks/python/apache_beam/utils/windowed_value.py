@@ -58,11 +58,11 @@ class PaneInfo(object):
 
   def _get_encoded_byte(self):
     byte = 0
-    if self.is_first:
+    if self._is_first:
       byte |= 1
-    if self.is_last:
+    if self._is_last:
       byte |= 2
-    byte |= self.timing << 2
+    byte |= self._timing << 2
     return byte
 
   @staticmethod
@@ -120,6 +120,10 @@ class PaneInfo(object):
   def __hash__(self):
     return hash((self.is_first, self.is_last, self.timing, self.index,
                  self.nonspeculative_index))
+
+  def __reduce__(self):
+    return PaneInfo, (self._is_first, self._is_last, self._timing, self._index,
+                      self._nonspeculative_index)
 
 
 def _construct_well_known_pane_infos():
