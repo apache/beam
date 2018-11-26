@@ -237,3 +237,54 @@ except TypeError:
   # the cdef class, but in this case it's OK as it's already present
   # on each instance.
   pass
+
+
+class _IntervalWindowBase(object):
+  """Optimized form of IntervalWindow storing only microseconds for endpoints.
+  """
+
+  def __init__(self, start, end):
+    if start is not None or end is not None:
+      self._start_object = Timestamp.of(start)
+      self._end_object = Timestamp.of(end)
+      try:
+        self._start_micros = self._start_object.micros
+      except OverflowError:
+        self._start_micros = (
+            MIN_TIMESTAMP.micros if self._start_object.micros < 0
+            else MAX_TIMESTAMP.micros)
+      try:
+        self._end_micros = self._end_object.micros
+      except OverflowError:
+        self._end_micros = (
+            MIN_TIMESTAMP.micros if self._end_object.micros < 0
+            else MAX_TIMESTAMP.micros)
+    else:
+      # Micros must be populated elsewhere.
+      self._start_object = self._end_object = None
+
+  @property
+  def start(self):
+    if self._start_object is None:
+      self._start_object = Timestamp(0, self._start_micros)
+    return self._start_object
+
+  @property
+  def end(self):
+    if self._end_object is None:
+      self._end_object = Timestamp(0, self._end_micros)
+    return self._end_object
+
+  def __hash__(self):
+    return hash((self._start_micros, self._end_micros))
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._start_micros == other.start.micros
+            and self._end_micros == other.end.micros)
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __repr__(self):
+    return '[%s, %s)' % (float(self.start), float(self.end))
