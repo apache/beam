@@ -42,6 +42,12 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
   @SuppressWarnings("rawtypes")
   private static final Map<String, TransformTranslator> TRANSFORM_TRANSLATORS = new HashMap<>();
 
+  //TODO the ability to have more than one TransformTranslator per URN
+  // that could be dynamically chosen by a predicated that evaluates based on PCollection
+  // obtainable though node.getInputs.getValue()
+  // See https://github.com/seznam/euphoria/blob/master/euphoria-spark/src/main/java/cz/seznam/euphoria/spark/SparkFlowTranslator.java#L83
+  // And https://github.com/seznam/euphoria/blob/master/euphoria-spark/src/main/java/cz/seznam/euphoria/spark/SparkFlowTranslator.java#L106
+
   static {
     TRANSFORM_TRANSLATORS.put(
         PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslatorBatch());
