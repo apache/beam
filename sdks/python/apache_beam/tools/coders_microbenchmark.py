@@ -31,7 +31,9 @@ Run as:
 from __future__ import absolute_import
 from __future__ import print_function
 
+import argparse
 import random
+import re
 import string
 import sys
 
@@ -140,7 +142,8 @@ def wv_with_multiple_windows():
   return random_windowed_value(num_windows=32)
 
 
-def run_coder_benchmarks(num_runs, input_size, seed, verbose):
+def run_coder_benchmarks(
+    num_runs, input_size, seed, verbose, filter_regex='.*'):
   random.seed(seed)
 
   # TODO(BEAM-4441): Pick coders using type hints, for example:
@@ -186,16 +189,26 @@ def run_coder_benchmarks(num_runs, input_size, seed, verbose):
           wv_with_multiple_windows),
   ]
 
-  suite = [utils.BenchmarkConfig(b, input_size, num_runs) for b in benchmarks]
+  suite = [utils.BenchmarkConfig(b, input_size, num_runs) for b in benchmarks
+           if re.search(filter_regex, b.__name__, flags=re.I)]
   utils.run_benchmarks(suite, verbose=verbose)
 
 
 if __name__ == "__main__":
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--filter', default='.*')
+  parser.add_argument('--num_runs', default=20, type=int)
+  parser.add_argument('--num_elements_per_benchmark', default=1000, type=int)
+  parser.add_argument('--seed', default=42, type=int)
+  options = parser.parse_args()
+
   utils.check_compiled("apache_beam.coders.coder_impl")
 
   num_runs = 20
   num_elements_per_benchmark = 1000
   seed = 42  # Fix the seed for better consistency
 
-  run_coder_benchmarks(num_runs, num_elements_per_benchmark, seed,
-                       verbose=True)
+  run_coder_benchmarks(
+      options.num_runs, options.num_elements_per_benchmark, options.seed,
+      verbose=True, filter_regex=options.filter)
