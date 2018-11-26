@@ -28,6 +28,7 @@ import logging
 import multiprocessing
 import os
 import re
+import sys
 import threading
 import time
 import traceback
@@ -173,7 +174,8 @@ class GcsIO(object):
         storage_client = storage.StorageV1(
             credentials=credentials,
             get_credentials=False,
-            http=get_new_http())
+            http=get_new_http(),
+            response_encoding=None if sys.version_info[0] < 3 else 'utf8')
         local_state.gcsio_instance = super(GcsIO, cls).__new__(cls)
         local_state.gcsio_instance.client = storage_client
       return local_state.gcsio_instance
