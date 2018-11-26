@@ -125,6 +125,12 @@ def large_dict():
   return {i: i for i in large_list()}
 
 
+def large_iterable():
+  yield 'a' * coders.coder_impl.SequenceCoderImpl._DEFAULT_BUFFER_SIZE
+  for k in range(1000):
+    yield k
+
+
 def random_windowed_value(num_windows):
   return windowed_value.WindowedValue(
       value=small_int(),
@@ -170,6 +176,9 @@ def run_coder_benchmarks(
       coder_benchmark_factory(
           coders.IterableCoder(coders.FastPrimitivesCoder()),
           large_list),
+      coder_benchmark_factory(
+          coders.IterableCoder(coders.FastPrimitivesCoder()),
+          large_iterable),
       coder_benchmark_factory(
           coders.FastPrimitivesCoder(),
           small_tuple),
