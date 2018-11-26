@@ -234,7 +234,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._last_uid += 1
     return str(self._last_uid)
 
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     MetricsEnvironment.set_metrics_supported(False)
     RuntimeValueProvider.set_runtime_options({})
     # This is sometimes needed if type checking is disabled
@@ -242,10 +242,10 @@ class FnApiRunner(runner.PipelineRunner):
     # are known to be KVs.
     from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
     pipeline.visit(DataflowRunner.group_by_key_input_visitor())
-    self._bundle_repeat = self._bundle_repeat or pipeline._options.view_as(
+    self._bundle_repeat = self._bundle_repeat or options.view_as(
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
     self._profiler_factory = profiler.Profile.factory_from_options(
-        pipeline._options.view_as(pipeline_options.ProfilingOptions))
+        options.view_as(pipeline_options.ProfilingOptions))
     return self.run_via_runner_api(pipeline.to_runner_api())
 
   def run_via_runner_api(self, pipeline_proto):
