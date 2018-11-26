@@ -151,7 +151,7 @@ class PipelineRunner(object):
       transform(PBegin(p))
     return p.run()
 
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     """Execute the entire pipeline or the sub-DAG reachable from a node.
 
     Runners should override this method.
@@ -168,14 +168,14 @@ class PipelineRunner(object):
 
       def visit_transform(self, transform_node):
         try:
-          self.runner.run_transform(transform_node)
+          self.runner.run_transform(transform_node, options)
         except:
           logging.error('Error while visiting %s', transform_node.full_label)
           raise
 
     pipeline.visit(RunVisitor(self))
 
-  def apply(self, transform, input):
+  def apply(self, transform, input, options):
     """Runner callback for a pipeline.apply call.
 
     Args:
@@ -190,15 +190,15 @@ class PipelineRunner(object):
     for cls in transform.__class__.mro():
       m = getattr(self, 'apply_%s' % cls.__name__, None)
       if m:
-        return m(transform, input)
+        return m(transform, input, options)
     raise NotImplementedError(
         'Execution of [%s] not implemented in runner %s.' % (transform, self))
 
-  def apply_PTransform(self, transform, input):
+  def apply_PTransform(self, transform, input, options):
     # The base case of apply is to call the transform's expand.
     return transform.expand(input)
 
-  def run_transform(self, transform_node):
+  def run_transform(self, transform_node, options):
     """Runner callback for a pipeline.run call.
 
     Args:
@@ -211,7 +211,7 @@ class PipelineRunner(object):
     for cls in transform_node.transform.__class__.mro():
       m = getattr(self, 'run_%s' % cls.__name__, None)
       if m:
-        return m(transform_node)
+        return m(transform_node, options)
     raise NotImplementedError(
         'Execution of [%s] not implemented in runner %s.' % (
             transform_node.transform, self))
