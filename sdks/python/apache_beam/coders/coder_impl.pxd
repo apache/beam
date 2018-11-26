@@ -155,3 +155,7 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
 
   @cython.locals(wv=windowed_value.WindowedValue)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
+
+
+cdef class LengthPrefixCoderImpl(StreamCoderImpl):
+  cdef CoderImpl _value_coder
