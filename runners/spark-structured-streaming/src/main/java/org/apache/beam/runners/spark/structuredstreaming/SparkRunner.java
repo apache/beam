@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.BatchPipelineTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.StreamingPipelineTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
@@ -122,7 +122,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     PipelineTranslator pipelineTranslator =
         options.isStreaming()
             ? new StreamingPipelineTranslator(options)
-            : new BatchPipelineTranslator(options);
+            : new PipelineTranslatorBatch(options);
     pipelineTranslator.translate(pipeline);
   }
 

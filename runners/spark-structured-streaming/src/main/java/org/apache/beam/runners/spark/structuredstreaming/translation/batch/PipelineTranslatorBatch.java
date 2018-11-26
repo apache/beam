@@ -30,10 +30,10 @@ import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * {@link PipelineTranslator} for executing a {@link Pipeline} in Spark in batch mode. This contains
- * only the components specific to batch: {@link BatchTranslationContext}, registry of batch {@link
+ * only the components specific to batch: {@link TranslationContextBatch}, registry of batch {@link
  * TransformTranslator} and registry lookup code.
  */
-public class BatchPipelineTranslator extends PipelineTranslator {
+public class PipelineTranslatorBatch extends PipelineTranslator {
 
   // --------------------------------------------------------------------------------------------
   //  Transform Translator Registry
@@ -44,26 +44,26 @@ public class BatchPipelineTranslator extends PipelineTranslator {
 
   static {
     TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new BatchCombinePerKeyTranslator());
+        PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslatorBatch());
     TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new BatchGroupByKeyTranslator());
-    TRANSFORM_TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new BatchReshuffleTranslator());
+        PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch());
 
     TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.FLATTEN_TRANSFORM_URN, new BatchFlattenPCollectionTranslator());
+        PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionTranslatorBatch());
 
     TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new BatchWindowAssignTranslator());
+        PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslatorBatch());
 
     TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.PAR_DO_TRANSFORM_URN, new BatchParDoTranslator());
+        PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoTranslatorBatch());
 
     TRANSFORM_TRANSLATORS.put(
-        PTransformTranslation.READ_TRANSFORM_URN, new BatchReadSourceTranslator());
+        PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslatorBatch());
   }
 
-  public BatchPipelineTranslator(SparkPipelineOptions options) {
-    translationContext = new BatchTranslationContext(options);
+  public PipelineTranslatorBatch(SparkPipelineOptions options) {
+    translationContext = new TranslationContextBatch(options);
   }
 
   /** Returns a translator for the given node, if it is possible, otherwise null. */
