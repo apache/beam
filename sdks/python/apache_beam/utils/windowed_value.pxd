@@ -46,3 +46,10 @@ cdef class WindowedValue(object):
 @cython.locals(wv=WindowedValue)
 cpdef WindowedValue create(
   object value, int64_t timestamp_micros, object windows, object pane_info=*)
+
+
+cdef class _IntervalWindowBase(object):
+  cdef object _start_object
+  cdef int64_t _start_micros
+  cdef object _end_object
+  cdef int64_t _end_micros

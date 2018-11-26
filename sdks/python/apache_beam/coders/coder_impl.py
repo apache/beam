@@ -418,37 +418,47 @@ class FloatCoderImpl(StreamCoderImpl):
     return 8
 
 
+IntervalWindow = None
+
+
 class IntervalWindowCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
 
   # TODO: Fn Harness only supports millis. Is this important enough to fix?
   def _to_normal_time(self, value):
     """Convert "lexicographically ordered unsigned" to signed."""
-    return value - (1 << 63)
+    return value - _TIME_SHIFT
 
   def _from_normal_time(self, value):
     """Convert signed to "lexicographically ordered unsigned"."""
-    return value + (1 << 63)
+    return value + _TIME_SHIFT
 
   def encode_to_stream(self, value, out, nested):
-    span_micros = value.end.micros - value.start.micros
+    typed_value = value
+    span_millis = (typed_value._end_micros // 1000
+                   - typed_value._start_micros // 1000)
     out.write_bigendian_uint64(
-        self._from_normal_time(value.end.micros // 1000))
-    out.write_var_int64(span_micros // 1000)
+        self._from_normal_time(typed_value._end_micros // 1000))
+    out.write_var_int64(span_millis)
 
   def decode_from_stream(self, in_, nested):
-    end_millis = self._to_normal_time(in_.read_bigendian_uint64())
-    start_millis = end_millis - in_.read_var_int64()
-    from apache_beam.transforms.window import IntervalWindow
-    ret = IntervalWindow(start=Timestamp(micros=start_millis * 1000),
-                         end=Timestamp(micros=end_millis * 1000))
-    return ret
+    global IntervalWindow
+    if IntervalWindow is None:
+      from apache_beam.transforms.window import IntervalWindow
+    typed_value = IntervalWindow(None, None)
+    typed_value._end_micros = (
+        1000 * self._to_normal_time(in_.read_bigendian_uint64()))
+    typed_value._start_micros = (
+        typed_value._end_micros - 1000 * in_.read_var_int64())
+    return typed_value
 
   def estimate_size(self, value, nested=False):
     # An IntervalWindow is context-insensitive, with a timestamp (8 bytes)
     # and a varint timespam.
-    span = value.end.micros - value.start.micros
-    return 8 + get_varint_size(span // 1000)
+    typed_value = value
+    span_millis = (typed_value._end_micros // 1000
+                   - typed_value._start_micros // 1000)
+    return 8 + get_varint_size(span_millis)
 
 
 class TimestampCoderImpl(StreamCoderImpl):

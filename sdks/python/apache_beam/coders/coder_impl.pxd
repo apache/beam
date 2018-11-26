@@ -142,6 +142,24 @@ cdef class IterableCoderImpl(SequenceCoderImpl):
   pass
 
 
+cdef object IntervalWindow
+
+cdef class IntervalWindowCoderImpl(StreamCoderImpl):
+  cdef libc.stdint.uint64_t _to_normal_time(self, libc.stdint.int64_t value)
+  cdef libc.stdint.int64_t _from_normal_time(self, libc.stdint.uint64_t value)
+
+  @cython.locals(typed_value=windowed_value._IntervalWindowBase,
+                 span_millis=libc.stdint.int64_t)
+  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
+
+  @cython.locals(typed_value=windowed_value._IntervalWindowBase)
+  cpdef decode_from_stream(self, InputStream stream, bint nested)
+
+  @cython.locals(typed_value=windowed_value._IntervalWindowBase,
+                 span_millis=libc.stdint.int64_t)
+  cpdef estimate_size(self, value, bint nested=?)
+
+
 cdef int PaneInfoTiming_UNKNOWN
 cdef int PaneInfoEncoding_FIRST
 
