@@ -17,16 +17,24 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PBegin;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.spark.sql.Dataset;
 
-class BatchReadSourceTranslator<T>
-    implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
+/** This class contains only batch specific context components. */
+public class TranslationContextBatch extends TranslationContext {
 
-  @Override
-  public void translateTransform(
-      PTransform<PBegin, PCollection<T>> transform, TranslationContext context) {}
+  /**
+   * For keeping track about which DataSets don't have a successor. We need to terminate these with
+   * a discarding sink because the Beam model allows dangling operations.
+   */
+  private final Map<PValue, Dataset<?>> danglingDataSets;
+
+  public TranslationContextBatch(SparkPipelineOptions options) {
+    super(options);
+    this.danglingDataSets = new HashMap<>();
+  }
 }
