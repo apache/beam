@@ -125,6 +125,9 @@ cdef class TupleCoderImpl(AbstractComponentCoderImpl):
 cdef class SequenceCoderImpl(StreamCoderImpl):
   cdef CoderImpl _elem_coder
   cpdef _construct_from_sequence(self, values)
+  @cython.locals(buffer=OutputStream, target_buffer_size=libc.stdint.int64_t,
+                 index=libc.stdint.int64_t)
+  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
 
 
 cdef class TupleSequenceCoderImpl(SequenceCoderImpl):

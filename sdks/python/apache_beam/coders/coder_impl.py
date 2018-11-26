@@ -647,10 +647,11 @@ class SequenceCoderImpl(StreamCoderImpl):
       # -1 to indicate that the length is not known.
       out.write_bigendian_int32(-1)
       buffer = create_OutputStream()
+      target_buffer_size = self._DEFAULT_BUFFER_SIZE
       prev_index = index = -1
       for index, elem in enumerate(value):
         self._elem_coder.encode_to_stream(elem, buffer, True)
-        if out.size() > self._DEFAULT_BUFFER_SIZE:
+        if buffer.size() > target_buffer_size:
           out.write_var_int64(index - prev_index)
           out.write(buffer.get())
           prev_index = index
