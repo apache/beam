@@ -58,8 +58,8 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 import org.joda.time.Instant;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -68,6 +68,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Tests for {@link UnboundedSourceWrapper}. */
+@RunWith(Enclosed.class)
 public class UnboundedSourceWrapperTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapperTest.class);
@@ -221,7 +222,6 @@ public class UnboundedSourceWrapperTest {
      * <p>This test verifies that watermark are correctly forwarded.
      */
     @Test(timeout = 30_000)
-    @Ignore("https://issues.apache.org/jira/browse/BEAM-5197") // deadlock on some platforms
     public void testWatermarkEmission() throws Exception {
       final int numElements = 500;
       final Object checkpointLock = new Object();
@@ -307,7 +307,10 @@ public class UnboundedSourceWrapperTest {
         if (seenWatermark.get()) {
           break;
         }
-        Thread.sleep(50);
+
+        // Consider that UnboundedSourceWrapper needs to acquire the checkpoint lock below.
+        // So wait for enough time for that to happen.
+        Thread.sleep(200);
 
         // Need to advance this so that the watermark timers in the source wrapper fire
         // Synchronize is necessary because this can interfere with updating the PriorityQueue
