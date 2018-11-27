@@ -555,13 +555,13 @@ class DataflowRunner(PipelineRunner):
   def apply_WriteToBigQuery(self, transform, pcoll, options):
     # Make sure this is the WriteToBigQuery class that we expected
     if not isinstance(transform, beam.io.WriteToBigQuery):
-      return self.apply_PTransform(transform, pcoll)
+      return self.apply_PTransform(transform, pcoll, options)
     standard_options = options.view_as(StandardOptions)
     if standard_options.streaming:
       if (transform.write_disposition ==
           beam.io.BigQueryDisposition.WRITE_TRUNCATE):
         raise RuntimeError('Can not use write truncation mode in streaming')
-      return self.apply_PTransform(transform, pcoll)
+      return self.apply_PTransform(transform, pcoll, options)
     else:
       return pcoll  | 'WriteToBigQuery' >> beam.io.Write(
           beam.io.BigQuerySink(
@@ -801,7 +801,7 @@ class DataflowRunner(PipelineRunner):
           'beam_fn_api' in debug_options.experiments
       ):
         # Expand according to FnAPI primitives.
-        return self.apply_PTransform(transform, pbegin)
+        return self.apply_PTransform(transform, pbegin, options)
       else:
         # Custom Read is also a primitive for non-FnAPI on dataflow.
         return beam.pvalue.PCollection(pbegin.pipeline)
