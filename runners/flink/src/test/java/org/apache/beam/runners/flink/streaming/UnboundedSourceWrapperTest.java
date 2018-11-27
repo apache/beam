@@ -58,6 +58,7 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -220,6 +221,7 @@ public class UnboundedSourceWrapperTest {
      * <p>This test verifies that watermark are correctly forwarded.
      */
     @Test(timeout = 30_000)
+    @Ignore("https://issues.apache.org/jira/browse/BEAM-5197") // deadlock on some platforms
     public void testWatermarkEmission() throws Exception {
       final int numElements = 500;
       final Object checkpointLock = new Object();
