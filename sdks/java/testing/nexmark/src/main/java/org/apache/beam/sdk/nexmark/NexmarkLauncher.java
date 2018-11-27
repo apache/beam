@@ -1230,10 +1230,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             NexmarkQueryName.LOCAL_ITEM_SUGGESTION,
             new NexmarkQuery(configuration, new SqlQuery3(configuration)))
         .put(
-            NexmarkQueryName.AVERAGE_PRICE_FOR_CATEGORY,
+            NexmarkQueryName.HOT_ITEMS,
             new NexmarkQuery(configuration, new SqlQuery5(configuration)))
         .put(
-            NexmarkQueryName.HOT_ITEMS,
+            NexmarkQueryName.HIGHEST_BID,
             new NexmarkQuery(configuration, new SqlQuery7(configuration)))
         .build();
   }
