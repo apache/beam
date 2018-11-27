@@ -31,7 +31,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CountDownLatch;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.coders.Coder;
@@ -217,9 +217,9 @@ public class UnboundedSourceWrapperTest {
 
     /**
      * Creates a {@link UnboundedSourceWrapper} that has one or multiple readers per source. If
-     * numSplits > numTasks the source has one source will manage multiple readers.
+     * numSplits > numTasks the source will manage multiple readers.
      *
-     * <p>This test verifies that watermark are correctly forwarded.
+     * <p>This test verifies that watermarks are correctly forwarded.
      */
     @Test(timeout = 30_000)
     public void testWatermarkEmission() throws Exception {
@@ -249,6 +249,7 @@ public class UnboundedSourceWrapperTest {
                   numTasks /* max parallelism */,
                   numTasks /* parallelism */,
                   0 /* subtask index */);
+      testHarness.getExecutionConfig().setLatencyTrackingInterval(0);
 
       testHarness.setProcessingTime(Instant.now().getMillis());
       testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -257,13 +258,14 @@ public class UnboundedSourceWrapperTest {
 
       // use the AtomicBoolean just for the set()/get() functionality for communicating
       // with the outer Thread
-      final AtomicBoolean seenWatermark = new AtomicBoolean(false);
+      final CountDownLatch seenWatermark = new CountDownLatch(1);
+
+      testHarness.open();
 
       Thread sourceThread =
           new Thread(
               () -> {
                 try {
-                  testHarness.open();
                   sourceOperator.run(
                       checkpointLock,
                       new TestStreamStatusMaintainer(),
@@ -272,8 +274,10 @@ public class UnboundedSourceWrapperTest {
 
                         @Override
                         public void emitWatermark(Watermark watermark) {
-                          if (watermark.getTimestamp() >= numElements / 2) {
-                            seenWatermark.set(true);
+                          if (watermark.getTimestamp()
+                              == BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+                            // The CountingSource will emit
+                            seenWatermark.countDown();
                           }
                         }
 
@@ -300,24 +304,27 @@ public class UnboundedSourceWrapperTest {
 
       sourceThread.start();
 
-      while (true) {
-        if (!caughtExceptions.isEmpty()) {
-          fail("Caught exception(s): " + Joiner.on(",").join(caughtExceptions));
-        }
-        if (seenWatermark.get()) {
-          break;
-        }
+      while (flinkWrapper
+          .getLocalReaders()
+          .stream()
+          .anyMatch(
+              reader ->
+                  reader.getWatermark().getMillis()
+                      < BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis())) {
+        Thread.sleep(50);
+      }
 
-        // Consider that UnboundedSourceWrapper needs to acquire the checkpoint lock below.
-        // So wait for enough time for that to happen.
-        Thread.sleep(200);
+      // Need to advance this so that the watermark timers in the source wrapper fire
+      // Synchronize is necessary because this can interfere with updating the PriorityQueue
+      // of the ProcessingTimeService which is also accessed through UnboundedSourceWrapper.
+      synchronized (checkpointLock) {
+        testHarness.setProcessingTime(Long.MAX_VALUE);
+      }
 
-        // Need to advance this so that the watermark timers in the source wrapper fire
-        // Synchronize is necessary because this can interfere with updating the PriorityQueue
-        // of the ProcessingTimeService which is also accessed through UnboundedSourceWrapper.
-        synchronized (checkpointLock) {
-          testHarness.setProcessingTime(Instant.now().getMillis());
-        }
+      seenWatermark.await();
+
+      if (!caughtExceptions.isEmpty()) {
+        fail("Caught exception(s): " + Joiner.on(",").join(caughtExceptions));
       }
 
       sourceOperator.cancel();
