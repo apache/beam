@@ -40,7 +40,7 @@ configurations {
   validatesRunner
 }
 
-def samza_version = "300.141.25.23"
+def samza_version = "300.141.25.45"
 
 dependencies {
   compile library.java.guava
@@ -97,7 +97,6 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
   }

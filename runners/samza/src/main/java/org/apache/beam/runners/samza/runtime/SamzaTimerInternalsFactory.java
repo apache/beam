@@ -50,8 +50,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private final Coder<K> keyCoder;
   private final TimerRegistry<KeyedTimerData<K>> timerRegistry;
 
-  // TODO: use BoundedWindow.TIMESTAMP_MIN_VALUE when KafkaIO emits watermarks in bounds.
-  private Instant inputWatermark = new Instant(Long.MIN_VALUE);
+  private Instant inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   private Instant outputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   public SamzaTimerInternalsFactory(

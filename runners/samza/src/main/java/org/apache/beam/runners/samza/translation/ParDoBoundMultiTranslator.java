@@ -95,10 +95,6 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final Coder<?> keyCoder =
         signature.usesState() ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
 
-    if (signature.usesTimers()) {
-      throw new UnsupportedOperationException("DoFn with timers is not currently supported");
-    }
-
     if (signature.processElement().isSplittable()) {
       throw new UnsupportedOperationException("Splittable DoFn is not currently supported");
     }
