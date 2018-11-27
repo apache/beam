@@ -245,7 +245,7 @@ class CombiningValueRuntimeState(userstate.RuntimeState):
 
 
 class _ConcatIterable(object):
-  """An iterable that is the concatination of to iterables.
+  """An iterable that is the concatination of two iterables.
 
   Unlike itertools.chain, this allows reiteration.
   """
