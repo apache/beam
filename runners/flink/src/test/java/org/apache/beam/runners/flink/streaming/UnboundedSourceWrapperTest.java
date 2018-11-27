@@ -59,7 +59,6 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 import org.joda.time.Instant;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -68,7 +67,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Tests for {@link UnboundedSourceWrapper}. */
-@RunWith(Enclosed.class)
 public class UnboundedSourceWrapperTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapperTest.class);
@@ -103,7 +101,7 @@ public class UnboundedSourceWrapperTest {
      * Creates a {@link UnboundedSourceWrapper} that has one or multiple readers per source. If
      * numSplits > numTasks the source has one source will manage multiple readers.
      */
-    @Test(timeout = 120_000)
+    @Test(timeout = 30_000)
     public void testValueEmission() throws Exception {
       final int numElementsPerShard = 20;
       FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
