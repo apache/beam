@@ -325,7 +325,7 @@ class FnApiRunnerTest(unittest.TestCase):
         _, element = kv
         state.add(element)
         buffer = state.read()
-        # For reall use, we'd keep track of this size separately.
+        # For real use, we'd keep track of this size separately.
         if len(list(buffer)) >= 3:
           state.clear()
           yield buffer
