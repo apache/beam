@@ -22,7 +22,7 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.sql.impl.UdfImpl;
+import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCastExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCorrelVariableExpression;
@@ -503,7 +503,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           // handle UDF
           if (((RexCall) rexNode).getOperator() instanceof SqlUserDefinedFunction) {
             SqlUserDefinedFunction udf = (SqlUserDefinedFunction) ((RexCall) rexNode).getOperator();
-            UdfImpl fn = (UdfImpl) udf.getFunction();
+            ScalarFunctionImpl fn = (ScalarFunctionImpl) udf.getFunction();
             ret =
                 new BeamSqlUdfExpression(
                     fn.method, subExps, ((RexCall) rexNode).type.getSqlTypeName());
