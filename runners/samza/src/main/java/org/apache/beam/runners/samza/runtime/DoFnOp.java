@@ -40,7 +40,6 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -56,7 +55,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.apache.samza.config.Config;
 import org.apache.samza.operators.TimerRegistry;
-import org.apache.samza.storage.kv.KeyValueStore;
 import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -141,12 +139,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   public void open(
       Config config,
       TaskContext context,
-      TimerRegistry<TimerKey<Void>> timerRegistry,
+      TimerRegistry<KeyedTimerData<Void>> timerRegistry,
       OpEmitter<OutT> emitter) {
     this.inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.sideInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
-    this.timerInternalsFactory = new SamzaTimerInternalsFactory(keyCoder, timerRegistry);
 
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     final SamzaPipelineOptions pipelineOptions =
@@ -156,7 +153,18 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
             .as(SamzaPipelineOptions.class);
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
-        createStateInternalFactory(null, context, pipelineOptions, signature, mainOutputTag);
+        SamzaStoreStateInternals.createStateInternalFactory(
+            null, context, pipelineOptions, signature, mainOutputTag);
+
+    this.timerInternalsFactory =
+        SamzaTimerInternalsFactory.createTimerInternalFactory(
+            keyCoder,
+            (TimerRegistry) timerRegistry,
+            getTimerStateId(signature),
+            nonKeyedStateInternalsFactory,
+            windowingStrategy,
+            pipelineOptions);
+
     this.sideInputHandler =
         new SideInputHandler(sideInputs, nonKeyedStateInternalsFactory.stateInternalsForKey(null));
 
@@ -208,34 +216,12 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     doFnInvoker.invokeSetup();
   }
 
-  static SamzaStoreStateInternals.Factory createStateInternalFactory(
-      Coder<?> keyCoder,
-      TaskContext context,
-      SamzaPipelineOptions pipelineOptions,
-      DoFnSignature signature,
-      TupleTag<?> mainOutputTag) {
-    final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
-    final Map<String, KeyValueStore<byte[], byte[]>> stores =
-        new HashMap<>(SamzaStoreStateInternals.getBeamStore(context));
-
-    final Coder stateKeyCoder;
-    if (keyCoder != null) {
-      signature
-          .stateDeclarations()
-          .keySet()
-          .forEach(
-              stateId ->
-                  stores.put(stateId, (KeyValueStore<byte[], byte[]>) context.getStore(stateId)));
-      stateKeyCoder = keyCoder;
-    } else {
-      stateKeyCoder = VoidCoder.of();
+  private String getTimerStateId(DoFnSignature signature) {
+    final StringBuilder builder = new StringBuilder("timer");
+    if (signature.usesTimers()) {
+      signature.timerDeclarations().keySet().forEach(key -> builder.append(key));
     }
-    return new SamzaStoreStateInternals.Factory<>(
-        // TODO: ??? what to do with empty output?
-        mainOutputTag == null ? "null" : mainOutputTag.getId(),
-        stores,
-        stateKeyCoder,
-        batchGetSize);
+    return builder.toString();
   }
 
   @Override
@@ -322,6 +308,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     pushbackFnRunner.startBundle();
     fireTimer(keyedTimerData);
     pushbackFnRunner.finishBundle();
+
+    this.timerInternalsFactory.removeProcessingTimer((KeyedTimerData) keyedTimerData);
   }
 
   @Override

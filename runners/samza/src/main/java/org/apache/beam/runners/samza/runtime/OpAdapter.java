@@ -21,8 +21,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
@@ -39,7 +37,7 @@ import org.slf4j.LoggerFactory;
 public class OpAdapter<InT, OutT, K>
     implements FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>,
         WatermarkFunction<OpMessage<OutT>>,
-        TimerFunction<TimerKey<K>, OpMessage<OutT>>,
+        TimerFunction<KeyedTimerData<K>, OpMessage<OutT>>,
         Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(OpAdapter.class);
 
@@ -68,7 +66,7 @@ public class OpAdapter<InT, OutT, K>
   }
 
   @Override
-  public final void registerTimer(TimerRegistry<TimerKey<K>> timerRegistry) {
+  public final void registerTimer(TimerRegistry<KeyedTimerData<K>> timerRegistry) {
     assert taskContext != null;
 
     op.open(config, taskContext, timerRegistry, emitter);
@@ -126,19 +124,10 @@ public class OpAdapter<InT, OutT, K>
   }
 
   @Override
-  public Collection<OpMessage<OutT>> onTimer(TimerKey<K> timerKey, long time) {
+  public Collection<OpMessage<OutT>> onTimer(KeyedTimerData<K> keyedTimerData, long time) {
     assert outputList.isEmpty();
 
     try {
-      final TimerData timerData =
-          TimerData.of(
-              timerKey.getTimerId(),
-              timerKey.getStateNamespace(),
-              new Instant(time),
-              TimeDomain.PROCESSING_TIME);
-      final KeyedTimerData<K> keyedTimerData =
-          new KeyedTimerData<>(timerKey.getKeyBytes(), timerKey.getKey(), timerData);
-
       op.processTimer(keyedTimerData);
     } catch (Exception e) {
       LOG.error("Op {} threw an exception during processing timer", this.getClass().getName(), e);
