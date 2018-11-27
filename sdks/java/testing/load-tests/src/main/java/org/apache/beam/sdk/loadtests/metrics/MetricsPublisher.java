@@ -23,6 +23,12 @@ import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 /** Provides ways to publish metrics gathered during test invocation. */
 public class MetricsPublisher {
 
+  /**
+   * This prints out metrics results to console. It will work only if metrics with appropriate
+   * (conventional) names are present to be collected in {@link PipelineResult}
+   *
+   * <p>See {@link org.apache.beam.sdk.loadtests.GroupByKeyLoadTest} for hints on how to use it.
+   */
   public static void toConsole(PipelineResult result, String namespace) {
     MetricsReader resultMetrics = new MetricsReader(result, namespace);
 

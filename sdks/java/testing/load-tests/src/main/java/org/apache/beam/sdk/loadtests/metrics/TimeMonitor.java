@@ -22,7 +22,13 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
-/** Monitor that records processing time distribution in the pipeline. */
+/**
+ * Monitor that records processing time distribution in the pipeline.
+ *
+ * <p>To use: apply a monitor directly after each source and sink transform. This will capture a
+ * distribution if element processing timestamps, which can be collected and written out using
+ * {@link MetricsPublisher}.
+ */
 public class TimeMonitor<K, V> extends DoFn<KV<K, V>, KV<K, V>> {
 
   private Distribution timeDistribution;

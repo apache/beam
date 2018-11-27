@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.testutils.metrics;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -35,7 +37,7 @@ public class MetricsReader {
 
   private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(MetricsReader.class);
 
-  private static final int ERRONEOUS_METRIC_VALUE = -1;
+  private static final long ERRONEOUS_METRIC_VALUE = -1;
 
   private final PipelineResult result;
 
@@ -43,6 +45,7 @@ public class MetricsReader {
 
   private final long now;
 
+  @VisibleForTesting
   MetricsReader(PipelineResult result, String namespace, long now) {
     this.result = result;
     this.namespace = namespace;
@@ -84,21 +87,17 @@ public class MetricsReader {
    */
   public long getStartTimeMetric(String name) {
     Iterable<MetricResult<DistributionResult>> timeDistributions = getDistributions(name);
-    return checkCredibility(getLowestMin(timeDistributions.iterator()));
+    return getLowestMin(timeDistributions);
   }
 
-  private Long getLowestMin(Iterator<MetricResult<DistributionResult>> distributions) {
-    Long lowestMin = null;
+  private Long getLowestMin(Iterable<MetricResult<DistributionResult>> distributions) {
+    Optional<Long> lowestMin =
+        StreamSupport.stream(distributions.spliterator(), true)
+            .map(element -> element.getAttempted().getMin())
+            .filter(this::isCredible)
+            .min(Long::compareTo);
 
-    while (distributions.hasNext()) {
-      long min = distributions.next().getAttempted().getMin();
-
-      if (lowestMin == null || min < lowestMin) {
-        lowestMin = min;
-      }
-    }
-
-    return lowestMin;
+    return lowestMin.orElse(ERRONEOUS_METRIC_VALUE);
   }
 
   /**
@@ -107,21 +106,17 @@ public class MetricsReader {
    */
   public long getEndTimeMetric(String name) {
     Iterable<MetricResult<DistributionResult>> timeDistributions = getDistributions(name);
-    return checkCredibility(getGreatestMax(timeDistributions.iterator()));
+    return getGreatestMax(timeDistributions);
   }
 
-  private Long getGreatestMax(Iterator<MetricResult<DistributionResult>> distributions) {
-    Long greatestMax = null;
+  private Long getGreatestMax(Iterable<MetricResult<DistributionResult>> distributions) {
+    Optional<Long> greatestMax =
+        StreamSupport.stream(distributions.spliterator(), true)
+            .map(element -> element.getAttempted().getMax())
+            .filter(this::isCredible)
+            .max(Long::compareTo);
 
-    while (distributions.hasNext()) {
-      long max = distributions.next().getAttempted().getMax();
-
-      if (greatestMax == null || max > greatestMax) {
-        greatestMax = max;
-      }
-    }
-
-    return greatestMax;
+    return greatestMax.orElse(ERRONEOUS_METRIC_VALUE);
   }
 
   private Iterable<MetricResult<DistributionResult>> getDistributions(String name) {
@@ -147,13 +142,12 @@ public class MetricsReader {
         resultCount);
   }
 
-  /** Return the current value for a time counter, or -1 if can't be retrieved. */
-  private long checkCredibility(long value) {
-    // timestamp metrics are used to monitor time of execution of transforms.
-    // If result timestamp metric is too far from now, consider that metric is erroneous
-    if (Math.abs(value - now) > Duration.standardDays(10000).getMillis()) {
-      return ERRONEOUS_METRIC_VALUE;
-    }
-    return value;
+  /**
+   * timestamp metrics are used to monitor time of execution of transforms. If result timestamp
+   * metric is too far from now, consider that metric is erroneous private boolean isCredible(long
+   * value) {
+   */
+  private boolean isCredible(long value) {
+    return (Math.abs(value - now) <= Duration.standardDays(10000).getMillis());
   }
 }
