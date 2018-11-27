@@ -339,10 +339,11 @@ class FnApiRunnerTest(unittest.TestCase):
         yield buffer
 
     def is_buffered_correctly(actual):
-      # Issues pickling closure of self on jenkins.
+      # Pickling self in the closure for asserts gives errors (only on jenkins).
       self = FnApiRunnerTest('__init__')
-      # assert sorted(sum((list(b) for b in actual), [])) == elements
-      # assert max(len(list(buffer)) for buffer in actual) == buffer_size
+      # Acutal should be a grouping of the inputs into batches of size
+      # at most buffer_size, but the actual batching is nondeterministic
+      # based on ordering and trigger firing timing.
       self.assertEqual(sorted(sum((list(b) for b in actual), [])), elements)
       self.assertEqual(max(len(list(buffer)) for buffer in actual), buffer_size)
 
