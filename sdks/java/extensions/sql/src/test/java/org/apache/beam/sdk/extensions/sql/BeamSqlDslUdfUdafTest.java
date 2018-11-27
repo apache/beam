@@ -24,8 +24,11 @@ import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
+import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -35,6 +38,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.linq4j.function.Parameter;
+import org.apache.calcite.schema.TranslatableTable;
 import org.joda.time.Instant;
 import org.junit.Test;
 
@@ -167,6 +171,25 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     PAssert.that(result3).containsInAnyOrder(subStrRow);
 
     pipeline.run().waitUntilFinish();
+  }
+
+  /** test {@link org.apache.calcite.schema.TableMacro} UDF. */
+  @Test
+  public void testTableMacroUdf() throws Exception {
+    String sql1 = "SELECT * FROM table(range_udf(0, 3))";
+
+    Schema schema = Schema.of(Schema.Field.of("f0", Schema.FieldType.INT32));
+
+    PCollection<Row> rows =
+        pipeline.apply(SqlTransform.query(sql1).registerUdf("range_udf", RangeUdf.class));
+
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValue(0).build(),
+            Row.withSchema(schema).addValue(1).build(),
+            Row.withSchema(schema).addValue(2).build());
+
+    pipeline.run();
   }
 
   /** test auto-provider UDF/UDAF. */
@@ -318,6 +341,15 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   public static final class JodaPreviousDay implements BeamSqlUdf {
     public static Instant eval(Instant time) {
       return new Instant(time.getMillis() - 24 * 3600 * 1000L);
+    }
+  }
+
+  /** UDF to test support for {@link org.apache.calcite.schema.TableMacro}. */
+  public static final class RangeUdf implements BeamSqlUdf {
+    public static TranslatableTable eval(int startInclusive, int endExclusive) {
+      Schema schema = Schema.of(Schema.Field.of("f0", Schema.FieldType.INT32));
+      Object[] values = IntStream.range(startInclusive, endExclusive).boxed().toArray();
+      return BeamCalciteTable.of(new TestBoundedTable(schema).addRows(values));
     }
   }
 }
