@@ -102,6 +102,14 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean validateShadowJar = true
 
     /**
+     * The set of excludes that should be used during validation of the shadow jar. Projects should override
+     * the default with the most specific set of excludes that is valid for the contents of its shaded jar.
+     *
+     * By default we exclude any class underneath the org.apache.beam namespace.
+     */
+    List<String> shadowJarValidationExcludes = ["org/apache/beam/**"]
+
+    /**
      * The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
      * Users can compose their closure with the default closure via:
      * DEFAULT_SHADOW_CLOSURE << {
@@ -115,6 +123,17 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
+  }
+
+  /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
+  class PortabilityNatureConfiguration {
+    /**
+     * The set of excludes that should be used during validation of the shadow jar. Projects should override
+     * the default with the most specific set of excludes that is valid for the contents of its shaded jar.
+     *
+     * By default we exclude any class underneath the org.apache.beam namespace.
+     */
+    List<String> shadowJarValidationExcludes = ["org/apache/beam/**"]
   }
 
   // A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
@@ -759,7 +778,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       if (configuration.validateShadowJar) {
-        project.task('validateShadedJarDoesntLeakNonOrgApacheBeamClasses', dependsOn: 'shadowJar') {
+        project.task('validateShadedJarDoesntLeakNonProjectClasses', dependsOn: 'shadowJar') {
           ext.outFile = project.file("${project.reportsDir}/${name}.out")
           inputs.files project.configurations.shadow.artifacts.files
           outputs.files outFile
@@ -767,19 +786,21 @@ class BeamModulePlugin implements Plugin<Project> {
             project.configurations.shadow.artifacts.files.each {
               FileTree exposedClasses = project.zipTree(it).matching {
                 include "**/*.class"
-                exclude "org/apache/beam/**"
                 // BEAM-5919: Exclude paths for Java 9 multi-release jars.
                 exclude "META-INF/versions/*/module-info.class"
-                exclude "META-INF/versions/*/org/apache/beam/**"
+                configuration.shadowJarValidationExcludes.each {
+                  exclude "$it"
+                  exclude "META-INF/versions/*/$it"
+                }
               }
               outFile.text = exposedClasses.files
               if (exposedClasses.files) {
-                throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
+                throw new GradleException("$it exposed classes outside of ${configuration.shadowJarValidationExcludes}: ${exposedClasses.files}")
               }
             }
           }
         }
-        project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonOrgApacheBeamClasses
+        project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonProjectClasses
       }
 
       if ((isRelease(project) || project.hasProperty('publishing')) &&
@@ -1358,14 +1379,19 @@ artifactId=${project.name}
 
     project.ext.applyPortabilityNature = {
       println "applyPortabilityNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
-      project.ext.applyJavaNature(enableFindbugs: false, shadowClosure: GrpcVendoring.shadowClosure() << {
-        // We perform all the code relocations but don't include
-        // any of the actual dependencies since they will be supplied
-        // by org.apache.beam:beam-vendor-grpc-v1_13_1:0.1
-        dependencies {
-          exclude(dependency(".*:.*"))
-        }
-      })
+      PortabilityNatureConfiguration configuration = it ? it as PortabilityNatureConfiguration : new PortabilityNatureConfiguration()
+
+      project.ext.applyJavaNature(
+              enableFindbugs: false,
+              shadowJarValidationExcludes: it.shadowJarValidationExcludes,
+              shadowClosure: GrpcVendoring.shadowClosure() << {
+                // We perform all the code relocations but don't include
+                // any of the actual dependencies since they will be supplied
+                // by org.apache.beam:beam-vendor-grpc-v1_13_1:0.1
+                dependencies {
+                  include(dependency { return false })
+                }
+              })
 
       // Don't force modules here because we don't want to take the shared declarations in build_rules.gradle
       // because we would like to have the freedom to choose which versions of dependencies we
@@ -1399,22 +1425,6 @@ artifactId=${project.name}
       }
 
       project.dependencies GrpcVendoring.dependenciesClosure() << { shadow 'org.apache.beam:beam-vendor-grpc-1_13_1:0.1' }
-
-      project.task('validateShadedJarDoesntExportVendoredDependencies', dependsOn: 'shadowJar') {
-        ext.outFile = project.file("${project.reportsDir}/${name}.out")
-        inputs.files project.configurations.shadow.artifacts.files
-        outputs.files outFile
-        doLast {
-          project.configurations.shadow.artifacts.files.each {
-            FileTree exportedClasses = project.zipTree(it).matching { include "org/apache/beam/vendor/**" }
-            outFile.text = exportedClasses.files
-            if (exportedClasses.files) {
-              throw new GradleException("$it exported classes inside of org.apache.beam.vendor namespace: ${exportedClasses.files}")
-            }
-          }
-        }
-      }
-      project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntExportVendoredDependencies
     }
 
     /** ***********************************************************************************************/
