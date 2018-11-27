@@ -131,9 +131,12 @@ applyJavaNature(publish: false, enableFindbugs: false /* TODO(BEAM-5658): enable
         exclude "org.w3c.dom.**"
     }
     relocate("org.apache.beam.runners.core.construction.",
-            getWorkerRelocatedPath("org."))
-    relocate("org.apache.beam.runners.core.metrics",
-            getWorkerRelocatedPath("org."))
+            getWorkerRelocatedPath("org.")) {
+              // Exclude org.apache.beam.runners.core.construction.metrics
+              // because it is referenced by
+              // org.apache.beam.runners.core.metrics which is not relocated.
+              exclude "org.apache.beam.runners.core.construction.metrics.**"
+            }
 
 })
 
