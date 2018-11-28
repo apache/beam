@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.ExecutableStageTranslation.generateNameFromStagePayload;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.createOutputMap;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.getWindowingStrategy;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
@@ -243,7 +244,7 @@ public class FlinkBatchPortablePipelineTranslator
 
     // Ensure that side effects are performed for unconsumed DataSets.
     for (DataSet<?> dataSet : context.getDanglingDataSets()) {
-      dataSet.output(new DiscardingOutputFormat<>());
+      dataSet.output(new DiscardingOutputFormat<>()).name("DiscardingOutput");
     }
   }
 
@@ -354,6 +355,8 @@ public class FlinkBatchPortablePipelineTranslator
             FlinkExecutableStageContext.factory(context.getPipelineOptions()),
             getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder());
 
+    final String operatorName = generateNameFromStagePayload(stagePayload);
+
     final SingleInputUdfOperator taggedDataset;
     if (stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0) {
 
@@ -373,12 +376,10 @@ public class FlinkBatchPortablePipelineTranslator
       Grouping<WindowedValue<InputT>> groupedInput =
           inputDataSet.groupBy(new KvKeySelector<>(keyCoder));
       taggedDataset =
-          new GroupReduceOperator<>(
-              groupedInput, typeInformation, function, transform.getTransform().getUniqueName());
+          new GroupReduceOperator<>(groupedInput, typeInformation, function, operatorName);
     } else {
       taggedDataset =
-          new MapPartitionOperator<>(
-              inputDataSet, typeInformation, function, transform.getTransform().getUniqueName());
+          new MapPartitionOperator<>(inputDataSet, typeInformation, function, operatorName);
     }
 
     for (SideInputId sideInputId : stagePayload.getSideInputsList()) {
@@ -406,7 +407,7 @@ public class FlinkBatchPortablePipelineTranslator
       // no-op sink to each to make sure they are materialized by Flink. However, some SDK-executed
       // stages have no runner-visible output after fusion. We handle this case by adding a sink
       // here.
-      taggedDataset.output(new DiscardingOutputFormat<>());
+      taggedDataset.output(new DiscardingOutputFormat<>()).name("DiscardingOutput");
     }
   }
 
@@ -547,10 +548,11 @@ public class FlinkBatchPortablePipelineTranslator
             WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
     DataSource<WindowedValue<byte[]>> dataSource =
         new DataSource<>(
-            context.getExecutionEnvironment(),
-            new ImpulseInputFormat(),
-            typeInformation,
-            transform.getTransform().getUniqueName());
+                context.getExecutionEnvironment(),
+                new ImpulseInputFormat(),
+                typeInformation,
+                transform.getTransform().getUniqueName())
+            .name("Impulse");
 
     context.addDataSet(
         Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values()), dataSource);
@@ -626,7 +628,7 @@ public class FlinkBatchPortablePipelineTranslator
             taggedDataset,
             outputType,
             pruningFunction,
-            String.format("%s/out.%d", transformName, unionTag));
+            String.format("ExtractOutput[%s]", unionTag));
     context.addDataSet(collectionId, pruningOperator);
   }
 }
