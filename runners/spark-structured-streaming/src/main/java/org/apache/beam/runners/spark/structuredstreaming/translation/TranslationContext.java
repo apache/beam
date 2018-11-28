@@ -19,14 +19,18 @@ package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.ForeachWriter;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.streaming.StreamingQueryException;
 
 /**
  * Base class that gives a context for {@link PTransform} translation: keeping track of the
@@ -34,19 +38,15 @@ import org.apache.spark.sql.SparkSession;
  */
 public class TranslationContext {
 
+  private final Map<PValue, Dataset<?>> datasets;
+  private final Set<Dataset<?>> leaves;
+  private final SparkPipelineOptions options;
+
   @SuppressFBWarnings("URF_UNREAD_FIELD") // make findbug happy
   private AppliedPTransform<?, ?, ?> currentTransform;
 
-  private final Map<PValue, Dataset<?>> datasets;
-
   @SuppressFBWarnings("URF_UNREAD_FIELD") // make findbug happy
   private SparkSession sparkSession;
-
-  private final SparkPipelineOptions options;
-
-  public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
-    this.currentTransform = currentTransform;
-  }
 
   public TranslationContext(SparkPipelineOptions options) {
     SparkConf sparkConf = new SparkConf();
@@ -59,5 +59,39 @@ public class TranslationContext {
     this.sparkSession = SparkSession.builder().config(sparkConf).getOrCreate();
     this.options = options;
     this.datasets = new HashMap<>();
+    this.leaves = new LinkedHashSet<>();
+  }
+
+  public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
+    this.currentTransform = currentTransform;
+  }
+
+  public void startPipeline() {
+    try {
+      // to start a pipeline we need a DatastreamWriter to start
+      for (Dataset<?> dataset : leaves) {
+        dataset.writeStream().foreach(new NoOpForeachWriter<>()).start().awaitTermination();
+      }
+    } catch (StreamingQueryException e) {
+      throw new RuntimeException("Pipeline execution failed: " + e);
+    }
+  }
+
+  private static class NoOpForeachWriter<T> extends ForeachWriter<T> {
+
+    @Override
+    public boolean open(long partitionId, long epochId) {
+      return false;
+    }
+
+    @Override
+    public void process(T value) {
+      // do nothing
+    }
+
+    @Override
+    public void close(Throwable errorOrNull) {
+      // do nothing
+    }
   }
 }
