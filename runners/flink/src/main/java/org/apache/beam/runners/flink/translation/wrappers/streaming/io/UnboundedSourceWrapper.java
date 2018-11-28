@@ -443,9 +443,15 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     if (this.isRunning) {
       long watermarkInterval = runtime.getExecutionConfig().getAutoWatermarkInterval();
       synchronized (context.getCheckpointLock()) {
-        long timeToNextWatermark =
-            runtime.getProcessingTimeService().getCurrentProcessingTime() + watermarkInterval;
-        runtime.getProcessingTimeService().registerTimer(timeToNextWatermark, this);
+        long currentProcessingTime = runtime.getProcessingTimeService().getCurrentProcessingTime();
+        if (currentProcessingTime < Long.MAX_VALUE) {
+          long nextTriggerTime = currentProcessingTime + watermarkInterval;
+          if (nextTriggerTime < currentProcessingTime) {
+            // overflow, just trigger once for the max timestamp
+            nextTriggerTime = Long.MAX_VALUE;
+          }
+          runtime.getProcessingTimeService().registerTimer(nextTriggerTime, this);
+        }
       }
     }
   }
