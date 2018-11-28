@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.MetricsMonitor;
+import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -84,15 +84,20 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
     PCollection<KV<byte[], byte[]>> input =
-        pipeline.apply(SyntheticBoundedIO.readFrom(sourceOptions));
+        pipeline
+            .apply(SyntheticBoundedIO.readFrom(sourceOptions))
+            .apply("Collect start time metrics", ParDo.of(runtimeMonitor))
+            .apply(
+                "Total bytes monitor",
+                ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
       applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)
-          .apply(ParDo.of(new MetricsMonitor(METRICS_NAMESPACE)))
           .apply(format("Group by key (%s)", branch), GroupByKey.create())
           .apply(
               format("Ungroup and reiterate (%s)", branch),
-              ParDo.of(new UngroupAndReiterate(options.getIterations())));
+              ParDo.of(new UngroupAndReiterate(options.getIterations())))
+          .apply(format("Collect end time metrics (%s)", branch), ParDo.of(runtimeMonitor));
     }
   }
 
