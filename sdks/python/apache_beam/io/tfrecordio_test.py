@@ -47,7 +47,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
-  import tensorflow.compat.v1 as tf
+  import tensorflow.compat.v1 as tf  # pylint: disable=import-error
 except ImportError:
   try:
     import tensorflow as tf  # pylint: disable=import-error
