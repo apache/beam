@@ -78,20 +78,72 @@ def excluded_dependencies = [
         library.java.junit,                          // Test only
 ]
 
-applyJavaNature(publish: false, enableFindbugs: false /* TODO(BEAM-5658): enable findbugs */, validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+applyJavaNature(
+        publish: false,
+        enableFindbugs: false /* TODO(BEAM-5658): enable findbugs */,
+        shadowJarValidationExcludes: [
+            "org/apache/beam/runners/dataflow/worker/**",
+            "org/apache/beam/repackaged/beam_runners_google_cloud_dataflow_java_legacy_worker/**",
+            // TODO(BEAM-6137): Move DataflowRunnerHarness class under org.apache.beam.runners.dataflow.worker namespace
+            "com/google/cloud/dataflow/worker/DataflowRunnerHarness.class",
+            // TODO(BEAM-6136): Enable relocation for conscrypt
+            "org/conscrypt/**",
+        ],
+        shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+    // Each included dependency must also include all of its necessary transitive dependencies
+    // or have them provided by the users pipeline during job submission. Typically a users
+    // pipeline includes :beam-runners-google-cloud-dataflow-java and its transitive dependencies
+    // so those dependencies don't need to be shaded (bundled and relocated) away. All other
+    // dependencies needed to run the worker must be shaded (bundled and relocated) to prevent
+    // ClassNotFound and/or MethodNotFound errors during pipeline execution.
+    //
+    // Each included dependency should have a matching relocation rule below that ensures
+    // that the shaded jar is correctly built.
+
+    dependencies {
+        include(project(path: ":beam-model-fn-execution", configuration: "shadow"))
+    }
+    relocate("org.apache.beam.model.fnexecution.v1", getWorkerRelocatedPath("org.apache.beam.model.fnexecution.v1"))
+
+    dependencies {
+        include(project(path: ":beam-runners-core-construction-java", configuration: "shadow"))
+        include(project(path: ":beam-runners-core-java", configuration: "shadow"))
+    }
+    relocate("org.apache.beam.runners.core", getWorkerRelocatedPath("org.apache.beam.runners.core"))
+    relocate("org.apache.beam.repackaged.beam_runners_core_construction_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_construction_java"))
+    relocate("org.apache.beam.repackaged.beam_runners_core_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_java"))
+
+    dependencies {
+        include(project(path: ":beam-runners-java-fn-execution", configuration: "shadow"))
+    }
+    relocate("org.apache.beam.runners.fnexecution", getWorkerRelocatedPath("org.apache.beam.runners.fnexecution"))
+    relocate("org.apache.beam.repackaged.beam_runners_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_java_fn_execution"))
+
+    dependencies {
+        include(project(path: ":beam-sdks-java-fn-execution", configuration: "shadow"))
+    }
+    relocate("org.apache.beam.sdk.fn", getWorkerRelocatedPath("org.apache.beam.sdk.fn"))
+    relocate("org.apache.beam.repackaged.beam_sdks_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_sdks_java_fn_execution"))
+
+    // TODO(BEAM-6136): Enable relocation for conscrypt
+    dependencies {
+        include(dependency("org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"))
+    }
+
+    dependencies {
+        // We have to include jetty-server/jetty-servlet and all of its transitive dependencies
+        // which includes several org.eclipse.jetty artifacts + servlet-api
+        include(dependency("org.eclipse.jetty:.*:9.2.10.v20150310"))
+        include(dependency("javax.servlet:javax.servlet-api:3.1.0"))
+    }
+    relocate("org.eclipse.jetty", getWorkerRelocatedPath("org.eclipse.jetty"))
+    relocate("javax.servlet", getWorkerRelocatedPath("javax.servlet"))
+
+    // We don't relocate windmill since it is already underneath the org.apache.beam.runners.dataflow.worker namespace and never
+    // expect a user pipeline to include it. There is also a JNI component that windmill server relies on which makes
+    // arbitrary relocation more difficult.
     dependencies {
         include(project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow"))
-        include(dependency(".*:.*"))
-
-        sdk_provided_dependencies.each {
-            exclude(dependency(it))
-        }
-        sdk_provided_project_dependencies.each {
-            exclude(project(path: it, configuration: "shadow"))
-        }
-        excluded_dependencies.each {
-            exclude(dependency(it))
-        }
     }
 
     // Include original source files extracted under
@@ -100,47 +152,6 @@ applyJavaNature(publish: false, enableFindbugs: false /* TODO(BEAM-5658): enable
 
     exclude "META-INF/LICENSE.txt"
     exclude "about.html"
-
-    relocate("com.", getWorkerRelocatedPath("com.")) {
-        exclude "com.fasterxml.jackson.**"
-        exclude "com.google.api.client.**"
-        exclude "com.google.api.services.bigquery.**"
-        exclude "com.google.api.services.clouddebugger.**"
-        exclude "com.google.api.services.dataflow.**"
-        exclude "com.google.api.services.datastore.**"
-        exclude "com.google.api.services.pubsub.**"
-        exclude "com.google.api.services.storage.**"
-        exclude "com.google.auth.**"
-        exclude "com.google.cloud.dataflow.**"
-        exclude "com.sun.management*"
-        exclude "com.sun.management.**"
-    }
-    relocate("javax.servlet", getWorkerRelocatedPath("javax.servlet"))
-    relocate("io.", getWorkerRelocatedPath("io."))
-    relocate("okio.", getWorkerRelocatedPath("okio."))
-    relocate("org.", getWorkerRelocatedPath("org.")) {
-        // Exclude netty-tcnative from shading since gRPC relies on Netty to be able
-        // to load org.apache.tomcat.jni.SSL to provide an SSL context.
-        exclude "org.apache.avro.**"
-        exclude "org.apache.beam.**"
-        exclude "org.apache.tomcat.jni.**"
-        exclude "org.conscrypt.**"
-        exclude "org.eclipse.jetty.alpn.**"
-        exclude "org.eclipse.jetty.npn.**"
-        exclude "org.hamcrest.**"
-        exclude "org.joda.time.**"
-        exclude "org.junit.**"
-        exclude "org.slf4j.**"
-        exclude "org.w3c.dom.**"
-    }
-    relocate("org.apache.beam.runners.core.construction.",
-            getWorkerRelocatedPath("org.")) {
-              // Exclude org.apache.beam.runners.core.construction.metrics
-              // because it is referenced by
-              // org.apache.beam.runners.core.metrics which is not relocated.
-              exclude "org.apache.beam.runners.core.construction.metrics.**"
-            }
-
 })
 
 /******************************************************************************/
@@ -184,7 +195,6 @@ dependencies {
     compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
     compile project(path: ":beam-runners-google-cloud-dataflow-java-windmill", configuration: "shadow")
     compile library.java.guava
-    compile "javax.servlet:javax.servlet-api:3.1.0"
     compile "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
     compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
     compile "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
