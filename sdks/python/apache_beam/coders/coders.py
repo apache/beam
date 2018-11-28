@@ -995,7 +995,7 @@ class LengthPrefixCoder(FastCoder):
     self._value_coder = value_coder
 
   def _create_impl(self):
-    return coder_impl.LengthPrefixCoderImpl(self._value_coder)
+    return coder_impl.LengthPrefixCoderImpl(self._value_coder.get_impl())
 
   def is_deterministic(self):
     return self._value_coder.is_deterministic()
