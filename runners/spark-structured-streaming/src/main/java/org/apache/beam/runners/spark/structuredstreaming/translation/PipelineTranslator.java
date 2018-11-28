@@ -210,4 +210,8 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
     }
     applyTransformTranslator(node, transformTranslator);
   }
+
+  public TranslationContext getTranslationContext() {
+    return translationContext;
+  }
 }

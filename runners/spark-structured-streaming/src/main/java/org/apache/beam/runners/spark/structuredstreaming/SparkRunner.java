@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.StreamingPipelineTranslator;
 import org.apache.beam.sdk.Pipeline;
@@ -52,6 +53,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   /** Options used in this pipeline runner. */
   private final SparkPipelineOptions options;
+
+  private TranslationContext translationContext;
 
   /**
    * Creates and returns a new SparkRunner with default options. In particular, against a spark
@@ -109,13 +112,13 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   @Override
   public SparkPipelineResult run(final Pipeline pipeline) {
-    translatePipeline(pipeline);
+    translationContext = translatePipeline(pipeline);
     //TODO initialise other services: checkpointing, metrics system, listeners, ...
-    executePipeline(pipeline);
+    translationContext.startPipeline();
     return new SparkPipelineResult();
   }
 
-  private void translatePipeline(Pipeline pipeline) {
+  private TranslationContext translatePipeline(Pipeline pipeline) {
     PipelineTranslator.detectTranslationMode(pipeline, options);
     PipelineTranslator.replaceTransforms(pipeline, options);
     PipelineTranslator.prepareFilesToStageForRemoteClusterExecution(options);
@@ -124,7 +127,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
             ? new StreamingPipelineTranslator(options)
             : new PipelineTranslatorBatch(options);
     pipelineTranslator.translate(pipeline);
+    return pipelineTranslator.getTranslationContext();
   }
-
-  private void executePipeline(Pipeline pipeline) {}
 }
