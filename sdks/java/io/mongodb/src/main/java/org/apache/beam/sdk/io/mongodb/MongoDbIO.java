@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.mongodb.client.model.Projections.include;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -29,6 +30,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -135,6 +137,9 @@ public class MongoDbIO {
     @Nullable
     abstract String filter();
 
+    @Nullable
+    abstract List<String> projection();
+
     abstract int numSplits();
 
     abstract Builder builder();
@@ -152,6 +157,8 @@ public class MongoDbIO {
       abstract Builder setCollection(String collection);
 
       abstract Builder setFilter(String filter);
+
+      abstract Builder setProjection(List<String> fieldNames);
 
       abstract Builder setNumSplits(int numSplits);
 
@@ -226,6 +233,12 @@ public class MongoDbIO {
       return builder().setFilter(filter).build();
     }
 
+    /** Sets a projection on the documents in a collection. */
+    public Read withProjection(final String... fieldNames) {
+      checkArgument(fieldNames.length > 0, "projection can not be null");
+      return builder().setProjection(Arrays.asList(fieldNames)).build();
+    }
+
     /** Sets the user defined number of splits. */
     public Read withNumSplits(int numSplits) {
       checkArgument(numSplits >= 0, "invalid num_splits: must be >= 0, but was %s", numSplits);
@@ -249,6 +262,10 @@ public class MongoDbIO {
       builder.add(DisplayData.item("database", database()));
       builder.add(DisplayData.item("collection", collection()));
       builder.addIfNotNull(DisplayData.item("filter", filter()));
+      if (projection() != null) {
+        builder.addIfNotNull(
+            DisplayData.item("projection", Arrays.toString(projection().toArray())));
+      }
       builder.add(DisplayData.item("numSplit", numSplits()));
     }
   }
@@ -450,10 +467,18 @@ public class MongoDbIO {
       MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
 
       if (spec.filter() == null) {
-        cursor = mongoCollection.find().iterator();
+        if (spec.projection() == null) {
+          cursor = mongoCollection.find().iterator();
+        } else {
+          cursor = mongoCollection.find().projection(include(spec.projection())).iterator();
+        }
       } else {
         Document bson = Document.parse(spec.filter());
-        cursor = mongoCollection.find(bson).iterator();
+        if (spec.projection() == null) {
+          cursor = mongoCollection.find(bson).iterator();
+        } else {
+          cursor = mongoCollection.find(bson).projection(include(spec.projection())).iterator();
+        }
       }
 
       return advance();
