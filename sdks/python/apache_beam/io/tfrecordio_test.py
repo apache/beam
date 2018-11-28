@@ -47,10 +47,13 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
-  import tensorflow as tf  # pylint: disable=import-error
+  import tensorflow.compat.v1 as tf
 except ImportError:
-  tf = None  # pylint: disable=invalid-name
-  logging.warning('Tensorflow is not installed, so skipping some tests.')
+  try:
+    import tensorflow as tf  # pylint: disable=import-error
+  except ImportError:
+    tf = None  # pylint: disable=invalid-name
+    logging.warning('Tensorflow is not installed, so skipping some tests.')
 
 # Created by running following code in python:
 # >>> import tensorflow as tf
