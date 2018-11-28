@@ -35,11 +35,22 @@ public final class Backlogs {
   /**
    * {@link RestrictionTracker}s which can provide a backlog that is from a shared resource such as
    * a message queue should implement this interface to provide the partition identifier. The
-   * partition identifier is used by runners during backlog aggregation.
+   * partition identifier is used by runners for various backlog calculations. Backlogs reported
+   * with the same partition identifier represent a point in time reporting of the backlog for that
+   * partition. For example, a runner can compute a global backlog by summing all reported backlogs
+   * over all unique partition identifiers.
    *
-   * <p>This allows runners to understand as to how to aggregate backlogs.
+   * <p>For example SplittableDoFn's which consume elements from:
    *
-   * <p>Returns the partition identifier.
+   * <ul>
+   *   <li>a globally shared resource such as a Pubsub queue should set this to "".
+   *   <li>a shared partitioned resource should use the partition identifier.
+   *   <li>a uniquely partitioned resource such as a file range should set this to file name + start
+   *       offset. Note that the default for {@link RestrictionTracker}s is to use the encoded
+   *       element and restriction pair.
+   * </ul>
+   *
+   * <p>Returns an immutable representation of the partition identifier.
    */
   public interface HasPartitionedBacklog extends HasBacklog {
     byte[] getBacklogPartition();

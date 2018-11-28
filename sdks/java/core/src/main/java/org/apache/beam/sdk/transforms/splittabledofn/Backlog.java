@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.transforms.splittabledofn;
 
 import com.google.auto.value.AutoValue;
-import java.util.Arrays;
+import java.math.BigDecimal;
 import javax.annotation.Nullable;
 
 /**
@@ -55,32 +55,36 @@ import javax.annotation.Nullable;
  */
 @AutoValue
 public abstract class Backlog {
+  private static final Backlog UNKNOWN_BACKLOG = new AutoValue_Backlog(null);
+
   /** Returns a backlog represented by the specified bytes. */
-  public static Backlog of(byte[] bytes) {
-    return new AutoValue_Backlog(false, Arrays.copyOf(bytes, bytes.length));
+  public static Backlog of(BigDecimal backlog) {
+    return new AutoValue_Backlog(backlog);
   }
 
   /** Returns an unknown backlog. */
   public static Backlog unknown() {
-    return new AutoValue_Backlog(true, null);
+    return UNKNOWN_BACKLOG;
   }
 
   /** Returns whether this backlog is known or unknown. */
-  public abstract boolean isUnknown();
+  public boolean isUnknown() {
+    return backlogInternal() == null;
+  }
 
   /**
    * Returns the {@code byte[]} representation of the backlog if it is known.
    *
    * @throws IllegalStateException if the backlog is unknown.
    */
-  public byte[] backlog() {
+  public BigDecimal backlog() {
     if (isUnknown()) {
       throw new IllegalStateException("Backlog is unknown, there is no byte[] representation.");
     }
-    return backlogBytes();
+    return backlogInternal();
   }
 
   @SuppressWarnings("mutable")
   @Nullable
-  protected abstract byte[] backlogBytes();
+  protected abstract BigDecimal backlogInternal();
 }
