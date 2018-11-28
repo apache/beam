@@ -49,6 +49,10 @@ type JobOptions struct {
 	MachineType string
 	Labels      map[string]string
 
+	// Autoscaling settings
+	Algorithm     string
+	MaxNumWorkers int64
+
 	TempLocation string
 
 	// Worker is the worker binary override.
@@ -139,6 +143,18 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL str
 
 	if opts.NumWorkers > 0 {
 		job.Environment.WorkerPools[0].NumWorkers = opts.NumWorkers
+	}
+	if opts.Algorithm != "" {
+		settings := &df.AutoscalingSettings{
+			Algorithm: map[string]string{
+				"NONE":             "AUTOSCALING_ALGORITHM_NONE",
+				"THROUGHPUT_BASED": "AUTOSCALING_ALGORITHM_BASIC",
+			}[opts.Algorithm],
+		}
+		if opts.MaxNumWorkers > 0 {
+			settings.MaxNumWorkers = opts.MaxNumWorkers
+		}
+		job.Environment.WorkerPools[0].AutoscalingSettings = settings
 	}
 	if opts.TeardownPolicy != "" {
 		job.Environment.WorkerPools[0].TeardownPolicy = opts.TeardownPolicy

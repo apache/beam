@@ -45,18 +45,20 @@ import (
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
 
 var (
-	endpoint        = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
-	stagingLocation = flag.String("staging_location", "", "GCS staging location (required).")
-	image           = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
-	labels          = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
-	numWorkers      = flag.Int64("num_workers", 0, "Number of workers (optional).")
-	zone            = flag.String("zone", "", "GCP zone (optional)")
-	region          = flag.String("region", "us-central1", "GCP Region (optional)")
-	network         = flag.String("network", "", "GCP network (optional)")
-	tempLocation    = flag.String("temp_location", "", "Temp location (optional)")
-	machineType     = flag.String("worker_machine_type", "", "GCE machine type (optional)")
-	minCPUPlatform  = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
-	workerJar       = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
+	endpoint             = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
+	stagingLocation      = flag.String("staging_location", "", "GCS staging location (required).")
+	image                = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
+	labels               = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
+	numWorkers           = flag.Int64("num_workers", 0, "Number of workers (optional).")
+	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
+	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
+	zone                 = flag.String("zone", "", "GCP zone (optional)")
+	region               = flag.String("region", "us-central1", "GCP Region (optional)")
+	network              = flag.String("network", "", "GCP network (optional)")
+	tempLocation         = flag.String("temp_location", "", "Temp location (optional)")
+	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	minCPUPlatform       = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
+	workerJar            = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
@@ -110,6 +112,11 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		// CaptureHook should create an internal buffer and write chunks out to GCS
 		// once they get to an appropriate size (50M or so?)
 	}
+	if *autoscalingAlgorithm != "" {
+		if *autoscalingAlgorithm != "NONE" && *autoscalingAlgorithm != "THROUGHPUT_BASED" {
+			return errors.New("autoscaling algorithm must be one of (NONE, THROUGHPUT_BASED). Use --autoscaling_algorithm=(NONE|THROUGHPUT_BASED)")
+		}
+	}
 
 	hooks.SerializeHooksToOptions()
 
@@ -127,6 +134,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Zone:           *zone,
 		Network:        *network,
 		NumWorkers:     *numWorkers,
+		MaxNumWorkers:  *maxNumWorkers,
+		Algorithm:      *autoscalingAlgorithm,
 		MachineType:    *machineType,
 		Labels:         jobLabels,
 		TempLocation:   *tempLocation,
