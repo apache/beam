@@ -506,6 +506,8 @@ class DoOperation(Operation):
   def finish(self):
     with self.scoped_finish_state:
       self.dofn_runner.finish()
+      if self.user_state_context:
+        self.user_state_context.commit()
 
   def reset(self):
     super(DoOperation, self).reset()

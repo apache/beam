@@ -306,6 +306,56 @@ class FnApiRunnerTest(unittest.TestCase):
       expected = [('fired', ts) for ts in (20, 200)]
       assert_that(actual, equal_to(expected))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test is flaky on on Python 3. '
+                   'TODO: BEAM-5692')
+  def test_pardo_state_timers(self):
+    state_spec = userstate.BagStateSpec('state', beam.coders.StrUtf8Coder())
+    timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+    elements = list('abcdefgh')
+    buffer_size = 3
+
+    class BufferDoFn(beam.DoFn):
+      def process(self,
+                  kv,
+                  ts=beam.DoFn.TimestampParam,
+                  timer=beam.DoFn.TimerParam(timer_spec),
+                  state=beam.DoFn.StateParam(state_spec)):
+        _, element = kv
+        state.add(element)
+        buffer = state.read()
+        # For real use, we'd keep track of this size separately.
+        if len(list(buffer)) >= 3:
+          state.clear()
+          yield buffer
+        else:
+          timer.set(ts + 1)
+
+      @userstate.on_timer(timer_spec)
+      def process_timer(self, state=beam.DoFn.StateParam(state_spec)):
+        buffer = state.read()
+        state.clear()
+        yield buffer
+
+    def is_buffered_correctly(actual):
+      # Pickling self in the closure for asserts gives errors (only on jenkins).
+      self = FnApiRunnerTest('__init__')
+      # Acutal should be a grouping of the inputs into batches of size
+      # at most buffer_size, but the actual batching is nondeterministic
+      # based on ordering and trigger firing timing.
+      self.assertEqual(sorted(sum((list(b) for b in actual), [])), elements)
+      self.assertEqual(max(len(list(buffer)) for buffer in actual), buffer_size)
+
+    with self.create_pipeline() as p:
+      actual = (
+          p
+          | beam.Create(elements)
+          | beam.Map(lambda x: ('key', x))
+          | beam.ParDo(BufferDoFn()))
+
+      assert_that(actual, is_buffered_correctly)
+
   def test_group_by_key(self):
     with self.create_pipeline() as p:
       res = (p
