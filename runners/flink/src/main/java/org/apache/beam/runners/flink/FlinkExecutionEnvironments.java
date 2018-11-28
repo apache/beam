@@ -49,18 +49,18 @@ public class FlinkExecutionEnvironments {
     return createBatchExecutionEnvironment(options, filesToStage, null);
   }
 
-  @VisibleForTesting
   static ExecutionEnvironment createBatchExecutionEnvironment(
       FlinkPipelineOptions options, List<String> filesToStage, @Nullable String confDir) {
 
     LOG.info("Creating a Batch Execution Environment.");
 
     String masterUrl = options.getFlinkMaster();
+    Configuration flinkConfiguration = getFlinkConfiguration(confDir);
     ExecutionEnvironment flinkBatchEnv;
 
     // depending on the master, create the right environment.
     if ("[local]".equals(masterUrl)) {
-      flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment();
+      flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
     } else if ("[collection]".equals(masterUrl)) {
       flinkBatchEnv = new CollectionEnvironment();
     } else if ("[auto]".equals(masterUrl)) {
@@ -71,6 +71,7 @@ public class FlinkExecutionEnvironments {
           ExecutionEnvironment.createRemoteEnvironment(
               parts.get(0),
               Integer.parseInt(parts.get(1)),
+              flinkConfiguration,
               filesToStage.toArray(new String[filesToStage.size()]));
     } else {
       LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
@@ -90,7 +91,8 @@ public class FlinkExecutionEnvironments {
       parallelism = 1;
     } else {
       parallelism =
-          determineParallelism(options.getParallelism(), flinkBatchEnv.getParallelism(), confDir);
+          determineParallelism(
+              options.getParallelism(), flinkBatchEnv.getParallelism(), flinkConfiguration);
     }
 
     flinkBatchEnv.setParallelism(parallelism);
@@ -120,11 +122,12 @@ public class FlinkExecutionEnvironments {
 
   @VisibleForTesting
   static StreamExecutionEnvironment createStreamExecutionEnvironment(
-      FlinkPipelineOptions options, List<String> filesToStage, @Nullable String flinkConfigDir) {
+      FlinkPipelineOptions options, List<String> filesToStage, @Nullable String confDir) {
 
     LOG.info("Creating a Streaming Environment.");
 
     String masterUrl = options.getFlinkMaster();
+    Configuration flinkConfig = getFlinkConfiguration(confDir);
     StreamExecutionEnvironment flinkStreamEnv = null;
 
     // depending on the master, create the right environment.
@@ -134,13 +137,12 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
     } else if (masterUrl.matches(".*:\\d*")) {
       List<String> parts = Splitter.on(':').splitToList(masterUrl);
-      Configuration clientConfig = new Configuration();
-      clientConfig.setInteger(RestOptions.PORT, Integer.parseInt(parts.get(1)));
+      flinkConfig.setInteger(RestOptions.PORT, Integer.parseInt(parts.get(1)));
       flinkStreamEnv =
           StreamExecutionEnvironment.createRemoteEnvironment(
               parts.get(0),
               Integer.parseInt(parts.get(1)),
-              clientConfig,
+              flinkConfig,
               filesToStage.toArray(new String[filesToStage.size()]));
     } else {
       LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
@@ -150,7 +152,7 @@ public class FlinkExecutionEnvironments {
     // Set the parallelism, required by UnboundedSourceWrapper to generate consistent splits.
     final int parallelism =
         determineParallelism(
-            options.getParallelism(), flinkStreamEnv.getParallelism(), flinkConfigDir);
+            options.getParallelism(), flinkStreamEnv.getParallelism(), flinkConfig);
     flinkStreamEnv.setParallelism(parallelism);
     // set parallelism in the options (required by some execution code)
     options.setParallelism(parallelism);
@@ -230,7 +232,7 @@ public class FlinkExecutionEnvironments {
   private static int determineParallelism(
       final int pipelineOptionsParallelism,
       final int envParallelism,
-      @Nullable String flinkConfDir) {
+      final Configuration configuration) {
     if (pipelineOptionsParallelism > 0) {
       return pipelineOptionsParallelism;
     }
@@ -239,12 +241,6 @@ public class FlinkExecutionEnvironments {
       return envParallelism;
     }
 
-    final Configuration configuration;
-    if (flinkConfDir == null) {
-      configuration = GlobalConfiguration.loadConfiguration();
-    } else {
-      configuration = GlobalConfiguration.loadConfiguration(flinkConfDir);
-    }
     final int flinkConfigParallelism =
         configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM.key(), -1);
     if (flinkConfigParallelism > 0) {
@@ -254,6 +250,12 @@ public class FlinkExecutionEnvironments {
         "No default parallelism could be found. Defaulting to parallelism 1. "
             + "Please set an explicit parallelism with --parallelism");
     return 1;
+  }
+
+  private static Configuration getFlinkConfiguration(@Nullable String flinkConfDir) {
+    return flinkConfDir == null
+        ? GlobalConfiguration.loadConfiguration()
+        : GlobalConfiguration.loadConfiguration(flinkConfDir);
   }
 
   private static void applyLatencyTrackingInterval(

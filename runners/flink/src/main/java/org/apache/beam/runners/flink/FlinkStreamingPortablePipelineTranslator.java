@@ -105,9 +105,13 @@ public class FlinkStreamingPortablePipelineTranslator
    * {@link StreamExecutionEnvironment}.
    */
   public static StreamingTranslationContext createTranslationContext(
-      JobInfo jobInfo, FlinkPipelineOptions pipelineOptions, List<String> filesToStage) {
+      JobInfo jobInfo,
+      FlinkPipelineOptions pipelineOptions,
+      String confDir,
+      List<String> filesToStage) {
     StreamExecutionEnvironment executionEnvironment =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(pipelineOptions, filesToStage);
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            pipelineOptions, filesToStage, confDir);
     return new StreamingTranslationContext(jobInfo, pipelineOptions, executionEnvironment);
   }
 

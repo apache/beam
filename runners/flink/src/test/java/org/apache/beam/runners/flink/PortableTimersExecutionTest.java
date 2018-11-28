@@ -181,6 +181,7 @@ public class PortableTimersExecutionTest implements Serializable {
             flinkJobExecutor,
             pipelineProto,
             options.as(FlinkPipelineOptions.class),
+            null,
             Collections.emptyList());
 
     jobInvocation.start();
