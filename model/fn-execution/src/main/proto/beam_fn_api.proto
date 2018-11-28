@@ -187,12 +187,12 @@ message ProcessBundleDescriptor {
 }
 
 
-// Represents a non-negative decimal number: unscaled_value * 10^(-scale)
+// Represents a non-negative decimal number: unscaled_value * 10^(scale) (scientific notation)
 message Decimal {
   // Represents the unscaled value as a big endian unlimited precision non-negative integer.
   bytes unscaled_value = 1;
   // Represents the scale
-  uint32 scale = 2;
+  int32 scale = 2;
 }
 
 // One of the applications specifying the scope of work for a bundle.
