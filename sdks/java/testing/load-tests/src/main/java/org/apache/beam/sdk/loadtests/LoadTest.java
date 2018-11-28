@@ -26,6 +26,7 @@ import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.MetricsPublisher;
+import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,24 +39,23 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   private String metricsNamespace;
 
-  OptionsT options;
+  protected TimeMonitor<byte[], byte[]> runtimeMonitor;
 
-  SyntheticBoundedIO.SyntheticSourceOptions sourceOptions;
+  protected OptionsT options;
 
-  SyntheticStep.Options stepOptions;
+  protected SyntheticBoundedIO.SyntheticSourceOptions sourceOptions;
 
-  Pipeline pipeline;
+  protected SyntheticStep.Options stepOptions;
+
+  protected Pipeline pipeline;
 
   LoadTest(String[] args, Class<OptionsT> testOptions, String metricsNamespace) throws IOException {
     this.metricsNamespace = metricsNamespace;
-
+    this.runtimeMonitor = new TimeMonitor<>(metricsNamespace, "runtime");
     this.options = LoadTestOptions.readFromArgs(args, testOptions);
-
     this.sourceOptions =
         fromJsonString(options.getSourceOptions(), SyntheticBoundedIO.SyntheticSourceOptions.class);
-
     this.stepOptions = fromJsonString(options.getStepOptions(), SyntheticStep.Options.class);
-
     this.pipeline = Pipeline.create(options);
   }
 
