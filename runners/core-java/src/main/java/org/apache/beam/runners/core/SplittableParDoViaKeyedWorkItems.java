@@ -385,8 +385,7 @@ public class SplittableParDoViaKeyedWorkItems {
       if (futureOutputWatermark == null) {
         futureOutputWatermark = elementAndRestriction.getKey().getTimestamp();
       }
-      Instant wakeupTime =
-          timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());
+      Instant wakeupTime = result.getContinuation().resumeTime();
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
       timerInternals.setTimer(

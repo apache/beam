@@ -46,6 +46,7 @@ import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -97,7 +98,7 @@ public class SplittableDoFnTest implements Serializable {
 
     @SplitRestriction
     public void splitRange(
-        String element, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
+        String element, OffsetRange range, Backlog backlog, OutputReceiver<OffsetRange> receiver) {
       receiver.output(new OffsetRange(range.getFrom(), (range.getFrom() + range.getTo()) / 2));
       receiver.output(new OffsetRange((range.getFrom() + range.getTo()) / 2, range.getTo()));
     }
@@ -693,7 +694,7 @@ public class SplittableDoFnTest implements Serializable {
 
     @SplitRestriction
     public void splitRestriction(
-        String value, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
+        String value, OffsetRange range, Backlog backlog, OutputReceiver<OffsetRange> receiver) {
       assertEquals(State.OUTSIDE_BUNDLE, state);
       receiver.output(range);
     }
