@@ -45,6 +45,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
@@ -130,11 +131,24 @@ public class MongoDbIOTest implements Serializable {
       "Galilei",
       "Maxwell"
     };
+    String[] country = {
+      "Germany",
+      "England",
+      "Poland",
+      "France",
+      "France",
+      "England",
+      "England",
+      "Denmark",
+      "Florence",
+      "Scotland"
+    };
     for (int i = 1; i <= 1000; i++) {
       int index = i % scientists.length;
       Document document = new Document();
       document.append("_id", i);
       document.append("scientist", scientists[index]);
+      document.append("country", country[index]);
       collection.insertOne(document);
     }
   }
@@ -248,6 +262,55 @@ public class MongoDbIOTest implements Serializable {
                 .withFilter("{\"scientist\":\"Einstein\"}"));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(100L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithFilterAndProjection() throws Exception {
+
+    PCollection<Document> output =
+        pipeline.apply(
+            MongoDbIO.read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withCollection(COLLECTION)
+                .withFilter("{\"scientist\":\"Einstein\"}")
+                .withProjection("country", "scientist"));
+
+    PAssert.thatSingleton(
+            output
+                .apply(
+                    "Map Scientist",
+                    Filter.by(
+                        (Document doc) ->
+                            doc.get("country") != null && doc.get("scientist") != null))
+                .apply("Count", Count.globally()))
+        .isEqualTo(100L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithProjection() throws Exception {
+
+    PCollection<Document> output =
+        pipeline.apply(
+            MongoDbIO.read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withCollection(COLLECTION)
+                .withProjection("country"));
+
+    PAssert.thatSingleton(
+            output
+                .apply(
+                    "Map Scientist",
+                    Filter.by(
+                        (Document doc) ->
+                            doc.get("country") != null && doc.get("scientist") == null))
+                .apply("Count", Count.globally()))
+        .isEqualTo(1000L);
 
     pipeline.run();
   }
