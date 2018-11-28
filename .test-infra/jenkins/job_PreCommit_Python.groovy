@@ -16,12 +16,16 @@
  * limitations under the License.
  */
 
+import CommonJobProperties as commonJobProperties
 import PrecommitJobBuilder
+
+// Generate a temporary directory to hold virtualenvs
+def tempDir = commonJobProperties.createTempDirectory()
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Python',
-    gradleTask: ':pythonPreCommit',
+    gradleTask: ":pythonPreCommit -PenvBaseDir=$tempDir",
     triggerPathPatterns: [
       '^model/.*$',
       '^runners/.*$',
@@ -36,3 +40,6 @@ builder.build {
     archiveJunit('**/nosetests.xml')
   }
 }
+
+// Clean up
+commonJobProperties.deleteDirectory(tempDir)

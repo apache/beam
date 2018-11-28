@@ -331,4 +331,24 @@ class CommonJobProperties {
   static String makePathAbsolute(String path) {
     return '"$WORKSPACE/' + path + '"'
   }
+
+  /**
+   * Create a temporary directory.
+   * @return Absolute path of the directory.
+   */
+  static String createTempDirectory() {
+    def tempDir = File.createTempDir()
+    assert tempDir.exists()
+    return tempDir.absolutePath
+  }
+
+  /**
+   * Delete a directory recursively.
+   * @param Abusolute path of a directory to be deleted.
+   */
+  static void deleteDirectory(String path) {
+    def dir = new File(path)
+    dir.deleteDir()
+    assert !dir.exists()
+  }
 }

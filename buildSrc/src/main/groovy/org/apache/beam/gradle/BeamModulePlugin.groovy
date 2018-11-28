@@ -1508,7 +1508,8 @@ artifactId=${project.name}
 
       project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
 
-      project.ext.envdir = "${project.rootProject.buildDir}/${project.name}/gradleenv"
+      project.ext.envdir = project.findProperty('envBaseDir') ?: "${project.rootProject.buildDir}"
+      project.ext.envdir = project.ext.envdir + "/${project.name}/gradleenv"
       project.ext.pythonRootDir = "${project.rootDir}/sdks/python"
 
       project.task('setupVirtualenv')  {
