@@ -23,7 +23,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * Monitor that records how much bytes flew through the pipeline.
+ * Monitor that records the number of bytes flowing through a PCollection.
  *
  * <p>To use: apply a monitor in a desired place in the pipeline. This will capture how many bytes
  * flew through this DoFn which then can be collected and written out using {@link
