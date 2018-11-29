@@ -46,7 +46,9 @@ import org.apache.spark.sql.streaming.StreamingQueryException;
  */
 public class TranslationContext {
 
+  /** All the datasets of the DAG */
   private final Map<PValue, Dataset<?>> datasets;
+  /** datasets that are not used as input to other datasets (leaves of the DAG) */
   private final Set<Dataset<?>> leaves;
 
   private final SparkPipelineOptions options;
@@ -68,7 +70,7 @@ public class TranslationContext {
     this.sparkSession = SparkSession.builder().config(sparkConf).getOrCreate();
     this.options = options;
     this.datasets = new HashMap<>();
-    this.leaves = new LinkedHashSet<>();
+    this.leaves = new HashSet<>();
   }
 
   // --------------------------------------------------------------------------------------------
@@ -82,6 +84,20 @@ public class TranslationContext {
   //  Datasets methods
   // --------------------------------------------------------------------------------------------
 
+  @SuppressWarnings("unchecked")
+  public <T> Dataset<WindowedValue<T>> getDataset(PValue value) {
+    Dataset<?> dataset = datasets.get(value);
+    // assume that the Dataset is used as an input if retrieved here. So it is not a leaf anymore
+    leaves.remove(dataset);
+    return (Dataset<WindowedValue<T>>) dataset;
+  }
+
+  public <T> void putDataset(PValue value, Dataset<WindowedValue<T>> dataset) {
+    if (!datasets.containsKey(value)) {
+      datasets.put(value, dataset);
+      leaves.add(dataset);
+    }
+  }
 
   // --------------------------------------------------------------------------------------------
   //  PCollections methods
