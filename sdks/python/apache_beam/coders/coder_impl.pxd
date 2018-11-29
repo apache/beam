@@ -25,14 +25,11 @@ cimport libc.stdint
 cimport libc.stdlib
 cimport libc.string
 
-cdef extern from "math.h":
-  libc.stdint.int64_t abs "llabs"(libc.stdint.int64_t)
-
 from .stream cimport InputStream, OutputStream
 from apache_beam.utils cimport windowed_value
 
 
-cdef object loads, dumps, create_InputStream, create_OutputStream, ByteCountingOutputStream, get_varint_size, past_unicode
+cdef object loads, dumps, create_InputStream, create_OutputStream, ByteCountingOutputStream, get_varint_size
 # Temporarily untyped to allow monkeypatching on failed import.
 #cdef type WindowedValue
 
@@ -78,11 +75,8 @@ cdef unsigned char SET_TYPE
 
 cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef CoderImpl fallback_coder_impl
-  @cython.locals(dict_value=dict, int_value=libc.stdint.int64_t,
-                 unicode_value=unicode)
+  @cython.locals(dict_value=dict, int_value=libc.stdint.int64_t)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
-  @cython.locals(t=int)
-  cpdef decode_from_stream(self, InputStream stream, bint nested)
 
 
 cdef class BytesCoderImpl(CoderImpl):
@@ -129,9 +123,6 @@ cdef class TupleCoderImpl(AbstractComponentCoderImpl):
 cdef class SequenceCoderImpl(StreamCoderImpl):
   cdef CoderImpl _elem_coder
   cpdef _construct_from_sequence(self, values)
-  @cython.locals(buffer=OutputStream, target_buffer_size=libc.stdint.int64_t,
-                 index=libc.stdint.int64_t)
-  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
 
 
 cdef class TupleSequenceCoderImpl(SequenceCoderImpl):
@@ -142,41 +133,8 @@ cdef class IterableCoderImpl(SequenceCoderImpl):
   pass
 
 
-cdef object IntervalWindow
-
-cdef class IntervalWindowCoderImpl(StreamCoderImpl):
-  cdef libc.stdint.uint64_t _to_normal_time(self, libc.stdint.int64_t value)
-  cdef libc.stdint.int64_t _from_normal_time(self, libc.stdint.uint64_t value)
-
-  @cython.locals(typed_value=windowed_value._IntervalWindowBase,
-                 span_millis=libc.stdint.int64_t)
-  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
-
-  @cython.locals(typed_value=windowed_value._IntervalWindowBase)
-  cpdef decode_from_stream(self, InputStream stream, bint nested)
-
-  @cython.locals(typed_value=windowed_value._IntervalWindowBase,
-                 span_millis=libc.stdint.int64_t)
-  cpdef estimate_size(self, value, bint nested=?)
-
-
-cdef int PaneInfoTiming_UNKNOWN
-cdef int PaneInfoEncoding_FIRST
-
-
 cdef class PaneInfoCoderImpl(StreamCoderImpl):
-  cdef int _choose_encoding(self, windowed_value.PaneInfo value)
-
-  @cython.locals(pane_info=windowed_value.PaneInfo, encoding_type=int)
-  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
-
-  @cython.locals(encoded_first_byte=int, encoding_type=int)
-  cpdef decode_from_stream(self, InputStream stream, bint nested)
-
-
-cdef libc.stdint.uint64_t _TIME_SHIFT
-cdef libc.stdint.int64_t MIN_TIMESTAMP_micros
-cdef libc.stdint.int64_t MAX_TIMESTAMP_micros
+  cdef int _choose_encoding(self, value)
 
 
 cdef class WindowedValueCoderImpl(StreamCoderImpl):
@@ -186,18 +144,8 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
   cdef CoderImpl _windows_coder
   cdef CoderImpl _pane_info_coder
 
-  cdef libc.stdint.uint64_t _to_normal_time(self, libc.stdint.int64_t value)
-  cdef libc.stdint.int64_t _from_normal_time(self, libc.stdint.uint64_t value)
-
   @cython.locals(c=CoderImpl)
   cpdef get_estimated_size_and_observables(self, value, bint nested=?)
 
-  @cython.locals(timestamp=libc.stdint.int64_t)
-  cpdef decode_from_stream(self, InputStream stream, bint nested)
-
-  @cython.locals(wv=windowed_value.WindowedValue, restore_sign=int)
+  @cython.locals(wv=windowed_value.WindowedValue)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
-
-
-cdef class LengthPrefixCoderImpl(StreamCoderImpl):
-  cdef CoderImpl _value_coder
