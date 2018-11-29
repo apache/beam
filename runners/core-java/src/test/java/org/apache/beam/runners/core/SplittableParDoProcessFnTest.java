@@ -76,7 +76,7 @@ import org.junit.runners.JUnit4;
 public class SplittableParDoProcessFnTest {
   private static final int MAX_OUTPUTS_PER_BUNDLE = 10000;
   private static final Duration MAX_BUNDLE_DURATION = Duration.standardSeconds(5);
-  @Rule public final ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
+  @Rule public final ResetDateTimeProvider dateTimeProvider = new ResetDateTimeProvider();
 
   // ----------------- Tests for whether the transform sets boundedness correctly --------------
   private static class SomeRestriction
@@ -340,7 +340,7 @@ public class SplittableParDoProcessFnTest {
   public void testUpdatesWatermark() throws Exception {
     DoFn<Instant, String> fn = new WatermarkUpdateFn();
     Instant base = Instant.now();
-    resetDateTimeProvider.setDateTimeFixed(base.getMillis());
+    dateTimeProvider.setDateTimeFixed(base.getMillis());
 
     ProcessFnTester<Instant, String, OffsetRange, Long> tester =
         new ProcessFnTester<>(
@@ -355,13 +355,13 @@ public class SplittableParDoProcessFnTest {
     assertThat(tester.takeOutputElements(), hasItems("0", "1", "2"));
     assertEquals(base.plus(Duration.standardSeconds(2)), tester.getWatermarkHold());
 
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(1).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     assertThat(tester.takeOutputElements(), hasItems("3", "4", "5"));
     assertEquals(base.plus(Duration.standardSeconds(5)), tester.getWatermarkHold());
 
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(2).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     assertThat(tester.takeOutputElements(), hasItems("6", "7"));
@@ -388,7 +388,7 @@ public class SplittableParDoProcessFnTest {
   public void testResumeSetsTimer() throws Exception {
     DoFn<Integer, String> fn = new SelfInitiatedResumeFn();
     Instant base = Instant.now();
-    resetDateTimeProvider.setDateTimeFixed(base.getMillis());
+    dateTimeProvider.setDateTimeFixed(base.getMillis());
     ProcessFnTester<Integer, String, SomeRestriction, Void> tester =
         new ProcessFnTester<>(
             base,
@@ -402,25 +402,25 @@ public class SplittableParDoProcessFnTest {
     assertThat(tester.takeOutputElements(), contains("42"));
 
     // Should resume after 5 seconds: advancing by 3 seconds should have no effect.
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(3).getMillis());
     assertFalse(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
     assertTrue(tester.takeOutputElements().isEmpty());
 
     // 6 seconds should be enough  should invoke the fn again.
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(6).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
     assertThat(tester.takeOutputElements(), contains("42"));
 
     // Should again resume after 5 seconds: advancing by 3 seconds should again have no effect.
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(9).getMillis());
     assertFalse(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
     assertTrue(tester.takeOutputElements().isEmpty());
 
     // 6 seconds should again be enough.
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(12).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
     assertThat(tester.takeOutputElements(), contains("42"));
@@ -458,7 +458,7 @@ public class SplittableParDoProcessFnTest {
   public void testResumeCarriesOverState() throws Exception {
     DoFn<Integer, String> fn = new CounterFn(1);
     Instant base = Instant.now();
-    resetDateTimeProvider.setDateTimeFixed(base.getMillis());
+    dateTimeProvider.setDateTimeFixed(base.getMillis());
     ProcessFnTester<Integer, String, OffsetRange, Long> tester =
         new ProcessFnTester<>(
             base,
@@ -470,21 +470,21 @@ public class SplittableParDoProcessFnTest {
 
     tester.startElement(42, new OffsetRange(0, 3));
     assertThat(tester.takeOutputElements(), contains("42"));
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(1).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     assertThat(tester.takeOutputElements(), contains("43"));
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(2).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     assertThat(tester.takeOutputElements(), contains("44"));
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(3).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     // After outputting all 3 items, should not output anything more.
     assertEquals(0, tester.takeOutputElements().size());
     // Should also not ask to resume.
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(4).getMillis());
     assertFalse(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
   }
@@ -494,7 +494,7 @@ public class SplittableParDoProcessFnTest {
     int max = 100;
     DoFn<Integer, String> fn = new CounterFn(Integer.MAX_VALUE);
     Instant base = Instant.now();
-    resetDateTimeProvider.setDateTimeFixed(base.getMillis());
+    dateTimeProvider.setDateTimeFixed(base.getMillis());
     int baseIndex = 42;
 
     ProcessFnTester<Integer, String, OffsetRange, Long> tester =
@@ -516,7 +516,7 @@ public class SplittableParDoProcessFnTest {
     assertThat(elements, hasItem(String.valueOf(baseIndex)));
     assertThat(elements, hasItem(String.valueOf(baseIndex + max - 1)));
 
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(1).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     elements = tester.takeOutputElements();
@@ -525,7 +525,7 @@ public class SplittableParDoProcessFnTest {
     assertThat(elements, hasItem(String.valueOf(baseIndex + max)));
     assertThat(elements, hasItem(String.valueOf(baseIndex + 2 * max - 1)));
 
-    resetDateTimeProvider.setDateTimeFixed(
+    dateTimeProvider.setDateTimeFixed(
         base.getMillis() + Duration.standardSeconds(2).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     elements = tester.takeOutputElements();

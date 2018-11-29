@@ -318,6 +318,9 @@ public class DoFnInvokersTest {
 
   @Test
   public void testDoFnWithReturn() throws Exception {
+    // We have to set the date time since computing "resume()" is dependent on system time.
+    dateTimeProvider.setDateTimeFixed(123456789);
+
     class MockFn extends DoFn<String, String> {
       @DoFn.ProcessElement
       public ProcessContinuation processElement(
