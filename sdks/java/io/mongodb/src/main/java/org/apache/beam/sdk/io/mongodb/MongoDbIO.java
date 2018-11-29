@@ -104,6 +104,9 @@ public class MongoDbIO {
         .setKeepAlive(true)
         .setMaxConnectionIdleTime(60000)
         .setNumSplits(0)
+        .setSslEnabled(false)
+        .setIgnoreSSLCertificate(false)
+        .setSslInvalidHostNameAllowed(false)
         .build();
   }
 
@@ -113,6 +116,9 @@ public class MongoDbIO {
         .setKeepAlive(true)
         .setMaxConnectionIdleTime(60000)
         .setBatchSize(1024L)
+        .setSslEnabled(false)
+        .setIgnoreSSLCertificate(false)
+        .setSslInvalidHostNameAllowed(false)
         .build();
   }
 
@@ -127,6 +133,12 @@ public class MongoDbIO {
     abstract boolean keepAlive();
 
     abstract int maxConnectionIdleTime();
+
+    abstract boolean sslEnabled();
+
+    abstract boolean sslInvalidHostNameAllowed();
+
+    abstract boolean ignoreSSLCertificate();
 
     @Nullable
     abstract String database();
@@ -151,6 +163,12 @@ public class MongoDbIO {
       abstract Builder setKeepAlive(boolean keepAlive);
 
       abstract Builder setMaxConnectionIdleTime(int maxConnectionIdleTime);
+
+      abstract Builder setSslEnabled(boolean value);
+
+      abstract Builder setSslInvalidHostNameAllowed(boolean value);
+
+      abstract Builder setIgnoreSSLCertificate(boolean value);
 
       abstract Builder setDatabase(String database);
 
@@ -215,6 +233,21 @@ public class MongoDbIO {
       return builder().setMaxConnectionIdleTime(maxConnectionIdleTime).build();
     }
 
+    /** Enable ssl for connection. */
+    public Read withSSLEnabled(boolean sslEnabled) {
+      return builder().setSslEnabled(sslEnabled).build();
+    }
+
+    /** Enable invalidHostNameAllowed for ssl for connection. */
+    public Read withSSLInvalidHostNameAllowed(boolean invalidHostNameAllowed) {
+      return builder().setSslInvalidHostNameAllowed(invalidHostNameAllowed).build();
+    }
+
+    /** Enable ignoreSSLCertificate for ssl for connection (allow for self signed ceritificates). */
+    public Read withIgnoreSSLCertificate(boolean ignoreSSLCertificate) {
+      return builder().setIgnoreSSLCertificate(ignoreSSLCertificate).build();
+    }
+
     /** Sets the database to use. */
     public Read withDatabase(String database) {
       checkArgument(database != null, "database can not be null");
@@ -259,6 +292,10 @@ public class MongoDbIO {
       builder.add(DisplayData.item("uri", uri()));
       builder.add(DisplayData.item("keepAlive", keepAlive()));
       builder.add(DisplayData.item("maxConnectionIdleTime", maxConnectionIdleTime()));
+      builder.add(DisplayData.item("sslEnabled", sslEnabled()));
+      builder.add(DisplayData.item("sslInvalidHostNameAllowed", sslInvalidHostNameAllowed()));
+      builder.add(DisplayData.item("ignoreSSLCertificate", ignoreSSLCertificate()));
+
       builder.add(DisplayData.item("database", database()));
       builder.add(DisplayData.item("collection", collection()));
       builder.addIfNotNull(DisplayData.item("filter", filter()));
@@ -268,6 +305,22 @@ public class MongoDbIO {
       }
       builder.add(DisplayData.item("numSplit", numSplits()));
     }
+  }
+
+  private static MongoClientOptions.Builder getOptions(
+      boolean keepAlive,
+      int maxConnectionIdleTime,
+      boolean sslEnabled,
+      boolean sslInvalidHostNameAllowed) {
+    MongoClientOptions.Builder optionsBuilder = new MongoClientOptions.Builder();
+    optionsBuilder.socketKeepAlive(keepAlive).maxConnectionIdleTime(maxConnectionIdleTime);
+    if (sslEnabled) {
+      optionsBuilder
+          .sslEnabled(sslEnabled)
+          .sslInvalidHostNameAllowed(sslInvalidHostNameAllowed)
+          .sslContext(SSLUtils.ignoreSSLCertificate());
+    }
+    return optionsBuilder;
   }
 
   /** A MongoDB {@link BoundedSource} reading {@link Document} from a given instance. */
@@ -296,7 +349,15 @@ public class MongoDbIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      try (MongoClient mongoClient = new MongoClient(new MongoClientURI(spec.uri()))) {
+      try (MongoClient mongoClient =
+          new MongoClient(
+              new MongoClientURI(
+                  spec.uri(),
+                  getOptions(
+                      spec.keepAlive(),
+                      spec.maxConnectionIdleTime(),
+                      spec.sslEnabled(),
+                      spec.sslInvalidHostNameAllowed())))) {
         return getEstimatedSizeBytes(mongoClient, spec.database(), spec.collection());
       }
     }
@@ -317,7 +378,15 @@ public class MongoDbIO {
     @Override
     public List<BoundedSource<Document>> split(
         long desiredBundleSizeBytes, PipelineOptions options) {
-      try (MongoClient mongoClient = new MongoClient(new MongoClientURI(spec.uri()))) {
+      try (MongoClient mongoClient =
+          new MongoClient(
+              new MongoClientURI(
+                  spec.uri(),
+                  getOptions(
+                      spec.keepAlive(),
+                      spec.maxConnectionIdleTime(),
+                      spec.sslEnabled(),
+                      spec.sslInvalidHostNameAllowed())))) {
         MongoDatabase mongoDatabase = mongoClient.getDatabase(spec.database());
 
         List<Document> splitKeys;
@@ -457,10 +526,15 @@ public class MongoDbIO {
     @Override
     public boolean start() {
       Read spec = source.spec;
-      MongoClientOptions.Builder optionsBuilder = new MongoClientOptions.Builder();
-      optionsBuilder.maxConnectionIdleTime(spec.maxConnectionIdleTime());
-      optionsBuilder.socketKeepAlive(spec.keepAlive());
-      client = new MongoClient(new MongoClientURI(spec.uri(), optionsBuilder));
+      client =
+          new MongoClient(
+              new MongoClientURI(
+                  spec.uri(),
+                  getOptions(
+                      spec.keepAlive(),
+                      spec.maxConnectionIdleTime(),
+                      spec.sslEnabled(),
+                      spec.sslInvalidHostNameAllowed())));
 
       MongoDatabase mongoDatabase = client.getDatabase(spec.database());
 
@@ -532,6 +606,12 @@ public class MongoDbIO {
 
     abstract int maxConnectionIdleTime();
 
+    abstract boolean sslEnabled();
+
+    abstract boolean sslInvalidHostNameAllowed();
+
+    abstract boolean ignoreSSLCertificate();
+
     @Nullable
     abstract String database();
 
@@ -549,6 +629,12 @@ public class MongoDbIO {
       abstract Builder setKeepAlive(boolean keepAlive);
 
       abstract Builder setMaxConnectionIdleTime(int maxConnectionIdleTime);
+
+      abstract Builder setSslEnabled(boolean value);
+
+      abstract Builder setSslInvalidHostNameAllowed(boolean value);
+
+      abstract Builder setIgnoreSSLCertificate(boolean value);
 
       abstract Builder setDatabase(String database);
 
@@ -609,6 +695,21 @@ public class MongoDbIO {
       return builder().setMaxConnectionIdleTime(maxConnectionIdleTime).build();
     }
 
+    /** Enable ssl for connection. */
+    public Write withSSLEnabled(boolean sslEnabled) {
+      return builder().setSslEnabled(sslEnabled).build();
+    }
+
+    /** Enable invalidHostNameAllowed for ssl for connection. */
+    public Write withSSLInvalidHostNameAllowed(boolean invalidHostNameAllowed) {
+      return builder().setSslInvalidHostNameAllowed(invalidHostNameAllowed).build();
+    }
+
+    /** Enable ignoreSSLCertificate for ssl for connection (allow for self signed ceritificates). */
+    public Write withIgnoreSSLCertificate(boolean ignoreSSLCertificate) {
+      return builder().setIgnoreSSLCertificate(ignoreSSLCertificate).build();
+    }
+
     /** Sets the database to use. */
     public Write withDatabase(String database) {
       checkArgument(database != null, "database can not be null");
@@ -642,6 +743,9 @@ public class MongoDbIO {
       builder.add(DisplayData.item("uri", uri()));
       builder.add(DisplayData.item("keepAlive", keepAlive()));
       builder.add(DisplayData.item("maxConnectionIdleTime", maxConnectionIdleTime()));
+      builder.add(DisplayData.item("sslEnable", sslEnabled()));
+      builder.add(DisplayData.item("sslInvalidHostNameAllowed", sslInvalidHostNameAllowed()));
+      builder.add(DisplayData.item("ignoreSSLCertificate", ignoreSSLCertificate()));
       builder.add(DisplayData.item("database", database()));
       builder.add(DisplayData.item("collection", collection()));
       builder.add(DisplayData.item("batchSize", batchSize()));
@@ -658,10 +762,15 @@ public class MongoDbIO {
 
       @Setup
       public void createMongoClient() throws Exception {
-        MongoClientOptions.Builder builder = new MongoClientOptions.Builder();
-        builder.socketKeepAlive(spec.keepAlive());
-        builder.maxConnectionIdleTime(spec.maxConnectionIdleTime());
-        client = new MongoClient(new MongoClientURI(spec.uri(), builder));
+        client =
+            new MongoClient(
+                new MongoClientURI(
+                    spec.uri(),
+                    getOptions(
+                        spec.keepAlive(),
+                        spec.maxConnectionIdleTime(),
+                        spec.sslEnabled(),
+                        spec.sslInvalidHostNameAllowed())));
       }
 
       @StartBundle

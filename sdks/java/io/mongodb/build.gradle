@@ -29,7 +29,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
-  shadow "org.mongodb:mongo-java-driver:3.2.2"
+  shadow "org.mongodb:mongo-java-driver:3.6.4"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
