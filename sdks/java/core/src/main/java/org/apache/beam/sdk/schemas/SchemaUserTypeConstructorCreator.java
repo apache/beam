@@ -24,7 +24,7 @@ import java.lang.reflect.InvocationTargetException;
 
 /** And implementation of {@link SchemaUserTypeCreator} that uses a Java constructor. */
 public class SchemaUserTypeConstructorCreator implements SchemaUserTypeCreator {
-  private final Class<?> clazz;
+  private final  Class<?> clazz;
   private final transient Constructor<?> constructor;
 
   SchemaUserTypeConstructorCreator(Class<?> clazz, Constructor<?> constructor) {
