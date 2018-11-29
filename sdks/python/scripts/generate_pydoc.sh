@@ -160,7 +160,6 @@ ignore_identifiers = [
   'apache_beam.typehints.typehints.CompositeTypeHint',
   'apache_beam.typehints.typehints.TypeConstraint',
   'apache_beam.typehints.typehints.validate_composite_type_param()',
-  'apache_beam.utils.windowed_value._IntervalWindowBase',
 
   # Private classes which are used within the same module
   'WindowedTypeConstraint',  # apache_beam.typehints.typehints
