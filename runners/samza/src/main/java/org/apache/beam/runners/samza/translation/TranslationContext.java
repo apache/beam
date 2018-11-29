@@ -20,9 +20,7 @@ package org.apache.beam.runners.samza.translation;
 
 import com.google.common.collect.Iterables;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
@@ -38,6 +36,8 @@ import org.apache.samza.operators.OutputStream;
 import org.apache.samza.operators.StreamGraph;
 import org.apache.samza.operators.TableDescriptor;
 import org.apache.samza.table.Table;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Helper that keeps the mapping from BEAM {@link PValue}/{@link PCollectionView} to Samza {@link
@@ -45,11 +45,12 @@ import org.apache.samza.table.Table;
  * PTransform}.
  */
 public class TranslationContext {
+  public static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
   private final StreamGraph streamGraph;
   private final Map<PValue, MessageStream<?>> messsageStreams = new HashMap<>();
   private final Map<PCollectionView<?>, MessageStream<?>> viewStreams = new HashMap<>();
   private final Map<PValue, String> idMap;
-  private final Set<String> registeredInputStreams = new HashSet<>();
+  private final Map<String, MessageStream> registeredInputStreams = new HashMap<>();
   private final Map<String, Table> registeredTables = new HashMap<>();
   private final PValue dummySource;
   private final SamzaPipelineOptions options;
@@ -189,7 +190,13 @@ public class TranslationContext {
 
   private <OutT> void doRegisterInputMessageStream(PValue pvalue, String streamId) {
     // we want to register it with the Samza graph only once per i/o stream
-    if (registeredInputStreams.contains(streamId)) {
+    if (registeredInputStreams.containsKey(streamId)) {
+      MessageStream<OpMessage<OutT>> messageStream = registeredInputStreams.get(streamId);
+      LOG.info(
+          "Stream id %s has already been mapped to %s stream. Mapping %s to the same message stream.",
+          streamId, messageStream, pvalue);
+      registerMessageStream(pvalue, messageStream);
+
       return;
     }
     @SuppressWarnings("unchecked")
@@ -199,7 +206,7 @@ public class TranslationContext {
             .map(org.apache.samza.operators.KV::getValue);
 
     registerMessageStream(pvalue, typedStream);
-    registeredInputStreams.add(streamId);
+    registeredInputStreams.put(streamId, typedStream);
   }
 
   private String getIdForPValue(PValue pvalue) {
