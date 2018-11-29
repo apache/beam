@@ -215,3 +215,20 @@ func TestMktuplef(t *testing.T) {
 		}
 	}
 }
+
+func TestMkrets(t *testing.T) {
+	tests := []struct {
+		types  []string
+		format string
+		want   string
+	}{
+		{types: nil, format: "%v", want: ""},
+		{types: []string{}, format: "%v", want: ""},
+		{types: []string{"Foo", "baz", "*imp.Bar"}, format: "%v", want: "Foo, baz, *imp.Bar"},
+	}
+	for _, test := range tests {
+		if got := mkrets(test.format, test.types); got != test.want {
+			t.Errorf("mkrets(%v,%v) = %v, want %v", test.format, test.types, got, test.want)
+		}
+	}
+}
