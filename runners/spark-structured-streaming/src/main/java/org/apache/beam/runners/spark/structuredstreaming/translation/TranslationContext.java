@@ -83,6 +83,10 @@ public class TranslationContext {
   // --------------------------------------------------------------------------------------------
   //  Datasets methods
   // --------------------------------------------------------------------------------------------
+  @SuppressWarnings("unchecked")
+  public <T> Dataset<T> emptyDataset() {
+    return (Dataset<T>) sparkSession.emptyDataset(Encoders.bean(Void.class));
+  }
 
   @SuppressWarnings("unchecked")
   public <T> Dataset<WindowedValue<T>> getDataset(PValue value) {
