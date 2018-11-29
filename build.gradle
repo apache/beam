@@ -246,6 +246,10 @@ task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
 }
 
+task portablePythonPreCommit() {
+  dependsOn ":beam-sdks-python:portablePreCommit"
+}
+
 task websitePreCommit() {
   dependsOn ":beam-website:preCommit"
 }
