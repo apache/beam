@@ -50,20 +50,21 @@ public class MapElements<InputT, OutputT>
   }
 
   /**
-   * For a {@code InferableFunction<InputT, OutputT>} {@code fn}, returns a {@code PTransform} that
+   * For {@code InferableFunction<InputT, OutputT>} {@code fn}, returns a {@code PTransform} that
    * takes an input {@code PCollection<InputT>} and returns a {@code PCollection<OutputT>}
    * containing {@code fn.apply(v)} for every element {@code v} in the input.
    *
-   * <p>This overload is intended primarily for use in Java 7. In Java 8, the overload {@link
-   * #via(ProcessFunction)} supports use of lambda for greater concision.
+   * <p>{@link InferableFunction} has the advantage of providing type descriptor information, but it
+   * is generally more convenient to specify output type via {@link #into(TypeDescriptor)}, and
+   * provide the mapping as a lambda expression to {@link #via(ProcessFunction)}.
    *
-   * <p>Example of use in Java 7:
+   * <p>Example usage:
    *
    * <pre>{@code
    * PCollection<String> words = ...;
    * PCollection<Integer> wordsPerLine = words.apply(MapElements.via(
    *     new InferableFunction<String, Integer>() {
-   *       public Integer apply(String word) {
+   *       public Integer apply(String word) throws Exception {
    *         return word.length();
    *       }
    *     }));
@@ -88,16 +89,13 @@ public class MapElements<InputT, OutputT>
    * {@code PTransform} that takes an input {@code PCollection<InputT>} and returns a {@code
    * PCollection<OutputT>} containing {@code fn.apply(v)} for every element {@code v} in the input.
    *
-   * <p>Example of use in Java 8:
+   * <p>Example usage:
    *
    * <pre>{@code
    * PCollection<Integer> wordLengths = words.apply(
    *     MapElements.into(TypeDescriptors.integers())
    *                .via((String word) -> word.length()));
    * }</pre>
-   *
-   * <p>In Java 7, the overload {@link #via(InferableFunction)} is more concise as the output type
-   * descriptor need not be provided.
    */
   public <NewInputT> MapElements<NewInputT, OutputT> via(ProcessFunction<NewInputT, OutputT> fn) {
     return new MapElements<>(Contextful.fn(fn), fn, TypeDescriptors.inputOf(fn), outputType);

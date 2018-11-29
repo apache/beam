@@ -57,22 +57,21 @@ public class FlatMapElements<InputT, OutputT>
    * PCollection<InputT>} and outputs all of the elements to the output {@code
    * PCollection<OutputT>}.
    *
-   * <p>This overload is intended primarily for use in Java 7. In Java 8, the overload {@link
-   * #via(ProcessFunction)} supports use of lambda for greater concision.
+   * <p>{@link InferableFunction} has the advantage of providing type descriptor information, but it
+   * is generally more convenient to specify output type via {@link #into(TypeDescriptor)}, and
+   * provide the mapping as a lambda expression to {@link #via(ProcessFunction)}.
    *
-   * <p>Example of use in Java 7:
+   * <p>Example usage:
    *
    * <pre>{@code
    * PCollection<String> lines = ...;
    * PCollection<String> words = lines.apply(FlatMapElements.via(
    *     new InferableFunction<String, List<String>>() {
-   *       public Integer apply(String line) {
+   *       public Integer apply(String line) throws Exception {
    *         return Arrays.asList(line.split(" "));
    *       }
    *     });
    * }</pre>
-   *
-   * <p>To use a Java 8 lambda, see {@link #via(ProcessFunction)}.
    */
   public static <InputT, OutputT> FlatMapElements<InputT, OutputT> via(
       InferableFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
@@ -100,16 +99,13 @@ public class FlatMapElements<InputT, OutputT>
    * PTransform} that applies {@code fn} to every element of the input {@code PCollection<InputT>}
    * and outputs all of the elements to the output {@code PCollection<OutputT>}.
    *
-   * <p>Example of use in Java 8:
+   * <p>Example usage:
    *
    * <pre>{@code
    * PCollection<String> words = lines.apply(
    *     FlatMapElements.into(TypeDescriptors.strings())
    *                    .via((String line) -> Arrays.asList(line.split(" ")))
    * }</pre>
-   *
-   * <p>In Java 7, the overload {@link #via(InferableFunction)} is more concise as the output type
-   * descriptor need not be provided.
    */
   public <NewInputT> FlatMapElements<NewInputT, OutputT> via(
       ProcessFunction<NewInputT, ? extends Iterable<OutputT>> fn) {
