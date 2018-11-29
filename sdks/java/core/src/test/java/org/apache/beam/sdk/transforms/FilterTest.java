@@ -38,7 +38,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FilterTest implements Serializable {
 
-  static class TrivialFn implements SerializableFunction<Integer, Boolean> {
+  static class TrivialFn implements ProcessFunction<Integer, Boolean> {
     private final Boolean returnVal;
 
     TrivialFn(Boolean returnVal) {
@@ -51,7 +51,7 @@ public class FilterTest implements Serializable {
     }
   }
 
-  static class EvenFn implements SerializableFunction<Integer, Boolean> {
+  static class EvenFn implements ProcessFunction<Integer, Boolean> {
     @Override
     public Boolean apply(Integer elem) {
       return elem % 2 == 0;

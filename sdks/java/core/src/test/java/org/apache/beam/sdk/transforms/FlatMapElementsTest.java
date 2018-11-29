@@ -55,7 +55,7 @@ public class FlatMapElementsTest implements Serializable {
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-  /** Basic test of {@link FlatMapElements} with a {@link SimpleFunction}. */
+  /** Basic test of {@link FlatMapElements} with a {@link InferableFunction}. */
   @Test
   @Category(NeedsRunner.class)
   public void testFlatMapBasic() throws Exception {
@@ -63,12 +63,12 @@ public class FlatMapElementsTest implements Serializable {
         pipeline
             .apply(Create.of(1, 2, 3))
 
-            // Note that FlatMapElements takes a SimpleFunction<InputT, ? extends Iterable<OutputT>>
+            // Note that FlatMapElements takes an InferableFunction<InputT, ? extends Iterable<OutputT>>
             // so the use of List<Integer> here (as opposed to Iterable<Integer>) deliberately exercises
             // the use of an upper bound.
             .apply(
                 FlatMapElements.via(
-                    new SimpleFunction<Integer, List<Integer>>() {
+                    new InferableFunction<Integer, List<Integer>>() {
                       @Override
                       public List<Integer> apply(Integer input) {
                         return ImmutableList.of(-input, input);
@@ -102,8 +102,8 @@ public class FlatMapElementsTest implements Serializable {
   }
 
   /**
-   * Tests that when built with a concrete subclass of {@link SimpleFunction}, the type descriptor
-   * of the output reflects its static type.
+   * Tests that when built with a concrete subclass of {@link InferableFunction}, the type
+   * descriptor of the output reflects its static type.
    */
   @Test
   @Category(NeedsRunner.class)
@@ -113,7 +113,7 @@ public class FlatMapElementsTest implements Serializable {
             .apply(Create.of("hello"))
             .apply(
                 FlatMapElements.via(
-                    new SimpleFunction<String, Set<String>>() {
+                    new InferableFunction<String, Set<String>>() {
                       @Override
                       public Set<String> apply(String input) {
                         return ImmutableSet.copyOf(input.split(""));
@@ -132,10 +132,10 @@ public class FlatMapElementsTest implements Serializable {
   }
 
   /**
-   * A {@link SimpleFunction} to test that the coder registry can propagate coders that are bound to
-   * type variables.
+   * A {@link InferableFunction} to test that the coder registry can propagate coders that are bound
+   * to type variables.
    */
-  private static class PolymorphicSimpleFunction<T> extends SimpleFunction<T, Iterable<T>> {
+  private static class PolymorphicInferableFunction<T> extends InferableFunction<T, Iterable<T>> {
     @Override
     public Iterable<T> apply(T input) {
       return Collections.emptyList();
@@ -143,23 +143,24 @@ public class FlatMapElementsTest implements Serializable {
   }
 
   /**
-   * Basic test of {@link MapElements} coder propagation with a parametric {@link SimpleFunction}.
+   * Basic test of {@link MapElements} coder propagation with a parametric {@link
+   * InferableFunction}.
    */
   @Test
-  public void testPolymorphicSimpleFunction() throws Exception {
+  public void testPolymorphicInferableFunction() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     pipeline
         .apply(Create.of(1, 2, 3))
 
         // This is the function that needs to propagate the input T to output T
-        .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<>()))
+        .apply("Polymorphic Identity", MapElements.via(new PolymorphicInferableFunction<>()))
 
         // This is a consumer to ensure that all coder inference logic is executed.
         .apply(
             "Test Consumer",
             MapElements.via(
-                new SimpleFunction<Iterable<Integer>, Integer>() {
+                new InferableFunction<Iterable<Integer>, Integer>() {
                   @Override
                   public Integer apply(Iterable<Integer> input) {
                     return 42;
@@ -168,23 +169,23 @@ public class FlatMapElementsTest implements Serializable {
   }
 
   @Test
-  public void testSimpleFunctionClassDisplayData() {
-    SimpleFunction<Integer, List<Integer>> simpleFn =
-        new SimpleFunction<Integer, List<Integer>>() {
+  public void testInferableFunctionClassDisplayData() {
+    InferableFunction<Integer, List<Integer>> inferableFn =
+        new InferableFunction<Integer, List<Integer>>() {
           @Override
           public List<Integer> apply(Integer input) {
             return Collections.emptyList();
           }
         };
 
-    FlatMapElements<?, ?> simpleMap = FlatMapElements.via(simpleFn);
-    assertThat(DisplayData.from(simpleMap), hasDisplayItem("class", simpleFn.getClass()));
+    FlatMapElements<?, ?> simpleMap = FlatMapElements.via(inferableFn);
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("class", inferableFn.getClass()));
   }
 
   @Test
-  public void testSimpleFunctionDisplayData() {
-    SimpleFunction<Integer, List<Integer>> simpleFn =
-        new SimpleFunction<Integer, List<Integer>>() {
+  public void testInferableFunctionDisplayData() {
+    InferableFunction<Integer, List<Integer>> simpleFn =
+        new InferableFunction<Integer, List<Integer>>() {
           @Override
           public List<Integer> apply(Integer input) {
             return Collections.emptyList();
@@ -219,7 +220,7 @@ public class FlatMapElementsTest implements Serializable {
     public PCollection<KV<K, Void>> expand(PCollection<KV<K, V>> input) {
       return input.apply(
           FlatMapElements.<KV<K, V>, KV<K, Void>>via(
-              new SimpleFunction<KV<K, V>, Iterable<KV<K, Void>>>() {
+              new InferableFunction<KV<K, V>, Iterable<KV<K, Void>>>() {
                 @Override
                 public Iterable<KV<K, Void>> apply(KV<K, V> input) {
                   return Collections.singletonList(KV.<K, Void>of(input.getKey(), null));
@@ -230,7 +231,7 @@ public class FlatMapElementsTest implements Serializable {
 
   /**
    * Basic test of {@link FlatMapElements} with a lambda (which is instantiated as a {@link
-   * SerializableFunction}).
+   * ProcessFunction}).
    */
   @Test
   @Category(NeedsRunner.class)
