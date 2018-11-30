@@ -186,6 +186,15 @@ message ProcessBundleDescriptor {
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor state_api_service_descriptor = 7;
 }
 
+
+// Represents a non-negative decimal number: unscaled_value * 10^(scale) (scientific notation)
+message Decimal {
+  // Represents the unscaled value as a big endian unlimited precision non-negative integer.
+  bytes unscaled_value = 1;
+  // Represents the scale
+  int32 scale = 2;
+}
+
 // One of the applications specifying the scope of work for a bundle.
 // See https://docs.google.com/document/d/1tUDb45sStdR8u7-jBkGdw3OGFK7aa2-V7eo86zYSE_4/edit#heading=h.9g3g5weg2u9 for further details.
 message BundleApplication {
@@ -219,10 +228,9 @@ message BundleApplication {
     bytes partition = 1;
 
     // The estimate for the backlog.
-    oneof value {
-      // Represents an estimate for the amount of outstanding work. Values
-      // compare lexicographically.
-      bytes bytes = 1000;
+    oneof backlog {
+      // Represents an estimate for the amount of outstanding work.
+      Decimal value = 1000;
 
       // Whether the backlog is unknown.
       bool is_unknown = 1001;

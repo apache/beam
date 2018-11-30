@@ -22,6 +22,13 @@ import org.apache.beam.sdk.transforms.DoFn;
 /**
  * Manages access to the restriction and keeps track of its claimed part for a <a
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
+ *
+ * <p>Restriction trackers which can provide an estimate for the known amount of outstanding work
+ * should implement {@link Backlogs.HasBacklog} to provide information that can be used during
+ * progress reporting and splitting by runners to improve the performance of the pipeline and
+ * increase resource utilization. See <a
+ * href="https://s.apache.org/beam-bundles-backlog-splitting">Bundles w/ SplittableDoFns: Backlog
+ * &amp; Splitting</a> for further details.
  */
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
   /**
@@ -67,6 +74,4 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * work remaining in the restriction.
    */
   public abstract void checkDone() throws IllegalStateException;
-
-  // TODO: Add the more general splitRemainderAfterFraction() and other methods.
 }

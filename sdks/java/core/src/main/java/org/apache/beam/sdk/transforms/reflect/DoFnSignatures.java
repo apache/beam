@@ -64,6 +64,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParam
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -1182,18 +1183,24 @@ public class DoFnSignatures {
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
 
     Type[] params = m.getGenericParameterTypes();
-    errors.checkArgument(params.length == 3, "Must have exactly 3 arguments");
+    errors.checkArgument(params.length == 4, "Must have 4 arguments");
     errors.checkArgument(
         fnT.resolveType(params[0]).equals(inputT),
         "First argument must be the element type %s",
         formatType(inputT));
 
     TypeDescriptor<?> restrictionT = fnT.resolveType(params[1]);
-    TypeDescriptor<?> receiverT = fnT.resolveType(params[2]);
+    TypeDescriptor<?> backlogType = fnT.resolveType(params[2]);
+    errors.checkArgument(
+        backlogType.equals(TypeDescriptor.of(Backlog.class)),
+        "Third argument must be %s, but is %s",
+        formatType(TypeDescriptor.of(Backlog.class)),
+        formatType(backlogType));
+    TypeDescriptor<?> receiverT = fnT.resolveType(params[3]);
     TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(restrictionT);
     errors.checkArgument(
         receiverT.equals(expectedReceiverT),
-        "Third argument must be %s, but is %s",
+        "Fourth argument must be %s, but is %s",
         formatType(expectedReceiverT),
         formatType(receiverT));
 
