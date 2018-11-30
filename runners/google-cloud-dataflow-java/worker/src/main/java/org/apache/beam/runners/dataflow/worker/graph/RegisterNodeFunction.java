@@ -44,6 +44,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
@@ -95,6 +96,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
  * <p>Testing of all the layers of translation are performed via local service runner tests.
  */
 public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>, Node> {
+
   /** Must match declared fields within {@code ProcessBundleHandler}. */
   private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
 
@@ -337,6 +339,26 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
                   pTransform);
             }
             ptransformIdToPCollectionViews.put(ptransformId, pcollectionViews.build());
+
+            // Build the necessary components to inform the SDK Harness of the pipeline's timers.
+            for (Map.Entry<String, TimerSpec> entry : parDoPayload.getTimerSpecsMap().entrySet()) {
+              String timerPCollectionName =
+                  SyntheticComponents.uniqueId(
+                      "timer", pTransform.getInputsMap().keySet()::contains);
+              pTransform
+                  .putInputs(entry.getKey(), timerPCollectionName)
+                  .putOutputs(entry.getKey(), timerPCollectionName);
+
+              RunnerApi.PCollection.Builder timerPCollection = RunnerApi.PCollection.newBuilder();
+              timerPCollection
+                  .setUniqueName(timerPCollectionName)
+                  .setCoderId(entry.getValue().getTimerCoderId())
+                  .setIsBounded(RunnerApi.IsBounded.Enum.BOUNDED)
+                  .setWindowingStrategyId(fakeWindowingStrategyId);
+
+              processBundleDescriptor.putPcollections(
+                  timerPCollectionName, timerPCollection.build());
+            }
 
             transformSpec
                 .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
