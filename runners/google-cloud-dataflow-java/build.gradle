@@ -233,7 +233,7 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
     useJUnit {
-      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      includeCategories 'org.apache.beam.sdk.testing.DevTestInterface'
       commonExcludeCategories.each {
         excludeCategories it
       }
