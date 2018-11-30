@@ -40,7 +40,7 @@ Granularity of changes:
 * We prefer small independent, incremental PRs with descriptive, isolated commits. Each commit is a single clear change
 * It is OK to keep separate commits for different logical pieces of the code, if they make reviewing and revisiting code easier
 * Making commits isolated is a good practice, authors should be able to relatively easily split the PR upon reviewer's request
-* When there are multiple commits in a single PR, every commit that gets merged should compile and pass tests
+* Generally, every commit should compile and pass tests.
 
 ## Always get to LGTM ("Looks good to me!")
 
@@ -114,7 +114,8 @@ The committer is ultimately responsible and we "trust the committer's judgment"!
 After all the tests pass, there should be a green merge button at the bottom of
 the pull request. There are multiple choices. Unless you want to squash commits
 as part of the merge (see above) you should choose "Merge pull
-request" (the default). This preserves the commit history and adds a merge
+request" and ensure "Create a merge commit" is selected from the drop down.
+This preserves the commit history and adds a merge
 commit, so be sure the commit history has been curated appropriately.
 
 Do _not_ use the default GitHub commit message, which looks like this:
@@ -128,6 +129,3 @@ Instead, pull it all into the subject line:
     Merge pull request #1234: [BEAM-7873] Fix the foo bizzle bazzle
 
 If you have comments to add, put them in the body of the commit message.
-
-After merging the pull request, the committer is responsible for resolving associated JIRA(s)
-(and marking the "Fix Version" field).
