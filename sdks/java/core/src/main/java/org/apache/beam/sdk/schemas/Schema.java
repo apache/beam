@@ -437,7 +437,7 @@ public class Schema implements Serializable {
     abstract FieldType.Builder toBuilder();
 
     public static FieldType.Builder forTypeName(TypeName typeName) {
-      return new AutoValue_Schema_FieldType.Builder().setTypeName(typeName);
+      return new AutoValue_Schema_FieldType.Builder().setTypeName(typeName).setNullable(false);
     }
 
     @AutoValue.Builder
