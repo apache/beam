@@ -21,6 +21,7 @@ import atexit
 import logging
 import os
 import signal
+import socket
 import sys
 import time
 from subprocess import Popen
@@ -33,8 +34,8 @@ class DockerizedJobServer(object):
   """
 
   def __init__(self, job_host="localhost",
-               job_port=8099,
-               artifact_port=8098,
+               job_port=None,
+               artifact_port=None,
                harness_port_range=(8100, 8200),
                max_connection_retries=5):
     self.job_host = job_host
@@ -54,7 +55,12 @@ class DockerizedJobServer(object):
            # "sibling" containers for the SDK harness.
            "-v", "/usr/local/bin/docker:/bin/docker",
            "-v", "/var/run/docker.sock:/var/run/docker.sock"]
-    args = ["--job-host", self.job_host, "--job-port", str(self.job_port)]
+    self.job_port = DockerizedJobServer._pick_port(self.job_port)
+    # artifact_port 0 suggest to pick a dynamic port.
+    self.artifact_port = self.artifact_port if self.artifact_port else 0
+    args = ['--job-host', self.job_host,
+            '--job-port', str(self.job_port),
+            '--artifact-port', str(self.artifact_port)]
 
     if sys.platform == "darwin":
       # Docker-for-Mac doesn't support host networking, so we need to explictly
@@ -99,3 +105,14 @@ class DockerizedJobServer(object):
         time.sleep(1)
       if self.docker_process.poll is None:
         self.docker_process.kill()
+
+  @staticmethod
+  def _pick_port(port):
+    if port:
+      return port
+    # Not perfect, but we have to provide a port to the subprocess.
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('localhost', 0))
+    _, port = s.getsockname()
+    s.close()
+    return port
