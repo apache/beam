@@ -174,7 +174,7 @@ To contribute code, you need
    Use `R: @username` in the pull request to notify a reviewer.
 1. If you don't get any response in 3 business days, email the dev@ list to ask for someone to look at your pull
    request.
-1. Review feedback typically leads to follow-up changes. Please add these changes as additional "fixup" commits to the
+1. Review feedback typically leads to follow-up changes. You can add these changes as additional "fixup" commits to the
    existing PR/branch. This will allow reviewer(s) to track the incremental progress. After review is complete and the
    PR accepted, multiple commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
 
