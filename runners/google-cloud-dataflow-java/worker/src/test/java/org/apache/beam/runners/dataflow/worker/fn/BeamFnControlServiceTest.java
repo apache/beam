@@ -21,7 +21,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.net.HostAndPort;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -31,6 +30,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.stream.ServerStreamObserverFactory;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -73,8 +73,7 @@ public class BeamFnControlServiceTest {
             descriptor,
             ServerStreamObserverFactory.fromOptions(options)::from,
             GrpcContextHeaderAccessorProvider.getHeaderAccessor());
-    Server server =
-        ServerFactory.fromOptions(options).create(descriptor, ImmutableList.of(service));
+    Server server = ServerFactory.createDefault().create(service, descriptor);
     String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
         BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext(true).build());
@@ -102,8 +101,7 @@ public class BeamFnControlServiceTest {
             descriptor,
             ServerStreamObserverFactory.fromOptions(options)::from,
             GrpcContextHeaderAccessorProvider.getHeaderAccessor());
-    Server server =
-        ServerFactory.fromOptions(options).create(descriptor, ImmutableList.of(service));
+    Server server = ServerFactory.createDefault().create(service, descriptor);
 
     String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
