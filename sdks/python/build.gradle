@@ -267,6 +267,7 @@ task portableWordCount(dependsOn: 'installGcpTest') {
             "--input=/etc/profile",
             "--output=/tmp/py-wordcount-direct",
             "--runner=PortableRunner",
+            "--experiments=worker_threads=100",
     ]
     if (project.hasProperty("streaming"))
       options += ["--streaming"]
