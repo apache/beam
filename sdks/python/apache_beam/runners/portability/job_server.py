@@ -25,6 +25,7 @@ import socket
 import sys
 import time
 from subprocess import Popen
+from subprocess import check_output
 from threading import Lock
 
 
@@ -50,10 +51,11 @@ class DockerizedJobServer(object):
     # TODO This is hardcoded to Flink at the moment but should be changed
     job_server_image_name = os.environ['USER'] + \
         "-docker-apache.bintray.io/beam/flink-job-server:latest"
+    docker_path = check_output(['which', 'docker']).strip()
     cmd = ["docker", "run",
            # We mount the docker binary and socket to be able to spin up
            # "sibling" containers for the SDK harness.
-           "-v", "/usr/local/bin/docker:/bin/docker",
+           "-v", ':'.join([docker_path, "/bin/docker"]),
            "-v", "/var/run/docker.sock:/var/run/docker.sock"]
     self.job_port = DockerizedJobServer._pick_port(self.job_port)
     # artifact_port 0 suggest to pick a dynamic port.
