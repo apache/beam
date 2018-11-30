@@ -814,7 +814,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   // This can't be put into ProcessContinuation itself due to the following problem:
   // http://ternarysearch.blogspot.com/2013/07/static-initialization-deadlock.html
   private static final ProcessContinuation PROCESS_CONTINUATION_STOP =
-      new AutoValue_DoFn_ProcessContinuation(false, Instant.now());
+      new AutoValue_DoFn_ProcessContinuation(false, new Instant(0L));
 
   /**
    * When used as a return value of {@link ProcessElement}, indicates whether there is more work to
