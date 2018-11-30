@@ -46,6 +46,11 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
     return new GrpcFnServer<>(factory.create(service, endpoint), service, endpoint);
   }
 
+  public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
+      ServiceT service, ApiServiceDescriptor endpoint) {
+    return new GrpcFnServer<>(null, service, endpoint);
+  }
+
   private final Server server;
   private final ServiceT service;
   private final ApiServiceDescriptor apiServiceDescriptor;
@@ -76,14 +81,16 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    try {
-      // The server has been closed, and should not respond to any new incoming calls.
-      server.shutdown();
-      service.close();
-      server.awaitTermination(60, TimeUnit.SECONDS);
-    } finally {
-      server.shutdownNow();
-      server.awaitTermination();
+    if (server != null) {
+      try {
+        // The server has been closed, and should not respond to any new incoming calls.
+        server.shutdown();
+        service.close();
+        server.awaitTermination(60, TimeUnit.SECONDS);
+      } finally {
+        server.shutdownNow();
+        server.awaitTermination();
+      }
     }
   }
 }

@@ -336,9 +336,9 @@ public class BatchDataflowWorker implements Closeable {
         worker =
             mapTaskExecutorFactory.create(
                 sdkWorkerHarness.getControlClientHandler(),
-                sdkWorkerHarness.getDataService(),
+                sdkWorkerHarness.getGrpcDataFnServer(),
                 sdkHarnessRegistry.beamFnDataApiServiceDescriptor(),
-                sdkWorkerHarness.getStateService(),
+                sdkWorkerHarness.getGrpcStateFnServer(),
                 network,
                 options,
                 stageName,
