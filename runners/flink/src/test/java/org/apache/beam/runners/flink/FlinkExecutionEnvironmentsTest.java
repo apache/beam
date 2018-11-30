@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertThat;
 
 import java.io.File;
@@ -27,11 +28,14 @@ import java.nio.file.Files;
 import java.util.Collections;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
+import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.internal.util.reflection.Whitebox;
 
 /** Tests for {@link FlinkExecutionEnvironments}. */
 public class FlinkExecutionEnvironmentsTest {
@@ -157,5 +161,23 @@ public class FlinkExecutionEnvironmentsTest {
     File root = temporaryFolder.getRoot();
     Files.copy(inputStream, new File(root, "flink-conf.yaml").toPath());
     return root.getAbsolutePath();
+  }
+
+  @Test
+  public void shouldSetSavepointRestoreForRemoteStreaming() {
+    String path = "fakePath";
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(TestFlinkRunner.class);
+    options.setFlinkMaster("host:80");
+    options.setSavepointPath(path);
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+    // subject to change with https://issues.apache.org/jira/browse/FLINK-11048
+    assertThat(sev, instanceOf(RemoteStreamEnvironment.class));
+    assertThat(
+        Whitebox.getInternalState(sev, "restoreSettings"),
+        is(SavepointRestoreSettings.forPath(path)));
   }
 }
