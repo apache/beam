@@ -48,11 +48,13 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -75,6 +77,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class DoFnInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public ResetDateTimeProvider dateTimeProvider = new ResetDateTimeProvider();
 
   @Mock private DoFn<String, String>.StartBundleContext mockStartBundleContext;
   @Mock private DoFn<String, String>.FinishBundleContext mockFinishBundleContext;
@@ -315,6 +318,9 @@ public class DoFnInvokersTest {
 
   @Test
   public void testDoFnWithReturn() throws Exception {
+    // We have to set the date time since computing "resume()" is dependent on system time.
+    dateTimeProvider.setDateTimeFixed(123456789);
+
     class MockFn extends DoFn<String, String> {
       @DoFn.ProcessElement
       public ProcessContinuation processElement(
@@ -406,7 +412,10 @@ public class DoFnInvokersTest {
 
     @SplitRestriction
     public void splitRestriction(
-        String element, SomeRestriction restriction, OutputReceiver<SomeRestriction> receiver) {}
+        String element,
+        SomeRestriction restriction,
+        Backlog backlog,
+        OutputReceiver<SomeRestriction> receiver) {}
 
     @NewTracker
     public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
@@ -421,6 +430,9 @@ public class DoFnInvokersTest {
 
   @Test
   public void testSplittableDoFnWithAllMethods() throws Exception {
+    // We have to set the date time since computing "resume()" is dependent on system time.
+    dateTimeProvider.setDateTimeFixed(100000L);
+
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
     final SomeRestrictionTracker tracker = mock(SomeRestrictionTracker.class);
@@ -439,6 +451,7 @@ public class DoFnInvokersTest {
                   public void splitRestriction(
                       String element,
                       SomeRestriction restriction,
+                      Backlog backlog,
                       DoFn.OutputReceiver<SomeRestriction> receiver) {
                     receiver.output(part1);
                     receiver.output(part2);
@@ -446,7 +459,7 @@ public class DoFnInvokersTest {
                   }
                 }))
         .when(fn)
-        .splitRestriction(eq("blah"), same(restriction), Mockito.any());
+        .splitRestriction(eq("blah"), same(restriction), eq(Backlog.unknown()), Mockito.any());
     when(fn.newTracker(restriction)).thenReturn(tracker);
     when(fn.processElement(mockProcessContext, tracker)).thenReturn(resume());
 
@@ -456,6 +469,7 @@ public class DoFnInvokersTest {
     invoker.invokeSplitRestriction(
         "blah",
         restriction,
+        Backlog.unknown(),
         new OutputReceiver<SomeRestriction>() {
           @Override
           public void output(SomeRestriction output) {
@@ -469,6 +483,7 @@ public class DoFnInvokersTest {
         });
     assertEquals(Arrays.asList(part1, part2, part3), outputs);
     assertEquals(tracker, invoker.invokeNewTracker(restriction));
+
     assertEquals(
         resume(),
         invoker.invokeProcessElement(
@@ -554,6 +569,7 @@ public class DoFnInvokersTest {
     invoker.invokeSplitRestriction(
         "blah",
         "foo",
+        Backlog.unknown(),
         new DoFn.OutputReceiver<String>() {
           private boolean invoked;
 

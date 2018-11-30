@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -169,7 +170,7 @@ public class ReferenceRunnerTest implements Serializable {
 
     @SplitRestriction
     public void splitRange(
-        String element, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
+        String element, OffsetRange range, Backlog backlog, OutputReceiver<OffsetRange> receiver) {
       long middle = (range.getFrom() + range.getTo()) / 2;
       receiver.output(new OffsetRange(range.getFrom(), middle));
       receiver.output(new OffsetRange(middle, range.getTo()));
