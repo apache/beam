@@ -280,8 +280,8 @@ class _IntervalWindowBase(object):
 
   def __eq__(self, other):
     return (type(self) == type(other)
-            and self._start_micros == other.start.micros
-            and self._end_micros == other.end.micros)
+            and self._start_micros == other._start_micros
+            and self._end_micros == other._end_micros)
 
   def __ne__(self, other):
     return not self == other
