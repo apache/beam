@@ -103,13 +103,13 @@ harder to roll back part of a commit.
 It should later not be necessary to find a merge or first PR commit to find out what caused a change.
 * Squash the "Fixup!", "Address comments" type of commits that resulted from review iterations.
 
+## Merging it!
+
 While it is preferred that authors squash commits after review is complete,
-there may be situations where is more practical for the committer to handle this
+there may be situations where it is more practical for the committer to handle this
 (such as when the action to be taken is obvious or the author isn't available).
 The committer may use the "Squash and merge" option in Github (or modify the PR commits in other ways).
 The committer is ultimately responsible and we "trust the committer's judgment"!
-
-## Merging it!
 
 After all the tests pass, there should be a green merge button at the bottom of
 the pull request. There are multiple choices. Unless you want to squash commits
