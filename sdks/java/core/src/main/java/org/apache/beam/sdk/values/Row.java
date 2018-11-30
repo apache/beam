@@ -543,7 +543,7 @@ public abstract class Row implements Serializable {
         Object value = values.get(i);
         Schema.Field field = schema.getField(i);
         if (value == null) {
-          if (!field.getNullable()) {
+          if (!field.getType().getNullable()) {
             throw new IllegalArgumentException(
                 String.format("Field %s is not nullable", field.getName()));
           }
@@ -557,21 +557,11 @@ public abstract class Row implements Serializable {
 
     private Object verify(Object value, FieldType type, String fieldName) {
       if (TypeName.ARRAY.equals(type.getTypeName())) {
-        List<Object> arrayElements =
-            verifyArray(
-                value,
-                type.getCollectionElementType(),
-                type.getCollectionElementTypeNullable(),
-                fieldName);
+        List<Object> arrayElements = verifyArray(value, type.getCollectionElementType(), fieldName);
         return arrayElements;
       } else if (TypeName.MAP.equals(type.getTypeName())) {
         Map<Object, Object> mapElements =
-            verifyMap(
-                value,
-                type.getMapKeyType().getTypeName(),
-                type.getMapValueType(),
-                type.getMapValueTypeNullable(),
-                fieldName);
+            verifyMap(value, type.getMapKeyType().getTypeName(), type.getMapValueType(), fieldName);
         return mapElements;
       } else if (TypeName.ROW.equals(type.getTypeName())) {
         return verifyRow(value, fieldName);
@@ -581,10 +571,8 @@ public abstract class Row implements Serializable {
     }
 
     private List<Object> verifyArray(
-        Object value,
-        FieldType collectionElementType,
-        boolean collectionElementTypeNullable,
-        String fieldName) {
+        Object value, FieldType collectionElementType, String fieldName) {
+      boolean collectionElementTypeNullable = collectionElementType.getNullable();
       if (!(value instanceof List)) {
         throw new IllegalArgumentException(
             String.format(
@@ -610,11 +598,8 @@ public abstract class Row implements Serializable {
     }
 
     private Map<Object, Object> verifyMap(
-        Object value,
-        TypeName keyTypeName,
-        FieldType valueType,
-        boolean valueTypeNullable,
-        String fieldName) {
+        Object value, TypeName keyTypeName, FieldType valueType, String fieldName) {
+      boolean valueTypeNullable = valueType.getNullable();
       if (!(value instanceof Map)) {
         throw new IllegalArgumentException(
             String.format(
