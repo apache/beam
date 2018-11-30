@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.List;
 import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
@@ -73,6 +74,14 @@ public abstract class ServerFactory {
       BindableService service, Endpoints.ApiServiceDescriptor serviceDescriptor) throws IOException;
 
   /**
+   * Creates an instance of this server at the address specified by the given service descriptor and
+   * binded by multi services. Server applies {@link
+   * GrpcContextHeaderAccessorProvider#interceptor()} to all incoming requests.
+   */
+  public abstract Server create(
+      List<BindableService> services, Endpoints.ApiServiceDescriptor serviceDescriptor)
+      throws IOException;
+  /**
    * Creates a {@link Server gRPC Server} using the default server factory.
    *
    * <p>The server is created listening any open port on "localhost".
@@ -112,6 +121,37 @@ public abstract class ServerFactory {
           ServerFactory.class.getSimpleName(),
           serviceDescriptor.getUrl());
       return createServer(service, (InetSocketAddress) socketAddress);
+    }
+
+    @Override
+    public Server create(
+        List<BindableService> services, Endpoints.ApiServiceDescriptor serviceDescriptor)
+        throws IOException {
+      SocketAddress socketAddress = SocketAddressFactory.createFrom(serviceDescriptor.getUrl());
+      checkArgument(
+          socketAddress instanceof InetSocketAddress,
+          "%s %s requires a host:port socket address, got %s",
+          getClass().getSimpleName(),
+          ServerFactory.class.getSimpleName(),
+          serviceDescriptor.getUrl());
+      return createServer(services, (InetSocketAddress) socketAddress);
+    }
+
+    private static Server createServer(List<BindableService> services, InetSocketAddress socket)
+        throws IOException {
+      NettyServerBuilder builder =
+          NettyServerBuilder.forPort(socket.getPort())
+              // Set the message size to max value here. The actual size is governed by the
+              // buffer size in the layers above.
+              .maxMessageSize(Integer.MAX_VALUE);
+      services
+          .stream()
+          .forEach(
+              service ->
+                  builder.addService(
+                      ServerInterceptors.intercept(
+                          service, GrpcContextHeaderAccessorProvider.interceptor())));
+      return builder.build().start();
     }
 
     private static Server createServer(BindableService service, InetSocketAddress socket)

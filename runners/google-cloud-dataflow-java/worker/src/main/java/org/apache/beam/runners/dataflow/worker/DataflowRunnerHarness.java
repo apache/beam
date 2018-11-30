@@ -28,12 +28,12 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.fn.BeamFnControlService;
-import org.apache.beam.runners.dataflow.worker.fn.ServerFactory;
 import org.apache.beam.runners.dataflow.worker.fn.data.BeamFnDataGrpcService;
 import org.apache.beam.runners.dataflow.worker.fn.logging.BeamFnLoggingService;
 import org.apache.beam.runners.dataflow.worker.fn.stream.ServerStreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.io.FileSystems;
@@ -76,7 +76,7 @@ public class DataflowRunnerHarness {
     // Initialized registered file systems.˜
     FileSystems.setDefaultPipelineOptions(pipelineOptions);
 
-    ServerFactory serverFactory = ServerFactory.fromOptions(pipelineOptions);
+    ServerFactory serverFactory = ServerFactory.createDefault();
     ServerStreamObserverFactory streamObserverFactory =
         ServerStreamObserverFactory.fromOptions(pipelineOptions);
 
@@ -103,11 +103,10 @@ public class DataflowRunnerHarness {
 
       servicesServer =
           serverFactory.create(
-              controlApiService,
-              ImmutableList.of(beamFnControlService, beamFnDataService, beamFnStateService));
+              ImmutableList.of(beamFnControlService, beamFnDataService, beamFnStateService),
+              controlApiService);
 
-      loggingServer =
-          serverFactory.create(loggingApiService, ImmutableList.of(beamFnLoggingService));
+      loggingServer = serverFactory.create(beamFnLoggingService, loggingApiService);
 
       start(
           pipeline,

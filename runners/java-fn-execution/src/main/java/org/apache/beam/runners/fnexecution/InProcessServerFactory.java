@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.BindableService;
@@ -54,5 +55,19 @@ public class InProcessServerFactory extends ServerFactory {
             ServerInterceptors.intercept(service, GrpcContextHeaderAccessorProvider.interceptor()))
         .build()
         .start();
+  }
+
+  @Override
+  public Server create(List<BindableService> services, ApiServiceDescriptor serviceDescriptor)
+      throws IOException {
+    InProcessServerBuilder builder = InProcessServerBuilder.forName(serviceDescriptor.getUrl());
+    services
+        .stream()
+        .forEach(
+            service ->
+                builder.addService(
+                    ServerInterceptors.intercept(
+                        service, GrpcContextHeaderAccessorProvider.interceptor())));
+    return builder.build().start();
   }
 }
