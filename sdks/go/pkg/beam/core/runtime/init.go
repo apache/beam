@@ -43,7 +43,7 @@ func Init() {
 	}
 }
 
-// Expose the initialization status for runners.
+// Initialized exposes the initialization status for runners.
 func Initialized() bool {
 	return initialized
 }
