@@ -110,7 +110,7 @@ public class CalciteUtils {
         } else {
           // This will happen e.g. if looking up a STRING type, and metadata isn't set to say which
           // type of SQL string we want. In this case, use the default mapping.
-          return BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type.withNullable(false));
+          return BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
         }
     }
   }
@@ -127,7 +127,7 @@ public class CalciteUtils {
                     + "so it cannot be converted to a %s",
                 sqlTypeName, Schema.FieldType.class.getSimpleName()));
       default:
-        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName).withNullable(true);
+        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName);
     }
   }
 

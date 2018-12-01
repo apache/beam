@@ -698,7 +698,7 @@ public class Schema implements Serializable {
 
     /** Returns a copy of the Field with isNullable set. */
     public Field withNullable(boolean isNullable) {
-      return toBuilder().setType(getType().withNullable(true)).build();
+      return toBuilder().setType(getType().withNullable(isNullable)).build();
     }
 
     @Override
