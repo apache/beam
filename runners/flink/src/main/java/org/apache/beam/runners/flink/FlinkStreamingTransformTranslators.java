@@ -21,6 +21,7 @@ import static java.lang.String.format;
 import static org.apache.beam.runners.core.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
 
 import com.google.auto.service.AutoService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.io.IOException;
@@ -1274,7 +1275,7 @@ class FlinkStreamingTransformTranslators {
    * Wrapper for {@link UnboundedSourceWrapper}, which simplifies output type, namely, removes
    * {@link ValueWithRecordId}.
    */
-  private static class UnboundedSourceWrapperNoValueWithRecordId<
+  static class UnboundedSourceWrapperNoValueWithRecordId<
           OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       extends RichParallelSourceFunction<WindowedValue<OutputT>>
       implements ProcessingTimeCallback,
@@ -1283,6 +1284,11 @@ class FlinkStreamingTransformTranslators {
           CheckpointedFunction {
 
     private final UnboundedSourceWrapper<OutputT, CheckpointMarkT> unboundedSourceWrapper;
+
+    @VisibleForTesting
+    UnboundedSourceWrapper<OutputT, CheckpointMarkT> getUnderlyingSource() {
+      return unboundedSourceWrapper;
+    }
 
     private UnboundedSourceWrapperNoValueWithRecordId(
         UnboundedSourceWrapper<OutputT, CheckpointMarkT> unboundedSourceWrapper) {
