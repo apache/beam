@@ -591,9 +591,13 @@ public class Schema implements Serializable {
         }
       }
 
-      if (!other.getTypeName().equals(getTypeName())) {
+      if (!getTypeName().equals(other.getTypeName())) {
         return false;
       }
+      if (!getMetadata().equals(other.getMetadata())) {
+        return false;
+      }
+
       switch (getTypeName()) {
         case ROW:
           if (!getRowSchema().equivalent(other.getRowSchema(), nullablePolicy)) {
@@ -613,7 +617,7 @@ public class Schema implements Serializable {
           }
           break;
         default:
-          return other.equals(this);
+          return true;
       }
       return true;
     }
