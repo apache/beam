@@ -269,7 +269,7 @@ public class Schema implements Serializable {
     for (int i = 0; i < otherFields.size(); ++i) {
       Field otherField = otherFields.get(i);
       Field actualField = actualFields.get(i);
-      if (!otherField.equivalent(actualField, nullablePolicy)) {
+      if (!actualField.equivalent(otherField, nullablePolicy)) {
         return false;
       }
     }
@@ -596,20 +596,19 @@ public class Schema implements Serializable {
       }
       switch (getTypeName()) {
         case ROW:
-          if (!other.getRowSchema().equivalent(getRowSchema())) {
+          if (!getRowSchema().equivalent(other.getRowSchema(), nullablePolicy)) {
             return false;
           }
           break;
         case ARRAY:
-          if (!other
-              .getCollectionElementType()
-              .equivalent(getCollectionElementType(), nullablePolicy)) {
+          if (!getCollectionElementType()
+              .equivalent(other.getCollectionElementType(), nullablePolicy)) {
             return false;
           }
           break;
         case MAP:
-          if (!other.getMapKeyType().equivalent(getMapKeyType(), nullablePolicy)
-              || !other.getMapValueType().equivalent(getMapValueType(), nullablePolicy)) {
+          if (!getMapKeyType().equivalent(other.getMapKeyType(), nullablePolicy)
+              || !getMapValueType().equivalent(other.getMapValueType(), nullablePolicy)) {
             return false;
           }
           break;
@@ -715,7 +714,7 @@ public class Schema implements Serializable {
     }
 
     private boolean equivalent(Field otherField, EquivalenceNullablePolicy nullablePolicy) {
-      return otherField.getName().equals(getName())
+      return getName().equals(otherField.getName())
           && getType().equivalent(otherField.getType(), nullablePolicy);
     }
 
