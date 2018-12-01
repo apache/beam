@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import org.apache.tools.ant.taskdefs.condition.Os
+
 // Define common lifecycle tasks and artifact types
 apply plugin: "base"
 
@@ -459,7 +461,10 @@ project.task('createProcessWorker') {
   dependsOn ':beam-sdks-python-container:build'
   dependsOn 'setupVirtualenv'
   def sdkWorkerFile = file("${project.buildDir}/sdk_worker.sh")
-  def workerScript = "${project(":beam-sdks-python-container:").buildDir.absolutePath}/target/launcher/linux_amd64/boot"
+  def osType = 'linux'
+  if (Os.isFamily(Os.FAMILY_MAC))
+    osType = 'darwin'
+  def workerScript = "${project(":beam-sdks-python-container:").buildDir.absolutePath}/target/launcher/${osType}_amd64/boot"
   def sdkWorkerFileCode = "sh -c \". ${envdir}/bin/activate && ${workerScript} \$* \""
   outputs.file sdkWorkerFile
   doLast {
