@@ -594,7 +594,7 @@ public class Schema implements Serializable {
       if (!getTypeName().equals(other.getTypeName())) {
         return false;
       }
-      if (!getMetadata().equals(other.getMetadata())) {
+      if (!Arrays.equals(getMetadata(), other.getMetadata())) {
         return false;
       }
 
