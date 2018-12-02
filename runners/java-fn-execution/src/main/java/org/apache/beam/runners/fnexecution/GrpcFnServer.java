@@ -52,42 +52,41 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   @Deprecated
   public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
       ServiceT service, ApiServiceDescriptor endpoint) {
-    Server fakeServer = new Server() {
-      @Override
-      public Server start() throws IOException{
-        return this;
-      }
+    Server fakeServer =
+        new Server() {
+          @Override
+          public Server start() throws IOException {
+            return this;
+          }
 
-      @Override
-      public Server shutdown() {
-        return this;
-      }
+          @Override
+          public Server shutdown() {
+            return this;
+          }
 
-      @Override
-      public Server shutdownNow() {
-        return this;
-      }
+          @Override
+          public Server shutdownNow() {
+            return this;
+          }
 
-      @Override
-      public boolean isShutdown() {
-        return true;
-      }
+          @Override
+          public boolean isShutdown() {
+            return true;
+          }
 
-      @Override
-      public boolean isTerminated() {
-        return true;
-      }
+          @Override
+          public boolean isTerminated() {
+            return true;
+          }
 
-      @Override
-      public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        return false;
-      }
+          @Override
+          public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+            return false;
+          }
 
-      @Override
-      public void awaitTermination() throws InterruptedException {
-
-      }
-    };
+          @Override
+          public void awaitTermination() throws InterruptedException {}
+        };
     return new GrpcFnServer<>(fakeServer, service, endpoint);
   }
 
