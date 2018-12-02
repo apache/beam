@@ -48,9 +48,47 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
         factory.create(ImmutableList.of(service), endpoint), service, endpoint);
   }
 
+  /** This create function is used for Dataflow migration purpose only. */
+  @Deprecated
   public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
       ServiceT service, ApiServiceDescriptor endpoint) {
-    return new GrpcFnServer<>(null, service, endpoint);
+    Server fakeServer = new Server() {
+      @Override
+      public Server start() throws IOException{
+        return this;
+      }
+
+      @Override
+      public Server shutdown() {
+        return this;
+      }
+
+      @Override
+      public Server shutdownNow() {
+        return this;
+      }
+
+      @Override
+      public boolean isShutdown() {
+        return true;
+      }
+
+      @Override
+      public boolean isTerminated() {
+        return true;
+      }
+
+      @Override
+      public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        return false;
+      }
+
+      @Override
+      public void awaitTermination() throws InterruptedException {
+
+      }
+    };
+    return new GrpcFnServer<>(fakeServer, service, endpoint);
   }
 
   private final Server server;
@@ -83,16 +121,14 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    if (server != null) {
-      try {
-        // The server has been closed, and should not respond to any new incoming calls.
-        server.shutdown();
-        service.close();
-        server.awaitTermination(60, TimeUnit.SECONDS);
-      } finally {
-        server.shutdownNow();
-        server.awaitTermination();
-      }
+    try {
+      // The server has been closed, and should not respond to any new incoming calls.
+      server.shutdown();
+      service.close();
+      server.awaitTermination(60, TimeUnit.SECONDS);
+    } finally {
+      server.shutdownNow();
+      server.awaitTermination();
     }
   }
 }
