@@ -17,14 +17,19 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
+import static org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns.Enum.USER_COUNTER_URN_PREFIX;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -77,10 +82,70 @@ public class FlinkMetricContainer {
     this.metricsAccumulator = (MetricsAccumulator) metricsAccumulator;
   }
 
-  MetricsContainer getMetricsContainer(String stepName) {
+  public MetricsContainer getMetricsContainer(String stepName) {
     return metricsAccumulator != null
         ? metricsAccumulator.getLocalValue().getContainer(stepName)
         : null;
+  }
+
+  /**
+   * Parse a {@link MetricName} from a {@link
+   * org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns.Enum}
+   *
+   * <p>Should be consistent with {@code parse_namespace_and_name} in monitoring_infos.py
+   *
+   * <p>TODO: not flink-specific; where should it live?
+   */
+  public static MetricName parseUrn(String urn) {
+    if (urn.startsWith(USER_COUNTER_URN_PREFIX.toString())) {
+      urn = urn.substring(USER_COUNTER_URN_PREFIX.toString().length());
+    }
+    // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
+    String[] pieces = urn.split(":", 2);
+    if (pieces.length != 2) {
+      throw new IllegalArgumentException("Invalid metric URN: " + urn);
+    }
+    return MetricName.named(pieces[0], pieces[1]);
+  }
+
+  public void updateMetrics(String stepName, List<BeamFnApi.MonitoringInfo> monitoringInfos) {
+    MetricsContainer metricsContainer = getMetricsContainer(stepName);
+    monitoringInfos.forEach(
+        monitoringInfo -> {
+          if (monitoringInfo.hasMetric()) {
+            String urn = monitoringInfo.getUrn();
+            MetricName metricName = parseUrn(urn);
+            BeamFnApi.Metric metric = monitoringInfo.getMetric();
+            if (metric.hasCounterData()) {
+              BeamFnApi.CounterData counterData = metric.getCounterData();
+              org.apache.beam.sdk.metrics.Counter counter = metricsContainer.getCounter(metricName);
+              if (counterData.getValueCase() == BeamFnApi.CounterData.ValueCase.INT64_VALUE) {
+                counter.inc(counterData.getInt64Value());
+              } else {
+                throw new IllegalArgumentException("Unsupported CounterData type: " + counterData);
+              }
+            } else if (metric.hasDistributionData()) {
+              BeamFnApi.DistributionData distributionData = metric.getDistributionData();
+              Distribution distribution = metricsContainer.getDistribution(metricName);
+              if (distributionData.hasIntDistributionData()) {
+                BeamFnApi.IntDistributionData intDistributionData =
+                    distributionData.getIntDistributionData();
+                distribution.update(
+                    intDistributionData.getSum(),
+                    intDistributionData.getCount(),
+                    intDistributionData.getMin(),
+                    intDistributionData.getMax());
+              } else {
+                throw new IllegalArgumentException(
+                    "Unsupported DistributionData type: " + distributionData);
+              }
+            } else if (metric.hasExtremaData()) {
+              BeamFnApi.ExtremaData extremaData = metric.getExtremaData();
+              throw new IllegalArgumentException("Extrema metric unsupported: " + extremaData);
+            }
+          }
+        });
+    updateMetrics(stepName);
   }
 
   void updateMetrics(String stepName) {
