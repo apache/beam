@@ -49,6 +49,7 @@ import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.netty.channel.epoll.Epoll;
 import org.junit.Test;
 
 /** Tests for {@link ServerFactory}. */

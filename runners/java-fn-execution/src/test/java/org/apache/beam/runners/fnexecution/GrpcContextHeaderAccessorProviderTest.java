@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution;
 
+import com.google.common.collect.ImmutableList;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -54,7 +55,8 @@ public class GrpcContextHeaderAccessorProviderTest {
     TestDataService testService = new TestDataService(Mockito.mock(StreamObserver.class), consumer);
     ApiServiceDescriptor serviceDescriptor =
         ApiServiceDescriptor.newBuilder().setUrl("testServer").build();
-    Server server = InProcessServerFactory.create().create(testService, serviceDescriptor);
+    Server server =
+        InProcessServerFactory.create().create(ImmutableList.of(testService), serviceDescriptor);
     final Metadata.Key<String> workerIdKey =
         Metadata.Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
     Channel channel =
