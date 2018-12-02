@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -30,15 +31,28 @@ import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Represents type information for a schema field. */
-public class FieldValueTypeInformation implements Serializable {
-  private final String name;
-  private final Class type;
-  @Nullable private final Type elementType;
-  @Nullable private final Type mapKeyType;
-  @Nullable private final Type mapValueType;
+@AutoValue
+public abstract class FieldValueTypeInformation implements Serializable {
+  /** Returns the field name. */
+  public abstract String getName();
 
-  public FieldValueTypeInformation(Field field) {
-    this(
+  /** Returns the field type. */
+  public abstract Class getType();
+
+  /** If the field is a container type, returns the element type. */
+  @Nullable
+  public abstract Type getElementType();
+
+  /** If the field is a map type, returns the key type. */
+  @Nullable
+  public abstract Type getMapKeyType();
+
+  /** If the field is a map type, returns the key type. */
+  @Nullable
+  public abstract Type getMapValueType();
+
+  public static FieldValueTypeInformation of(Field field) {
+    return new AutoValue_FieldValueTypeInformation(
         field.getName(),
         field.getType(),
         getArrayComponentType(field),
@@ -46,26 +60,13 @@ public class FieldValueTypeInformation implements Serializable {
         getMapValueType(field));
   }
 
-  public FieldValueTypeInformation(TypeInformation typeInformation) {
-    this(
+  public static FieldValueTypeInformation of(TypeInformation typeInformation) {
+    return new AutoValue_FieldValueTypeInformation(
         typeInformation.getName(),
         typeInformation.getType().getRawType(),
         getArrayComponentType(typeInformation),
         getMapKeyType(typeInformation),
         getMapValueType(typeInformation));
-  }
-
-  public FieldValueTypeInformation(
-      String name,
-      Class type,
-      @Nullable Type elementType,
-      @Nullable Type mapKeyType,
-      @Nullable Type mapValueType) {
-    this.name = name;
-    this.type = type;
-    this.elementType = elementType;
-    this.mapKeyType = mapKeyType;
-    this.mapValueType = mapValueType;
   }
 
   private static Type getArrayComponentType(TypeInformation typeInformation) {
@@ -135,33 +136,5 @@ public class FieldValueTypeInformation implements Serializable {
       }
     }
     return null;
-  }
-
-  /** Returns the field name. */
-  public String name() {
-    return name;
-  }
-
-  /** Returns the field type. */
-  public Class type() {
-    return type;
-  }
-
-  /** If the field is a container type, returns the element type. */
-  @Nullable
-  public Type elementType() {
-    return elementType;
-  }
-
-  /** If the field is a map type, returns the key type. */
-  @Nullable
-  public Type mapKeyType() {
-    return mapKeyType;
-  }
-
-  /** If the field is a map type, returns the key type. */
-  @Nullable
-  public Type mapValueType() {
-    return mapValueType;
   }
 }

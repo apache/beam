@@ -83,8 +83,9 @@ public class POJOUtils {
           Map<String, FieldValueTypeInformation> typeInformationMap =
               ReflectUtils.getFields(clazz)
                   .stream()
-                  .map(FieldValueTypeInformation::new)
-                  .collect(Collectors.toMap(FieldValueTypeInformation::name, Function.identity()));
+                  .map(FieldValueTypeInformation::of)
+                  .collect(
+                      Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
           return schema
               .getFields()
               .stream()
@@ -368,7 +369,7 @@ public class POJOUtils {
 
   // Implements a method to construct an object.
   static class ConstructInstruction implements Implementation {
-    private List<Field> fields;
+    private final List<Field> fields;
 
     ConstructInstruction(List<Field> fields) {
       this.fields = fields;

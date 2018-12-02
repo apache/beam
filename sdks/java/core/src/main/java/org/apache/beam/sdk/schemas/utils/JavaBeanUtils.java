@@ -123,9 +123,9 @@ public class JavaBeanUtils {
                     .stream()
                     .filter(ReflectUtils::isGetter)
                     .map(TypeInformation::forGetter)
-                    .map(FieldValueTypeInformation::new)
+                    .map(FieldValueTypeInformation::of)
                     .collect(
-                        Collectors.toMap(FieldValueTypeInformation::name, Function.identity()));
+                        Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
             return schema
                 .getFields()
                 .stream()
