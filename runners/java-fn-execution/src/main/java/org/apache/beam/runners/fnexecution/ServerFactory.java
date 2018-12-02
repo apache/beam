@@ -66,12 +66,12 @@ public abstract class ServerFactory {
     return new InetSocketAddressServerFactory(urlFactory, portSupplier);
   }
 
-  /** Create a {@link EpollSocket} */
+  /** Create a {@link EpollSocket}. */
   public static ServerFactory createEpollSocket() {
     return new EpollSocket();
   }
 
-  /** Create a {@link EpollDomainSocket} */
+  /** Create a {@link EpollDomainSocket}. */
   public static ServerFactory createEpollDomainSocket() {
     return new EpollDomainSocket();
   }
