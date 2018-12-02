@@ -48,7 +48,7 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
         factory.create(ImmutableList.of(service), endpoint), service, endpoint);
   }
 
-  /** This create function is used for Dataflow migration purpose only. */
+  /** @deprecated This create function is used for Dataflow migration purpose only. */
   @Deprecated
   public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
       ServiceT service, ApiServiceDescriptor endpoint) {
