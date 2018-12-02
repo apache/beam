@@ -22,39 +22,26 @@ import (
 	"io"
 	"io/ioutil"
 	"net/url"
-
-	"net/http"
-
 	"path"
 
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/googleapi"
+	"cloud.google.com/go/storage"
 	"google.golang.org/api/option"
-	"google.golang.org/api/storage/v1"
-	ghttp "google.golang.org/api/transport/http"
 )
 
-// NewClient creates a new GCS client with default application credentials.
-func NewClient(ctx context.Context, scope string) (*storage.Service, error) {
-	cl, err := google.DefaultClient(ctx, scope)
-	if err != nil {
-		return nil, err
-	}
-	return storage.New(cl)
+// NewClient creates a new GCS client with default application credentials, and supplied
+// OAuth scope. The OAuth scopes are defined in https://godoc.org/cloud.google.com/go/storage#pkg-constants.
+func NewClient(ctx context.Context, scope string) (*storage.Client, error) {
+	return storage.NewClient(ctx, option.WithScopes(scope))
 }
 
 // NewUnauthenticatedClient creates a new GCS client without authentication.
-func NewUnauthenticatedClient(ctx context.Context) (*storage.Service, error) {
-	cl, _, err := ghttp.NewClient(ctx, option.WithoutAuthentication())
-	if err != nil {
-		return nil, fmt.Errorf("dialing: %v", err)
-	}
-	return storage.New(cl)
+func NewUnauthenticatedClient(ctx context.Context) (*storage.Client, error) {
+	return storage.NewClient(ctx, option.WithoutAuthentication())
 }
 
 // Upload writes the given content to GCS. If the specified bucket does not
 // exist, it is created first. Returns the full path of the object.
-func Upload(client *storage.Service, project, bucket, object string, r io.Reader) (string, error) {
+func Upload(client *storage.Client, project, bucket, object string, r io.Reader) (string, error) {
 	exists, err := BucketExists(client, bucket)
 	if err != nil {
 		return "", err
@@ -69,21 +56,20 @@ func Upload(client *storage.Service, project, bucket, object string, r io.Reader
 		return "", err
 	}
 	return fmt.Sprintf("gs://%s/%s", bucket, object), nil
+
 }
 
 // CreateBucket creates a bucket in GCS.
-func CreateBucket(client *storage.Service, project, bucket string) error {
-	b := &storage.Bucket{
-		Name: bucket,
-	}
-	_, err := client.Buckets.Insert(project, b).Do()
-	return err
+func CreateBucket(client *storage.Client, project, bucket string) error {
+	ctx := context.TODO()
+	return client.Bucket(bucket).Create(ctx, project, nil)
 }
 
 // BucketExists returns true iff the given bucket exists.
-func BucketExists(client *storage.Service, bucket string) (bool, error) {
-	_, err := client.Buckets.Get(bucket).Do()
-	if e, ok := err.(*googleapi.Error); ok && e.Code == http.StatusNotFound {
+func BucketExists(client *storage.Client, bucket string) (bool, error) {
+	ctx := context.TODO()
+	_, err := client.Bucket(bucket).Attrs(ctx)
+	if err == storage.ErrBucketNotExist {
 		return false, nil
 	}
 	return err == nil, err
@@ -91,22 +77,24 @@ func BucketExists(client *storage.Service, bucket string) (bool, error) {
 
 // WriteObject writes the given content to the specified object. If the object
 // already exist, it is overwritten.
-func WriteObject(client *storage.Service, bucket, object string, r io.Reader) error {
-	obj := &storage.Object{
-		Name:   object,
-		Bucket: bucket,
+func WriteObject(client *storage.Client, bucket, object string, r io.Reader) error {
+	ctx := context.TODO()
+	w := client.Bucket(bucket).Object(object).NewWriter(ctx)
+	_, err := io.Copy(w, r)
+	if err != nil {
+		return err
 	}
-	_, err := client.Objects.Insert(bucket, obj).Media(r).Do()
-	return err
+	return w.Close()
 }
 
 // ReadObject reads the content of the given object in full.
-func ReadObject(client *storage.Service, bucket, object string) ([]byte, error) {
-	resp, err := client.Objects.Get(bucket, object).Download()
+func ReadObject(client *storage.Client, bucket, object string) ([]byte, error) {
+	ctx := context.TODO()
+	r, err := client.Bucket(bucket).Object(object).NewReader(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(resp.Body)
+	return ioutil.ReadAll(r)
 }
 
 // MakeObject creates a object location from bucket and path. For example,

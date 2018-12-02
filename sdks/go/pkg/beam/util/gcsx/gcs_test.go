@@ -13,44 +13,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dataflowlib
+package gcsx_test
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"io"
-	"os"
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 )
 
-// StageModel uploads the pipeline model to GCS as a unique object.
-func StageModel(ctx context.Context, project, modelURL string, model []byte) error {
-	return upload(ctx, project, modelURL, bytes.NewReader(model))
-}
-
-// StageFile uploads a file to GCS.
-func StageFile(ctx context.Context, project, url, filename string) error {
-	fd, err := os.Open(filename)
+func Example() {
+	ctx := context.Background()
+	c, err := gcsx.NewClient(ctx, storage.ScopeReadOnly)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %v", filename, err)
+		// do something
 	}
-	defer fd.Close()
 
-	return upload(ctx, project, url, fd)
-}
+	buckets, object, err := gcsx.ParseObject("gs://some-bucket/some-object")
+	if err != nil {
+		// do something
+	}
 
-func upload(ctx context.Context, project, object string, r io.Reader) error {
-	bucket, obj, err := gcsx.ParseObject(object)
+	bytes, err := gcsx.ReadObject(c, buckets, object)
 	if err != nil {
-		return fmt.Errorf("invalid staging location %v: %v", object, err)
+		// do something
 	}
-	client, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
-	if err != nil {
-		return err
-	}
-	_, err = gcsx.Upload(client, project, bucket, obj, r)
-	return err
+
+	_ = bytes
 }
