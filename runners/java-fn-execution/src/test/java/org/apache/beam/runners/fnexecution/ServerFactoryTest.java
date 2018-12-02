@@ -24,11 +24,15 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assume.assumeTrue;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.Uninterruptibles;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -79,7 +83,8 @@ public class ServerFactoryTest {
         TestStreams.withOnNext((Elements unused) -> {}).withOnCompleted(() -> {}).build();
     TestDataService service = new TestDataService(observer);
     ApiServiceDescriptor.Builder descriptorBuilder = ApiServiceDescriptor.newBuilder();
-    Server server = serverFactory.allocatePortAndCreate(service, descriptorBuilder);
+    Server server =
+        serverFactory.allocatePortAndCreate(ImmutableList.of(service), descriptorBuilder);
     // Immediately terminate server. We don't actually use it here.
     server.shutdown();
     assertThat(descriptorBuilder.getUrl(), is("foo"));
@@ -111,13 +116,39 @@ public class ServerFactoryTest {
     ApiServiceDescriptor.Builder descriptorBuilder = ApiServiceDescriptor.newBuilder();
     Server server = null;
     try {
-      server = serverFactory.allocatePortAndCreate(service, descriptorBuilder);
+      server = serverFactory.allocatePortAndCreate(ImmutableList.of(service), descriptorBuilder);
       assertThat(descriptorBuilder.getUrl(), is("foo:65535"));
     } finally {
       if (server != null) {
         server.shutdown();
       }
     }
+  }
+
+  @Test
+  public void testCreatingEpollServer() throws Exception {
+    assumeTrue(Epoll.isAvailable());
+    // tcnative only supports the ipv4 address family
+    assumeTrue(InetAddress.getLoopbackAddress() instanceof Inet4Address);
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        runTestUsing(ServerFactory.createEpollSocket(), ManagedChannelFactory.createEpoll());
+    HostAndPort hostAndPort = HostAndPort.fromString(apiServiceDescriptor.getUrl());
+    assertThat(
+        hostAndPort.getHost(),
+        anyOf(
+            equalTo(InetAddress.getLoopbackAddress().getHostName()),
+            equalTo(InetAddress.getLoopbackAddress().getHostAddress())));
+    assertThat(hostAndPort.getPort(), allOf(greaterThan(0), lessThan(65536)));
+  }
+
+  @Test
+  public void testCreatingUnixDomainSocketServer() throws Exception {
+    assumeTrue(Epoll.isAvailable());
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        runTestUsing(ServerFactory.createEpollDomainSocket(), ManagedChannelFactory.createEpoll());
+    assertThat(
+        apiServiceDescriptor.getUrl(),
+        startsWith("unix://" + System.getProperty("java.io.tmpdir")));
   }
 
   private Endpoints.ApiServiceDescriptor runTestUsing(
@@ -132,7 +163,8 @@ public class ServerFactoryTest {
             .withOnCompleted(clientHangedUp::countDown)
             .build();
     TestDataService service = new TestDataService(serverInboundObserver);
-    Server server = serverFactory.allocatePortAndCreate(service, apiServiceDescriptorBuilder);
+    Server server =
+        serverFactory.allocatePortAndCreate(ImmutableList.of(service), apiServiceDescriptorBuilder);
     assertFalse(server.isShutdown());
 
     ManagedChannel channel = channelFactory.forDescriptor(apiServiceDescriptorBuilder.build());

@@ -106,7 +106,8 @@ public class DataflowRunnerHarness {
               ImmutableList.of(beamFnControlService, beamFnDataService, beamFnStateService),
               controlApiService);
 
-      loggingServer = serverFactory.create(beamFnLoggingService, loggingApiService);
+      loggingServer =
+          serverFactory.create(ImmutableList.of(beamFnLoggingService), loggingApiService);
 
       start(
           pipeline,
