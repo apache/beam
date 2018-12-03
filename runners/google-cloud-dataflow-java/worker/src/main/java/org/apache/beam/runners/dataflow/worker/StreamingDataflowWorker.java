@@ -1143,9 +1143,9 @@ public class StreamingDataflowWorker {
         DataflowMapTaskExecutor mapTaskExecutor =
             mapTaskExecutorFactory.create(
                 worker.getControlClientHandler(),
-                worker.getDataService(),
+                worker.getGrpcDataFnServer(),
                 sdkHarnessRegistry.beamFnDataApiServiceDescriptor(),
-                worker.getStateService(),
+                worker.getGrpcStateFnServer(),
                 mapTaskNetwork,
                 options,
                 mapTask.getStageName(),
