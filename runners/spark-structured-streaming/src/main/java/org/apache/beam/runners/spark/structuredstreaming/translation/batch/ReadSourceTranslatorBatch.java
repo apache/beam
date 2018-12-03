@@ -17,16 +17,46 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import java.io.IOException;
+import org.apache.beam.runners.core.construction.ReadTranslation;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.io.DatasetSource;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
 
 class ReadSourceTranslatorBatch<T>
     implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
 
+  @SuppressWarnings("unchecked")
   @Override
   public void translateTransform(
-      PTransform<PBegin, PCollection<T>> transform, TranslationContext context) {}
+      PTransform<PBegin, PCollection<T>> transform, TranslationContext context) {
+    AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> rootTransform =
+        (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>)
+            context.getCurrentTransform();
+    BoundedSource<T> source;
+    try {
+      source = ReadTranslation.boundedSourceFromTransform(rootTransform);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    PCollection<T> output = (PCollection<T>) context.getOutput();
+
+    SparkSession sparkSession = context.getSparkSession();
+    DatasetSource datasetSource = new DatasetSource(context, source);
+    Dataset<Row> dataset = sparkSession.readStream().format("DatasetSource").load();
+
+    context.putDataset(output, dataset);
+  }
+
+
 }

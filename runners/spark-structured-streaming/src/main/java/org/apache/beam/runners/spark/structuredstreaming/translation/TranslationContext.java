@@ -33,11 +33,18 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.ForeachWriter;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.execution.datasources.DataSource;
+import org.apache.spark.sql.execution.streaming.Source;
+import org.apache.spark.sql.sources.v2.DataSourceOptions;
+import org.apache.spark.sql.sources.v2.ReadSupport;
+import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 
 /**
@@ -73,11 +80,23 @@ public class TranslationContext {
     this.leaves = new HashSet<>();
   }
 
+  public SparkSession getSparkSession() {
+    return sparkSession;
+  }
+
+  public SparkPipelineOptions getOptions() {
+    return options;
+  }
+
   // --------------------------------------------------------------------------------------------
   //  Transforms methods
   // --------------------------------------------------------------------------------------------
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
     this.currentTransform = currentTransform;
+  }
+
+  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
+    return currentTransform;
   }
 
   // --------------------------------------------------------------------------------------------
