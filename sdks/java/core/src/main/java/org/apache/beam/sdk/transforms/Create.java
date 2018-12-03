@@ -777,14 +777,13 @@ public class Create<T> {
       return TimestampedValueCoder.of(
           inferCoderFromObject(coderRegistry, schemaRegistry, ((TimestampedValue) o).getValue()));
     } else if (o instanceof List) {
-      return ListCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return ListCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Set) {
-      return SetCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return SetCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Collection) {
-      return CollectionCoder.of(
-          inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return CollectionCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Iterable) {
-      return IterableCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
+      return IterableCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Map) {
       return MapCoder.of(
           inferCoderFromObjects(coderRegistry, schemaRegistry, ((Map) o).keySet()),

@@ -132,7 +132,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       ThrowingFunction<Environment, RemoteEnvironment> environmentCreator) {
     return CacheBuilder.newBuilder()
         .removalListener(
-            ((RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
+            (RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
               LOG.debug("Cleaning up for environment {}", notification.getKey().getUrn());
               try {
                 notification.getValue().close();
@@ -140,7 +140,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                 LOG.warn(
                     String.format("Error cleaning up environment %s", notification.getKey()), e);
               }
-            }))
+            })
         .build(
             new CacheLoader<Environment, WrappedSdkHarnessClient>() {
               @Override

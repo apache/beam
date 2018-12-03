@@ -137,7 +137,7 @@ public class RowWithGetters extends Row {
       RowWithGetters other = (RowWithGetters) o;
       return Objects.equals(getSchema(), other.getSchema())
           && Objects.equals(getterTarget, other.getterTarget);
-    } else if ((o instanceof Row)) {
+    } else if (o instanceof Row) {
       return super.equals(o);
     }
     return false;
