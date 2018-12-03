@@ -166,7 +166,8 @@ task preCommit() {
 task portablePreCommit() {
   dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
   dependsOn ':beam-sdks-python-container:docker'
-  dependsOn 'portableWordCount'
+  dependsOn portableWordCountTask('portableWordCountBatch', false, envdir)
+  dependsOn portableWordCountTask('portableWordCountStreaming', true, envdir)
 }
 
 /*************************************************************************************************/
@@ -268,32 +269,37 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 //
 //    ./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099
 //
-task portableWordCount(dependsOn: 'installGcpTest') {
-  doLast {
-    // TODO: Figure out GCS credentials and use real GCS input and output.
-    def options = [
-            "--input=/etc/profile",
-            "--output=/tmp/py-wordcount-direct",
-            "--runner=PortableRunner",
-            "--experiments=worker_threads=100",
-    ]
-    if (project.hasProperty("streaming"))
-      options += ["--streaming"]
-    else
+task portableWordCount {
+  dependsOn portableWordCountTask('portableWordCountExample', project.hasProperty("streaming"), envdir)
+}
+
+def portableWordCountTask(name, streaming, envdir) {
+  tasks.create(name) {
+    dependsOn = ['installGcpTest']
+    mustRunAfter = [':beam-runners-flink_2.11-job-server-container:docker', ':beam-sdks-python-container:docker']
+    doLast {
+      // TODO: Figure out GCS credentials and use real GCS input and output.
+      def options = [
+              "--input=/etc/profile",
+              "--output=/tmp/py-wordcount-direct",
+              "--runner=PortableRunner",
+              "--experiments=worker_threads=100",
+      ]
+      if (streaming)
+        options += ["--streaming"]
+      else
       // workaround for local file output in docker container
-      options += ["--environment_cache_millis=10000"]
-    if (project.hasProperty("jobEndpoint"))
-      options += ["--job_endpoint=${project.property('jobEndpoint')}"]
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
-      // TODO: Check that the output file is generated and runs.
+        options += ["--environment_cache_millis=10000"]
+      if (project.hasProperty("jobEndpoint"))
+        options += ["--job_endpoint=${project.property('jobEndpoint')}"]
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
+        // TODO: Check that the output file is generated and runs.
+      }
     }
   }
 }
-// Make sure that the job server is built before the portableWordCount is executed.
-portableWordCount.mustRunAfter ':beam-runners-flink_2.11-job-server-container:docker'
-portableWordCount.mustRunAfter ':beam-sdks-python-container:docker'
 
 // Run single or a set of integration tests with provided test options and pipeline options.
 task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
