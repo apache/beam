@@ -25,5 +25,5 @@ public final class Restrictions {
    * authors mark their restriction type with this interface if the restriction produces a bounded
    * amount of output.
    */
-  interface IsBounded {}
+  public interface IsBounded {}
 }
