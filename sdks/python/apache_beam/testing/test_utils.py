@@ -75,14 +75,11 @@ class TempDir(object):
 
 
 def compute_hash(content, hashing_alg=DEFAULT_HASHING_ALG):
-  """Compute a hash value of a list of objects by hashing their string
-  representations."""
-  content = [str(x).encode('utf-8') if not isinstance(x, bytes) else x
-             for x in content]
+  """Compute a hash value from a list of string."""
   content.sort()
   m = hashlib.new(hashing_alg)
   for elem in content:
-    m.update(elem)
+    m.update(str(elem).encode('utf-8'))
   return m.hexdigest()
 
 

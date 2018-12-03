@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20181116'
+    'dataflow.container_version' : 'beam-master-20181128'
   ]
 }
 
@@ -63,7 +63,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-vendor-grpc-v1_13_1", configuration: "shadow")
+  shadow library.java.vendored_grpc_1_13_1
   shadow library.java.google_api_client
   shadow library.java.google_http_client
   shadow library.java.google_http_client_jackson2

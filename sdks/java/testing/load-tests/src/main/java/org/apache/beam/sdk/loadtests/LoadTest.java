@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.loadtests;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
@@ -25,7 +27,8 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.MetricsPublisher;
+import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,40 +41,72 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   private String metricsNamespace;
 
-  OptionsT options;
+  protected TimeMonitor<byte[], byte[]> runtimeMonitor;
 
-  SyntheticBoundedIO.SyntheticSourceOptions sourceOptions;
+  protected OptionsT options;
 
-  SyntheticStep.Options stepOptions;
+  protected SyntheticBoundedIO.SyntheticSourceOptions sourceOptions;
 
-  Pipeline pipeline;
+  protected SyntheticStep.Options stepOptions;
+
+  protected Pipeline pipeline;
 
   LoadTest(String[] args, Class<OptionsT> testOptions, String metricsNamespace) throws IOException {
     this.metricsNamespace = metricsNamespace;
-
+    this.runtimeMonitor = new TimeMonitor<>(metricsNamespace, "runtime");
     this.options = LoadTestOptions.readFromArgs(args, testOptions);
-
     this.sourceOptions =
         fromJsonString(options.getSourceOptions(), SyntheticBoundedIO.SyntheticSourceOptions.class);
-
     this.stepOptions = fromJsonString(options.getStepOptions(), SyntheticStep.Options.class);
-
     this.pipeline = Pipeline.create(options);
   }
 
   /** The load test pipeline implementation. */
   abstract void loadTest() throws IOException;
 
-  /** Runs the load test. */
+  /**
+   * Runs the load test, collects and publishes test results to various data store and/or console.
+   */
   public PipelineResult run() throws IOException {
+    long testStartTime = System.currentTimeMillis();
+
     loadTest();
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
 
-    MetricsPublisher.toConsole(result, metricsNamespace);
+    LoadTestResult testResult = LoadTestResult.create(result, metricsNamespace, testStartTime);
 
+    ConsoleResultPublisher.publish(testResult);
+
+    if (options.getPublishToBigQuery()) {
+      publishResultToBigQuery(testResult);
+    }
     return result;
+  }
+
+  private void publishResultToBigQuery(LoadTestResult testResult) {
+    String dataset = options.getBigQueryDataset();
+    String table = options.getBigQueryTable();
+    checkBigQueryOptions(dataset, table);
+
+    ImmutableMap<String, String> schema =
+        ImmutableMap.<String, String>builder()
+            .put("timestamp", "timestamp")
+            .put("runtime", "float")
+            .put("total_bytes_count", "integer")
+            .build();
+
+    BigQueryResultsPublisher.create(dataset, schema).publish(testResult, table);
+  }
+
+  private static void checkBigQueryOptions(String dataset, String table) {
+    Preconditions.checkArgument(
+        dataset != null,
+        "Please specify --bigQueryDataset option if you want to publish to BigQuery");
+
+    Preconditions.checkArgument(
+        table != null, "Please specify --bigQueryTable option if you want to publish to BigQuery");
   }
 
   <T extends SyntheticOptions> T fromJsonString(String json, Class<T> type) throws IOException {

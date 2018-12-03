@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
@@ -93,6 +94,20 @@ public class FlinkJobServerDriver implements Runnable {
 
     Long getSdkWorkerParallelism() {
       return this.sdkWorkerParallelism;
+    }
+
+    @Option(
+      name = "--flink-conf-dir",
+      usage =
+          "Directory containing Flink YAML configuration files. "
+              + "These properties will be set to all jobs submitted to Flink and take precedence "
+              + "over configurations in FLINK_CONF_DIR."
+    )
+    String flinkConfDir = null;
+
+    @Nullable
+    String getFlinkConfDir() {
+      return flinkConfDir;
     }
   }
 

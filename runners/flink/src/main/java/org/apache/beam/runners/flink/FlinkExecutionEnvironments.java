@@ -19,19 +19,31 @@ package org.apache.beam.runners.flink;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
+import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.JobWithJars;
+import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.program.StandaloneClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
+import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,18 +61,18 @@ public class FlinkExecutionEnvironments {
     return createBatchExecutionEnvironment(options, filesToStage, null);
   }
 
-  @VisibleForTesting
   static ExecutionEnvironment createBatchExecutionEnvironment(
       FlinkPipelineOptions options, List<String> filesToStage, @Nullable String confDir) {
 
     LOG.info("Creating a Batch Execution Environment.");
 
     String masterUrl = options.getFlinkMaster();
+    Configuration flinkConfiguration = getFlinkConfiguration(confDir);
     ExecutionEnvironment flinkBatchEnv;
 
     // depending on the master, create the right environment.
     if ("[local]".equals(masterUrl)) {
-      flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment();
+      flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
     } else if ("[collection]".equals(masterUrl)) {
       flinkBatchEnv = new CollectionEnvironment();
     } else if ("[auto]".equals(masterUrl)) {
@@ -71,6 +83,7 @@ public class FlinkExecutionEnvironments {
           ExecutionEnvironment.createRemoteEnvironment(
               parts.get(0),
               Integer.parseInt(parts.get(1)),
+              flinkConfiguration,
               filesToStage.toArray(new String[filesToStage.size()]));
     } else {
       LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
@@ -90,7 +103,8 @@ public class FlinkExecutionEnvironments {
       parallelism = 1;
     } else {
       parallelism =
-          determineParallelism(options.getParallelism(), flinkBatchEnv.getParallelism(), confDir);
+          determineParallelism(
+              options.getParallelism(), flinkBatchEnv.getParallelism(), flinkConfiguration);
     }
 
     flinkBatchEnv.setParallelism(parallelism);
@@ -120,12 +134,13 @@ public class FlinkExecutionEnvironments {
 
   @VisibleForTesting
   static StreamExecutionEnvironment createStreamExecutionEnvironment(
-      FlinkPipelineOptions options, List<String> filesToStage, @Nullable String flinkConfigDir) {
+      FlinkPipelineOptions options, List<String> filesToStage, @Nullable String confDir) {
 
     LOG.info("Creating a Streaming Environment.");
 
     String masterUrl = options.getFlinkMaster();
-    StreamExecutionEnvironment flinkStreamEnv = null;
+    Configuration flinkConfig = getFlinkConfiguration(confDir);
+    final StreamExecutionEnvironment flinkStreamEnv;
 
     // depending on the master, create the right environment.
     if ("[local]".equals(masterUrl)) {
@@ -134,13 +149,23 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
     } else if (masterUrl.matches(".*:\\d*")) {
       List<String> parts = Splitter.on(':').splitToList(masterUrl);
-      Configuration clientConfig = new Configuration();
-      clientConfig.setInteger(RestOptions.PORT, Integer.parseInt(parts.get(1)));
+      flinkConfig.setInteger(RestOptions.PORT, Integer.parseInt(parts.get(1)));
+
+      final SavepointRestoreSettings savepointRestoreSettings;
+      if (options.getSavepointPath() != null) {
+        savepointRestoreSettings =
+            SavepointRestoreSettings.forPath(
+                options.getSavepointPath(), options.getAllowNonRestoredState());
+      } else {
+        savepointRestoreSettings = SavepointRestoreSettings.none();
+      }
+
       flinkStreamEnv =
-          StreamExecutionEnvironment.createRemoteEnvironment(
+          new BeamFlinkRemoteStreamEnvironment(
               parts.get(0),
               Integer.parseInt(parts.get(1)),
-              clientConfig,
+              flinkConfig,
+              savepointRestoreSettings,
               filesToStage.toArray(new String[filesToStage.size()]));
     } else {
       LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
@@ -150,7 +175,7 @@ public class FlinkExecutionEnvironments {
     // Set the parallelism, required by UnboundedSourceWrapper to generate consistent splits.
     final int parallelism =
         determineParallelism(
-            options.getParallelism(), flinkStreamEnv.getParallelism(), flinkConfigDir);
+            options.getParallelism(), flinkStreamEnv.getParallelism(), flinkConfig);
     flinkStreamEnv.setParallelism(parallelism);
     // set parallelism in the options (required by some execution code)
     options.setParallelism(parallelism);
@@ -230,7 +255,7 @@ public class FlinkExecutionEnvironments {
   private static int determineParallelism(
       final int pipelineOptionsParallelism,
       final int envParallelism,
-      @Nullable String flinkConfDir) {
+      final Configuration configuration) {
     if (pipelineOptionsParallelism > 0) {
       return pipelineOptionsParallelism;
     }
@@ -239,12 +264,6 @@ public class FlinkExecutionEnvironments {
       return envParallelism;
     }
 
-    final Configuration configuration;
-    if (flinkConfDir == null) {
-      configuration = GlobalConfiguration.loadConfiguration();
-    } else {
-      configuration = GlobalConfiguration.loadConfiguration(flinkConfDir);
-    }
     final int flinkConfigParallelism =
         configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM.key(), -1);
     if (flinkConfigParallelism > 0) {
@@ -256,9 +275,93 @@ public class FlinkExecutionEnvironments {
     return 1;
   }
 
+  private static Configuration getFlinkConfiguration(@Nullable String flinkConfDir) {
+    return flinkConfDir == null
+        ? GlobalConfiguration.loadConfiguration()
+        : GlobalConfiguration.loadConfiguration(flinkConfDir);
+  }
+
   private static void applyLatencyTrackingInterval(
       ExecutionConfig config, FlinkPipelineOptions options) {
     long latencyTrackingInterval = options.getLatencyTrackingInterval();
     config.setLatencyTrackingInterval(latencyTrackingInterval);
+  }
+
+  /**
+   * Remote stream environment that supports job execution with restore from savepoint.
+   *
+   * <p>This class can be removed once Flink provides this functionality.
+   *
+   * <p>TODO: https://issues.apache.org/jira/browse/BEAM-5396
+   */
+  private static class BeamFlinkRemoteStreamEnvironment extends RemoteStreamEnvironment {
+    private final SavepointRestoreSettings restoreSettings;
+
+    public BeamFlinkRemoteStreamEnvironment(
+        String host,
+        int port,
+        Configuration clientConfiguration,
+        SavepointRestoreSettings restoreSettings,
+        String... jarFiles) {
+      super(host, port, clientConfiguration, jarFiles, null);
+      this.restoreSettings = restoreSettings;
+    }
+
+    // copied from RemoteStreamEnvironment and augmented to pass savepoint restore settings
+    @Override
+    protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles)
+        throws ProgramInvocationException {
+
+      List<URL> globalClasspaths = Collections.emptyList();
+      String host = super.getHost();
+      int port = super.getPort();
+
+      if (LOG.isInfoEnabled()) {
+        LOG.info("Running remotely at {}:{}", host, port);
+      }
+
+      ClassLoader usercodeClassLoader =
+          JobWithJars.buildUserCodeClassLoader(
+              jarFiles, globalClasspaths, getClass().getClassLoader());
+
+      Configuration configuration = new Configuration();
+      configuration.addAll(super.getClientConfiguration());
+
+      configuration.setString(JobManagerOptions.ADDRESS, host);
+      configuration.setInteger(JobManagerOptions.PORT, port);
+
+      configuration.setInteger(RestOptions.PORT, port);
+
+      final ClusterClient<?> client;
+      try {
+        if (CoreOptions.LEGACY_MODE.equals(configuration.getString(CoreOptions.MODE))) {
+          client = new StandaloneClusterClient(configuration);
+        } else {
+          client = new RestClusterClient<>(configuration, "RemoteStreamEnvironment");
+        }
+      } catch (Exception e) {
+        throw new ProgramInvocationException(
+            "Cannot establish connection to JobManager: " + e.getMessage(), e);
+      }
+
+      client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
+
+      try {
+        return client
+            .run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader, restoreSettings)
+            .getJobExecutionResult();
+      } catch (ProgramInvocationException e) {
+        throw e;
+      } catch (Exception e) {
+        String term = e.getMessage() == null ? "." : (": " + e.getMessage());
+        throw new ProgramInvocationException("The program execution failed" + term, e);
+      } finally {
+        try {
+          client.shutdown();
+        } catch (Exception e) {
+          LOG.warn("Could not properly shut down the cluster client.", e);
+        }
+      }
+    }
   }
 }

@@ -64,6 +64,7 @@ import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -1062,6 +1063,55 @@ public class KafkaIOTest {
       completionThread.shutdown();
 
       verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, true, false);
+    }
+  }
+
+  @Test
+  public void testRecordsSink() throws Exception {
+    // Simply read from kafka source and write to kafka sink using ProducerRecord transform. Then
+    // verify the records are correctly published to mock kafka producer.
+
+    int numElements = 1000;
+
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      String topic = "test";
+
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(ParDo.of(new KV2ProducerRecord(topic)))
+          .setCoder(ProducerRecordCoder.of(VarIntCoder.of(), VarLongCoder.of()))
+          .apply(
+              KafkaIO.<Integer, Long>writeRecords()
+                  .withBootstrapServers("none")
+                  .withTopic(topic)
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withInputTimestamp()
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false, true);
+    }
+  }
+
+  private static class KV2ProducerRecord
+      extends DoFn<KV<Integer, Long>, ProducerRecord<Integer, Long>> {
+    final String topic;
+
+    KV2ProducerRecord(String topic) {
+      this.topic = topic;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      KV<Integer, Long> kv = ctx.element();
+      ctx.output(new ProducerRecord<>(topic, kv.getKey(), kv.getValue()));
     }
   }
 

@@ -128,7 +128,7 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
           requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
       try {
         CompletionStage<StateResponse.Builder> result = handler.handle(request);
-        result.whenCompleteAsync(
+        result.whenComplete(
             (StateResponse.Builder responseBuilder, Throwable t) ->
                 // note that this is threadsafe if and only if outboundObserver is threadsafe.
                 outboundObserver.onNext(

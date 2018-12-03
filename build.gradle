@@ -201,7 +201,6 @@ task javaPreCommitPortabilityApi() {
 }
 
 task javaPostCommit() {
-  dependsOn ":javaPreCommit"
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
   dependsOn ":beam-sdks-java-io-google-cloud-platform:postCommit"
   dependsOn ":beam-sdks-java-extensions-sql:postCommit"
@@ -225,7 +224,6 @@ task goPreCommit() {
 }
 
 task goPostCommit() {
-  dependsOn ":goPreCommit"
   dependsOn ":goIntegrationTests"
 }
 
@@ -246,6 +244,10 @@ task pythonPreCommit() {
 
 task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
+}
+
+task portablePythonPreCommit() {
+  dependsOn ":beam-sdks-python:portablePreCommit"
 }
 
 task websitePreCommit() {

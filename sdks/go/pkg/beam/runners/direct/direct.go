@@ -36,6 +36,12 @@ func init() {
 
 // Execute runs the pipeline in-process.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
+	log.Info(ctx, "Executing pipeline with the direct runner.")
+
+	if !beam.Initialized() {
+		log.Warn(ctx, "Beam has not been initialized. Call beam.Init() before pipeline construction.")
+	}
+
 	log.Info(ctx, "Pipeline:")
 	log.Info(ctx, p)
 

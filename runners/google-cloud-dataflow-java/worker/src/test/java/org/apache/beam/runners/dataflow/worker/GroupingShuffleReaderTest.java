@@ -442,7 +442,7 @@ public class GroupingShuffleReaderTest {
   private void expectShuffleReadCounterEquals(
       TestShuffleReadCounterFactory factory, Map<String, Long> expectedReadBytesForOriginal) {
     ShuffleReadCounter src = factory.getOnlyShuffleReadCounterOrNull();
-    assertTrue(src != null);
+    assertNotNull(src);
     // If the experiment is enabled then the legacyPerOperationPerDatasetBytesCounter
     // should not be set.
     if (src.legacyPerOperationPerDatasetBytesCounter != null) {

@@ -17,20 +17,30 @@
  */
 package org.apache.beam.sdk.loadtests.metrics;
 
-import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.KV;
 
-/** Provides ways to publish metrics gathered during test invocation. */
-public class MetricsPublisher {
+/**
+ * Monitor that records the number of bytes flowing through a PCollection.
+ *
+ * <p>To use: apply a monitor in a desired place in the pipeline. This will capture how many bytes
+ * flew through this DoFn. Such information can be then collected and written out and queried using
+ * {@link MetricsReader}.
+ */
+public class ByteMonitor extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
 
-  public static void toConsole(PipelineResult result, String namespace) {
-    MetricsReader resultMetrics = new MetricsReader(result, namespace);
+  private Counter totalBytes;
 
-    long totalBytes = resultMetrics.getCounterMetric("totalBytes.count", -1);
-    long startTime = resultMetrics.getStartTimeMetric(System.currentTimeMillis(), "runtime");
-    long endTime = resultMetrics.getEndTimeMetric(System.currentTimeMillis(), "runtime");
+  public ByteMonitor(String namespace, String name) {
+    this.totalBytes = Metrics.counter(namespace, name);
+  }
 
-    System.out.println(String.format("Total bytes: %s", totalBytes));
-    System.out.println(String.format("Total time (millis): %s", endTime - startTime));
+  @ProcessElement
+  public void processElement(ProcessContext c) {
+    totalBytes.inc(c.element().getKey().length + c.element().getValue().length);
+    c.output(c.element());
   }
 }

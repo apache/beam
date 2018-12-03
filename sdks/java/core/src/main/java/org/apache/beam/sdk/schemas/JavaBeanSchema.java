@@ -21,6 +21,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.utils.JavaBeanGetterFactory;
 import org.apache.beam.sdk.schemas.utils.JavaBeanSetterFactory;
+import org.apache.beam.sdk.schemas.utils.JavaBeanTypeInformationFactory;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -52,5 +53,10 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   @Override
   public FieldValueSetterFactory fieldValueSetterFactory() {
     return new JavaBeanSetterFactory();
+  }
+
+  @Override
+  public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
+    return new JavaBeanTypeInformationFactory();
   }
 }

@@ -69,6 +69,7 @@ type Top struct {
 	Imports   []string // the full import paths
 	Functions []string // the plain names of the functions to be registered.
 	Types     []string // the plain names of the types to be registered.
+	Wraps     []Wrap
 	Emitters  []Emitter
 	Inputs    []Input
 	Shims     []Func
@@ -155,6 +156,13 @@ type Func struct {
 	In, Out    []string
 }
 
+// Wrap represents a type assertion shim for Structural DoFn method
+// invocation to be generated.
+type Wrap struct {
+	Name, Type string
+	Methods    []Func
+}
+
 // Name creates a capitalized identifier from a type string. The identifier
 // follows the rules of go identifiers and should be compileable.
 // See https://golang.org/ref/spec#Identifiers for details.
@@ -217,6 +225,9 @@ func init() {
 {{- range $x := .Types}}
 	runtime.RegisterType(reflect.TypeOf((*{{$x}})(nil)).Elem())
 {{- end}}
+{{- range $x := .Wraps}}
+	reflectx.RegisterStructWrapper(reflect.TypeOf((*{{$x.Type}})(nil)).Elem(), wrapMaker{{$x.Name}})
+{{- end}}
 {{- range $x  := .Shims}}
 	reflectx.RegisterFunc(reflect.TypeOf((*{{$x.Type}})(nil)).Elem(), funcMaker{{$x.Name}})
 {{- end}}
@@ -228,7 +239,18 @@ func init() {
 {{- end}}
 }
 
-{{range $x  := .Shims -}}
+{{range $x := .Wraps -}}
+func wrapMaker{{$x.Name}}(fn interface{}) map[string]reflectx.Func {
+	dfn := fn.(*{{$x.Type}})
+	return map[string]reflectx.Func{
+	{{- range $y := .Methods}}
+		"{{$y.Name}}": reflectx.MakeFunc(func({{mkparams "a%d %v" $y.In}}) {{if $y.Out}}({{mkrets "%v" $y.Out}}) { return {{else -}} { {{end -}} dfn.{{$y.Name}}({{mktuplef (len $y.In) "a%d" }}) }),
+	{{- end}}
+	}
+}
+
+{{end}}
+{{- range $x  := .Shims -}}
 type caller{{$x.Name}} struct {
 	fn {{$x.Type}}
 }
@@ -256,7 +278,7 @@ func (c *caller{{$x.Name}}) Call{{len $x.In}}x{{len $x.Out}}({{mkargs (len $x.In
 }
 
 {{end}}
-{{if .Emitters -}}
+{{- if .Emitters -}}
 type emitNative struct {
 	n     exec.ElementProcessor
 	fn    interface{}
@@ -277,8 +299,8 @@ func (e *emitNative) Value() interface{} {
 	return e.fn
 }
 
-{{end -}}
-{{range $x := .Emitters -}}
+{{end}}
+{{- range $x := .Emitters -}}
 func emitMaker{{$x.Name}}(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
 	ret.fn = ret.invoke{{.Name}}
@@ -331,8 +353,9 @@ func (v *iterNative) Reset() error {
 	v.cur = nil
 	return nil
 }
-{{- end}}
-{{- range $x := .Inputs}}
+
+{{end}}
+{{- range $x := .Inputs -}}
 func iterMaker{{$x.Name}}(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = ret.read{{$x.Name}}
@@ -363,8 +386,8 @@ func (v *iterNative) read{{$x.Name}}({{if $x.Time -}} et *typex.EventTime, {{end
 {{- end}}
 	return true
 }
-{{- end}}
 
+{{end}}
 // DO NOT MODIFY: GENERATED CODE
 `))
 
@@ -372,6 +395,7 @@ func (v *iterNative) read{{$x.Name}}({{if $x.Time -}} et *typex.EventTime, {{end
 var funcMap template.FuncMap = map[string]interface{}{
 	"mkargs":   mkargs,
 	"mkparams": mkparams,
+	"mkrets":   mkrets,
 	"mktuple":  mktuple,
 	"mktuplef": mktuplef,
 }
@@ -385,11 +409,20 @@ func mkargs(n int, format, typ string) string {
 	return fmt.Sprintf("%v %v", mktuplef(n, format), typ)
 }
 
-// mkparams(format, []type) returns "<fmt.Sprintf(format, 0, type[0])>, .., <fmt.Sprintf(format, n-1, type[0])>".
+// mkparams(format, []type) returns "<fmt.Sprintf(format, 0, type[0])>, .., <fmt.Sprintf(format, n-1, type[n-1])>".
 func mkparams(format string, types []string) string {
 	var ret []string
 	for i, t := range types {
 		ret = append(ret, fmt.Sprintf(format, i, t))
+	}
+	return strings.Join(ret, ", ")
+}
+
+// mkrets(format, []type) returns "<fmt.Sprintf(format, type[0])>, .., <fmt.Sprintf(format, type[n-1])>".
+func mkrets(format string, types []string) string {
+	var ret []string
+	for _, t := range types {
+		ret = append(ret, fmt.Sprintf(format, t))
 	}
 	return strings.Join(ret, ", ")
 }

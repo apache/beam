@@ -139,31 +139,31 @@ public class EvaluationContext {
         .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
   }
 
-  private boolean shouldCache(PValue pvalue) {
-    if ((pvalue instanceof PCollection)
-        && cacheCandidates.containsKey(pvalue)
-        && cacheCandidates.get(pvalue) > 1) {
-      return true;
+  /**
+   * Cache PCollection if {@link #isCacheDisabled()} flag is false and PCollection is used more then
+   * once in Pipeline.
+   *
+   * @param pvalue
+   * @return if PCollection will be cached
+   */
+  public boolean shouldCache(PValue pvalue) {
+    if (isCacheDisabled()) {
+      return false;
     }
-    return false;
-  }
-
-  public void putDataset(
-      PTransform<?, ? extends PValue> transform, Dataset dataset, boolean forceCache) {
-    putDataset(getOutput(transform), dataset, forceCache);
+    return pvalue instanceof PCollection && cacheCandidates.getOrDefault(pvalue, 0L) > 1;
   }
 
   public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
-    putDataset(transform, dataset, false);
+    putDataset(getOutput(transform), dataset);
   }
 
-  public void putDataset(PValue pvalue, Dataset dataset, boolean forceCache) {
+  public void putDataset(PValue pvalue, Dataset dataset) {
     try {
       dataset.setName(pvalue.getName());
     } catch (IllegalStateException e) {
       // name not set, ignore
     }
-    if ((forceCache || shouldCache(pvalue)) && pvalue instanceof PCollection) {
+    if (shouldCache(pvalue)) {
       // we cache only PCollection
       Coder<?> coder = ((PCollection<?>) pvalue).getCoder();
       Coder<? extends BoundedWindow> wCoder =
@@ -257,5 +257,9 @@ public class EvaluationContext {
 
   public String storageLevel() {
     return serializableOptions.get().as(SparkPipelineOptions.class).getStorageLevel();
+  }
+
+  public boolean isCacheDisabled() {
+    return serializableOptions.get().as(SparkPipelineOptions.class).isCacheDisabled();
   }
 }

@@ -46,6 +46,11 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   }
 
   @Override
+  public PCollection.IsBounded isBounded() {
+    return sqlTable.isBounded();
+  }
+
+  @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }

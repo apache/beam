@@ -25,7 +25,7 @@ import org.apache.beam.sdk.schemas.Schema;
 /** A factory for creating {@link FieldValueGetter} objects for a JavaBean object. */
 public class JavaBeanGetterFactory implements FieldValueGetterFactory {
   @Override
-  public List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema) {
+  public List<FieldValueGetter> create(Class<?> targetClass, Schema schema) {
     return JavaBeanUtils.getGetters(targetClass, schema);
   }
 }

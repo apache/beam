@@ -240,6 +240,25 @@ class CombiningValueRuntimeState(userstate.RuntimeState):
   def clear(self):
     self._underlying_bag_state.clear()
 
+  def _commit(self):
+    self._underlying_bag_state._commit()
+
+
+class _ConcatIterable(object):
+  """An iterable that is the concatination of two iterables.
+
+  Unlike itertools.chain, this allows reiteration.
+  """
+  def __init__(self, first, second):
+    self.first = first
+    self.second = second
+
+  def __iter__(self):
+    for elem in self.first:
+      yield elem
+    for elem in self.second:
+      yield elem
+
 
 # TODO(BEAM-5428): Implement cross-bundle state caching.
 class SynchronousBagRuntimeState(userstate.RuntimeState):
@@ -247,17 +266,31 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
     self._state_handler = state_handler
     self._state_key = state_key
     self._value_coder = value_coder
+    self._cleared = False
+    self._added_elements = []
 
   def read(self):
-    return _StateBackedIterable(
-        self._state_handler, self._state_key, self._value_coder)
+    return _ConcatIterable(
+        [] if self._cleared else _StateBackedIterable(
+            self._state_handler, self._state_key, self._value_coder),
+        self._added_elements)
 
   def add(self, value):
-    self._state_handler.blocking_append(
-        self._state_key, self._value_coder.encode(value))
+    self._added_elements.append(value)
 
   def clear(self):
-    self._state_handler.blocking_clear(self._state_key)
+    self._cleared = True
+    self._added_elements = []
+
+  def _commit(self):
+    if self._cleared:
+      self._state_handler.blocking_clear(self._state_key)
+    if self._added_elements:
+      value_coder_impl = self._value_coder.get_impl()
+      out = coder_impl.create_OutputStream()
+      for element in self._added_elements:
+        value_coder_impl.encode_to_stream(element, out, True)
+      self._state_handler.blocking_append(self._state_key, out.get())
 
 
 class OutputTimer(object):
@@ -285,6 +318,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
     self._window_coder = window_coder
     self._timer_specs = timer_specs
     self._timer_receivers = None
+    self._all_states = {}
 
   def update_timer_receivers(self, receivers):
     self._timer_receivers = {}
@@ -294,7 +328,13 @@ class FnApiUserStateContext(userstate.UserStateContext):
   def get_timer(self, timer_spec, key, window):
     return OutputTimer(key, self._timer_receivers[timer_spec.name])
 
-  def get_state(self, state_spec, key, window):
+  def get_state(self, *args):
+    state_handle = self._all_states.get(args)
+    if state_handle is None:
+      state_handle = self._all_states[args] = self._create_state(*args)
+    return state_handle
+
+  def _create_state(self, state_spec, key, window):
     if isinstance(state_spec,
                   (userstate.BagStateSpec, userstate.CombiningValueStateSpec)):
       bag_state = SynchronousBagRuntimeState(
@@ -313,9 +353,13 @@ class FnApiUserStateContext(userstate.UserStateContext):
     else:
       raise NotImplementedError(state_spec)
 
+  def commit(self):
+    for state in self._all_states.values():
+      state._commit()
+
   def reset(self):
     # TODO(BEAM-5428): Implement cross-bundle state caching.
-    pass
+    self._all_states = {}
 
 
 def memoize(func):

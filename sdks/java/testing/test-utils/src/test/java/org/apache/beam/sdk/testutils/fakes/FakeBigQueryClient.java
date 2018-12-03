@@ -32,8 +32,8 @@ public class FakeBigQueryClient extends BigQueryClient {
 
   private Map<String, List<Map<String, ?>>> rowsPerTable;
 
-  public FakeBigQueryClient(String dataset) {
-    super(null, null, dataset);
+  public FakeBigQueryClient() {
+    super(null, null, null);
     rowsPerTable = new HashMap<>();
   }
 

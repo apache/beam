@@ -104,7 +104,7 @@ public class CalciteUtils {
       case MAP:
         return SqlTypeName.MAP;
       default:
-        SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(type);
+        SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(type.withNullable(false));
         if (typeName != null) {
           return typeName;
         } else {
@@ -191,7 +191,7 @@ public class CalciteUtils {
     Schema.Field field = schema.getField(fieldIndex);
     RelDataType type = toRelDataType(dataTypeFactory, field.getType());
 
-    return dataTypeFactory.createTypeWithNullability(type, field.getNullable());
+    return dataTypeFactory.createTypeWithNullability(type, field.getType().getNullable());
   }
 
   /**

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.kryo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -26,6 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * {@link PipelineOptions} which allows passing {@link com.esotericsoftware.kryo.Kryo} parameters.
  */
 @Description("Options for KryoCoder")
+@Experimental
 public interface KryoOptions extends PipelineOptions {
 
   @JsonIgnore

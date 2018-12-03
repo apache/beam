@@ -102,6 +102,14 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean validateShadowJar = true
 
     /**
+     * The set of excludes that should be used during validation of the shadow jar. Projects should override
+     * the default with the most specific set of excludes that is valid for the contents of its shaded jar.
+     *
+     * By default we exclude any class underneath the org.apache.beam namespace.
+     */
+    List<String> shadowJarValidationExcludes = ["org/apache/beam/**"]
+
+    /**
      * The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
      * Users can compose their closure with the default closure via:
      * DEFAULT_SHADOW_CLOSURE << {
@@ -115,6 +123,17 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
+  }
+
+  /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
+  class PortabilityNatureConfiguration {
+    /**
+     * The set of excludes that should be used during validation of the shadow jar. Projects should override
+     * the default with the most specific set of excludes that is valid for the contents of its shaded jar.
+     *
+     * By default we exclude any class underneath the org.apache.beam namespace.
+     */
+    List<String> shadowJarValidationExcludes = ["org/apache/beam/**"]
   }
 
   // A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
@@ -227,26 +246,14 @@ class BeamModulePlugin implements Plugin<Project> {
     String jobServerConfig
     // Number of parallel test runs.
     Integer parallelism = 1
+    // Extra options to pass to TestPipeline
+    String[] pipelineOpts = []
     // Categories for tests to run.
     Closure testCategories = {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      //SplitableDoFnTests
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+      // Use the following to include / exclude categories:
+      // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
     // Configuration for the classpath when running the test.
     Configuration testClasspathConfiguration
@@ -265,7 +272,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.9.0'
+    project.version = '2.10.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -434,6 +441,8 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
+        vendored_grpc_1_13_1                        : "org.apache.beam:beam-vendor-grpc-1_13_1:0.1",
+        vendored_guava_20_0                         : "org.apache.beam:beam-vendor-guava-20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
       ],
@@ -755,7 +764,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       if (configuration.validateShadowJar) {
-        project.task('validateShadedJarDoesntLeakNonOrgApacheBeamClasses', dependsOn: 'shadowJar') {
+        project.task('validateShadedJarDoesntLeakNonProjectClasses', dependsOn: 'shadowJar') {
           ext.outFile = project.file("${project.reportsDir}/${name}.out")
           inputs.files project.configurations.shadow.artifacts.files
           outputs.files outFile
@@ -763,19 +772,21 @@ class BeamModulePlugin implements Plugin<Project> {
             project.configurations.shadow.artifacts.files.each {
               FileTree exposedClasses = project.zipTree(it).matching {
                 include "**/*.class"
-                exclude "org/apache/beam/**"
                 // BEAM-5919: Exclude paths for Java 9 multi-release jars.
                 exclude "META-INF/versions/*/module-info.class"
-                exclude "META-INF/versions/*/org/apache/beam/**"
+                configuration.shadowJarValidationExcludes.each {
+                  exclude "$it"
+                  exclude "META-INF/versions/*/$it"
+                }
               }
               outFile.text = exposedClasses.files
               if (exposedClasses.files) {
-                throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
+                throw new GradleException("$it exposed classes outside of ${configuration.shadowJarValidationExcludes}: ${exposedClasses.files}")
               }
             }
           }
         }
-        project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonOrgApacheBeamClasses
+        project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonProjectClasses
       }
 
       if ((isRelease(project) || project.hasProperty('publishing')) &&
@@ -1354,14 +1365,19 @@ artifactId=${project.name}
 
     project.ext.applyPortabilityNature = {
       println "applyPortabilityNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
-      project.ext.applyJavaNature(enableFindbugs: false, shadowClosure: GrpcVendoring.shadowClosure() << {
-        // We perform all the code relocations but don't include
-        // any of the actual dependencies since they will be supplied
-        // by beam-vendor-grpc-v1_13_1
-        dependencies {
-          exclude(dependency(".*:.*"))
-        }
-      })
+      PortabilityNatureConfiguration configuration = it ? it as PortabilityNatureConfiguration : new PortabilityNatureConfiguration()
+
+      project.ext.applyJavaNature(
+              enableFindbugs: false,
+              shadowJarValidationExcludes: it.shadowJarValidationExcludes,
+              shadowClosure: GrpcVendoring.shadowClosure() << {
+                // We perform all the code relocations but don't include
+                // any of the actual dependencies since they will be supplied
+                // by org.apache.beam:beam-vendor-grpc-v1_13_1:0.1
+                dependencies {
+                  include(dependency { return false })
+                }
+              })
 
       // Don't force modules here because we don't want to take the shared declarations in build_rules.gradle
       // because we would like to have the freedom to choose which versions of dependencies we
@@ -1394,25 +1410,7 @@ artifactId=${project.name}
         }
       }
 
-      project.dependencies GrpcVendoring.dependenciesClosure() << {
-        shadow it.project(path: ":beam-vendor-grpc-v1_13_1", configuration: "shadow")
-      }
-
-      project.task('validateShadedJarDoesntExportVendoredDependencies', dependsOn: 'shadowJar') {
-        ext.outFile = project.file("${project.reportsDir}/${name}.out")
-        inputs.files project.configurations.shadow.artifacts.files
-        outputs.files outFile
-        doLast {
-          project.configurations.shadow.artifacts.files.each {
-            FileTree exportedClasses = project.zipTree(it).matching { include "org/apache/beam/vendor/**" }
-            outFile.text = exportedClasses.files
-            if (exportedClasses.files) {
-              throw new GradleException("$it exported classes inside of org.apache.beam.vendor namespace: ${exportedClasses.files}")
-            }
-          }
-        }
-      }
-      project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntExportVendoredDependencies
+      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow 'org.apache.beam:beam-vendor-grpc-1_13_1:0.1' }
     }
 
     /** ***********************************************************************************************/
@@ -1473,11 +1471,9 @@ artifactId=${project.name}
       def beamTestPipelineOptions = [
         "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
         "--jobServerDriver=${config.jobServerDriver}",
-        "--environmentCacheMillis=10000",
-        // TODO Create two tasks to run for both batch and streaming:
-        // https://issues.apache.org/jira/browse/BEAM-6009
-        // "--streaming"
+        "--environmentCacheMillis=10000"
       ]
+      beamTestPipelineOptions.addAll(config.pipelineOpts)
       if (config.jobServerConfig) {
         beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
       }
