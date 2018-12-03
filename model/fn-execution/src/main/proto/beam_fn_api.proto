@@ -253,7 +253,7 @@ message BundleApplication {
   //
   // Each application is able to report information that some runners
   // will use consume when providing a UI or for making scaling and performance
-  // decisions. See https://s.apache.org/beam-bundles-backlog-splitting for 
+  // decisions. See https://s.apache.org/beam-bundles-backlog-splitting for
   // details about what types of signals may be useful to report.
   repeated MonitoringInfo monitoring_infos = 7;
 }
@@ -354,8 +354,9 @@ message MonitoringInfo {
 
 message MonitoringInfoUrns {
   enum Enum {
+    // User counter have this format: 'beam:metric:user:<namespace>:<name>'.
     USER_COUNTER_URN_PREFIX = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-        "beam:metric:user"];
+        "beam:metric:user:"];
 
     ELEMENT_COUNT = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
         "beam:metric:element_count:v1"];
@@ -635,7 +636,7 @@ message ProcessBundleSplitRequest {
   // possible, effectively checkpointing when able. The remaining backlog
   // will be relative to the backlog reported during processing.
   //
-  // If the backlog is unspecified for a PTransform, the runner would like 
+  // If the backlog is unspecified for a PTransform, the runner would like
   // the SDK to process all data received for that PTransform.
   map<string, bytes> backlog_remaining = 2;
 }
