@@ -458,7 +458,7 @@ class DataflowRunner(PipelineRunner):
       window_coder = None
     from apache_beam.runners.dataflow.internal import apiclient
     use_fnapi = apiclient._use_fnapi(
-          transform_node.outputs.values()[0].pipeline._options)
+        transform_node.outputs.values()[0].pipeline._options)
     return self._get_typehint_based_encoding(element_type, window_coder,
                                              use_fnapi)
 
