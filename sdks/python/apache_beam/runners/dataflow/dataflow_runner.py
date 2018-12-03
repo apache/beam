@@ -442,24 +442,23 @@ class DataflowRunner(PipelineRunner):
 
   def _get_encoded_output_coder(self, transform_node, window_value=True):
     """Returns the cloud encoding of the coder for the output of a transform."""
-    from apache_beam.runners.dataflow.internal import apiclient
     if (len(transform_node.outputs) == 1
         and transform_node.outputs[None].element_type is not None):
       # TODO(robertwb): Handle type hints for multi-output transforms.
       element_type = transform_node.outputs[None].element_type
-      use_fnapi = apiclient._use_fnapi(
-          transform_node.outputs[None].pipeline._options)
     else:
       # TODO(silviuc): Remove this branch (and assert) when typehints are
       # propagated everywhere. Returning an 'Any' as type hint will trigger
       # usage of the fallback coder (i.e., cPickler).
       element_type = typehints.Any
-      use_fnapi = False  # TODO(chambers): XXX do the right thing for this
     if window_value:
       window_coder = (
           transform_node.outputs[None].windowing.windowfn.get_window_coder())
     else:
       window_coder = None
+    from apache_beam.runners.dataflow.internal import apiclient
+    use_fnapi = apiclient._use_fnapi(
+          transform_node.outputs.values()[0].pipeline._options)
     return self._get_typehint_based_encoding(element_type, window_coder,
                                              use_fnapi)
 
