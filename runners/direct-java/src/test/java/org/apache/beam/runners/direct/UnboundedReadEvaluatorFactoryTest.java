@@ -329,7 +329,7 @@ public class UnboundedReadEvaluatorFactoryTest {
                   result.getUnprocessedElements());
     } while (!Iterables.isEmpty(residual.getElements()));
 
-    verify(output, times((numElements))).add(any());
+    verify(output, times(numElements)).add(any());
     assertThat(TestUnboundedSource.readerCreatedCount, equalTo(1));
     assertThat(TestUnboundedSource.readerClosedCount, equalTo(1));
   }

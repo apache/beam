@@ -237,8 +237,8 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
       double fractionAtBlockStart =
           ((double) (currentBlockOffset - startOffset)) / (endOffset - startOffset);
       double fractionAtBlockEnd =
-          ((double) (currentBlockOffset + getCurrentBlockSize() - startOffset)
-              / (endOffset - startOffset));
+          (double) (currentBlockOffset + getCurrentBlockSize() - startOffset)
+              / (endOffset - startOffset);
       double blockFraction = getCurrentBlock().getFractionOfBlockConsumed();
       return Math.min(
           1.0, fractionAtBlockStart + blockFraction * (fractionAtBlockEnd - fractionAtBlockStart));
