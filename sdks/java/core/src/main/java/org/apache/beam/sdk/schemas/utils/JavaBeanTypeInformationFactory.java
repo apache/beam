@@ -18,14 +18,14 @@
 package org.apache.beam.sdk.schemas.utils;
 
 import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformationFactory;
 import org.apache.beam.sdk.schemas.Schema;
 
-/** A factory for creating {@link FieldValueGetter} objects for a JavaBean object. */
-public class JavaBeanGetterFactory implements FieldValueGetterFactory {
+/** A {@link FieldValueTypeInformationFactory} for Java Bean objects. */
+public class JavaBeanTypeInformationFactory implements FieldValueTypeInformationFactory {
   @Override
-  public List<FieldValueGetter> create(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getGetters(targetClass, schema);
+  public List<FieldValueTypeInformation> create(Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getFieldTypes(targetClass, schema);
   }
 }
