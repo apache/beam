@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.testutils.metrics;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -34,25 +37,30 @@ public class MetricsReader {
 
   private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(MetricsReader.class);
 
-  private enum DistributionType {
-    MIN,
-    MAX
-  }
+  private static final long ERRONEOUS_METRIC_VALUE = -1;
 
   private final PipelineResult result;
 
   private final String namespace;
 
-  public MetricsReader(PipelineResult result, String namespace) {
+  private final long now;
+
+  @VisibleForTesting
+  MetricsReader(PipelineResult result, String namespace, long now) {
     this.result = result;
     this.namespace = namespace;
+    this.now = now;
+  }
+
+  public MetricsReader(PipelineResult result, String namespace) {
+    this(result, namespace, System.currentTimeMillis());
   }
 
   /**
-   * Return the current value for a long counter, or a default value if can't be retrieved. Note
-   * this uses only attempted metrics because some runners don't support committed metrics.
+   * Return the current value for a long counter, or -1 if can't be retrieved. Note this uses only
+   * attempted metrics because some runners don't support committed metrics.
    */
-  public long getCounterMetric(String name, long defaultValue) {
+  public long getCounterMetric(String name) {
     MetricQueryResults metrics =
         result
             .metrics()
@@ -70,30 +78,48 @@ public class MetricsReader {
     } catch (NoSuchElementException e) {
       LOG.error("Failed to get metric {}, from namespace {}", name, namespace);
     }
-    return defaultValue;
+    return ERRONEOUS_METRIC_VALUE;
   }
 
   /**
    * Return start time metric by counting the difference between "now" and min value from a
    * distribution metric.
    */
-  public long getStartTimeMetric(long now, String name) {
-    return this.getTimestampMetric(now, this.getDistributionMetric(name, DistributionType.MIN, -1));
+  public long getStartTimeMetric(String name) {
+    Iterable<MetricResult<DistributionResult>> timeDistributions = getDistributions(name);
+    return getLowestMin(timeDistributions);
+  }
+
+  private Long getLowestMin(Iterable<MetricResult<DistributionResult>> distributions) {
+    Optional<Long> lowestMin =
+        StreamSupport.stream(distributions.spliterator(), true)
+            .map(element -> element.getAttempted().getMin())
+            .filter(this::isCredible)
+            .min(Long::compareTo);
+
+    return lowestMin.orElse(ERRONEOUS_METRIC_VALUE);
   }
 
   /**
    * Return end time metric by counting the difference between "now" and MAX value from a
    * distribution metric.
    */
-  public long getEndTimeMetric(long now, String name) {
-    return this.getTimestampMetric(now, this.getDistributionMetric(name, DistributionType.MAX, -1));
+  public long getEndTimeMetric(String name) {
+    Iterable<MetricResult<DistributionResult>> timeDistributions = getDistributions(name);
+    return getGreatestMax(timeDistributions);
   }
 
-  /**
-   * Return the current value for a long counter, or a default value if can't be retrieved. Note
-   * this uses only attempted metrics because some runners don't support committed metrics.
-   */
-  private long getDistributionMetric(String name, DistributionType distType, long defaultValue) {
+  private Long getGreatestMax(Iterable<MetricResult<DistributionResult>> distributions) {
+    Optional<Long> greatestMax =
+        StreamSupport.stream(distributions.spliterator(), true)
+            .map(element -> element.getAttempted().getMax())
+            .filter(this::isCredible)
+            .max(Long::compareTo);
+
+    return greatestMax.orElse(ERRONEOUS_METRIC_VALUE);
+  }
+
+  private Iterable<MetricResult<DistributionResult>> getDistributions(String name) {
     MetricQueryResults metrics =
         result
             .metrics()
@@ -101,24 +127,7 @@ public class MetricsReader {
                 MetricsFilter.builder()
                     .addNameFilter(MetricNameFilter.named(namespace, name))
                     .build());
-    Iterable<MetricResult<DistributionResult>> distributions = metrics.getDistributions();
-
-    checkIfMetricResultIsUnique(name, distributions);
-
-    try {
-      MetricResult<DistributionResult> distributionResult = distributions.iterator().next();
-      switch (distType) {
-        case MIN:
-          return distributionResult.getAttempted().getMin();
-        case MAX:
-          return distributionResult.getAttempted().getMax();
-        default:
-          return defaultValue;
-      }
-    } catch (NoSuchElementException e) {
-      LOG.error("Failed to get distribution metric {} for namespace {}", name, namespace);
-    }
-    return defaultValue;
+    return metrics.getDistributions();
   }
 
   private <T> void checkIfMetricResultIsUnique(String name, Iterable<MetricResult<T>> metricResult)
@@ -133,14 +142,12 @@ public class MetricsReader {
         resultCount);
   }
 
-  /** Return the current value for a time counter, or -1 if can't be retrieved. */
-  private long getTimestampMetric(long now, long value) {
-    // timestamp metrics are used to monitor time of execution of transforms.
-    // If result timestamp metric is too far from now, consider that metric is erroneous
-
-    if (Math.abs(value - now) > Duration.standardDays(10000).getMillis()) {
-      return -1;
-    }
-    return value;
+  /**
+   * timestamp metrics are used to monitor time of execution of transforms. If result timestamp
+   * metric is too far from now, consider that metric is erroneous private boolean isCredible(long
+   * value) {
+   */
+  private boolean isCredible(long value) {
+    return (Math.abs(value - now) <= Duration.standardDays(10000).getMillis());
   }
 }

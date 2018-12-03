@@ -17,28 +17,29 @@
  */
 package org.apache.beam.sdk.loadtests.metrics;
 
-import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
-/** Monitors various metrics from within a pipeline. */
-public class MetricsMonitor extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
+/**
+ * Monitor that records processing time distribution in the pipeline.
+ *
+ * <p>To use: apply a monitor directly after each source and sink transform. This will capture a
+ * distribution of element processing timestamps, which can be collected and written out using
+ * {@link MetricsPublisher}.
+ */
+public class TimeMonitor<K, V> extends DoFn<KV<K, V>, KV<K, V>> {
 
   private Distribution timeDistribution;
 
-  private Counter totalBytes;
-
-  public MetricsMonitor(String namespace) {
-    this.timeDistribution = Metrics.distribution(namespace, "runtime");
-    this.totalBytes = Metrics.counter(namespace, "totalBytes.count");
+  public TimeMonitor(String namespace, String name) {
+    this.timeDistribution = Metrics.distribution(namespace, name);
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) {
     timeDistribution.update(System.currentTimeMillis());
-    totalBytes.inc(c.element().getKey().length + c.element().getValue().length);
     c.output(c.element());
   }
 }

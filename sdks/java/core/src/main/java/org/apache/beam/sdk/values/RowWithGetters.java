@@ -24,8 +24,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -39,18 +39,19 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
  * the appropriate fields from the POJO.
  */
 public class RowWithGetters extends Row {
-  private final FieldValueGetterFactory fieldValueGetterFactory;
+  private final Factory<List<FieldValueGetter>> fieldValueGetterFactory;
   private final Object getterTarget;
   private final List<FieldValueGetter> getters;
 
   private final Map<Integer, List> cachedLists = Maps.newHashMap();
   private final Map<Integer, Map> cachedMaps = Maps.newHashMap();
 
-  RowWithGetters(Schema schema, FieldValueGetterFactory getterFactory, Object getterTarget) {
+  RowWithGetters(
+      Schema schema, Factory<List<FieldValueGetter>> getterFactory, Object getterTarget) {
     super(schema);
     this.fieldValueGetterFactory = getterFactory;
     this.getterTarget = getterTarget;
-    this.getters = fieldValueGetterFactory.createGetters(getterTarget.getClass(), schema);
+    this.getters = fieldValueGetterFactory.create(getterTarget.getClass(), schema);
   }
 
   @Nullable
@@ -60,7 +61,7 @@ public class RowWithGetters extends Row {
     Field field = getSchema().getField(fieldIdx);
     FieldType type = field.getType();
     Object fieldValue = getters.get(fieldIdx).get(getterTarget);
-    if (fieldValue == null && !field.getNullable()) {
+    if (fieldValue == null && !field.getType().getNullable()) {
       throw new RuntimeException("Null value set on non-nullable field" + field);
     }
     return fieldValue != null ? getValue(type, fieldValue, fieldIdx) : null;

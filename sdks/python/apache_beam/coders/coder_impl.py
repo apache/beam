@@ -37,8 +37,8 @@ from __future__ import division
 from builtins import chr
 from builtins import object
 
-from past.builtins import unicode as past_unicode
 from past.builtins import long
+from past.builtins import unicode
 
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
@@ -69,11 +69,6 @@ except ImportError:
     is_compiled = False
     fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
-
-
-_TIME_SHIFT = 1 << 63
-MIN_TIMESTAMP_micros = MIN_TIMESTAMP.micros
-MAX_TIMESTAMP_micros = MAX_TIMESTAMP.micros
 
 
 class CoderImpl(object):
@@ -221,7 +216,7 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
     self._step_label = step_label
 
   def _check_safe(self, value):
-    if isinstance(value, (bytes, past_unicode, long, int, float)):
+    if isinstance(value, (bytes, unicode, long, int, float)):
       pass
     elif value is None:
       pass
@@ -326,10 +321,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t is bytes:
       stream.write_byte(BYTES_TYPE)
       stream.write(value, nested)
-    elif t is past_unicode:
-      unicode_value = value  # for typing
+    elif t is unicode:
+      text_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
-      stream.write(unicode_value.encode('utf-8'), nested)
+      stream.write(text_value.encode('utf-8'), nested)
     elif t is list or t is tuple or t is set:
       stream.write_byte(
           LIST_TYPE if t is list else TUPLE_TYPE if t is tuple else SET_TYPE)
@@ -418,47 +413,37 @@ class FloatCoderImpl(StreamCoderImpl):
     return 8
 
 
-IntervalWindow = None
-
-
 class IntervalWindowCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
 
   # TODO: Fn Harness only supports millis. Is this important enough to fix?
   def _to_normal_time(self, value):
     """Convert "lexicographically ordered unsigned" to signed."""
-    return value - _TIME_SHIFT
+    return value - (1 << 63)
 
   def _from_normal_time(self, value):
     """Convert signed to "lexicographically ordered unsigned"."""
-    return value + _TIME_SHIFT
+    return value + (1 << 63)
 
   def encode_to_stream(self, value, out, nested):
-    typed_value = value
-    span_millis = (typed_value._end_micros // 1000
-                   - typed_value._start_micros // 1000)
+    span_micros = value.end.micros - value.start.micros
     out.write_bigendian_uint64(
-        self._from_normal_time(typed_value._end_micros // 1000))
-    out.write_var_int64(span_millis)
+        self._from_normal_time(value.end.micros // 1000))
+    out.write_var_int64(span_micros // 1000)
 
   def decode_from_stream(self, in_, nested):
-    global IntervalWindow
-    if IntervalWindow is None:
-      from apache_beam.transforms.window import IntervalWindow
-    typed_value = IntervalWindow(None, None)
-    typed_value._end_micros = (
-        1000 * self._to_normal_time(in_.read_bigendian_uint64()))
-    typed_value._start_micros = (
-        typed_value._end_micros - 1000 * in_.read_var_int64())
-    return typed_value
+    end_millis = self._to_normal_time(in_.read_bigendian_uint64())
+    start_millis = end_millis - in_.read_var_int64()
+    from apache_beam.transforms.window import IntervalWindow
+    ret = IntervalWindow(start=Timestamp(micros=start_millis * 1000),
+                         end=Timestamp(micros=end_millis * 1000))
+    return ret
 
   def estimate_size(self, value, nested=False):
     # An IntervalWindow is context-insensitive, with a timestamp (8 bytes)
     # and a varint timespam.
-    typed_value = value
-    span_millis = (typed_value._end_micros // 1000
-                   - typed_value._start_micros // 1000)
-    return 8 + get_varint_size(span_millis)
+    span = value.end.micros - value.start.micros
+    return 8 + get_varint_size(span // 1000)
 
 
 class TimestampCoderImpl(StreamCoderImpl):
@@ -662,11 +647,10 @@ class SequenceCoderImpl(StreamCoderImpl):
       # -1 to indicate that the length is not known.
       out.write_bigendian_int32(-1)
       buffer = create_OutputStream()
-      target_buffer_size = self._DEFAULT_BUFFER_SIZE
       prev_index = index = -1
       for index, elem in enumerate(value):
         self._elem_coder.encode_to_stream(elem, buffer, True)
-        if buffer.size() > target_buffer_size:
+        if out.size() > self._DEFAULT_BUFFER_SIZE:
           out.write_var_int64(index - prev_index)
           out.write(buffer.get())
           prev_index = index
@@ -755,31 +739,25 @@ class PaneInfoEncoding(object):
   TWO_INDICES = 2
 
 
-# These are cdef'd to ints to optimized the common case.
-PaneInfoTiming_UNKNOWN = windowed_value.PaneInfoTiming.UNKNOWN
-PaneInfoEncoding_FIRST = PaneInfoEncoding.FIRST
-
-
 class PaneInfoCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   Coder for a PaneInfo descriptor."""
 
   def _choose_encoding(self, value):
-    if ((value._index == 0 and value._nonspeculative_index == 0) or
-        value._timing == PaneInfoTiming_UNKNOWN):
-      return PaneInfoEncoding_FIRST
-    elif (value._index == value._nonspeculative_index or
-          value._timing == windowed_value.PaneInfoTiming.EARLY):
+    if ((value.index == 0 and value.nonspeculative_index == 0) or
+        value.timing == windowed_value.PaneInfoTiming.UNKNOWN):
+      return PaneInfoEncoding.FIRST
+    elif (value.index == value.nonspeculative_index or
+          value.timing == windowed_value.PaneInfoTiming.EARLY):
       return PaneInfoEncoding.ONE_INDEX
     else:
       return PaneInfoEncoding.TWO_INDICES
 
   def encode_to_stream(self, value, out, nested):
-    pane_info = value  # cast
-    encoding_type = self._choose_encoding(pane_info)
-    out.write_byte(pane_info._encoded_byte | (encoding_type << 4))
-    if encoding_type == PaneInfoEncoding_FIRST:
+    encoding_type = self._choose_encoding(value)
+    out.write_byte(value.encoded_byte | (encoding_type << 4))
+    if encoding_type == PaneInfoEncoding.FIRST:
       return
     elif encoding_type == PaneInfoEncoding.ONE_INDEX:
       out.write_var_int64(value.index)
@@ -794,7 +772,7 @@ class PaneInfoCoderImpl(StreamCoderImpl):
     base = windowed_value._BYTE_TO_PANE_INFO[encoded_first_byte & 0xF]
     assert base is not None
     encoding_type = encoded_first_byte >> 4
-    if encoding_type == PaneInfoEncoding_FIRST:
+    if encoding_type == PaneInfoEncoding.FIRST:
       return base
     elif encoding_type == PaneInfoEncoding.ONE_INDEX:
       index = in_stream.read_var_int64()
@@ -833,11 +811,11 @@ class WindowedValueCoderImpl(StreamCoderImpl):
   # byte representation of timestamps.
   def _to_normal_time(self, value):
     """Convert "lexicographically ordered unsigned" to signed."""
-    return value - _TIME_SHIFT
+    return value - (1 << 63)
 
   def _from_normal_time(self, value):
     """Convert signed to "lexicographically ordered unsigned"."""
-    return value + _TIME_SHIFT
+    return value + (1 << 63)
 
   def __init__(self, value_coder, timestamp_coder, window_coder):
     # TODO(lcwik): Remove the timestamp coder field
@@ -871,12 +849,16 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # were indeed MIN/MAX timestamps.
     # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
     # precision of timestamps.
-    if timestamp <= -(abs(MIN_TIMESTAMP_micros) // 1000):
-      timestamp = MIN_TIMESTAMP_micros
-    elif timestamp >= MAX_TIMESTAMP_micros // 1000:
-      timestamp = MAX_TIMESTAMP_micros
+    if timestamp == -(abs(MIN_TIMESTAMP.micros) // 1000):
+      timestamp = MIN_TIMESTAMP.micros
+    elif timestamp == (MAX_TIMESTAMP.micros // 1000):
+      timestamp = MAX_TIMESTAMP.micros
     else:
       timestamp *= 1000
+      if timestamp > MAX_TIMESTAMP.micros:
+        timestamp = MAX_TIMESTAMP.micros
+      if timestamp < MIN_TIMESTAMP.micros:
+        timestamp = MIN_TIMESTAMP.micros
 
     windows = self._windows_coder.decode_from_stream(in_stream, True)
     # Read PaneInfo encoded byte.

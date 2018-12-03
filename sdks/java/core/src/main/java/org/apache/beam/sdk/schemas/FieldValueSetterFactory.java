@@ -17,18 +17,18 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import java.io.Serializable;
 import java.util.List;
 
 /**
  * A factory interface for creating {@link org.apache.beam.sdk.schemas.FieldValueSetter} objects
  * corresponding to a class.
  */
-public interface FieldValueSetterFactory extends Serializable {
+public interface FieldValueSetterFactory extends Factory<List<FieldValueSetter>> {
   /**
    * Returns a list of {@link org.apache.beam.sdk.schemas.FieldValueGetter}s for the target class.
    *
    * <p>The returned list is ordered by the order of matching fields in the schema.
    */
-  List<FieldValueSetter> createSetters(Class<?> targetClass, Schema schema);
+  @Override
+  List<FieldValueSetter> create(Class<?> targetClass, Schema schema);
 }

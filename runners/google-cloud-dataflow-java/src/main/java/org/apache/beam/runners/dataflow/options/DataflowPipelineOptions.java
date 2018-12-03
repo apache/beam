@@ -90,6 +90,14 @@ public interface DataflowPipelineOptions
 
   void setUpdate(boolean value);
 
+  /** If set, the snapshot from which the job should be created. */
+  @Hidden
+  @Experimental
+  @Description("If set, the snapshot from which the job should be created.")
+  String getCreateFromSnapshot();
+
+  void setCreateFromSnapshot(String value);
+
   /** Where the runner should generate a template file. Must either be local or Cloud Storage. */
   @Description(
       "Where the runner should generate a template file. "
