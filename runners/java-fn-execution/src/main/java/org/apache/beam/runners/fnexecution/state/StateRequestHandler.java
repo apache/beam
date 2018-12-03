@@ -40,7 +40,7 @@ public interface StateRequestHandler {
   static StateRequestHandler unsupported() {
     return request -> {
       throw new UnsupportedOperationException(
-          String.format("Cannot use an empty %s", StateRequestHandler.class.getSimpleName()));
+          String.format("This runner does not support this type of state request %s", request));
     };
   }
 }

@@ -29,7 +29,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.control.BundleSplitListener;
+import org.apache.beam.fn.harness.control.BundleExecutionController;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.SideInputSpec;
@@ -92,7 +92,7 @@ abstract class DoFnPTransformRunnerFactory<
       ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
-      BundleSplitListener splitListener) {
+      BundleExecutionController bundleExecutionController) {
     Context<FnInputT, OutputT> context =
         new Context<>(
             pipelineOptions,
@@ -104,7 +104,7 @@ abstract class DoFnPTransformRunnerFactory<
             coders,
             windowingStrategies,
             pCollectionIdsToConsumers,
-            splitListener);
+            bundleExecutionController);
 
     RunnerT runner = createRunner(context);
 
@@ -160,7 +160,7 @@ abstract class DoFnPTransformRunnerFactory<
     Map<TupleTag<?>, Coder<?>> outputCoders;
     final ParDoPayload parDoPayload;
     final ListMultimap<String, FnDataReceiver<WindowedValue<?>>> localNameToConsumer;
-    final BundleSplitListener splitListener;
+    final BundleExecutionController bundleExecutionController;
 
     Context(
         PipelineOptions pipelineOptions,
@@ -172,7 +172,7 @@ abstract class DoFnPTransformRunnerFactory<
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-        BundleSplitListener splitListener) {
+        BundleExecutionController bundleExecutionController) {
       this.pipelineOptions = pipelineOptions;
       this.beamFnStateClient = beamFnStateClient;
       this.ptransformId = ptransformId;
@@ -284,7 +284,7 @@ abstract class DoFnPTransformRunnerFactory<
       }
       localNameToConsumer = localNameToConsumerBuilder.build();
       tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();
-      this.splitListener = splitListener;
+      this.bundleExecutionController = bundleExecutionController;
     }
   }
 }

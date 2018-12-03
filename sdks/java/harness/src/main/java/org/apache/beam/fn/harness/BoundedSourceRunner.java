@@ -26,7 +26,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.control.BundleSplitListener;
+import org.apache.beam.fn.harness.control.BundleExecutionController;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -81,7 +81,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
-        BundleSplitListener splitListener) {
+        BundleExecutionController bundleExecutionController) {
 
       ImmutableList.Builder<FnDataReceiver<WindowedValue<?>>> consumers = ImmutableList.builder();
       for (String pCollectionId : pTransform.getOutputsMap().values()) {

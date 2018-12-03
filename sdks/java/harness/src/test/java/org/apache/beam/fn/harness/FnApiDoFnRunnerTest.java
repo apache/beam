@@ -203,7 +203,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             consumers,
             startFunctions::add,
             finishFunctions::add,
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
@@ -365,7 +365,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             consumers,
             startFunctions::add,
             finishFunctions::add,
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
@@ -489,7 +489,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             consumers,
             startFunctions::add,
             finishFunctions::add,
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
@@ -652,7 +652,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             consumers,
             startFunctions::add,
             finishFunctions::add,
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();

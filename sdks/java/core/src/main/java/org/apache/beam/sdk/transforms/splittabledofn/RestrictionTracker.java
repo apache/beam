@@ -61,9 +61,6 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * <p>Modifies {@link #currentRestriction}. Returns a restriction representing the rest of the
    * work: the old value of {@link #currentRestriction} is equivalent to the new value and the
    * return value of this method combined.
-   *
-   * <p>Must be called at most once on a given object. Must not be called before the first
-   * successful {@link #tryClaim} call.
    */
   public abstract RestrictionT checkpoint();
 

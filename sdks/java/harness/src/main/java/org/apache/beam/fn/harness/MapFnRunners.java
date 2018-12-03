@@ -26,7 +26,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.control.BundleSplitListener;
+import org.apache.beam.fn.harness.control.BundleExecutionController;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -110,7 +110,7 @@ public abstract class MapFnRunners {
         ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
-        BundleSplitListener splitListener)
+        BundleExecutionController bundleExecutionController)
         throws IOException {
 
       Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =

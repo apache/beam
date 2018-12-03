@@ -87,7 +87,7 @@ public class FlattenRunnerTest {
             consumers,
             null /* addStartFunction */,
             null, /* addFinishFunction */
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     mainOutputValues.clear();
     assertThat(
@@ -150,7 +150,7 @@ public class FlattenRunnerTest {
             consumers,
             null /* addStartFunction */,
             null, /* addFinishFunction */
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder("inputATarget", "mainOutputTarget"));

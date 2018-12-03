@@ -23,10 +23,12 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.Restrictions;
 
 /** A restriction represented by a range of integers [from, to). */
 public class OffsetRange
-    implements Serializable,
+    implements Restrictions.IsBounded,
+        Serializable,
         HasDefaultTracker<
             OffsetRange, org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker> {
   private final long from;

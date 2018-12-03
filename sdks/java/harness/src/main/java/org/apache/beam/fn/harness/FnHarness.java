@@ -161,6 +161,9 @@ public class FnHarness {
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
           processBundleHandler::processBundle);
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_SPLIT,
+          processBundleHandler::splitBundle);
       BeamFnControlClient control =
           new BeamFnControlClient(
               id, controlApiServiceDescriptor, channelFactory, outboundObserverFactory, handlers);

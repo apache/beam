@@ -368,7 +368,7 @@ public class ProcessBundleHandlerTest {
                           pCollectionIdsToConsumers,
                       Consumer<ThrowingRunnable> addStartFunction,
                       Consumer<ThrowingRunnable> addFinishFunction,
-                      BundleSplitListener splitListener)
+                      BundleExecutionController bundleExecutionController)
                       throws IOException {
                     addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
                     return null;
@@ -430,7 +430,7 @@ public class ProcessBundleHandlerTest {
                           pCollectionIdsToConsumers,
                       Consumer<ThrowingRunnable> addStartFunction,
                       Consumer<ThrowingRunnable> addFinishFunction,
-                      BundleSplitListener splitListener)
+                      BundleExecutionController bundleExecutionController)
                       throws IOException {
                     addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
                     return null;

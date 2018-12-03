@@ -139,7 +139,7 @@ public class BeamFnDataWriteRunnerTest {
             consumers,
             startFunctions::add,
             finishFunctions::add,
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     verifyZeroInteractions(mockBeamFnDataClient);
 

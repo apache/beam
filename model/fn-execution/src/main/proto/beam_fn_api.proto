@@ -189,7 +189,7 @@ message ProcessBundleDescriptor {
 
 // Represents a non-negative decimal number: unscaled_value * 10^(scale) (scientific notation)
 message Decimal {
-  // Represents the unscaled value as a big endian unlimited precision non-negative integer.
+  // Represents the unscaled value as a big endian unlimited precision non-negative integer in two's complement format.
   bytes unscaled_value = 1;
   // Represents the scale
   int32 scale = 2;
@@ -631,13 +631,13 @@ message ProcessBundleSplitRequest {
   // PTransform. The interpretation of how much work should be processed is up
   // to the PTransform.
   //
-  // For example, A backlog of "" tells the SDK to perform as little work as
+  // For example, A backlog of 0 tells the SDK to perform as little work as
   // possible, effectively checkpointing when able. The remaining backlog
   // will be relative to the backlog reported during processing.
   //
   // If the backlog is unspecified for a PTransform, the runner would like 
   // the SDK to process all data received for that PTransform.
-  map<string, bytes> backlog_remaining = 2;
+  map<string, BundleApplication.Backlog> backlog_remaining = 2;
 }
 
 // Represents a partition of the bundle: a "primary" and

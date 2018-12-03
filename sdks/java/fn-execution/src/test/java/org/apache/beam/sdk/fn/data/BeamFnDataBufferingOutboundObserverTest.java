@@ -106,13 +106,8 @@ public class BeamFnDataBufferingOutboundObserverTest {
       // expected
     }
 
-    // Test that we can't close a stream twice.
-    try {
-      consumer.close();
-      fail("Closing twice should be prohibited.");
-    } catch (IllegalStateException exn) {
-      // expected
-    }
+    // Test that we can close a stream twice.
+    consumer.close();
   }
 
   @Test

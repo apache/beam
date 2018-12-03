@@ -30,6 +30,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.transforms.splittabledofn.Restrictions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +66,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see ByteKey
  */
-public final class ByteKeyRange implements Serializable {
+public final class ByteKeyRange implements Restrictions.IsBounded, Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(ByteKeyRange.class);
 
   /** The range of all keys, with empty start and end keys. */

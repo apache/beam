@@ -23,7 +23,6 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import java.io.IOException;
@@ -34,12 +33,16 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Phaser;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
+import org.apache.beam.fn.harness.control.BundleExecutionController.CheckpointListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
@@ -106,6 +109,7 @@ public class ProcessBundleHandler {
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
   private final Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap;
   private final PTransformRunnerFactory defaultPTransformRunnerFactory;
+  private final ConcurrentMap<String, BundleExecutor> instructionIdToBundleExecutors;
 
   public ProcessBundleHandler(
       PipelineOptions options,
@@ -134,6 +138,7 @@ public class ProcessBundleHandler {
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
     this.defaultPTransformRunnerFactory =
         new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
+    this.instructionIdToBundleExecutors = new ConcurrentHashMap<>();
   }
 
   private void createRunnerAndConsumersForPTransformRecursively(
@@ -147,7 +152,7 @@ public class ProcessBundleHandler {
       Set<String> processedPTransformIds,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
-      BundleSplitListener splitListener)
+      BundleExecutionController executionController)
       throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
@@ -167,7 +172,7 @@ public class ProcessBundleHandler {
             processedPTransformIds,
             addStartFunction,
             addFinishFunction,
-            splitListener);
+            executionController);
       }
     }
 
@@ -199,7 +204,7 @@ public class ProcessBundleHandler {
               pCollectionIdsToConsumers,
               addStartFunction,
               addFinishFunction,
-              splitListener);
+              executionController);
       processedPTransformIds.add(pTransformId);
     }
   }
@@ -235,22 +240,8 @@ public class ProcessBundleHandler {
                 beamFnStateGrpcClientCache.forApiServiceDescriptor(
                     bundleDescriptor.getStateApiServiceDescriptor()))
             : new FailAllStateCallsForBundle(request.getProcessBundle())) {
-      Multimap<String, BundleApplication> allPrimaries = ArrayListMultimap.create();
-      Multimap<String, DelayedBundleApplication> allResiduals = ArrayListMultimap.create();
-      BundleSplitListener splitListener =
-          (List<BundleApplication> primaries, List<DelayedBundleApplication> residuals) -> {
-            // Reset primaries and accumulate residuals.
-            Multimap<String, BundleApplication> newPrimaries = ArrayListMultimap.create();
-            for (BundleApplication primary : primaries) {
-              newPrimaries.put(primary.getPtransformId(), primary);
-            }
-            allPrimaries.clear();
-            allPrimaries.putAll(newPrimaries);
 
-            for (DelayedBundleApplication residual : residuals) {
-              allResiduals.put(residual.getApplication().getPtransformId(), residual);
-            }
-          };
+      BundleExecutor bundleExecutor = new BundleExecutor();
 
       // Create a BeamFnStateClient
       for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -275,26 +266,240 @@ public class ProcessBundleHandler {
             processedPTransformIds,
             startFunctions::add,
             finishFunctions::add,
-            splitListener);
+            bundleExecutor.getExecutionController());
       }
 
-      // Already in reverse topological order so we don't need to do anything.
-      for (ThrowingRunnable startFunction : startFunctions) {
-        LOG.debug("Starting function {}", startFunction);
-        startFunction.run();
-      }
+      try {
+        instructionIdToBundleExecutors.put(request.getInstructionId(), bundleExecutor);
 
-      // Need to reverse this since we want to call finish in topological order.
-      for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
-        LOG.debug("Finishing function {}", finishFunction);
-        finishFunction.run();
-      }
-      if (!allResiduals.isEmpty()) {
-        response.addAllResidualRoots(allResiduals.values());
+        // Already in reverse topological order so we don't need to do anything.
+        for (ThrowingRunnable startFunction : startFunctions) {
+          LOG.debug("Starting function {}", startFunction);
+          startFunction.run();
+        }
+
+        // Need to reverse this since we want to call finish in topological order.
+        for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
+          LOG.debug("Finishing function {}", finishFunction);
+          finishFunction.run();
+        }
+
+        /**
+         * Eagerly remove the {@link BundleExecutor} to prevent a race condition where we are
+         * attempting to send back the {@link ProcessBundleResponse} and are receiving split
+         * requests before the runner knows that the bundle is done.
+         */
+        instructionIdToBundleExecutors.remove(request.getInstructionId());
+
+        /**
+         * Transition the {@link BundleExecutor} to a finished state preventing any remaining and
+         * known inflight requests to be rejected.
+         */
+        bundleExecutor.completeSplitIfActive(BundleExecutor.ExecutionState.FINISHED);
+
+        /** Provide any additional checkpoints that have been completed. */
+        if (!bundleExecutor.residualRoots.isEmpty()) {
+          response.addAllResidualRoots(bundleExecutor.residualRoots.values());
+        }
+      } finally {
+        /**
+         * Ensure whether we completed exceptionally or normally that the {@link BundleExecutor} is
+         * removed closing a race condition where we are attempting to send back the {@link
+         * ProcessBundleResponse} and are receiving split requests before the runner knows that the
+         * bundle is done.
+         */
+        instructionIdToBundleExecutors.remove(request.getInstructionId());
       }
     }
 
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
+  }
+
+  /**
+   * Allows buffering of partially completed work to be able to make split/checkpoint decisions.
+   *
+   * <p>Methods are marked with which thread is expected to invoke them.
+   */
+  @NotThreadSafe
+  private static class BundleExecutor {
+
+    /**
+     * Represents the current set of execution states.
+     *
+     * <p>The current set of transitions are:
+     *
+     * <ul>
+     *   <li>{@link #EXECUTING} -> {@link #FINISHED}.
+     *   <li>{@link #EXECUTING} -> {@link #SPLIT_REQUESTED} -> {@link #CHECKPOINTING} -> {@link
+     *       #FINISHED}.
+     * </ul>
+     */
+    private enum ExecutionState {
+      EXECUTING,
+      SPLIT_REQUESTED,
+      CHECKPOINTING,
+      FINISHED,
+    }
+
+    // Stores the current execution state. See {@link ExecutionState} for the set of transitions.
+    volatile ExecutionState executionState;
+
+    // These variables are only read/written by the processing thread.
+    private final ExecutionController executionController;
+    private final ListMultimap<String, BundleApplication> primaryRoots;
+    private final ListMultimap<String, DelayedBundleApplication> residualRoots;
+    private final List<CheckpointListener> checkpointListeners;
+
+    // These variables should only be modified when synchronizing over the acceptSplitLock
+    private final Object acceptSplitLock = new Object();
+    private CompletableFuture<BeamFnApi.ProcessBundleSplitResponse> responseFuture;
+    private BeamFnApi.ProcessBundleSplitRequest activeSplit;
+
+    private BundleExecutor() {
+      this.checkpointListeners = new ArrayList<>();
+      this.executionController = new ExecutionController();
+      this.primaryRoots = ArrayListMultimap.create();
+      this.residualRoots = ArrayListMultimap.create();
+      this.executionState = ExecutionState.EXECUTING;
+    }
+
+    /** Invoked only from the bundle processing thread. */
+    public void completeSplitIfActive(ExecutionState newState) {
+      synchronized (acceptSplitLock) {
+        if (executionState == ExecutionState.SPLIT_REQUESTED
+            || executionState == ExecutionState.CHECKPOINTING) {
+          if (residualRoots.isEmpty()) {
+            throw new IllegalStateException(
+                "Bundle has finished processing without splitting of any work.");
+          }
+          BeamFnApi.ProcessBundleSplitResponse response =
+              BeamFnApi.ProcessBundleSplitResponse.newBuilder()
+                  .addAllPrimaryRoots(primaryRoots.values())
+                  .addAllResidualRoots(residualRoots.values())
+                  .build();
+          primaryRoots.clear();
+          residualRoots.clear();
+          activeSplit = null;
+          responseFuture.complete(response);
+        }
+        executionState = newState;
+        // Notify any one waiting for a new split to be processed to wake up and check if
+        // we are in a splittable state.
+        acceptSplitLock.notifyAll();
+      }
+    }
+
+    /** Invoked from the any thread except for the bundle processing thread. */
+    public BeamFnApi.ProcessBundleSplitResponse split(BeamFnApi.ProcessBundleSplitRequest request)
+        throws Exception {
+      // TODO: Figure out what to do if we have have multiple pending split requests?
+      // Should the caller be required to only submit one split request at a time allowing
+      // us to reject any concurrent split requests?
+      SPLIT_ACCEPTED:
+      while (true) {
+        synchronized (acceptSplitLock) {
+          switch (executionState) {
+            case EXECUTING:
+              // The order of these are important since we want to set the split and response future
+              // before attempting to buffer information during execution since the processing
+              // thread will move the execution state from SPLIT_REQUESTED to CHECKPOINTING.
+              activeSplit = request;
+              responseFuture = new CompletableFuture<>();
+              executionState = ExecutionState.SPLIT_REQUESTED;
+              break SPLIT_ACCEPTED;
+            case FINISHED:
+              throw new IllegalStateException("Bundle has finished processing.");
+            default:
+              // Wait till the previous split request is finished before attempting to accept the next one.
+              acceptSplitLock.wait();
+          }
+        }
+      }
+      // We wait for the future outside the loop since the split has been accepted and
+      // we don't want to block while holding the acceptSplitLock.
+      return responseFuture.get();
+    }
+
+    /** Only invoked from the processing thread. */
+    public void notifyPTransformsToPauseProcessing() {
+      for (CheckpointListener checkpointListener : checkpointListeners) {
+        checkpointListener.checkpoint();
+      }
+    }
+
+    /** Only invoked from the processing thread. */
+    public BundleExecutionController getExecutionController() {
+      return executionController;
+    }
+
+    /**
+     * Only invoked from the processing thread. This method is critical to performance as it may be
+     * called once per element.
+     *
+     * <p>The first call to buffer may be slow to pause processing of PTransforms by checkpointing
+     * them.
+     */
+    // TODO: Replace this with an implementation that time/space bounds the output
+    // that is buffered into the list of residuals before resuming processing.
+    @NotThreadSafe
+    private class ExecutionController implements BundleExecutionController {
+
+      @Override
+      public boolean shouldBuffer() throws Exception {
+        switch (executionState) {
+          case EXECUTING:
+            return false;
+          case SPLIT_REQUESTED:
+            notifyPTransformsToPauseProcessing();
+            // No synchronization here is required
+            executionState = ExecutionState.CHECKPOINTING;
+            return true;
+          case CHECKPOINTING:
+            return true;
+          default:
+            throw new IllegalStateException(
+                String.format("Output should not be produced when in state %s.", executionState));
+        }
+      }
+
+      @Override
+      public void checkpoint(
+          BeamFnApi.BundleApplication primary, List<BeamFnApi.DelayedBundleApplication> residuals) {
+        primaryRoots.put(primary.getPtransformId(), primary);
+        for (BeamFnApi.DelayedBundleApplication residual : residuals) {
+          residualRoots.put(residual.getApplication().getPtransformId(), residual);
+        }
+      }
+
+      @Override
+      public void buffer(BeamFnApi.BundleApplication buffer) {
+        residualRoots.put(
+            buffer.getPtransformId(),
+            DelayedBundleApplication.newBuilder().setApplication(buffer).build());
+      }
+
+      @Override
+      public void registerCheckpointListener(CheckpointListener checkpointListener) {
+        checkpointListeners.add(checkpointListener);
+      }
+    }
+  }
+
+  public BeamFnApi.InstructionResponse.Builder splitBundle(BeamFnApi.InstructionRequest request)
+      throws Exception {
+    BeamFnApi.ProcessBundleSplitRequest splitRequest = request.getProcessBundleSplit();
+    BeamFnApi.ProcessBundleSplitResponse.Builder response =
+        BeamFnApi.ProcessBundleSplitResponse.newBuilder();
+    BundleExecutor handler =
+        instructionIdToBundleExecutors.get(splitRequest.getInstructionReference());
+    if (handler == null) {
+      throw new Exception(
+          String.format(
+              "Unknown instruction id %s for split request.",
+              splitRequest.getInstructionReference()));
+    }
+    return BeamFnApi.InstructionResponse.newBuilder()
+        .setProcessBundleSplit(handler.split(splitRequest));
   }
 
   /**
@@ -387,7 +592,7 @@ public class ProcessBundleHandler {
         ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
-        BundleSplitListener splitListener) {
+        BundleExecutionController bundleExecutionController) {
       String message =
           String.format(
               "No factory registered for %s, known factories %s",

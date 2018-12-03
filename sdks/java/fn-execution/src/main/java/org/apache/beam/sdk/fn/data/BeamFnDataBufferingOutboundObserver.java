@@ -92,7 +92,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
   @Override
   public void close() throws Exception {
     if (closed) {
-      throw new IllegalStateException("Already closed.");
+      return;
     }
     closed = true;
     BeamFnApi.Elements.Builder elements = convertBufferForTransmission();

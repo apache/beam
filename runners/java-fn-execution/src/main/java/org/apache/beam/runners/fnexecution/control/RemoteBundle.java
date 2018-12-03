@@ -18,7 +18,10 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
@@ -38,6 +41,18 @@ public interface RemoteBundle extends AutoCloseable {
    * forwarding them to the remote environment.
    */
   Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers();
+
+  /**
+   * Requests that the remote bundle be split using the provided backlogs.
+   *
+   * <p>Closes the input receivers allowing the SDK to progress to a safe checkpoint state. The
+   * caller is responsible for ensuring that no additional inputs are funnelled to an input
+   * receiver.
+   */
+  // TODO: Closing the input receiver isn't strictly required if all remote gRPC reads were splittable.
+  // TODO: Consider making this a blocking call, right now we delegate to the BundleSplitHandler.
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  void split(Map<String, Backlog> split);
 
   /**
    * Closes this bundle. This causes the input {@link FnDataReceiver} to be closed (future calls to

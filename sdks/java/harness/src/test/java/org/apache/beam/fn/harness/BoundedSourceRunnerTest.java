@@ -159,7 +159,7 @@ public class BoundedSourceRunnerTest {
             consumers,
             startFunctions::add,
             finishFunctions::add,
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     // This is testing a deprecated way of running sources and should be removed
     // once all source definitions are instead propagated along the input edge.

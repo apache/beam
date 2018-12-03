@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.control.BundleSplitListener;
+import org.apache.beam.fn.harness.control.BundleExecutionController;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -58,7 +58,8 @@ public interface PTransformRunnerFactory<T> {
    *     registered within this multimap.
    * @param addStartFunction A consumer to register a start bundle handler with.
    * @param addFinishFunction A consumer to register a finish bundle handler with.
-   * @param splitListener A listener to be invoked when the PTransform splits itself.
+   * @param bundleExecutionController Allows PTransforms to grant control over partially completed
+   *     and buffered inputs to the {@link BundleExecutionController}.
    */
   T createRunnerForPTransform(
       PipelineOptions pipelineOptions,
@@ -73,7 +74,7 @@ public interface PTransformRunnerFactory<T> {
       ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
-      BundleSplitListener splitListener)
+      BundleExecutionController bundleExecutionController)
       throws IOException;
 
   /**

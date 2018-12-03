@@ -152,7 +152,7 @@ public class BeamFnDataReadRunnerTest {
             consumers,
             startFunctions::add,
             finishFunctions::add,
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     verifyZeroInteractions(mockBeamFnDataClient);
 

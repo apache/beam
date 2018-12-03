@@ -202,7 +202,7 @@ public class AssignWindowsRunnerTest implements Serializable {
             receivers,
             null /* addStartFunction */,
             null, /* addFinishFunction */
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     WindowedValue<Integer> value =
         WindowedValue.of(

@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.control.BundleSplitListener;
+import org.apache.beam.fn.harness.control.BundleExecutionController;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -87,7 +87,7 @@ public class BeamFnDataWriteRunner<InputT> {
         ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
-        BundleSplitListener splitListener)
+        BundleExecutionController bundleExecutionController)
         throws IOException {
       BeamFnApi.Target target =
           BeamFnApi.Target.newBuilder()
@@ -107,7 +107,13 @@ public class BeamFnDataWriteRunner<InputT> {
       }
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
-              pTransform, processBundleInstructionId, target, coderSpec, coders, beamFnDataClient);
+              pTransform,
+              processBundleInstructionId,
+              target,
+              coderSpec,
+              coders,
+              beamFnDataClient,
+              bundleExecutionController);
       addStartFunction.accept(runner::registerForOutput);
       pCollectionIdsToConsumers.put(
           getOnlyElement(pTransform.getInputsMap().values()),
@@ -122,6 +128,7 @@ public class BeamFnDataWriteRunner<InputT> {
   private final Coder<WindowedValue<InputT>> coder;
   private final BeamFnDataClient beamFnDataClientFactory;
   private final Supplier<String> processBundleInstructionIdSupplier;
+  private final BundleExecutionController bundleExecutionController;
 
   private CloseableFnDataReceiver<WindowedValue<InputT>> consumer;
 
@@ -131,13 +138,15 @@ public class BeamFnDataWriteRunner<InputT> {
       BeamFnApi.Target outputTarget,
       RunnerApi.Coder coderSpec,
       Map<String, RunnerApi.Coder> coders,
-      BeamFnDataClient beamFnDataClientFactory)
+      BeamFnDataClient beamFnDataClientFactory,
+      BundleExecutionController bundleExecutionController)
       throws IOException {
     RemoteGrpcPort port = RemoteGrpcPortWrite.fromPTransform(remoteWriteNode).getPort();
     this.apiServiceDescriptor = port.getApiServiceDescriptor();
     this.beamFnDataClientFactory = beamFnDataClientFactory;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.outputTarget = outputTarget;
+    this.bundleExecutionController = bundleExecutionController;
 
     RehydratedComponents components =
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
@@ -167,6 +176,10 @@ public class BeamFnDataWriteRunner<InputT> {
   }
 
   public void consume(WindowedValue<InputT> value) throws Exception {
+    // We specifically invoke this here to allow for the execution mechanism to "ask"
+    // all PTransforms to checkpoint if able. We disregard any "buffering" since
+    // we are emitting the value as output from this bundle.
+    bundleExecutionController.shouldBuffer();
     consumer.accept(value);
   }
 }

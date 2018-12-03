@@ -32,6 +32,8 @@ import org.apache.beam.sdk.io.range.OffsetRange;
  */
 public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
     implements Backlogs.HasBacklog {
+  public static final OffsetRange EMPTY_RANGE = new OffsetRange(Long.MIN_VALUE, Long.MIN_VALUE);
+
   private OffsetRange range;
   @Nullable private Long lastClaimedOffset = null;
   @Nullable private Long lastAttemptedOffset = null;
@@ -47,8 +49,20 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
 
   @Override
   public OffsetRange checkpoint() {
-    checkState(
-        lastClaimedOffset != null, "Can't checkpoint before any offset was successfully claimed");
+    // If we haven't done any work, let us checkpoint by returning the range we are responsible for
+    // and update the range that we are responsible for to an empty range.
+    if (lastAttemptedOffset == null) {
+      OffsetRange rval = range;
+      this.range = EMPTY_RANGE;
+      return rval;
+    }
+    // If we are done, let us return the empty range.
+    if (lastAttemptedOffset >= range.getTo() - 1) {
+      return EMPTY_RANGE;
+    }
+    // Otherwise we compute the "remainder" of the range from the last offset.
+    assert lastAttemptedOffset.equals(lastClaimedOffset)
+        : "Expect both offsets to be equal since the last offset attempted was a valid offset in the range.";
     OffsetRange res = new OffsetRange(lastClaimedOffset + 1, range.getTo());
     this.range = new OffsetRange(range.getFrom(), lastClaimedOffset + 1);
     return res;
@@ -82,6 +96,9 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
 
   @Override
   public void checkDone() throws IllegalStateException {
+    if (range.getFrom() == range.getTo()) {
+      return;
+    }
     checkState(
         lastAttemptedOffset >= range.getTo() - 1,
         "Last attempted offset was %s in range %s, claiming work in [%s, %s) was not attempted",

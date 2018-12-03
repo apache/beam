@@ -83,7 +83,7 @@ public class MapFnRunnersTest {
             consumers,
             startFunctions::add,
             finishFunctions::add,
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     assertThat(startFunctions, empty());
     assertThat(finishFunctions, empty());
@@ -118,7 +118,7 @@ public class MapFnRunnersTest {
             consumers,
             startFunctions::add,
             finishFunctions::add,
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     assertThat(startFunctions, empty());
     assertThat(finishFunctions, empty());
@@ -153,7 +153,7 @@ public class MapFnRunnersTest {
             consumers,
             startFunctions::add,
             finishFunctions::add,
-            null /* splitListener */);
+            null /* bundleExecutionController */);
 
     assertThat(startFunctions, empty());
     assertThat(finishFunctions, empty());

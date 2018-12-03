@@ -20,11 +20,14 @@ package org.apache.beam.runners.fnexecution.control;
 import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Collections2;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -32,6 +35,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,12 +53,18 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.FnHarness;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
@@ -77,11 +87,14 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
@@ -99,6 +112,9 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -108,6 +124,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.hamcrest.collection.IsEmptyCollection;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.joda.time.DateTimeUtils;
@@ -180,7 +197,7 @@ public class RemoteExecutionTest implements Serializable {
             });
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
     InstructionRequestHandler controlClient =
-        clientPool.getSource().take("", java.time.Duration.ofSeconds(2));
+        clientPool.getSource().take("", java.time.Duration.ofSeconds(5));
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 
@@ -806,6 +823,396 @@ public class RemoteExecutionTest implements Serializable {
         containsInAnyOrder(
             WindowedValue.valueInGlobalWindow(kvBytes("stream1X", "")),
             WindowedValue.valueInGlobalWindow(kvBytes("stream2X", ""))));
+  }
+
+  @Test
+  public void testSplittableDoFn() throws Exception {
+    Pipeline p = Pipeline.create();
+    p.apply("impulse", Impulse.create())
+        .apply(
+            "create",
+            ParDo.of(
+                new DoFn<byte[], KV<String, Long>>() {
+                  @ProcessElement
+                  public void process(ProcessContext ctxt) {}
+                }))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()))
+        .apply(
+            "pairKeyWithIndex",
+            ParDo.of(
+                new DoFn<KV<String, Long>, KV<String, Long>>() {
+
+                  @ProcessElement
+                  public void processElement(
+                      ProcessContext c, RestrictionTracker<OffsetRange, Long> restrictionTracker) {
+                    long currentElement = restrictionTracker.currentRestriction().getFrom();
+                    while (restrictionTracker.tryClaim(currentElement)) {
+                      c.output(KV.of(c.element().getKey(), currentElement));
+                      currentElement += 1;
+                    }
+                  }
+
+                  @GetInitialRestriction
+                  public OffsetRange getInitialRestriction(KV<String, Long> elem) {
+                    return new OffsetRange(0, elem.getValue());
+                  }
+                }))
+        // Use some known coders
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()))
+        // Force the output to be materialized
+        .apply("gbk", GroupByKey.create());
+
+    // TODO: Update GreedyPipelineFuser to support SplittableDoFn expansion
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    RunnerApi.PTransform splittableDoFn =
+        pipelineProto
+            .getComponents()
+            .getTransformsOrThrow("pairKeyWithIndex/ParMultiDo(Anonymous)");
+
+    SdkComponents sdkComponents = SdkComponents.create(pipelineProto.getComponents());
+    RunnerApi.Coder splittableProcessElementsFnInputCoder =
+        CoderTranslation.toProto(
+            KvCoder.of(
+                KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()),
+                SerializableCoder.of(OffsetRange.class)),
+            sdkComponents);
+    RunnerApi.PCollection splittableProcessElementsFnInputPCollection =
+        pipelineProto
+            .getComponents()
+            .getPcollectionsOrThrow(
+                Iterables.getOnlyElement(splittableDoFn.getInputsMap().values()))
+            .toBuilder()
+            .setCoderId("splittableProcessElementsFnInputCoder")
+            .build();
+    RunnerApi.PTransform splittableProcessElementsFnTransform =
+        splittableDoFn
+            .toBuilder()
+            .clearInputs()
+            .putInputs(
+                Iterables.getOnlyElement(splittableDoFn.getInputsMap().keySet()),
+                "splittableProcessElementsFnInputPCollection")
+            .setSpec(
+                splittableDoFn
+                    .getSpec()
+                    .toBuilder()
+                    .setUrn(PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN))
+            .build();
+    String outputPCollectionId = Iterables.getOnlyElement(splittableDoFn.getOutputsMap().values());
+    ExecutableStage stage =
+        ImmutableExecutableStage.of(
+            sdkComponents
+                .toComponents()
+                .toBuilder()
+                .putCoders(
+                    "splittableProcessElementsFnInputCoder", splittableProcessElementsFnInputCoder)
+                .putPcollections(
+                    "splittableProcessElementsFnInputPCollection",
+                    splittableProcessElementsFnInputPCollection)
+                .putTransforms(
+                    "splittableProcessElementsFnTransform", splittableProcessElementsFnTransform)
+                .build(),
+            Iterables.getOnlyElement(pipelineProto.getComponents().getEnvironmentsMap().values()),
+            PipelineNode.pCollection(
+                "splittableProcessElementsFnInputPCollection",
+                splittableProcessElementsFnInputPCollection),
+            Collections.emptyList(),
+            Collections.emptyList(),
+            Collections.emptyList(),
+            ImmutableList.of(
+                PipelineNode.pTransform(
+                    "splittableProcessElementsFnTransform", splittableProcessElementsFnTransform)),
+            ImmutableList.of(
+                PipelineNode.pCollection(
+                    outputPCollectionId,
+                    pipelineProto.getComponents().getPcollectionsOrThrow(outputPCollectionId))));
+
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "my_stage", stage, dataServer.getApiServiceDescriptor());
+
+    BundleProcessor processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(), descriptor.getRemoteInputDestinations());
+    Map<Target, ? super Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+    Map<Target, Collection<? super WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<Target, ? super Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+      List<? super WindowedValue<?>> outputContents =
+          Collections.synchronizedList(new ArrayList<>());
+      outputValues.put(targetCoder.getKey(), outputContents);
+      outputReceivers.put(
+          targetCoder.getKey(),
+          RemoteOutputReceiver.of(
+              (Coder) targetCoder.getValue(),
+              (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
+    }
+
+    try (ActiveBundle bundle =
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  KV.of(
+                      kvBytes("a", 3L),
+                      CoderUtils.encodeToByteArray(
+                          SerializableCoder.of(OffsetRange.class), new OffsetRange(0, 3)))));
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  KV.of(
+                      kvBytes("b", 5L),
+                      CoderUtils.encodeToByteArray(
+                          SerializableCoder.of(OffsetRange.class), new OffsetRange(4, 6)))));
+    }
+
+    assertThat(
+        Iterables.getOnlyElement(outputValues.values()),
+        containsInAnyOrder(
+            WindowedValue.valueInGlobalWindow(kvBytes("a", 0)),
+            WindowedValue.valueInGlobalWindow(kvBytes("a", 1)),
+            WindowedValue.valueInGlobalWindow(kvBytes("a", 2)),
+            WindowedValue.valueInGlobalWindow(kvBytes("b", 4)),
+            WindowedValue.valueInGlobalWindow(kvBytes("b", 5))));
+  }
+
+  @Test
+  public void testRunnerCheckpointingSplittableDoFn() throws Exception {
+    Pipeline p = Pipeline.create();
+    p.apply("impulse", Impulse.create())
+        .apply(
+            "create",
+            ParDo.of(
+                new DoFn<byte[], KV<String, Long>>() {
+                  @ProcessElement
+                  public void process(ProcessContext ctxt) {}
+                }))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()))
+        .apply(
+            "pairKeyWithIndex",
+            ParDo.of(
+                new DoFn<KV<String, Long>, KV<String, Long>>() {
+
+                  @ProcessElement
+                  public void processElement(
+                      ProcessContext c, RestrictionTracker<OffsetRange, Long> restrictionTracker)
+                      throws Exception {
+                    long currentElement = restrictionTracker.currentRestriction().getFrom();
+                    while (restrictionTracker.tryClaim(currentElement)) {
+                      Thread.sleep(100L);
+                      c.output(KV.of(c.element().getKey(), currentElement));
+                      currentElement += 1;
+                    }
+                  }
+
+                  @GetInitialRestriction
+                  public OffsetRange getInitialRestriction(KV<String, Long> elem) {
+                    return new OffsetRange(0, elem.getValue());
+                  }
+                }))
+        // Use some known coders
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()))
+        // Force the output to be materialized
+        .apply("gbk", GroupByKey.create());
+
+    // TODO: Update GreedyPipelineFuser to support SplittableDoFn expansion
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    RunnerApi.PTransform splittableDoFn =
+        pipelineProto
+            .getComponents()
+            .getTransformsOrThrow("pairKeyWithIndex/ParMultiDo(Anonymous)");
+
+    Coder<KV<KV<String, Long>, OffsetRange>> sdkSplittableProcessElementsFnInputCoder =
+        KvCoder.of(
+            KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()),
+            SerializableCoder.of(OffsetRange.class));
+    SdkComponents sdkComponents = SdkComponents.create(pipelineProto.getComponents());
+    RunnerApi.Coder splittableProcessElementsFnInputCoder =
+        CoderTranslation.toProto(sdkSplittableProcessElementsFnInputCoder, sdkComponents);
+    RunnerApi.PCollection splittableProcessElementsFnInputPCollection =
+        pipelineProto
+            .getComponents()
+            .getPcollectionsOrThrow(
+                Iterables.getOnlyElement(splittableDoFn.getInputsMap().values()))
+            .toBuilder()
+            .setCoderId("splittableProcessElementsFnInputCoder")
+            .build();
+    RunnerApi.PTransform splittableProcessElementsFnTransform =
+        splittableDoFn
+            .toBuilder()
+            .clearInputs()
+            .putInputs(
+                Iterables.getOnlyElement(splittableDoFn.getInputsMap().keySet()),
+                "splittableProcessElementsFnInputPCollection")
+            .setSpec(
+                splittableDoFn
+                    .getSpec()
+                    .toBuilder()
+                    .setUrn(PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN))
+            .build();
+    String outputPCollectionId = Iterables.getOnlyElement(splittableDoFn.getOutputsMap().values());
+    ExecutableStage stage =
+        ImmutableExecutableStage.of(
+            sdkComponents
+                .toComponents()
+                .toBuilder()
+                .putCoders(
+                    "splittableProcessElementsFnInputCoder", splittableProcessElementsFnInputCoder)
+                .putPcollections(
+                    "splittableProcessElementsFnInputPCollection",
+                    splittableProcessElementsFnInputPCollection)
+                .putTransforms(
+                    "splittableProcessElementsFnTransform", splittableProcessElementsFnTransform)
+                .build(),
+            Iterables.getOnlyElement(pipelineProto.getComponents().getEnvironmentsMap().values()),
+            PipelineNode.pCollection(
+                "splittableProcessElementsFnInputPCollection",
+                splittableProcessElementsFnInputPCollection),
+            Collections.emptyList(),
+            Collections.emptyList(),
+            Collections.emptyList(),
+            ImmutableList.of(
+                PipelineNode.pTransform(
+                    "splittableProcessElementsFnTransform", splittableProcessElementsFnTransform)),
+            ImmutableList.of(
+                PipelineNode.pCollection(
+                    outputPCollectionId,
+                    pipelineProto.getComponents().getPcollectionsOrThrow(outputPCollectionId))));
+
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "my_stage", stage, dataServer.getApiServiceDescriptor());
+
+    BundleProcessor processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(), descriptor.getRemoteInputDestinations());
+    Map<Target, ? super Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+    Map<Target, Collection<? super WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<Target, ? super Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+      List<? super WindowedValue<?>> outputContents =
+          Collections.synchronizedList(new ArrayList<>());
+      outputValues.put(targetCoder.getKey(), outputContents);
+      outputReceivers.put(
+          targetCoder.getKey(),
+          RemoteOutputReceiver.of(
+              (Coder) targetCoder.getValue(),
+              (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
+    }
+
+    List<BeamFnApi.ProcessBundleSplitResponse> recordedSplits = new ArrayList<>();
+    List<BeamFnApi.ProcessBundleResponse> recordedCheckpoints = new ArrayList<>();
+    BundleSplitHandler splitHandler =
+        new BundleSplitHandler() {
+          @Override
+          public void onSplit(BeamFnApi.ProcessBundleSplitResponse splitResponse) {
+            recordedSplits.add(splitResponse);
+          }
+
+          @Override
+          public void onCheckpoint(BeamFnApi.ProcessBundleResponse checkpointResponse) {
+            recordedCheckpoints.add(checkpointResponse);
+          }
+        };
+    OffsetRange offsetRangeForA = new OffsetRange(0, 3);
+    OffsetRange offsetRangeForB = new OffsetRange(4, 6);
+    try (ActiveBundle bundle =
+        processor.newBundle(
+            outputReceivers,
+            StateRequestHandler.unsupported(),
+            BundleProgressHandler.ignored(),
+            splitHandler)) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  KV.of(
+                      kvBytes("a", 3L),
+                      CoderUtils.encodeToByteArray(
+                          SerializableCoder.of(OffsetRange.class), offsetRangeForA))));
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  KV.of(
+                      kvBytes("b", 5L),
+                      CoderUtils.encodeToByteArray(
+                          SerializableCoder.of(OffsetRange.class), offsetRangeForB))));
+
+      // Close the input to allow the SDK to get to a checkpointable state.
+      ((CloseableFnDataReceiver) Iterables.getOnlyElement(bundle.getInputReceivers().values()))
+          .close();
+      // Allow the SDK to process some elements before attempting to split.
+      Thread.sleep(350L);
+      bundle.split(
+          ImmutableMap.of("splittableProcessElementsFnTransform", Backlog.of(BigDecimal.ZERO)));
+    }
+
+    assertThat(recordedCheckpoints, IsEmptyCollection.empty());
+    Map<String, OffsetRange> primaryRoots = new HashMap<>();
+    Map<String, OffsetRange> residualRoots = new HashMap<>();
+    for (BeamFnApi.ProcessBundleSplitResponse split : recordedSplits) {
+      for (BeamFnApi.BundleApplication primary : split.getPrimaryRootsList()) {
+        WindowedValue<KV<KV<String, Long>, OffsetRange>> value =
+            CoderUtils.decodeFromByteArray(
+                WindowedValue.getFullCoder(
+                    sdkSplittableProcessElementsFnInputCoder, GlobalWindow.Coder.INSTANCE),
+                primary.getElement().toByteArray());
+        assertNull(
+            "Expected only one offset range per key",
+            primaryRoots.put(value.getValue().getKey().getKey(), value.getValue().getValue()));
+      }
+      for (BeamFnApi.DelayedBundleApplication residual : split.getResidualRootsList()) {
+        WindowedValue<KV<KV<String, Long>, OffsetRange>> value =
+            CoderUtils.decodeFromByteArray(
+                WindowedValue.getFullCoder(
+                    sdkSplittableProcessElementsFnInputCoder, GlobalWindow.Coder.INSTANCE),
+                residual.getApplication().getElement().toByteArray());
+        assertNull(
+            "Expected only one offset range per key",
+            residualRoots.put(value.getValue().getKey().getKey(), value.getValue().getValue()));
+      }
+    }
+    assertEquals(primaryRoots.keySet(), residualRoots.keySet());
+    for (String key : primaryRoots.keySet()) {
+      OffsetRange expected;
+      if ("a".equals(key)) {
+        expected = offsetRangeForA;
+      } else if ("b".equals(key)) {
+        expected = offsetRangeForB;
+      } else {
+        throw new AssertionError(String.format("Unknown key %s", key));
+      }
+      OffsetRange primary = primaryRoots.get(key);
+      OffsetRange residual = residualRoots.get(key);
+      // We have three possible outcomes for each restriction:
+      //   * after finishing
+      //   * before starting
+      //   * during execution
+      if (OffsetRangeTracker.EMPTY_RANGE.equals(primary)) {
+        assertEquals(expected, residual);
+      } else if (OffsetRangeTracker.EMPTY_RANGE.equals(residual)) {
+        assertEquals(expected, primary);
+      } else {
+        assertEquals(expected.getFrom(), primary.getFrom());
+        assertEquals(primary.getTo(), residual.getFrom());
+        assertEquals(expected.getTo(), residual.getTo());
+      }
+      long current = residual.getFrom();
+      while (current < residual.getTo()) {
+        Iterables.getOnlyElement(outputValues.values())
+            .add(WindowedValue.valueInGlobalWindow(kvBytes(key, current)));
+        current += 1;
+      }
+    }
+
+    // Ensure that the set of output values + additional values that would have been added
+    // by the residuals equals the entire set of expected values.
+    assertThat(
+        Iterables.getOnlyElement(outputValues.values()),
+        containsInAnyOrder(
+            WindowedValue.valueInGlobalWindow(kvBytes("a", 0)),
+            WindowedValue.valueInGlobalWindow(kvBytes("a", 1)),
+            WindowedValue.valueInGlobalWindow(kvBytes("a", 2)),
+            WindowedValue.valueInGlobalWindow(kvBytes("b", 4)),
+            WindowedValue.valueInGlobalWindow(kvBytes("b", 5))));
   }
 
   private KV<byte[], byte[]> kvBytes(String key, long value) throws CoderException {
