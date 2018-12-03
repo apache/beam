@@ -98,7 +98,8 @@ TableSchema: Describes the schema (types and order) for values in each row.
 
 TableFieldSchema: Describes the schema (type, name) for one field.
   Has several attributes, including 'name' and 'type'. Common values for
-  the type attribute are: 'STRING', 'INTEGER', 'FLOAT', 'BOOLEAN', 'NUMERIC'.
+  the type attribute are: 'STRING', 'INTEGER', 'FLOAT', 'BOOLEAN', 'NUMERIC',
+  'GEOGRAPHY'.
   All possible values are described at:
   https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
 
@@ -111,6 +112,7 @@ TableCell: Holds the value for one cell (or field).  Has one attribute,
 
 As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
 high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
+As of Beam 2.10.0, the GEOGRAPHY data type is supported.
 """
 
 from __future__ import absolute_import
@@ -1243,6 +1245,8 @@ class BigQueryWrapper(object):
       return self.convert_row_to_dict(value, field)
     elif field.type == 'NUMERIC':
       return decimal.Decimal(value)
+    elif field.type == 'GEOGRAPHY':
+      return value
     else:
       raise RuntimeError('Unexpected field type: %s' % field.type)
 
