@@ -516,6 +516,7 @@ public class BigQueryServicesImplTest {
         InsertRetryPolicy.alwaysRetry(),
         null,
         null,
+        null,
         false,
         false);
     verify(response, times(2)).getStatusCode();
@@ -565,6 +566,7 @@ public class BigQueryServicesImplTest {
         InsertRetryPolicy.alwaysRetry(),
         null,
         null,
+        null,
         false,
         false);
     verify(response, times(2)).getStatusCode();
@@ -608,6 +610,7 @@ public class BigQueryServicesImplTest {
           BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
           new MockSleeper(),
           InsertRetryPolicy.alwaysRetry(),
+          null,
           null,
           null,
           false,
@@ -656,6 +659,7 @@ public class BigQueryServicesImplTest {
           BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
           new MockSleeper(),
           InsertRetryPolicy.alwaysRetry(),
+          null,
           null,
           null,
           false,
@@ -729,6 +733,7 @@ public class BigQueryServicesImplTest {
         InsertRetryPolicy.retryTransientErrors(),
         failedInserts,
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
+        null,
         false,
         false);
     assertEquals(1, failedInserts.size());
@@ -769,6 +774,7 @@ public class BigQueryServicesImplTest {
         InsertRetryPolicy.neverRetry(),
         Lists.newArrayList(),
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
+        null,
         false,
         false);
 
@@ -788,6 +794,7 @@ public class BigQueryServicesImplTest {
         InsertRetryPolicy.neverRetry(),
         Lists.newArrayList(),
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
+        null,
         true,
         true);
 
@@ -970,6 +977,7 @@ public class BigQueryServicesImplTest {
         InsertRetryPolicy.neverRetry(),
         failedInserts,
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
+        null,
         false,
         false);
 
@@ -1024,6 +1032,7 @@ public class BigQueryServicesImplTest {
         InsertRetryPolicy.neverRetry(),
         failedInserts,
         ErrorContainer.BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER,
+        null,
         false,
         false);
 

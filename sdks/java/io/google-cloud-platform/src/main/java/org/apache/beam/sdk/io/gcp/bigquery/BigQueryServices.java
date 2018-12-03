@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.codahale.metrics.Meter;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -28,11 +29,15 @@ import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.util.concurrent.RateLimiter;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
 public interface BigQueryServices extends Serializable {
@@ -142,6 +147,7 @@ public interface BigQueryServices extends Serializable {
         InsertRetryPolicy retryPolicy,
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
+        RateController rateController,
         boolean skipInvalidRows,
         boolean ignoreUnknownValues)
         throws IOException, InterruptedException;
@@ -149,5 +155,56 @@ public interface BigQueryServices extends Serializable {
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
+  }
+
+  /**
+   * A class for controlling insertAll submission rate.
+   *
+   * <p>To avoid excessive rate limit error messages from BigQuery API, this class limits the number
+   * of rows per second that each worker can submit to BigQuery insertAll API. The threshold is
+   * dynamically changing every minute based on how many rate limit errors the worker received for
+   * the previous one minute interval. The threshold will be increased by one percent if there was
+   * no such error and decreased by five percent if existed.
+   */
+  class RateController {
+    private static final Logger LOG = LoggerFactory.getLogger(RateController.class);
+
+    private final Meter rateMeter;
+    private final RateLimiter rateLimiter;
+    private Instant lastAdjusted;
+
+    private static final long UPDATE_INTERVAL_MILLIS = 60000;
+    private static final double RATE_INCREASE_RATIO = 1.01;
+    private static final double RATE_DECREASE_RATIO = 0.95;
+    private static final double RATE_MAX = 100000.0;
+
+    RateController() {
+      rateMeter = new Meter();
+      rateLimiter =
+          RateLimiter.create(RATE_MAX / 50); // max rate divided by the default number of shards.
+      lastAdjusted = Instant.now();
+    }
+
+    void mark() {
+      rateMeter.mark();
+    }
+
+    double acquire(int permits) {
+      return rateLimiter.acquire(permits);
+    }
+
+    void adjust() {
+      if (Instant.now().getMillis() - lastAdjusted.getMillis() > UPDATE_INTERVAL_MILLIS) {
+        double rate = rateLimiter.getRate();
+        if (rateMeter.getOneMinuteRate() > 0.01) {
+          rateLimiter.setRate(Math.max(Math.floor(rate * RATE_DECREASE_RATIO), 1.0));
+        } else {
+          rateLimiter.setRate(Math.min(Math.ceil(rate * RATE_INCREASE_RATIO), RATE_MAX));
+        }
+        LOG.info(
+            String.format("rate limit adjusted: %.1f -> %.1f rows", rate, rateLimiter.getRate()));
+        lastAdjusted = Instant.now();
+      }
+    }
   }
 }

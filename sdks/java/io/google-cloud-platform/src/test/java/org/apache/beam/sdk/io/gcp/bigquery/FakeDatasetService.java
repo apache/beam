@@ -204,7 +204,15 @@ public class FakeDatasetService implements DatasetService, Serializable {
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
     return insertAll(
-        ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null, null, false, false);
+        ref,
+        windowedRows,
+        insertIdList,
+        InsertRetryPolicy.alwaysRetry(),
+        null,
+        null,
+        null,
+        false,
+        false);
   }
 
   @Override
@@ -215,6 +223,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
       InsertRetryPolicy retryPolicy,
       List<ValueInSingleWindow<T>> failedInserts,
       ErrorContainer<T> errorContainer,
+      BigQueryServices.RateController rateController,
       boolean skipInvalidRows,
       boolean ignoreUnknownValues)
       throws IOException, InterruptedException {

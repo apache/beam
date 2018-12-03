@@ -55,11 +55,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.BackOffAdapter;
@@ -672,12 +672,13 @@ class BigQueryServicesImpl implements BigQueryServices {
         InsertRetryPolicy retryPolicy,
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
+        RateController rateController,
         boolean skipInvalidRows,
         boolean ignoreUnkownValues)
         throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
-        this.executor = options.as(GcsOptions.class).getExecutorService();
+        this.executor = Executors.newSingleThreadExecutor();
       }
       if (insertIdList != null && rowList.size() != insertIdList.size()) {
         throw new AssertionError(
@@ -734,18 +735,28 @@ class BigQueryServicesImpl implements BigQueryServices {
                           BackOffAdapter.toGcpBackOff(RATE_LIMIT_BACKOFF_FACTORY.backoff());
                       while (true) {
                         try {
+                          if (rateController != null) {
+                            rateController.acquire(content.getRows().size());
+                          }
                           return insert.execute().getInsertErrors();
                         } catch (IOException e) {
-                          if (new ApiErrorExtractor().rateLimited(e)) {
+                          if (ApiErrorExtractor.INSTANCE.rateLimited(e)) {
                             LOG.info("BigQuery insertAll exceeded rate limit, retrying");
-                            try {
-                              sleeper.sleep(backoff1.nextBackOffMillis());
-                            } catch (InterruptedException interrupted) {
-                              throw new IOException(
-                                  "Interrupted while waiting before retrying insertAll");
-                            }
+                          } else if (ApiErrorExtractor.INSTANCE
+                              .getErrorMessage(e)
+                              .startsWith("Quota exceeded")) {
+                            LOG.info("BigQuery insertAll quota exceeded, retrying");
                           } else {
                             throw e;
+                          }
+                          if (rateController != null) {
+                            rateController.mark();
+                          }
+                          try {
+                            sleeper.sleep(backoff1.nextBackOffMillis());
+                          } catch (InterruptedException interrupted) {
+                            throw new IOException(
+                                "Interrupted while waiting before retrying insertAll");
                           }
                         }
                       }
@@ -823,6 +834,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         InsertRetryPolicy retryPolicy,
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
+        RateController rateController,
         boolean skipInvalidRows,
         boolean ignoreUnknownValues)
         throws IOException, InterruptedException {
@@ -835,6 +847,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           retryPolicy,
           failedInserts,
           errorContainer,
+          rateController,
           skipInvalidRows,
           ignoreUnknownValues);
     }

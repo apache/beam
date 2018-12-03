@@ -45,6 +45,7 @@ class StreamingWriteFn<ErrorT> extends DoFn<KV<ShardedKey<String>, TableRowInfo>
   private final ErrorContainer<ErrorT> errorContainer;
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
+  private BigQueryServices.RateController rateController;
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
   private transient Map<String, List<ValueInSingleWindow<TableRow>>> tableRows;
@@ -75,6 +76,9 @@ class StreamingWriteFn<ErrorT> extends DoFn<KV<ShardedKey<String>, TableRowInfo>
   public void startBundle() {
     tableRows = new HashMap<>();
     uniqueIdsForTableRows = new HashMap<>();
+    if (rateController == null) {
+      rateController = new BigQueryServices.RateController();
+    }
   }
 
   /** Accumulates the input into JsonTableRows and uniqueIdsForTableRows. */
@@ -108,6 +112,7 @@ class StreamingWriteFn<ErrorT> extends DoFn<KV<ShardedKey<String>, TableRowInfo>
     }
     tableRows.clear();
     uniqueIdsForTableRows.clear();
+    rateController.adjust();
 
     for (ValueInSingleWindow<ErrorT> row : failedInserts) {
       context.output(failedOutputTag, row.getValue(), row.getTimestamp(), row.getWindow());
@@ -134,6 +139,7 @@ class StreamingWriteFn<ErrorT> extends DoFn<KV<ShardedKey<String>, TableRowInfo>
                     retryPolicy,
                     failedInserts,
                     errorContainer,
+                    rateController,
                     skipInvalidRows,
                     ignoreUnknownValues);
         byteCounter.inc(totalBytes);
