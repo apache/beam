@@ -38,6 +38,7 @@ func NewExtractor(pkg string) *Extractor {
 		Package:     pkg,
 		functions:   make(map[string]struct{}),
 		types:       make(map[string]struct{}),
+		wraps:       make(map[string]map[string]*types.Signature),
 		funcs:       make(map[string]*types.Signature),
 		emits:       make(map[string]shimx.Emitter),
 		iters:       make(map[string]shimx.Input),
@@ -60,6 +61,8 @@ type Extractor struct {
 	functions map[string]struct{}
 	// Types to Register (structs, essentially)
 	types map[string]struct{}
+	// StructuralDoFn wraps needed (receiver type, then method names)
+	wraps map[string]map[string]*types.Signature
 	// FuncShims needed
 	funcs map[string]*types.Signature
 	// Emitter Shims needed
@@ -81,6 +84,7 @@ func (e *Extractor) Summary() {
 	e.Printf("All exported?: %v\n", e.allExported)
 	e.Printf("%d\t Functions\n", len(e.functions))
 	e.Printf("%d\t Types\n", len(e.types))
+	e.Printf("%d\t Wraps\n", len(e.wraps))
 	e.Printf("%d\t Shims\n", len(e.funcs))
 	e.Printf("%d\t Emits\n", len(e.emits))
 	e.Printf("%d\t Inputs\n", len(e.iters))
@@ -257,6 +261,20 @@ func (e *Extractor) fromObj(fset *token.FileSet, id *ast.Ident, obj types.Object
 				// If this is not a lifecycle method, we should ignore it.
 				return
 			}
+			// This must be a structural DoFn! We should generate a closure wrapper for it.
+			t := recv.Type()
+			p, ok := t.(*types.Pointer)
+			for ok {
+				t = p.Elem()
+				p, ok = t.(*types.Pointer)
+			}
+			ts := types.TypeString(t, e.qualifier)
+			mthdMap := e.wraps[ts]
+			if mthdMap == nil {
+				mthdMap = make(map[string]*types.Signature)
+				e.wraps[ts] = mthdMap
+			}
+			mthdMap[id.Name] = sig
 		} else if id.Name != "init" {
 			// init functions are special and should be ignored.
 			// Functions need registering, as well as shim generation.
@@ -385,24 +403,20 @@ func (e *Extractor) Generate(filename string) []byte {
 	for t := range e.types {
 		typs = append(typs, t)
 	}
+	var wraps []shimx.Wrap
+	for typ, mthdMap := range e.wraps {
+		wrap := shimx.Wrap{Type: typ, Name: shimx.Name(typ)}
+		for mName, mthd := range mthdMap {
+			shim := e.makeFunc(mthd)
+			shim.Name = mName
+			wrap.Methods = append(wrap.Methods, shim)
+		}
+		wraps = append(wraps, wrap)
+	}
 	var shims []shimx.Func
 	for sig, t := range e.funcs {
-		shim := shimx.Func{Type: sig}
-		var inNames []string
-		in := t.Params() // *types.Tuple
-		for i := 0; i < in.Len(); i++ {
-			s := in.At(i) // *types.Var
-			shim.In = append(shim.In, types.TypeString(s.Type(), e.qualifier))
-			inNames = append(inNames, e.NameType(s.Type()))
-		}
-		var outNames []string
-		out := t.Results() // *types.Tuple
-		for i := 0; i < out.Len(); i++ {
-			s := out.At(i)
-			shim.Out = append(shim.Out, types.TypeString(s.Type(), e.qualifier))
-			outNames = append(outNames, e.NameType(s.Type()))
-		}
-		shim.Name = shimx.FuncName(inNames, outNames)
+		shim := e.makeFunc(t)
+		shim.Type = sig
 		shims = append(shims, shim)
 	}
 	var emits []shimx.Emitter
@@ -429,6 +443,7 @@ func (e *Extractor) Generate(filename string) []byte {
 		Imports:   imports,
 		Functions: functions,
 		Types:     typs,
+		Wraps:     wraps,
 		Shims:     shims,
 		Emitters:  emits,
 		Inputs:    inputs,
@@ -436,6 +451,26 @@ func (e *Extractor) Generate(filename string) []byte {
 	e.Print("\n")
 	shimx.File(&e.w, &top)
 	return e.w.Bytes()
+}
+
+func (e *Extractor) makeFunc(t *types.Signature) shimx.Func {
+	shim := shimx.Func{}
+	var inNames []string
+	in := t.Params() // *types.Tuple
+	for i := 0; i < in.Len(); i++ {
+		s := in.At(i) // *types.Var
+		shim.In = append(shim.In, types.TypeString(s.Type(), e.qualifier))
+		inNames = append(inNames, e.NameType(s.Type()))
+	}
+	var outNames []string
+	out := t.Results() // *types.Tuple
+	for i := 0; i < out.Len(); i++ {
+		s := out.At(i)
+		shim.Out = append(shim.Out, types.TypeString(s.Type(), e.qualifier))
+		outNames = append(outNames, e.NameType(s.Type()))
+	}
+	shim.Name = shimx.FuncName(inNames, outNames)
+	return shim
 }
 
 func (e *Extractor) makeEmitter(sig *types.Signature) (shimx.Emitter, bool) {
@@ -540,7 +575,7 @@ func (e *Extractor) varString(v *types.Var) string {
 	return types.TypeString(v.Type(), e.qualifier)
 }
 
-// NameType turns a reflect.Type into a strying based on it's name.
+// NameType turns a reflect.Type into a string based on it's name.
 // It prefixes Emit or Iter if the function satisfies the constrains of those types.
 func (e *Extractor) NameType(t types.Type) string {
 	switch a := t.(type) {

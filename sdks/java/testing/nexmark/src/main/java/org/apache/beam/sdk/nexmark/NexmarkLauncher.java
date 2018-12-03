@@ -252,20 +252,20 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
     MetricsReader eventMetrics = new MetricsReader(result, eventMonitor.name);
 
-    long numEvents = eventMetrics.getCounterMetric(eventMonitor.prefix + ".elements", -1);
-    long numEventBytes = eventMetrics.getCounterMetric(eventMonitor.prefix + ".bytes", -1);
-    long eventStart = eventMetrics.getStartTimeMetric(now, eventMonitor.prefix + ".startTime");
-    long eventEnd = eventMetrics.getEndTimeMetric(now, eventMonitor.prefix + ".endTime");
+    long numEvents = eventMetrics.getCounterMetric(eventMonitor.prefix + ".elements");
+    long numEventBytes = eventMetrics.getCounterMetric(eventMonitor.prefix + ".bytes");
+    long eventStart = eventMetrics.getStartTimeMetric(eventMonitor.prefix + ".startTime");
+    long eventEnd = eventMetrics.getEndTimeMetric(eventMonitor.prefix + ".endTime");
 
     MetricsReader resultMetrics = new MetricsReader(result, resultMonitor.name);
 
-    long numResults = resultMetrics.getCounterMetric(resultMonitor.prefix + ".elements", -1);
-    long numResultBytes = resultMetrics.getCounterMetric(resultMonitor.prefix + ".bytes", -1);
-    long resultStart = resultMetrics.getStartTimeMetric(now, resultMonitor.prefix + ".startTime");
-    long resultEnd = resultMetrics.getEndTimeMetric(now, resultMonitor.prefix + ".endTime");
+    long numResults = resultMetrics.getCounterMetric(resultMonitor.prefix + ".elements");
+    long numResultBytes = resultMetrics.getCounterMetric(resultMonitor.prefix + ".bytes");
+    long resultStart = resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".startTime");
+    long resultEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".endTime");
     long timestampStart =
-        resultMetrics.getStartTimeMetric(now, resultMonitor.prefix + ".startTimestamp");
-    long timestampEnd = resultMetrics.getEndTimeMetric(now, resultMonitor.prefix + ".endTimestamp");
+        resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".startTimestamp");
+    long timestampEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".endTimestamp");
 
     long effectiveEnd = -1;
     if (eventEnd >= 0 && resultEnd >= 0) {
@@ -449,7 +449,12 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
       if (options.isStreaming() && !waitingForShutdown) {
         Duration quietFor = new Duration(lastActivityMsSinceEpoch, now);
-        long fatalCount = new MetricsReader(job, query.getName()).getCounterMetric("fatal", 0);
+        long fatalCount = new MetricsReader(job, query.getName()).getCounterMetric("fatal");
+
+        if (fatalCount == -1) {
+          fatalCount = 0;
+        }
+
         if (fatalCount > 0) {
           NexmarkUtils.console("job has fatal errors, cancelling.");
           errors.add(String.format("Pipeline reported %s fatal errors", fatalCount));

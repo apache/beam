@@ -251,23 +251,9 @@ class BeamModulePlugin implements Plugin<Project> {
     // Categories for tests to run.
     Closure testCategories = {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      //SplitableDoFnTests
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+      // Use the following to include / exclude categories:
+      // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
     // Configuration for the classpath when running the test.
     Configuration testClasspathConfiguration

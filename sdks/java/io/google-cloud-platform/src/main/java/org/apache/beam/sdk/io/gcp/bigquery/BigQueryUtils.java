@@ -132,7 +132,7 @@ public class BigQueryUtils {
         field.setDescription(schemaField.getDescription());
       }
 
-      if (!schemaField.getNullable()) {
+      if (!schemaField.getType().getNullable()) {
         field.setMode(Mode.REQUIRED.toString());
       }
       if (TypeName.ARRAY == type.getTypeName()) {

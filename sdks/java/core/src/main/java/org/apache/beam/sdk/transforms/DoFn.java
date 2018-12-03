@@ -38,6 +38,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -744,13 +745,29 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} into multiple parts to
    * be processed in parallel.
    *
-   * <p>Signature: {@code List<RestrictionT> splitRestriction( InputT element, RestrictionT
-   * restriction);}
+   * <p>The signature of this method must satisfy the following constraints:
+   *
+   * <ul>
+   *   <li>One of its parameters must be the {@code InputT} element.
+   *   <li>One of its parameters must be the restriction.
+   *   <li>One of its input parameters must be of type {@link Backlog}. Splitting the restriction
+   *       should attempt to take the backlog information into account. If the backlog is known,
+   *       each split should return a restriction with an approximate amount of work bounded by the
+   *       backlog. In the case of an unbounded restriction, at most one of the splits can represent
+   *       the unbounded portion of work. If the backlog that is specified is unknown, it is up to
+   *       the SDK to choose a number of splits of approximately equally sized portions with
+   *       potentially one of those splits representing the unbounded portion of work.
+   *   <li>One of its parameters must be the output receiver for restrictions.
+   * </ul>
+   *
+   * <p>Signature: {@code splitRestriction(InputT element, RestrictionT restriction, Backlog
+   * backlog, OutputReceiver<RestrictionT> receiver);}
    *
    * <p>Optional: if this method is omitted, the restriction will not be split (equivalent to
-   * defining the method and returning {@code Collections.singletonList(restriction)}).
+   * defining the method and outputting {@code Collections.singletonList(restriction)}).
    */
   // TODO: Make the InputT parameter optional.
+  // TODO: Make the Backlog parameter optional.
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
@@ -797,7 +814,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   // This can't be put into ProcessContinuation itself due to the following problem:
   // http://ternarysearch.blogspot.com/2013/07/static-initialization-deadlock.html
   private static final ProcessContinuation PROCESS_CONTINUATION_STOP =
-      new AutoValue_DoFn_ProcessContinuation(false, Duration.ZERO);
+      new AutoValue_DoFn_ProcessContinuation(false, new Instant(0L));
 
   /**
    * When used as a return value of {@link ProcessElement}, indicates whether there is more work to
@@ -816,7 +833,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
     /** Indicates that there is more work to be done for the current element. */
     public static ProcessContinuation resume() {
-      return new AutoValue_DoFn_ProcessContinuation(true, Duration.ZERO);
+      return new AutoValue_DoFn_ProcessContinuation(true, Instant.now());
     }
 
     /**
@@ -826,14 +843,26 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     public abstract boolean shouldResume();
 
     /**
-     * A minimum duration that should elapse between the end of this {@link ProcessElement} call and
-     * the {@link ProcessElement} call continuing processing of the same element. By default, zero.
+     * A hint that is provided to runners about when execution of this element and restriction pair
+     * should be scheduled. Runners will attempt to treat this as a lower bound but may choose not
+     * to do so. By default, the execution should be scheduled immediately.
      */
-    public abstract Duration resumeDelay();
+    public abstract Instant resumeTime();
 
-    /** Builder method to set the value of {@link #resumeDelay()}. */
+    /**
+     * Returns a new {@link ProcessContinuation} like this one but with the {@link #resumeTime()}
+     * set to {@code now() + resumeDelay}.
+     */
     public ProcessContinuation withResumeDelay(Duration resumeDelay) {
-      return new AutoValue_DoFn_ProcessContinuation(shouldResume(), resumeDelay);
+      return this.withResumeTime(Instant.now().plus(resumeDelay));
+    }
+
+    /**
+     * Returns a new {@link ProcessContinuation} like this one but with the {@link #resumeTime()}
+     * set to the specified value.
+     */
+    public ProcessContinuation withResumeTime(Instant resumeTime) {
+      return new AutoValue_DoFn_ProcessContinuation(shouldResume(), resumeTime);
     }
   }
 

@@ -43,8 +43,8 @@ func TestExtractor(t *testing.T) {
 			expected: []string{"runtime.RegisterFunction(iterFn)", "funcMakerStringIterIntГ", "iterMakerInt"},
 		},
 		{name: "structs1", files: []string{structs}, pkg: "structs", ids: []string{"myDoFn"},
-			expected: []string{"runtime.RegisterType(reflect.TypeOf((*myDoFn)(nil)).Elem())", "funcMakerEmitIntГ", "emitMakerInt", "funcMakerValTypeValTypeEmitIntГ", "runtime.RegisterType(reflect.TypeOf((*valType)(nil)).Elem())"},
-			excluded: []string{"funcMakerStringГ", "emitMakerString", "nonPipelineType"},
+			expected: []string{"runtime.RegisterType(reflect.TypeOf((*myDoFn)(nil)).Elem())", "funcMakerEmitIntГ", "emitMakerInt", "funcMakerValTypeValTypeEmitIntГ", "runtime.RegisterType(reflect.TypeOf((*valType)(nil)).Elem())", "reflectx.RegisterStructWrapper(reflect.TypeOf((*myDoFn)(nil)).Elem(), wrapMakerMyDoFn)"},
+			excluded: []string{"funcMakerStringГ", "emitMakerString", "nonPipelineType", "UnrelatedMethod1", "UnrelatedMethod2", "UnrelatedMethod3"},
 		},
 	}
 	for _, test := range tests {

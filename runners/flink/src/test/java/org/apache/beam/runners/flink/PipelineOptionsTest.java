@@ -86,6 +86,8 @@ public class PipelineOptionsTest {
     assertThat(options.getMaxBundleSize(), is(1000L));
     assertThat(options.getMaxBundleTimeMills(), is(1000L));
     assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED));
+    assertThat(options.getSavepointPath(), is(nullValue()));
+    assertThat(options.getAllowNonRestoredState(), is(false));
   }
 
   @Test(expected = Exception.class)

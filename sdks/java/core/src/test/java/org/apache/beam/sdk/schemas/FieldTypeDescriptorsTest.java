@@ -15,13 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.transforms;
+package org.apache.beam.sdk.schemas;
 
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
-import org.apache.beam.sdk.schemas.FieldTypeDescriptors;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;

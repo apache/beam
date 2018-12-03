@@ -43,6 +43,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
@@ -109,6 +110,33 @@ public class JavaBeanUtils {
   // Static ByteBuddy instance used by all helpers.
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
+  private static final Map<ClassWithSchema, List<FieldValueTypeInformation>> CACHED_FIELD_TYPES =
+      Maps.newConcurrentMap();
+
+  public static List<FieldValueTypeInformation> getFieldTypes(Class<?> clazz, Schema schema) {
+    return CACHED_FIELD_TYPES.computeIfAbsent(
+        new ClassWithSchema(clazz, schema),
+        c -> {
+          try {
+            Map<String, FieldValueTypeInformation> getterMap =
+                ReflectUtils.getMethods(clazz)
+                    .stream()
+                    .filter(ReflectUtils::isGetter)
+                    .map(TypeInformation::forGetter)
+                    .map(FieldValueTypeInformation::of)
+                    .collect(
+                        Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
+            return schema
+                .getFields()
+                .stream()
+                .map(f -> getterMap.get(f.getName()))
+                .collect(Collectors.toList());
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
+  }
+
   // The list of getters for a class is cached, so we only create the classes the first time
   // getSetters is called.
   private static final Map<ClassWithSchema, List<FieldValueGetter>> CACHED_GETTERS =
@@ -147,7 +175,7 @@ public class JavaBeanUtils {
         ByteBuddyUtils.subclassGetterInterface(
             BYTE_BUDDY,
             getterMethod.getDeclaringClass(),
-            new ConvertType().convert(typeInformation.getType()));
+            new ConvertType(false).convert(typeInformation.getType()));
     builder = implementGetterMethods(builder, getterMethod);
     try {
       return builder
@@ -170,8 +198,6 @@ public class JavaBeanUtils {
     return builder
         .method(ElementMatchers.named("name"))
         .intercept(FixedValue.reference(typeInformation.getName()))
-        .method(ElementMatchers.named("type"))
-        .intercept(FixedValue.reference(typeInformation.getType().getRawType()))
         .method(ElementMatchers.named("get"))
         .intercept(new InvokeGetterInstruction(method));
   }
@@ -214,7 +240,7 @@ public class JavaBeanUtils {
         ByteBuddyUtils.subclassSetterInterface(
             BYTE_BUDDY,
             setterMethod.getDeclaringClass(),
-            new ConvertType().convert(typeInformation.getType()));
+            new ConvertType(false).convert(typeInformation.getType()));
     builder = implementSetterMethods(builder, setterMethod);
     try {
       return builder
@@ -237,14 +263,6 @@ public class JavaBeanUtils {
     return builder
         .method(ElementMatchers.named("name"))
         .intercept(FixedValue.reference(typeInformation.getName()))
-        .method(ElementMatchers.named("type"))
-        .intercept(FixedValue.reference(typeInformation.getType().getRawType()))
-        .method(ElementMatchers.named("elementType"))
-        .intercept(ByteBuddyUtils.getArrayComponentType(typeInformation.getType()))
-        .method(ElementMatchers.named("mapKeyType"))
-        .intercept(ByteBuddyUtils.getMapKeyType(typeInformation.getType()))
-        .method(ElementMatchers.named("mapValueType"))
-        .intercept(ByteBuddyUtils.getMapValueType(typeInformation.getType()))
         .method(ElementMatchers.named("set"))
         .intercept(new InvokeSetterInstruction(method));
   }

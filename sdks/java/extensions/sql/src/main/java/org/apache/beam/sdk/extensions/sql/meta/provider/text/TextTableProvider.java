@@ -33,6 +33,7 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -95,9 +96,9 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
       case "lines":
         checkArgument(
             schema.getFieldCount() == 1
-                && schema.getField(0).getType().equals(Schema.FieldType.STRING),
+                && schema.getField(0).getType().getTypeName().equals(TypeName.STRING),
             "Table with type 'text' and format 'lines' "
-                + "must have exactly one STRING/VARCHAR/CHAR column");
+                + "must have exactly one STRING/VARCHAR/CHAR column ");
         return new TextTable(
             schema, filePattern, new LinesReadConverter(), new LinesWriteConverter());
       default:

@@ -25,7 +25,8 @@ import java.math.BigInteger;
 import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.MetricsMonitor;
+import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
+import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.transforms.Combine;
@@ -107,23 +108,30 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
 
   @Override
   protected void loadTest() throws IOException {
-    PTransform combiner = createPerKeyCombiner(options.getPerKeyCombinerType());
-
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
     PCollection<KV<byte[], byte[]>> input =
         pipeline
             .apply("Read input", SyntheticBoundedIO.readFrom(sourceOptions))
-            .apply("Collect metrics", ParDo.of(new MetricsMonitor(METRICS_NAMESPACE)));
+            .apply(
+                "Collect start time metric",
+                ParDo.of(new TimeMonitor<>(METRICS_NAMESPACE, "runtime")))
+            .apply(
+                "Collect metrics",
+                ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
     for (int i = 0; i < options.getFanout(); i++) {
       applyStepIfPresent(input, format("Step: %d", i), syntheticStep)
-          .apply(format("Convert to BigInteger: %d", i), MapElements.via(new ByteValueToLong()))
-          .apply(format("Combine: %d", i), combiner);
+          .apply(format("Convert to Long: %d", i), MapElements.via(new ByteValueToLong()))
+          .apply(format("Combine: %d", i), getPerKeyCombiner(options.getPerKeyCombinerType()))
+          .apply(
+              "Collect end time metric",
+              ParDo.of(new TimeMonitor<byte[], Object>(METRICS_NAMESPACE, "runtime")));
     }
   }
 
-  private PTransform createPerKeyCombiner(CombinerType combinerType) {
+  private PTransform<PCollection<KV<byte[], Long>>, ? extends PCollection> getPerKeyCombiner(
+      CombinerType combinerType) {
     switch (combinerType) {
       case MEAN:
         return Mean.perKey();

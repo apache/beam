@@ -25,7 +25,7 @@ import org.apache.beam.sdk.schemas.Schema;
 /** A factory for creating {@link FieldValueSetter} objects for a POJO. */
 public class PojoValueSetterFactory implements FieldValueSetterFactory {
   @Override
-  public List<FieldValueSetter> createSetters(Class<?> targetClass, Schema schema) {
+  public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {
     return POJOUtils.getSetters(targetClass, schema);
   }
 }
