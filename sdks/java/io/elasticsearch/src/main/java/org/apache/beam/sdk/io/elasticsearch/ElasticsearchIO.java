@@ -69,6 +69,7 @@ import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.BufferedHttpEntity;
 import org.apache.http.entity.ContentType;
@@ -140,6 +141,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>When {withUsePartialUpdate()} is enabled, the input document must contain an id field and
  * {@code withIdFn()} must be used to allow its extraction by the ElasticsearchIO.
+ *
+ * <p>Optionally, {@code withSocketAndRetryTimeout()} can be used to override the default retry
+ * timeout and socket timeout of 30000ms. {@code withConnectTimeout()} can be used to override the
+ * default connect timeout of 1000ms.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class ElasticsearchIO {
@@ -233,6 +238,12 @@ public class ElasticsearchIO {
 
     public abstract String getType();
 
+    @Nullable
+    public abstract Integer getSocketAndRetryTimeout();
+
+    @Nullable
+    public abstract Integer getConnectTimeout();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -250,6 +261,10 @@ public class ElasticsearchIO {
       abstract Builder setIndex(String index);
 
       abstract Builder setType(String type);
+
+      abstract Builder setSocketAndRetryTimeout(Integer maxRetryTimeout);
+
+      abstract Builder setConnectTimeout(Integer connectTimeout);
 
       abstract ConnectionConfiguration build();
     }
@@ -329,12 +344,41 @@ public class ElasticsearchIO {
       return builder().setKeystorePassword(keystorePassword).build();
     }
 
+    /**
+     * If set, overwrites the default max retry timeout (30000ms) in the Elastic {@link RestClient}
+     * and the default socket timeout (30000ms) in the {@link RequestConfig} of the Elastic {@link
+     * RestClient}.
+     *
+     * @param socketAndRetryTimeout the socket and retry timeout in millis.
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withSocketAndRetryTimeout(Integer socketAndRetryTimeout) {
+      checkArgument(socketAndRetryTimeout != null, "socketAndRetryTimeout can not be null");
+      return builder().setSocketAndRetryTimeout(socketAndRetryTimeout).build();
+    }
+
+    /**
+     * If set, overwrites the default connect timeout (1000ms) in the {@link RequestConfig} of the
+     * Elastic {@link RestClient}.
+     *
+     * @param connectTimeout the socket and retry timeout in millis.
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withConnectTimeout(Integer connectTimeout) {
+      checkArgument(connectTimeout != null, "connectTimeout can not be null");
+      return builder().setConnectTimeout(connectTimeout).build();
+    }
+
     private void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("address", getAddresses().toString()));
       builder.add(DisplayData.item("index", getIndex()));
       builder.add(DisplayData.item("type", getType()));
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
       builder.addIfNotNull(DisplayData.item("keystore.path", getKeystorePath()));
+      builder.addIfNotNull(DisplayData.item("socketAndRetryTimeout", getSocketAndRetryTimeout()));
+      builder.addIfNotNull(DisplayData.item("connectTimeout", getConnectTimeout()));
     }
 
     @VisibleForTesting
@@ -374,6 +418,24 @@ public class ElasticsearchIO {
           throw new IOException("Can't load the client certificate from the keystore", e);
         }
       }
+      restClientBuilder.setRequestConfigCallback(
+          new RestClientBuilder.RequestConfigCallback() {
+            @Override
+            public RequestConfig.Builder customizeRequestConfig(
+                RequestConfig.Builder requestConfigBuilder) {
+              if (getConnectTimeout() != null) {
+                requestConfigBuilder.setConnectTimeout(getConnectTimeout());
+              }
+              if (getSocketAndRetryTimeout() != null) {
+                requestConfigBuilder.setSocketTimeout(getSocketAndRetryTimeout());
+              }
+              return requestConfigBuilder;
+            }
+          });
+      if (getSocketAndRetryTimeout() != null) {
+        restClientBuilder.setMaxRetryTimeoutMillis(getSocketAndRetryTimeout());
+      }
+
       return restClientBuilder.build();
     }
   }
