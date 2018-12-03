@@ -145,12 +145,18 @@ class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.PCollection(
-        unique_name='%d%s.%s' % (
-            len(self.producer.full_label), self.producer.full_label, self.tag),
+        unique_name=self._unique_name(),
         coder_id=context.coder_id_from_element_type(self.element_type),
         is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
             self.windowing))
+
+  def _unique_name(self):
+    if self.producer:
+      return '%d%s.%s' % (
+          len(self.producer.full_label), self.producer.full_label, self.tag)
+    else:
+      return 'PCollection%s' % id(self)
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -158,7 +164,7 @@ class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
     # same object is returned for the same pcollection id.
     return PCollection(
         None,
-        element_type=pickler.loads(proto.coder_id),
+        element_type=context.element_type_from_coder_id(proto.coder_id),
         windowing=context.windowing_strategies.get_by_id(
             proto.windowing_strategy_id))
 

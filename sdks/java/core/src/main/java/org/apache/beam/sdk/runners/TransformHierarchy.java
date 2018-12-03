@@ -185,9 +185,11 @@ public class TransformHierarchy {
   public void finishSpecifyingInput() {
     // Inputs must be completely specified before they are consumed by a transform.
     for (PValue inputValue : current.getInputs().values()) {
-      Node producerNode = getProducer(inputValue);
       PInput input = producerInput.remove(inputValue);
-      inputValue.finishSpecifying(input, producerNode.getTransform());
+      Node producerNode = maybeGetProducer(inputValue);
+      if (producerNode != null) {
+        inputValue.finishSpecifying(input, producerNode.getTransform());
+      }
     }
   }
 
@@ -235,8 +237,12 @@ public class TransformHierarchy {
     checkState(current != null, "Can't pop the root node of a TransformHierarchy");
   }
 
+  Node maybeGetProducer(PValue produced) {
+    return producers.get(produced);
+  }
+
   Node getProducer(PValue produced) {
-    return checkNotNull(producers.get(produced), "No producer found for %s", produced);
+    return checkNotNull(maybeGetProducer(produced), "No producer found for %s", produced);
   }
 
   public Set<PValue> visit(PipelineVisitor visitor) {
@@ -629,13 +635,15 @@ public class TransformHierarchy {
       if (!isRootNode()) {
         // Visit inputs.
         for (PValue inputValue : inputs.values()) {
-          Node valueProducer = getProducer(inputValue);
-          if (!visitedNodes.contains(valueProducer)) {
-            valueProducer.visit(visitor, visitedValues, visitedNodes, skippedComposites);
-          }
-          if (visitedValues.add(inputValue)) {
-            LOG.debug("Visiting input value {}", inputValue);
-            visitor.visitValue(inputValue, valueProducer);
+          Node valueProducer = maybeGetProducer(inputValue);
+          if (valueProducer != null) {
+            if (!visitedNodes.contains(valueProducer)) {
+              valueProducer.visit(visitor, visitedValues, visitedNodes, skippedComposites);
+            }
+            if (visitedValues.add(inputValue)) {
+              LOG.debug("Visiting input value {}", inputValue);
+              visitor.visitValue(inputValue, valueProducer);
+            }
           }
         }
       }
