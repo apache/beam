@@ -26,6 +26,8 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.fn.BeamFnControlService;
 import org.apache.beam.runners.dataflow.worker.fn.data.BeamFnDataGrpcService;
@@ -76,7 +78,16 @@ public class DataflowRunnerHarness {
     // Initialized registered file systems.˜
     FileSystems.setDefaultPipelineOptions(pipelineOptions);
 
-    ServerFactory serverFactory = ServerFactory.createDefault();
+    DataflowPipelineDebugOptions dataflowOptions =
+        pipelineOptions.as(DataflowPipelineDebugOptions.class);
+    ServerFactory serverFactory;
+    if (DataflowRunner.hasExperiment(dataflowOptions, "beam_fn_api_epoll_domain_socket")) {
+      serverFactory = ServerFactory.createEpollDomainSocket();
+    } else if (DataflowRunner.hasExperiment(dataflowOptions, "beam_fn_api_epoll")) {
+      serverFactory = ServerFactory.createEpollSocket();
+    } else {
+      serverFactory = ServerFactory.createDefault();
+    }
     ServerStreamObserverFactory streamObserverFactory =
         ServerStreamObserverFactory.fromOptions(pipelineOptions);
 
