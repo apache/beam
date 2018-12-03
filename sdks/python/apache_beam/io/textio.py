@@ -38,7 +38,7 @@ from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 
-__all__ = ['ReadFromText', 'ReadAllFromText', 'WriteToText']
+__all__ = ['ReadFromText', 'ReadFromTextWithFilename', 'ReadAllFromText', 'WriteToText']
 
 
 class _TextSource(filebasedsource.FileBasedSource):
@@ -320,6 +320,12 @@ class _TextSource(filebasedsource.FileBasedSource):
               sep_bounds[1] - record_start_position_in_buffer)
 
 
+class _FilenameTextSource(_TextSource):
+  def read_records(self, file_name, range_tracker):
+    for record in super(_FilenameTextSource, self).read_records(file_name, range_tracker):
+      yield (file_name, record)
+
+
 class _TextSink(filebasedsink.FileBasedSink):
   """A sink to a GCS or local text file or files."""
 
@@ -383,7 +389,7 @@ class _TextSink(filebasedsink.FileBasedSink):
     if self._header is not None:
       file_handle.write(self._header)
       if self._append_trailing_newlines:
-        file_handle.write(b'\n')
+        file_handle.write('\n')
     return file_handle
 
   def display_data(self):
@@ -397,7 +403,7 @@ class _TextSink(filebasedsink.FileBasedSink):
     """Writes a single encoded record."""
     file_handle.write(encoded_value)
     if self._append_trailing_newlines:
-      file_handle.write(b'\n')
+      file_handle.write('\n')
 
 
 def _create_text_source(
@@ -525,6 +531,61 @@ class ReadFromText(PTransform):
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
+
+
+class ReadFromTextWithFilename(PTransform):
+  r"""A :class:`~apache_beam.transforms.ptransform.PTransform` for reading text
+  files returning the name of the file and the content of the file.
+
+  Parses a text file as newline-delimited elements, by default assuming
+  ``UTF-8`` encoding. Supports newline delimiters ``\n`` and ``\r\n``.
+
+  This implementation only supports reading text encoded using ``UTF-8`` or
+  ``ASCII``.
+  This does not support other encodings such as ``UTF-16`` or ``UTF-32``.
+  """
+  def __init__(
+      self,
+      file_pattern=None,
+      min_bundle_size=0,
+      compression_type=CompressionTypes.AUTO,
+      strip_trailing_newlines=True,
+      coder=coders.StrUtf8Coder(),
+      validate=True,
+      skip_header_lines=0,
+      **kwargs):
+    """Initialize the :class:`ReadFromTextWithFilename` transform.
+
+    Args:
+      file_pattern (str): The file path to read from as a local file path or a
+        GCS ``gs://`` path. The path can contain glob characters
+        (``*``, ``?``, and ``[...]`` sets).
+      min_bundle_size (int): Minimum size of bundles that should be generated
+        when splitting this source into bundles. See
+        :class:`~apache_beam.io.filebasedsource.FileBasedSource` for more
+        details.
+      compression_type (str): Used to handle compressed input files.
+        Typical value is :attr:`CompressionTypes.AUTO
+        <apache_beam.io.filesystem.CompressionTypes.AUTO>`, in which case the
+        underlying file_path's extension will be used to detect the compression.
+      strip_trailing_newlines (bool): Indicates whether this source should
+        remove the newline char in each line it reads before decoding that line.
+      validate (bool): flag to verify that the files exist during the pipeline
+        creation time.
+      skip_header_lines (int): Number of header lines to skip. Same number is
+        skipped from each source file. Must be 0 or higher. Large number of
+        skipped lines might impact performance.
+      coder (~apache_beam.coders.coders.Coder): Coder used to decode each line.
+    """
+
+    super(ReadFromTextWithFilename, self).__init__(**kwargs)
+    self._source = _FilenameTextSource(
+        file_pattern, min_bundle_size, compression_type,
+        strip_trailing_newlines, coder, validate=validate,
+        skip_header_lines=skip_header_lines)
+
+  def expand(self, pvalue):
+    return pvalue.pipeline | Read(self._source)  
 
 
 class WriteToText(PTransform):
