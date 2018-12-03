@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.nexmark;
 
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.CoreMatchers.hasItems;
+import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testutils.fakes.FakeBigQueryClient;
+import org.apache.beam.sdk.testutils.TestResult;
+import org.apache.beam.sdk.testutils.fakes.FakeBigQueryResultsPublisher;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,9 +34,10 @@ import org.junit.Test;
 public class PerfsToBigQueryTest {
 
   private static final NexmarkQueryName QUERY = NexmarkQueryName.CURRENCY_CONVERSION;
+
   private NexmarkOptions options;
 
-  private FakeBigQueryClient bigQueryClient;
+  private FakeBigQueryResultsPublisher publisher;
 
   @Before
   public void before() {
@@ -48,7 +49,7 @@ public class PerfsToBigQueryTest {
     options.setProject("nexmark-test");
     options.setResourceNameMode(NexmarkUtils.ResourceNameMode.QUERY_RUNNER_AND_MODE);
 
-    bigQueryClient = new FakeBigQueryClient(options.getBigQueryDataset());
+    publisher = new FakeBigQueryResultsPublisher();
   }
 
   @Test
@@ -77,42 +78,11 @@ public class PerfsToBigQueryTest {
     perfs.put(nexmarkConfiguration2, nexmarkPerf2);
 
     long startTimestampMilliseconds = 1454284800000L;
-    Main.savePerfsToBigQuery(
-        bigQueryClient, options, perfs, new Instant(startTimestampMilliseconds));
+    Main.savePerfsToBigQuery(publisher, options, perfs, new Instant(startTimestampMilliseconds));
 
     String tableName = NexmarkUtils.tableName(options, QUERY.getNumberOrName(), 0L, null);
-    List<Map<String, ?>> rows = bigQueryClient.getRows(tableName);
+    List<TestResult> rows = publisher.getRecords(tableName);
 
-    // savePerfsToBigQuery converts millis to seconds (it's a BigQuery's requirement).
-    assertContains(nexmarkRecord(nexmarkPerf1, startTimestampMilliseconds / 1000), rows);
-    assertContains(nexmarkRecord(nexmarkPerf2, startTimestampMilliseconds / 1000), rows);
-  }
-
-  private Map<String, Object> nexmarkRecord(NexmarkPerf nexmarkPerf, long startTimestampSeconds) {
-    return ImmutableMap.<String, Object>builder()
-        .put("timestamp", startTimestampSeconds)
-        .put("runtimeSec", nexmarkPerf.runtimeSec)
-        .put("eventsPerSec", nexmarkPerf.eventsPerSec)
-        .put("numResults", nexmarkPerf.numResults)
-        .build();
-  }
-
-  private void assertContains(Map<String, ?> expectedRecord, List<Map<String, ?>> actualRecords) {
-    assertTrue(
-        String.format("Record not found: %s", expectedRecord),
-        actualRecords
-            .stream()
-            .anyMatch(actualRecord -> recordEquals(actualRecord, expectedRecord)));
-  }
-
-  private boolean recordEquals(Map<String, ?> expected, Map<String, ?> actual) {
-    if (expected == null || actual == null) {
-      return false;
-    }
-
-    return expected.get("timestamp").equals(actual.get("timestamp"))
-        && expected.get("runtimeSec").equals(actual.get("runtimeSec"))
-        && expected.get("eventsPerSec").equals(actual.get("eventsPerSec"))
-        && expected.get("numResults").equals(actual.get("numResults"));
+    assertThat(rows, hasItems(nexmarkPerf1, nexmarkPerf2));
   }
 }
