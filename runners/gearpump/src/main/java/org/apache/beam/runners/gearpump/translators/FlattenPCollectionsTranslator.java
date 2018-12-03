@@ -18,6 +18,8 @@
 package org.apache.beam.runners.gearpump.translators;
 
 import com.google.common.collect.Lists;
+import io.gearpump.streaming.dsl.api.functions.MapFunction;
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.runners.gearpump.translators.io.UnboundedSourceWrapper;
@@ -26,8 +28,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 
 /** Flatten.FlattenPCollectionList is translated to Gearpump merge function. */
 public class FlattenPCollectionsTranslator<T>

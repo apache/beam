@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.gearpump.translators;
 
+import io.gearpump.streaming.dsl.api.functions.FilterFunction;
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -32,8 +34,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.gearpump.streaming.dsl.api.functions.FilterFunction;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 
 /**
  * {@link ParDo.MultiOutput} is translated to Gearpump flatMap function with {@link DoFn} wrapped in
