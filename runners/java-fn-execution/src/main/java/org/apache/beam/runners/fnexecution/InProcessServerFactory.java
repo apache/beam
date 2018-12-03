@@ -40,12 +40,18 @@ public class InProcessServerFactory extends ServerFactory {
   private InProcessServerFactory() {}
 
   @Override
-  public Server allocatePortAndCreate(
+  public Server allocateAddressAndCreate(
       List<BindableService> services, ApiServiceDescriptor.Builder builder) throws IOException {
     String name = String.format("InProcessServer_%s", serviceNameUniqifier.getAndIncrement());
     builder.setUrl(name);
     InProcessServerBuilder serverBuilder = InProcessServerBuilder.forName(name);
-    services.stream().forEach(service -> serverBuilder.addService(service));
+    services
+        .stream()
+        .forEach(
+            service ->
+                serverBuilder.addService(
+                    ServerInterceptors.intercept(
+                        service, GrpcContextHeaderAccessorProvider.interceptor())));
     return serverBuilder.build().start();
   }
 

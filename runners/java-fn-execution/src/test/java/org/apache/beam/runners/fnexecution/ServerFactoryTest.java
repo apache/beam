@@ -85,7 +85,7 @@ public class ServerFactoryTest {
     TestDataService service = new TestDataService(observer);
     ApiServiceDescriptor.Builder descriptorBuilder = ApiServiceDescriptor.newBuilder();
     Server server =
-        serverFactory.allocatePortAndCreate(ImmutableList.of(service), descriptorBuilder);
+        serverFactory.allocateAddressAndCreate(ImmutableList.of(service), descriptorBuilder);
     // Immediately terminate server. We don't actually use it here.
     server.shutdown();
     assertThat(descriptorBuilder.getUrl(), is("foo"));
@@ -117,7 +117,7 @@ public class ServerFactoryTest {
     ApiServiceDescriptor.Builder descriptorBuilder = ApiServiceDescriptor.newBuilder();
     Server server = null;
     try {
-      server = serverFactory.allocatePortAndCreate(ImmutableList.of(service), descriptorBuilder);
+      server = serverFactory.allocateAddressAndCreate(ImmutableList.of(service), descriptorBuilder);
       assertThat(descriptorBuilder.getUrl(), is("foo:65535"));
     } finally {
       if (server != null) {
@@ -165,7 +165,8 @@ public class ServerFactoryTest {
             .build();
     TestDataService service = new TestDataService(serverInboundObserver);
     Server server =
-        serverFactory.allocatePortAndCreate(ImmutableList.of(service), apiServiceDescriptorBuilder);
+        serverFactory.allocateAddressAndCreate(
+            ImmutableList.of(service), apiServiceDescriptorBuilder);
     assertFalse(server.isShutdown());
 
     ManagedChannel channel = channelFactory.forDescriptor(apiServiceDescriptorBuilder.build());

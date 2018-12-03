@@ -77,12 +77,13 @@ public abstract class ServerFactory {
   }
 
   /**
-   * Creates an instance of this server using an ephemeral port chosen automatically. The chosen
-   * port is accessible to the caller from the URL set in the input {@link
-   * Endpoints.ApiServiceDescriptor.Builder}. Server applies {@link
+   * Creates an instance of this server using an ephemeral address. The allocation of the address is
+   * server type dependent, which means the address may be a port for certain type of server, or a
+   * file path for other certain types. The chosen address is accessible to the caller from the URL
+   * set in the input {@link Endpoints.ApiServiceDescriptor.Builder}. Server applies {@link
    * GrpcContextHeaderAccessorProvider#interceptor()} to all incoming requests.
    */
-  public abstract Server allocatePortAndCreate(
+  public abstract Server allocateAddressAndCreate(
       List<BindableService> services, Endpoints.ApiServiceDescriptor.Builder builder)
       throws IOException;
 
@@ -113,7 +114,7 @@ public abstract class ServerFactory {
     }
 
     @Override
-    public Server allocatePortAndCreate(
+    public Server allocateAddressAndCreate(
         List<BindableService> services, Endpoints.ApiServiceDescriptor.Builder apiServiceDescriptor)
         throws IOException {
       InetSocketAddress address =
@@ -163,17 +164,17 @@ public abstract class ServerFactory {
    * <p>The unix domain socket is located at ${java.io.tmpdir}/fnapi${random[0-10000)}.sock
    */
   private static class EpollDomainSocket extends ServerFactory {
-    private static File getFileForPort(int port) {
+    private static File chooseRandomTmpFile(int port) {
       return new File(System.getProperty("java.io.tmpdir"), String.format("fnapi%d.sock", port));
     }
 
     @Override
-    public Server allocatePortAndCreate(
+    public Server allocateAddressAndCreate(
         List<BindableService> services, Endpoints.ApiServiceDescriptor.Builder apiServiceDescriptor)
         throws IOException {
       File tmp;
       do {
-        tmp = getFileForPort(ThreadLocalRandom.current().nextInt(10000));
+        tmp = chooseRandomTmpFile(ThreadLocalRandom.current().nextInt(10000));
       } while (tmp.exists());
       apiServiceDescriptor.setUrl("unix://" + tmp.getAbsolutePath());
       return create(services, apiServiceDescriptor.build());
@@ -218,7 +219,7 @@ public abstract class ServerFactory {
    */
   private static class EpollSocket extends ServerFactory {
     @Override
-    public Server allocatePortAndCreate(
+    public Server allocateAddressAndCreate(
         List<BindableService> services, Endpoints.ApiServiceDescriptor.Builder apiServiceDescriptor)
         throws IOException {
       InetSocketAddress address = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);

@@ -34,7 +34,8 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   public static <ServiceT extends FnService> GrpcFnServer<ServiceT> allocatePortAndCreateFor(
       ServiceT service, ServerFactory factory) throws IOException {
     ApiServiceDescriptor.Builder apiServiceDescriptor = ApiServiceDescriptor.newBuilder();
-    Server server = factory.allocatePortAndCreate(ImmutableList.of(service), apiServiceDescriptor);
+    Server server =
+        factory.allocateAddressAndCreate(ImmutableList.of(service), apiServiceDescriptor);
     return new GrpcFnServer<>(server, service, apiServiceDescriptor.build());
   }
 
@@ -52,42 +53,10 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   @Deprecated
   public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
       ServiceT service, ApiServiceDescriptor endpoint) {
-    Server fakeServer =
-        new Server() {
-          @Override
-          public Server start() throws IOException {
-            return this;
-          }
-
-          @Override
-          public Server shutdown() {
-            return this;
-          }
-
-          @Override
-          public Server shutdownNow() {
-            return this;
-          }
-
-          @Override
-          public boolean isShutdown() {
-            return true;
-          }
-
-          @Override
-          public boolean isTerminated() {
-            return true;
-          }
-
-          @Override
-          public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-            return false;
-          }
-
-          @Override
-          public void awaitTermination() throws InterruptedException {}
-        };
-    return new GrpcFnServer<>(fakeServer, service, endpoint);
+    return new GrpcFnServer(null, service, endpoint) {
+      @Override
+      public void close() throws Exception {}
+    };
   }
 
   private final Server server;
