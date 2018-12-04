@@ -112,7 +112,9 @@ TableCell: Holds the value for one cell (or field).  Has one attribute,
 
 As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
 high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
-As of Beam 2.10.0, the GEOGRAPHY data type is supported.
+As of Beam 2.10.0, the GEOGRAPHY data type is supported. The GEOGRAPHY data type
+works with WKT (https://en.wikipedia.org/wiki/Well-known_text) format for
+reading and writing to BigQuery.
 """
 
 from __future__ import absolute_import
