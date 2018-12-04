@@ -67,7 +67,6 @@ import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterMean;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.MultiOutputInfoEdge;
 import org.apache.beam.runners.dataflow.worker.graph.MapTaskToNetworkFunction;
@@ -88,6 +87,8 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -115,8 +116,10 @@ import org.mockito.MockitoAnnotations;
 public class IntrinsicMapTaskExecutorFactoryTest {
   private static final String STAGE = "test";
 
+  private static final IdGenerator idGenerator = IdGenerators.decrementingLongs();
+
   private static final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToNetwork =
-      new FixMultiOutputInfosOnParDoInstructions(IdGenerator::generate)
+      new FixMultiOutputInfosOnParDoInstructions(idGenerator)
           .andThen(new MapTaskToNetworkFunction());
 
   private static final CloudObject windowedStringCoder =
@@ -180,7 +183,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             sinkRegistry,
             BatchModeExecutionContext.forTesting(options, counterSet, "testStage"),
             counterSet,
-            IdGenerator::generate)) {
+            idGenerator)) {
       // Safe covariant cast not expressible without rawtypes.
       @SuppressWarnings({"rawtypes", "unchecked"})
       List<Object> operations = (List) executor.operations;
@@ -271,7 +274,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             sinkRegistry,
             context,
             counterSet,
-            IdGenerator::generate)) {
+            idGenerator)) {
       executor.execute();
     }
 

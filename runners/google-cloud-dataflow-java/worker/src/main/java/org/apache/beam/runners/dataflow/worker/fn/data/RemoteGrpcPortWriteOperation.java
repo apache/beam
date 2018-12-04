@@ -33,6 +33,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReceivingOperation;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -50,7 +51,7 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
   private static final OutputReceiver[] EMPTY_RECEIVER_ARRAY = new OutputReceiver[0];
   private final Coder<WindowedValue<T>> coder;
   private final FnDataService beamFnDataService;
-  private final Supplier<String> bundleIdSupplier;
+  private final IdGenerator bundleIdSupplier;
   // Should only be set and cleared once per start/finish cycle in the start method and
   // finish method respectively.
   private String bundleId;
@@ -72,7 +73,7 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
   public RemoteGrpcPortWriteOperation(
       FnDataService beamFnDataService,
       Target target,
-      Supplier<String> bundleIdSupplier,
+      IdGenerator bundleIdSupplier,
       Coder<WindowedValue<T>> coder,
       OperationContext context) {
     this(beamFnDataService, target, bundleIdSupplier, coder, context, System::currentTimeMillis);
@@ -81,7 +82,7 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
   public RemoteGrpcPortWriteOperation(
       FnDataService beamFnDataService,
       Target target,
-      Supplier<String> bundleIdSupplier,
+      IdGenerator bundleIdSupplier,
       Coder<WindowedValue<T>> coder,
       OperationContext context,
       Supplier<Long> currentTimeMillis) {
@@ -101,7 +102,7 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
       targetElementsSent = 1;
       elementsFlushed = 0;
       super.start();
-      bundleId = bundleIdSupplier.get();
+      bundleId = bundleIdSupplier.getId();
       receiver = beamFnDataService.send(LogicalEndpoint.of(bundleId, target), coder);
     }
   }
