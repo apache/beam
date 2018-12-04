@@ -267,7 +267,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setFlinkMaster("host:p0rt");
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Provided port is malformed");
+    expectedException.expectMessage("Unparseable port number");
 
     FlinkExecutionEnvironments.createBatchExecutionEnvironment(options, Collections.emptyList());
   }
@@ -279,33 +279,93 @@ public class FlinkExecutionEnvironmentsTest {
     options.setFlinkMaster("host:p0rt");
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Provided port is malformed");
+    expectedException.expectMessage("Unparseable port number");
 
     FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
   }
 
   @Test
-  public void shouldFailOnEmptyPortBatch() {
+  public void shouldSupportIPv4Batch() {
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
     options.setRunner(FlinkRunner.class);
-    options.setFlinkMaster("host:");
 
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Provided port is malformed");
+    options.setFlinkMaster("192.168.1.1:1234");
+    ExecutionEnvironment bev =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+    assertThat(Whitebox.getInternalState(bev, "host"), is("192.168.1.1"));
+    assertThat(Whitebox.getInternalState(bev, "port"), is(1234));
 
-    FlinkExecutionEnvironments.createBatchExecutionEnvironment(options, Collections.emptyList());
+    options.setFlinkMaster("192.168.1.1");
+    bev =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+    assertThat(Whitebox.getInternalState(bev, "host"), is("192.168.1.1"));
+    assertThat(Whitebox.getInternalState(bev, "port"), is(RestOptions.PORT.defaultValue()));
   }
 
   @Test
-  public void shouldFailOnEmptyPortStreaming() {
+  public void shouldSupportIPv4Streaming() {
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
     options.setRunner(FlinkRunner.class);
-    options.setFlinkMaster("host:");
 
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Provided port is malformed");
+    options.setFlinkMaster("192.168.1.1:1234");
+    ExecutionEnvironment bev =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+    assertThat(Whitebox.getInternalState(bev, "host"), is("192.168.1.1"));
+    assertThat(Whitebox.getInternalState(bev, "port"), is(1234));
 
-    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
+    options.setFlinkMaster("192.168.1.1");
+    bev =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+    assertThat(Whitebox.getInternalState(bev, "host"), is("192.168.1.1"));
+    assertThat(Whitebox.getInternalState(bev, "port"), is(RestOptions.PORT.defaultValue()));
+  }
+
+  @Test
+  public void shouldSupportIPv6Batch() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+
+    options.setFlinkMaster("[FE80:CD00:0000:0CDE:1257:0000:211E:729C]:1234");
+    ExecutionEnvironment bev =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+    assertThat(
+        Whitebox.getInternalState(bev, "host"), is("FE80:CD00:0000:0CDE:1257:0000:211E:729C"));
+    assertThat(Whitebox.getInternalState(bev, "port"), is(1234));
+
+    options.setFlinkMaster("FE80:CD00:0000:0CDE:1257:0000:211E:729C");
+    bev =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+    assertThat(
+        Whitebox.getInternalState(bev, "host"), is("FE80:CD00:0000:0CDE:1257:0000:211E:729C"));
+    assertThat(Whitebox.getInternalState(bev, "port"), is(RestOptions.PORT.defaultValue()));
+  }
+
+  @Test
+  public void shouldSupportIPv6Streaming() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+
+    options.setFlinkMaster("[FE80:CD00:0000:0CDE:1257:0000:211E:729C]:1234");
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+    assertThat(
+        Whitebox.getInternalState(sev, "host"), is("FE80:CD00:0000:0CDE:1257:0000:211E:729C"));
+    assertThat(Whitebox.getInternalState(sev, "port"), is(1234));
+
+    options.setFlinkMaster("FE80:CD00:0000:0CDE:1257:0000:211E:729C");
+    sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+    assertThat(
+        Whitebox.getInternalState(sev, "host"), is("FE80:CD00:0000:0CDE:1257:0000:211E:729C"));
+    assertThat(Whitebox.getInternalState(sev, "port"), is(RestOptions.PORT.defaultValue()));
   }
 
   private String extractFlinkConfig() throws IOException {
