@@ -309,9 +309,8 @@ public class BeamFnMapTaskExecutorTest {
     processBundleLatch.countDown();
     MoreFutures.get(doneFuture);
   }
-
   @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
-  public void testFinalUserMetrics() throws Exception {
+  public void testFinalUserMetricsDeprecated() throws Exception {
     Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
 
     final String stepName = "fakeStepNameWithUserMetrics";
@@ -428,6 +427,128 @@ public class BeamFnMapTaskExecutorTest {
     assertThat(
         metricsCounterUpdates,
         contains(new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(finalCounterValue)));
+  }
+
+  @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
+  public void testExtractCounterUpdatesReturnsValidProgressTrackerCounterUpdatesIfPresent()
+      throws Exception {
+
+    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
+
+    final String stepName = "fakeStepNameWithUserMetrics";
+    final String namespace = "sdk/whatever";
+    final String name = "someCounter";
+    final int counterValue = 42;
+    final int finalCounterValue = 77;
+    final CountDownLatch progressSentLatch = new CountDownLatch(1);
+    final CountDownLatch processBundleLatch = new CountDownLatch(1);
+
+    final BeamFnApi.Metrics.User.MetricName metricName =
+        BeamFnApi.Metrics.User.MetricName.newBuilder()
+            .setNamespace(namespace)
+            .setName(name)
+            .build();
+
+    final BeamFnApi.Metrics deprecatedMetrics = BeamFnApi.Metrics.newBuilder()
+        .putPtransforms(GRPC_READ_ID, FAKE_ELEMENT_COUNT_METRICS)
+        .putPtransforms(
+            stepName,
+            BeamFnApi.Metrics.PTransform.newBuilder()
+                .addUser(
+                    BeamFnApi.Metrics.User.newBuilder()
+                        .setMetricName(metricName)
+                        .setCounterData(
+                            BeamFnApi.Metrics.User.CounterData
+                                .newBuilder()
+                                .setValue(finalCounterValue)))
+                .build()).build();
+
+    final int expectedCounterValue = 5;
+    final BeamFnApi.MonitoringInfo expectedMonitoringInfo = BeamFnApi.MonitoringInfo.newBuilder()
+        .setUrn("beam:metric:user:ExpectedCounter")
+        .setType("beam:metrics:sum_int_64")
+        .putLabels("PTRANSFORM", "ExpectedPTransform")//todomigryz get proper ptransform name here
+        .setMetric(BeamFnApi.Metric.newBuilder()
+            .setCounterData(
+                BeamFnApi.CounterData.newBuilder().setInt64Value(expectedCounterValue).build())
+            .build())
+        .build();
+
+    InstructionRequestHandler instructionRequestHandler =
+        new InstructionRequestHandler() {
+          @Override
+          public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
+            switch (request.getRequestCase()) {
+              case REGISTER:
+                return CompletableFuture.completedFuture(responseFor(request).build());
+              case PROCESS_BUNDLE:
+                return MoreFutures.supplyAsync(
+                    () -> {
+                      processBundleLatch.await();
+                      return responseFor(request)
+                          .setProcessBundle(
+                              BeamFnApi.ProcessBundleResponse.newBuilder()
+                                  .setMetrics(deprecatedMetrics)
+                                  .addMonitoringInfos(expectedMonitoringInfo))
+                              .build();
+                    });
+              case PROCESS_BUNDLE_PROGRESS:
+                progressSentLatch.countDown();
+                return CompletableFuture.completedFuture(
+                    responseFor(request)
+                        .setProcessBundleProgress(
+                            BeamFnApi.ProcessBundleProgressResponse.newBuilder()
+                                .setMetrics(deprecatedMetrics)
+                                .addMonitoringInfos(expectedMonitoringInfo))
+                        .build());
+              default:
+                throw new RuntimeException("Reached unexpected code path");
+            }
+          }
+
+          @Override
+          public void close() {}
+        };
+
+    RegisterAndProcessBundleOperation processOperation =
+        new RegisterAndProcessBundleOperation(
+            idGenerator,
+            instructionRequestHandler,
+            mockBeamFnStateDelegator,
+            REGISTER_REQUEST,
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableTable.of(),
+            mockContext);
+
+    BeamFnMapTaskExecutor mapTaskExecutor =
+        BeamFnMapTaskExecutor.forOperations(
+            ImmutableList.of(readOperation, grpcPortWriteOperation, processOperation),
+            executionStateTracker);
+
+    // Launch the BeamFnMapTaskExecutor and wait until we are sure there has been one
+    // tentative update
+    CompletionStage<Void> doneFuture = MoreFutures.runAsync(mapTaskExecutor::execute);
+    progressSentLatch.await();
+
+    // TODO: add ability to wait for tentative progress update
+    Iterable<CounterUpdate> metricsCounterUpdates = Collections.emptyList();
+    while (Iterables.size(metricsCounterUpdates) == 0) {
+      Thread.sleep(ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS);
+      metricsCounterUpdates = mapTaskExecutor.extractMetricUpdates();
+    }
+
+    // Get the final metrics
+    processBundleLatch.countDown();
+    MoreFutures.get(doneFuture);
+    metricsCounterUpdates = mapTaskExecutor.extractMetricUpdates();
+
+    assertThat(Iterables.size(metricsCounterUpdates), equalTo(1));
+
+    assertThat(
+        metricsCounterUpdates,
+        contains(new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(expectedCounterValue)));
   }
 
   private Supplier<String> makeIdGeneratorStartingFrom(long initialValue) {

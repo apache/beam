@@ -25,7 +25,6 @@ import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.SpanBuilder;
@@ -48,15 +47,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metrics;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo.MonitoringInfoLabels;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
+import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsTranslation;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
@@ -65,14 +70,16 @@ import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.O
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitRequest;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 /**
@@ -140,20 +147,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
   @Override
   @Nullable
-  public NativeReader.Progress getWorkerProgress() throws Exception {
+  public Progress getWorkerProgress() throws Exception {
     return progressTracker.getWorkerProgress();
-  }
-
-  private static void dumpCounterUpdateList(Iterable<CounterUpdate> src, String comment) {
-    StringBuilder sb = new StringBuilder();
-    sb.append("migryz dumping CounterUpdates " + comment + "\n");
-    counterUpdateListToString(src);
-    LOG.error(sb.toString());
-  }
-
-  private static void counterUpdateListToString(Iterable<CounterUpdate> src) {
-    StringBuilder sb = new StringBuilder();
-    src.forEach(x -> sb.append(x.toString() + "\n"));
   }
 
   /**
@@ -163,11 +158,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
    */
   @Override
   public Iterable<CounterUpdate> extractMetricUpdates() {
-    // todomigryz this is the code that actually returns deprecated metrics counters
-    // todomigryz Make a decision to utilize deprecated metrics or MonitoringInfos here
     List<CounterUpdate> result = progressTracker.extractCounterUpdates();
     if ((result != null) && (result.size() > 0)) {
-      dumpCounterUpdateList(result, "BeamFnMapTaskExecutor::extractMetricUpdates::MonitoringInfos");
       return result;
     }
 
@@ -175,35 +167,31 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
     Iterable<CounterUpdate> deprecatedMetrics =
         Iterables.concat(
-            FluentIterable.from(updates.counterUpdates())
-                .transform(
+            StreamSupport.stream(updates.counterUpdates().spliterator(), false)
+                .map(
                     update ->
                         MetricsToCounterUpdateConverter.fromCounter(
-                            update.getKey(), true, update.getUpdate())),
-            FluentIterable.from(updates.distributionUpdates())
-                .transform(
+                            update.getKey(), true, update.getUpdate()))
+                .collect(Collectors.toList()),
+            StreamSupport.stream(updates.distributionUpdates().spliterator(), false)
+                .map(
                     update ->
                         MetricsToCounterUpdateConverter.fromDistribution(
-                            update.getKey(), true, update.getUpdate())));
+                            update.getKey(), true, update.getUpdate()))
+                .collect(Collectors.toList()));
 
-    long id = java.time.Instant.now().toEpochMilli();
-    LOG.error("migryz dumping DeprecatedMetricReport");
-    deprecatedMetrics.forEach(x -> LOG.error("migryz DeprecatedMetricReport: {} {}", id, x));
-
-    dumpCounterUpdateList(result, "BeamFnMapTaskExecutor::extractMetricUpdates::DeprecatedMetrics");
     return deprecatedMetrics;
   }
 
   @Override
   @Nullable
-  public NativeReader.DynamicSplitResult requestCheckpoint() throws Exception {
+  public DynamicSplitResult requestCheckpoint() throws Exception {
     return progressTracker.requestCheckpoint();
   }
 
   @Override
   @Nullable
-  public NativeReader.DynamicSplitResult requestDynamicSplit(
-      NativeReader.DynamicSplitRequest splitRequest) throws Exception {
+  public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) throws Exception {
     return progressTracker.requestDynamicSplit(splitRequest);
   }
 
@@ -218,23 +206,24 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     throw new IllegalStateException(String.format("ReadOperation not found in %s", operations));
   }
 
-  private static interface ProgressTracker {
+  private interface ProgressTracker {
     @Nullable
-    public NativeReader.Progress getWorkerProgress() throws Exception;
+    public Progress getWorkerProgress() throws Exception;
 
     /**
      * Returns an metric updates accumulated since the last call to {@link #extractMetricUpdates()}.
      */
+    @Deprecated
     public MetricUpdates extractMetricUpdates();
 
     public List<CounterUpdate> extractCounterUpdates();
 
     @Nullable
-    public NativeReader.DynamicSplitResult requestCheckpoint() throws Exception;
+    public DynamicSplitResult requestCheckpoint() throws Exception;
 
     @Nullable
-    public NativeReader.DynamicSplitResult requestDynamicSplit(
-        NativeReader.DynamicSplitRequest splitRequest) throws Exception;
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
+        throws Exception;
 
     public default void start() {}
 
@@ -327,10 +316,9 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
     private List<CounterUpdate> counterUpdates = new ArrayList<>();
 
-    private final Map<MetricKey, MetricUpdates.MetricUpdate<Long>> deprecatedCounterUpdates;
-    private final Map<MetricKey, MetricUpdates.MetricUpdate<DistributionData>>
-        deprecatedDistributionUpdates;
-    private final Map<MetricKey, MetricUpdates.MetricUpdate<GaugeData>> deprecatedGaugeUpdates;
+    private final Map<MetricKey, MetricUpdate<Long>> deprecatedCounterUpdates;
+    private final Map<MetricKey, MetricUpdate<DistributionData>> deprecatedDistributionUpdates;
+    private final Map<MetricKey, MetricUpdate<GaugeData>> deprecatedGaugeUpdates;
 
     public SingularProcessBundleProgressTracker(
         ReadOperation readOperation,
@@ -446,14 +434,18 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         // refer to https://github.com/apache/beam/pull/6799
 
         if (urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
-          DataflowStepContext stepContext =
-              transformIdMapping.get(monitoringInfo.getLabelsMap().get("PTRANSFORM"));
+          if (!type.equals("beam:metrics:sum_int_64")) {
+            return null;
+          }
+
+          final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
+          if (ptransform == null) {
+            return null;
+          }
+
+          DataflowStepContext stepContext = transformIdMapping.get(ptransform);
 
           CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
-
-          LOG.error(
-              "migryz adding user CounterUpdate with name: "
-                  + monitoringInfo.getUrn().substring(BEAM_METRICS_USER_PREFIX.length()));
 
           String nameWithNamespace =
               monitoringInfo
@@ -463,15 +455,15 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
           final int lastColonIndex = nameWithNamespace.lastIndexOf(':');
           String counterName = nameWithNamespace.substring(lastColonIndex + 1);
-          String counterNamespace = nameWithNamespace.substring(0, lastColonIndex - 1);
+          String counterNamespace = nameWithNamespace.substring(0, lastColonIndex);
 
           name.setName(
                   new CounterStructuredName()
                       .setOrigin(Origin.USER.toString())
                       // Workaround for bug in python sdk that missed colon after ...metric:user.
                       .setName(counterName)
-                      .setOriginalStepName(stepContext.getNameContext().originalName())
-                      .setExecutionStepName(stepContext.getNameContext().systemName())
+                      .setOriginalStepName(stepContext == null ? null : stepContext.getNameContext().originalName())
+                      .setExecutionStepName(stepContext == null ? null : stepContext.getNameContext().systemName())
                       .setOriginNamespace(counterNamespace))
               .setMetadata(new CounterMetadata().setKind("SUM"));
 
@@ -500,6 +492,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
               .map(monitoringInfoToCounterUpdateTransformer::monitoringInfoToCounterUpdate)
               .filter(Objects::nonNull)
               .collect(Collectors.toList());
+      return;
     }
 
     private String getStackTrace() {
@@ -524,18 +517,16 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
                 MetricUpdates ptransformMetricUpdates =
                     MetricsTranslation.metricUpdatesFromProto(
                         ptransformEntry.getKey(), ptransformEntry.getValue().getUserList());
-                for (MetricUpdates.MetricUpdate<Long> update :
-                    ptransformMetricUpdates.counterUpdates()) {
+                for (MetricUpdate<Long> update : ptransformMetricUpdates.counterUpdates()) {
                   deprecatedCounterUpdates.put(update.getKey(), update);
                 }
 
-                for (MetricUpdates.MetricUpdate<DistributionData> update :
+                for (MetricUpdate<DistributionData> update :
                     ptransformMetricUpdates.distributionUpdates()) {
                   deprecatedDistributionUpdates.put(update.getKey(), update);
                 }
 
-                for (MetricUpdates.MetricUpdate<GaugeData> update :
-                    ptransformMetricUpdates.gaugeUpdates()) {
+                for (MetricUpdate<GaugeData> update : ptransformMetricUpdates.gaugeUpdates()) {
                   deprecatedGaugeUpdates.put(update.getKey(), update);
                 }
               });
@@ -555,12 +546,10 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     @Override
     public MetricUpdates extractMetricUpdates() {
 
-      Map<MetricKey, MetricUpdates.MetricUpdate<Long>> snapshotCounterUpdates =
-          deprecatedCounterUpdates;
-      Map<MetricKey, MetricUpdates.MetricUpdate<DistributionData>> snapshotDistributionUpdates =
+      Map<MetricKey, MetricUpdate<Long>> snapshotCounterUpdates = deprecatedCounterUpdates;
+      Map<MetricKey, MetricUpdate<DistributionData>> snapshotDistributionUpdates =
           deprecatedDistributionUpdates;
-      Map<MetricKey, MetricUpdates.MetricUpdate<GaugeData>> snapshotGaugeUpdates =
-          deprecatedGaugeUpdates;
+      Map<MetricKey, MetricUpdate<GaugeData>> snapshotGaugeUpdates = deprecatedGaugeUpdates;
       return MetricUpdates.create(
           snapshotCounterUpdates.values(),
           snapshotDistributionUpdates.values(),
