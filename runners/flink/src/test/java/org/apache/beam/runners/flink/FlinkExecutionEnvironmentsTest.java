@@ -77,6 +77,20 @@ public class FlinkExecutionEnvironmentsTest {
   }
 
   @Test
+  public void shouldSetMaxParallelismStreaming() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(TestFlinkRunner.class);
+    options.setMaxParallelism(42);
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertThat(options.getMaxParallelism(), is(42));
+    assertThat(sev.getMaxParallelism(), is(42));
+  }
+
+  @Test
   public void shouldInferParallelismFromEnvironmentBatch() throws IOException {
     String flinkConfDir = extractFlinkConfig();
 

@@ -70,6 +70,7 @@ public class PipelineOptionsTest {
   public void testDefaults() {
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
     assertThat(options.getParallelism(), is(-1));
+    assertThat(options.getMaxParallelism(), is(-1));
     assertThat(options.getFlinkMaster(), is("[auto]"));
     assertThat(options.getFilesToStage(), is(nullValue()));
     assertThat(options.getLatencyTrackingInterval(), is(0L));
