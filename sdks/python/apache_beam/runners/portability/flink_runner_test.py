@@ -96,9 +96,9 @@ if __name__ == '__main__':
         file_reporter = 'org.apache.beam.runners.flink.metrics.FileReporter'
         with open(conf_path, 'w') as f:
           f.write(linesep.join([
-              'metrics.reporters: test',
-              'metrics.reporter.test.class: %s' % file_reporter,
-              'metrics.reporter.test.file: %s' % cls.test_metrics_path
+              'metrics.reporters: file',
+              'metrics.reporter.file.class: %s' % file_reporter,
+              'metrics.reporter.file.path: %s' % cls.test_metrics_path
           ]))
 
     @classmethod
