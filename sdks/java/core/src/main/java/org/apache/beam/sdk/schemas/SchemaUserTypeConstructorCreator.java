@@ -21,6 +21,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /** And implementation of {@link SchemaUserTypeCreator} that uses a Java constructor. */
 public class SchemaUserTypeConstructorCreator implements SchemaUserTypeCreator {
@@ -36,6 +39,8 @@ public class SchemaUserTypeConstructorCreator implements SchemaUserTypeCreator {
   public Object create(Object... params) {
     checkNotNull(constructor);
     try {
+      List<Class> classes =
+          Arrays.stream(params).map(Object::getClass).collect(Collectors.toList());
       return constructor.newInstance(params);
     } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
       throw new RuntimeException("Could not instantiate object " + clazz, e);

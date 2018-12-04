@@ -298,7 +298,7 @@ public class AvroUtils {
 
   /** Get field types for an AVRO-generated SpecificRecord. */
   public static <T extends SpecificRecord> List<FieldValueTypeInformation> getFieldTypes(
-      Class<T> clazz, Schema schema) {
+      Class<T> clazz, @Nullable Schema schema) {
     return JavaBeanUtils.getFieldTypes(
         clazz, schema, new AvroSpecificRecordFieldNamePolicy(schema));
   }
@@ -480,7 +480,6 @@ public class AvroUtils {
   private static Object genericFromBeamField(
       Schema.FieldType fieldType, org.apache.avro.Schema avroSchema, @Nullable Object value) {
     TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);
-
     if (!fieldType.getNullable().equals(typeWithNullability.nullable)) {
       throw new IllegalArgumentException(
           "FieldType "

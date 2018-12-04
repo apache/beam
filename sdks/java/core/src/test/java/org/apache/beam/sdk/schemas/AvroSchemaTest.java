@@ -156,7 +156,6 @@ public class AvroSchemaTest {
   public void testRowToGenericRecord() {
     SerializableFunction<Row, GenericRecord> fromRow =
         AvroUtils.getRowToGenericRecordFunction(TestAvro.SCHEMA$);
-    GenericRecord generic = fromRow.apply(ROW);
     assertEquals(AVRO_GENERIC_RECORD, fromRow.apply(ROW));
   }
 }
