@@ -267,7 +267,7 @@ public class CassandraIOTest implements Serializable {
     }
 
     @Override
-    public FakeCassandraWriter createWriter(CassandraIO.Write<Scientist> spec) {
+    public FakeCassandraWriter createWriter(CassandraIO.Mutate<Scientist> spec) {
       return new FakeCassandraWriter();
     }
 
@@ -284,7 +284,7 @@ public class CassandraIOTest implements Serializable {
     }
 
     @Override
-    public FakeCassandraDeleter createDeleter(CassandraIO.Delete<Scientist> spec) {
+    public FakeCassandraDeleter createDeleter(CassandraIO.Mutate<Scientist> spec) {
       return new FakeCassandraDeleter();
     }
   }

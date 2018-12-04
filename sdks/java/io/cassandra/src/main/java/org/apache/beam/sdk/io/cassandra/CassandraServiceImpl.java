@@ -42,6 +42,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -394,21 +395,39 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   }
 
   /** Writer storing an entity into Apache Cassandra database. */
-  protected class WriterImpl implements Writer<T> {
+  protected class WriterImpl extends MutatorImpl implements Writer<T> {
+
+    WriterImpl(CassandraIO.Mutate<T> spec) {
+      super(spec, Mapper::saveAsync, "writes");
+    }
+
+    @Override
+    public void write(T entity) throws ExecutionException, InterruptedException {
+      mutate(entity);
+    }
+  }
+
+  /** Mutator allowing to do side effects into Apache Cassandra database. */
+  protected abstract class MutatorImpl {
     /**
      * The threshold of 100 concurrent async queries is a heuristic commonly used by the Apache
      * Cassandra community. There is no real gain to expect in tuning this value.
      */
     private static final int CONCURRENT_ASYNC_QUERIES = 100;
 
-    private final CassandraIO.Write<T> spec;
+    private final CassandraIO.Mutate<T> spec;
 
     private final Cluster cluster;
     private final Session session;
     private final MappingManager mappingManager;
-    private List<ListenableFuture<Void>> writeFutures;
+    private List<ListenableFuture<Void>> mutateFutures;
+    private BiFunction<Mapper<T>, T, ListenableFuture<Void>> mutator;
+    private String operationName;
 
-    WriterImpl(CassandraIO.Write<T> spec) {
+    MutatorImpl(
+        CassandraIO.Mutate<T> spec,
+        BiFunction<Mapper<T>, T, ListenableFuture<Void>> mutator,
+        String operationName) {
       this.spec = spec;
       this.cluster =
           getCluster(
@@ -420,34 +439,35 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
               spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
       this.mappingManager = new MappingManager(session);
-      this.writeFutures = new ArrayList<>();
+      this.mutateFutures = new ArrayList<>();
+      this.mutator = mutator;
+      this.operationName = operationName;
     }
 
     /**
-     * Write the entity to the Cassandra instance, using {@link Mapper} obtained with the {@link
+     * Mutate the entity to the Cassandra instance, using {@link Mapper} obtained with the {@link
      * MappingManager}. This method uses {@link Mapper#saveAsync(Object)} method, which is
      * asynchronous. Beam will wait for all futures to complete, to guarantee all writes have
      * succeeded.
      */
-    @Override
-    public void write(T entity) throws ExecutionException, InterruptedException {
+    public void mutate(T entity) throws ExecutionException, InterruptedException {
       Mapper<T> mapper = (Mapper<T>) mappingManager.mapper(entity.getClass());
-      this.writeFutures.add(mapper.saveAsync(entity));
-      if (this.writeFutures.size() == CONCURRENT_ASYNC_QUERIES) {
+      this.mutateFutures.add(mutator.apply(mapper, entity));
+      if (this.mutateFutures.size() == CONCURRENT_ASYNC_QUERIES) {
         // We reached the max number of allowed in flight queries.
         // Write methods are synchronous in Beam as stated by the CassandraService interface,
         // so we wait for each async query to return before exiting.
         LOG.debug(
-            "Waiting for a batch of {} Cassandra writes to be executed...",
-            CONCURRENT_ASYNC_QUERIES);
+            "Waiting for a batch of {} Cassandra {} to be executed...",
+            CONCURRENT_ASYNC_QUERIES,
+            operationName);
         waitForFuturesToFinish();
-        this.writeFutures = new ArrayList<>();
+        this.mutateFutures = new ArrayList<>();
       }
     }
 
-    @Override
     public void close() throws ExecutionException, InterruptedException {
-      if (this.writeFutures.size() > 0) {
+      if (this.mutateFutures.size() > 0) {
         // Waiting for the last in flight async queries to return before finishing the bundle.
         waitForFuturesToFinish();
       }
@@ -461,93 +481,32 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     }
 
     private void waitForFuturesToFinish() throws ExecutionException, InterruptedException {
-      for (ListenableFuture<Void> future : writeFutures) {
+      for (ListenableFuture<Void> future : mutateFutures) {
         future.get();
       }
     }
   }
 
   @Override
-  public Writer createWriter(CassandraIO.Write<T> spec) {
+  public Writer createWriter(CassandraIO.Mutate<T> spec) {
     return new WriterImpl(spec);
   }
 
   /** Deleter storing an entity into Apache Cassandra database. */
-  protected class DeleterImpl implements Deleter<T> {
-    /**
-     * The threshold of 100 concurrent async queries is a heuristic commonly used by the Apache
-     * Cassandra community. There is no real gain to expect in tuning this value.
-     */
-    private static final int CONCURRENT_ASYNC_QUERIES = 100;
+  protected class DeleterImpl extends MutatorImpl implements Deleter<T> {
 
-    private final CassandraIO.Delete<T> spec;
-
-    private final Cluster cluster;
-    private final Session session;
-    private final MappingManager mappingManager;
-    private List<ListenableFuture<Void>> deleteFutures;
-
-    DeleterImpl(CassandraIO.Delete<T> spec) {
-      this.spec = spec;
-      this.cluster =
-          getCluster(
-              spec.hosts(),
-              spec.port(),
-              spec.username(),
-              spec.password(),
-              spec.localDc(),
-              spec.consistencyLevel());
-      this.session = cluster.connect(spec.keyspace());
-      this.mappingManager = new MappingManager(session);
-      this.deleteFutures = new ArrayList<>();
+    DeleterImpl(CassandraIO.Mutate<T> spec) {
+      super(spec, (tMapper, t) -> tMapper.deleteAsync(t), "deletes");
     }
 
-    /**
-     * Delete the entity to the Cassandra instance, using {@link Mapper} obtained with the {@link
-     * MappingManager}. This method uses {@link Mapper#deleteAsync(Object)} method, which is
-     * asynchronous. Beam will wait for all futures to complete, to guarantee all writes have
-     * succeeded.
-     */
     @Override
     public void delete(T entity) throws ExecutionException, InterruptedException {
-      Mapper<T> mapper = (Mapper<T>) mappingManager.mapper(entity.getClass());
-      this.deleteFutures.add(mapper.deleteAsync(entity));
-      if (this.deleteFutures.size() == CONCURRENT_ASYNC_QUERIES) {
-        // We reached the max number of allowed in flight queries.
-        // Write methods are synchronous in Beam as stated by the CassandraService interface,
-        // so we wait for each async query to return before exiting.
-        LOG.debug(
-            "Waiting for a batch of {} Cassandra writes to be executed...",
-            CONCURRENT_ASYNC_QUERIES);
-        waitForFuturesToFinish();
-        this.deleteFutures = new ArrayList<>();
-      }
-    }
-
-    @Override
-    public void close() throws ExecutionException, InterruptedException {
-      if (this.deleteFutures.size() > 0) {
-        // Waiting for the last in flight async queries to return before finishing the bundle.
-        waitForFuturesToFinish();
-      }
-
-      if (session != null) {
-        session.close();
-      }
-      if (cluster != null) {
-        cluster.close();
-      }
-    }
-
-    private void waitForFuturesToFinish() throws ExecutionException, InterruptedException {
-      for (ListenableFuture<Void> future : deleteFutures) {
-        future.get();
-      }
+      mutate(entity);
     }
   }
 
   @Override
-  public Deleter createDeleter(CassandraIO.Delete<T> spec) {
+  public Deleter createDeleter(CassandraIO.Mutate<T> spec) {
     return new DeleterImpl(spec);
   }
 }

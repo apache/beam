@@ -88,16 +88,16 @@ public class CassandraIO {
         .build();
   }
 
-  /** Provide a {@link Write} {@link PTransform} to write data to a Cassandra database. */
-  public static <T> Write<T> write() {
-    return new AutoValue_CassandraIO_Write.Builder<T>()
+  /** Provide a {@link Mutate} {@link PTransform} to write data to a Cassandra database. */
+  public static <T> Mutate<T> write() {
+    return Mutate.<T>builder(MutationType.WRITE)
         .setCassandraService(new CassandraServiceImpl<>())
         .build();
   }
 
-  /** Provide a {@link Delete} {@link PTransform} to delete data to a Cassandra database. */
-  public static <T> Delete<T> delete() {
-    return new AutoValue_CassandraIO_Delete.Builder<T>()
+  /** Provide a {@link Mutate} {@link PTransform} to delete data to a Cassandra database. */
+  public static <T> Mutate<T> delete() {
+    return Mutate.<T>builder(MutationType.DELETE)
         .setCassandraService(new CassandraServiceImpl<>())
         .build();
   }
@@ -320,12 +320,18 @@ public class CassandraIO {
     }
   }
 
+  /** Specify the mutation type: either write or delete. */
+  public enum MutationType {
+    WRITE,
+    DELETE
+  }
+
   /**
-   * A {@link PTransform} to write into Apache Cassandra. See {@link CassandraIO} for details on
+   * A {@link PTransform} to mutate into Apache Cassandra. See {@link CassandraIO} for details on
    * usage and configuration.
    */
   @AutoValue
-  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+  public abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
     abstract List<String> hosts();
 
@@ -353,31 +359,48 @@ public class CassandraIO {
     @Nullable
     abstract CassandraService<T> cassandraService();
 
+    abstract MutationType mutationType();
+
     abstract Builder<T> builder();
 
+    static <T> Builder<T> builder(MutationType mutationType) {
+      return new AutoValue_CassandraIO_Mutate.Builder<T>().setMutationType(mutationType);
+    }
+
     /** Specify the Cassandra instance hosts where to write data. */
-    public Write<T> withHosts(List<String> hosts) {
-      checkArgument(hosts != null, "CassandraIO.write().withHosts(hosts) called with null hosts");
+    public Mutate<T> withHosts(List<String> hosts) {
+      checkArgument(
+          hosts != null,
+          "CassandraIO." + getMutationTypeName() + "().withHosts(hosts) called with null hosts");
       checkArgument(
           !hosts.isEmpty(),
-          "CassandraIO.write().withHosts(hosts) called with empty " + "hosts list");
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withHosts(hosts) called with empty "
+              + "hosts list");
       return builder().setHosts(hosts).build();
     }
 
     /** Specify the Cassandra instance port number where to write data. */
-    public Write<T> withPort(int port) {
+    public Mutate<T> withPort(int port) {
       checkArgument(
           port > 0,
-          "CassandraIO.write().withPort(port) called with invalid port " + "number (%s)",
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withPort(port) called with invalid port "
+              + "number (%s)",
           port);
       return builder().setPort(port).build();
     }
 
     /** Specify the Cassandra keyspace where to write data. */
-    public Write<T> withKeyspace(String keyspace) {
+    public Mutate<T> withKeyspace(String keyspace) {
       checkArgument(
           keyspace != null,
-          "CassandraIO.write().withKeyspace(keyspace) called with " + "null keyspace");
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withKeyspace(keyspace) called with "
+              + "null keyspace");
       return builder().setKeyspace(keyspace).build();
     }
 
@@ -385,40 +408,55 @@ public class CassandraIO {
      * Specify the entity class in the input {@link PCollection}. The {@link CassandraIO} will map
      * this entity to the Cassandra table thanks to the annotations.
      */
-    public Write<T> withEntity(Class<T> entity) {
+    public Mutate<T> withEntity(Class<T> entity) {
       checkArgument(
-          entity != null, "CassandraIO.write().withEntity(entity) called with null " + "entity");
+          entity != null,
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withEntity(entity) called with null "
+              + "entity");
       return builder().setEntity(entity).build();
     }
 
     /** Specify the username used for authentication. */
-    public Write<T> withUsername(String username) {
+    public Mutate<T> withUsername(String username) {
       checkArgument(
           username != null,
-          "CassandraIO.write().withUsername(username) called with " + "null username");
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withUsername(username) called with "
+              + "null username");
       return builder().setUsername(username).build();
     }
 
     /** Specify the password used for authentication. */
-    public Write<T> withPassword(String password) {
+    public Mutate<T> withPassword(String password) {
       checkArgument(
           password != null,
-          "CassandraIO.write().withPassword(password) called with " + "null password");
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withPassword(password) called with "
+              + "null password");
       return builder().setPassword(password).build();
     }
 
     /** Specify the local DC used by the load balancing policy. */
-    public Write<T> withLocalDc(String localDc) {
+    public Mutate<T> withLocalDc(String localDc) {
       checkArgument(
           localDc != null,
-          "CassandraIO.write().withLocalDc(localDc) called with null" + " localDc");
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withLocalDc(localDc) called with null"
+              + " localDc");
       return builder().setLocalDc(localDc).build();
     }
 
-    public Write<T> withConsistencyLevel(String consistencyLevel) {
+    public Mutate<T> withConsistencyLevel(String consistencyLevel) {
       checkArgument(
           consistencyLevel != null,
-          "CassandraIO.write().withConsistencyLevel"
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withConsistencyLevel"
               + "(consistencyLevel) called with null consistencyLevel");
       return builder().setConsistencyLevel(consistencyLevel).build();
     }
@@ -426,10 +464,13 @@ public class CassandraIO {
     /**
      * Specify the {@link CassandraService} used to connect and write into the Cassandra database.
      */
-    public Write<T> withCassandraService(CassandraService<T> cassandraService) {
+    public Mutate<T> withCassandraService(CassandraService<T> cassandraService) {
       checkArgument(
           cassandraService != null,
-          "CassandraIO.write().withCassandraService" + "(service) called with null service");
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withCassandraService"
+              + "(service) called with null service");
       return builder().setCassandraService(cassandraService).build();
     }
 
@@ -437,25 +478,45 @@ public class CassandraIO {
     public void validate(PipelineOptions pipelineOptions) {
       checkState(
           hosts() != null || cassandraService() != null,
-          "CassandraIO.write() requires a list of hosts to be set via withHosts(hosts) or a "
+          "CassandraIO."
+              + getMutationTypeName()
+              + "() requires a list of hosts to be set via withHosts(hosts) or a "
               + "Cassandra service to be set via withCassandraService(service)");
       checkState(
           port() != null || cassandraService() != null,
-          "CassandraIO.write() requires a "
+          "CassandraIO."
+              + getMutationTypeName()
+              + "() requires a "
               + "valid port number to be set via withPort(port) or a Cassandra service to be set via "
               + "withCassandraService(service)");
       checkState(
           keyspace() != null,
-          "CassandraIO.write() requires a keyspace to be set via " + "withKeyspace(keyspace)");
+          "CassandraIO."
+              + getMutationTypeName()
+              + "() requires a keyspace to be set via "
+              + "withKeyspace(keyspace)");
       checkState(
           entity() != null,
-          "CassandraIO.write() requires an entity to be set via " + "withEntity(entity)");
+          "CassandraIO."
+              + getMutationTypeName()
+              + "() requires an entity to be set via "
+              + "withEntity(entity)");
     }
 
     @Override
     public PDone expand(PCollection<T> input) {
-      input.apply(ParDo.of(new WriteFn<>(this)));
+      if (mutationType() == MutationType.DELETE) {
+        input.apply(ParDo.of(new DeleteFn<T>(this)));
+      } else {
+        input.apply(ParDo.of(new WriteFn<T>(this)));
+      }
       return PDone.in(input.getPipeline());
+    }
+
+    private String getMutationTypeName() {
+      return mutationType() == null
+          ? MutationType.WRITE.name().toLowerCase()
+          : mutationType().name().toLowerCase();
     }
 
     @AutoValue.Builder
@@ -478,15 +539,17 @@ public class CassandraIO {
 
       abstract Builder<T> setCassandraService(CassandraService<T> cassandraService);
 
-      abstract Write<T> build();
+      abstract Builder<T> setMutationType(MutationType mutationType);
+
+      abstract Mutate<T> build();
     }
   }
 
   private static class WriteFn<T> extends DoFn<T, Void> {
-    private final Write<T> spec;
-    private CassandraService.Writer writer;
+    private final Mutate<T> spec;
+    private CassandraService.Writer<T> writer;
 
-    WriteFn(Write<T> spec) {
+    WriteFn(Mutate<T> spec) {
       this.spec = spec;
     }
 
@@ -507,173 +570,11 @@ public class CassandraIO {
     }
   }
 
-  /**
-   * A {@link PTransform} to delete into Apache Cassandra. See {@link CassandraIO} for details on
-   * usage and configuration.
-   */
-  @AutoValue
-  public abstract static class Delete<T> extends PTransform<PCollection<T>, PDone> {
-    @Nullable
-    abstract List<String> hosts();
-
-    @Nullable
-    abstract Integer port();
-
-    @Nullable
-    abstract String keyspace();
-
-    @Nullable
-    abstract Class<T> entity();
-
-    @Nullable
-    abstract String username();
-
-    @Nullable
-    abstract String password();
-
-    @Nullable
-    abstract String localDc();
-
-    @Nullable
-    abstract String consistencyLevel();
-
-    @Nullable
-    abstract CassandraService<T> cassandraService();
-
-    abstract Builder<T> builder();
-
-    /** Specify the Cassandra instance hosts where to delete data. */
-    public Delete<T> withHosts(List<String> hosts) {
-      checkArgument(hosts != null, "CassandraIO.delete().withHosts(hosts) called with null hosts");
-      checkArgument(
-          !hosts.isEmpty(),
-          "CassandraIO.delete().withHosts(hosts) called with empty " + "hosts list");
-      return builder().setHosts(hosts).build();
-    }
-
-    /** Specify the Cassandra instance port number where to delete data. */
-    public Delete<T> withPort(int port) {
-      checkArgument(
-          port > 0,
-          "CassandraIO.delete().withPort(port) called with invalid port " + "number (%s)",
-          port);
-      return builder().setPort(port).build();
-    }
-
-    /** Specify the Cassandra keyspace where to delete data. */
-    public Delete<T> withKeyspace(String keyspace) {
-      checkArgument(
-          keyspace != null,
-          "CassandraIO.delete().withKeyspace(keyspace) called with " + "null keyspace");
-      return builder().setKeyspace(keyspace).build();
-    }
-
-    /**
-     * Specify the entity class in the input {@link PCollection}. The {@link CassandraIO} will map
-     * this entity to the Cassandra table thanks to the annotations.
-     */
-    public Delete<T> withEntity(Class<T> entity) {
-      checkArgument(
-          entity != null, "CassandraIO.delete().withEntity(entity) called with null " + "entity");
-      return builder().setEntity(entity).build();
-    }
-
-    /** Specify the username used for authentication. */
-    public Delete<T> withUsername(String username) {
-      checkArgument(
-          username != null,
-          "CassandraIO.delete().withUsername(username) called with " + "null username");
-      return builder().setUsername(username).build();
-    }
-
-    /** Specify the password used for authentication. */
-    public Delete<T> withPassword(String password) {
-      checkArgument(
-          password != null,
-          "CassandraIO.delete().withPassword(password) called with " + "null password");
-      return builder().setPassword(password).build();
-    }
-
-    /** Specify the local DC used by the load balancing policy. */
-    public Delete<T> withLocalDc(String localDc) {
-      checkArgument(
-          localDc != null,
-          "CassandraIO.delete().withLocalDc(localDc) called with null" + " localDc");
-      return builder().setLocalDc(localDc).build();
-    }
-
-    public Delete<T> withConsistencyLevel(String consistencyLevel) {
-      checkArgument(
-          consistencyLevel != null,
-          "CassandraIO.delete().withConsistencyLevel"
-              + "(consistencyLevel) called with null consistencyLevel");
-      return builder().setConsistencyLevel(consistencyLevel).build();
-    }
-
-    /**
-     * Specify the {@link CassandraService} used to connect and delete into the Cassandra database.
-     */
-    public Delete<T> withCassandraService(CassandraService<T> cassandraService) {
-      checkArgument(
-          cassandraService != null,
-          "CassandraIO.delete().withCassandraService" + "(service) called with null service");
-      return builder().setCassandraService(cassandraService).build();
-    }
-
-    @Override
-    public void validate(PipelineOptions pipelineOptions) {
-      checkState(
-          hosts() != null || cassandraService() != null,
-          "CassandraIO.delete() requires a list of hosts to be set via withHosts(hosts) or a "
-              + "Cassandra service to be set via withCassandraService(service)");
-      checkState(
-          port() != null || cassandraService() != null,
-          "CassandraIO.delete() requires a "
-              + "valid port number to be set via withPort(port) or a Cassandra service to be set via "
-              + "withCassandraService(service)");
-      checkState(
-          keyspace() != null,
-          "CassandraIO.delete() requires a keyspace to be set via " + "withKeyspace(keyspace)");
-      checkState(
-          entity() != null,
-          "CassandraIO.delete() requires an entity to be set via " + "withEntity(entity)");
-    }
-
-    @Override
-    public PDone expand(PCollection<T> input) {
-      input.apply(ParDo.of(new DeleteFn<>(this)));
-      return PDone.in(input.getPipeline());
-    }
-
-    @AutoValue.Builder
-    abstract static class Builder<T> {
-      abstract Builder<T> setHosts(List<String> hosts);
-
-      abstract Builder<T> setPort(Integer port);
-
-      abstract Builder<T> setKeyspace(String keyspace);
-
-      abstract Builder<T> setEntity(Class<T> entity);
-
-      abstract Builder<T> setUsername(String username);
-
-      abstract Builder<T> setPassword(String password);
-
-      abstract Builder<T> setLocalDc(String localDc);
-
-      abstract Builder<T> setConsistencyLevel(String consistencyLevel);
-
-      abstract Builder<T> setCassandraService(CassandraService<T> cassandraService);
-
-      abstract Delete<T> build();
-    }
-  }
-
   private static class DeleteFn<T> extends DoFn<T, Void> {
-    private final Delete<T> spec;
-    private CassandraService.Deleter deleter;
+    private final Mutate<T> spec;
+    private CassandraService.Deleter<T> deleter;
 
-    DeleteFn(Delete<T> spec) {
+    DeleteFn(Mutate<T> spec) {
       this.spec = spec;
     }
 
