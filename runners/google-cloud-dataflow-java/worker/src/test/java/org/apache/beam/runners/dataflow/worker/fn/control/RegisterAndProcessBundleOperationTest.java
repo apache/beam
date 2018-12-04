@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -41,6 +42,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,6 +54,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
@@ -850,5 +854,63 @@ public class RegisterAndProcessBundleOperationTest {
         BeamFnApi.InstructionResponse.newBuilder()
             .setInstructionId(request.getInstructionId())
             .build());
+  }
+
+  @Test
+  public void testGetProcessBundleProgressReturnsDefaultInstanceIfNoBundleIdCached()
+      throws Exception {
+    Supplier<String> mockIdGenerator = mock(Supplier.class);
+    InstructionRequestHandler mockInstructionRequestHandler = mock(InstructionRequestHandler.class);
+
+    RegisterAndProcessBundleOperation operation =
+        new RegisterAndProcessBundleOperation(
+            mockIdGenerator,
+            mockInstructionRequestHandler,
+            mockBeamFnStateDelegator,
+            REGISTER_REQUEST,
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableTable.of(),
+            mockContext);
+
+    assertEquals(ProcessBundleProgressResponse.getDefaultInstance(),
+        MoreFutures.get(operation.getProcessBundleProgress()));
+  }
+
+
+  @Test
+  public void testGetProcessBundleProgressFetchesProgressResponseWhenBundleIdCached()
+      throws Exception {
+    Supplier<String> mockIdGenerator = mock(Supplier.class);
+    InstructionRequestHandler mockInstructionRequestHandler = mock(InstructionRequestHandler.class);
+
+    RegisterAndProcessBundleOperation operation =
+        new RegisterAndProcessBundleOperation(
+            mockIdGenerator,
+            mockInstructionRequestHandler,
+            mockBeamFnStateDelegator,
+            REGISTER_REQUEST,
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableTable.of(),
+            mockContext);
+
+    when(mockIdGenerator.get()).thenReturn("50"); // any non-null
+    operation.getProcessBundleInstructionId(); // this generates and caches bundleId
+
+    ProcessBundleProgressResponse expectedResult = ProcessBundleProgressResponse.newBuilder()
+        .build();
+    InstructionResponse instructionResponse = InstructionResponse.newBuilder()
+        .setProcessBundleProgress(expectedResult).build();
+    CompletableFuture resultFuture = CompletableFuture.completedFuture(instructionResponse);
+    when(mockInstructionRequestHandler.handle(any())).thenReturn(resultFuture);
+
+    final ProcessBundleProgressResponse result = MoreFutures
+        .get(operation.getProcessBundleProgress());
+
+    assertSame("Return value from mockInstructionRequestHandler",
+               expectedResult, result);
   }
 }

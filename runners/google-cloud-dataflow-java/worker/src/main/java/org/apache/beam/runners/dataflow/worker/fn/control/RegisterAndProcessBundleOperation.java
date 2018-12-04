@@ -221,6 +221,8 @@ public class RegisterAndProcessBundleOperation extends Operation {
   /**
    * Returns an id for the current bundle being processed.
    *
+   * <p>Generates new id with idGenerator if no id is cached.
+   *
    * <p><b>Note</b>: This operation could be used across multiple bundles, so a unique id is
    * generated for every bundle. {@link Operation Operations} accessing the bundle id should only
    * call this once per bundle and cache the id in the {@link Operation#start()} method and clear it
@@ -320,6 +322,8 @@ public class RegisterAndProcessBundleOperation extends Operation {
     String processBundleId = this.processBundleId;
 
     if (processBundleId == null) {
+      System.out.println("BundleId==null");
+      System.err.println("BundleId==null (err)");
       return CompletableFuture.completedFuture(
           BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance());
     }
