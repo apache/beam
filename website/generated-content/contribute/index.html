@@ -387,9 +387,11 @@ environment. See the Developers’ wiki for tips, guides, and FAQs on:
 have an open source license <a href="https://www.apache.org/legal/resolved.html#criteria">compatible</a> with Apache.</li>
   <li>Add unit tests for your change</li>
   <li>When your change is ready to be reviewed and merged, create a pull request.
-Format the pull request title like <code class="highlighter-rouge">[BEAM-XXX] Fixes bug in ApproximateQuantiles</code>,
+Format commit messages and the pull request title like <code class="highlighter-rouge">[BEAM-XXX] Fixes bug in ApproximateQuantiles</code>,
 where you replace BEAM-XXX with the appropriate JIRA issue.
-This will automatically link the pull request to the issue.</li>
+This will automatically link the pull request to the issue.
+Use descriptive commit messages that make it easy to identify changes and provide a clear history.
+To support efficient and quality review, avoid tiny or out-of-context changes and huge mega-changes.</li>
   <li>
     <p>The pull request and any changes pushed to it will trigger <a href="/contribute/testing/">pre-commit
 jobs</a>. If a test fails and appears unrelated to your
@@ -405,7 +407,7 @@ PR</p>
 tests consume shared development resources.</p>
   </li>
   <li>Pull requests can only be merged by a
-<a href="/contribute/team/">beam committer</a>.
+<a href="/contribute/team/">Beam committer</a>.
 To find a committer for your area, either:
     <ul>
       <li>look in the OWNERS file of the directory where you changed files, or</li>
@@ -417,6 +419,9 @@ To find a committer for your area, either:
   </li>
   <li>If you don’t get any response in 3 business days, email the dev@ list to ask for someone to look at your pull
 request.</li>
+  <li>Review feedback typically leads to follow-up changes. You can add these changes as additional “fixup” commits to the
+existing PR/branch. This will allow reviewer(s) to track the incremental progress. After review is complete and the
+PR accepted, multiple commits should be squashed (see <a href="https://cwiki.apache.org/confluence/display/BEAM/Git+Tips">Git workflow tips</a>).</li>
 </ol>
 
 <h2 id="when-will-my-change-show-up-in-an-apache-beam-release">When will my change show up in an Apache Beam release?</h2>
@@ -438,24 +443,24 @@ unassigned from the author but will stay open.</p>
 
 <ul>
   <li>
-    <p><a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>
-anyone can access it and browse issues. Anyone can register an account and login
+    <p><a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>:
+Anyone can access it and browse issues. Anyone can register an account and login
 to create issues or add comments. Only contributors can be assigned issues. If
 you want to be assigned issues, a PMC member can add you to the project contributor
 group.  Email the <a href="/community/contact-us">dev@ mailing list</a>
 to ask to be added as a contributor in the Beam issue tracker, and include your ASF Jira username.</p>
   </li>
   <li>
-    <p><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki Space</a>.
-If you wish to contribute changes, please request edit access on the
-<a href="/community/contact-us">dev@ mailing list</a>.</p>
+    <p><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki Space</a>:
+Anyone has read access. If you wish to contribute changes, please create an account and request edit access on the
+<a href="/community/contact-us">dev@ mailing list</a> (include your Wiki account user ID).</p>
   </li>
   <li>
     <p>Pull requests can only be merged by a
-<a href="/contribute/team/">beam committer</a>.</p>
+<a href="/contribute/team/">Beam committer</a>.</p>
   </li>
   <li>
-    <p><a href="https://www.apache.org/foundation/voting.html">Voting on a release</a>. Everyone can vote. Only
+    <p><a href="https://www.apache.org/foundation/voting.html">Voting on a release</a>: Everyone can vote. Only
 <a href="/contribute/team/">Beam PMC</a> members should mark their votes as binding.</p>
   </li>
 </ul>
@@ -464,7 +469,7 @@ If you wish to contribute changes, please request edit access on the
 
 <p>All communication is expected to align with the <a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a>.</p>
 
-<p>Discussions about contributing code to beam  happens on the <a href="/community/contact-us/">dev@ mailing list</a>. Introduce yourself!</p>
+<p>Discussion about contributing code to Beam happens on the <a href="/community/contact-us/">dev@ mailing list</a>. Introduce yourself!</p>
 
 <p>Questions can be asked on the <a href="/community/contact-us/">#beam channel of the ASF slack</a>. Introduce yourself!</p>
 
