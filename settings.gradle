@@ -180,6 +180,8 @@ include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
 include "beam-sdks-python-container-py3"
 project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
+include "beam-sdks-python-precommit-dataflow"
+project(":beam-sdks-python-precommit-dataflow").dir = file("sdks/python/precommit/dataflow")
 include "beam-vendor-grpc-1_13_1"
 project(":beam-vendor-grpc-1_13_1").dir = file("vendor/grpc-1_13_1")
 include "beam-sdks-java-test-utils"
