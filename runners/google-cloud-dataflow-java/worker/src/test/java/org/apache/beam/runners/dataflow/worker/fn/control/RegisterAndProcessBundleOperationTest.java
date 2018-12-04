@@ -42,7 +42,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,7 +54,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
@@ -874,10 +872,10 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableTable.of(),
             mockContext);
 
-    assertEquals(ProcessBundleProgressResponse.getDefaultInstance(),
+    assertEquals(
+        ProcessBundleProgressResponse.getDefaultInstance(),
         MoreFutures.get(operation.getProcessBundleProgress()));
   }
-
 
   @Test
   public void testGetProcessBundleProgressFetchesProgressResponseWhenBundleIdCached()
@@ -900,17 +898,16 @@ public class RegisterAndProcessBundleOperationTest {
     when(mockIdGenerator.get()).thenReturn("50"); // any non-null
     operation.getProcessBundleInstructionId(); // this generates and caches bundleId
 
-    ProcessBundleProgressResponse expectedResult = ProcessBundleProgressResponse.newBuilder()
-        .build();
-    InstructionResponse instructionResponse = InstructionResponse.newBuilder()
-        .setProcessBundleProgress(expectedResult).build();
+    ProcessBundleProgressResponse expectedResult =
+        ProcessBundleProgressResponse.newBuilder().build();
+    InstructionResponse instructionResponse =
+        InstructionResponse.newBuilder().setProcessBundleProgress(expectedResult).build();
     CompletableFuture resultFuture = CompletableFuture.completedFuture(instructionResponse);
     when(mockInstructionRequestHandler.handle(any())).thenReturn(resultFuture);
 
-    final ProcessBundleProgressResponse result = MoreFutures
-        .get(operation.getProcessBundleProgress());
+    final ProcessBundleProgressResponse result =
+        MoreFutures.get(operation.getProcessBundleProgress());
 
-    assertSame("Return value from mockInstructionRequestHandler",
-               expectedResult, result);
+    assertSame("Return value from mockInstructionRequestHandler", expectedResult, result);
   }
 }

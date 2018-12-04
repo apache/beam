@@ -295,9 +295,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
     }
   }
 
-  // todomigryz: Extract common metrics processing code from getProcessBundleProgress and
-  // getFinalMetrics.
-
   public Map<String, DataflowStepContext> getPtransformIdToUserStepContext() {
     return ptransformIdToUserStepContext;
   }
