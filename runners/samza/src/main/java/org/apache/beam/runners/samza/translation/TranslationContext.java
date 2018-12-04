@@ -193,7 +193,7 @@ public class TranslationContext {
     if (registeredInputStreams.containsKey(streamId)) {
       MessageStream<OpMessage<OutT>> messageStream = registeredInputStreams.get(streamId);
       LOG.info(
-          "Stream id %s has already been mapped to %s stream. Mapping %s to the same message stream.",
+          "Stream id {} has already been mapped to {} stream. Mapping {} to the same message stream.",
           streamId, messageStream, pvalue);
       registerMessageStream(pvalue, messageStream);
 
