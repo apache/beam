@@ -270,9 +270,6 @@ public class WorkItemStatusClient {
       return;
     }
 
-    // TODOmigryz Dump all counters that we receive in each step.
-    // I need to do this because we do report msec counters, but they don't seem to come from
-    // worker.extractMetricUpdates as was expected initially.
     boolean isFinalUpdate = Boolean.TRUE.equals(status.getCompleted());
 
     ImmutableList.Builder<CounterUpdate> counterUpdatesListBuilder = ImmutableList.builder();
