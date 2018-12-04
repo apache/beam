@@ -15,18 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+package org.apache.beam.sdk.schemas;
 
-import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.avro.specific.SpecificRecord;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 
-/** A factory for creating {@link FieldValueGetter} objects for a JavaBean object. */
-public class JavaBeanGetterFactory implements FieldValueGetterFactory {
+/** A {@link UserTypeCreatorFactory} for AVRO-generated specific records. */
+public class AvroSpecificRecordUserTypeCreatorFactory implements UserTypeCreatorFactory {
   @Override
-  public List<FieldValueGetter> create(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getGetters(targetClass, schema, SerializableFunctions.identity());
+  public SchemaUserTypeCreator create(Class<?> clazz, Schema schema) {
+    return AvroUtils.getCreator((Class<? extends SpecificRecord>) clazz, schema);
   }
 }

@@ -540,6 +540,14 @@ public class Schema implements Serializable {
       return toBuilder().setMetadata(metadata.getBytes(StandardCharsets.UTF_8)).build();
     }
 
+    public String getMetadataString() {
+      if (getMetadata() != null) {
+        return new String(getMetadata(), StandardCharsets.UTF_8);
+      } else {
+        return "";
+      }
+    }
+
     public FieldType withNullable(boolean nullable) {
       return toBuilder().setNullable(nullable).build();
     }
