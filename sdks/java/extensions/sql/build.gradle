@@ -32,7 +32,7 @@ applyJavaNature(
       include(dependency("org.codehaus.janino:.*"))
     }
     relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-    relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
+    // relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
 
   // Looking up the compiler factory in Calcite depends on having a properties
   // file in the right location. We package one that is shading compatible
