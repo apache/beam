@@ -35,6 +35,7 @@ from apache_beam.io.gcp.pubsub import WriteStringsToPubSub
 from apache_beam.io.gcp.pubsub import WriteToPubSub
 from apache_beam.io.gcp.pubsub import _PubSubSink
 from apache_beam.io.gcp.pubsub import _PubSubSource
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import transform_evaluator
 from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
@@ -109,8 +110,9 @@ class TestPubsubMessage(unittest.TestCase):
 class TestReadFromPubSubOverride(unittest.TestCase):
 
   def test_expand_with_topic(self):
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/a_topic',
                               None, 'a_label', with_attributes=False,
@@ -119,7 +121,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     self.assertEqual(bytes, pcoll.element_type)
 
     # Apply the necessary PTransformOverrides.
-    overrides = _get_transform_overrides(p.options)
+    overrides = _get_transform_overrides(options)
     p.replace_all(overrides)
 
     # Note that the direct output of ReadFromPubSub will be replaced
@@ -132,8 +134,9 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     self.assertEqual('a_label', source.id_label)
 
   def test_expand_with_subscription(self):
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub(
                  None, 'projects/fakeprj/subscriptions/a_subscription',
@@ -142,7 +145,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     self.assertEqual(bytes, pcoll.element_type)
 
     # Apply the necessary PTransformOverrides.
-    overrides = _get_transform_overrides(p.options)
+    overrides = _get_transform_overrides(options)
     p.replace_all(overrides)
 
     # Note that the direct output of ReadFromPubSub will be replaced
@@ -167,8 +170,9 @@ class TestReadFromPubSubOverride(unittest.TestCase):
                      with_attributes=False, timestamp_attribute=None)
 
   def test_expand_with_other_options(self):
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/a_topic',
                               None, 'a_label', with_attributes=True,
@@ -177,7 +181,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     self.assertEqual(PubsubMessage, pcoll.element_type)
 
     # Apply the necessary PTransformOverrides.
-    overrides = _get_transform_overrides(p.options)
+    overrides = _get_transform_overrides(options)
     p.replace_all(overrides)
 
     # Note that the direct output of ReadFromPubSub will be replaced
@@ -193,15 +197,16 @@ class TestReadFromPubSubOverride(unittest.TestCase):
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestWriteStringsToPubSubOverride(unittest.TestCase):
   def test_expand_deprecated(self):
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/baz')
              | WriteStringsToPubSub('projects/fakeprj/topics/a_topic')
              | beam.Map(lambda x: x))
 
     # Apply the necessary PTransformOverrides.
-    overrides = _get_transform_overrides(p.options)
+    overrides = _get_transform_overrides(options)
     p.replace_all(overrides)
 
     # Note that the direct output of ReadFromPubSub will be replaced
@@ -212,8 +217,9 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
     self.assertEqual('a_topic', write_transform.dofn.short_topic_name)
 
   def test_expand(self):
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/baz')
              | WriteToPubSub('projects/fakeprj/topics/a_topic',
@@ -221,7 +227,7 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
              | beam.Map(lambda x: x))
 
     # Apply the necessary PTransformOverrides.
-    overrides = _get_transform_overrides(p.options)
+    overrides = _get_transform_overrides(options)
     p.replace_all(overrides)
 
     # Note that the direct output of ReadFromPubSub will be replaced
@@ -342,8 +348,9 @@ class TestReadFromPubSub(unittest.TestCase):
                           [window.GlobalWindow()])]
     mock_pubsub.return_value.pull.return_value = pull_response
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/a_topic',
                               None, None, with_attributes=True))
@@ -362,8 +369,9 @@ class TestReadFromPubSub(unittest.TestCase):
     expected_elements = [data]
     mock_pubsub.return_value.pull.return_value = pull_response
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadStringsFromPubSub('projects/fakeprj/topics/a_topic',
                                      None, None))
@@ -380,8 +388,9 @@ class TestReadFromPubSub(unittest.TestCase):
     expected_elements = [data_encoded]
     mock_pubsub.return_value.pull.return_value = pull_response
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, None))
     assert_that(pcoll, equal_to(expected_elements))
@@ -407,8 +416,9 @@ class TestReadFromPubSub(unittest.TestCase):
     ]
     mock_pubsub.return_value.pull.return_value = pull_response
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub(
                  'projects/fakeprj/topics/a_topic', None, None,
@@ -436,8 +446,9 @@ class TestReadFromPubSub(unittest.TestCase):
     ]
     mock_pubsub.return_value.pull.return_value = pull_response
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub(
                  'projects/fakeprj/topics/a_topic', None, None,
@@ -466,8 +477,9 @@ class TestReadFromPubSub(unittest.TestCase):
     ]
     mock_pubsub.return_value.pull.return_value = pull_response
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub(
                  'projects/fakeprj/topics/a_topic', None, None,
@@ -489,8 +501,9 @@ class TestReadFromPubSub(unittest.TestCase):
     ])
     mock_pubsub.return_value.pull.return_value = pull_response
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | ReadFromPubSub(
              'projects/fakeprj/topics/a_topic', None, None,
@@ -501,8 +514,9 @@ class TestReadFromPubSub(unittest.TestCase):
 
   def test_read_message_id_label_unsupported(self, unused_mock_pubsub):
     # id_label is unsupported in DirectRunner.
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, 'a_label'))
     with self.assertRaisesRegexp(NotImplementedError,
                                  r'id_label is not supported'):
@@ -517,8 +531,9 @@ class TestWriteToPubSub(unittest.TestCase):
     data = 'data'
     payloads = [data]
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
@@ -531,8 +546,9 @@ class TestWriteToPubSub(unittest.TestCase):
     data = 'data'
     payloads = [data]
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteStringsToPubSub('projects/fakeprj/topics/a_topic'))
@@ -545,8 +561,9 @@ class TestWriteToPubSub(unittest.TestCase):
     attributes = {'key': 'value'}
     payloads = [PubsubMessage(data, attributes)]
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
@@ -560,8 +577,9 @@ class TestWriteToPubSub(unittest.TestCase):
     # Sending raw data when WriteToPubSub expects a PubsubMessage object.
     payloads = [data]
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
@@ -575,8 +593,9 @@ class TestWriteToPubSub(unittest.TestCase):
     attributes = {'key': 'value'}
     payloads = [PubsubMessage(data, attributes)]
 
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
@@ -584,8 +603,9 @@ class TestWriteToPubSub(unittest.TestCase):
     with self.assertRaisesRegexp(NotImplementedError,
                                  r'id_label is not supported'):
       p.run()
-    p = TestPipeline()
-    p.options.view_as(StandardOptions).streaming = True
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
