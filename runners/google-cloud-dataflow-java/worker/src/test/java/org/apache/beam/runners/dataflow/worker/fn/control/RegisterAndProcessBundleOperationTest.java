@@ -863,12 +863,11 @@ public class RegisterAndProcessBundleOperationTest {
   @Test
   public void testGetProcessBundleProgressReturnsDefaultInstanceIfNoBundleIdCached()
       throws Exception {
-    Supplier<String> mockIdGenerator = mock(Supplier.class);
     InstructionRequestHandler mockInstructionRequestHandler = mock(InstructionRequestHandler.class);
 
     RegisterAndProcessBundleOperation operation =
         new RegisterAndProcessBundleOperation(
-            mockIdGenerator,
+            IdGenerators.decrementingLongs(),
             mockInstructionRequestHandler,
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -886,12 +885,11 @@ public class RegisterAndProcessBundleOperationTest {
   @Test
   public void testGetProcessBundleProgressFetchesProgressResponseWhenBundleIdCached()
       throws Exception {
-    Supplier<String> mockIdGenerator = mock(Supplier.class);
     InstructionRequestHandler mockInstructionRequestHandler = mock(InstructionRequestHandler.class);
 
     RegisterAndProcessBundleOperation operation =
         new RegisterAndProcessBundleOperation(
-            mockIdGenerator,
+            IdGenerators.decrementingLongs(),
             mockInstructionRequestHandler,
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -901,7 +899,6 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableTable.of(),
             mockContext);
 
-    when(mockIdGenerator.get()).thenReturn("50"); // any non-null
     operation.getProcessBundleInstructionId(); // this generates and caches bundleId
 
     ProcessBundleProgressResponse expectedResult =
