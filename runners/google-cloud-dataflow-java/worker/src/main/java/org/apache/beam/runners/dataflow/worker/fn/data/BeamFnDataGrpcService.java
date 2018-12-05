@@ -32,6 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.grpc.BeamFnService;
+import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.sdk.coders.Coder;
@@ -204,42 +205,55 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     }
   }
 
-  /** Get the DataService for the clientId */
-  public FnDataService getDataService(final String clientId) {
-    return new FnDataService() {
-      @Override
-      public <T> InboundDataClient receive(
-          LogicalEndpoint inputLocation,
-          Coder<WindowedValue<T>> coder,
-          FnDataReceiver<WindowedValue<T>> consumer) {
-        LOG.debug("Registering consumer for {}", inputLocation);
+  // A wrapper class
+  public class DataService extends BeamFnDataGrpc.BeamFnDataImplBase
+      implements FnDataService, FnService {
+    private final String clientId;
 
-        return new DeferredInboundDataClient(clientId, inputLocation, coder, consumer);
-      }
+    public DataService(String clientId) {
+      this.clientId = clientId;
+    }
 
-      @Override
-      public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
-          LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder) {
-        LOG.debug("Creating output consumer for {}", outputLocation);
-        try {
-          if (outboundBufferLimit.isPresent()) {
-            return BeamFnDataBufferingOutboundObserver.forLocationWithBufferLimit(
-                outboundBufferLimit.get(),
-                outputLocation,
-                coder,
-                getClientFuture(clientId).get().getOutboundObserver());
-          } else {
-            return BeamFnDataBufferingOutboundObserver.forLocation(
-                outputLocation, coder, getClientFuture(clientId).get().getOutboundObserver());
-          }
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(e);
-        } catch (ExecutionException e) {
-          throw new RuntimeException(e);
+    @Override
+    public <T> InboundDataClient receive(
+        LogicalEndpoint inputLocation,
+        Coder<WindowedValue<T>> coder,
+        FnDataReceiver<WindowedValue<T>> consumer) {
+      LOG.debug("Registering consumer for {}", inputLocation);
+
+      return new DeferredInboundDataClient(this.clientId, inputLocation, coder, consumer);
+    }
+
+    @Override
+    public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
+        LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder) {
+      LOG.debug("Creating output consumer for {}", outputLocation);
+      try {
+        if (outboundBufferLimit.isPresent()) {
+          return BeamFnDataBufferingOutboundObserver.forLocationWithBufferLimit(
+              outboundBufferLimit.get(),
+              outputLocation,
+              coder,
+              getClientFuture(this.clientId).get().getOutboundObserver());
+        } else {
+          return BeamFnDataBufferingOutboundObserver.forLocation(
+              outputLocation, coder, getClientFuture(this.clientId).get().getOutboundObserver());
         }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      } catch (ExecutionException e) {
+        throw new RuntimeException(e);
       }
-    };
+    }
+
+    @Override
+    public void close() throws Exception {}
+  }
+
+  /** Get the DataService for the clientId */
+  public DataService getDataService(final String clientId) {
+    return new DataService(clientId);
   }
 
   @Override

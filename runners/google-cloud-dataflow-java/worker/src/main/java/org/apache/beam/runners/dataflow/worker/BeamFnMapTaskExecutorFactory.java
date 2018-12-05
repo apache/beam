@@ -40,7 +40,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
@@ -55,6 +54,7 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.fn.control.RegisterAndProcessBundleOperation;
+import org.apache.beam.runners.dataflow.worker.fn.data.BeamFnDataGrpcService;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortReadOperation;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -82,11 +82,14 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WriteOperation;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
+import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -115,9 +118,9 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
   @Override
   public DataflowMapTaskExecutor create(
       InstructionRequestHandler instructionRequestHandler,
-      FnDataService beamFnDataService,
+      GrpcFnServer<BeamFnDataGrpcService.DataService> grpcDataFnServer,
       Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
-      StateDelegator beamFnStateDelegator,
+      GrpcFnServer<GrpcStateService> grpcStateFnServer,
       MutableNetwork<Node, Edge> network,
       PipelineOptions options,
       String stageName,
@@ -125,7 +128,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
       SinkFactory sinkFactory,
       DataflowExecutionContext<?> executionContext,
       CounterSet counterSet,
-      Supplier<String> idGenerator) {
+      IdGenerator idGenerator) {
 
     // TODO: remove this once we trust the code paths
     checkArgument(
@@ -143,7 +146,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
         createOperationTransformForRegisterFnNodes(
             idGenerator,
             instructionRequestHandler,
-            beamFnStateDelegator,
+            grpcStateFnServer.getService(),
             stageName,
             executionContext));
 
@@ -153,7 +156,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
         network,
         createOperationTransformForGrpcPortNodes(
             network,
-            beamFnDataService,
+            grpcDataFnServer.getService(),
             // TODO: Set NameContext properly for these operations.
             executionContext.createOperationContext(
                 NameContext.create(stageName, stageName, stageName, stageName))));
@@ -165,7 +168,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             network,
             idGenerator,
             instructionRequestHandler,
-            beamFnDataService,
+            grpcDataFnServer.getService(),
             dataApiServiceDescriptor,
             executionContext,
             stageName));
@@ -201,7 +204,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
 
   private Function<Node, Node> createOperationTransformForFetchAndFilterStreamingSideInputNodes(
       MutableNetwork<Node, Edge> network,
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       InstructionRequestHandler instructionRequestHandler,
       FnDataService beamFnDataService,
       Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
@@ -300,7 +303,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
   }
 
   private Function<Node, Node> createOperationTransformForRegisterFnNodes(
-      final Supplier<String> idGenerator,
+      final IdGenerator idGenerator,
       final InstructionRequestHandler instructionRequestHandler,
       final StateDelegator beamFnStateDelegator,
       final String stageName,

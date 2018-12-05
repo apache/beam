@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.BindableService;
@@ -39,20 +40,32 @@ public class InProcessServerFactory extends ServerFactory {
   private InProcessServerFactory() {}
 
   @Override
-  public Server allocatePortAndCreate(BindableService service, ApiServiceDescriptor.Builder builder)
-      throws IOException {
+  public Server allocateAddressAndCreate(
+      List<BindableService> services, ApiServiceDescriptor.Builder builder) throws IOException {
     String name = String.format("InProcessServer_%s", serviceNameUniqifier.getAndIncrement());
     builder.setUrl(name);
-    return InProcessServerBuilder.forName(name).addService(service).build().start();
+    InProcessServerBuilder serverBuilder = InProcessServerBuilder.forName(name);
+    services
+        .stream()
+        .forEach(
+            service ->
+                serverBuilder.addService(
+                    ServerInterceptors.intercept(
+                        service, GrpcContextHeaderAccessorProvider.interceptor())));
+    return serverBuilder.build().start();
   }
 
   @Override
-  public Server create(BindableService service, ApiServiceDescriptor serviceDescriptor)
+  public Server create(List<BindableService> services, ApiServiceDescriptor serviceDescriptor)
       throws IOException {
-    return InProcessServerBuilder.forName(serviceDescriptor.getUrl())
-        .addService(
-            ServerInterceptors.intercept(service, GrpcContextHeaderAccessorProvider.interceptor()))
-        .build()
-        .start();
+    InProcessServerBuilder builder = InProcessServerBuilder.forName(serviceDescriptor.getUrl());
+    services
+        .stream()
+        .forEach(
+            service ->
+                builder.addService(
+                    ServerInterceptors.intercept(
+                        service, GrpcContextHeaderAccessorProvider.interceptor())));
+    return builder.build().start();
   }
 }

@@ -26,8 +26,7 @@ import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -39,19 +38,10 @@ import org.junit.runners.JUnit4;
 public class FixMultiOutputInfosOnParDoInstructionsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  private Supplier<String> makeIdGenerator() {
-    return makeIdGeneratorStartingFrom(-1);
-  }
-
-  private Supplier<String> makeIdGeneratorStartingFrom(long initialValue) {
-    AtomicLong longIdGenerator = new AtomicLong(initialValue);
-    return () -> Long.toString(longIdGenerator.getAndDecrement());
-  }
-
   @Test
   public void testExistingMultiOutputInfosAreUnmodified() {
     FixMultiOutputInfosOnParDoInstructions function =
-        new FixMultiOutputInfosOnParDoInstructions(makeIdGenerator());
+        new FixMultiOutputInfosOnParDoInstructions(IdGenerators.decrementingLongs());
     MapTask output = function.apply(createMapTaskWithParDo(2, "5", "6"));
     assertEquals(createMapTaskWithParDo(2, "5", "6"), output);
   }
@@ -59,7 +49,7 @@ public class FixMultiOutputInfosOnParDoInstructionsTest {
   @Test
   public void testDefaultOutputIsAddedIfOnlySingleOutput() {
     FixMultiOutputInfosOnParDoInstructions function =
-        new FixMultiOutputInfosOnParDoInstructions(makeIdGenerator());
+        new FixMultiOutputInfosOnParDoInstructions(IdGenerators.decrementingLongs());
     MapTask output = function.apply(createMapTaskWithParDo(1));
     assertEquals(createMapTaskWithParDo(1, "-1"), output);
   }
@@ -67,7 +57,7 @@ public class FixMultiOutputInfosOnParDoInstructionsTest {
   @Test
   public void testDefaultOutputHasDifferentIdsForEachMapTask() {
     FixMultiOutputInfosOnParDoInstructions function =
-        new FixMultiOutputInfosOnParDoInstructions(makeIdGenerator());
+        new FixMultiOutputInfosOnParDoInstructions(IdGenerators.decrementingLongs());
     MapTask output = function.apply(createMapTaskWithParDo(1));
     assertEquals(createMapTaskWithParDo(1, "-1"), output);
 
@@ -78,7 +68,7 @@ public class FixMultiOutputInfosOnParDoInstructionsTest {
   @Test
   public void testMissingTagsForMultipleOutputsThrows() {
     FixMultiOutputInfosOnParDoInstructions function =
-        new FixMultiOutputInfosOnParDoInstructions(makeIdGeneratorStartingFrom(0));
+        new FixMultiOutputInfosOnParDoInstructions(IdGenerators.decrementingLongs());
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid ParDoInstruction");
     thrown.expectMessage("2 outputs specified");

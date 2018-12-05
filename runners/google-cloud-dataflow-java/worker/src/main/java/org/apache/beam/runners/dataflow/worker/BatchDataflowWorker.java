@@ -36,7 +36,6 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.SdkHarnessRegistry.SdkWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
 import org.apache.beam.runners.dataflow.worker.graph.CloneAmbiguousFlattensFunction;
 import org.apache.beam.runners.dataflow.worker.graph.CreateRegisterFnOperationFunction;
 import org.apache.beam.runners.dataflow.worker.graph.DeduceFlattenLocationsFunction;
@@ -53,6 +52,8 @@ import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.WeightedValue;
 import org.slf4j.Logger;
@@ -80,6 +81,9 @@ public class BatchDataflowWorker implements Closeable {
   /** The factory to create {@link DataflowMapTaskExecutor DataflowMapTaskExecutors}. */
   private final DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
 
+  /** The idGenerator to generate unique id globally. */
+  private static final IdGenerator idGenerator = IdGenerators.decrementingLongs();
+
   /**
    * Function which converts map tasks to their network representation for execution.
    *
@@ -91,7 +95,7 @@ public class BatchDataflowWorker implements Closeable {
    * </ul>
    */
   private static final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToBaseNetwork =
-      new FixMultiOutputInfosOnParDoInstructions(IdGenerator::generate)
+      new FixMultiOutputInfosOnParDoInstructions(idGenerator)
           .andThen(new MapTaskToNetworkFunction());
 
   /** Registry of known {@link ReaderFactory ReaderFactories}. */
@@ -217,18 +221,14 @@ public class BatchDataflowWorker implements Closeable {
       Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
           pipeline == null
               ? RegisterNodeFunction.withoutPipeline(
-                  IdGenerator::generate, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
+                  idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
               : RegisterNodeFunction.forPipeline(
-                  pipeline,
-                  IdGenerator::generate,
-                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+                  pipeline, idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork =
           new CreateRegisterFnOperationFunction(
-              IdGenerator::generate,
-              this::createPortNode,
-              lengthPrefixUnknownCoders.andThen(sdkFusedStage));
+              idGenerator, this::createPortNode, lengthPrefixUnknownCoders.andThen(sdkFusedStage));
 
       mapTaskToNetwork =
           mapTaskToBaseNetwork
@@ -268,8 +268,8 @@ public class BatchDataflowWorker implements Closeable {
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
             .build(),
-        IdGenerator.generate(),
-        IdGenerator.generate(),
+        idGenerator.getId(),
+        idGenerator.getId(),
         predecessorId,
         successorId);
   }
@@ -336,9 +336,9 @@ public class BatchDataflowWorker implements Closeable {
         worker =
             mapTaskExecutorFactory.create(
                 sdkWorkerHarness.getControlClientHandler(),
-                sdkWorkerHarness.getDataService(),
+                sdkWorkerHarness.getGrpcDataFnServer(),
                 sdkHarnessRegistry.beamFnDataApiServiceDescriptor(),
-                sdkWorkerHarness.getStateService(),
+                sdkWorkerHarness.getGrpcStateFnServer(),
                 network,
                 options,
                 stageName,
@@ -346,7 +346,7 @@ public class BatchDataflowWorker implements Closeable {
                 sinkRegistry,
                 executionContext,
                 counterSet,
-                IdGenerator::generate);
+                idGenerator);
       } else if (workItem.getSourceOperationTask() != null) {
         worker =
             SourceOperationExecutorFactory.create(

@@ -18,10 +18,15 @@
 package org.apache.beam.sdk.transforms.splittabledofn;
 
 import static org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker.next;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import java.math.BigDecimal;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.junit.Rule;
@@ -251,5 +256,40 @@ public class ByteKeyRangeTrackerTest {
     assertEquals(next(ByteKey.of(0x10, 0x10)), ByteKey.of(0x10, 0x10, 0x00));
     assertEquals(next(ByteKey.of(0x00, 0xff)), ByteKey.of(0x00, 0xff, 0x00));
     assertEquals(next(ByteKey.of(0xff, 0xff)), ByteKey.of(0xff, 0xff, 0x00));
+  }
+
+  @Test
+  public void testBacklogUnstarted() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
+    assertEquals(BigDecimal.ONE, tracker.getBacklog().backlog());
+
+    tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
+    assertEquals(BigDecimal.ONE, tracker.getBacklog().backlog());
+  }
+
+  @Test
+  public void testBacklogFinished() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
+    tracker.tryClaim(ByteKey.EMPTY);
+    assertEquals(BigDecimal.ZERO, tracker.getBacklog().backlog());
+
+    tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
+    tracker.tryClaim(ByteKey.of(0xd0));
+    assertEquals(BigDecimal.ZERO, tracker.getBacklog().backlog());
+  }
+
+  @Test
+  public void testBacklogPartiallyCompleted() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
+    tracker.tryClaim(ByteKey.of(0xa0));
+    assertThat(
+        tracker.getBacklog().backlog(),
+        allOf(greaterThan(BigDecimal.ZERO), lessThan(BigDecimal.ONE)));
+
+    tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
+    tracker.tryClaim(ByteKey.of(0xa0));
+    assertThat(
+        tracker.getBacklog().backlog(),
+        allOf(greaterThan(BigDecimal.ZERO), lessThan(BigDecimal.ONE)));
   }
 }

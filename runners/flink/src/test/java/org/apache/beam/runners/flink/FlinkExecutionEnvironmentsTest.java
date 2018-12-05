@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.io.File;
@@ -28,12 +29,16 @@ import java.nio.file.Files;
 import java.util.Collections;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.LocalEnvironment;
+import org.apache.flink.api.java.RemoteEnvironment;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.internal.util.reflection.Whitebox;
 
@@ -41,6 +46,7 @@ import org.mockito.internal.util.reflection.Whitebox;
 public class FlinkExecutionEnvironmentsTest {
 
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
   public void shouldSetParallelismBatch() {
@@ -68,6 +74,20 @@ public class FlinkExecutionEnvironmentsTest {
 
     assertThat(options.getParallelism(), is(42));
     assertThat(sev.getParallelism(), is(42));
+  }
+
+  @Test
+  public void shouldSetMaxParallelismStreaming() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(TestFlinkRunner.class);
+    options.setMaxParallelism(42);
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertThat(options.getMaxParallelism(), is(42));
+    assertThat(sev.getMaxParallelism(), is(42));
   }
 
   @Test
@@ -139,6 +159,7 @@ public class FlinkExecutionEnvironmentsTest {
         FlinkExecutionEnvironments.createBatchExecutionEnvironment(
             options, Collections.emptyList());
 
+    assertThat(bev, instanceOf(LocalEnvironment.class));
     assertThat(options.getParallelism(), is(LocalStreamEnvironment.getDefaultLocalParallelism()));
     assertThat(bev.getParallelism(), is(LocalStreamEnvironment.getDefaultLocalParallelism()));
   }
@@ -152,8 +173,153 @@ public class FlinkExecutionEnvironmentsTest {
         FlinkExecutionEnvironments.createStreamExecutionEnvironment(
             options, Collections.emptyList());
 
+    assertThat(sev, instanceOf(LocalStreamEnvironment.class));
     assertThat(options.getParallelism(), is(LocalStreamEnvironment.getDefaultLocalParallelism()));
     assertThat(sev.getParallelism(), is(LocalStreamEnvironment.getDefaultLocalParallelism()));
+  }
+
+  @Test
+  public void shouldParsePortForRemoteEnvironmentBatch() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+    options.setFlinkMaster("host:1234");
+
+    ExecutionEnvironment bev =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertThat(bev, instanceOf(RemoteEnvironment.class));
+    assertThat(Whitebox.getInternalState(bev, "host"), is("host"));
+    assertThat(Whitebox.getInternalState(bev, "port"), is(1234));
+  }
+
+  @Test
+  public void shouldParsePortForRemoteEnvironmentStreaming() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+    options.setFlinkMaster("host:1234");
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertThat(sev, instanceOf(RemoteStreamEnvironment.class));
+    assertThat(Whitebox.getInternalState(sev, "host"), is("host"));
+    assertThat(Whitebox.getInternalState(sev, "port"), is(1234));
+  }
+
+  @Test
+  public void shouldAllowPortOmissionForRemoteEnvironmentBatch() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+    options.setFlinkMaster("host");
+
+    ExecutionEnvironment bev =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertThat(bev, instanceOf(RemoteEnvironment.class));
+    assertThat(Whitebox.getInternalState(bev, "host"), is("host"));
+    assertThat(Whitebox.getInternalState(bev, "port"), is(RestOptions.PORT.defaultValue()));
+  }
+
+  @Test
+  public void shouldAllowPortOmissionForRemoteEnvironmentStreaming() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+    options.setFlinkMaster("host");
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertThat(sev, instanceOf(RemoteStreamEnvironment.class));
+    assertThat(Whitebox.getInternalState(sev, "host"), is("host"));
+    assertThat(Whitebox.getInternalState(sev, "port"), is(RestOptions.PORT.defaultValue()));
+  }
+
+  @Test
+  public void shouldTreatAutoAndEmptyHostTheSameBatch() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+
+    ExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+
+    options.setFlinkMaster("[auto]");
+
+    ExecutionEnvironment sev2 =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertEquals(sev.getClass(), sev2.getClass());
+  }
+
+  @Test
+  public void shouldTreatAutoAndEmptyHostTheSameStreaming() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+
+    options.setFlinkMaster("[auto]");
+
+    StreamExecutionEnvironment sev2 =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertEquals(sev.getClass(), sev2.getClass());
+  }
+
+  @Test
+  public void shouldDetectMalformedPortBatch() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+    options.setFlinkMaster("host:p0rt");
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Provided port is malformed");
+
+    FlinkExecutionEnvironments.createBatchExecutionEnvironment(options, Collections.emptyList());
+  }
+
+  @Test
+  public void shouldDetectMalformedPortStreaming() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+    options.setFlinkMaster("host:p0rt");
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Provided port is malformed");
+
+    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
+  }
+
+  @Test
+  public void shouldFailOnEmptyPortBatch() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+    options.setFlinkMaster("host:");
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Provided port is malformed");
+
+    FlinkExecutionEnvironments.createBatchExecutionEnvironment(options, Collections.emptyList());
+  }
+
+  @Test
+  public void shouldFailOnEmptyPortStreaming() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+    options.setFlinkMaster("host:");
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Provided port is malformed");
+
+    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
   }
 
   private String extractFlinkConfig() throws IOException {

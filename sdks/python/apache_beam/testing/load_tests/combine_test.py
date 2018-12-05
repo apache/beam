@@ -15,10 +15,23 @@
 # limitations under the License.
 #
 """
-To run test on DirectRunner
+This is Combine load test with Synthetic Source. Besides of the standard
+input options there are additional options:
+* project (optional) - the gcp project in case of saving
+metrics in Big Query (in case of Dataflow Runner
+it is required to specify project of runner),
+* metrics_namespace (optional) - name of BigQuery table where metrics
+will be stored,
+in case of lack of any of both options metrics won't be saved
+* input_options - options for Synthetic Sources.
+
+Example test run on DirectRunner:
 
 python setup.py nosetests \
     --test-pipeline-options="
+    --project=big-query-project
+    --metrics_dataset=python_load_tests
+    --metrics_table=combine
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -38,6 +51,8 @@ python setup.py nosetests \
         --staging_location=gs://...
         --temp_location=gs://...
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
+        --metrics_dataset=python_load_tests
+        --metrics_table=combine
         --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -58,30 +73,57 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
-from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.test_pipeline import TestPipeline
 
+try:
+  from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
+  from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
+  from google.cloud import bigquery as bq
+except ImportError:
+  bq = None
 
+RUNTIME_LABEL = 'runtime'
+
+
+@unittest.skipIf(bq is None, 'BigQuery for storing metrics not installed')
 class CombineTest(unittest.TestCase):
   def parseTestPipelineOptions(self):
     return {
-        'numRecords': self.inputOptions.get('num_records'),
-        'keySizeBytes': self.inputOptions.get('key_size'),
-        'valueSizeBytes': self.inputOptions.get('value_size'),
+        'numRecords': self.input_options.get('num_records'),
+        'keySizeBytes': self.input_options.get('key_size'),
+        'valueSizeBytes': self.input_options.get('value_size'),
         'bundleSizeDistribution': {
-            'type': self.inputOptions.get(
+            'type': self.input_options.get(
                 'bundle_size_distribution_type', 'const'
             ),
-            'param': self.inputOptions.get('bundle_size_distribution_param', 0)
+            'param': self.input_options.get('bundle_size_distribution_param', 0)
         },
-        'forceNumInitialBundles': self.inputOptions.get(
+        'forceNumInitialBundles': self.input_options.get(
             'force_initial_num_bundles', 0
         )
     }
 
   def setUp(self):
     self.pipeline = TestPipeline(is_integration_test=True)
-    self.inputOptions = json.loads(self.pipeline.get_option('input_options'))
+    self.input_options = json.loads(self.pipeline.get_option('input_options'))
+
+    metrics_project_id = self.pipeline.get_option('project')
+    self.metrics_namespace = self.pipeline.get_option('metrics_table')
+    metrics_dataset = self.pipeline.get_option('metrics_dataset')
+    self.metrics_monitor = None
+    check = metrics_project_id and self.metrics_namespace and metrics_dataset \
+            is not None
+    if check:
+      schema = [{'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'}]
+      self.metrics_monitor = MetricsMonitor(
+          project_name=metrics_project_id,
+          table=self.metrics_namespace,
+          dataset=metrics_dataset,
+          schema_map=schema
+      )
+    else:
+      logging.error('One or more of parameters for collecting metrics '
+                    'are empty. Metrics will not be collected')
 
   class _GetElement(beam.DoFn):
     def process(self, element):
@@ -93,17 +135,18 @@ class CombineTest(unittest.TestCase):
       (p
        | beam.io.Read(synthetic_pipeline.SyntheticSource(
            self.parseTestPipelineOptions()))
-       | 'Measure time' >> beam.ParDo(MeasureTime())
+       | 'Measure time: Start' >> beam.ParDo(
+           MeasureTime(self.metrics_namespace))
        | 'Combine with Top' >> beam.CombineGlobally(
            beam.combiners.TopCombineFn(1000))
        | 'Consume' >> beam.ParDo(self._GetElement())
+       | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
       )
 
       result = p.run()
       result.wait_until_finish()
-      metrics = result.metrics().query()
-      for dist in metrics['distributions']:
-        logging.info("Distribution: %s", dist)
+      if self.metrics_monitor is not None:
+        self.metrics_monitor.send_metrics(result)
 
 
 if __name__ == '__main__':

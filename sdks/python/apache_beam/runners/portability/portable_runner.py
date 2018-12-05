@@ -105,14 +105,14 @@ class PortableRunner(runner.PipelineRunner):
               env=(config.get('env') or '')
           ).SerializeToString())
 
-  def run_pipeline(self, pipeline):
-    portable_options = pipeline.options.view_as(PortableOptions)
+  def run_pipeline(self, pipeline, options):
+    portable_options = options.view_as(PortableOptions)
     job_endpoint = portable_options.job_endpoint
 
     # TODO: https://issues.apache.org/jira/browse/BEAM-5525
     # portable runner specific default
-    if pipeline.options.view_as(SetupOptions).sdk_location == 'default':
-      pipeline.options.view_as(SetupOptions).sdk_location = 'container'
+    if options.view_as(SetupOptions).sdk_location == 'default':
+      options.view_as(SetupOptions).sdk_location = 'container'
 
     if not job_endpoint:
       docker = DockerizedJobServer()
@@ -134,9 +134,9 @@ class PortableRunner(runner.PipelineRunner):
 
     # TODO: Define URNs for options.
     # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
-    options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
-               for k, v in pipeline._options.get_all_options().items()
-               if v is not None}
+    p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
+                 for k, v in options.get_all_options().items()
+                 if v is not None}
 
     channel = grpc.insecure_channel(job_endpoint)
     grpc.channel_ready_future(channel).result()
@@ -153,7 +153,7 @@ class PortableRunner(runner.PipelineRunner):
           return job_service.Prepare(
               beam_job_api_pb2.PrepareJobRequest(
                   job_name='job', pipeline=proto_pipeline,
-                  pipeline_options=job_utils.dict_to_struct(options)))
+                  pipeline_options=job_utils.dict_to_struct(p_options)))
         except grpc._channel._Rendezvous as e:
           num_retries += 1
           if num_retries > max_retries:
@@ -165,7 +165,7 @@ class PortableRunner(runner.PipelineRunner):
           grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
           prepare_response.staging_session_token)
       retrieval_token, _ = stager.stage_job_resources(
-          pipeline._options,
+          options,
           staging_location='')
     else:
       retrieval_token = None

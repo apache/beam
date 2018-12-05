@@ -66,6 +66,7 @@ from apache_beam.portability.api import standard_window_fns_pb2
 from apache_beam.transforms import timeutil
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
+from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
@@ -225,31 +226,18 @@ class BoundedWindow(object):
     return '[?, %s)' % float(self.end)
 
 
-class IntervalWindow(BoundedWindow):
+@total_ordering
+class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
   """A window for timestamps in range [start, end).
 
   Attributes:
     start: Start of window as seconds since Unix epoch.
     end: End of window as seconds since Unix epoch.
   """
-
-  def __init__(self, start, end):
-    super(IntervalWindow, self).__init__(end)
-    self.start = Timestamp.of(start)
-
-  def __hash__(self):
-    return hash((self.start, self.end))
-
-  def __eq__(self, other):
-    return (self.start == other.start
-            and self.end == other.end
-            and type(self) == type(other))
-
-  def __ne__(self, other):
-    return not self == other
-
-  def __repr__(self):
-    return '[%s, %s)' % (float(self.start), float(self.end))
+  def __lt__(self, other):
+    if self.end != other.end:
+      return self.end < other.end
+    return hash(self) < hash(other)
 
   def intersects(self, other):
     return other.start < self.end or self.start < other.end
