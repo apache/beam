@@ -228,7 +228,7 @@ public class Schema implements Serializable {
     return true;
   }
 
-  enum EquivalenceNullablePolicy {
+  public enum EquivalenceNullablePolicy {
     SAME,
     WEAKEN,
     IGNORE
@@ -581,7 +581,7 @@ public class Schema implements Serializable {
       return true;
     }
 
-    private boolean equivalent(FieldType other, EquivalenceNullablePolicy nullablePolicy) {
+    public boolean equivalent(FieldType other, EquivalenceNullablePolicy nullablePolicy) {
       if (nullablePolicy == EquivalenceNullablePolicy.SAME
           && !other.getNullable().equals(getNullable())) {
         return false;
