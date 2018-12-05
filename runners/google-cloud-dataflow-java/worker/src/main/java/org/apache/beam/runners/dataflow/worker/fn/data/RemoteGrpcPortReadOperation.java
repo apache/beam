@@ -19,13 +19,13 @@ package org.apache.beam.runners.dataflow.worker.fn.data;
 
 import com.google.common.base.MoreObjects;
 import java.io.Closeable;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -45,7 +45,7 @@ public class RemoteGrpcPortReadOperation<T> extends Operation {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteGrpcPortReadOperation.class);
   private final Coder<WindowedValue<T>> coder;
   private final FnDataService beamFnDataService;
-  private final Supplier<String> bundleIdSupplier;
+  private final IdGenerator bundleIdSupplier;
   // Should only be set and cleared once per start/finish cycle in the start method and
   // finish method respectively.
   private String bundleId;
@@ -55,7 +55,7 @@ public class RemoteGrpcPortReadOperation<T> extends Operation {
   public RemoteGrpcPortReadOperation(
       FnDataService beamFnDataService,
       Target target,
-      Supplier<String> bundleIdSupplier,
+      IdGenerator bundleIdSupplier,
       Coder<WindowedValue<T>> coder,
       OutputReceiver[] receivers,
       OperationContext context) {
@@ -69,7 +69,7 @@ public class RemoteGrpcPortReadOperation<T> extends Operation {
   @Override
   public void start() throws Exception {
     try (Closeable scope = context.enterStart()) {
-      bundleId = bundleIdSupplier.get();
+      bundleId = bundleIdSupplier.getId();
       super.start();
       inboundDataClient =
           beamFnDataService.receive(
