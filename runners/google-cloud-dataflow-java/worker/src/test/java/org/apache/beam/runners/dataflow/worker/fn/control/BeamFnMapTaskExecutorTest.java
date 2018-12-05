@@ -29,13 +29,21 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Iterables;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
+import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.util.CounterHamcrestMatchers;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
@@ -44,9 +52,12 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -506,6 +517,63 @@ public class BeamFnMapTaskExecutorTest {
           public void close() {}
         };
 
+    Map<String, DataflowStepContext> stepContextMap = new HashMap<>();
+    NameContext nc =
+        new NameContext() {
+          @Nullable
+          @Override
+          public String stageName() {
+            return "ExpectedStage";
+          }
+
+          @Nullable
+          @Override
+          public String originalName() {
+            return "ExpectedOriginalName";
+          }
+
+          @Nullable
+          @Override
+          public String systemName() {
+            return "ExpectedSystemName";
+          }
+
+          @Nullable
+          @Override
+          public String userName() {
+            return "ExpectedUserName";
+          }
+        };
+    DataflowStepContext dsc =
+        new DataflowStepContext(nc) {
+          @Nullable
+          @Override
+          public <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
+            return null;
+          }
+
+          @Override
+          public <W extends BoundedWindow> void setStateCleanupTimer(
+              String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {}
+
+          @Override
+          public DataflowStepContext namespacedToUser() {
+            return this;
+          }
+
+          @Override
+          public StateInternals stateInternals() {
+            return null;
+          }
+
+          @Override
+          public TimerInternals timerInternals() {
+            return null;
+          }
+        };
+
+    stepContextMap.put("ExpectedPTransform", dsc);
+
     RegisterAndProcessBundleOperation processOperation =
         new RegisterAndProcessBundleOperation(
             IdGenerators.decrementingLongs(),
@@ -513,7 +581,7 @@ public class BeamFnMapTaskExecutorTest {
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
             ImmutableMap.of(),
-            ImmutableMap.of(),
+            stepContextMap,
             ImmutableMap.of(),
             ImmutableTable.of(),
             mockContext);
@@ -528,7 +596,6 @@ public class BeamFnMapTaskExecutorTest {
     CompletionStage<Void> doneFuture = MoreFutures.runAsync(mapTaskExecutor::execute);
     progressSentLatch.await();
 
-    // TODO: add ability to wait for tentative progress update
     Iterable<CounterUpdate> metricsCounterUpdates = Collections.emptyList();
     while (Iterables.size(metricsCounterUpdates) == 0) {
       Thread.sleep(ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS);

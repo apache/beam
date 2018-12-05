@@ -357,7 +357,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         Metrics metrics = processBundleProgressResponse.getMetrics();
         updateMetricsDeprecated(metrics);
 
-        // TODO: change this to utilize MonitroingInfos
+        // todomigryz: utilize monitoringInfos here.
         double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
 
         grpcWriteOperationElementsProcessed.accept((int) elementsConsumed);
@@ -423,20 +423,33 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
         String type = monitoringInfo.getType();
 
-        // todo: run MonitoringInfo through validation process.
+        // todomigryz: run MonitoringInfo through validation process.
         // refer to https://github.com/apache/beam/pull/6799
 
         if (urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
           if (!type.equals("beam:metrics:sum_int_64")) {
+            LOG.warn(
+                "Ignoring user-counter MonitoringInfo with unexpected type."
+                    + "Expected: beam:metrics:sum_int_64. Received: "
+                    + monitoringInfo.toString());
             return null;
           }
 
           final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
           if (ptransform == null) {
+            LOG.warn(
+                "Ignoring user-counter MonitoringInfo with missing ptransformId: "
+                    + monitoringInfo.toString());
             return null;
           }
 
           DataflowStepContext stepContext = transformIdMapping.get(ptransform);
+          if (stepContext == null) {
+            LOG.warn(
+                "Ignoring user-counter MonitoringInfo with unknown ptransformId: "
+                    + monitoringInfo.toString());
+            return null;
+          }
 
           CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
 
@@ -455,10 +468,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
                       .setOrigin(Origin.USER.toString())
                       // Workaround for bug in python sdk that missed colon after ...metric:user.
                       .setName(counterName)
-                      .setOriginalStepName(
-                          stepContext == null ? null : stepContext.getNameContext().originalName())
-                      .setExecutionStepName(
-                          stepContext == null ? null : stepContext.getNameContext().systemName())
+                      .setOriginalStepName(stepContext.getNameContext().originalName())
+                      .setExecutionStepName(stepContext.getNameContext().systemName())
                       .setOriginNamespace(counterNamespace))
               .setMetadata(new CounterMetadata().setKind("SUM"));
 
@@ -471,12 +482,15 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       }
     }
 
+    /**
+     * Updates internal metrics state from provided monitoringInfos list.
+     *
+     * @param monitoringInfos Usually received from FnApi.
+     */
     private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
       final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
           new MonitoringInfoToCounterUpdateTransformer(
               bundleProcessOperation.getPtransformIdToUserStepContext());
-      String miDump =
-          monitoringInfos.stream().map(Objects::toString).collect(Collectors.joining("\n"));
 
       counterUpdates =
           monitoringInfos
@@ -484,19 +498,14 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
               .map(monitoringInfoToCounterUpdateTransformer::monitoringInfoToCounterUpdate)
               .filter(Objects::nonNull)
               .collect(Collectors.toList());
-      return;
     }
 
-    private String getStackTrace() {
-      StackTraceElement[] trace = Thread.currentThread().getStackTrace();
-      StringBuilder traceInfo = new StringBuilder();
-      for (StackTraceElement stackItem : trace) {
-        traceInfo.append("\n");
-        traceInfo.append(stackItem.toString());
-      }
-      return traceInfo.toString();
-    }
-
+    /**
+     * Updates internal metrics from provided (deprecated) Metrics object.
+     *
+     * @param metrics Metrics object received from FnApi.
+     */
+    @Deprecated
     private void updateMetricsDeprecated(Metrics metrics) {
       metrics
           .getPtransformsMap()
