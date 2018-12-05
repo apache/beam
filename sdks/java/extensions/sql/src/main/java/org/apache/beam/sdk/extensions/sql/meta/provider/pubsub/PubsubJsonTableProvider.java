@@ -70,8 +70,12 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
     Schema schema = tableDefinition.getSchema();
 
     if (schema.getFieldCount() != 3
-        || !fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)
-        || !fieldPresent(schema, ATTRIBUTES_FIELD, Schema.FieldType.map(VARCHAR, VARCHAR))
+        || !fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP.withNullable(true))
+        || !fieldPresent(
+            schema,
+            ATTRIBUTES_FIELD,
+            Schema.FieldType.map(VARCHAR.withNullable(false), VARCHAR.withNullable(false))
+                .withNullable(false))
         || !(schema.hasField(PAYLOAD_FIELD)
             && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()))) {
 
