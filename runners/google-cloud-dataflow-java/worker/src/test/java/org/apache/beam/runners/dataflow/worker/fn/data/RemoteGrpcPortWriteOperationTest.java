@@ -31,12 +31,12 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -59,7 +59,7 @@ public class RemoteGrpcPortWriteOperationTest {
   private static final String BUNDLE_ID = "999";
   private static final String BUNDLE_ID_2 = "222";
 
-  @Mock Supplier<String> bundleIdSupplier;
+  @Mock IdGenerator bundleIdSupplier;
   @Mock private FnDataService beamFnDataService;
   @Mock private OperationContext operationContext;
   private RemoteGrpcPortWriteOperation<String> operation;
@@ -82,7 +82,7 @@ public class RemoteGrpcPortWriteOperationTest {
     RecordingConsumer<WindowedValue<String>> recordingConsumer = new RecordingConsumer<>();
     when(beamFnDataService.send(any(), Matchers.<Coder<WindowedValue<String>>>any()))
         .thenReturn(recordingConsumer);
-    when(bundleIdSupplier.get()).thenReturn(BUNDLE_ID);
+    when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID);
     operation.start();
     verify(beamFnDataService).send(LogicalEndpoint.of(BUNDLE_ID, TARGET), CODER);
     assertFalse(recordingConsumer.closed);
@@ -94,7 +94,7 @@ public class RemoteGrpcPortWriteOperationTest {
 
     operation.finish();
     assertTrue(recordingConsumer.closed);
-    verify(bundleIdSupplier, times(1)).get();
+    verify(bundleIdSupplier, times(1)).getId();
 
     assertThat(
         recordingConsumer,
@@ -102,7 +102,7 @@ public class RemoteGrpcPortWriteOperationTest {
             valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
 
     // Ensure that the old bundle id is cleared.
-    when(bundleIdSupplier.get()).thenReturn(BUNDLE_ID_2);
+    when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID_2);
     when(beamFnDataService.send(any(), Matchers.<Coder<WindowedValue<String>>>any()))
         .thenReturn(recordingConsumer);
     operation.start();
@@ -116,7 +116,7 @@ public class RemoteGrpcPortWriteOperationTest {
     RecordingConsumer<WindowedValue<String>> recordingConsumer = new RecordingConsumer<>();
     when(beamFnDataService.send(any(), Matchers.<Coder<WindowedValue<String>>>any()))
         .thenReturn(recordingConsumer);
-    when(bundleIdSupplier.get()).thenReturn(BUNDLE_ID);
+    when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID);
     operation.start();
     verify(beamFnDataService).send(LogicalEndpoint.of(BUNDLE_ID, TARGET), CODER);
     assertFalse(recordingConsumer.closed);
@@ -127,7 +127,7 @@ public class RemoteGrpcPortWriteOperationTest {
 
     operation.abort();
     assertTrue(recordingConsumer.closed);
-    verify(bundleIdSupplier, times(1)).get();
+    verify(bundleIdSupplier, times(1)).getId();
 
     verifyNoMoreInteractions(beamFnDataService);
   }
@@ -156,7 +156,7 @@ public class RemoteGrpcPortWriteOperationTest {
     RecordingConsumer<WindowedValue<String>> recordingConsumer = new RecordingConsumer<>();
     when(beamFnDataService.send(any(), Matchers.<Coder<WindowedValue<String>>>any()))
         .thenReturn(recordingConsumer);
-    when(bundleIdSupplier.get()).thenReturn(BUNDLE_ID);
+    when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID);
 
     Consumer<Integer> processedElementConsumer = operation.processedElementsConsumer();
 

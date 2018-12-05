@@ -39,6 +39,7 @@ import org.apache.beam.runners.dataflow.worker.graph.Edges.MultiOutputInfoEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
+import org.apache.beam.sdk.fn.IdGenerator;
 
 /**
  * Splits the instruction graph into SDK and runner harness portions replacing the SDK sub-graphs
@@ -74,7 +75,7 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNo
 public class CreateRegisterFnOperationFunction
     implements Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> {
 
-  private final Supplier<String> idGenerator;
+  private final IdGenerator idGenerator;
   private final BiFunction<String, String, Node> portSupplier;
   private final Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction;
 
@@ -90,7 +91,7 @@ public class CreateRegisterFnOperationFunction
    *     produces a {@link Node} that is able to register the SDK functions within the SDK harness.
    */
   public CreateRegisterFnOperationFunction(
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       BiFunction<String, String, Node> portSupplier,
       Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction) {
     this.idGenerator = idGenerator;
@@ -243,8 +244,8 @@ public class CreateRegisterFnOperationFunction
         InstructionOutputNode.create(outputNode.getInstructionOutput());
     InstructionOutputNode portOutputNode =
         InstructionOutputNode.create(outputNode.getInstructionOutput());
-    String predecessorPortEdgeId = idGenerator.get();
-    String successorPortEdgeId = idGenerator.get();
+    String predecessorPortEdgeId = idGenerator.getId();
+    String successorPortEdgeId = idGenerator.getId();
     Node portNode = portSupplier.apply(predecessorPortEdgeId, successorPortEdgeId);
     network.addNode(newPredecessorOutputNode);
     network.addNode(portNode);
