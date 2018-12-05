@@ -40,6 +40,7 @@ import static org.junit.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,10 +60,13 @@ import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 import org.hamcrest.CustomMatcher;
 import org.joda.time.Duration;
 import org.junit.rules.ExpectedException;
@@ -99,6 +103,9 @@ class ElasticsearchIOTestCommon implements Serializable {
   private static final long BATCH_SIZE = 200L;
   private static final long BATCH_SIZE_BYTES = 2048L;
 
+  public static final String UPDATE_INDEX = "partial_update";
+  public static final String UPDATE_TYPE = "test";
+
   private final long numDocs;
   private final ConnectionConfiguration connectionConfiguration;
   private final RestClient restClient;
@@ -122,6 +129,27 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   void setExpectedException(ExpectedException expectedException) {
     this.expectedException = expectedException;
+  }
+
+  void setIndexMapping(String[] addresses) throws IOException {
+    HttpHost[] hosts = new HttpHost[addresses.length];
+    int i = 0;
+    for (String address : addresses) {
+      URL url = new URL(address);
+      hosts[i] = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
+      i++;
+    }
+    RestClientBuilder restClientBuilder = RestClient.builder(hosts);
+    RestClient restClient = restClientBuilder.build();
+    String endpoint = String.format("/%s", UPDATE_INDEX);
+    String requestString =
+        String.format(
+            "{\"mappings\":{\"%s\":{\"properties\":{\"age\":{\"type\":\"long\"}}}}}", UPDATE_TYPE);
+    HttpEntity requestBody = new NStringEntity(requestString, ContentType.APPLICATION_JSON);
+    Request request = new Request("PUT", endpoint);
+    request.setEntity(requestBody);
+    restClient.performRequest(request);
+    restClient.close();
   }
 
   void testSplit(final int desiredBundleSizeBytes) throws Exception {
@@ -185,9 +213,9 @@ class ElasticsearchIOTestCommon implements Serializable {
         pipeline.apply(
             ElasticsearchIO.read()
                 .withConnectionConfiguration(connectionConfiguration)
-                //set to default value, useful just to test parameter passing.
+                // set to default value, useful just to test parameter passing.
                 .withScrollKeepalive("5m")
-                //set to default value, useful just to test parameter passing.
+                // set to default value, useful just to test parameter passing.
                 .withBatchSize(100L));
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(numDocs);
     pipeline.run();
@@ -547,6 +575,34 @@ class ElasticsearchIOTestCommon implements Serializable {
     assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "1"));
   }
 
+  /** Tests partial updates with errors by adding some invalid info to test set. */
+  void testWritePartialUpdateWithErrors(ConnectionConfiguration connectionConfiguration) {
+    // partial documents containing the ID and age only
+    List<String> data = new ArrayList<>();
+    for (int i = 0; i < numDocs; i++) {
+      data.add(String.format("{\"id\" : %s, \"age\" : \"%s\"}", i, "2018-08-10:00:00"));
+    }
+
+    try {
+      pipeline
+          .apply(Create.of(data))
+          .apply(
+              ElasticsearchIO.write()
+                  .withConnectionConfiguration(connectionConfiguration)
+                  .withIdFn(new ExtractValueFn("id"))
+                  .withUsePartialUpdate(true));
+      pipeline.run();
+    } catch (Exception e) {
+      boolean matches =
+          e.getLocalizedMessage()
+              .matches(
+                  "(?is).*Error writing to Elasticsearch, some elements could not be inserted:"
+                      + ".*Document id .+: failed to parse .*Caused by: .*"
+                      + ".*Document id .+: failed to parse .*Caused by: .*");
+      assertTrue(matches);
+    }
+  }
+
   /**
    * Function for checking if any string in iterable contains expected substring. Fails if no match
    * is found.
@@ -594,7 +650,8 @@ class ElasticsearchIOTestCommon implements Serializable {
    */
   void testWriteRetry() throws Throwable {
     expectedException.expectCause(isA(IOException.class));
-    // max attempt is 3, but retry is 2 which excludes 1st attempt when error was identified and retry started.
+    // max attempt is 3, but retry is 2 which excludes 1st attempt when error was identified and
+    // retry started.
     expectedException.expectMessage(
         String.format(ElasticsearchIO.Write.WriteFn.RETRY_FAILED_LOG, EXPECTED_RETRIES));
 

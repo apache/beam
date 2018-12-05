@@ -73,7 +73,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public Settings indexSettings() {
     return Settings.builder()
         .put(super.indexSettings())
-        //useful to have updated sizes for getEstimatedSize
+        // useful to have updated sizes for getEstimatedSize
         .put("index.store.stats_refresh_interval", 0)
         .build();
   }
@@ -177,6 +177,17 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testWritePartialUpdate() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWritePartialUpdate();
+  }
+
+  @Test
+  public void testWritePartialUpdateWithErrors() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.setIndexMapping(fillAddresses());
+    elasticsearchIOTestCommon.testWritePartialUpdateWithErrors(
+        ConnectionConfiguration.create(
+            fillAddresses(),
+            ElasticsearchIOTestCommon.UPDATE_INDEX,
+            ElasticsearchIOTestCommon.UPDATE_TYPE));
   }
 
   @Test

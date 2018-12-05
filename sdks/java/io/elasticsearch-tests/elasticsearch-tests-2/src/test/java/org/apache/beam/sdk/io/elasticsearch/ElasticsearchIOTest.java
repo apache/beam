@@ -49,11 +49,11 @@ public class ElasticsearchIOTest implements Serializable {
 
   private static final String ES_IP = "127.0.0.1";
   private static final int MAX_STARTUP_WAITING_TIME_MSEC = 5000;
-
+  private static int esHttpPort;
   private static Node node;
   private static RestClient restClient;
   private static ConnectionConfiguration connectionConfiguration;
-  //cannot use inheritance because ES5 test already extends ESIntegTestCase.
+  // cannot use inheritance because ES5 test already extends ESIntegTestCase.
   private static ElasticsearchIOTestCommon elasticsearchIOTestCommon;
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -63,7 +63,7 @@ public class ElasticsearchIOTest implements Serializable {
   @BeforeClass
   public static void beforeClass() throws IOException {
     ServerSocket serverSocket = new ServerSocket(0);
-    int esHttpPort = serverSocket.getLocalPort();
+    esHttpPort = serverSocket.getLocalPort();
     serverSocket.close();
     LOG.info("Starting embedded Elasticsearch instance ({})", esHttpPort);
     Settings.Builder settingsBuilder =
@@ -191,6 +191,19 @@ public class ElasticsearchIOTest implements Serializable {
   public void testWritePartialUpdate() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWritePartialUpdate();
+  }
+
+  @Test
+  public void testWritePartialUpdateWithErrors() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+
+    String[] addresses = new String[] {"http://" + ES_IP + ":" + esHttpPort};
+    elasticsearchIOTestCommon.setIndexMapping(addresses);
+    elasticsearchIOTestCommon.testWritePartialUpdateWithErrors(
+        ConnectionConfiguration.create(
+            addresses,
+            ElasticsearchIOTestCommon.UPDATE_INDEX,
+            ElasticsearchIOTestCommon.UPDATE_TYPE));
   }
 
   @Test
