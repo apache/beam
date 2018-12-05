@@ -18,9 +18,12 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
@@ -56,8 +59,8 @@ public class ExecutableStageTranslationTest implements Serializable {
                       ProcessContext processContext, OutputReceiver<Integer> outputReceiver) {}
                 }))
         .apply(
-            // This is how Python pipelines construct names
-            "ref_AppliedPTransform_count",
+            // Avoid nested Anonymous ParDo
+            "Composite/Nested/ParDo",
             ParDo.of(
                 new DoFn<Integer, Integer>() {
                   @ProcessElement
@@ -78,6 +81,40 @@ public class ExecutableStageTranslationTest implements Serializable {
     String executableStageName =
         ExecutableStageTranslation.generateNameFromStagePayload(basePayload);
 
-    assertThat(executableStageName, is("[3]{ParDo(Anonymous), MyName, count}"));
+    assertThat(executableStageName, is("[3]{ParDo(Anonymous), MyName, Composite}"));
+  }
+
+  @Test
+  public void testOperatorNameGenerationFromNames() {
+    assertGeneratedNames("A", "A", Arrays.asList("A"));
+    assertGeneratedNames("A/a1", "A/a1", Arrays.asList("A/a1"));
+    assertGeneratedNames("A/{a1, a2}", "A/{a1, a2}", Arrays.asList("A/a1", "A/a2"));
+    assertGeneratedNames(
+        "A/{a1, a2}", "A/{a1, a2/{a2.1, a2.2}}", Arrays.asList("A/a1", "A/a2/a2.1", "A/a2/a2.2"));
+    assertGeneratedNames("{A, B}", "{A/{a1, a2}, B}", Arrays.asList("A/a1", "A/a2", "B"));
+    assertGeneratedNames(
+        "{A, B, C}", "{A/{a1, a2}, B, C/c/cc}", Arrays.asList("A/a1", "A/a2", "B", "C/c/cc"));
+    assertGeneratedNames(
+        "{A, B, C}",
+        "{A/{a1, a2}, B, C/c/cc/{ccc1, ccc2}}",
+        Arrays.asList("A/a1", "A/a2", "B", "C/c/cc/ccc1", "C/c/cc/ccc2"));
+
+    assertGeneratedNames(
+        "{Count.PerElement, Format, Write}",
+        "{Count.PerElement/Combine.perKey(Count)/Combine.GroupedValues/ParDo(Anonymous), Format, Write/{RewindowIntoGlobal, WriteUnshardedBundlesToTempFiles, GatherTempFileResults/...}}",
+        Arrays.asList(
+            "Count.PerElement/Combine.perKey(Count)/Combine.GroupedValues/ParDo(Anonymous)",
+            "Format",
+            "Write/RewindowIntoGlobal",
+            "Write/WriteUnshardedBundlesToTempFiles",
+            "Write/GatherTempFileResults/..."));
+  }
+
+  private void assertGeneratedNames(
+      String truncatedName, String untruncatedName, List<String> names) {
+    assertEquals(
+        truncatedName, ExecutableStageTranslation.generateNameFromTransformNames(names, true));
+    assertEquals(
+        untruncatedName, ExecutableStageTranslation.generateNameFromTransformNames(names, false));
   }
 }

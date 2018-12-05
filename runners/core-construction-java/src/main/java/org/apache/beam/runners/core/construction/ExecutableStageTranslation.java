@@ -19,7 +19,15 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.Joiner;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.Multimap;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -45,19 +53,80 @@ public class ExecutableStageTranslation {
     RunnerApi.Components components = stagePayload.getComponents();
     final int transformsCount = stagePayload.getTransformsCount();
     sb.append("[").append(transformsCount).append("]");
-    sb.append("{");
+    Collection<String> names = new ArrayList<>();
     for (int i = 0; i < transformsCount; i++) {
       String name = components.getTransformsOrThrow(stagePayload.getTransforms(i)).getUniqueName();
-      // Python: Remove the 'ref_AppliedPTransform_' prefix which just makes the name longer
-      name = name.replaceFirst("^ref_AppliedPTransform_", "");
       // Java: Remove the 'ParMultiDo(Anonymous)' suffix which just makes the name longer
       name = name.replaceFirst("/ParMultiDo\\(Anonymous\\)$", "");
-      sb.append(name);
-      if (i + 1 < transformsCount) {
-        sb.append(", ");
+      names.add(name);
+    }
+    sb.append(generateNameFromTransformNames(names, true));
+    return sb.toString();
+  }
+
+  /**
+   * Creates a human-readable name for a set of stage names that occur in a single stage.
+   *
+   * <p>This name reflects the nested structure of the stages, as inferred by slashes in the stage
+   * names. Sibling stages will be listed as {A, B}, nested stages as A/B, and according to the
+   * value of truncateSiblingComposites the nesting stops at the first level that siblings are
+   * encountered.
+   *
+   * <p>This is best understood via examples, of which there are several in the tests for this
+   * class.
+   *
+   * @param names a list of full stage names in this fused operation
+   * @param truncateSiblingComposites whether to recursively descent into composite operations that
+   *     have simblings, or stop the recursion at that level.
+   * @return a single string representation of all the stages in this fused operation
+   */
+  public static String generateNameFromTransformNames(
+      Collection<String> names, boolean truncateSiblingComposites) {
+    Multimap<String, String> groupByOuter = LinkedHashMultimap.create();
+    for (String name : names) {
+      int index = name.indexOf('/');
+      if (index == -1) {
+        groupByOuter.put(name, "");
+      } else {
+        groupByOuter.put(name.substring(0, index), name.substring(index + 1));
       }
     }
-    sb.append("}");
-    return sb.toString();
+    if (groupByOuter.keySet().size() == 1) {
+      Map.Entry<String, Collection<String>> outer =
+          Iterables.getOnlyElement(groupByOuter.asMap().entrySet());
+      if (outer.getValue().size() == 1 && outer.getValue().contains("")) {
+        // Names consisted of a single name without any slashes.
+        return outer.getKey();
+      } else {
+        // Everything is in the same outer stage, enumerate at one level down.
+        return String.format(
+            "%s/%s",
+            outer.getKey(),
+            generateNameFromTransformNames(outer.getValue(), truncateSiblingComposites));
+      }
+    } else {
+      Collection<String> parts;
+      if (truncateSiblingComposites) {
+        // Enumerate the outer stages without their composite structure, if any.
+        parts = groupByOuter.keySet();
+      } else {
+        // Enumerate the outer stages with their composite structure, if any.
+        parts =
+            groupByOuter
+                .asMap()
+                .entrySet()
+                .stream()
+                .map(
+                    outer ->
+                        String.format(
+                                "%s/%s",
+                                outer.getKey(),
+                                generateNameFromTransformNames(
+                                    outer.getValue(), truncateSiblingComposites))
+                            .replaceAll("/$", ""))
+                .collect(Collectors.toList());
+      }
+      return String.format("{%s}", Joiner.on(", ").join(parts));
+    }
   }
 }
