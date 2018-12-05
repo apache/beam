@@ -57,18 +57,19 @@ public final class DataflowWorkerHarnessHelper {
 
     ExperimentContext ec = ExperimentContext.parseFrom(pipelineOptions);
 
-    String experimentName = Experiment.DisableConscryptSecurityProvider.getName();
-    if (!ec.isEnabled(Experiment.DisableConscryptSecurityProvider)) {
+    String experimentName = Experiment.EnableConscryptSecurityProvider.getName();
+    if (ec.isEnabled(Experiment.EnableConscryptSecurityProvider)) {
       /* Enable fast SSL provider. */
       LOG.info(
-          "Dataflow runner uses conscrypt by default for SSL. To disable this feature, "
-              + "pass pipeline option --experiments={}",
+          "Dataflow runner is using conscrypt SSL. To disable this feature, "
+              + "remove the pipeline option --experiments={}",
           experimentName);
       Security.insertProviderAt(new OpenSSLProvider(), 1);
     } else {
       LOG.info(
-          "Experiment {} specified, disabling conscrypt SSL. Note this is the default "
-              + "Java behavior, but may have reduced performance.",
+          "Not using conscrypt SSL. Note this is the default Java behavior, but may "
+              + "have reduced performance. To use conscrypt SSL pass pipeline option "
+              + "--experiments={}",
           experimentName);
     }
     return pipelineOptions;
