@@ -490,9 +490,9 @@ public class BigQueryServicesImplTest {
         PaneInfo.ON_TIME_AND_ONLY_FIRING);
   }
 
-  /** Tests that {@link DatasetServiceImpl#insertAll} retries quota rate limited attempts. */
+  /** Tests that {@link DatasetServiceImpl#insertAll} retries rate limited attempts. */
   @Test
-  public void testInsertRetry() throws Exception {
+  public void testInsertRateLimitRetry() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
     List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
@@ -521,8 +521,43 @@ public class BigQueryServicesImplTest {
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
-    expectedLogs.verifyInfo("BigQuery insertAll exceeded rate limit, retrying");
+    expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
   }
+
+  /** Tests that {@link DatasetServiceImpl#insertAll} retries quota exceeded attempts. */
+  @Test
+  public void testInsertQuotaExceededRetry() throws Exception {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    rows.add(wrapValue(new TableRow()));
+
+    // First response is 403 quota exceeded, second response has valid payload.
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
+    when(response.getContent())
+        .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)))
+        .thenReturn(toStream(new TableDataInsertAllResponse()));
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    dataService.insertAll(
+        ref,
+        rows,
+        null,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        new MockSleeper(),
+        InsertRetryPolicy.alwaysRetry(),
+        null,
+        null,
+        false,
+        false);
+    verify(response, times(2)).getStatusCode();
+    verify(response, times(2)).getContent();
+    verify(response, times(2)).getContentType();
+    expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
+  }
+
   // A BackOff that makes a total of 4 attempts
   private static final FluentBackoff TEST_BACKOFF =
       FluentBackoff.DEFAULT
@@ -626,15 +661,18 @@ public class BigQueryServicesImplTest {
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }
 
-  /** Tests that {@link DatasetServiceImpl#insertAll} does not retry non-rate-limited attempts. */
+  /**
+   * Tests that {@link DatasetServiceImpl#insertAll} retries other non-rate-limited,
+   * non-quota-exceeded attempts.
+   */
   @Test
-  public void testInsertDoesNotRetry() throws Throwable {
+  public void testInsertOtherRetry() throws Throwable {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
     List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
-    // First response is 403 not-rate-limited, second response has valid payload but should not
+    // First response is 403 non-{rate-limited, quota-exceeded}, second response has valid payload but should not
     // be invoked.
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
     when(response.getStatusCode()).thenReturn(403).thenReturn(200);
@@ -642,31 +680,23 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)))
         .thenReturn(toStream(new TableDataInsertAllResponse()));
 
-    thrown.expect(GoogleJsonResponseException.class);
-    thrown.expectMessage("actually forbidden");
-
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
-
-    try {
-      dataService.insertAll(
-          ref,
-          rows,
-          null,
-          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
-          new MockSleeper(),
-          InsertRetryPolicy.alwaysRetry(),
-          null,
-          null,
-          false,
-          false);
-      fail();
-    } catch (RuntimeException e) {
-      verify(response, times(1)).getStatusCode();
-      verify(response, times(1)).getContent();
-      verify(response, times(1)).getContentType();
-      throw e.getCause();
-    }
+    dataService.insertAll(
+        ref,
+        rows,
+        null,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        new MockSleeper(),
+        InsertRetryPolicy.alwaysRetry(),
+        null,
+        null,
+        false,
+        false);
+    verify(response, times(2)).getStatusCode();
+    verify(response, times(2)).getContent();
+    verify(response, times(2)).getContentType();
+    expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
   }
 
   /**
