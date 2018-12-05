@@ -228,6 +228,7 @@ public class Schema implements Serializable {
     return true;
   }
 
+  /** Control whether nullable is included in equivalence check. */
   public enum EquivalenceNullablePolicy {
     SAME,
     WEAKEN,
@@ -581,6 +582,7 @@ public class Schema implements Serializable {
       return true;
     }
 
+    /** Check whether two types are equivalent. */
     public boolean equivalent(FieldType other, EquivalenceNullablePolicy nullablePolicy) {
       if (nullablePolicy == EquivalenceNullablePolicy.SAME
           && !other.getNullable().equals(getNullable())) {
