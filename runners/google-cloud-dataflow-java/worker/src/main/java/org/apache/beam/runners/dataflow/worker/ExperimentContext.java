@@ -36,7 +36,7 @@ public class ExperimentContext {
 
   /** Enumeration of all known experiments. */
   public enum Experiment {
-    /** 
+    /**
      * Use the Conscrypt OpenSSL Java Security Provider. This may improve the performance of SSL
      * operations for some IO connectors.
      */
