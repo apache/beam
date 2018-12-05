@@ -36,7 +36,11 @@ public class ExperimentContext {
 
   /** Enumeration of all known experiments. */
   public enum Experiment {
-    DisableConscryptSecurityProvider("disable_conscrypt_security_provider"),
+    /**
+     * Use the Conscrypt OpenSSL Java Security Provider. This may improve the performance of SSL
+     * operations for some IO connectors.
+     */
+    EnableConscryptSecurityProvider("enable_conscrypt_security_provider"),
     IntertransformIO("intertransform_io"), // Intertransform metrics for Shuffle IO (insights)
     SideInputIOMetrics("sideinput_io_metrics"); // Intertransform metrics for Side Input IO
 
