@@ -178,8 +178,7 @@ public class PortableTimersExecutionTest implements Serializable {
             Collections.emptyList());
 
     jobInvocation.start();
-    long timeout = System.currentTimeMillis() + 2 * 60 * 1000;
-    while (jobInvocation.getState() != Enum.DONE && System.currentTimeMillis() < timeout) {
+    while (jobInvocation.getState() != Enum.DONE) {
       Thread.sleep(1000);
     }
     assertThat(jobInvocation.getState(), is(Enum.DONE));
