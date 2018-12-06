@@ -29,24 +29,13 @@ import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.ReadInstruction;
 import java.io.IOException;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
-import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.runners.core.construction.CoderTranslation;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
+import org.apache.beam.runners.core.construction.*;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -282,6 +271,7 @@ public class CreateExecutableStageNodeFunction
 
     componentsBuilder.putAllCoders(sdkComponents.toComponents().getCodersMap());
     Set<PTransformNode> executableStageTransforms = new HashSet<>();
+    Set<TimerReference> executableStageTimers = new HashSet<>();
 
     for (ParallelInstructionNode node :
         Iterables.filter(input.nodes(), ParallelInstructionNode.class)) {
@@ -298,6 +288,7 @@ public class CreateExecutableStageNodeFunction
       RunnerApi.PTransform.Builder pTransform = RunnerApi.PTransform.newBuilder();
       RunnerApi.FunctionSpec.Builder transformSpec = RunnerApi.FunctionSpec.newBuilder();
 
+      List<String> timerIds = new ArrayList<>();
       if (parallelInstruction.getParDo() != null) {
         ParDoInstruction parDoInstruction = parallelInstruction.getParDo();
         CloudObject userFnSpec = CloudObject.fromSpec(parDoInstruction.getUserFn());
@@ -330,6 +321,77 @@ public class CreateExecutableStageNodeFunction
                   RunnerApi.ParDoPayload.parseFrom(parDoPTransform.getSpec().getPayload());
             } catch (InvalidProtocolBufferException exc) {
               throw new RuntimeException("ParDo did not have a ParDoPayload", exc);
+            }
+
+            // This gets the main input pcollection id for this PTransform. This will use the id to
+            // retrieve the Key coder to give to the timer.
+            String mainInputKeyCoderId = "";
+            for (Node predecessorOutput : input.predecessors(node)) {
+              String mainInputPCollectionId = nodesToPCollections.get(predecessorOutput);
+              String mainInputCoderId =
+                  pipeline
+                      .getComponents()
+                      .getPcollectionsMap()
+                      .get(mainInputPCollectionId)
+                      .getCoderId();
+              ModelCoders.KvCoderComponents kvCoder =
+                  ModelCoders.getKvCoderComponents(
+                      pipeline.getComponents().getCodersMap().get(mainInputCoderId));
+              mainInputKeyCoderId = kvCoder.keyCoderId();
+            }
+
+            // Build the necessary components to inform the SDK Harness of the pipeline's
+            // timers.
+            for (Map.Entry<String, RunnerApi.TimerSpec> entry :
+                parDoPayload.getTimerSpecsMap().entrySet()) {
+
+              String timerPCollectionInName =
+                  SyntheticComponents.uniqueId(
+                      "FireTimer" + entry.getKey(),
+                      pipeline.getComponents().getPcollectionsMap().keySet()::contains);
+
+              String timerPCollectionOutName =
+                  SyntheticComponents.uniqueId(
+                      "SetTimer" + entry.getKey(),
+                      pipeline.getComponents().getPcollectionsMap().keySet()::contains);
+              String timerCoderId =
+                  SyntheticComponents.uniqueId(
+                      "TimerCoder", componentsBuilder.getCodersMap().keySet()::contains);
+
+              pTransform
+                  .putInputs(entry.getKey(), timerPCollectionInName)
+                  .putOutputs(entry.getKey(), timerPCollectionOutName);
+
+              RunnerApi.PCollection timerPCollectionIn =
+                  RunnerApi.PCollection.newBuilder()
+                      .setUniqueName(timerPCollectionInName)
+                      .setCoderId(timerCoderId)
+                      // Set these to reflect the main input
+                      .setIsBounded(RunnerApi.IsBounded.Enum.UNBOUNDED)
+                      .setWindowingStrategyId(fakeWindowingStrategyId)
+                      .build();
+
+              RunnerApi.PCollection timerPCollectionOut =
+                  RunnerApi.PCollection.newBuilder()
+                      .setUniqueName(timerPCollectionOutName)
+                      .setCoderId(timerCoderId)
+                      // Set these to reflect the main input
+                      .setIsBounded(RunnerApi.IsBounded.Enum.UNBOUNDED)
+                      .setWindowingStrategyId(fakeWindowingStrategyId)
+                      .build();
+
+              timerIds.add(entry.getKey());
+
+              // Construct a KV coder where the Key coder encodes the main input's key coder
+              // The Value coder is the timer coder.
+              RunnerApi.Coder timerCoder =
+                  ModelCoders.kvCoder(mainInputKeyCoderId, entry.getValue().getTimerCoderId());
+
+              nodesToPCollections.put(node, timerPCollectionInName);
+              nodesToPCollections.put(node, timerPCollectionOutName);
+              componentsBuilder.putPcollections(timerPCollectionInName, timerPCollectionIn);
+              componentsBuilder.putPcollections(timerPCollectionOutName, timerPCollectionOut);
+              componentsBuilder.putCoders(timerCoderId, timerCoder);
             }
 
             transformSpec
@@ -380,7 +442,12 @@ public class CreateExecutableStageNodeFunction
       }
 
       pTransform.setSpec(transformSpec);
-      executableStageTransforms.add(PipelineNode.pTransform(ptransformId, pTransform.build()));
+      PTransformNode pTransformNode = PipelineNode.pTransform(ptransformId, pTransform.build());
+      executableStageTransforms.add(pTransformNode);
+
+      for (String timerId : timerIds) {
+        executableStageTimers.add(TimerReference.of(pTransformNode, timerId));
+      }
     }
 
     if (executableStageInputs.size() != 1) {
@@ -398,7 +465,6 @@ public class CreateExecutableStageNodeFunction
     }
 
     Set<SideInputReference> executableStageSideInputs = new HashSet<>();
-    Set<TimerReference> executableStageTimers = new HashSet<>();
     Set<UserStateReference> executableStageUserStateReference = new HashSet<>();
     ExecutableStage executableStage =
         ImmutableExecutableStage.ofFullComponents(
