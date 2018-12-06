@@ -641,7 +641,10 @@ public class StreamingDataflowWorker {
 
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork =
           new CreateRegisterFnOperationFunction(
-              idGenerator, this::createPortNode, lengthPrefixUnknownCoders.andThen(sdkFusedStage));
+              idGenerator,
+              this::createPortNode,
+              lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+              false);
 
       mapTaskToNetwork =
           mapTaskToBaseNetwork
