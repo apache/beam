@@ -543,7 +543,7 @@ class ReadFromTextWithFilename(ReadFromText):
   r"""A :class:`~apache_beam.io.ReadFromText` for reading text
   files returning the name of the file and the content of the file.
 
-  This class extend ReadFromText class just setting a different 
+  This class extend ReadFromText class just setting a different
   _source_class attribute.
   """
 
