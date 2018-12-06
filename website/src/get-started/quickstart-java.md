@@ -116,7 +116,7 @@ For a detailed introduction to the Beam concepts used in these examples, see the
 
 ## Run WordCount
 
-A single Beam pipeline can run on multiple Beam [runners]({{ site.baseurl }}/documentation#runners), including the [ApexRunner]({{ site.baseurl }}/documentation/runners/apex), [FlinkRunner]({{ site.baseurl }}/documentation/runners/flink), [SparkRunner]({{ site.baseurl }}/documentation/runners/spark) or [DataflowRunner]({{ site.baseurl }}/documentation/runners/dataflow). The [DirectRunner]({{ site.baseurl }}/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup.
+A single Beam pipeline can run on multiple Beam [runners]({{ site.baseurl }}/documentation#runners), including the [ApexRunner]({{ site.baseurl }}/documentation/runners/apex), [FlinkRunner]({{ site.baseurl }}/documentation/runners/flink), [SparkRunner]({{ site.baseurl }}/documentation/runners/spark), [NemoRunner]({{ site.baseurl }}/documentation/runners/nemo), or [DataflowRunner]({{ site.baseurl }}/documentation/runners/dataflow). The [DirectRunner]({{ site.baseurl }}/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup.
 
 After you've chosen which runner you'd like to use:
 
@@ -178,6 +178,13 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
 ```
+
+{:.runner-nemo}
+```
+$ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+```
+
 For Windows PowerShell:
 
 {:.runner-direct}
@@ -230,6 +237,13 @@ PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
      -D exec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
 ```
 
+{:.runner-nemo}
+```
+PS> mvn package -P nemo-runner -DskipTests
+PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
+      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+```
+
 ## Inspect the results
 
 Once the pipeline has completed, you can view the output. You'll notice that there may be multiple output files prefixed by `count`. The exact number of these files is decided by the runner, giving it the flexibility to do efficient, distributed execution.
@@ -267,6 +281,11 @@ $ gsutil ls gs://<your-gcs-bucket>/counts*
 {:.runner-samza-local}
 ```
 $ ls /tmp/counts*
+```
+
+{:.runner-nemo}
+```
+$ ls counts*
 ```
 
 When you look into the contents of the file, you'll see that they contain unique words and the number of occurrences of each word. The order of elements within the file may differ because the Beam model does not generally guarantee ordering, again to allow runners to optimize for efficiency.
@@ -359,6 +378,20 @@ com: 14
 end: 14
 for: 14
 has: 2
+...
+```
+
+{:.runner-nemo}
+```
+$ more counts*
+cluster: 2
+handler: 1
+plugins: 9
+exclusions: 14
+finalName: 2
+Adds: 2
+java: 7
+xml: 1
 ...
 ```
 
