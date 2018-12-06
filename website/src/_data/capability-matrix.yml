@@ -32,6 +32,8 @@ columns:
     name: IBM Streams
   - class: samza
     name: Apache Samza
+  - class: nemo
+    name: Apache Nemo
 
 categories:
   - description: What is being computed?
@@ -83,6 +85,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: Supported with per-element transformation.
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: GroupByKey
         values:
           - class: model
@@ -125,6 +131,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: "Uses Samza's partitionBy for key grouping and Beam's logic for window aggregation and triggering."
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Flatten
         values:
           - class: model
@@ -164,6 +174,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -209,6 +223,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: Use combiner for efficient pre-aggregation.
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: 'Batch mode uses pre-aggregation'
       - name: Composite Transforms
         values:
           - class: model
@@ -250,6 +268,10 @@ categories:
           - class: samza
             l1: 'Partially'
             l2: supported via inlining
+            l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
             l3: ''
       - name: Side Inputs
         values:
@@ -293,6 +315,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: Uses Samza's broadcast operator to distribute the side inputs.
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Source API
         values:
           - class: model
@@ -332,6 +358,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -377,6 +407,10 @@ categories:
             l1: 'Partially'
             l2: supports bounded-per-element SDFs
             l3:
+          - class: nemo
+            l1: 'No'
+            l2: not implemented
+            l3: ''
       - name: Metrics
         values:
           - class: model
@@ -419,6 +453,10 @@ categories:
             l1: 'Partially'
             l2: Counter and Gauge are supported.
             l3: Only attempted values are supported. No committed values for metrics.
+          - class: nemo
+            l1: 'No'
+            l2: not implemented
+            l3: ''
       - name: Stateful Processing
         values:
           - class: model
@@ -461,6 +499,10 @@ categories:
             l1: 'Partially'
             l2: non-merging windows
             l3: 'States are backed up by either rocksDb KV store or in-memory hash map, and persist using changelog.'
+          - class: nemo
+            l1: 'No'
+            l2: not implemented
+            l3: ''
   - description: Where in event time?
     anchor: where
     color-b: '37d'
@@ -510,6 +552,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Fixed windows
         values:
           - class: model
@@ -549,6 +595,10 @@ categories:
             l2: supported
             l3: ''
           - class: samza
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: nemo
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -594,6 +644,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Session windows
         values:
           - class: model
@@ -633,6 +687,10 @@ categories:
             l2: supported
             l3: ''
           - class: samza
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: nemo
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -678,6 +736,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Custom merging windows
         values:
           - class: model
@@ -720,6 +782,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Timestamp control
         values:
           - class: model
@@ -759,6 +825,10 @@ categories:
             l2: supported
             l3: ''
           - class: samza
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: nemo
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -813,6 +883,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Event-time triggers
         values:
@@ -853,6 +927,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -899,6 +977,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Count triggers
         values:
@@ -939,6 +1021,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -986,6 +1072,10 @@ categories:
             l1: 'No'
             l2: pending model support
             l3:
+          - class: nemo
+            l1: 'No'
+            l2: pending model support
+            l3: ''
 
       - name: Composite triggers
         values:
@@ -1026,6 +1116,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -1072,6 +1166,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Timers
         values:
@@ -1114,6 +1212,10 @@ categories:
           - class: samza
             l1: 'No'
             l2: ''
+            l3: ''
+          - class: nemo
+            l1: 'No'
+            l2: not implemented
             l3: ''
 
   - description: How do refinements relate?
@@ -1166,6 +1268,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: nemo
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Accumulating
         values:
@@ -1206,6 +1312,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: samza
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: nemo
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -1250,6 +1360,10 @@ categories:
             l2: pending model support
             l3: ''
           - class: samza
+            l1: 'No'
+            l2: pending model support
+            l3: ''
+          - class: nemo
             l1: 'No'
             l2: pending model support
             l3: ''

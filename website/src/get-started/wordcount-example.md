@@ -384,6 +384,12 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts --runner=SamzaRunner" -Psamza-runner
 ```
 
+{:.runner-nemo}
+```
+$ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+```
+
 To view the full code in Java, see
 **[WordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java).**
 
@@ -426,6 +432,11 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 ```
 
 {:.runner-samza-local}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-nemo}
 ```
 This runner is not yet available for the Python SDK.
 ```
@@ -476,6 +487,11 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 ```
 
 {:.runner-samza-local}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-nemo}
 ```
 This runner is not yet available for the Go SDK.
 ```
@@ -714,6 +730,12 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordC
      -Dexec.args="--runner=SamzaRunner --output=counts" -Psamza-runner
 ```
 
+{:.runner-nemo}
+```
+$ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
+     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+```
+
 To view the full code in Java, see
 [DebuggingWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java).
 
@@ -756,6 +778,11 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
 ```
 
 {:.runner-samza-local}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-nemo}
 ```
 This runner is not yet available for the Python SDK.
 ```
@@ -806,6 +833,11 @@ $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 ```
 
 {:.runner-samza-local}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-nemo}
 ```
 This runner is not yet available for the Go SDK.
 ```
@@ -918,6 +950,16 @@ or DEBUG significantly increases the amount of logs output.
 
 > **Note:** This section is yet to be added. There is an open issue for this
 > ([BEAM-2285](https://issues.apache.org/jira/browse/BEAM-2285)).
+
+#### Apache Nemo Runner
+
+When executing your pipeline with the `NemoRunner`, most log messages are printed 
+directly to your local console. You should add `Slf4j` to your class path to make 
+full use of the logs. In order to observe the logs on each of the driver and the 
+executor sides, you should observe the folders created by Apache REEF. For example,
+when running your pipeline through the local runtime, a folder called `REEF_LOCAL_RUNTIME`
+will be created on your work directory, and the logs and the metric information can
+all be found under the directory.
 
 ### Testing your pipeline with asserts
 
@@ -1037,6 +1079,12 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCo
      -Dexec.args="--runner=SamzaRunner --inputFile=pom.xml --output=counts" -Psamza-runner
 ```
 
+{:.runner-nemo}
+```
+$ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
+     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+```
+
 To view the full code in Java, see
 **[WindowedWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java).**
 
@@ -1087,6 +1135,11 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
 This runner is not yet available for the Python SDK.
 ```
 
+{:.runner-nemo}
+```
+This runner is not yet available for the Python SDK.
+```
+
 To view the full code in Python, see
 **[windowed_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/windowed_wordcount.py).**
 
@@ -1133,6 +1186,11 @@ $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 ```
 
 {:.runner-samza-local}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-nemo}
 ```
 This runner is not yet available for the Go SDK.
 ```
@@ -1373,6 +1431,11 @@ python -m apache_beam.examples.streaming_wordcount \
 ```
 
 {:.runner-samza-local}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-nemo}
 ```
 This runner is not yet available for the Python SDK.
 ```
