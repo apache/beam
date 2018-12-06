@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Throwables.getStackTraceAsString;
 
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -54,9 +55,10 @@ public class FlinkJobInvocation implements JobInvocation {
       ListeningExecutorService executorService,
       Pipeline pipeline,
       FlinkPipelineOptions pipelineOptions,
+      @Nullable String confDir,
       List<String> filesToStage) {
     return new FlinkJobInvocation(
-        id, retrievalToken, executorService, pipeline, pipelineOptions, filesToStage);
+        id, retrievalToken, executorService, pipeline, pipelineOptions, confDir, filesToStage);
   }
 
   private final String id;
@@ -64,9 +66,11 @@ public class FlinkJobInvocation implements JobInvocation {
   private final ListeningExecutorService executorService;
   private final RunnerApi.Pipeline pipeline;
   private final FlinkPipelineOptions pipelineOptions;
+  private final String confDir;
   private final List<String> filesToStage;
   private JobState.Enum jobState;
   private List<Consumer<JobState.Enum>> stateObservers;
+  private List<Consumer<JobMessage>> messageObservers;
 
   @Nullable private ListenableFuture<PipelineResult> invocationFuture;
 
@@ -76,16 +80,19 @@ public class FlinkJobInvocation implements JobInvocation {
       ListeningExecutorService executorService,
       Pipeline pipeline,
       FlinkPipelineOptions pipelineOptions,
+      @Nullable String confDir,
       List<String> filesToStage) {
     this.id = id;
     this.retrievalToken = retrievalToken;
     this.executorService = executorService;
     this.pipeline = pipeline;
     this.pipelineOptions = pipelineOptions;
+    this.confDir = confDir;
     this.filesToStage = filesToStage;
     this.invocationFuture = null;
     this.jobState = JobState.Enum.STOPPED;
     this.stateObservers = new ArrayList<>();
+    this.messageObservers = new ArrayList<>();
   }
 
   private PipelineResult runPipeline() throws Exception {
@@ -109,7 +116,7 @@ public class FlinkJobInvocation implements JobInvocation {
           FlinkBatchPortablePipelineTranslator.createTranslator();
       FlinkBatchPortablePipelineTranslator.BatchTranslationContext context =
           FlinkBatchPortablePipelineTranslator.createTranslationContext(
-              jobInfo, pipelineOptions, filesToStage);
+              jobInfo, pipelineOptions, confDir, filesToStage);
       translator.translate(context, fusedPipeline);
       result = context.getExecutionEnvironment().execute(pipelineOptions.getJobName());
     } else {
@@ -118,7 +125,7 @@ public class FlinkJobInvocation implements JobInvocation {
           new FlinkStreamingPortablePipelineTranslator();
       FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext context =
           FlinkStreamingPortablePipelineTranslator.createTranslationContext(
-              jobInfo, pipelineOptions, filesToStage);
+              jobInfo, pipelineOptions, confDir, filesToStage);
       translator.translate(context, fusedPipeline);
       result = context.getExecutionEnvironment().execute(pipelineOptions.getJobName());
     }
@@ -155,6 +162,16 @@ public class FlinkJobInvocation implements JobInvocation {
           public void onFailure(Throwable throwable) {
             String message = String.format("Error during job invocation %s.", getId());
             LOG.error(message, throwable);
+            sendMessage(
+                JobMessage.newBuilder()
+                    .setMessageText(getStackTraceAsString(throwable))
+                    .setImportance(JobMessage.MessageImportance.JOB_MESSAGE_DEBUG)
+                    .build());
+            sendMessage(
+                JobMessage.newBuilder()
+                    .setMessageText(throwable.toString())
+                    .setImportance(JobMessage.MessageImportance.JOB_MESSAGE_ERROR)
+                    .build());
             setState(JobState.Enum.FAILED);
           }
         },
@@ -205,13 +222,19 @@ public class FlinkJobInvocation implements JobInvocation {
 
   @Override
   public synchronized void addMessageListener(Consumer<JobMessage> messageStreamObserver) {
-    LOG.warn("addMessageObserver() not yet implemented.");
+    messageObservers.add(messageStreamObserver);
   }
 
   private synchronized void setState(JobState.Enum state) {
     this.jobState = state;
     for (Consumer<JobState.Enum> observer : stateObservers) {
       observer.accept(state);
+    }
+  }
+
+  private synchronized void sendMessage(JobMessage message) {
+    for (Consumer<JobMessage> observer : messageObservers) {
+      observer.accept(message);
     }
   }
 

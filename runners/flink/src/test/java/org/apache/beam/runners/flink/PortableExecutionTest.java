@@ -139,6 +139,7 @@ public class PortableExecutionTest implements Serializable {
             flinkJobExecutor,
             pipelineProto,
             options.as(FlinkPipelineOptions.class),
+            null,
             Collections.EMPTY_LIST);
     jobInvocation.start();
     long timeout = System.currentTimeMillis() + 60 * 1000;

@@ -19,12 +19,12 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CountByKey;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
@@ -38,7 +38,7 @@ public class CountByKeyTest extends AbstractOperatorTest {
     execute(
         new AbstractTestCase<Integer, KV<Integer, Long>>() {
           @Override
-          protected Dataset<KV<Integer, Long>> getOutput(Dataset<Integer> input) {
+          protected PCollection<KV<Integer, Long>> getOutput(PCollection<Integer> input) {
             // ~ use stable event-time watermark
             input = AssignEventTime.of(input).using(e -> 0).output();
             return CountByKey.of(input)
@@ -82,7 +82,7 @@ public class CountByKeyTest extends AbstractOperatorTest {
         new AbstractTestCase<KV<Integer, Long>, KV<Integer, Long>>() {
 
           @Override
-          protected Dataset<KV<Integer, Long>> getOutput(Dataset<KV<Integer, Long>> input) {
+          protected PCollection<KV<Integer, Long>> getOutput(PCollection<KV<Integer, Long>> input) {
             input = AssignEventTime.of(input).using(KV::getValue).output();
             return CountByKey.of(input)
                 .keyBy(KV::getKey)

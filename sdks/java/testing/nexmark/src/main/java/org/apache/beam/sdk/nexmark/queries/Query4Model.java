@@ -30,7 +30,6 @@ import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.AuctionBid;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.CategoryPrice;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
@@ -38,7 +37,7 @@ import org.joda.time.Instant;
 import org.junit.Assert;
 
 /** A direct implementation of {@link Query4}. */
-public class Query4Model extends NexmarkQueryModel implements Serializable {
+public class Query4Model extends NexmarkQueryModel<CategoryPrice> implements Serializable {
   /** Simulator for query 4. */
   private class Simulator extends AbstractSimulator<AuctionBid, CategoryPrice> {
     /** The prices and categories for all winning bids in the last window size. */
@@ -155,22 +154,21 @@ public class Query4Model extends NexmarkQueryModel implements Serializable {
   }
 
   @Override
-  public AbstractSimulator<?, ?> simulator() {
+  public AbstractSimulator<?, CategoryPrice> simulator() {
     return new Simulator(configuration);
   }
 
   @Override
-  protected Iterable<TimestampedValue<KnownSize>> relevantResults(
-      Iterable<TimestampedValue<KnownSize>> results) {
+  protected Iterable<TimestampedValue<CategoryPrice>> relevantResults(
+      Iterable<TimestampedValue<CategoryPrice>> results) {
     // Find the last (in processing time) reported average price for each category.
-    Map<Long, TimestampedValue<KnownSize>> finalAverages = new TreeMap<>();
-    for (TimestampedValue<KnownSize> obj : results) {
+    Map<Long, TimestampedValue<CategoryPrice>> finalAverages = new TreeMap<>();
+    for (TimestampedValue<CategoryPrice> obj : results) {
       Assert.assertTrue("have CategoryPrice", obj.getValue() instanceof CategoryPrice);
       CategoryPrice categoryPrice = (CategoryPrice) obj.getValue();
       if (categoryPrice.isLast) {
         finalAverages.put(
-            categoryPrice.category,
-            TimestampedValue.of((KnownSize) categoryPrice, obj.getTimestamp()));
+            categoryPrice.category, TimestampedValue.of(categoryPrice, obj.getTimestamp()));
       }
     }
 
@@ -178,7 +176,7 @@ public class Query4Model extends NexmarkQueryModel implements Serializable {
   }
 
   @Override
-  protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
+  protected Collection<String> toCollection(Iterator<TimestampedValue<CategoryPrice>> itr) {
     return toValue(itr);
   }
 }

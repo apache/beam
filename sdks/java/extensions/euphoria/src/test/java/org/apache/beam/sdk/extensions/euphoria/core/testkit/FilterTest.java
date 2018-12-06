@@ -19,8 +19,8 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Filter;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
@@ -34,7 +34,7 @@ public class FilterTest extends AbstractOperatorTest {
         new AbstractTestCase<Integer, Integer>() {
 
           @Override
-          protected Dataset<Integer> getOutput(Dataset<Integer> input) {
+          protected PCollection<Integer> getOutput(PCollection<Integer> input) {
             return Filter.of(input).by(e -> e % 2 == 0).output();
           }
 

@@ -71,7 +71,7 @@ class SamzaPublishViewTransformOverride<ElemT, ViewT>
   private static class Concatenate<T> extends Combine.CombineFn<T, List<T>, List<T>> {
     @Override
     public List<T> createAccumulator() {
-      return new ArrayList<T>();
+      return new ArrayList<>();
     }
 
     @Override

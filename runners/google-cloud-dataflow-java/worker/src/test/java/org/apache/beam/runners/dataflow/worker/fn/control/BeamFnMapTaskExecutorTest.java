@@ -32,8 +32,6 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
@@ -46,6 +44,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.junit.Before;
@@ -103,8 +102,6 @@ public class BeamFnMapTaskExecutorTest {
 
   @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
   public void testTentativeUserMetrics() throws Exception {
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
-
     final String stepName = "fakeStepNameWithUserMetrics";
     final String namespace = "sdk/whatever";
     final String name = "someCounter";
@@ -166,7 +163,7 @@ public class BeamFnMapTaskExecutorTest {
 
     RegisterAndProcessBundleOperation processOperation =
         new RegisterAndProcessBundleOperation(
-            idGenerator,
+            IdGenerators.decrementingLongs(),
             instructionRequestHandler,
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -204,8 +201,6 @@ public class BeamFnMapTaskExecutorTest {
   /** Tests that successive metric updates overwrite the previous. */
   @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
   public void testTentativeUserMetricsOverwrite() throws Exception {
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
-
     final String stepName = "fakeStepNameWithUserMetrics";
     final String namespace = "sdk/whatever";
     final String name = "someCounter";
@@ -271,9 +266,11 @@ public class BeamFnMapTaskExecutorTest {
           public void close() {}
         };
 
+    when(grpcPortWriteOperation.processedElementsConsumer()).thenReturn(elementsConsumed -> {});
+
     RegisterAndProcessBundleOperation processOperation =
         new RegisterAndProcessBundleOperation(
-            idGenerator,
+            IdGenerators.decrementingLongs(),
             instructionRequestHandler,
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -310,8 +307,6 @@ public class BeamFnMapTaskExecutorTest {
 
   @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
   public void testFinalUserMetrics() throws Exception {
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
-
     final String stepName = "fakeStepNameWithUserMetrics";
     final String namespace = "sdk/whatever";
     final String name = "someCounter";
@@ -389,7 +384,7 @@ public class BeamFnMapTaskExecutorTest {
 
     RegisterAndProcessBundleOperation processOperation =
         new RegisterAndProcessBundleOperation(
-            idGenerator,
+            IdGenerators.decrementingLongs(),
             instructionRequestHandler,
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -426,11 +421,6 @@ public class BeamFnMapTaskExecutorTest {
     assertThat(
         metricsCounterUpdates,
         contains(new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(finalCounterValue)));
-  }
-
-  private Supplier<String> makeIdGeneratorStartingFrom(long initialValue) {
-    AtomicLong longIdGenerator = new AtomicLong(initialValue);
-    return () -> Long.toString(longIdGenerator.getAndIncrement());
   }
 
   private BeamFnApi.InstructionResponse.Builder responseFor(BeamFnApi.InstructionRequest request) {

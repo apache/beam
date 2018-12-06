@@ -19,7 +19,6 @@ from __future__ import print_function
 
 import inspect
 import logging
-import os
 import platform
 import signal
 import socket
@@ -43,8 +42,6 @@ from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.runners.portability.portable_runner import PortableRunner
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
@@ -141,7 +138,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   @classmethod
   def get_runner(cls):
-    return portable_runner.PortableRunner(is_embedded_fnapi_runner=True)
+    return portable_runner.PortableRunner()
 
   @classmethod
   def tearDownClass(cls):
@@ -169,37 +166,6 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(self.get_runner(), self.create_options())
-
-  def test_assert_that(self):
-    # TODO: figure out a way for runner to parse and raise the
-    # underlying exception.
-    with self.assertRaises(Exception):
-      with self.create_pipeline() as p:
-        assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
-
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test is flaky on on Python 3. '
-                   'TODO: BEAM-5692')
-  def test_error_message_includes_stage(self):
-    # TODO: figure out a way for runner to parse and raise the
-    # underlying exception.
-    with self.assertRaises(Exception):
-      with self.create_pipeline() as p:
-        def raise_error(x):
-          raise RuntimeError('x')
-        # pylint: disable=expression-not-assigned
-        (p
-         | beam.Create(['a', 'b'])
-         | 'StageA' >> beam.Map(lambda x: x)
-         | 'StageB' >> beam.Map(lambda x: x)
-         | 'StageC' >> beam.Map(raise_error)
-         | 'StageD' >> beam.Map(lambda x: x))
-
-  def test_error_traceback_includes_user_code(self):
-    # TODO: figure out a way for runner to parse and raise the
-    # underlying exception.
-    raise unittest.SkipTest('TODO')
 
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
 

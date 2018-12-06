@@ -136,4 +136,12 @@ public interface SparkPipelineOptions
   List<String> getFilesToStage();
 
   void setFilesToStage(List<String> value);
+
+  @Description(
+      "Disable caching of reused PCollections for whole Pipeline."
+          + " It's useful when it's faster to recompute RDD rather than save. ")
+  @Default.Boolean(false)
+  boolean isCacheDisabled();
+
+  void setCacheDisabled(boolean value);
 }

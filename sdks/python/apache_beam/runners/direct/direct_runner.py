@@ -68,11 +68,11 @@ class SwitchingDirectRunner(PipelineRunner):
   implemented in the FnApiRunner.
   """
 
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     use_fnapi_runner = True
 
     # Streaming mode is not yet supported on the FnApiRunner.
-    if pipeline._options.view_as(StandardOptions).streaming:
+    if options.view_as(StandardOptions).streaming:
       use_fnapi_runner = False
 
     from apache_beam.pipeline import PipelineVisitor
@@ -136,7 +136,7 @@ class SwitchingDirectRunner(PipelineRunner):
     else:
       runner = BundleBasedDirectRunner()
 
-    return runner.run_pipeline(pipeline)
+    return runner.run_pipeline(pipeline, options)
 
 
 # Type variables.
@@ -346,7 +346,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
 class BundleBasedDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
 
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
     # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
@@ -362,7 +362,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     from apache_beam.testing.test_stream import TestStream
 
     # Performing configured PTransform overrides.
-    pipeline.replace_all(_get_transform_overrides(pipeline.options))
+    pipeline.replace_all(_get_transform_overrides(options))
 
     # If the TestStream I/O is used, use a mock test clock.
     class _TestStreamUsageVisitor(PipelineVisitor):
@@ -387,8 +387,8 @@ class BundleBasedDirectRunner(PipelineRunner):
     pipeline.visit(self.consumer_tracking_visitor)
 
     evaluation_context = EvaluationContext(
-        pipeline._options,
-        BundleFactory(stacked=pipeline._options.view_as(DirectOptions)
+        options,
+        BundleFactory(stacked=options.view_as(DirectOptions)
                       .direct_runner_use_stacked_bundle),
         self.consumer_tracking_visitor.root_transforms,
         self.consumer_tracking_visitor.value_to_consumers,

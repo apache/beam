@@ -51,7 +51,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -68,7 +68,7 @@ public class StreamingSideInputFetcherTest {
 
   private static final FixedWindows WINDOW_FN = FixedWindows.of(Duration.millis(10));
 
-  static TupleTag<String> mainOutputTag = new TupleTag<String>();
+  static TupleTag<String> mainOutputTag = new TupleTag<>();
   @Mock StreamingModeExecutionContext execContext;
   @Mock StreamingModeExecutionContext.StepContext stepContext;
   @Mock SideInputReader mockSideInputReader;

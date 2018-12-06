@@ -67,6 +67,8 @@ public class BeamSqlDatetimeMinusIntervalExpressionTest {
   public void testDoesNotAcceptWrongOutputType() {
     Set<SqlTypeName> unsupportedTypes = new HashSet<>(SqlTypeName.ALL_TYPES);
     unsupportedTypes.remove(SqlTypeName.TIMESTAMP);
+    unsupportedTypes.remove(SqlTypeName.DATE);
+    unsupportedTypes.remove(SqlTypeName.TIME);
 
     for (SqlTypeName unsupportedType : unsupportedTypes) {
       BeamSqlDatetimeMinusIntervalExpression minusExpression =

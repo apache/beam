@@ -36,9 +36,11 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -2839,7 +2841,20 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(@TimerId(timerId) Timer timer) {
-              timer.set(new Instant(0));
+              try {
+                timer.set(new Instant(0));
+                fail("Should have failed due to processing time with absolute timer.");
+              } catch (RuntimeException e) {
+                String message = e.getMessage();
+                List<String> expectedSubstrings =
+                    Arrays.asList("relative timers", "processing time");
+                expectedSubstrings.forEach(
+                    str ->
+                        Preconditions.checkState(
+                            message.contains(str),
+                            "Pipeline didn't fail with the expected strings: %s",
+                            expectedSubstrings));
+              }
             }
 
             @OnTimer(timerId)
@@ -2847,11 +2862,6 @@ public class ParDoTest implements Serializable {
           };
 
       pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-      thrown.expect(RuntimeException.class);
-      // Note that runners can reasonably vary their message - this matcher should be flexible
-      // and can be evolved.
-      thrown.expectMessage("relative timers");
-      thrown.expectMessage("processing time");
       pipeline.run();
     }
 
@@ -2873,7 +2883,19 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
-              timer.set(window.maxTimestamp().plus(1L));
+              try {
+                timer.set(window.maxTimestamp().plus(1L));
+                fail("Should have failed due to processing time with absolute timer.");
+              } catch (RuntimeException e) {
+                String message = e.getMessage();
+                List<String> expectedSubstrings = Arrays.asList("event time timer", "expiration");
+                expectedSubstrings.forEach(
+                    str ->
+                        Preconditions.checkState(
+                            message.contains(str),
+                            "Pipeline didn't fail with the expected strings: %s",
+                            expectedSubstrings));
+              }
             }
 
             @OnTimer(timerId)
@@ -2881,11 +2903,6 @@ public class ParDoTest implements Serializable {
           };
 
       pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-      thrown.expect(RuntimeException.class);
-      // Note that runners can reasonably vary their message - this matcher should be flexible
-      // and can be evolved.
-      thrown.expectMessage("event time timer");
-      thrown.expectMessage("expiration");
       pipeline.run();
     }
 

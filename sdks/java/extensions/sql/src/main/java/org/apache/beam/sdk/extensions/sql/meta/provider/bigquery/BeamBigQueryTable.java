@@ -42,6 +42,11 @@ public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
   }
 
   @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.BOUNDED;
+  }
+
+  @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     // TODO: make this more generic.
     return begin

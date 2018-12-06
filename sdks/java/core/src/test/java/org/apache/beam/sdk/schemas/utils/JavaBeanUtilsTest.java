@@ -61,8 +61,8 @@ public class JavaBeanUtilsTest {
   @Test
   public void testNullable() {
     Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(NullableBean.class);
-    assertTrue(schema.getField("str").getNullable());
-    assertFalse(schema.getField("anInt").getNullable());
+    assertTrue(schema.getField("str").getType().getNullable());
+    assertFalse(schema.getField("anInt").getType().getNullable());
   }
 
   @Test

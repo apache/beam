@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 
 /** A direct implementation of {@link Query3}. */
-public class Query3Model extends NexmarkQueryModel implements Serializable {
+public class Query3Model extends NexmarkQueryModel<NameCityStateId> implements Serializable {
   /** Simulator for query 3. */
   private static class Simulator extends AbstractSimulator<Event, NameCityStateId> {
     /** Auctions, indexed by seller id. */
@@ -107,12 +107,12 @@ public class Query3Model extends NexmarkQueryModel implements Serializable {
   }
 
   @Override
-  public AbstractSimulator<?, ?> simulator() {
+  public AbstractSimulator<?, NameCityStateId> simulator() {
     return new Simulator(configuration);
   }
 
   @Override
-  protected <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr) {
+  protected Collection<String> toCollection(Iterator<TimestampedValue<NameCityStateId>> itr) {
     return toValue(itr);
   }
 }

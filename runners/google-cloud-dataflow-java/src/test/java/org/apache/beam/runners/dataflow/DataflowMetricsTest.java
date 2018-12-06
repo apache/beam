@@ -140,7 +140,7 @@ public class DataflowMetricsTest {
     MetricStructuredName structuredName = new MetricStructuredName();
     structuredName.setName(name);
     structuredName.setOrigin("user");
-    ImmutableMap.Builder contextBuilder = new ImmutableMap.Builder<String, String>();
+    ImmutableMap.Builder contextBuilder = new ImmutableMap.Builder<>();
     contextBuilder.put("step", step).put("namespace", namespace);
     if (tentative) {
       contextBuilder.put("tentative", "true");

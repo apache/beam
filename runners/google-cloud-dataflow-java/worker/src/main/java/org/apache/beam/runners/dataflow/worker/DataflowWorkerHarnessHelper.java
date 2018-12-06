@@ -27,9 +27,10 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.TextFormat;
 import org.conscrypt.OpenSSLProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,9 +46,6 @@ public final class DataflowWorkerHarnessHelper {
 
   public static DataflowWorkerHarnessOptions initializeGlobalStateAndPipelineOptions(
       Class<?> workerHarnessClass) throws Exception {
-    /* Enable fast SSL provider. */
-    Security.insertProviderAt(new OpenSSLProvider(), 1);
-
     /* Extract pipeline options. */
     DataflowWorkerHarnessOptions pipelineOptions =
         WorkerPipelineOptionsFactory.createFromSystemProperties();
@@ -57,6 +55,23 @@ public final class DataflowWorkerHarnessHelper {
     DataflowWorkerLoggingMDC.setJobId(pipelineOptions.getJobId());
     DataflowWorkerLoggingMDC.setWorkerId(pipelineOptions.getWorkerId());
 
+    ExperimentContext ec = ExperimentContext.parseFrom(pipelineOptions);
+
+    String experimentName = Experiment.EnableConscryptSecurityProvider.getName();
+    if (ec.isEnabled(Experiment.EnableConscryptSecurityProvider)) {
+      /* Enable fast SSL provider. */
+      LOG.info(
+          "Dataflow runner is using conscrypt SSL. To disable this feature, "
+              + "remove the pipeline option --experiments={}",
+          experimentName);
+      Security.insertProviderAt(new OpenSSLProvider(), 1);
+    } else {
+      LOG.info(
+          "Not using conscrypt SSL. Note this is the default Java behavior, but may "
+              + "have reduced performance. To use conscrypt SSL pass pipeline option "
+              + "--experiments={}",
+          experimentName);
+    }
     return pipelineOptions;
   }
 
@@ -102,13 +117,13 @@ public final class DataflowWorkerHarnessHelper {
   public static @Nullable RunnerApi.Pipeline getPipelineFromEnv() throws IOException {
     String pipelinePath = System.getenv(PIPELINE_PATH);
     if (pipelinePath == null) {
-      LOG.warn("Missing pipeline environment variable '%s'", PIPELINE_PATH);
+      LOG.warn("Missing pipeline environment variable '{}'", PIPELINE_PATH);
       return null;
     }
 
     File pipelineFile = new File(System.getenv(PIPELINE_PATH));
     if (!pipelineFile.exists()) {
-      LOG.warn("Pipeline path '%s' does not exist", pipelineFile);
+      LOG.warn("Pipeline path '{}' does not exist", pipelineFile);
       return null;
     }
 

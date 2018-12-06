@@ -44,6 +44,11 @@ public class TestBoundedTable extends TestTable {
     super(beamSchema);
   }
 
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.BOUNDED;
+  }
+
   /**
    * Convenient way to build a mocked bounded table.
    *

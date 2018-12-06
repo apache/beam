@@ -74,6 +74,14 @@ public interface FlinkPipelineOptions
   void setParallelism(Integer value);
 
   @Description(
+      "The pipeline wide maximum degree of parallelism to be used. The maximum parallelism specifies the upper limit "
+          + "for dynamic scaling and the number of key groups used for partitioned state.")
+  @Default.Integer(-1)
+  Integer getMaxParallelism();
+
+  void setMaxParallelism(Integer value);
+
+  @Description(
       "The interval in milliseconds at which to trigger checkpoints of the running pipeline. "
           + "Default: No checkpointing.")
   @Default.Long(-1L)
@@ -190,6 +198,11 @@ public interface FlinkPipelineOptions
 
   void setLatencyTrackingInterval(Long interval);
 
+  @Description("The interval in milliseconds for automatic watermark emission.")
+  Long getAutoWatermarkInterval();
+
+  void setAutoWatermarkInterval(Long interval);
+
   @Description(
       "Flink mode for data exchange of batch pipelines. "
           + "Reference {@link org.apache.flink.api.common.ExecutionMode}. "
@@ -199,4 +212,18 @@ public interface FlinkPipelineOptions
   ExecutionMode getExecutionModeForBatch();
 
   void setExecutionModeForBatch(ExecutionMode executionMode);
+
+  @Description(
+      "Savepoint restore path. If specified, restores the streaming pipeline from the provided path.")
+  String getSavepointPath();
+
+  void setSavepointPath(String path);
+
+  @Description(
+      "Flag indicating whether non restored state is allowed if the savepoint "
+          + "contains state for an operator that is no longer part of the pipeline.")
+  @Default.Boolean(false)
+  Boolean getAllowNonRestoredState();
+
+  void setAllowNonRestoredState(Boolean allowNonRestoredState);
 }

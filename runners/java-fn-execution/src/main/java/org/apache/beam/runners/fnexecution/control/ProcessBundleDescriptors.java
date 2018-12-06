@@ -24,6 +24,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,6 +41,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -60,7 +62,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 
 /** Utility methods for creating {@link ProcessBundleDescriptor} instances. */
@@ -333,22 +335,56 @@ public class ProcessBundleDescriptors {
           throw new IllegalArgumentException(String.format("Unknown time domain %s", timeDomain));
       }
 
+      String mainInputName =
+          timerReference
+              .transform()
+              .getTransform()
+              .getInputsOrThrow(
+                  Iterables.getOnlyElement(
+                      Sets.difference(
+                          timerReference.transform().getTransform().getInputsMap().keySet(),
+                          Sets.union(
+                              payload.getSideInputsMap().keySet(),
+                              payload.getTimerSpecsMap().keySet()))));
+      String timerCoderId =
+          keyValueCoderId(
+              components
+                  .getCodersOrThrow(components.getPcollectionsOrThrow(mainInputName).getCoderId())
+                  .getComponentCoderIds(0),
+              payload.getTimerSpecsOrThrow(timerReference.localName()).getTimerCoderId(),
+              components);
+      RunnerApi.PCollection timerCollectionSpec =
+          components
+              .getPcollectionsOrThrow(mainInputName)
+              .toBuilder()
+              .setCoderId(timerCoderId)
+              .build();
+
+      // "Unroll" the timers into PCollections.
+      String inputTimerPCollectionId =
+          SyntheticComponents.uniqueId(
+              String.format(
+                  "%s.timer.%s.in", timerReference.transform().getId(), timerReference.localName()),
+              components.getPcollectionsMap()::containsKey);
+      components.putPcollections(inputTimerPCollectionId, timerCollectionSpec);
       remoteInputsBuilder.put(
-          timerReference.collection().getId(),
-          addStageInput(dataEndpoint, timerReference.collection(), components));
-      // "Unroll" the timer PCollection to make the execution tree a DAG.
+          inputTimerPCollectionId,
+          addStageInput(
+              dataEndpoint,
+              PipelineNode.pCollection(inputTimerPCollectionId, timerCollectionSpec),
+              components));
       String outputTimerPCollectionId =
           SyntheticComponents.uniqueId(
-              String.format("%s.out", timerReference.collection().getId()),
+              String.format(
+                  "%s.timer.%s.out",
+                  timerReference.transform().getId(), timerReference.localName()),
               components.getPcollectionsMap()::containsKey);
-      components.putPcollections(
-          outputTimerPCollectionId, timerReference.collection().getPCollection());
+      components.putPcollections(outputTimerPCollectionId, timerCollectionSpec);
       TargetEncoding targetEncoding =
           addStageOutput(
               dataEndpoint,
               components,
-              PipelineNode.pCollection(
-                  outputTimerPCollectionId, timerReference.collection().getPCollection()));
+              PipelineNode.pCollection(outputTimerPCollectionId, timerCollectionSpec));
       outputTargetCodersBuilder.put(targetEncoding.getTarget(), targetEncoding.getCoder());
       components.putTransforms(
           timerReference.transform().getId(),
@@ -356,6 +392,7 @@ public class ProcessBundleDescriptors {
           components
               .getTransformsOrThrow(timerReference.transform().getId())
               .toBuilder()
+              .putInputs(timerReference.localName(), inputTimerPCollectionId)
               .putOutputs(timerReference.localName(), outputTimerPCollectionId)
               .build());
 
@@ -365,11 +402,31 @@ public class ProcessBundleDescriptors {
           TimerSpec.of(
               timerReference.transform().getId(),
               timerReference.localName(),
-              timerReference.collection().getId(),
+              inputTimerPCollectionId,
+              outputTimerPCollectionId,
               targetEncoding.getTarget(),
               spec));
     }
     return idsToSpec.build().rowMap();
+  }
+
+  private static String keyValueCoderId(
+      String keyCoderId, String valueCoderId, Components.Builder components) {
+    String id =
+        uniqueId(
+            String.format("kv-%s-%s", keyCoderId, valueCoderId),
+            components.getCodersMap()::containsKey);
+    RunnerApi.Coder.Builder coder;
+    components.putCoders(
+        id,
+        RunnerApi.Coder.newBuilder()
+            .setSpec(
+                RunnerApi.SdkFunctionSpec.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.KV_CODER_URN)))
+            .addComponentCoderIds(keyCoderId)
+            .addComponentCoderIds(valueCoderId)
+            .build());
+    return id;
   }
 
   @AutoValue
@@ -442,18 +499,21 @@ public class ProcessBundleDescriptors {
     static <K, V, W extends BoundedWindow> TimerSpec<K, V, W> of(
         String transformId,
         String timerId,
-        String collectionId,
+        String inputCollectionId,
+        String outputCollectionId,
         Target outputTarget,
         org.apache.beam.sdk.state.TimerSpec timerSpec) {
       return new AutoValue_ProcessBundleDescriptors_TimerSpec(
-          transformId, timerId, collectionId, outputTarget, timerSpec);
+          transformId, timerId, inputCollectionId, outputCollectionId, outputTarget, timerSpec);
     }
 
     public abstract String transformId();
 
     public abstract String timerId();
 
-    public abstract String collectionId();
+    public abstract String inputCollectionId();
+
+    public abstract String outputCollectionId();
 
     public abstract Target outputTarget();
 

@@ -102,7 +102,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.TextFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -568,7 +568,7 @@ public class DataflowPipelineTranslator {
 
     @Override
     public void addEncodingInput(Coder<?> coder) {
-      CloudObject encoding = CloudObjects.asCloudObject(coder);
+      CloudObject encoding = translateCoder(coder, translator);
       addObject(getProperties(), PropertyNames.ENCODING, encoding);
     }
 
@@ -668,7 +668,7 @@ public class DataflowPipelineTranslator {
       if (valueCoder != null) {
         // Verify that encoding can be decoded, in order to catch serialization
         // failures as early as possible.
-        CloudObject encoding = CloudObjects.asCloudObject(valueCoder);
+        CloudObject encoding = translateCoder(valueCoder, translator);
         addObject(outputInfo, PropertyNames.ENCODING, encoding);
         translator.outputCoders.put(value, valueCoder);
       }
@@ -1016,7 +1016,7 @@ public class DataflowPipelineTranslator {
 
             stepContext.addInput(
                 PropertyNames.RESTRICTION_CODER,
-                CloudObjects.asCloudObject(transform.getRestrictionCoder()));
+                translateCoder(transform.getRestrictionCoder(), context));
           }
         });
   }
@@ -1097,5 +1097,9 @@ public class DataflowPipelineTranslator {
           stepContext);
       stepContext.addOutput(tag.getId(), (PCollection<?>) taggedOutput.getValue());
     }
+  }
+
+  private static CloudObject translateCoder(Coder<?> coder, TranslationContext context) {
+    return CloudObjects.asCloudObject(coder, context.isFnApi() ? context.getSdkComponents() : null);
   }
 }

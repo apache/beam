@@ -36,7 +36,7 @@ import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 
 /**
  * Process-wide cache of per-key state.
@@ -292,7 +292,7 @@ public class WindmillStateCache implements StatusDataProvider {
           (WeightedValue<T>) values.get(new NamespacedTag<>(namespace, tag));
       long weightDelta = 0;
       if (weightedValue == null) {
-        weightedValue = new WeightedValue<T>();
+        weightedValue = new WeightedValue<>();
         weightDelta += HASH_MAP_ENTRY_OVERHEAD;
       } else {
         weightDelta -= weightedValue.weight;

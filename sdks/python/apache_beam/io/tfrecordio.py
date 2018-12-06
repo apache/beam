@@ -39,7 +39,7 @@ __all__ = ['ReadFromTFRecord', 'WriteToTFRecord']
 
 
 def _default_crc32c_fn(value):
-  """Calculates crc32c by either snappy or crcmod based on installation."""
+  """Calculates crc32c of a bytes object using either snappy or crcmod."""
 
   if not _default_crc32c_fn.fn:
     try:
@@ -75,7 +75,7 @@ class _TFRecordUtil(object):
     """Compute a masked crc32c checksum for a value.
 
     Args:
-      value: A string for which we compute the crc.
+      value: A bytes object for which we compute the crc.
       crc32c_fn: A function that can compute a crc32c.
         This is a performance hook that also helps with testing. Callers are
         not expected to make use of it directly.
@@ -98,14 +98,15 @@ class _TFRecordUtil(object):
 
     Args:
       file_handle: The file to write to.
-      value: A string content of the record.
+      value: A bytes object representing content of the record.
     """
-    encoded_length = struct.pack('<Q', len(value))
-    file_handle.write('{}{}{}{}'.format(
+    encoded_length = struct.pack(b'<Q', len(value))
+    file_handle.write(b''.join([
         encoded_length,
-        struct.pack('<I', cls._masked_crc32c(encoded_length)),  #
+        struct.pack(b'<I', cls._masked_crc32c(encoded_length)),
         value,
-        struct.pack('<I', cls._masked_crc32c(value))))
+        struct.pack(b'<I', cls._masked_crc32c(value))
+    ]))
 
   @classmethod
   def read_record(cls, file_handle):

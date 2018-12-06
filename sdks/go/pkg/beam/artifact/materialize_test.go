@@ -17,8 +17,8 @@ package artifact
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/base64"
+	"crypto/sha256"
+	"encoding/hex"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -49,7 +49,7 @@ func TestRetrieve(t *testing.T) {
 			t.Errorf("failed to retrieve %v: %v", a.Name, err)
 			continue
 		}
-		verifyMD5(t, filename, a.Md5)
+		verifySHA256(t, filename, a.Sha256)
 	}
 }
 
@@ -73,7 +73,7 @@ func TestMultiRetrieve(t *testing.T) {
 	}
 
 	for _, a := range artifacts {
-		verifyMD5(t, makeFilename(dst, a.Name), a.Md5)
+		verifySHA256(t, makeFilename(dst, a.Name), a.Sha256)
 	}
 }
 
@@ -103,9 +103,9 @@ func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.
 		data[i] = 'z'
 	}
 
-	md5W := md5.New()
-	md5W.Write(data)
-	hash := base64.StdEncoding.EncodeToString(md5W.Sum(nil))
+	sha256W := sha256.New()
+	sha256W.Write(data)
+	hash := hex.EncodeToString(sha256W.Sum(nil))
 	md := makeArtifact(key, hash)
 	pmd := &pb.PutArtifactMetadata{
 		Metadata:            md,
@@ -148,14 +148,14 @@ func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.
 	return md
 }
 
-func verifyMD5(t *testing.T, filename, hash string) {
-	actual, err := computeMD5(filename)
+func verifySHA256(t *testing.T, filename, hash string) {
+	actual, err := computeSHA256(filename)
 	if err != nil {
 		t.Errorf("failed to compute hash for %v: %v", filename, err)
 		return
 	}
 	if actual != hash {
-		t.Errorf("file %v has bad MD5: %v, want %v", filename, actual, hash)
+		t.Errorf("file %v has bad SHA256: %v, want %v", filename, actual, hash)
 	}
 }
 
@@ -168,12 +168,12 @@ func makeTempDir(t *testing.T) string {
 }
 
 func makeTempFiles(t *testing.T, dir string, keys []string, size int) []string {
-	var md5s []string
+	var sha256s []string
 	for i, key := range keys {
 		hash := makeTempFile(t, makeFilename(dir, key), size+i)
-		md5s = append(md5s, hash)
+		sha256s = append(sha256s, hash)
 	}
-	return md5s
+	return sha256s
 }
 
 func makeTempFile(t *testing.T, filename string, size int) string {
@@ -189,15 +189,15 @@ func makeTempFile(t *testing.T, filename string, size int) string {
 		t.Fatalf("cannot create file %s: %v", filename, err)
 	}
 
-	md5W := md5.New()
-	md5W.Write(data)
-	return base64.StdEncoding.EncodeToString(md5W.Sum(nil))
+	sha256W := sha256.New()
+	sha256W.Write(data)
+	return hex.EncodeToString(sha256W.Sum(nil))
 }
 
 func makeArtifact(key, hash string) *pb.ArtifactMetadata {
 	return &pb.ArtifactMetadata{
 		Name:        key,
-		Md5:         hash,
+		Sha256:      hash,
 		Permissions: 0644,
 	}
 }

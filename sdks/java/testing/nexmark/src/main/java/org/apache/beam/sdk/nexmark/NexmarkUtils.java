@@ -165,51 +165,49 @@ public class NexmarkUtils {
     QUERY_RUNNER_AND_MODE
   }
 
+  /** Return a query name with query language (if applicable). */
+  static String fullQueryName(String queryLanguage, String query) {
+    return queryLanguage != null ? query + "_" + queryLanguage : query;
+  }
+
   /** Return a BigQuery table spec. */
   static String tableSpec(NexmarkOptions options, String queryName, long now, String version) {
+    return String.format(
+        "%s:%s.%s",
+        options.getProject(),
+        options.getBigQueryDataset(),
+        tableName(options, queryName, now, version));
+  }
+
+  /** Return a BigQuery table name. */
+  static String tableName(NexmarkOptions options, String queryName, long now, String version) {
     String baseTableName = options.getBigQueryTable();
     if (Strings.isNullOrEmpty(baseTableName)) {
       throw new RuntimeException("Missing --bigQueryTable");
     }
+
     switch (options.getResourceNameMode()) {
       case VERBATIM:
-        return String.format(
-            "%s:%s.%s_%s",
-            options.getProject(), options.getBigQueryDataset(), baseTableName, version);
+        return String.format("%s_%s", baseTableName, version);
       case QUERY:
-        return String.format(
-            "%s:%s.%s_%s_%s",
-            options.getProject(), options.getBigQueryDataset(), baseTableName, queryName, version);
+        return String.format("%s_%s_%s", baseTableName, queryName, version);
       case QUERY_AND_SALT:
-        return String.format(
-            "%s:%s.%s_%s_%s_%d",
-            options.getProject(),
-            options.getBigQueryDataset(),
-            baseTableName,
-            queryName,
-            version,
-            now);
+        return String.format("%s_%s_%s_%d", baseTableName, queryName, version, now);
       case QUERY_RUNNER_AND_MODE:
-        return (version != null)
-            ? String.format(
-                "%s:%s.%s_%s_%s_%s_%s",
-                options.getProject(),
-                options.getBigQueryDataset(),
-                baseTableName,
-                queryName,
-                options.getRunner().getSimpleName(),
-                options.isStreaming() ? "streaming" : "batch",
-                version)
-            : String.format(
-                "%s:%s.%s_%s_%s_%s",
-                options.getProject(),
-                options.getBigQueryDataset(),
-                baseTableName,
-                queryName,
-                options.getRunner().getSimpleName(),
-                options.isStreaming() ? "streaming" : "batch");
+        String runnerName = options.getRunner().getSimpleName();
+        boolean isStreaming = options.isStreaming();
+
+        String tableName =
+            String.format(
+                "%s_%s_%s_%s", baseTableName, queryName, runnerName, processingMode(isStreaming));
+
+        return version != null ? String.format("%s_%s", tableName, version) : tableName;
     }
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
+  }
+
+  private static String processingMode(boolean isStreaming) {
+    return isStreaming ? "streaming" : "batch";
   }
 
   /** Units for rates. */

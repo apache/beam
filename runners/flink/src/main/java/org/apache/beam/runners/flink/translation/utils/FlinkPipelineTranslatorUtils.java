@@ -22,10 +22,14 @@ import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
+import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
 
 /** Utilities for pipeline translation. */
 public final class FlinkPipelineTranslatorUtils {
@@ -52,6 +56,25 @@ public final class FlinkPipelineTranslatorUtils {
       return WireCoders.instantiateRunnerWireCoder(collectionNode, components);
     } catch (IOException e) {
       throw new RuntimeException("Could not instantiate Coder", e);
+    }
+  }
+
+  public static WindowingStrategy getWindowingStrategy(
+      String pCollectionId, RunnerApi.Components components) {
+    RunnerApi.WindowingStrategy windowingStrategyProto =
+        components.getWindowingStrategiesOrThrow(
+            components.getPcollectionsOrThrow(pCollectionId).getWindowingStrategyId());
+
+    final WindowingStrategy<?, ?> windowingStrategy;
+    try {
+      return WindowingStrategyTranslation.fromProto(
+          windowingStrategyProto, RehydratedComponents.forComponents(components));
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalStateException(
+          String.format(
+              "Unable to hydrate windowing strategy %s for %s.",
+              windowingStrategyProto, pCollectionId),
+          e);
     }
   }
 }

@@ -32,7 +32,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
@@ -62,6 +61,7 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.Materializations;
@@ -69,8 +69,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.TextFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,7 +89,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
 
   private static final OutputReceiver[] EMPTY_RECEIVERS = new OutputReceiver[0];
 
-  private final Supplier<String> idGenerator;
+  private final IdGenerator idGenerator;
   private final InstructionRequestHandler instructionRequestHandler;
   private final StateDelegator beamFnStateDelegator;
   private final RegisterRequest registerRequest;
@@ -108,7 +108,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
   private String grpcReadTransformOutputName = null;
 
   public RegisterAndProcessBundleOperation(
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       InstructionRequestHandler instructionRequestHandler,
       StateDelegator beamFnStateDelegator,
       RegisterRequest registerRequest,
@@ -226,7 +226,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
    */
   public synchronized String getProcessBundleInstructionId() {
     if (processBundleId == null) {
-      processBundleId = idGenerator.get();
+      processBundleId = idGenerator.getId();
     }
     return processBundleId;
   }
@@ -240,7 +240,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       if (registerFuture == null) {
         InstructionRequest request =
             InstructionRequest.newBuilder()
-                .setInstructionId(idGenerator.get())
+                .setInstructionId(idGenerator.getId())
                 .setRegister(registerRequest)
                 .build();
         registerFuture = instructionRequestHandler.handle(request);
@@ -314,7 +314,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
     }
     InstructionRequest processBundleRequest =
         InstructionRequest.newBuilder()
-            .setInstructionId(idGenerator.get())
+            .setInstructionId(idGenerator.getId())
             .setProcessBundleProgress(
                 ProcessBundleProgressRequest.newBuilder().setInstructionReference(processBundleId))
             .build();
@@ -334,6 +334,15 @@ public class RegisterAndProcessBundleOperation extends Operation {
   public CompletionStage<BeamFnApi.Metrics> getFinalMetrics() {
     return getProcessBundleResponse(processBundleResponse)
         .thenApply(response -> response.getMetrics());
+  }
+
+  public boolean hasFailed() throws ExecutionException, InterruptedException {
+    if (processBundleResponse != null && processBundleResponse.toCompletableFuture().isDone()) {
+      return !processBundleResponse.toCompletableFuture().get().getError().isEmpty();
+    } else {
+      // At the very least, we don't know that this has failed yet.
+      return false;
+    }
   }
 
   /** Returns the number of input elements consumed by the gRPC read, if known, otherwise 0. */

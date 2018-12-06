@@ -24,9 +24,9 @@ import org.apache.beam.sdk.values.PCollectionList;
 /**
  * A functor to translate an operator into a beam execution.
  *
- * @param <InputT> the type of input
- * @param <OutputT> the type of output
- * @param <OperatorT> the type of the user defined euphoria operator definition
+ * @param <InputT> the type of input elements
+ * @param <OutputT> the type of output elements
+ * @param <OperatorT> the type of the euphoria operator
  */
 public interface OperatorTranslator<InputT, OutputT, OperatorT extends Operator> {
 

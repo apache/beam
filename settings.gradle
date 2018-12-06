@@ -44,6 +44,10 @@ include "beam-runners-flink_2.11-job-server"
 project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/job-server")
 include "beam-runners-flink_2.11-job-server-container"
 project(":beam-runners-flink_2.11-job-server-container").dir = file("runners/flink/job-server-container")
+include "beam-runners-gcp-gcemd"
+project(":beam-runners-gcp-gcemd").dir = file("runners/gcp/gcemd")
+include "beam-runners-gcp-gcsproxy"
+project(":beam-runners-gcp-gcsproxy").dir = file("runners/gcp/gcsproxy")
 include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
@@ -132,6 +136,8 @@ include "beam-sdks-java-io-hadoop-file-system"
 project(":beam-sdks-java-io-hadoop-file-system").dir = file("sdks/java/io/hadoop-file-system")
 include "beam-sdks-java-io-hadoop-input-format"
 project(":beam-sdks-java-io-hadoop-input-format").dir = file("sdks/java/io/hadoop-input-format")
+include "beam-sdks-java-io-hadoop-format"
+project(":beam-sdks-java-io-hadoop-format").dir = file("sdks/java/io/hadoop-format")
 include "beam-sdks-java-io-hbase"
 project(":beam-sdks-java-io-hbase").dir = file("sdks/java/io/hbase")
 include "beam-sdks-java-io-hcatalog"
@@ -180,12 +186,16 @@ include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
 include "beam-sdks-python-container-py3"
 project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
-include "beam-vendor-java-grpc-v1"
-project(":beam-vendor-java-grpc-v1").dir = file("vendor/java-grpc-v1")
+include "beam-sdks-python-precommit-dataflow"
+project(":beam-sdks-python-precommit-dataflow").dir = file("sdks/python/precommit/dataflow")
+include "beam-vendor-grpc-1_13_1"
+project(":beam-vendor-grpc-1_13_1").dir = file("vendor/grpc-1_13_1")
 include "beam-sdks-java-test-utils"
 project(":beam-sdks-java-test-utils").dir = file("sdks/java/testing/test-utils")
 include "beam-vendor-sdks-java-extensions-protobuf"
 project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-java-extensions-protobuf")
+include "beam-vendor-guava-20_0"
+project(":beam-vendor-guava-20_0").dir = file("vendor/guava-20_0")
 include "beam-website"
 project(":beam-website").dir = file("website")
 include "beam-runners-google-cloud-dataflow-java-legacy-worker"

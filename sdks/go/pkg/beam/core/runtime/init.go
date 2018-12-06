@@ -42,3 +42,8 @@ func Init() {
 		hook()
 	}
 }
+
+// Initialized exposes the initialization status for runners.
+func Initialized() bool {
+	return initialized
+}

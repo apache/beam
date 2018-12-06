@@ -19,11 +19,9 @@ package org.apache.beam.sdk.nexmark.queries;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.IdNameReserve;
-import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -48,33 +46,37 @@ import org.joda.time.Duration;
  *
  * <p>To make things a bit more dynamic and easier to test we'll use a much shorter window.
  */
-public class Query8 extends NexmarkQuery {
+public class Query8 extends NexmarkQueryTransform<IdNameReserve> {
+  private final NexmarkConfiguration configuration;
+
   public Query8(NexmarkConfiguration configuration) {
-    super(configuration, "Query8");
+    super("Query8");
+    this.configuration = configuration;
   }
 
-  private PCollection<IdNameReserve> applyTyped(PCollection<Event> events) {
+  @Override
+  public PCollection<IdNameReserve> expand(PCollection<Event> events) {
     // Window and key new people by their id.
     PCollection<KV<Long, Person>> personsById =
         events
-            .apply(JUST_NEW_PERSONS)
+            .apply(NexmarkQueryUtil.JUST_NEW_PERSONS)
             .apply(
                 "Query8.WindowPersons",
                 Window.into(FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))))
-            .apply("PersonById", PERSON_BY_ID);
+            .apply("PersonById", NexmarkQueryUtil.PERSON_BY_ID);
 
     // Window and key new auctions by their id.
     PCollection<KV<Long, Auction>> auctionsBySeller =
         events
-            .apply(JUST_NEW_AUCTIONS)
+            .apply(NexmarkQueryUtil.JUST_NEW_AUCTIONS)
             .apply(
                 "Query8.WindowAuctions",
                 Window.into(FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))))
-            .apply("AuctionBySeller", AUCTION_BY_SELLER);
+            .apply("AuctionBySeller", NexmarkQueryUtil.AUCTION_BY_SELLER);
 
     // Join people and auctions and project the person id, name and auction reserve price.
-    return KeyedPCollectionTuple.of(PERSON_TAG, personsById)
-        .and(AUCTION_TAG, auctionsBySeller)
+    return KeyedPCollectionTuple.of(NexmarkQueryUtil.PERSON_TAG, personsById)
+        .and(NexmarkQueryUtil.AUCTION_TAG, auctionsBySeller)
         .apply(CoGroupByKey.create())
         .apply(
             name + ".Select",
@@ -82,20 +84,18 @@ public class Query8 extends NexmarkQuery {
                 new DoFn<KV<Long, CoGbkResult>, IdNameReserve>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
-                    @Nullable Person person = c.element().getValue().getOnly(PERSON_TAG, null);
+                    @Nullable
+                    Person person =
+                        c.element().getValue().getOnly(NexmarkQueryUtil.PERSON_TAG, null);
                     if (person == null) {
                       // Person was not created in last window period.
                       return;
                     }
-                    for (Auction auction : c.element().getValue().getAll(AUCTION_TAG)) {
+                    for (Auction auction :
+                        c.element().getValue().getAll(NexmarkQueryUtil.AUCTION_TAG)) {
                       c.output(new IdNameReserve(person.id, person.name, auction.reserve));
                     }
                   }
                 }));
-  }
-
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    return NexmarkUtils.castToKnownSize(name, applyTyped(events));
   }
 }

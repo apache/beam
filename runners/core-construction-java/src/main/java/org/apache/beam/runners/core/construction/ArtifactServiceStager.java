@@ -18,7 +18,8 @@
 package org.apache.beam.runners.core.construction;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.io.BaseEncoding;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.File;
@@ -26,7 +27,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.security.MessageDigest;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,9 +54,9 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.Artifac
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceStub;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.ThrowingSupplier;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,19 +169,20 @@ public class ArtifactServiceStager {
               .build();
       requestObserver.onNext(PutArtifactRequest.newBuilder().setMetadata(putMetadata).build());
 
-      MessageDigest md5Digest = MessageDigest.getInstance("MD5");
+      Hasher hasher = Hashing.sha256().newHasher();
       FileChannel channel = new FileInputStream(file.getFile()).getChannel();
       ByteBuffer readBuffer = ByteBuffer.allocate(bufferSize);
       while (!responseObserver.isTerminal() && channel.position() < channel.size()) {
         readBuffer.clear();
         channel.read(readBuffer);
         readBuffer.flip();
-        md5Digest.update(readBuffer);
+        ByteString chunk = ByteString.copyFrom(readBuffer);
+        // TODO: Use Guava 23.0's putBytes(ByteBuffer).
+        hasher.putBytes(chunk.toByteArray());
         readBuffer.rewind();
         PutArtifactRequest request =
             PutArtifactRequest.newBuilder()
-                .setData(
-                    ArtifactChunk.newBuilder().setData(ByteString.copyFrom(readBuffer)).build())
+                .setData(ArtifactChunk.newBuilder().setData(chunk).build())
                 .build();
         requestObserver.onNext(request);
       }
@@ -191,7 +192,7 @@ public class ArtifactServiceStager {
       if (responseObserver.err.get() != null) {
         throw new RuntimeException(responseObserver.err.get());
       }
-      return metadata.toBuilder().setMd5(BaseEncoding.base64().encode(md5Digest.digest())).build();
+      return metadata.toBuilder().setSha256(hasher.hash().toString()).build();
     }
 
     private class PutArtifactResponseObserver implements StreamObserver<PutArtifactResponse> {

@@ -62,7 +62,9 @@ public class GcsStager implements Stager {
     }
 
     if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty()) {
-      filesToStage.add("dataflow-worker.jar=" + dataflowWorkerJar);
+      // Put the user specified worker jar at the start of the classpath, to be consistent with the
+      // built in worker order.
+      filesToStage.add(0, "dataflow-worker.jar=" + dataflowWorkerJar);
     }
 
     return stageFiles(filesToStage);

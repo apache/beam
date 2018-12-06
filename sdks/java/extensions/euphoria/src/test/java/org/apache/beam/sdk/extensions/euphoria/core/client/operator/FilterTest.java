@@ -22,7 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
@@ -31,11 +31,10 @@ public class FilterTest {
 
   @Test
   public void testBuild() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<String> filtered =
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> filtered =
         Filter.named("Filter1").of(dataset).by(s -> !s.equals("")).output();
-    assertTrue(filtered.getProducer().isPresent());
-    final Filter filter = (Filter) filtered.getProducer().get();
+    final Filter filter = (Filter) TestUtils.getProducer(filtered);
     assertTrue(filter.getName().isPresent());
     assertEquals("Filter1", filter.getName().get());
     assertNotNull(filter.getPredicate());
@@ -43,10 +42,9 @@ public class FilterTest {
 
   @Test
   public void testBuild_implicitName() {
-    final Dataset<String> dataset = OperatorTestUtils.createMockDataset(TypeDescriptors.strings());
-    final Dataset<String> filtered = Filter.of(dataset).by(s -> !s.equals("")).output();
-    assertTrue(filtered.getProducer().isPresent());
-    final Filter filter = (Filter) filtered.getProducer().get();
+    final PCollection<String> dataset = TestUtils.createMockDataset(TypeDescriptors.strings());
+    final PCollection<String> filtered = Filter.of(dataset).by(s -> !s.equals("")).output();
+    final Filter filter = (Filter) TestUtils.getProducer(filtered);
     assertFalse(filter.getName().isPresent());
   }
 }

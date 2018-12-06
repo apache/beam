@@ -24,6 +24,24 @@ This guide is for
 [committers](https://www.apache.org/foundation/how-it-works.html#committers)
 and covers Beam's guidelines for reviewing and merging code.
 
+## Pull request review objectives
+
+The review process aims for:
+
+* Review iterations should be efficient, timely and of quality (avoid tiny or out-of-context changes or huge mega-changes)
+* Support efficiency of authoring (don't want to wait on a review for a tiny bit because GitHub makes it very hard to stack up reviews in sequence / don't want to have major changes blocked because of difficulty of review)
+* Ease of first-time contribution (encourage to follow [contribution guildelines](/contribute/#contributing-code)
+  but committer may absorb some extra effort for new contributors)
+* Pull requests and commit messages establish a clear history with purpose and origin of changes
+* Ability to perform a granular rollback, if necessary (also see [policies](/contribute/postcommits-policies/))
+
+Granularity of changes:
+
+* We prefer small independent, incremental PRs with descriptive, isolated commits. Each commit is a single clear change
+* It is OK to keep separate commits for different logical pieces of the code, if they make reviewing and revisiting code easier
+* Making commits isolated is a good practice, authors should be able to relatively easily split the PR upon reviewer's request
+* Generally, every commit should compile and pass tests.
+
 ## Always get to LGTM ("Looks good to me!")
 
 After a pull request goes through rounds of reviews and revisions, it will
@@ -77,16 +95,27 @@ At some point in the review process, the change to the codebase will be
 complete. However, the pull request may have a collection of review-related
 commits that are not meaningful to preserve in the history. The reviewer should
 give the LGTM and then request that the author of the pull request rebase,
-squash, split, etc, the commits, so that the history is most useful. Favor
-commits that do just one thing. The commit is the smallest unit of easy
+squash, split, etc, the commits, so that the history is most useful:
+* Favor commits that do just one thing. The commit is the smallest unit of easy
 rollback; it is easy to roll back many commits, or a whole pull request, but
 harder to roll back part of a commit.
+* Commit messages should tag JIRAs and be otherwise descriptive.
+It should later not be necessary to find a merge or first PR commit to find out what caused a change.
+* Squash the "Fixup!", "Address comments" type of commits that resulted from review iterations.
 
 ## Merging it!
 
+While it is preferred that authors squash commits after review is complete,
+there may be situations where it is more practical for the committer to handle this
+(such as when the action to be taken is obvious or the author isn't available).
+The committer may use the "Squash and merge" option in Github (or modify the PR commits in other ways).
+The committer is ultimately responsible and we "trust the committer's judgment"!
+
 After all the tests pass, there should be a green merge button at the bottom of
-the pull request.  There are multiple choices and you should choose "Merge pull
-request" (the default). This preserves the commit history and adds a merge
+the pull request. There are multiple choices. Unless you want to squash commits
+as part of the merge (see above) you should choose "Merge pull
+request" and ensure "Create a merge commit" is selected from the drop down.
+This preserves the commit history and adds a merge
 commit, so be sure the commit history has been curated appropriately.
 
 Do _not_ use the default GitHub commit message, which looks like this:

@@ -22,14 +22,10 @@
 
 from __future__ import absolute_import
 
-# TODO (altay): Move shared names to a common location.
 # Standard file names used for staging files.
 from builtins import object
 
-PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
 DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
-STAGED_PIPELINE_FILENAME = "pipeline.pb"
-STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
 
 # String constants related to sources framework
 SOURCE_FORMAT = 'custom_source'
@@ -47,14 +43,19 @@ BEAM_CONTAINER_VERSION = 'beam-master-20181106'
 # requires changes to SDK harness container or SDK harness launcher.
 BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20181106'
 
+# TODO(BEAM-5939): Remove these shared names once Dataflow worker is updated.
+PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
+STAGED_PIPELINE_FILENAME = "pipeline.pb"
+STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
+
 # Package names for different distributions
-# TODO(BEAM-5939): Deduplicate with apache_beam/runners/portability/stager.py
 BEAM_PACKAGE_NAME = 'apache-beam'
 
 # SDK identifiers for different distributions
 BEAM_SDK_NAME = 'Apache Beam SDK for Python'
+# TODO(BEAM-5393): End duplicated constants (see above).
 
-DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
+DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 
 
 class TransformNames(object):

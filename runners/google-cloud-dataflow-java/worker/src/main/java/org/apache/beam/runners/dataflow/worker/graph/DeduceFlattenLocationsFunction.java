@@ -145,9 +145,9 @@ public class DeduceFlattenLocationsFunction
    */
   @Override
   public MutableNetwork<Node, Edge> apply(MutableNetwork<Node, Edge> network) {
-    Map<Node, AggregatedLocation> predecessorLocationsMap = new HashMap<Node, AggregatedLocation>();
-    Map<Node, AggregatedLocation> successorLocationsMap = new HashMap<Node, AggregatedLocation>();
-    Map<Node, ExecutionLocation> deducedLocationsMap = new HashMap<Node, ExecutionLocation>();
+    Map<Node, AggregatedLocation> predecessorLocationsMap = new HashMap<>();
+    Map<Node, AggregatedLocation> successorLocationsMap = new HashMap<>();
+    Map<Node, ExecutionLocation> deducedLocationsMap = new HashMap<>();
     ImmutableList<Node> flattens =
         ImmutableList.copyOf(Iterables.filter(network.nodes(), IsFlatten.INSTANCE));
 

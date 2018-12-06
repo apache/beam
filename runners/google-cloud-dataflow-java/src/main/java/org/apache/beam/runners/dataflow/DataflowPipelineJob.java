@@ -288,7 +288,7 @@ public class DataflowPipelineJob implements PipelineResult {
       if (messageHandler != null && !hasError) {
         // Process all the job messages that have accumulated so far.
         try {
-          List<JobMessage> allMessages = monitor.getJobMessages(jobId, lastTimestamp);
+          List<JobMessage> allMessages = monitor.getJobMessages(getJobId(), lastTimestamp);
 
           if (!allMessages.isEmpty()) {
             lastTimestamp =
@@ -375,7 +375,7 @@ public class DataflowPipelineJob implements PipelineResult {
               content.setId(jobId);
               content.setRequestedState("JOB_STATE_CANCELLED");
               try {
-                Job job = dataflowClient.updateJob(jobId, content);
+                Job job = dataflowClient.updateJob(getJobId(), content);
                 return MonitoringUtil.toState(job.getCurrentState());
               } catch (IOException e) {
                 State state = getState();
@@ -468,7 +468,7 @@ public class DataflowPipelineJob implements PipelineResult {
     // Retry loop ends in return or throw
     while (true) {
       try {
-        Job job = dataflowClient.getJob(jobId);
+        Job job = dataflowClient.getJob(getJobId());
         State currentState = MonitoringUtil.toState(job.getCurrentState());
         if (currentState.isTerminal()) {
           terminalState = currentState;

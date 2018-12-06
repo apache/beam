@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
+import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
@@ -33,7 +34,7 @@ import org.joda.time.Instant;
  * @param <InputT> Type of input elements.
  * @param <OutputT> Type of output elements.
  */
-public abstract class AbstractSimulator<InputT, OutputT> {
+public abstract class AbstractSimulator<InputT, OutputT extends KnownSize> {
   /** Window size for action bucket sampling. */
   private static final Duration WINDOW_SIZE = Duration.standardMinutes(1);
 

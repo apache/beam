@@ -36,7 +36,7 @@ import org.junit.Assert;
  * Base class for models of the eight NEXMark queries. Provides an assertion function which can be
  * applied against the actual query results to check their consistency with the model.
  */
-public abstract class NexmarkQueryModel implements Serializable {
+public abstract class NexmarkQueryModel<T extends KnownSize> implements Serializable {
   public final NexmarkConfiguration configuration;
 
   NexmarkQueryModel(NexmarkConfiguration configuration) {
@@ -74,11 +74,10 @@ public abstract class NexmarkQueryModel implements Serializable {
   }
 
   /** Return simulator for query. */
-  public abstract AbstractSimulator<?, ?> simulator();
+  public abstract AbstractSimulator<?, T> simulator();
 
   /** Return sub-sequence of results which are significant for model. */
-  Iterable<TimestampedValue<KnownSize>> relevantResults(
-      Iterable<TimestampedValue<KnownSize>> results) {
+  Iterable<TimestampedValue<T>> relevantResults(Iterable<TimestampedValue<T>> results) {
     return results;
   }
 
@@ -86,17 +85,17 @@ public abstract class NexmarkQueryModel implements Serializable {
    * Convert iterator of elements to collection of strings to use when testing coherence of model
    * against actual query results.
    */
-  protected abstract <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr);
+  protected abstract Collection<String> toCollection(Iterator<TimestampedValue<T>> itr);
 
   /** Return assertion to use on results of pipeline for this query. */
-  public SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void> assertionFor() {
+  public SerializableFunction<Iterable<TimestampedValue<T>>, Void> assertionFor() {
     final Collection<String> expectedStrings = toCollection(simulator().results());
     Assert.assertFalse(expectedStrings.isEmpty());
 
-    return new SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void>() {
+    return new SerializableFunction<Iterable<TimestampedValue<T>>, Void>() {
       @Override
       @Nullable
-      public Void apply(Iterable<TimestampedValue<KnownSize>> actual) {
+      public Void apply(Iterable<TimestampedValue<T>> actual) {
         Collection<String> actualStrings = toCollection(relevantResults(actual).iterator());
         Assert.assertThat("wrong pipeline output", actualStrings, IsEqual.equalTo(expectedStrings));
         return null;

@@ -20,16 +20,12 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.collect.Iterables;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ReduceFunction;
@@ -41,12 +37,15 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Optiona
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -89,9 +88,9 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
    * @param input the input data set to be processed
    * @return a builder to complete the setup of the new operator
    * @see #named(String)
-   * @see OfBuilder#of(Dataset)
+   * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> ValueByReduceByBuilder<InputT, InputT> of(Dataset<InputT> input) {
+  public static <InputT> ValueByReduceByBuilder<InputT, InputT> of(PCollection<InputT> input) {
     return named(null).of(input);
   }
 
@@ -109,7 +108,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> ValueByReduceByBuilder<InputT, InputT> of(Dataset<InputT> input);
+    <InputT> ValueByReduceByBuilder<InputT, InputT> of(PCollection<InputT> input);
   }
 
   /** Builder for 'reduceBy' step. */
@@ -208,15 +207,15 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
   /** Builder for 'windowBy' step. */
   public interface WindowByBuilder<OutputT>
       extends Builders.WindowBy<TriggeredByBuilder<OutputT>>,
-          OptionalMethodBuilder<WindowByBuilder<OutputT>, OutputBuilder<OutputT>>,
-          OutputBuilder<OutputT> {
+          OptionalMethodBuilder<WindowByBuilder<OutputT>, Builders.Output<OutputT>>,
+          Builders.Output<OutputT> {
 
     @Override
     <W extends BoundedWindow> TriggeredByBuilder<OutputT> windowBy(WindowFn<Object, W> windowing);
 
     @Override
-    default OutputBuilder<OutputT> applyIf(
-        boolean cond, UnaryFunction<WindowByBuilder<OutputT>, OutputBuilder<OutputT>> fn) {
+    default Builders.Output<OutputT> applyIf(
+        boolean cond, UnaryFunction<WindowByBuilder<OutputT>, Builders.Output<OutputT>> fn) {
       requireNonNull(fn);
       return cond ? fn.apply(this) : this;
     }
@@ -241,10 +240,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
 
   /** Builder for 'windowed output' step. */
   public interface WindowedOutputBuilder<OutputT>
-      extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, OutputBuilder<OutputT> {}
-
-  /** Last 'output' builder. */
-  public interface OutputBuilder<OutputT> extends Builders.Output<OutputT> {}
+      extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, Builders.Output<OutputT> {}
 
   /**
    * Builder for ReduceByKey operator.
@@ -261,12 +257,12 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
           TriggeredByBuilder<OutputT>,
           AccumulationModeBuilder<OutputT>,
           WindowedOutputBuilder<OutputT>,
-          OutputBuilder<OutputT> {
+          Builders.Output<OutputT> {
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
-    private Dataset<InputT> input;
+    private PCollection<InputT> input;
     @Nullable private UnaryFunction<InputT, ValueT> valueExtractor;
     @Nullable private TypeDescriptor<ValueT> valueType;
     private ReduceFunctor<ValueT, OutputT> reducer;
@@ -278,7 +274,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
     }
 
     @Override
-    public <T> ValueByReduceByBuilder<T, T> of(Dataset<T> input) {
+    public <T> ValueByReduceByBuilder<T, T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
       final Builder<T, T, ?> casted = (Builder) this;
       casted.input = requireNonNull(input);
@@ -364,7 +360,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
     }
 
     @Override
-    public Dataset<OutputT> output(OutputHint... outputHints) {
+    public PCollection<OutputT> output(OutputHint... outputHints) {
       final ReduceWindow<InputT, ValueT, OutputT> rw =
           new ReduceWindow<>(
               name,
@@ -374,7 +370,7 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
               valueComparator,
               windowBuilder.getWindow().orElse(null),
               outputType);
-      return OperatorTransform.apply(rw, Collections.singletonList(input));
+      return OperatorTransform.apply(rw, PCollectionList.of(input));
     }
   }
 
@@ -422,10 +418,10 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
 
   @Override
   @SuppressWarnings("unchecked")
-  public Dataset<OutputT> expand(List<Dataset<InputT>> inputs) {
+  public PCollection<OutputT> expand(PCollectionList<InputT> inputs) {
     final ReduceByKey.ReduceByBuilder<Byte, ValueT> reduceBy =
         ReduceByKey.named(getName().orElse("") + "::reduce-by")
-            .of(Iterables.getOnlyElement(inputs))
+            .of(PCollectionLists.getOnlyElement(inputs))
             .keyBy(e -> B_ZERO)
             .valueBy(valueExtractor, valueType);
     final ReduceByKey.WithSortedValuesBuilder<Byte, ValueT, OutputT> sortBy =

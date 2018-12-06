@@ -30,8 +30,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.fn.harness.DoFnPTransformRunnerFactory.Context;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.Application;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.DelayedApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SplittableProcessElementInvoker;
@@ -52,7 +52,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.util.Timestamps;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -153,8 +154,7 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
     processElementTyped(elem);
   }
 
-  private <PositionT, TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
-      void processElementTyped(WindowedValue<KV<InputT, RestrictionT>> elem) {
+  private <PositionT> void processElementTyped(WindowedValue<KV<InputT, RestrictionT>> elem) {
     checkArgument(
         elem.getWindows().size() == 1,
         "SPLITTABLE_PROCESS_ELEMENTS expects its input to be in 1 window, but got %s windows",
@@ -172,9 +172,9 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
             (Coder<BoundedWindow>) context.windowCoder,
             () -> elem,
             () -> window);
-    TrackerT tracker = doFnInvoker.invokeNewTracker(elem.getValue().getValue());
-    OutputAndTimeBoundedSplittableProcessElementInvoker<
-            InputT, OutputT, RestrictionT, PositionT, TrackerT>
+    RestrictionTracker<RestrictionT, PositionT> tracker =
+        doFnInvoker.invokeNewTracker(elem.getValue().getValue());
+    OutputAndTimeBoundedSplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT>
         processElementInvoker =
             new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
                 context.doFn,
@@ -210,7 +210,7 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
                 executor,
                 10000,
                 Duration.standardSeconds(10));
-    SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT>.Result result =
+    SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT>.Result result =
         processElementInvoker.invokeProcessElement(doFnInvoker, element, tracker);
     this.stateAccessor = null;
 
@@ -227,14 +227,14 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-      Application primaryApplication =
-          Application.newBuilder()
+      BundleApplication primaryApplication =
+          BundleApplication.newBuilder()
               .setPtransformId(context.ptransformId)
               .setInputId(mainInputId)
               .setElement(primaryBytes.toByteString())
               .build();
-      Application residualApplication =
-          Application.newBuilder()
+      BundleApplication residualApplication =
+          BundleApplication.newBuilder()
               .setPtransformId(context.ptransformId)
               .setInputId(mainInputId)
               .setElement(residualBytes.toByteString())
@@ -242,9 +242,10 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
       context.splitListener.split(
           ImmutableList.of(primaryApplication),
           ImmutableList.of(
-              DelayedApplication.newBuilder()
+              DelayedBundleApplication.newBuilder()
                   .setApplication(residualApplication)
-                  .setDelaySec(0.001 * result.getContinuation().resumeDelay().getMillis())
+                  .setRequestedExecutionTime(
+                      Timestamps.fromMillis(result.getContinuation().resumeTime().getMillis()))
                   .build()));
     }
   }

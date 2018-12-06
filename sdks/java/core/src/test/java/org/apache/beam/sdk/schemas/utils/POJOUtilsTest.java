@@ -63,8 +63,8 @@ public class POJOUtilsTest {
   @Test
   public void testNullables() {
     Schema schema = POJOUtils.schemaFromPojoClass(POJOWithNullables.class);
-    assertTrue(schema.getField("str").getNullable());
-    assertFalse(schema.getField("anInt").getNullable());
+    assertTrue(schema.getField("str").getType().getNullable());
+    assertFalse(schema.getField("anInt").getType().getNullable());
   }
 
   @Test

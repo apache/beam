@@ -210,12 +210,13 @@ class SyntheticSource(iobase.BoundedSource):
         index += 1
     else:
       if self._initial_splitting_num_bundles:
-        bundle_size_in_elements = max(1, self._num_records /
-                                      self._initial_splitting_num_bundles)
+        bundle_size_in_elements = max(1, int(
+            self._num_records /
+            self._initial_splitting_num_bundles))
       else:
         bundle_size_in_elements = (max(
             div_round_up(desired_bundle_size, self.element_size),
-            math.floor(math.sqrt(self._num_records))))
+            int(math.floor(math.sqrt(self._num_records)))))
       bundle_ranges = []
       for start in range(start_position, stop_position,
                          bundle_size_in_elements):

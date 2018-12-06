@@ -41,7 +41,7 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
   private WindmillStreamWriter writer;
@@ -127,7 +127,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
 
     private WindmillStreamWriter(String destinationName) {
       this.destinationName = destinationName;
-      productionMap = new HashMap<ByteString, Windmill.KeyedMessageBundle.Builder>();
+      productionMap = new HashMap<>();
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {

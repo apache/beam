@@ -18,12 +18,16 @@
 """A PipelineRunner using the SDK harness.
 """
 from __future__ import absolute_import
+from __future__ import print_function
 
 import collections
 import contextlib
 import copy
 import logging
+import os
 import queue
+import subprocess
+import sys
 import threading
 import time
 from builtins import object
@@ -39,6 +43,7 @@ from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -53,6 +58,7 @@ from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils import profiler
 from apache_beam.utils import proto_utils
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -222,12 +228,13 @@ class FnApiRunner(runner.PipelineRunner):
     self._sdk_harness_factory = sdk_harness_factory
     self._bundle_repeat = bundle_repeat
     self._progress_frequency = None
+    self._profiler_factory = None
 
   def _next_uid(self):
     self._last_uid += 1
     return str(self._last_uid)
 
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     MetricsEnvironment.set_metrics_supported(False)
     RuntimeValueProvider.set_runtime_options({})
     # This is sometimes needed if type checking is disabled
@@ -235,10 +242,53 @@ class FnApiRunner(runner.PipelineRunner):
     # are known to be KVs.
     from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
     pipeline.visit(DataflowRunner.group_by_key_input_visitor())
+    self._bundle_repeat = self._bundle_repeat or options.view_as(
+        pipeline_options.DirectOptions).direct_runner_bundle_repeat
+    self._profiler_factory = profiler.Profile.factory_from_options(
+        options.view_as(pipeline_options.ProfilingOptions))
     return self.run_via_runner_api(pipeline.to_runner_api())
 
   def run_via_runner_api(self, pipeline_proto):
     return self.run_stages(*self.create_stages(pipeline_proto))
+
+  @contextlib.contextmanager
+  def maybe_profile(self):
+    if self._profiler_factory:
+      try:
+        profile_id = 'direct-' + subprocess.check_output(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD']
+        ).decode(errors='ignore').strip()
+      except subprocess.CalledProcessError:
+        profile_id = 'direct-unknown'
+      profiler = self._profiler_factory(profile_id, time_prefix='')
+    else:
+      profiler = None
+
+    if profiler:
+      with profiler:
+        yield
+      if not self._bundle_repeat:
+        logging.warning(
+            'The --direct_runner_bundle_repeat option is not set; '
+            'a significant portion of the profile may be one-time overhead.')
+      path = profiler.profile_output
+      print('CPU Profile written to %s' % path)
+      try:
+        import gprof2dot  # pylint: disable=unused-variable
+        if not subprocess.call([
+            sys.executable, '-m', 'gprof2dot',
+            '-f', 'pstats', path, '-o', path + '.dot']):
+          if not subprocess.call(
+              ['dot', '-Tsvg', '-o', path + '.svg', path + '.dot']):
+            print('CPU Profile rendering at file://%s.svg'
+                  % os.path.abspath(path))
+      except ImportError:
+        # pylint: disable=superfluous-parens
+        print('Please install gprof2dot and dot for profile renderings.')
+
+    else:
+      # Empty context.
+      yield
 
   def create_stages(self, pipeline_proto):
 
@@ -862,20 +912,12 @@ class FnApiRunner(runner.PipelineRunner):
           if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
             payload = proto_utils.parse_Bytes(
                 transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-            for tag in payload.timer_specs.keys():
+            for tag, spec in payload.timer_specs.items():
               if len(transform.inputs) > 1:
                 raise NotImplementedError('Timers and side inputs.')
               input_pcoll = pipeline_components.pcollections[
                   next(iter(transform.inputs.values()))]
               # Create the appropriate coder for the timer PCollection.
-              void_coder_id = add_or_get_coder_id(
-                  beam.coders.SingletonCoder(None).to_runner_api(None))
-              timer_coder_id = add_or_get_coder_id(
-                  beam_runner_api_pb2.Coder(
-                      spec=beam_runner_api_pb2.SdkFunctionSpec(
-                          spec=beam_runner_api_pb2.FunctionSpec(
-                              urn=common_urns.coders.TIMER.urn)),
-                      component_coder_ids=[void_coder_id]))
               key_coder_id = input_pcoll.coder_id
               if (pipeline_components.coders[key_coder_id].spec.spec.urn
                   == common_urns.coders.WINDOWED_VALUE.urn):
@@ -890,7 +932,7 @@ class FnApiRunner(runner.PipelineRunner):
                       spec=beam_runner_api_pb2.SdkFunctionSpec(
                           spec=beam_runner_api_pb2.FunctionSpec(
                               urn=common_urns.coders.KV.urn)),
-                      component_coder_ids=[key_coder_id, timer_coder_id]))
+                      component_coder_ids=[key_coder_id, spec.timer_coder_id]))
               timer_pcoll_coder_id = windowed_coder_id(
                   key_timer_coder_id,
                   pipeline_components.windowing_strategies[
@@ -1011,14 +1053,15 @@ class FnApiRunner(runner.PipelineRunner):
     monitoring_infos_by_stage = {}
 
     try:
-      pcoll_buffers = collections.defaultdict(list)
-      for stage in stages:
-        stage_results = self.run_stage(
-            controller, pipeline_components, stage,
-            pcoll_buffers, safe_coders)
-        metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
-        monitoring_infos_by_stage[stage.name] = (
-            stage_results.process_bundle.monitoring_infos)
+      with self.maybe_profile():
+        pcoll_buffers = collections.defaultdict(list)
+        for stage in stages:
+          stage_results = self.run_stage(
+              controller, pipeline_components, stage,
+              pcoll_buffers, safe_coders)
+          metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
+          monitoring_infos_by_stage[stage.name] = (
+              stage_results.process_bundle.monitoring_infos)
     finally:
       controller.close()
     return RunnerResult(

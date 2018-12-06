@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20180730'
+    'dataflow.container_version' : 'beam-master-20181128'
   ]
 }
 
@@ -63,7 +63,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-vendor-java-grpc-v1", configuration: "shadow")
+  shadow library.java.vendored_grpc_1_13_1
   shadow library.java.google_api_client
   shadow library.java.google_http_client
   shadow library.java.google_http_client_jackson2
@@ -115,7 +115,13 @@ def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: projec
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
 def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
-def dockerImageName = "${dockerImageContainer}:${dockerTag}"
+ext.dockerImageName = "${dockerImageContainer}:${dockerTag}"
+
+def fnApiPipelineOptions = [
+      "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
+      "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+      "--experiments=beam_fn_api",
+]
 
 def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
@@ -167,8 +173,13 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
   }
 }
 
+// Push docker images to a container registry for use within tests.
+// NB: Tasks which consume docker images from the registry should depend on this
+// task directly ('dependsOn buildAndPushDockerContainer'). This ensures the correct
+// task ordering such that the registry doesn't get cleaned up prior to task completion.
 task buildAndPushDockerContainer() {
   dependsOn ":beam-sdks-java-container:docker"
+  finalizedBy 'cleanUpDockerImages'
   def defaultDockerImageName = containerImageName(name: "java")
   doLast {
     exec {
@@ -180,20 +191,37 @@ task buildAndPushDockerContainer() {
   }
 }
 
+afterEvaluate {
+  // Ensure all tasks which use published docker images run before they are cleaned up
+  tasks.each { t ->
+    if (t.dependsOn.contains(buildAndPushDockerContainer)) {
+      cleanUpDockerImages.mustRunAfter t
+    }
+  }
+}
+
+task printFnApiPipelineOptions {
+    group = "Help"
+    description = "Prints to the console extra pipeline options needed to run a Dataflow pipeline using portability"
+
+    dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+    dependsOn buildAndPushDockerContainer
+
+    doLast {
+      println "To run a Dataflow job with portability, add the following pipeline options to your command-line:"
+      println fnApiPipelineOptions.join(' ')
+    }
+}
+
 task validatesRunnerFnApiWorkerTest(type: Test) {
     group = "Verification"
     dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
     dependsOn buildAndPushDockerContainer
-
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}",
-            "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
-            "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-            "--experiments=beam_fn_api",
-
-    ])
+            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+    )
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
@@ -221,15 +249,7 @@ task validatesRunnerPortabilityApi {
   group = "Verification"
   description "Validates Dataflow PortabilityApi runner"
   dependsOn validatesRunnerFnApiWorkerTest
-  // Clean up docker image
-  doLast {
-    exec {
-      commandLine "docker", "rmi", "${dockerImageName}"
-    }
-    exec {
-      commandLine "gcloud", "--quiet", "container", "images", "delete", "${dockerImageName}"
-    }
-  }
+  dependsOn buildAndPushDockerContainer
 }
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
@@ -260,11 +280,8 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}",
-            "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
-            "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-            "--experiments=beam_fn_api",
-    ])
+            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+    )
 
     include '**/*IT.class'
     exclude '**/BigQueryIOReadIT.class'
@@ -317,11 +334,8 @@ task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}",
-            "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
-            "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-            "--experiments=beam_fn_api",
-    ])
+            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+    )
 
     // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
     // this postCommit integration test excludes them.
@@ -367,11 +381,8 @@ task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
             "--runner=TestDataflowRunner",
             "--project=${dataflowProject}",
-            "--tempRoot=${dataflowPostCommitTempRoot}",
-            "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
-            "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-            "--experiments=beam_fn_api",
-    ])
+            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+    )
 
     include '**/*IT.class'
     maxParallelForks 4
@@ -391,16 +402,20 @@ task postCommit {
 task postCommitPortabilityApi {
   group = "Verification"
   description = "Various integration tests using the Dataflow FnApi runner."
+  dependsOn buildAndPushDockerContainer
   dependsOn googleCloudPlatformFnApiWorkerIntegrationTest
   dependsOn examplesJavaFnApiWorkerIntegrationTest
   dependsOn coreSDKJavaFnApiWorkerIntegrationTest
-  // Clean up docker image
+}
+
+// Clean up built images
+task cleanUpDockerImages() {
   doLast {
     exec {
       commandLine "docker", "rmi", "${dockerImageName}"
     }
     exec {
-      commandLine "gcloud", "--quiet", "container", "images", "delete", "${dockerImageName}"
+      commandLine "gcloud", "--quiet", "container", "images", "delete", "--force-delete-tags", "${dockerImageName}"
     }
   }
 }

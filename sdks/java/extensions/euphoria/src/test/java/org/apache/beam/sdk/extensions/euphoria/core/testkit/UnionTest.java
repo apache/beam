@@ -21,20 +21,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 
 /** Test for operator {@code Union}. */
 public class UnionTest extends AbstractOperatorTest {
 
-  private static Dataset<Integer> createDataset(Pipeline pipeline, Integer... data) {
-    return Dataset.of(
-        pipeline
-            .apply("create-" + UUID.randomUUID(), Create.of(Arrays.asList(data)))
-            .setTypeDescriptor(TypeDescriptors.integers()));
+  private static PCollection<Integer> createDataset(Pipeline pipeline, Integer... data) {
+    return pipeline
+        .apply("create-" + UUID.randomUUID(), Create.of(Arrays.asList(data)))
+        .setTypeDescriptor(TypeDescriptors.integers());
   }
 
   @Test
@@ -43,9 +42,9 @@ public class UnionTest extends AbstractOperatorTest {
         new TestCase<Integer>() {
 
           @Override
-          public Dataset<Integer> getOutput(Pipeline pipeline) {
-            final Dataset<Integer> first = createDataset(pipeline, 1, 2, 3, 4, 5, 6);
-            final Dataset<Integer> second = createDataset(pipeline, 7, 8, 9, 10, 11, 12);
+          public PCollection<Integer> getOutput(Pipeline pipeline) {
+            final PCollection<Integer> first = createDataset(pipeline, 1, 2, 3, 4, 5, 6);
+            final PCollection<Integer> second = createDataset(pipeline, 7, 8, 9, 10, 11, 12);
             return Union.of(first, second).output();
           }
 
@@ -62,10 +61,10 @@ public class UnionTest extends AbstractOperatorTest {
         new TestCase<Integer>() {
 
           @Override
-          public Dataset<Integer> getOutput(Pipeline pipeline) {
-            final Dataset<Integer> first = createDataset(pipeline, 1, 2, 3, 4, 5, 6);
-            final Dataset<Integer> second = createDataset(pipeline, 7, 8, 9, 10, 11, 12);
-            final Dataset<Integer> third = createDataset(pipeline, 13, 14, 15, 16, 17, 18);
+          public PCollection<Integer> getOutput(Pipeline pipeline) {
+            final PCollection<Integer> first = createDataset(pipeline, 1, 2, 3, 4, 5, 6);
+            final PCollection<Integer> second = createDataset(pipeline, 7, 8, 9, 10, 11, 12);
+            final PCollection<Integer> third = createDataset(pipeline, 13, 14, 15, 16, 17, 18);
             return Union.of(first, second, third).output();
           }
 
@@ -82,12 +81,12 @@ public class UnionTest extends AbstractOperatorTest {
         new TestCase<Integer>() {
 
           @Override
-          public Dataset<Integer> getOutput(Pipeline pipeline) {
-            final Dataset<Integer> first = createDataset(pipeline, 1, 2, 3);
-            final Dataset<Integer> second = createDataset(pipeline, 4, 5, 6);
-            final Dataset<Integer> third = createDataset(pipeline, 7, 8, 9);
-            final Dataset<Integer> fourth = createDataset(pipeline, 10, 11, 12);
-            final Dataset<Integer> fifth = createDataset(pipeline, 13, 14, 15);
+          public PCollection<Integer> getOutput(Pipeline pipeline) {
+            final PCollection<Integer> first = createDataset(pipeline, 1, 2, 3);
+            final PCollection<Integer> second = createDataset(pipeline, 4, 5, 6);
+            final PCollection<Integer> third = createDataset(pipeline, 7, 8, 9);
+            final PCollection<Integer> fourth = createDataset(pipeline, 10, 11, 12);
+            final PCollection<Integer> fifth = createDataset(pipeline, 13, 14, 15);
             return Union.of(first, second, third, fourth, fifth).output();
           }
 

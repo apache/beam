@@ -25,6 +25,8 @@ import unittest
 import hamcrest as hc
 
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.transforms.display import DisplayData
@@ -297,6 +299,21 @@ class PipelineOptionsTest(unittest.TestCase):
                                '--dup_arg=val3'])
     self.assertEqual(options.get_all_options()['dup_arg'],
                      ['val1', 'val2', 'val3'])
+
+  # The argparse package by default tries to autocomplete option names. This
+  # results in an "ambiguous option" error from argparse when an unknown option
+  # matching multiple known ones are used. This tests that we suppress this
+  # error.
+  def test_unknown_option_prefix(self):
+    # Test that the "ambiguous option" error is suppressed.
+    options = PipelineOptions(['--profi', 'val1'])
+    options.view_as(ProfilingOptions)
+
+    # Test that valid errors are not suppressed.
+    with self.assertRaises(SystemExit):
+      # Invalid option choice.
+      options = PipelineOptions(['--type_check_strictness', 'blahblah'])
+      options.view_as(TypeOptions)
 
 
 if __name__ == '__main__':

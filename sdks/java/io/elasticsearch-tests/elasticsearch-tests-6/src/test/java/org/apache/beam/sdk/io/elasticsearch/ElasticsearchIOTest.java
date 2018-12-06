@@ -89,7 +89,9 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void setup() {
     if (connectionConfiguration == null) {
       connectionConfiguration =
-          ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE);
+          ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE)
+              .withSocketAndRetryTimeout(90000)
+              .withConnectTimeout(5000);
       elasticsearchIOTestCommon =
           new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
     }
@@ -195,5 +197,11 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     elasticsearchIOTestCommon.setExpectedException(expectedException);
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteRetry();
+  }
+
+  @Test
+  public void testWriteRetryValidRequest() throws Throwable {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteRetryValidRequest();
   }
 }

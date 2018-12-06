@@ -64,6 +64,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParam
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -555,9 +556,6 @@ public class DoFnSignatures {
     ErrorReporter processElementErrors =
         errors.forMethod(DoFn.ProcessElement.class, processElement.targetMethod());
 
-    final TypeDescriptor<?> trackerT;
-    final String originOfTrackerT;
-
     List<String> missingRequiredMethods = new ArrayList<>();
     if (getInitialRestriction == null) {
       missingRequiredMethods.add("@" + DoFn.GetInitialRestriction.class.getSimpleName());
@@ -567,27 +565,11 @@ public class DoFnSignatures {
           && getInitialRestriction
               .restrictionT()
               .isSubtypeOf(TypeDescriptor.of(HasDefaultTracker.class))) {
-        trackerT =
-            getInitialRestriction
-                .restrictionT()
-                .resolveType(HasDefaultTracker.class.getTypeParameters()[1]);
-        originOfTrackerT =
-            String.format(
-                "restriction type %s of @%s method %s",
-                formatType(getInitialRestriction.restrictionT()),
-                DoFn.GetInitialRestriction.class.getSimpleName(),
-                format(getInitialRestriction.targetMethod()));
+        // no-op we are using the annotation @HasDefaultTracker
       } else {
         missingRequiredMethods.add("@" + DoFn.NewTracker.class.getSimpleName());
-        trackerT = null;
-        originOfTrackerT = null;
       }
     } else {
-      trackerT = newTracker.trackerT();
-      originOfTrackerT =
-          String.format(
-              "%s method %s",
-              DoFn.NewTracker.class.getSimpleName(), format(newTracker.targetMethod()));
       ErrorReporter getInitialRestrictionErrors =
           errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestriction.targetMethod());
       TypeDescriptor<?> restrictionT = getInitialRestriction.restrictionT();
@@ -610,11 +592,9 @@ public class DoFnSignatures {
         errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestriction.targetMethod());
     TypeDescriptor<?> restrictionT = getInitialRestriction.restrictionT();
     processElementErrors.checkArgument(
-        processElement.trackerT().equals(trackerT),
-        "Has tracker type %s, but the DoFn's tracker type was inferred as %s from %s",
-        formatType(processElement.trackerT()),
-        trackerT,
-        originOfTrackerT);
+        processElement.trackerT().getRawType().equals(RestrictionTracker.class),
+        "Has tracker type %s, but the DoFn's tracker type must be of type RestrictionTracker.",
+        formatType(processElement.trackerT()));
 
     if (getRestrictionCoder != null) {
       getInitialRestrictionErrors.checkArgument(
@@ -1203,18 +1183,24 @@ public class DoFnSignatures {
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
 
     Type[] params = m.getGenericParameterTypes();
-    errors.checkArgument(params.length == 3, "Must have exactly 3 arguments");
+    errors.checkArgument(params.length == 4, "Must have 4 arguments");
     errors.checkArgument(
         fnT.resolveType(params[0]).equals(inputT),
         "First argument must be the element type %s",
         formatType(inputT));
 
     TypeDescriptor<?> restrictionT = fnT.resolveType(params[1]);
-    TypeDescriptor<?> receiverT = fnT.resolveType(params[2]);
+    TypeDescriptor<?> backlogType = fnT.resolveType(params[2]);
+    errors.checkArgument(
+        backlogType.equals(TypeDescriptor.of(Backlog.class)),
+        "Third argument must be %s, but is %s",
+        formatType(TypeDescriptor.of(Backlog.class)),
+        formatType(backlogType));
+    TypeDescriptor<?> receiverT = fnT.resolveType(params[3]);
     TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(restrictionT);
     errors.checkArgument(
         receiverT.equals(expectedReceiverT),
-        "Third argument must be %s, but is %s",
+        "Fourth argument must be %s, but is %s",
         formatType(expectedReceiverT),
         formatType(receiverT));
 

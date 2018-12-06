@@ -66,7 +66,7 @@ from apache_beam.portability.api import standard_window_fns_pb2
 from apache_beam.transforms import timeutil
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
@@ -226,31 +226,18 @@ class BoundedWindow(object):
     return '[?, %s)' % float(self.end)
 
 
-class IntervalWindow(BoundedWindow):
+@total_ordering
+class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
   """A window for timestamps in range [start, end).
 
   Attributes:
     start: Start of window as seconds since Unix epoch.
     end: End of window as seconds since Unix epoch.
   """
-
-  def __init__(self, start, end):
-    super(IntervalWindow, self).__init__(end)
-    self.start = Timestamp.of(start)
-
-  def __hash__(self):
-    return hash((self.start, self.end))
-
-  def __eq__(self, other):
-    return (self.start == other.start
-            and self.end == other.end
-            and type(self) == type(other))
-
-  def __ne__(self, other):
-    return not self == other
-
-  def __repr__(self):
-    return '[%s, %s)' % (float(self.start), float(self.end))
+  def __lt__(self, other):
+    if self.end != other.end:
+      return self.end < other.end
+    return hash(self) < hash(other)
 
   def intersects(self, other):
     return other.start < self.end or self.start < other.end
@@ -295,11 +282,6 @@ class TimestampedValue(object):
 class GlobalWindow(BoundedWindow):
   """The default window into which all data is placed (via GlobalWindows)."""
   _instance = None
-  # The maximum timestamp for global windows is MAX_TIMESTAMP - 1 day.
-  # This is due to timers triggering when the watermark passes the trigger
-  # time, which is only possible for timestamps < MAX_TIMESTAMP.
-  # See also GlobalWindow in the Java SDK.
-  _END_OF_GLOBAL_WINDOW = MAX_TIMESTAMP - (24 * 60 * 60)
 
   def __new__(cls):
     if cls._instance is None:
@@ -307,7 +289,7 @@ class GlobalWindow(BoundedWindow):
     return cls._instance
 
   def __init__(self):
-    super(GlobalWindow, self).__init__(GlobalWindow._END_OF_GLOBAL_WINDOW)
+    super(GlobalWindow, self).__init__(GlobalWindow._getTimestampFromProto())
     self.start = MIN_TIMESTAMP
 
   def __repr__(self):
@@ -322,6 +304,12 @@ class GlobalWindow(BoundedWindow):
 
   def __ne__(self, other):
     return not self == other
+
+  @staticmethod
+  def _getTimestampFromProto():
+    ts_millis = int(
+        common_urns.constants.GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS.constant)
+    return Timestamp(micros=ts_millis*1000)
 
 
 class NonMergingWindowFn(WindowFn):

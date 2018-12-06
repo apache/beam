@@ -103,7 +103,8 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     return tables().get(tableName).rows;
   }
 
-  private static class TableWithRows implements Serializable {
+  /** TableWitRows. */
+  public static class TableWithRows implements Serializable {
     private Table table;
     private List<Row> rows;
     private long tableProviderInstanceId;
@@ -113,10 +114,19 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       this.table = table;
       this.rows = new CopyOnWriteArrayList<>();
     }
+
+    public List<Row> getRows() {
+      return rows;
+    }
   }
 
   private static class InMemoryTable implements BeamSqlTable {
     private TableWithRows tableWithRows;
+
+    @Override
+    public PCollection.IsBounded isBounded() {
+      return PCollection.IsBounded.BOUNDED;
+    }
 
     public InMemoryTable(TableWithRows tableWithRows) {
       this.tableWithRows = tableWithRows;

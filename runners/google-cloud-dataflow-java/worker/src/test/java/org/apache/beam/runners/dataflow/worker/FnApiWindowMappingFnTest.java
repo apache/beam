@@ -34,10 +34,10 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -73,7 +73,7 @@ public class FnApiWindowMappingFnTest {
 
     FnApiWindowMappingFn windowMappingFn =
         new FnApiWindowMappingFn(
-            IdGenerator::generate,
+            IdGenerators.decrementingLongs(),
             testSdkHarness,
             DATA_SERVICE,
             testSdkHarness,
@@ -136,6 +136,9 @@ public class FnApiWindowMappingFnTest {
           inboundReceiver.accept(windowedValue.withValue(KV.of(kv.getKey(), outputValue)));
           inboundDataClient.complete();
         }
+
+        @Override
+        public void flush() throws Exception {}
 
         @Override
         public void close() throws Exception {}

@@ -85,7 +85,9 @@ public class ElasticsearchIOTest implements Serializable {
     node.start();
     connectionConfiguration =
         ConnectionConfiguration.create(
-            new String[] {"http://" + ES_IP + ":" + esHttpPort}, getEsIndex(), ES_TYPE);
+                new String[] {"http://" + ES_IP + ":" + esHttpPort}, getEsIndex(), ES_TYPE)
+            .withSocketAndRetryTimeout(90000)
+            .withConnectTimeout(5000);
     restClient = connectionConfiguration.createClient();
     elasticsearchIOTestCommon =
         new ElasticsearchIOTestCommon(connectionConfiguration, restClient, false);
@@ -209,5 +211,11 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.setExpectedException(expectedException);
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteRetry();
+  }
+
+  @Test
+  public void testWriteRetryValidRequest() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteRetryValidRequest();
   }
 }

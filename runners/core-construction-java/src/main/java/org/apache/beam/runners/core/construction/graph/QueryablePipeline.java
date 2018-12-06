@@ -62,7 +62,7 @@ import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * A {@link Pipeline} which has additional methods to relate nodes in the graph relative to each
@@ -382,12 +382,8 @@ public class QueryablePipeline {
             localName -> {
               String transformId = transform.getId();
               PTransform transformProto = components.getTransformsOrThrow(transformId);
-              String collectionId = transform.getTransform().getInputsOrThrow(localName);
-              PCollection collection = components.getPcollectionsOrThrow(collectionId);
               return TimerReference.of(
-                  PipelineNode.pTransform(transformId, transformProto),
-                  localName,
-                  PipelineNode.pCollection(collectionId, collection));
+                  PipelineNode.pTransform(transformId, transformProto), localName);
             })
         .collect(Collectors.toSet());
   }

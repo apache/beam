@@ -177,7 +177,7 @@ class TestPipeStream(unittest.TestCase):
       data_list.append(data)
       bytes_read += len(data)
       self.assertEqual(stream.tell(), bytes_read)
-    self.assertEqual(''.join(data_list), expected)
+    self.assertEqual(b''.join(data_list), expected)
 
   def test_pipe_stream(self):
     block_sizes = list(4**i for i in range(0, 12))

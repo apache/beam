@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -1392,7 +1393,7 @@ public class IsmSideInputReaderTest {
           executionContext.getExecutionStateRegistry().extractUpdates(true);
       assertThat(counterUpdates, hasItem(expectedSideInputMsecUpdate));
       Counter<?, ?> expectedCounter = counterFactory.getExistingCounter(expectedCounterName);
-      assertTrue(expectedCounter != null);
+      assertNotNull(expectedCounter);
     }
   }
 
@@ -1770,7 +1771,8 @@ public class IsmSideInputReaderTest {
   private <K, V> Source newIsmSource(IsmRecordCoder<WindowedValue<V>> coder, String tmpFilePath) {
     Source source = new Source();
     source.setCodec(
-        CloudObjects.asCloudObject(WindowedValue.getFullCoder(coder, GLOBAL_WINDOW_CODER)));
+        CloudObjects.asCloudObject(
+            WindowedValue.getFullCoder(coder, GLOBAL_WINDOW_CODER), /*sdkComponents=*/ null));
     source.setSpec(new HashMap<String, Object>());
     source.getSpec().put(PropertyNames.OBJECT_TYPE_NAME, "IsmSource");
     source.getSpec().put(WorkerPropertyNames.FILENAME, tmpFilePath);

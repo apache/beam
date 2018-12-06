@@ -51,6 +51,7 @@ import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 
@@ -101,12 +102,12 @@ public abstract class RowCoderGenerator {
   private static final Map<TypeName, StackManipulation> CODER_MAP;
 
   // Cache for Coder class that are already generated.
-  private static Map<UUID, Coder<Row>> generatedCoders = Maps.newConcurrentMap();
+  private static Map<UUID, Coder<Row>> generatedCoders = Maps.newHashMap();
 
   static {
     // Initialize the CODER_MAP with the StackManipulations to create the primitive coders.
     // Assumes that each class contains a static of() constructor method.
-    CODER_MAP = Maps.newConcurrentMap();
+    CODER_MAP = Maps.newHashMap();
     for (Map.Entry<TypeName, Coder> entry : RowCoder.CODER_MAP.entrySet()) {
       StackManipulation stackManipulation =
           MethodInvocation.invoke(
@@ -147,7 +148,8 @@ public abstract class RowCoderGenerator {
 
   private static DynamicType.Builder<Coder> implementMethods(
       Schema schema, DynamicType.Builder<Coder> builder) {
-    boolean hasNullableFields = schema.getFields().stream().anyMatch(Field::getNullable);
+    boolean hasNullableFields =
+        schema.getFields().stream().map(Field::getType).anyMatch(FieldType::getNullable);
     return builder
         .defineMethod("getSchema", Schema.class, Visibility.PRIVATE, Ownership.STATIC)
         .intercept(FixedValue.reference(schema))

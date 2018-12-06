@@ -94,8 +94,7 @@ public class ExecutableStageTest {
     UserStateReference userStateRef =
         UserStateReference.of(
             transformNode, "user_state", PipelineNode.pCollection("input.out", input));
-    TimerReference timerRef =
-        TimerReference.of(transformNode, "timer", PipelineNode.pCollection("timer.out", timer));
+    TimerReference timerRef = TimerReference.of(transformNode, "timer");
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.of(
             components,

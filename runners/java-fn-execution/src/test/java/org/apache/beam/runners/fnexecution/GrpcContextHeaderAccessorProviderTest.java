@@ -17,22 +17,23 @@
  */
 package org.apache.beam.runners.fnexecution;
 
+import com.google.common.collect.ImmutableList;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.vendor.grpc.v1.io.grpc.CallOptions;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ClientCall;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1.io.grpc.MethodDescriptor;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.MethodDescriptor;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,7 +55,8 @@ public class GrpcContextHeaderAccessorProviderTest {
     TestDataService testService = new TestDataService(Mockito.mock(StreamObserver.class), consumer);
     ApiServiceDescriptor serviceDescriptor =
         ApiServiceDescriptor.newBuilder().setUrl("testServer").build();
-    Server server = InProcessServerFactory.create().create(testService, serviceDescriptor);
+    Server server =
+        InProcessServerFactory.create().create(ImmutableList.of(testService), serviceDescriptor);
     final Metadata.Key<String> workerIdKey =
         Metadata.Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
     Channel channel =

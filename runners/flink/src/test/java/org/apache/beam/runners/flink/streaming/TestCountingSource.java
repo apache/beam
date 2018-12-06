@@ -55,6 +55,9 @@ public class TestCountingSource
   private final boolean throwOnFirstSnapshot;
   private final int fixedNumSplits;
 
+  /** Flag to stall processing readers' elements. */
+  private transient volatile boolean haltEmission;
+
   /**
    * We only allow an exception to be thrown from getCheckpointMark at most once. This must be
    * static since the entire TestCountingSource instance may re-serialized when the pipeline
@@ -106,8 +109,14 @@ public class TestCountingSource
     this.fixedNumSplits = fixedNumSplits;
   }
 
-  public int getShardNumber() {
-    return shardNumber;
+  /** Halts emission of elements until {@code continueEmission} is invoked. */
+  void haltEmission() {
+    haltEmission = true;
+  }
+
+  /** Continues processing elements after {@code haltEmission} was invoked. */
+  void continueEmission() {
+    haltEmission = false;
   }
 
   @Override
@@ -163,7 +172,7 @@ public class TestCountingSource
 
     @Override
     public boolean advance() {
-      if (current >= numMessagesPerShard - 1) {
+      if (current >= numMessagesPerShard - 1 || haltEmission) {
         return false;
       }
       // If testing dedup, occasionally insert a duplicate value;

@@ -26,12 +26,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-import org.apache.beam.sdk.extensions.euphoria.core.client.lib.Euphoria;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CompositeOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CountByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Filter;
@@ -46,8 +44,16 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.SumByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.TopPerKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Union;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Fold;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.BroadcastHashJoinTranslator;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.CompositeOperatorTranslator;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.FlatMapTranslator;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTranslator;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.TranslatorProvider;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.provider.CompositeProvider;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.provider.GenericTranslatorProvider;
 import org.apache.beam.sdk.extensions.kryo.KryoCoderProvider;
 import org.apache.beam.sdk.extensions.kryo.KryoOptions;
 import org.apache.beam.sdk.io.TextIO;
@@ -65,6 +71,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -104,17 +111,14 @@ public class DocumentationExamplesTest {
     KryoCoderProvider.of().registerTo(pipeline);
 
     // Source of data loaded from Beam IO.
-    PCollection<String> input =
+    PCollection<String> lines =
         pipeline
             .apply(Create.of(textLineByLine))
             .setTypeDescriptor(TypeDescriptor.of(String.class));
 
-    // Transform PCollection to euphoria's Dataset.
-    Dataset<String> lines = Dataset.of(input);
-
     // FlatMap processes one input element at a time and allows user code to emit
     // zero, one, or more output elements. From input lines we will get data set of words.
-    Dataset<String> words =
+    PCollection<String> words =
         FlatMap.named("TOKENIZER")
             .of(lines)
             .using(
@@ -128,21 +132,19 @@ public class DocumentationExamplesTest {
     // Now we can count input words - the operator ensures that all values for the same
     // key (word in this case) end up being processed together. Then it counts number of appearances
     // of the same key in 'words' dataset and emits it to output.
-    Dataset<KV<String, Long>> counted = CountByKey.named("COUNT").of(words).keyBy(w -> w).output();
+    PCollection<KV<String, Long>> counted =
+        CountByKey.named("COUNT").of(words).keyBy(w -> w).output();
 
     // Format output.
-    Dataset<String> output =
+    PCollection<String> output =
         MapElements.named("FORMAT")
             .of(counted)
             .using(p -> p.getKey() + ": " + p.getValue())
             .output();
 
-    // Transform Dataset back to PCollection. It can be done in any step of this flow.
-    PCollection<String> outputCollection = output.getPCollection();
-
     // Now we can again use Beam transformation. In this case we save words and their count
     // into the text file.
-    outputCollection.apply(TextIO.write().to("counted_words"));
+    output.apply(TextIO.write().to("counted_words"));
 
     pipeline.run();
   }
@@ -155,19 +157,17 @@ public class DocumentationExamplesTest {
             .apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))
             .setTypeDescriptor(TypeDescriptor.of(String.class));
 
-    Dataset<String> dataset = Dataset.of(input);
-
     pipeline.run();
   }
 
   @Test
   public void addOperatorSection() {
-    Dataset<Integer> input = Dataset.of(pipeline.apply(Create.of(1, 2, 4, 3)));
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 4, 3));
 
-    Dataset<String> mappedElements =
+    PCollection<String> mappedElements =
         MapElements.named("Int2Str").of(input).using(String::valueOf).output();
 
-    PAssert.that(mappedElements.getPCollection()).containsInAnyOrder("1", "2", "4", "3");
+    PAssert.that(mappedElements).containsInAnyOrder("1", "2", "4", "3");
 
     pipeline.run();
   }
@@ -177,9 +177,9 @@ public class DocumentationExamplesTest {
     final PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
 
-    Dataset<String> dataset = Dataset.of(pipeline.apply(Create.of("a", "x")));
+    PCollection<String> dataset = pipeline.apply(Create.of("a", "x"));
 
-    Dataset<String> flatMapped =
+    PCollection<String> flatMapped =
         FlatMap.named("FlatMap1")
             .of(dataset)
             .using(
@@ -189,7 +189,7 @@ public class DocumentationExamplesTest {
                 })
             .output();
 
-    Dataset<String> mapped =
+    PCollection<String> mapped =
         MapElements.named("MapThem")
             .of(dataset)
             .using(
@@ -219,9 +219,8 @@ public class DocumentationExamplesTest {
             })
         .registerTo(pipeline);
 
-    Dataset<Integer> input =
-        Dataset.of(
-            pipeline.apply(Create.of(1, 2, 3, 4)).setTypeDescriptor(TypeDescriptors.integers()));
+    PCollection<Integer> input =
+        pipeline.apply(Create.of(1, 2, 3, 4)).setTypeDescriptor(TypeDescriptors.integers());
 
     MapElements.named("Int2Str")
         .of(input)
@@ -232,11 +231,10 @@ public class DocumentationExamplesTest {
   @Test
   public void windowingSection() {
 
-    Dataset<Integer> input =
-        Dataset.of(
-            pipeline.apply(Create.of(1, 2, 3, 4)).setTypeDescriptor(TypeDescriptors.integers()));
+    PCollection<Integer> input =
+        pipeline.apply(Create.of(1, 2, 3, 4)).setTypeDescriptor(TypeDescriptors.integers());
 
-    Dataset<KV<Integer, Long>> countedElements =
+    PCollection<KV<Integer, Long>> countedElements =
         CountByKey.of(input)
             .keyBy(e -> e)
             .windowBy(FixedWindows.of(Duration.standardSeconds(1)))
@@ -255,13 +253,13 @@ public class DocumentationExamplesTest {
   @Test
   public void countByKeyOperator() {
 
-    Dataset<Integer> input = Dataset.of(pipeline.apply(Create.of(1, 2, 4, 1, 1, 3)));
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 4, 1, 1, 3));
 
     // suppose input: [1, 2, 4, 1, 1, 3]
-    Dataset<KV<Integer, Long>> output = CountByKey.of(input).keyBy(e -> e).output();
+    PCollection<KV<Integer, Long>> output = CountByKey.of(input).keyBy(e -> e).output();
     // Output will contain:  [KV(1, 3), KV(2, 1), KV(3, 1), (4, 1)]
 
-    PAssert.that(output.getPCollection())
+    PAssert.that(output)
         .containsInAnyOrder(asList(KV.of(1, 3L), KV.of(2, 1L), KV.of(3, 1L), KV.of(4, 1L)));
 
     pipeline.run();
@@ -270,29 +268,24 @@ public class DocumentationExamplesTest {
   @Test
   public void distinctOperator() {
 
-    Dataset<Integer> input = Dataset.of(pipeline.apply("input", Create.of(1, 2, 3, 3, 2, 1)));
+    PCollection<Integer> input = pipeline.apply("input", Create.of(1, 2, 3, 3, 2, 1));
 
     // suppose input: [1, 2, 3, 3, 2, 1]
     Distinct.named("unique-integers-only").of(input).output();
     // Output will contain:  1, 2, 3
 
-    Dataset<KV<Integer, Long>> keyValueInput =
-        Dataset.of(
-            pipeline.apply(
-                "keyValueInput",
-                Create.of(
-                    KV.of(1, 100L),
-                    KV.of(3, 100_000L),
-                    KV.of(42, 10L),
-                    KV.of(1, 0L),
-                    KV.of(3, 0L))));
+    PCollection<KV<Integer, Long>> keyValueInput =
+        pipeline.apply(
+            "keyValueInput",
+            Create.of(
+                KV.of(1, 100L), KV.of(3, 100_000L), KV.of(42, 10L), KV.of(1, 0L), KV.of(3, 0L)));
 
     // suppose input: [KV(1, 100L), KV(3, 100_000L), KV(42, 10L), KV(1, 0L), KV(3, 0L)]
-    Dataset<Integer> uniqueKeys =
+    PCollection<Integer> uniqueKeys =
         Distinct.named("unique-keys-only").of(keyValueInput).mapped(KV::getKey).output();
     // Output will contain:  1, 3, 42
 
-    PAssert.that(uniqueKeys.getPCollection()).containsInAnyOrder(1, 3, 42);
+    PAssert.that(uniqueKeys).containsInAnyOrder(1, 3, 42);
 
     pipeline.run();
   }
@@ -300,14 +293,18 @@ public class DocumentationExamplesTest {
   @Test
   public void batchJoinOperator() {
 
-    Dataset<Integer> left = Dataset.of(pipeline.apply("left", Create.of(1, 2, 3, 0, 4, 3, 1)));
-    Dataset<String> right =
-        Dataset.of(
-            pipeline.apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck")));
+    PCollection<Integer> left =
+        pipeline
+            .apply("left", Create.of(1, 2, 3, 0, 4, 3, 1))
+            .setTypeDescriptor(TypeDescriptors.integers());
+    PCollection<String> right =
+        pipeline
+            .apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))
+            .setTypeDescriptor(TypeDescriptors.strings());
 
     // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
     // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
-    Dataset<KV<Integer, String>> joined =
+    PCollection<KV<Integer, String>> joined =
         Join.named("join-length-to-words")
             .of(left, right)
             .by(le -> le, String::length) // key extractors
@@ -317,8 +314,7 @@ public class DocumentationExamplesTest {
     // joined will contain: [ KV(1, "1+X"), KV(3, "3+cat"), KV(3, "3+rat"), KV(4, "4+duck"),
     // KV(3, "3+cat"), KV(3, "3+rat"), KV(1, "1+X")]
 
-    PCollection<KV<Integer, String>> outputPCollection = joined.getPCollection();
-    PAssert.that(outputPCollection)
+    PAssert.that(joined)
         .containsInAnyOrder(
             asList(
                 KV.of(1, "1+X"),
@@ -335,14 +331,18 @@ public class DocumentationExamplesTest {
   @Test
   public void batchLeftJoinOperator() {
 
-    Dataset<Integer> left = Dataset.of(pipeline.apply("left", Create.of(1, 2, 3, 0, 4, 3, 1)));
-    Dataset<String> right =
-        Dataset.of(
-            (pipeline.apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))));
+    PCollection<Integer> left =
+        pipeline
+            .apply("left", Create.of(1, 2, 3, 0, 4, 3, 1))
+            .setTypeDescriptor(TypeDescriptors.integers());
+    PCollection<String> right =
+        pipeline
+            .apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))
+            .setTypeDescriptor(TypeDescriptors.strings());
 
     // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
     // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
-    Dataset<KV<Integer, String>> joined =
+    PCollection<KV<Integer, String>> joined =
         LeftJoin.named("left-join-length-to-words")
             .of(left, right)
             .by(le -> le, String::length) // key extractors
@@ -355,8 +355,7 @@ public class DocumentationExamplesTest {
     // KV(3, "3+rat"), KV(0, "0+null"), KV(4, "4+duck"), KV(3, "3+cat"),
     // KV(3, "3+rat"), KV(1, "1+X")]
 
-    PCollection<KV<Integer, String>> outputPCollection = joined.getPCollection();
-    PAssert.that(outputPCollection)
+    PAssert.that(joined)
         .containsInAnyOrder(
             asList(
                 KV.of(1, "1+X"),
@@ -375,14 +374,18 @@ public class DocumentationExamplesTest {
   @Test
   public void batchRightJoinFullOperator() {
 
-    Dataset<Integer> left = Dataset.of((pipeline.apply("left", Create.of(1, 2, 3, 0, 4, 3, 1))));
-    Dataset<String> right =
-        Dataset.of(
-            (pipeline.apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))));
+    PCollection<Integer> left =
+        pipeline
+            .apply("left", Create.of(1, 2, 3, 0, 4, 3, 1))
+            .setTypeDescriptor(TypeDescriptors.integers());
+    PCollection<String> right =
+        pipeline
+            .apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))
+            .setTypeDescriptor(TypeDescriptors.strings());
 
     // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
     // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
-    Dataset<KV<Integer, String>> joined =
+    PCollection<KV<Integer, String>> joined =
         RightJoin.named("right-join-length-to-words")
             .of(left, right)
             .by(le -> le, String::length) // key extractors
@@ -395,8 +398,7 @@ public class DocumentationExamplesTest {
     // KV(4, "4+duck"), KV(3, "3+cat"), KV(3, "3+rat"), KV(1, "1+X"),
     // KV(8, "null+elephant"), KV(5, "null+mouse")]
 
-    PCollection<KV<Integer, String>> outputPCollection = joined.getPCollection();
-    PAssert.that(outputPCollection)
+    PAssert.that(joined)
         .containsInAnyOrder(
             asList(
                 KV.of(1, "1+X"),
@@ -415,14 +417,18 @@ public class DocumentationExamplesTest {
   @Test
   public void batchFullJoinOperator() {
 
-    Dataset<Integer> left = Dataset.of(pipeline.apply("left", Create.of(1, 2, 3, 0, 4, 3, 1)));
-    Dataset<String> right =
-        Dataset.of(
-            pipeline.apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck")));
+    PCollection<Integer> left =
+        pipeline
+            .apply("left", Create.of(1, 2, 3, 0, 4, 3, 1))
+            .setTypeDescriptor(TypeDescriptors.integers());
+    PCollection<String> right =
+        pipeline
+            .apply("right", Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))
+            .setTypeDescriptor(TypeDescriptors.strings());
 
     // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
     // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
-    Dataset<KV<Integer, String>> joined =
+    PCollection<KV<Integer, String>> joined =
         FullJoin.named("join-length-to-words")
             .of(left, right)
             .by(le -> le, String::length) // key extractors
@@ -435,8 +441,7 @@ public class DocumentationExamplesTest {
     // KV(0, "0+null"), KV(4, "4+duck"), KV(3, "3+cat"), KV(3, "3+rat"),KV(1, "1+X"),
     //  KV(1, "null+elephant"), KV(5, "null+mouse")];
 
-    PCollection<KV<Integer, String>> outputPCollection = joined.getPCollection();
-    PAssert.that(outputPCollection)
+    PAssert.that(joined)
         .containsInAnyOrder(
             asList(
                 KV.of(1, "1+X"),
@@ -457,13 +462,15 @@ public class DocumentationExamplesTest {
   @Test
   public void mapElementsOperator() {
 
-    Dataset<Integer> input = Dataset.of(pipeline.apply(Create.of(0, 1, 2, 3, 4, 5)));
+    PCollection<Integer> input =
+        pipeline.apply(Create.of(0, 1, 2, 3, 4, 5)).setTypeDescriptor(TypeDescriptors.integers());
 
     // suppose inputs contains: [ 0, 1, 2, 3, 4, 5]
-    Dataset<String> strings = MapElements.named("int2str").of(input).using(i -> "#" + i).output();
+    PCollection<String> strings =
+        MapElements.named("int2str").of(input).using(i -> "#" + i).output();
     // strings will contain: [ "#0", "#1", "#2", "#3", "#4", "#5"]
 
-    PAssert.that(strings.getPCollection()).containsInAnyOrder("#0", "#1", "#2", "#3", "#4", "#5");
+    PAssert.that(strings).containsInAnyOrder("#0", "#1", "#2", "#3", "#4", "#5");
 
     pipeline.run();
   }
@@ -471,10 +478,10 @@ public class DocumentationExamplesTest {
   @Test
   public void flatMapOperator() {
 
-    Dataset<String> words = Dataset.of(pipeline.apply(Create.of(asList("Brown", "fox", ".", ""))));
+    PCollection<String> words = pipeline.apply(Create.of(asList("Brown", "fox", ".", "")));
 
     // suppose words contain: ["Brown", "fox", ".", ""]
-    Dataset<String> letters =
+    PCollection<String> letters =
         FlatMap.named("str2char")
             .of(words)
             .using(
@@ -487,26 +494,24 @@ public class DocumentationExamplesTest {
             .output();
     // characters will contain: ["B", "r", "o", "w", "n",  "f", "o", "x", "."]
 
-    PAssert.that(letters.getPCollection())
-        .containsInAnyOrder("B", "r", "o", "w", "n", "f", "o", "x", ".");
+    PAssert.that(letters).containsInAnyOrder("B", "r", "o", "w", "n", "f", "o", "x", ".");
     pipeline.run();
   }
 
   @Test
   public void flatMapWithTimeExtractorOperator() {
 
-    Dataset<SomeEventObject> events =
-        Dataset.of(
-            pipeline.apply(
-                Create.of(
-                    new SomeEventObject(0),
-                    new SomeEventObject(1),
-                    new SomeEventObject(2),
-                    new SomeEventObject(3),
-                    new SomeEventObject(4))));
+    PCollection<SomeEventObject> events =
+        pipeline.apply(
+            Create.of(
+                new SomeEventObject(0),
+                new SomeEventObject(1),
+                new SomeEventObject(2),
+                new SomeEventObject(3),
+                new SomeEventObject(4)));
 
     // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp
-    Dataset<SomeEventObject> timeStampedEvents =
+    PCollection<SomeEventObject> timeStampedEvents =
         FlatMap.named("extract-event-time")
             .of(events)
             .using((SomeEventObject e, Collector<SomeEventObject> c) -> c.collect(e))
@@ -514,35 +519,31 @@ public class DocumentationExamplesTest {
             .output();
     //Euphoria will now know event time for each event
 
-    //        PAssert.that(flow.unwrapped(timeStampedEvents))
-    //            .inWindow(new IntervalWindow(new Instant(0), new Instant(5)));
-
     pipeline.run();
   }
 
   @Test
   public void filterOperator() {
 
-    Dataset<Integer> nums =
-        Dataset.of(pipeline.apply(Create.of(asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))));
+    PCollection<Integer> nums = pipeline.apply(Create.of(asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)));
 
     // suppose nums contains: [0,  1, 2, 3, 4, 5, 6, 7, 8, 9]
-    Dataset<Integer> divisibleBythree =
+    PCollection<Integer> divisibleBythree =
         Filter.named("divisibleByFive").of(nums).by(e -> e % 3 == 0).output();
     //divisibleBythree will contain: [ 0, 3, 6, 9]
 
-    PAssert.that(divisibleBythree.getPCollection()).containsInAnyOrder(0, 3, 6, 9);
+    PAssert.that(divisibleBythree).containsInAnyOrder(0, 3, 6, 9);
     pipeline.run();
   }
 
   @Test
   public void reduceByKeyTestOperator1() {
 
-    Dataset<String> animals =
-        Dataset.of(pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck")));
+    PCollection<String> animals =
+        pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"));
 
     //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
-    Dataset<KV<Integer, Long>> countOfAnimalNamesByLength =
+    PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
         ReduceByKey.named("to-letters-couts")
             .of(animals)
             .keyBy(String::length) // length of animal name will be used as groupping key
@@ -552,7 +553,7 @@ public class DocumentationExamplesTest {
             .output();
     // countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]
 
-    PAssert.that(countOfAnimalNamesByLength.getPCollection())
+    PAssert.that(countOfAnimalNamesByLength)
         .containsInAnyOrder(
             asList(KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L)));
 
@@ -562,11 +563,11 @@ public class DocumentationExamplesTest {
   @Test
   public void reduceByKeyTestOperatorCombinable() {
 
-    Dataset<String> animals =
-        Dataset.of(pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck")));
+    PCollection<String> animals =
+        pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"));
 
     //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
-    Dataset<KV<Integer, Long>> countOfAnimalNamesByLenght =
+    PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
         ReduceByKey.named("to-letters-couts")
             .of(animals)
             .keyBy(String::length) // length of animal name will be used as grouping key
@@ -576,7 +577,7 @@ public class DocumentationExamplesTest {
             .output();
     // countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]
 
-    PAssert.that(countOfAnimalNamesByLenght.getPCollection())
+    PAssert.that(countOfAnimalNamesByLength)
         .containsInAnyOrder(
             asList(KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L)));
 
@@ -586,11 +587,11 @@ public class DocumentationExamplesTest {
   @Test
   public void reduceByKeyTestOperatorContext() {
 
-    Dataset<String> animals =
-        Dataset.of(pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck")));
+    PCollection<String> animals =
+        pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"));
 
     //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
-    Dataset<KV<Integer, Long>> countOfAnimalNamesByLenght =
+    PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
         ReduceByKey.named("to-letters-couts")
             .of(animals)
             .keyBy(String::length) // length of animal name will e used as grouping key
@@ -604,7 +605,7 @@ public class DocumentationExamplesTest {
             .output();
     // countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]
 
-    PAssert.that(countOfAnimalNamesByLenght.getPCollection())
+    PAssert.that(countOfAnimalNamesByLength)
         .containsInAnyOrder(
             asList(KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L)));
 
@@ -618,10 +619,10 @@ public class DocumentationExamplesTest {
   @Test
   public void reduceByKeyTestOperatorContextManyOutputs() {
 
-    Dataset<String> animals =
-        Dataset.of(pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck")));
+    PCollection<String> animals =
+        pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"));
 
-    Dataset<KV<Integer, Long>> countOfAnimalNamesByLenght =
+    PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
         ReduceByKey.named("to-letters-couts")
             .of(animals)
             .keyBy(String::length) // length of animal name will e used as grouping key
@@ -635,7 +636,7 @@ public class DocumentationExamplesTest {
                 })
             .output();
 
-    PAssert.that(countOfAnimalNamesByLenght.getPCollection())
+    PAssert.that(countOfAnimalNamesByLength)
         .containsInAnyOrder(
             asList(
                 KV.of(1, 1L),
@@ -655,11 +656,11 @@ public class DocumentationExamplesTest {
   @Test
   public void reduceByKeyTestOperatorFold() {
 
-    Dataset<String> animals =
-        Dataset.of(pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck")));
+    PCollection<String> animals =
+        pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"));
 
     //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
-    Dataset<KV<Integer, Long>> countOfAnimalNamesByLenght =
+    PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
         ReduceByKey.named("to-letters-couts")
             .of(animals)
             .keyBy(String::length) // length of animal name will be used as grouping key
@@ -669,7 +670,7 @@ public class DocumentationExamplesTest {
             .output();
     // countOfAnimalNamesByLength will contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]
 
-    PAssert.that(countOfAnimalNamesByLenght.getPCollection())
+    PAssert.that(countOfAnimalNamesByLength)
         .containsInAnyOrder(
             asList(KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L)));
 
@@ -678,11 +679,10 @@ public class DocumentationExamplesTest {
 
   @Test
   public void testSumByKeyOperator() {
-    Dataset<Integer> input =
-        Dataset.of(pipeline.apply(Create.of(asList(1, 2, 3, 4, 5, 6, 7, 8, 9))));
+    PCollection<Integer> input = pipeline.apply(Create.of(asList(1, 2, 3, 4, 5, 6, 7, 8, 9)));
 
     //suppose input contains: [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-    Dataset<KV<Integer, Long>> output =
+    PCollection<KV<Integer, Long>> output =
         SumByKey.named("sum-odd-and-even")
             .of(input)
             .keyBy(e -> e % 2)
@@ -690,26 +690,29 @@ public class DocumentationExamplesTest {
             .output();
     // output will contain: [ KV.of(0, 20L), KV.of(1, 25L)]
 
-    PAssert.that(output.getPCollection()).containsInAnyOrder(asList(KV.of(0, 20L), KV.of(1, 25L)));
+    PAssert.that(output).containsInAnyOrder(asList(KV.of(0, 20L), KV.of(1, 25L)));
     pipeline.run();
   }
 
   @Test
   public void testUnionOperator() {
 
-    Dataset<String> cats =
-        Dataset.of(pipeline.apply("cats", Create.of(asList("cheetah", "cat", "lynx", "jaguar"))));
+    PCollection<String> cats =
+        pipeline
+            .apply("cats", Create.of(asList("cheetah", "cat", "lynx", "jaguar")))
+            .setTypeDescriptor(TypeDescriptors.strings());
 
-    Dataset<String> rodents =
-        Dataset.of(
-            pipeline.apply("rodents", Create.of("squirrel", "mouse", "rat", "lemming", "beaver")));
+    PCollection<String> rodents =
+        pipeline
+            .apply("rodents", Create.of("squirrel", "mouse", "rat", "lemming", "beaver"))
+            .setTypeDescriptor(TypeDescriptors.strings());
 
     //suppose cats contains: [ "cheetah", "cat", "lynx", "jaguar" ]
-    //suppose rodents conains: [ "squirrel", "mouse", "rat", "lemming", "beaver" ]
-    Dataset<String> animals = Union.named("to-animals").of(cats, rodents).output();
+    //suppose rodents contains: [ "squirrel", "mouse", "rat", "lemming", "beaver" ]
+    PCollection<String> animals = Union.named("to-animals").of(cats, rodents).output();
 
     // animal will contain: "cheetah", "cat", "lynx", "jaguar", "squirrel", "mouse", "rat", "lemming", "beaver"
-    PAssert.that(animals.getPCollection())
+    PAssert.that(animals)
         .containsInAnyOrder(
             "cheetah", "cat", "lynx", "jaguar", "squirrel", "mouse", "rat", "lemming", "beaver");
 
@@ -719,27 +722,23 @@ public class DocumentationExamplesTest {
   @Test
   public void testAssignEventTimeOperator() {
 
-    Dataset<SomeEventObject> events =
-        Dataset.of(
-            pipeline.apply(
-                Create.of(
-                    asList(
-                        new SomeEventObject(0),
-                        new SomeEventObject(1),
-                        new SomeEventObject(2),
-                        new SomeEventObject(3),
-                        new SomeEventObject(4)))));
+    PCollection<SomeEventObject> events =
+        pipeline.apply(
+            Create.of(
+                asList(
+                    new SomeEventObject(0),
+                    new SomeEventObject(1),
+                    new SomeEventObject(2),
+                    new SomeEventObject(3),
+                    new SomeEventObject(4))));
 
     // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp
-    Dataset<SomeEventObject> timeStampedEvents =
+    PCollection<SomeEventObject> timeStampedEvents =
         AssignEventTime.named("extract-event-time")
             .of(events)
             .using(SomeEventObject::getEventTimeInMillis)
             .output();
-    //Euphoria will now know event time for each event
-
-    //    PAssert.that(flow.unwrapped(timeStampedEvents))
-    //        .inWindow(new IntervalWindow(new Instant(0), new Instant(5)));
+    // Euphoria will now know event time for each event
 
     pipeline.run();
   }
@@ -758,52 +757,24 @@ public class DocumentationExamplesTest {
   }
 
   @Test
-  public void testEuphoriaPTransformExample() {
-
-    PCollection<String> inputs =
-        pipeline.apply(
-            "Create", Create.of("a", "b", "c", "A", "a", "C", "x").withCoder(StringUtf8Coder.of()));
-
-    //suppose inputs PCollection contains: [ "a", "b", "c", "A", "a", "C", "x"]
-    PCollection<KV<String, Long>> lettersWithCounts =
-        inputs.apply(
-            "count-uppercase-letters-in-Euphoria",
-            Euphoria.of(
-                (Dataset<String> input) -> {
-                  Dataset<String> upperCase =
-                      MapElements.of(input)
-                          .using((UnaryFunction<String, String>) String::toUpperCase)
-                          .output();
-
-                  return CountByKey.of(upperCase).keyBy(e -> e).output();
-                }));
-    //now the 'lettersWithCounts' will contain [ KV("A", 3L), KV("B", 1L), KV("C", 2L), KV("X", 1L) ]
-
-    PAssert.that(lettersWithCounts)
-        .containsInAnyOrder(asList(KV.of("A", 3L), KV.of("B", 1L), KV.of("C", 2L), KV.of("X", 1L)));
-
-    pipeline.run();
-  }
-
-  @Test
   public void testReduceWithWindowOperator() {
 
-    Dataset<Integer> input = Dataset.of(pipeline.apply(Create.of(asList(1, 2, 3, 4, 5, 6, 7, 8))));
+    PCollection<Integer> input = pipeline.apply(Create.of(asList(1, 2, 3, 4, 5, 6, 7, 8)));
 
-    //suppose input contains [ 1, 2, 3, 4, 5, 6, 7, 8 ]
-    //lets assign time-stamp to each input element
-    Dataset<Integer> withEventTime = AssignEventTime.of(input).using(i -> 1000L * i).output();
+    // suppose input contains [ 1, 2, 3, 4, 5, 6, 7, 8 ]
+    // lets assign time-stamp to each input element
+    PCollection<Integer> withEventTime = AssignEventTime.of(input).using(i -> 1000L * i).output();
 
-    Dataset<Integer> output =
+    PCollection<Integer> output =
         ReduceWindow.of(withEventTime)
             .combineBy(Fold.of((i1, i2) -> i1 + i2))
             .windowBy(FixedWindows.of(Duration.millis(5000)))
             .triggeredBy(DefaultTrigger.of())
             .discardingFiredPanes()
             .output();
-    //output will contain: [ 10, 26 ]
+    // output will contain: [ 10, 26 ]
 
-    PAssert.that(output.getPCollection()).containsInAnyOrder(10, 26);
+    PAssert.that(output).containsInAnyOrder(10, 26);
 
     pipeline.run();
   }
@@ -811,22 +782,21 @@ public class DocumentationExamplesTest {
   @Test
   public void testTopPerKeyOperator() {
 
-    Dataset<String> animals =
-        Dataset.of(
-            pipeline.apply(
-                Create.of(
-                    "mouse",
-                    "elk",
-                    "rat",
-                    "mule",
-                    "elephant",
-                    "dinosaur",
-                    "cat",
-                    "duck",
-                    "caterpillar")));
+    PCollection<String> animals =
+        pipeline.apply(
+            Create.of(
+                "mouse",
+                "elk",
+                "rat",
+                "mule",
+                "elephant",
+                "dinosaur",
+                "cat",
+                "duck",
+                "caterpillar"));
 
     // suppose 'animals contain: [ "mouse", "elk", "rat", "mule", "elephant", "dinosaur", "cat", "duck", "caterpillar" ]
-    Dataset<Triple<Character, String, Integer>> longestNamesByLetter =
+    PCollection<Triple<Character, String, Integer>> longestNamesByLetter =
         TopPerKey.named("longest-animal-names")
             .of(animals)
             .keyBy(name -> name.charAt(0)) // first character is the key
@@ -835,9 +805,9 @@ public class DocumentationExamplesTest {
                 String
                     ::length) // length defines score, note that Integer implements Comparable<Integer>
             .output();
-    //longestNamesByLetter wil contain: [ ('m', "mouse", 5), ('r', "rat", 3), ('e', "elephant", 8), ('d', "dinosaur", 8), ('c', "caterpillar", 11) ]
+    // longestNamesByLetter will contain: [ ('m', "mouse", 5), ('r', "rat", 3), ('e', "elephant", 8), ('d', "dinosaur", 8), ('c', "caterpillar", 11) ]
 
-    PAssert.that(longestNamesByLetter.getPCollection())
+    PAssert.that(longestNamesByLetter)
         .containsInAnyOrder(
             Triple.of('m', "mouse", 5),
             Triple.of('r', "rat", 3),
@@ -846,5 +816,52 @@ public class DocumentationExamplesTest {
             Triple.of('c', "caterpillar", 11));
 
     pipeline.run();
+  }
+
+  @Test
+  public void testGenericTranslatorProvider() {
+
+    GenericTranslatorProvider provider =
+        GenericTranslatorProvider.newBuilder()
+            .register(FlatMap.class, new FlatMapTranslator<>()) // register by operator class
+            .register(
+                Join.class,
+                (Join op) -> {
+                  String name = ((Optional<String>) op.getName()).orElse("");
+                  return name.toLowerCase().startsWith("broadcast");
+                },
+                new BroadcastHashJoinTranslator<>()) // register by class and predicate
+            .register(
+                op -> op instanceof CompositeOperator,
+                new CompositeOperatorTranslator<>()) // register by predicate only
+            .build();
+
+    Assert.assertNotNull(provider);
+  }
+
+  private static class CustomTranslatorProvider implements TranslatorProvider {
+
+    static CustomTranslatorProvider of() {
+      return new CustomTranslatorProvider();
+    }
+
+    @Override
+    public <InputT, OutputT, OperatorT extends Operator<OutputT>>
+        Optional<OperatorTranslator<InputT, OutputT, OperatorT>> findTranslator(
+            OperatorT operator) {
+      return Optional.empty();
+    }
+  }
+
+  @Test
+  public void testCompositeTranslationProviderExample() {
+
+    CompositeProvider compositeProvider =
+        CompositeProvider.of(
+            CustomTranslatorProvider.of(), // first ask CustomTranslatorProvider for translator
+            GenericTranslatorProvider
+                .createWithDefaultTranslators()); // then ask default provider if needed
+
+    Assert.assertNotNull(compositeProvider);
   }
 }
