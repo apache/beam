@@ -315,8 +315,11 @@ class FnApiRunner(runner.PipelineRunner):
 
       def __repr__(self):
         must_follow = ', '.join(prev.name for prev in self.must_follow)
-        downstream_side_inputs = ', '.join(
-            str(si) for si in self.downstream_side_inputs)
+        if self.downstream_side_inputs is None:
+          downstream_side_inputs = '<unknown>'
+        else:
+          downstream_side_inputs = ', '.join(
+              str(si) for si in self.downstream_side_inputs)
         return "%s\n  %s\n  must follow: %s\n  downstream_side_inputs: %s" % (
             self.name,
             '\n'.join(["%s:%s" % (transform.unique_name, transform.spec.urn)
@@ -467,10 +470,6 @@ class FnApiRunner(runner.PipelineRunner):
     def impulse_to_input(stages):
       bytes_coder_id = add_or_get_coder_id(
           beam.coders.BytesCoder().to_runner_api(None))
-      global_window_coder_id = add_or_get_coder_id(
-          beam.coders.coders.GlobalWindowCoder().to_runner_api(None))
-      globally_windowed_bytes_coder_id = windowed_coder_id(
-          bytes_coder_id, global_window_coder_id)
 
       for stage in stages:
         # First map Reads, if any, to Impulse + triggered read op.
@@ -483,7 +482,7 @@ class FnApiRunner(runner.PipelineRunner):
             pipeline_components.pcollections[impulse_pc].CopyFrom(
                 beam_runner_api_pb2.PCollection(
                     unique_name=impulse_pc,
-                    coder_id=globally_windowed_bytes_coder_id,
+                    coder_id=bytes_coder_id,
                     windowing_strategy_id=read_pc_proto.windowing_strategy_id,
                     is_bounded=read_pc_proto.is_bounded))
             stage.transforms.remove(transform)
@@ -539,10 +538,7 @@ class FnApiRunner(runner.PipelineRunner):
           output_pcoll = pipeline_components.pcollections[only_element(
               list(transform.outputs.values()))]
 
-          windowed_input_coder = pipeline_components.coders[
-              input_pcoll.coder_id]
-          element_coder_id, window_coder_id = (
-              windowed_input_coder.component_coder_ids)
+          element_coder_id = input_pcoll.coder_id
           element_coder = pipeline_components.coders[element_coder_id]
           key_coder_id, _ = element_coder.component_coder_ids
           accumulator_coder_id = combine_payload.accumulator_coder_id
@@ -575,8 +571,7 @@ class FnApiRunner(runner.PipelineRunner):
           pipeline_components.pcollections[precombined_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
                   unique_name=transform.unique_name + '/Precombine.out',
-                  coder_id=windowed_coder_id(
-                      key_accumulator_coder_id, window_coder_id),
+                  coder_id=key_accumulator_coder_id,
                   windowing_strategy_id=input_pcoll.windowing_strategy_id,
                   is_bounded=input_pcoll.is_bounded))
 
@@ -585,8 +580,7 @@ class FnApiRunner(runner.PipelineRunner):
           pipeline_components.pcollections[grouped_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
                   unique_name=transform.unique_name + '/Group.out',
-                  coder_id=windowed_coder_id(
-                      key_accumulator_iter_coder_id, window_coder_id),
+                  coder_id=key_accumulator_iter_coder_id,
                   windowing_strategy_id=output_pcoll.windowing_strategy_id,
                   is_bounded=output_pcoll.is_bounded))
 
@@ -595,8 +589,7 @@ class FnApiRunner(runner.PipelineRunner):
           pipeline_components.pcollections[merged_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
                   unique_name=transform.unique_name + '/Merge.out',
-                  coder_id=windowed_coder_id(
-                      key_accumulator_coder_id, window_coder_id),
+                  coder_id=key_accumulator_coder_id,
                   windowing_strategy_id=output_pcoll.windowing_strategy_id,
                   is_bounded=output_pcoll.is_bounded))
 
@@ -920,10 +913,6 @@ class FnApiRunner(runner.PipelineRunner):
               # Create the appropriate coder for the timer PCollection.
               key_coder_id = input_pcoll.coder_id
               if (pipeline_components.coders[key_coder_id].spec.spec.urn
-                  == common_urns.coders.WINDOWED_VALUE.urn):
-                key_coder_id = pipeline_components.coders[
-                    key_coder_id].component_coder_ids[0]
-              if (pipeline_components.coders[key_coder_id].spec.spec.urn
                   == common_urns.coders.KV.urn):
                 key_coder_id = pipeline_components.coders[
                     key_coder_id].component_coder_ids[0]
@@ -933,10 +922,6 @@ class FnApiRunner(runner.PipelineRunner):
                           spec=beam_runner_api_pb2.FunctionSpec(
                               urn=common_urns.coders.KV.urn)),
                       component_coder_ids=[key_coder_id, spec.timer_coder_id]))
-              timer_pcoll_coder_id = windowed_coder_id(
-                  key_timer_coder_id,
-                  pipeline_components.windowing_strategies[
-                      input_pcoll.windowing_strategy_id].window_coder_id)
               # Inject the read and write pcollections.
               timer_read_pcoll = unique_name(
                   pipeline_components.pcollections,
@@ -947,13 +932,13 @@ class FnApiRunner(runner.PipelineRunner):
               pipeline_components.pcollections[timer_read_pcoll].CopyFrom(
                   beam_runner_api_pb2.PCollection(
                       unique_name=timer_read_pcoll,
-                      coder_id=timer_pcoll_coder_id,
+                      coder_id=key_timer_coder_id,
                       windowing_strategy_id=input_pcoll.windowing_strategy_id,
                       is_bounded=input_pcoll.is_bounded))
               pipeline_components.pcollections[timer_write_pcoll].CopyFrom(
                   beam_runner_api_pb2.PCollection(
                       unique_name=timer_write_pcoll,
-                      coder_id=timer_pcoll_coder_id,
+                      coder_id=key_timer_coder_id,
                       windowing_strategy_id=input_pcoll.windowing_strategy_id,
                       is_bounded=input_pcoll.is_bounded))
               stage.transforms.append(
@@ -996,19 +981,30 @@ class FnApiRunner(runner.PipelineRunner):
         process(stage)
       return ordered
 
+    def window_pcollection_coders(stages):
+      # Some SDK workers require windowed coders for their PCollections.
+      # TODO(BEAM-4150): Consistently use unwindowed coders everywhere.
+      for pcoll in pipeline_components.pcollections.values():
+        if (pipeline_components.coders[pcoll.coder_id].spec.spec.urn
+            != common_urns.coders.WINDOWED_VALUE.urn):
+          original_coder_id = pcoll.coder_id
+          pcoll.coder_id = windowed_coder_id(
+              pcoll.coder_id,
+              pipeline_components.windowing_strategies[
+                  pcoll.windowing_strategy_id].window_coder_id)
+          if (original_coder_id in safe_coders
+              and pcoll.coder_id not in safe_coders):
+            # TODO: This assumes the window coder is safe.
+            safe_coders[pcoll.coder_id] = windowed_coder_id(
+                safe_coders[original_coder_id],
+                pipeline_components.windowing_strategies[
+                    pcoll.windowing_strategy_id].window_coder_id)
+
+      return stages
+
     # Now actually apply the operations.
 
     pipeline_components = copy.deepcopy(pipeline_proto.components)
-
-    # Some SDK workers require windowed coders for their PCollections.
-    # TODO(BEAM-4150): Consistently use unwindowed coders everywhere.
-    for pcoll in pipeline_components.pcollections.values():
-      if (pipeline_components.coders[pcoll.coder_id].spec.spec.urn
-          != common_urns.coders.WINDOWED_VALUE.urn):
-        pcoll.coder_id = windowed_coder_id(
-            pcoll.coder_id,
-            pipeline_components.windowing_strategies[
-                pcoll.windowing_strategy_id].window_coder_id)
 
     known_composites = set(
         [common_urns.primitives.GROUP_BY_KEY.urn,
@@ -1036,7 +1032,8 @@ class FnApiRunner(runner.PipelineRunner):
     for phase in [
         annotate_downstream_side_inputs, fix_side_input_pcoll_coders,
         lift_combiners, expand_gbk, sink_flattens, greedily_fuse,
-        impulse_to_input, inject_timer_pcollections, sort_stages]:
+        impulse_to_input, inject_timer_pcollections, sort_stages,
+        window_pcollection_coders]:
       logging.info('%s %s %s', '=' * 20, phase, '=' * 20)
       stages = list(phase(stages))
       logging.debug('Stages: %s', [str(s) for s in stages])
