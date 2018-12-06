@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
-import org.apache.beam.sdk.io.gcp.bigtable.BigtableTestOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 
