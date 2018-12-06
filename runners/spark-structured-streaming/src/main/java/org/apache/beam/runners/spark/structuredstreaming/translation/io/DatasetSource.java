@@ -60,7 +60,7 @@ public class DatasetSource<T> implements DataSourceV2, MicroBatchReadSupport {
 
     private DatasetMicroBatchReader(Optional<StructType> schema, String checkpointLocation,
         DataSourceOptions options) {
-      //TODO start reading from the source here, inc offset at each element read
+      //TODO deal with schema and options
     }
 
     @Override public void setOffsetRange(Optional<Offset> start, Optional<Offset> end) {
