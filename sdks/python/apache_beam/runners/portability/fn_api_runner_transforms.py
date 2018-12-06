@@ -142,6 +142,135 @@ def leaf_transform_stages(
         yield stage
 
 
+def lift_combiners(stages, context):
+  """Expands CombinePerKey into pre- and post-grouping stages.
+
+  ... -> CombinePerKey -> ...
+
+  becomes
+
+  ... -> PreCombine -> GBK -> MergeAccumulators -> ExtractOutput -> ...
+  """
+  for stage in stages:
+    assert len(stage.transforms) == 1
+    transform = stage.transforms[0]
+    if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn:
+      combine_payload = proto_utils.parse_Bytes(
+          transform.spec.payload, beam_runner_api_pb2.CombinePayload)
+
+      input_pcoll = context.components.pcollections[only_element(
+          list(transform.inputs.values()))]
+      output_pcoll = context.components.pcollections[only_element(
+          list(transform.outputs.values()))]
+
+      element_coder_id = input_pcoll.coder_id
+      element_coder = context.components.coders[element_coder_id]
+      key_coder_id, _ = element_coder.component_coder_ids
+      accumulator_coder_id = combine_payload.accumulator_coder_id
+
+      key_accumulator_coder = beam_runner_api_pb2.Coder(
+          spec=beam_runner_api_pb2.SdkFunctionSpec(
+              spec=beam_runner_api_pb2.FunctionSpec(
+                  urn=common_urns.coders.KV.urn)),
+          component_coder_ids=[key_coder_id, accumulator_coder_id])
+      key_accumulator_coder_id = context.add_or_get_coder_id(
+          key_accumulator_coder)
+
+      accumulator_iter_coder = beam_runner_api_pb2.Coder(
+          spec=beam_runner_api_pb2.SdkFunctionSpec(
+              spec=beam_runner_api_pb2.FunctionSpec(
+                  urn=common_urns.coders.ITERABLE.urn)),
+          component_coder_ids=[accumulator_coder_id])
+      accumulator_iter_coder_id = context.add_or_get_coder_id(
+          accumulator_iter_coder)
+
+      key_accumulator_iter_coder = beam_runner_api_pb2.Coder(
+          spec=beam_runner_api_pb2.SdkFunctionSpec(
+              spec=beam_runner_api_pb2.FunctionSpec(
+                  urn=common_urns.coders.KV.urn)),
+          component_coder_ids=[key_coder_id, accumulator_iter_coder_id])
+      key_accumulator_iter_coder_id = context.add_or_get_coder_id(
+          key_accumulator_iter_coder)
+
+      precombined_pcoll_id = unique_name(
+          context.components.pcollections, 'pcollection')
+      context.components.pcollections[precombined_pcoll_id].CopyFrom(
+          beam_runner_api_pb2.PCollection(
+              unique_name=transform.unique_name + '/Precombine.out',
+              coder_id=key_accumulator_coder_id,
+              windowing_strategy_id=input_pcoll.windowing_strategy_id,
+              is_bounded=input_pcoll.is_bounded))
+
+      grouped_pcoll_id = unique_name(
+          context.components.pcollections, 'pcollection')
+      context.components.pcollections[grouped_pcoll_id].CopyFrom(
+          beam_runner_api_pb2.PCollection(
+              unique_name=transform.unique_name + '/Group.out',
+              coder_id=key_accumulator_iter_coder_id,
+              windowing_strategy_id=output_pcoll.windowing_strategy_id,
+              is_bounded=output_pcoll.is_bounded))
+
+      merged_pcoll_id = unique_name(
+          context.components.pcollections, 'pcollection')
+      context.components.pcollections[merged_pcoll_id].CopyFrom(
+          beam_runner_api_pb2.PCollection(
+              unique_name=transform.unique_name + '/Merge.out',
+              coder_id=key_accumulator_coder_id,
+              windowing_strategy_id=output_pcoll.windowing_strategy_id,
+              is_bounded=output_pcoll.is_bounded))
+
+      def make_stage(base_stage, transform):
+        return Stage(
+            transform.unique_name,
+            [transform],
+            downstream_side_inputs=base_stage.downstream_side_inputs,
+            must_follow=base_stage.must_follow)
+
+      yield make_stage(
+          stage,
+          beam_runner_api_pb2.PTransform(
+              unique_name=transform.unique_name + '/Precombine',
+              spec=beam_runner_api_pb2.FunctionSpec(
+                  urn=common_urns.combine_components.COMBINE_PGBKCV.urn,
+                  payload=transform.spec.payload),
+              inputs=transform.inputs,
+              outputs={'out': precombined_pcoll_id}))
+
+      yield make_stage(
+          stage,
+          beam_runner_api_pb2.PTransform(
+              unique_name=transform.unique_name + '/Group',
+              spec=beam_runner_api_pb2.FunctionSpec(
+                  urn=common_urns.primitives.GROUP_BY_KEY.urn),
+              inputs={'in': precombined_pcoll_id},
+              outputs={'out': grouped_pcoll_id}))
+
+      yield make_stage(
+          stage,
+          beam_runner_api_pb2.PTransform(
+              unique_name=transform.unique_name + '/Merge',
+              spec=beam_runner_api_pb2.FunctionSpec(
+                  urn=common_urns.combine_components
+                  .COMBINE_MERGE_ACCUMULATORS.urn,
+                  payload=transform.spec.payload),
+              inputs={'in': grouped_pcoll_id},
+              outputs={'out': merged_pcoll_id}))
+
+      yield make_stage(
+          stage,
+          beam_runner_api_pb2.PTransform(
+              unique_name=transform.unique_name + '/ExtractOutputs',
+              spec=beam_runner_api_pb2.FunctionSpec(
+                  urn=common_urns.combine_components
+                  .COMBINE_EXTRACT_OUTPUTS.urn,
+                  payload=transform.spec.payload),
+              inputs={'in': merged_pcoll_id},
+              outputs=transform.outputs))
+
+    else:
+      yield stage
+
+
 def union(a, b):
   # Minimize the number of distinct sets.
   if not a or a == b:
