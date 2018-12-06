@@ -323,8 +323,9 @@ class _TextSource(filebasedsource.FileBasedSource):
 
 class _TextSourceWithFilename(_TextSource):
   def read_records(self, file_name, range_tracker):
-    for record in super(_TextSourceWithFilename, self).read_records(file_name,
-                                                                    range_tracker):
+    records = super(_TextSourceWithFilename, self).read_records(file_name,
+                                                                range_tracker)
+    for record in records:
       yield (file_name, record)
 
 
