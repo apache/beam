@@ -425,7 +425,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         if (urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
           if (!type.equals("beam:metrics:sum_int_64")) {
             throw new RuntimeException(
-                "Ignoring user-counter MonitoringInfo with unexpected type."
+                "Encountered user-counter MonitoringInfo with unexpected type."
                     + "Expected: beam:metrics:sum_int_64. Received: "
                     + monitoringInfo.toString());
           }
@@ -433,14 +433,14 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
           final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
           if (ptransform == null) {
             throw new RuntimeException(
-                "Ignoring user-counter MonitoringInfo with missing ptransformId: "
+                "Encountered user-counter MonitoringInfo with missing ptransformId: "
                     + monitoringInfo.toString());
           }
 
           DataflowStepContext stepContext = transformIdMapping.get(ptransform);
           if (stepContext == null) {
             throw new RuntimeException(
-                "Ignoring user-counter MonitoringInfo with unknown ptransformId: "
+                "Encountered user-counter MonitoringInfo with unknown ptransformId: "
                     + monitoringInfo.toString());
           }
 
