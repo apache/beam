@@ -117,17 +117,20 @@ public class WorkItemStatusClient {
     Status error = new Status();
     error.setCode(2); // Code.UNKNOWN.  TODO: Replace with a generated definition.
     // TODO: Attach the stack trace as exception details, not to the message.
+    String logPrefix = String.format("Failure processing work item %s", uniqueWorkId());
     if (isOutOfMemoryError(t)) {
       String message =
           "An OutOfMemoryException occurred. Consider specifying higher memory "
               + "instances in PipelineOptions.\n";
-      LOG.error(message);
+      LOG.error("{}: {}", logPrefix, message);
       error.setMessage(message + DataflowWorkerLoggingHandler.formatException(t));
     } else {
-      LOG.error("Uncaught exception occurred during work unit execution. This will be retried.", t);
+      LOG.error(
+          "{}: Uncaught exception occurred during work unit execution. This will be retried.",
+          logPrefix,
+          t);
       error.setMessage(DataflowWorkerLoggingHandler.formatException(t));
     }
-    LOG.warn("Failure processing work item {}", uniqueWorkId());
     status.setErrors(ImmutableList.of(error));
 
     return execute(status);
