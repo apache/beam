@@ -37,6 +37,7 @@ import org.apache.beam.runners.dataflow.worker.SdkHarnessRegistry.SdkWorkerHarne
 import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.graph.CloneAmbiguousFlattensFunction;
+import org.apache.beam.runners.dataflow.worker.graph.CreateExecutableStageNodeFunction;
 import org.apache.beam.runners.dataflow.worker.graph.CreateRegisterFnOperationFunction;
 import org.apache.beam.runners.dataflow.worker.graph.DeduceFlattenLocationsFunction;
 import org.apache.beam.runners.dataflow.worker.graph.DeduceNodeLocationsFunction;
@@ -218,18 +219,32 @@ public class BatchDataflowWorker implements Closeable {
     // TODO: this conditional -> two implementations of common interface, or
     // param/injection
     if (DataflowRunner.hasExperiment(options, "beam_fn_api")) {
-      Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
-          pipeline == null
-              ? RegisterNodeFunction.withoutPipeline(
-                  idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
-              : RegisterNodeFunction.forPipeline(
-                  pipeline, idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+      Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork;
+      Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
-      Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork =
-          new CreateRegisterFnOperationFunction(
-              idGenerator, this::createPortNode, lengthPrefixUnknownCoders.andThen(sdkFusedStage));
-
+      if (DataflowRunner.hasExperiment(options, "use_executable_stage_bundle_execution")) {
+        sdkFusedStage = new CreateExecutableStageNodeFunction(pipeline, idGenerator);
+        transformToRunnerNetwork =
+            new CreateRegisterFnOperationFunction(
+                idGenerator,
+                this::createPortNode,
+                lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+                true);
+      } else {
+        sdkFusedStage =
+            pipeline == null
+                ? RegisterNodeFunction.withoutPipeline(
+                    idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
+                : RegisterNodeFunction.forPipeline(
+                    pipeline, idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+        transformToRunnerNetwork =
+            new CreateRegisterFnOperationFunction(
+                idGenerator,
+                this::createPortNode,
+                lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+                false);
+      }
       mapTaskToNetwork =
           mapTaskToBaseNetwork
               .andThen(new ReplacePgbkWithPrecombineFunction())

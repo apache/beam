@@ -174,8 +174,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
         mapTaskExecutorFactory.create(
             null /* beamFnControlClientHandler */,
             null /* beamFnDataService */,
-            null, /* dataApiServiceDescriptor */
             null /* beamFnStateService */,
+            null,
             mapTaskToNetwork.apply(mapTask),
             options,
             STAGE,
@@ -265,8 +265,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
         mapTaskExecutorFactory.create(
             null /* beamFnControlClientHandler */,
             null /* beamFnDataService */,
-            null, /* dataApiServiceDescriptor */
             null /* beamFnStateService */,
+            null,
             mapTaskToNetwork.apply(mapTask),
             options,
             STAGE,

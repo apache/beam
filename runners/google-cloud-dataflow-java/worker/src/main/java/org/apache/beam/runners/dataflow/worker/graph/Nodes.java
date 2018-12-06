@@ -35,6 +35,7 @@ import java.math.BigInteger;
 import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
@@ -301,6 +302,29 @@ public class Nodes {
     public String toString() {
       // The request may be very large.
       return "RegisterRequestNode";
+    }
+  }
+
+  /** A node that stores {@link org.apache.beam.runners.core.construction.graph.ExecutableStage}. */
+  @AutoValue
+  public abstract static class ExecutableStageNode extends Node {
+    public static ExecutableStageNode create(
+        ExecutableStage executableStage,
+        Map<String, NameContext> ptransformIdToPartialNameContextMap) {
+      checkNotNull(executableStage);
+      checkNotNull(ptransformIdToPartialNameContextMap);
+      return new AutoValue_Nodes_ExecutableStageNode(
+          executableStage, ptransformIdToPartialNameContextMap);
+    }
+
+    public abstract ExecutableStage getExecutableStage();
+
+    public abstract Map<String, NameContext> getPTransformIdToPartialNameContextMap();
+
+    @Override
+    public String toString() {
+      // The request may be very large.
+      return "ExecutableStageNode";
     }
   }
 
