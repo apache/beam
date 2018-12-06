@@ -46,14 +46,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.runners.core.construction.CoderTranslation;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.SyntheticComponents;
-import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
+import org.apache.beam.runners.core.construction.*;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
@@ -340,11 +333,25 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
             }
             ptransformIdToPCollectionViews.put(ptransformId, pcollectionViews.build());
 
+            // This gets the main input pcollection id for this PTransform. This will use the id to
+            // retrieve the Key coder to give to the timer.
+            String mainInputKeyCoderId = "";
+            for (Node predecessorOutput : input.predecessors(node)) {
+              String mainInputPCollectionId = nodesToPCollections.get(predecessorOutput);
+              String mainInputCoderId = pipeline.getComponents().getPcollectionsMap().get(mainInputPCollectionId).getCoderId();
+              ModelCoders.KvCoderComponents kvCoder = ModelCoders.getKvCoderComponents(pipeline.getComponents().getCodersMap().get(mainInputCoderId));
+
+              mainInputKeyCoderId = kvCoder.keyCoderId();
+            }
+
             // Build the necessary components to inform the SDK Harness of the pipeline's timers.
             for (Map.Entry<String, TimerSpec> entry : parDoPayload.getTimerSpecsMap().entrySet()) {
               String timerPCollectionName =
                   SyntheticComponents.uniqueId(
                       "timer", pTransform.getInputsMap().keySet()::contains);
+              String timerCoderId = SyntheticComponents.uniqueId(
+                  "timer-coder", processBundleDescriptor.getCodersMap().keySet()::contains);
+
               pTransform
                   .putInputs(entry.getKey(), timerPCollectionName)
                   .putOutputs(entry.getKey(), timerPCollectionName);
@@ -352,12 +359,18 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
               RunnerApi.PCollection.Builder timerPCollection = RunnerApi.PCollection.newBuilder();
               timerPCollection
                   .setUniqueName(timerPCollectionName)
-                  .setCoderId(entry.getValue().getTimerCoderId())
+                  .setCoderId(timerCoderId)
                   .setIsBounded(RunnerApi.IsBounded.Enum.BOUNDED)
                   .setWindowingStrategyId(fakeWindowingStrategyId);
 
               processBundleDescriptor.putPcollections(
                   timerPCollectionName, timerPCollection.build());
+
+              RunnerApi.Coder timerCoder = ModelCoders.kvCoder(
+                  mainInputKeyCoderId,
+                  entry.getValue().getTimerCoderId());
+
+              processBundleDescriptor.putCoders(timerCoderId, timerCoder);
             }
 
             transformSpec
