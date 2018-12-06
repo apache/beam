@@ -35,7 +35,6 @@ import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -78,11 +77,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
     this.environmentFactory = environmentFactory;
     this.dataService = dataService;
     this.stateService = stateService;
-    if (idGenerator != null) {
-      this.idGenerator = idGenerator;
-    } else {
-      this.idGenerator = IdGenerators.incrementingLongs();
-    }
+    this.idGenerator = idGenerator;
   }
 
   @Override

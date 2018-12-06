@@ -148,26 +148,6 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
     Networks.replaceDirectedNetworkNodes(
         network, createOutputReceiversTransform(stageName, counterSet));
 
-    // Swap out all the RegisterFnRequest nodes with Operation nodes
-    Networks.replaceDirectedNetworkNodes(
-        network,
-        createOperationTransformForRegisterFnNodes(
-            idGenerator,
-            instructionRequestHandler,
-            grpcStateFnServer.getService(),
-            stageName,
-            executionContext));
-
-    // Swap out all the RemoteGrpcPort nodes with Operation nodes, note that it is expected
-    // that the RegisterFnRequest nodes have already been replaced.
-    Networks.replaceDirectedNetworkNodes(
-        network,
-        createOperationTransformForGrpcPortNodes(
-            network,
-            grpcDataFnServer.getService(),
-            // TODO: Set NameContext properly for these operations.
-            executionContext.createOperationContext(
-                NameContext.create(stageName, stageName, stageName, stageName))));
     if (DataflowRunner.hasExperiment(
         options.as(DataflowPipelineDebugOptions.class), "use_executable_stage_bundle_execution")) {
       LOG.debug("Using SingleEnvironmentInstanceJobBundleFactory");

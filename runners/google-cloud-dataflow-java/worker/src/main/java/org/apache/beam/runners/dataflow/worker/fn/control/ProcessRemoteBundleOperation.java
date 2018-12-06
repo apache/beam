@@ -35,9 +35,8 @@ import org.slf4j.LoggerFactory;
 /**
  * This {@link org.apache.beam.runners.dataflow.worker.util.common.worker.Operation} is responsible
  * for communicating with the SDK harness and asking it to process a bundle of work. This operation
- * request a RemoteBundle{@link org.apache.beam.runners.fnexecution.control.RemoteBundle}, send data
- * elements to SDK and receive processed results from SDK, then pass these elements to next
- * Operations.
+ * requests a {@link org.apache.beam.runners.fnexecution.control.RemoteBundle}, sends elements to
+ * SDK and receive processed results from SDK, passing these elements downstream.
  */
 public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessRemoteBundleOperation.class);
