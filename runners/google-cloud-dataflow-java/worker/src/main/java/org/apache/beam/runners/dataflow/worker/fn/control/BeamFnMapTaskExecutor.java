@@ -155,10 +155,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       return result;
     }
 
-    // BeamFnApi.Metrics was deprecated and replaced with more flexible MonitoringInfo.
-    // However some of SDKs have implementations that utilize BeamFnApi.Metrics and were not yet
-    // migrated to using new approach.
-    // Falling back to using deprecated approach until all officially supported SDKs complete migration.
+    // todo(BEAM-6189): Remove this fallback once Metrics is deprecated from SDKs.
     MetricUpdates updates = progressTracker.extractMetricUpdates();
 
     Iterable<CounterUpdate> deprecatedMetrics =
@@ -347,7 +344,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
           grpcWriteOperation.abortWait();
         }
 
-        //TODO: Replace getProcessBundleProgress with getMonitoringInfos when Metrics is deprecated.
+        // TODO(BEAM-6189): Replace getProcessBundleProgress with getMonitoringInfos when Metrics
+        // is deprecated.
         ProcessBundleProgressResponse processBundleProgressResponse =
             MoreFutures.get(bundleProcessOperation.getProcessBundleProgress());
         updateMetrics(processBundleProgressResponse.getMonitoringInfosList());
@@ -357,7 +355,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         Metrics metrics = processBundleProgressResponse.getMetrics();
         updateMetricsDeprecated(metrics);
 
-        // todomigryz: utilize monitoringInfos here.
+        // todo(migryz): utilize monitoringInfos here.
         double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
 
         grpcWriteOperationElementsProcessed.accept((int) elementsConsumed);
@@ -398,9 +396,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       }
     }
 
-    // Keeping this as static class for this iteration. Will extract to separate file and generalize
-    // when more counter types are added.
-    // todomigryz: define counter transformer factory
+    // Will extract to separate file and generalize when more counter types are added.
+    // todo(migryz): define counter transformer factory
     // that can provide respective counter transformer for different type of counters.
     // (ie RowCountCounterTranformer, MSecCounterTransformer, UserCounterTransformer, etc)
     private static class MonitoringInfoToCounterUpdateTransformer {
@@ -423,10 +420,9 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
         String type = monitoringInfo.getType();
 
-        // todomigryz: run MonitoringInfo through validation process.
-        // refer to https://github.com/apache/beam/pull/6799
-
-        if (urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
+        // todo(migryz): run MonitoringInfo through Proto validation process.
+        // Requires https://github.com/apache/beam/pull/6799 to be merged.
+      if (urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
           if (!type.equals("beam:metrics:sum_int_64")) {
             LOG.warn(
                 "Ignoring user-counter MonitoringInfo with unexpected type."

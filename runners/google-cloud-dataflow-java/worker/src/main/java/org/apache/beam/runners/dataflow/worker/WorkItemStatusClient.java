@@ -263,7 +263,7 @@ public class WorkItemStatusClient {
     return status;
   }
 
-  // todomigryz this method should return List<CounterUpdate> instead of updating member variable
+  // todo(migryz) this method should return List<CounterUpdate> instead of updating member variable
   @VisibleForTesting
   synchronized void populateCounterUpdates(WorkItemStatus status) {
     if (worker == null) {

@@ -517,62 +517,9 @@ public class BeamFnMapTaskExecutorTest {
           public void close() {}
         };
 
+
     Map<String, DataflowStepContext> stepContextMap = new HashMap<>();
-    NameContext nc =
-        new NameContext() {
-          @Nullable
-          @Override
-          public String stageName() {
-            return "ExpectedStage";
-          }
-
-          @Nullable
-          @Override
-          public String originalName() {
-            return "ExpectedOriginalName";
-          }
-
-          @Nullable
-          @Override
-          public String systemName() {
-            return "ExpectedSystemName";
-          }
-
-          @Nullable
-          @Override
-          public String userName() {
-            return "ExpectedUserName";
-          }
-        };
-    DataflowStepContext dsc =
-        new DataflowStepContext(nc) {
-          @Nullable
-          @Override
-          public <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
-            return null;
-          }
-
-          @Override
-          public <W extends BoundedWindow> void setStateCleanupTimer(
-              String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {}
-
-          @Override
-          public DataflowStepContext namespacedToUser() {
-            return this;
-          }
-
-          @Override
-          public StateInternals stateInternals() {
-            return null;
-          }
-
-          @Override
-          public TimerInternals timerInternals() {
-            return null;
-          }
-        };
-
-    stepContextMap.put("ExpectedPTransform", dsc);
+    stepContextMap.put("ExpectedPTransform", generateDataflowStepContext("Expected"));
 
     RegisterAndProcessBundleOperation processOperation =
         new RegisterAndProcessBundleOperation(
@@ -613,6 +560,68 @@ public class BeamFnMapTaskExecutorTest {
         metricsCounterUpdates,
         contains(
             new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(expectedCounterValue)));
+  }
+
+  /**
+   * Generates bare minumum DataflowStepContext to use for testing.
+   * @param valuesPrefix prefix for all types of names that are specified in DataflowStepContext.
+   * @return new instance of DataflowStepContext
+   */
+  private DataflowStepContext generateDataflowStepContext(String valuesPrefix) {
+    NameContext nc =
+        new NameContext() {
+          @Nullable
+          @Override
+          public String stageName() {
+            return valuesPrefix + "Stage";
+          }
+
+          @Nullable
+          @Override
+          public String originalName() {
+            return valuesPrefix + "OriginalName";
+          }
+
+          @Nullable
+          @Override
+          public String systemName() {
+            return valuesPrefix + "SystemName";
+          }
+
+          @Nullable
+          @Override
+          public String userName() {
+            return valuesPrefix + "UserName";
+          }
+        };
+    DataflowStepContext dsc =
+        new DataflowStepContext(nc) {
+          @Nullable
+          @Override
+          public <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
+            return null;
+          }
+
+          @Override
+          public <W extends BoundedWindow> void setStateCleanupTimer(
+              String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {}
+
+          @Override
+          public DataflowStepContext namespacedToUser() {
+            return this;
+          }
+
+          @Override
+          public StateInternals stateInternals() {
+            return null;
+          }
+
+          @Override
+          public TimerInternals timerInternals() {
+            return null;
+          }
+        };
+    return dsc;
   }
 
   private BeamFnApi.InstructionResponse.Builder responseFor(BeamFnApi.InstructionRequest request) {
