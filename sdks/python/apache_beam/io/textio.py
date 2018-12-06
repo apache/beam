@@ -38,7 +38,8 @@ from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 
-__all__ = ['ReadFromText', 'ReadFromTextWithFilename', 'ReadAllFromText', 'WriteToText']
+__all__ = ['ReadFromText', 'ReadFromTextWithFilename', 'ReadAllFromText',
+           'WriteToText']
 
 
 class _TextSource(filebasedsource.FileBasedSource):
@@ -322,7 +323,8 @@ class _TextSource(filebasedsource.FileBasedSource):
 
 class _TextSourceWithFilename(_TextSource):
   def read_records(self, file_name, range_tracker):
-    for record in super(_TextSourceWithFilename, self).read_records(file_name, range_tracker):
+    for record in super(_TextSourceWithFilename, self).read_records(file_name,
+                                                                    range_tracker):
       yield (file_name, record)
 
 
@@ -540,7 +542,8 @@ class ReadFromTextWithFilename(ReadFromText):
   r"""A :class:`~apache_beam.io.ReadFromText` for reading text
   files returning the name of the file and the content of the file.
 
-  This class extend ReadFromText class just setting a different _source_class attribute.
+  This class extend ReadFromText class just setting a different 
+  _source_class attribute.
   """
 
   _source_class = _TextSourceWithFilename
