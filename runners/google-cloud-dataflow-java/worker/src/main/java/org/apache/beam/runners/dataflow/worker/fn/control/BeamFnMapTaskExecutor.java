@@ -422,7 +422,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
         // todo(migryz): run MonitoringInfo through Proto validation process.
         // Requires https://github.com/apache/beam/pull/6799 to be merged.
-      if (urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
+        if (urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
           if (!type.equals("beam:metrics:sum_int_64")) {
             LOG.warn(
                 "Ignoring user-counter MonitoringInfo with unexpected type."

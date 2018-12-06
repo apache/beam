@@ -517,7 +517,6 @@ public class BeamFnMapTaskExecutorTest {
           public void close() {}
         };
 
-
     Map<String, DataflowStepContext> stepContextMap = new HashMap<>();
     stepContextMap.put("ExpectedPTransform", generateDataflowStepContext("Expected"));
 
@@ -564,6 +563,7 @@ public class BeamFnMapTaskExecutorTest {
 
   /**
    * Generates bare minumum DataflowStepContext to use for testing.
+   *
    * @param valuesPrefix prefix for all types of names that are specified in DataflowStepContext.
    * @return new instance of DataflowStepContext
    */
