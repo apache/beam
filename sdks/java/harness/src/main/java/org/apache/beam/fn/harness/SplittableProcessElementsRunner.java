@@ -253,6 +253,7 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, PositionT, Ou
       this.stateAccessor = null;
 
       // Inform the BundleExecutionController of a Runner or user initiated checkpoint
+      // TODO: Should we check if the primary / residual restrictions are empty?
       if (result.getContinuation().shouldResume() || checkpointedRestriction != null) {
         BundleApplication primaryApplication =
             createBundleApplicationFor(currentRestrictionTracker);
