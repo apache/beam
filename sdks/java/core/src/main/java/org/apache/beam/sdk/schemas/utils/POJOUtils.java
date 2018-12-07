@@ -159,7 +159,7 @@ public class POJOUtils {
                   MethodCall.invoke(clazz.getDeclaredConstructor())
                       .andThen(new ConstructInstruction(fields)));
 
-      Class typeArray[] = types.toArray(new Class[types.size()]);
+      Class[] typeArray = types.toArray(new Class[types.size()]);
       return builder
           .make()
           .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
