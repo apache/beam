@@ -26,20 +26,20 @@
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 apply plugin: 'java'
 
-for (String projName : rootProject.ext.allProjectNames) {
-  if (!projName.equals(':' + project.name) && !projName.equals(':beam-sdks-java-bom')) {
-    evaluationDependsOn(projName)
+for (p in rootProject.subprojects) {
+  if (!p.name.equals(project.name) && !p.name.equals('beam-sdks-java-bom')) {
+    evaluationDependsOn(':' + p.name)
   }
 }
 
-ext.getExportedJavadocProjects = { allProjectNames ->
+ext.getExportedJavadocProjects = {
   def exportedJavadocProjects = new ArrayList<>();
-  for (String projName : allProjectNames) {
-    if (!projName.equals(':' + project.name) && !projName.equals(':beam-sdks-java-bom')) {
-      def subproject = project(projName)
+  for (p in rootProject.subprojects) {
+    if (!p.name.equals(project.name) && !p.name.equals('beam-sdks-java-bom')) {
+      def subproject = project(':' + p.name)
       if (subproject.ext.properties.containsKey('exportJavadoc') &&
           subproject.ext.properties.exportJavadoc) {
-        exportedJavadocProjects.add(projName)
+        exportedJavadocProjects.add(':' + p.name)
       }
     }
   }
@@ -47,12 +47,12 @@ ext.getExportedJavadocProjects = { allProjectNames ->
 }
 
 task allJavadoc() {
-  def exportedJavadocProjects = getExportedJavadocProjects(rootProject.ext.allProjectNames)
+  def exportedJavadocProjects = getExportedJavadocProjects()
   dependsOn exportedJavadocProjects.collect { "$it:javadoc" }
 }
 
 task aggregateJavadoc(type: Javadoc) {
-  def exportedJavadocProjects = getExportedJavadocProjects(rootProject.ext.allProjectNames)
+  def exportedJavadocProjects = getExportedJavadocProjects()
   source exportedJavadocProjects.collect { project(it).sourceSets.main.allJava }
   classpath = files(exportedJavadocProjects.collect { project(it).sourceSets.main.compileClasspath })
   destinationDir = file("${buildDir}/docs/javadoc")

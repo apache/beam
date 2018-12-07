@@ -30,9 +30,9 @@ ext {
   mavenJavaBomOutputFile = file(mavenJavaDir + "/pom-default.xml")
 }
 
-for (String projName : rootProject.ext.allProjectNames) {
-  if (!projName.equals(':' + project.name)) {
-    evaluationDependsOn(projName)
+for (p in rootProject.subprojects) {
+  if (!p.name.equals(project.name)) {
+    evaluationDependsOn(':' + p.name)
   }
 }
 
@@ -40,8 +40,8 @@ for (String projName : rootProject.ext.allProjectNames) {
 task copyPom() {
   doLast {
     def moduleNames = new ArrayList<>()
-    for (String projName : rootProject.ext.allProjectNames) {
-      def subproject = project(projName)
+    for (p in rootProject.subprojects) {
+      def subproject = project(':' + p.name)
       if (subproject.ext.properties.containsKey('includeInJavaBom') &&
           subproject.ext.properties.includeInJavaBom) {
         moduleNames.add(subproject.name)
