@@ -28,7 +28,7 @@ import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticBoundedSource;
-import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOptions;
+import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions.ProgressShape;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -97,7 +97,7 @@ public class SyntheticBoundedIOTest {
     assertEquals(123456, sourceOptions.seed);
     assertEquals(42, sourceOptions.bundleSizeDistribution.sample(123), 0.0);
     assertEquals(10, sourceOptions.forceNumInitialBundles.intValue());
-    assertEquals(SyntheticBoundedIO.ProgressShape.LINEAR_REGRESSING, sourceOptions.progressShape);
+    assertEquals(ProgressShape.LINEAR_REGRESSING, sourceOptions.progressShape);
   }
 
   @Test
@@ -168,7 +168,7 @@ public class SyntheticBoundedIOTest {
   @Test
   public void testIncreasingProgress() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    testSourceOptions.progressShape = SyntheticBoundedIO.ProgressShape.LINEAR;
+    testSourceOptions.progressShape = ProgressShape.LINEAR;
     SyntheticBoundedSource source = new SyntheticBoundedSource(testSourceOptions);
     BoundedSource.BoundedReader<KV<byte[], byte[]>> reader = source.createReader(options);
     // Reader starts at 0.0 progress.
@@ -185,7 +185,7 @@ public class SyntheticBoundedIOTest {
   @Test
   public void testRegressingProgress() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    testSourceOptions.progressShape = SyntheticBoundedIO.ProgressShape.LINEAR_REGRESSING;
+    testSourceOptions.progressShape = ProgressShape.LINEAR_REGRESSING;
     SyntheticBoundedSource source = new SyntheticBoundedSource(testSourceOptions);
     BoundedSource.BoundedReader<KV<byte[], byte[]>> reader = source.createReader(options);
     double lastFractionConsumed = reader.getFractionConsumed();

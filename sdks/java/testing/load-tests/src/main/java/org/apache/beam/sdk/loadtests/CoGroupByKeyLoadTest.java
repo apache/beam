@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
-import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOptions;
+import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
 import org.apache.beam.sdk.options.Default;
