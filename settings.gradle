@@ -46,6 +46,13 @@ include "beam-runners-flink_2.11-job-server"
 project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/job-server")
 include "beam-runners-flink_2.11-job-server-container"
 project(":beam-runners-flink_2.11-job-server-container").dir = file("runners/flink/job-server-container")
+// 1.6 version
+include "beam-runners-flink-1.6"
+project(":beam-runners-flink-1.6").dir = file("runners/flink/1.6")
+include "beam-runners-flink-1.6-job-server"
+project(":beam-runners-flink-1.6-job-server").dir = file("runners/flink/1.6/job-server")
+include "beam-runners-flink-1.6-job-server-container"
+project(":beam-runners-flink-1.6-job-server-container").dir = file("runners/flink/1.6/job-server-container")
 /* End Flink Runner related settings */
 include "beam-runners-gcp-gcemd"
 project(":beam-runners-gcp-gcemd").dir = file("runners/gcp/gcemd")
