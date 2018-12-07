@@ -56,8 +56,8 @@ class EmployeeInputFormat extends InputFormat<Text, Employee> {
     for (int i = 1; i <= TestEmployeeDataSet.NUMBER_OF_SPLITS; i++) {
       InputSplit inputSplitObj =
           new NewObjectsEmployeeInputSplit(
-              ((i - 1) * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
-              (i * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1));
+              (i - 1) * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT,
+              i * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1);
       inputSplitList.add(inputSplitObj);
     }
     return inputSplitList;

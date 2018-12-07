@@ -102,7 +102,7 @@ public final class StreamingTransformTranslator {
       public void evaluate(ConsoleIO.Write.Unbound<T> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<T>> dstream =
-            ((UnboundedDataset<T>) (context).borrowDataset(transform)).getDStream();
+            ((UnboundedDataset<T>) context.borrowDataset(transform)).getDStream();
         dstream.map(WindowingHelpers.unwindowFunction()).print(transform.getNum());
       }
 
@@ -397,7 +397,7 @@ public final class StreamingTransformTranslator {
 
         @SuppressWarnings("unchecked")
         UnboundedDataset<InputT> unboundedDataset =
-            ((UnboundedDataset<InputT>) context.borrowDataset(transform));
+            (UnboundedDataset<InputT>) context.borrowDataset(transform);
         JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
 
         final String stepName = context.getCurrentTransform().getFullName();

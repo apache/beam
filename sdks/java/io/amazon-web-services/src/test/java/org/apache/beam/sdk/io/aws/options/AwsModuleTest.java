@@ -92,7 +92,7 @@ public class AwsModuleTest {
 
     Field field = PropertiesFileCredentialsProvider.class.getDeclaredField("credentialsFilePath");
     field.setAccessible(true);
-    String deserializedCredentialsFilePath = ((String) field.get(deserializedCredentialsProvider));
+    String deserializedCredentialsFilePath = (String) field.get(deserializedCredentialsProvider);
     assertEquals(credentialsFilePath, deserializedCredentialsFilePath);
   }
 
@@ -113,7 +113,7 @@ public class AwsModuleTest {
     Field field =
         ClasspathPropertiesFileCredentialsProvider.class.getDeclaredField("credentialsFilePath");
     field.setAccessible(true);
-    String deserializedCredentialsFilePath = ((String) field.get(deserializedCredentialsProvider));
+    String deserializedCredentialsFilePath = (String) field.get(deserializedCredentialsProvider);
     assertEquals(credentialsFilePath, deserializedCredentialsFilePath);
   }
 

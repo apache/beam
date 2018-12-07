@@ -257,7 +257,7 @@ public class CommonCoderTest {
           convertValue(kvMap.get("value"), coderSpec.getComponents().get(0), valueCoder);
       Instant timestamp = new Instant(((Number) kvMap.get("timestamp")).longValue());
       List<BoundedWindow> windows = new ArrayList<>();
-      for (Object window : ((List<Object>) kvMap.get("windows"))) {
+      for (Object window : (List<Object>) kvMap.get("windows")) {
         windows.add(
             (BoundedWindow) convertValue(window, coderSpec.getComponents().get(1), windowCoder));
       }
