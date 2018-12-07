@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions.ProgressShape;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -42,9 +41,9 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Unit tests for {@link SyntheticBoundedIO}. */
+/** Unit tests for {@link SyntheticBoundedSource}. */
 @RunWith(JUnit4.class)
-public class SyntheticBoundedIOTest {
+public class SyntheticBoundedSourceTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
   private SyntheticSourceOptions testSourceOptions = new SyntheticSourceOptions();
@@ -150,9 +149,7 @@ public class SyntheticBoundedIOTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
     testSourceOptions.forceNumInitialBundles = 37;
-    assertEquals(
-        37,
-        new SyntheticBoundedIO.SyntheticBoundedSource(testSourceOptions).split(42, options).size());
+    assertEquals(37, new SyntheticBoundedSource(testSourceOptions).split(42, options).size());
   }
 
   private void testSplitIntoBundlesP(long splitPointFrequency) throws Exception {
