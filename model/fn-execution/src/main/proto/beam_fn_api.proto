@@ -310,6 +310,98 @@ message ProcessBundleProgressRequest {
   string instruction_reference = 1;
 }
 
+// A specification containing required set of fields and labels required
+// to be set on a MonitoringInfo for the specific URN for SDK->RunnerHarness
+// ProcessBundleResponse reporting.
+message MonitoringInfoSpec {
+  string urn = 1;
+  string type_urn = 2;
+  // The list of required
+  repeated string required_labels = 3;
+  // Extra non functional parts of the spec for descriptive purposes.
+  // i.e. description, units, etc.
+  repeated Annotation annotations = 4;
+}
+
+
+extend google.protobuf.EnumValueOptions {
+  // Enum extension to store the MonitoringInfoSpecs.
+  MonitoringInfoSpec monitoring_info_spec = 207174266;
+}
+
+// The key name and value string of MonitoringInfo annotations.
+message Annotation {
+  string key = 1;
+  string value = 2;
+}
+
+// Populated MonitoringInfoSpecs for specific URNs.
+// Indicating the required fields to be set.
+// SDKS and RunnerHarnesses can load these instances into memory and write a
+// validator or code generator to assist with populating and validating
+// MonitoringInfo protos.
+message MonitoringInfoSpecs {
+  enum Enum {
+    USER_COUNTER = 0 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:",
+      type_urn: "beam:metrics:sum_int_64",
+    }];
+
+    ELEMENT_COUNT = 1 [(monitoring_info_spec) = {
+      urn: "beam:metric:element_count:v1",
+      type_urn: "beam:metrics:sum_int_64",
+      required_labels: ["PTRANSFORM", "PCOLLECTION"],
+      annotations: [{
+        key: "description",
+        value: "The total elements output to a Pcollection by a PTransform."
+      }]
+    }];
+
+    START_BUNDLE_MSECS = 2 [(monitoring_info_spec) = {
+      urn: "beam:metric:pardo_execution_time:start_bundle_msecs:v1",
+      type_urn: "beam:metrics:sum_int_64",
+      required_labels: ["PTRANSFORM"],
+      annotations: [{
+        key: "description",
+        value: "The total estimated execution time of the start bundle"
+            "function in a pardo"
+      }]
+    }];
+
+    PROCESS_BUNDLE_MSECS = 3 [(monitoring_info_spec) = {
+      urn: "beam:metric:pardo_execution_time:process_bundle_msecs:v1",
+      type_urn: "beam:metrics:sum_int_64",
+      required_labels: ["PTRANSFORM"],
+      annotations: [{
+        key: "description",
+        value: "The total estimated execution time of the process bundle"
+            "function in a pardo"
+      }]
+    }];
+
+    FINISH_BUNDLE_MSECS = 4 [(monitoring_info_spec) = {
+      urn: "beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
+      type_urn: "beam:metrics:sum_int_64",
+      required_labels: ["PTRANSFORM"],
+      annotations: [{
+        key: "description",
+        value: "The total estimated execution time of the finish bundle "
+            "function in a pardo"
+      }]
+    }];
+
+    TOTAL_MSECS = 5 [(monitoring_info_spec) = {
+      urn: "beam:metric:ptransform_execution_time:total_msecs:v1",
+      type_urn: "beam:metrics:sum_int_64",
+      required_labels: ["PTRANSFORM"],
+      annotations: [{
+        key: "description",
+        value: "The total estimated execution time of the ptransform"
+      }]
+    }];
+  }
+}
+
 message MonitoringInfo {
   // The name defining the metric or monitored state.
   string urn = 1;
