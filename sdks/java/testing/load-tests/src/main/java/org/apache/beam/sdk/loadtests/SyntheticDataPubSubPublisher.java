@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.loadtests;
 
-import static org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticBoundedSource;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 
 import java.io.IOException;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;

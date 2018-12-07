@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 
 import java.io.IOException;
 import java.util.Optional;
-import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
@@ -41,17 +40,16 @@ import org.apache.beam.sdk.values.TupleTag;
  * Load test for {@link CoGroupByKey} operation.
  *
  * <p>The purpose of this test is to measure {@link CoGroupByKey}'s behaviour in stressful
- * conditions. It uses {@link SyntheticBoundedIO} and {@link SyntheticStep} which both can be
- * parametrized to generate keys and values of various size, impose delay (sleep or cpu burnout) in
- * various moments during the pipeline execution and provide some other performance challenges.
+ * conditions. It uses synthetic sources and {@link SyntheticStep} which both can be parametrized to
+ * generate keys and values of various size, impose delay (sleep or cpu burnout) in various moments
+ * during the pipeline execution and provide some other performance challenges.
  *
  * <p>In addition, this test allows to reiterate produced PCollection multiple times to see how the
  * pipeline behaves (e.g. if caches work etc.).
  *
- * @see SyntheticStep
- * @see SyntheticBoundedIO
- *     <p>To run it manually, use the following command:
- *     <pre>
+ * <p>To run it manually, use the following command:
+ *
+ * <pre>
  *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
  *      --iterations=1
  *      --sourceOptions={"numRecords":1000,...}
@@ -94,12 +92,12 @@ public class CoGroupByKeyLoadTest extends LoadTest<CoGroupByKeyLoadTest.Options>
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
     PCollection<KV<byte[], byte[]>> input =
-        pipeline.apply("Read input", SyntheticBoundedIO.readFrom(sourceOptions));
+        pipeline.apply("Read input", readFromSource(sourceOptions));
     input = input.apply("Collect start time metrics (input)", ParDo.of(runtimeMonitor));
     applyStepIfPresent(input, "Synthetic step for input", syntheticStep);
 
     PCollection<KV<byte[], byte[]>> coInput =
-        pipeline.apply("Read co-input", SyntheticBoundedIO.readFrom(coSourceOptions));
+        pipeline.apply("Read co-input", readFromSource(coSourceOptions));
     coInput = coInput.apply("Collect start time metrics (co-input)", ParDo.of(runtimeMonitor));
     applyStepIfPresent(coInput, "Synthetic step for co-input", syntheticStep);
 

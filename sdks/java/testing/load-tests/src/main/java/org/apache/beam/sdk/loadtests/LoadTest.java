@@ -25,12 +25,17 @@ import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
+import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
@@ -58,6 +63,15 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
     this.sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
     this.stepOptions = fromJsonString(options.getStepOptions(), SyntheticStep.Options.class);
     this.pipeline = Pipeline.create(options);
+  }
+
+  PTransform<PBegin, PCollection<KV<byte[], byte[]>>> readFromSource(
+      SyntheticSourceOptions sourceOptions) {
+    if (options.isStreaming()) {
+      return Read.from(new SyntheticUnboundedSource(sourceOptions));
+    } else {
+      return Read.from(new SyntheticBoundedSource(sourceOptions));
+    }
   }
 
   /** The load test pipeline implementation. */
