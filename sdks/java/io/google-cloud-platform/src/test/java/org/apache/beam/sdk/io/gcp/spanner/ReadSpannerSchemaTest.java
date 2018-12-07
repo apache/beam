@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -31,10 +28,18 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentMatcher;
 
@@ -42,9 +47,11 @@ import org.mockito.ArgumentMatcher;
 public class ReadSpannerSchemaTest {
 
   @Rule public final transient ExpectedException thrown = ExpectedException.none();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   private FakeServiceFactory serviceFactory;
   private ReadOnlyTransaction mockTx;
+  private SpannerConfig config;
 
   private static Struct columnMetadata(String tableName, String columnName, String type) {
     return Struct.newBuilder()
@@ -119,38 +126,65 @@ public class ReadSpannerSchemaTest {
   @SuppressWarnings("unchecked")
   public void setUp() throws Exception {
     serviceFactory = new FakeServiceFactory();
-    mockTx = mock(ReadOnlyTransaction.class);
-  }
-
-  @Test
-  public void simple() throws Exception {
     // Simplest schema: a table with int64 key
-    ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
-    when(serviceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
-
-    preparePkMetadata(tx, Arrays.asList(pkMetadata("test", "key", "ASC")));
-    prepareColumnMetadata(tx, Arrays.asList(columnMetadata("test", "key", "INT64")));
-
-    SpannerConfig config =
+    mockTx = mock(ReadOnlyTransaction.class);
+    when(serviceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(mockTx);
+    preparePkMetadata(mockTx, Arrays.asList(pkMetadata("test", "key", "ASC")));
+    prepareColumnMetadata(mockTx, Arrays.asList(columnMetadata("test", "key", "INT64")));
+    config =
         SpannerConfig.create()
             .withProjectId("test-project")
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory);
+  }
 
-    DoFnTester<Void, SpannerSchema> tester = DoFnTester.of(new ReadSpannerSchema(config));
-    List<SpannerSchema> schemas = tester.processBundle(Arrays.asList((Void) null));
+  @Test
+  @Category(ValidatesRunner.class)
+  public void simpleColumn() {
+    SchemaToColumnFunction schemaToColumnFunction = new SchemaToColumnFunction();
 
-    assertEquals(1, schemas.size());
-
-    SpannerSchema schema = schemas.get(0);
-
-    assertEquals(1, schema.getTables().size());
+    PCollection<SpannerSchema.Column> columns =
+        p.apply(Create.of(Arrays.asList((Void) null)))
+            .apply(ParDo.of(new ReadSpannerSchema(config)))
+            .apply("MapSpannerSchemaToColumn", MapElements.via(schemaToColumnFunction));
 
     SpannerSchema.Column column = SpannerSchema.Column.create("key", Type.int64());
+
+    PAssert.that(columns).containsInAnyOrder(column);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void simpleKeyPart() {
+    SchemaToKeyPartFunction schemaToKeyPartFunction = new SchemaToKeyPartFunction();
+
+    PCollection<SpannerSchema.KeyPart> keyParts =
+        p.apply(Create.of(Arrays.asList((Void) null)))
+            .apply(ParDo.of(new ReadSpannerSchema(config)))
+            .apply("Map2", MapElements.via(schemaToKeyPartFunction));
+
     SpannerSchema.KeyPart keyPart = SpannerSchema.KeyPart.create("key", false);
 
-    assertThat(schema.getColumns("test"), contains(column));
-    assertThat(schema.getKeyParts("test"), contains(keyPart));
+    PAssert.that(keyParts).containsInAnyOrder(keyPart);
+    p.run().waitUntilFinish();
+  }
+
+  //  This class to avoid serialisation of  ReadSpannerSchemaTest.class
+  static class SchemaToColumnFunction extends SimpleFunction<SpannerSchema, SpannerSchema.Column> {
+    @Override
+    public SpannerSchema.Column apply(final SpannerSchema input) {
+      return input.getColumns("test").get(0);
+    }
+  }
+
+  //  This class to avoid serialisation of  ReadSpannerSchemaTest.class
+  static class SchemaToKeyPartFunction
+      extends SimpleFunction<SpannerSchema, SpannerSchema.KeyPart> {
+    @Override
+    public SpannerSchema.KeyPart apply(final SpannerSchema input) {
+      return input.getKeyParts("test").get(0);
+    }
   }
 }
