@@ -163,7 +163,7 @@ public class SyntheticSourceOptions extends SyntheticOptions {
 
   /**
    * Shape of the progress reporting curve as a function of the current offset in the {@link
-   * SyntheticBoundedIO}.
+   * SyntheticBoundedSource}.
    */
   public enum ProgressShape {
     /** Reported progress grows linearly from 0 to 1. */
