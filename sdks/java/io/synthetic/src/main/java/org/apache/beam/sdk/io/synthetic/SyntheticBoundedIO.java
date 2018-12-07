@@ -19,11 +19,9 @@ package org.apache.beam.sdk.io.synthetic;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.commons.math3.stat.StatUtils.sum;
 
 import com.google.common.base.MoreObjects;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
@@ -34,7 +32,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions.ProgressShape;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
@@ -84,6 +81,8 @@ public class SyntheticBoundedIO {
 
     private final SyntheticSourceOptions sourceOptions;
 
+    private final BundleSplitter bundleSplitter;
+
     public SyntheticBoundedSource(SyntheticSourceOptions sourceOptions) {
       this(0, sourceOptions.numRecords, sourceOptions);
     }
@@ -91,6 +90,7 @@ public class SyntheticBoundedIO {
     SyntheticBoundedSource(long startOffset, long endOffset, SyntheticSourceOptions sourceOptions) {
       super(startOffset, endOffset, 1);
       this.sourceOptions = sourceOptions;
+      this.bundleSplitter = new BundleSplitter(this.sourceOptions);
       LOG.debug("Constructing {}", toString());
     }
 
@@ -164,7 +164,8 @@ public class SyntheticBoundedIO {
               : sourceOptions.forceNumInitialBundles;
 
       List<SyntheticBoundedSource> res =
-          generateBundleSizes(desiredNumBundles)
+          bundleSplitter
+              .getBundleSizes(desiredNumBundles, this.getStartOffset(), this.getEndOffset())
               .stream()
               .map(
                   offsetRange ->
@@ -172,35 +173,6 @@ public class SyntheticBoundedIO {
               .collect(Collectors.toList());
       LOG.info("Split into {} bundles of sizes: {}", res.size(), res);
       return res;
-    }
-
-    private List<OffsetRange> generateBundleSizes(int desiredNumBundles) {
-      List<OffsetRange> result = new ArrayList<>();
-
-      // Generate relative bundle sizes using the given distribution.
-      double[] relativeSizes = new double[desiredNumBundles];
-      for (int i = 0; i < relativeSizes.length; ++i) {
-        relativeSizes[i] =
-            sourceOptions.bundleSizeDistribution.sample(
-                sourceOptions.hashFunction().hashInt(i).asLong());
-      }
-
-      // Generate offset ranges proportional to the relative sizes.
-      double s = sum(relativeSizes);
-      long startOffset = getStartOffset();
-      double sizeSoFar = 0;
-      for (int i = 0; i < relativeSizes.length; ++i) {
-        sizeSoFar += relativeSizes[i];
-        long endOffset =
-            (i == relativeSizes.length - 1)
-                ? getEndOffset()
-                : (long) (getStartOffset() + sizeSoFar * (getEndOffset() - getStartOffset()) / s);
-        if (startOffset != endOffset) {
-          result.add(new OffsetRange(startOffset, endOffset));
-        }
-        startOffset = endOffset;
-      }
-      return result;
     }
   }
 
