@@ -492,6 +492,47 @@ class BeamModulePlugin implements Plugin<Project> {
       relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
     }
 
+    project.ext.repositories = {
+      maven {
+        name "testPublicationLocal"
+        url "file://${project.rootProject.projectDir}/testPublication/"
+      }
+      maven {
+        url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
+                ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
+                : 'https://repository.apache.org/content/repositories/snapshots')
+
+        // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
+        // has configured with the Apache release and snapshot staging credentials.
+        // <settings>
+        //   <servers>
+        //     <server>
+        //       <id>apache.releases.https</id>
+        //       <username>USER_TOKEN</username>
+        //       <password>PASS_TOKEN</password>
+        //     </server>
+        //     <server>
+        //       <id>apache.snapshots.https</id>
+        //       <username>USER_TOKEN</username>
+        //       <password>PASS_TOKEN</password>
+        //     </server>
+        //   </servers>
+        // </settings>
+        def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
+        if (settingsXml.exists()) {
+          def serverId = (project.properties['distMgmtServerId'] ?: isRelease(project)
+                  ? 'apache.releases.https' : 'apache.snapshots.https')
+          def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
+          if (m2SettingCreds) {
+            credentials {
+              username m2SettingCreds.username.text()
+              password m2SettingCreds.password.text()
+            }
+          }
+        }
+      }
+    }
+
     // Configures a project with a default set of plugins that should apply to all Java projects.
     //
     // Users should invoke this method using Groovy map syntax. For example:
@@ -861,46 +902,7 @@ artifactId=${project.name}
         project.artifacts.archives project.javadocJar
 
         project.publishing {
-          repositories {
-            maven {
-              name "testPublicationLocal"
-              url "file://${project.rootProject.projectDir}/testPublication/"
-            }
-            maven {
-              url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
-                      ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
-                      : 'https://repository.apache.org/content/repositories/snapshots')
-
-              // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
-              // has configured with the Apache release and snapshot staging credentials.
-              // <settings>
-              //   <servers>
-              //     <server>
-              //       <id>apache.releases.https</id>
-              //       <username>USER_TOKEN</username>
-              //       <password>PASS_TOKEN</password>
-              //     </server>
-              //     <server>
-              //       <id>apache.snapshots.https</id>
-              //       <username>USER_TOKEN</username>
-              //       <password>PASS_TOKEN</password>
-              //     </server>
-              //   </servers>
-              // </settings>
-              def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
-              if (settingsXml.exists()) {
-                def serverId = (project.properties['distMgmtServerId'] ?: isRelease(project)
-                        ? 'apache.releases.https' : 'apache.snapshots.https')
-                def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
-                if (m2SettingCreds) {
-                  credentials {
-                    username m2SettingCreds.username.text()
-                    password m2SettingCreds.password.text()
-                  }
-                }
-              }
-            }
-          }
+          repositories = project.ext.repositories
 
           publications {
             mavenJava(MavenPublication) {

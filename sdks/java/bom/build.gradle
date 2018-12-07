@@ -16,6 +16,12 @@
  * limitations under the License.
  */
 
+// beam-sdks-java-bom generates a BOM (Bill of Materials) in the form of
+// a pom.xml file, which enables users to easily import multiple modules
+// from Beam at the same version. See
+// https://github.com/GoogleCloudPlatform/cloud-opensource-java/blob/master/library-best-practices/JLBP-15.md
+// for more details on BOMs.
+
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 
 apply plugin: "java"
@@ -36,26 +42,21 @@ for (p in rootProject.subprojects) {
   }
 }
 
-// Copy our pom.xml to the location where a generated POM would go
-task copyPom() {
-  doLast {
-    def moduleNames = new ArrayList<>()
-    for (p in rootProject.subprojects) {
-      def subproject = project(':' + p.name)
-      if (subproject.ext.properties.containsKey('includeInJavaBom') &&
-          subproject.ext.properties.includeInJavaBom) {
-        moduleNames.add(subproject.name)
-      }
-    }
-
-    new File(mavenJavaDir).mkdirs()
-    copy {
-      from 'pom.xml.template'
-      into mavenJavaDir
-      rename 'pom.xml.template', 'pom-default.xml'
-      expand(version: project.version, modules: moduleNames)
-    }
+def bomModuleNames = new ArrayList<>()
+for (p in rootProject.subprojects) {
+  def subproject = project(':' + p.name)
+  if (subproject.ext.properties.containsKey('includeInJavaBom') &&
+      subproject.ext.properties.includeInJavaBom) {
+    bomModuleNames.add(subproject.name)
   }
+}
+
+// Copy our pom.xml to the location where a generated POM would go
+task copyPom(type: Copy) {
+  from 'pom.xml.template'
+  into mavenJavaDir
+  rename 'pom.xml.template', 'pom-default.xml'
+  expand(version: project.version, modules: bomModuleNames)
 }
 
 assemble.dependsOn copyPom
@@ -107,46 +108,7 @@ afterEvaluate {
         artifact mavenJavaBomOutputFile
       }
     }
-    repositories {
-      maven {
-        name "testPublicationLocal"
-        url "file://${project.rootProject.projectDir}/testPublication/"
-      }
-      maven {
-        url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
-                ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
-                : 'https://repository.apache.org/content/repositories/snapshots')
-
-        // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
-        // has configured with the Apache release and snapshot staging credentials.
-        // <settings>
-        //   <servers>
-        //     <server>
-        //       <id>apache.releases.https</id>
-        //       <username>USER_TOKEN</username>
-        //       <password>PASS_TOKEN</password>
-        //     </server>
-        //     <server>
-        //       <id>apache.snapshots.https</id>
-        //       <username>USER_TOKEN</username>
-        //       <password>PASS_TOKEN</password>
-        //     </server>
-        //   </servers>
-        // </settings>
-        def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
-        if (settingsXml.exists()) {
-          def serverId = (project.properties['distMgmtServerId'] ?: isRelease(project)
-                  ? 'apache.releases.https' : 'apache.snapshots.https')
-          def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
-          if (m2SettingCreds) {
-            credentials {
-              username m2SettingCreds.username.text()
-              password m2SettingCreds.password.text()
-            }
-          }
-        }
-      }
-    }
+    repositories project.ext.repositories
   }
 
   // Only sign artifacts if we are performing a release
