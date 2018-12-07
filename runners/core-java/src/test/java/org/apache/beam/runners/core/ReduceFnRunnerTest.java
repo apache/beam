@@ -1060,7 +1060,7 @@ public class ReduceFnRunnerTest {
       Instant hold = tester.getWatermarkHold();
       if (hold != null) {
         assertThat(hold, greaterThanOrEqualTo(new Instant(watermark)));
-        assertThat(watermark, lessThan((maxTs + gapDuration.getMillis())));
+        assertThat(watermark, lessThan(maxTs + gapDuration.getMillis()));
       }
     }
     tester.setAutoAdvanceOutputWatermark(true);

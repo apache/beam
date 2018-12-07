@@ -44,7 +44,7 @@ public class SerializableAvroCodecFactoryTest {
       SerializableAvroCodecFactory codecFactory =
           new SerializableAvroCodecFactory(CodecFactory.fromString(codec));
 
-      assertEquals((CodecFactory.fromString(codec).toString()), codecFactory.getCodec().toString());
+      assertEquals(CodecFactory.fromString(codec).toString(), codecFactory.getCodec().toString());
     }
   }
 

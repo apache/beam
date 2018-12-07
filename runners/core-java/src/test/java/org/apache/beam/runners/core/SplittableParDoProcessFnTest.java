@@ -521,7 +521,7 @@ public class SplittableParDoProcessFnTest {
     // Should output the range [2*max, 2*max + max/2)
     assertThat(elements, hasItem(String.valueOf(baseIndex + 2 * max)));
     assertThat(elements, hasItem(String.valueOf(baseIndex + 2 * max + max / 2 - 1)));
-    assertThat(elements, not(hasItem((String.valueOf(baseIndex + 2 * max + max / 2)))));
+    assertThat(elements, not(hasItem(String.valueOf(baseIndex + 2 * max + max / 2))));
   }
 
   @Test

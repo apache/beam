@@ -136,24 +136,23 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
       } else {
         final WindowedValue<T> input = tuple.getValue();
         Collection<W> windows =
-            (windowFn)
-                .assignWindows(
-                    windowFn.new AssignContext() {
-                      @Override
-                      public T element() {
-                        return input.getValue();
-                      }
+            windowFn.assignWindows(
+                windowFn.new AssignContext() {
+                  @Override
+                  public T element() {
+                    return input.getValue();
+                  }
 
-                      @Override
-                      public Instant timestamp() {
-                        return input.getTimestamp();
-                      }
+                  @Override
+                  public Instant timestamp() {
+                    return input.getTimestamp();
+                  }
 
-                      @Override
-                      public BoundedWindow window() {
-                        return Iterables.getOnlyElement(input.getWindows());
-                      }
-                    });
+                  @Override
+                  public BoundedWindow window() {
+                    return Iterables.getOnlyElement(input.getWindows());
+                  }
+                });
         for (W w : windows) {
           WindowedValue<T> wv =
               WindowedValue.of(input.getValue(), input.getTimestamp(), w, input.getPane());
