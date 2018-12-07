@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
@@ -266,27 +267,41 @@ public class WorkItemStatusClient {
     return status;
   }
 
-  // todo(migryz) this method should return List<CounterUpdate> instead of updating member variable
   @VisibleForTesting
   synchronized void populateCounterUpdates(WorkItemStatus status) {
     if (worker == null) {
       return;
     }
 
+    // Checking against boolean, because getCompleted can return null
     boolean isFinalUpdate = Boolean.TRUE.equals(status.getCompleted());
 
-    ImmutableList.Builder<CounterUpdate> counterUpdatesListBuilder = ImmutableList.builder();
-    // Output counters
-    counterUpdatesListBuilder.addAll(extractCounters(worker.getOutputCounters()));
-    // User metrics reported in Worker
-    counterUpdatesListBuilder.addAll(extractMetrics(isFinalUpdate));
-    // MSec counters reported in worker
-    counterUpdatesListBuilder.addAll(extractMsecCounters(isFinalUpdate));
-    // Metrics reported in SDK runner.
-    counterUpdatesListBuilder.addAll(worker.extractMetricUpdates());
+    Map<Object, CounterUpdate> counterUpdatesMap = new HashMap<>();
 
-    ImmutableList<CounterUpdate> counterUpdates = counterUpdatesListBuilder.build();
-    status.setCounterUpdates(counterUpdates);
+    final Consumer<CounterUpdate> appendCounterUpdate =
+        x ->
+            counterUpdatesMap.put(
+                x.getStructuredNameAndMetadata() == null
+                    ? x.getNameAndKind()
+                    : x.getStructuredNameAndMetadata(),
+                x);
+
+    // Output counters
+    extractCounters(worker.getOutputCounters()).forEach(appendCounterUpdate);
+
+    // User metrics reported in Worker
+    extractMetrics(isFinalUpdate).forEach(appendCounterUpdate);
+
+    // MSec counters reported in worker
+    extractMsecCounters(isFinalUpdate).forEach(appendCounterUpdate);
+
+    // Metrics reported in SDK runner.
+    // This includes all different kinds of metrics coming from SDK.
+    // Keep in mind that these metrics might contain different types of counter names:
+    // i.e. structuredNameAndMetadata and nameAndKind
+    worker.extractMetricUpdates().forEach(appendCounterUpdate);
+
+    status.setCounterUpdates(ImmutableList.copyOf(counterUpdatesMap.values()));
   }
 
   private synchronized Iterable<CounterUpdate> extractCounters(@Nullable CounterSet counters) {

@@ -19,9 +19,6 @@ package org.apache.beam.runners.core.metrics;
 
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
@@ -75,6 +72,8 @@ public class SimpleMonitoringInfoBuilder {
 
   private MonitoringInfo.Builder builder;
 
+  private SpecMonitoringInfoValidator validator = new SpecMonitoringInfoValidator();
+
   static {
     for (MonitoringInfoSpecs.Enum val : MonitoringInfoSpecs.Enum.values()) {
       // The enum iterator inserts an UNRECOGNIZED = -1 value which isn't explicitly added in
@@ -96,56 +95,6 @@ public class SimpleMonitoringInfoBuilder {
     this.validateAndDropInvalid = validateAndDropInvalid;
   }
 
-  /** @return True if the MonitoringInfo has valid fields set, matching the spec */
-  private boolean validate() {
-    String urn = this.builder.getUrn();
-    if (urn == null || urn.isEmpty()) {
-      LOG.warn("Dropping MonitoringInfo since no URN was specified.");
-      return false;
-    }
-
-    MonitoringInfoSpec spec;
-    // If it's a user counter, and it has this prefix.
-    if (urn.startsWith(USER_COUNTER_URN_PREFIX)) {
-      spec = SimpleMonitoringInfoBuilder.specs.get(USER_COUNTER_URN_PREFIX);
-      List<String> split = Splitter.on(':').splitToList(urn);
-      if (split.size() != 5) {
-        LOG.warn(
-            "Dropping MonitoringInfo for URN {}, UserMetric namespaces and "
-                + "name cannot contain ':' characters.",
-            urn);
-        return false;
-      }
-    } else if (!SimpleMonitoringInfoBuilder.specs.containsKey(urn)) {
-      // Succeed for unknown URNs, this is an extensible metric.
-      return true;
-    } else {
-      spec = SimpleMonitoringInfoBuilder.specs.get(urn);
-    }
-
-    if (!this.builder.getType().equals(spec.getTypeUrn())) {
-      LOG.warn(
-          "Dropping MonitoringInfo since for URN {} with invalid type field. Expected: {}"
-              + " Actual: {}",
-          this.builder.getUrn(),
-          spec.getTypeUrn(),
-          this.builder.getType());
-      return false;
-    }
-
-    Set<String> requiredLabels = new HashSet<String>(spec.getRequiredLabelsList());
-    if (!this.builder.getLabels().keySet().equals(requiredLabels)) {
-      LOG.warn(
-          "Dropping MonitoringInfo since for URN {} with invalid labels. Expected: {}"
-              + " Actual: {}",
-          this.builder.getUrn(),
-          requiredLabels,
-          this.builder.getLabels().keySet());
-      return false;
-    }
-    return true;
-  }
-
   /** @return The metric URN for a user metric, with a proper URN prefix. */
   private static String userMetricUrn(String metricNamespace, String metricName) {
     String fixedMetricNamespace = metricNamespace.replace(':', '_');
@@ -163,8 +112,9 @@ public class SimpleMonitoringInfoBuilder {
    *
    * @param urn The urn of the MonitoringInfo
    */
-  public void setUrn(String urn) {
+  public SimpleMonitoringInfoBuilder setUrn(String urn) {
     this.builder.setUrn(urn);
+    return this;
   }
 
   /**
@@ -173,36 +123,42 @@ public class SimpleMonitoringInfoBuilder {
    * @param namespace
    * @param name
    */
-  public void setUrnForUserMetric(String namespace, String name) {
+  public SimpleMonitoringInfoBuilder setUrnForUserMetric(String namespace, String name) {
     this.builder.setUrn(userMetricUrn(namespace, name));
+    return this;
   }
 
   /** Sets the timestamp of the MonitoringInfo to the current time. */
-  public void setTimestampToNow() {
+  public SimpleMonitoringInfoBuilder setTimestampToNow() {
     Instant time = Instant.now();
     this.builder.getTimestampBuilder().setSeconds(time.getEpochSecond()).setNanos(time.getNano());
+    return this;
   }
 
   /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropraite type URN. */
-  public void setInt64Value(long value) {
+  public SimpleMonitoringInfoBuilder setInt64Value(long value) {
     this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
     this.builder.setType(SUM_INT64_TYPE_URN);
+    return this;
   }
 
   /** Sets the PTRANSFORM MonitoringInfo label to the given param. */
-  public void setPTransformLabel(String pTransform) {
+  public SimpleMonitoringInfoBuilder setPTransformLabel(String pTransform) {
     // TODO(ajamato): Add validation that it is a valid pTransform name in the bundle descriptor.
     setLabel("PTRANSFORM", pTransform);
+    return this;
   }
 
   /** Sets the PCOLLECTION MonitoringInfo label to the given param. */
-  public void setPCollectionLabel(String pCollection) {
+  public SimpleMonitoringInfoBuilder setPCollectionLabel(String pCollection) {
     setLabel("PCOLLECTION", pCollection);
+    return this;
   }
 
   /** Sets the MonitoringInfo label to the given name and value. */
-  public void setLabel(String labelName, String labelValue) {
+  public SimpleMonitoringInfoBuilder setLabel(String labelName, String labelValue) {
     this.builder.putLabels(labelName, labelValue);
+    return this;
   }
 
   /**
@@ -211,9 +167,12 @@ public class SimpleMonitoringInfoBuilder {
    */
   @Nullable
   public MonitoringInfo build() {
-    if (validateAndDropInvalid && !validate()) {
+    final MonitoringInfo result = this.builder.build();
+
+    if (validateAndDropInvalid && this.validator.validate(result).isPresent()) {
       return null;
     }
-    return this.builder.build();
+
+    return result;
   }
 }
