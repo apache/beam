@@ -84,7 +84,7 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
 
     factory =
         SingleEnvironmentInstanceJobBundleFactory.create(
-            environmentFactory, dataServer, stateServer);
+            environmentFactory, dataServer, stateServer, null);
   }
 
   @After

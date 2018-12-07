@@ -78,6 +78,7 @@ import org.apache.beam.sdk.nexmark.queries.Query8;
 import org.apache.beam.sdk.nexmark.queries.Query8Model;
 import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlBoundedSideInputJoin;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery0;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
@@ -1240,6 +1241,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(
             NexmarkQueryName.HIGHEST_BID,
             new NexmarkQuery(configuration, new SqlQuery7(configuration)))
+        .put(
+            NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN,
+            new NexmarkQuery(configuration, new SqlBoundedSideInputJoin(configuration)))
         .build();
   }
 

@@ -44,6 +44,10 @@ include "beam-runners-flink_2.11-job-server"
 project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/job-server")
 include "beam-runners-flink_2.11-job-server-container"
 project(":beam-runners-flink_2.11-job-server-container").dir = file("runners/flink/job-server-container")
+include "beam-runners-gcp-gcemd"
+project(":beam-runners-gcp-gcemd").dir = file("runners/gcp/gcemd")
+include "beam-runners-gcp-gcsproxy"
+project(":beam-runners-gcp-gcsproxy").dir = file("runners/gcp/gcsproxy")
 include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
@@ -132,6 +136,8 @@ include "beam-sdks-java-io-hadoop-file-system"
 project(":beam-sdks-java-io-hadoop-file-system").dir = file("sdks/java/io/hadoop-file-system")
 include "beam-sdks-java-io-hadoop-input-format"
 project(":beam-sdks-java-io-hadoop-input-format").dir = file("sdks/java/io/hadoop-input-format")
+include "beam-sdks-java-io-hadoop-format"
+project(":beam-sdks-java-io-hadoop-format").dir = file("sdks/java/io/hadoop-format")
 include "beam-sdks-java-io-hbase"
 project(":beam-sdks-java-io-hbase").dir = file("sdks/java/io/hbase")
 include "beam-sdks-java-io-hcatalog"

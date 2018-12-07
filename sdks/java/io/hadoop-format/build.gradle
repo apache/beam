@@ -1,0 +1,96 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Format"
+ext.summary = "IO to read data from sources and to write data to sinks that implement Hadoop MapReduce Format."
+
+configurations.create("sparkRunner")
+configurations.sparkRunner {
+  // Ban certain dependencies to prevent a StackOverflow within Spark
+  // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
+  exclude group: "org.slf4j", module: "jul-to-slf4j"
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+// Ban dependencies from the test runtime classpath
+configurations.testRuntimeClasspath {
+  // Prevent a StackOverflow because of wiring LOG4J -> SLF4J -> LOG4J
+  exclude group: "org.slf4j", module: "log4j-over-slf4j"
+}
+
+dependencies {
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  compile library.java.guava
+  shadow library.java.slf4j_api
+  shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
+  provided library.java.hadoop_common
+  provided library.java.hadoop_hdfs
+  provided library.java.hadoop_mapreduce_client_core
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-hadoop-input-format", configuration: "shadowTest")
+  testCompile project(path: ":beam-examples-java", configuration: "shadowTest")
+  testCompile library.java.postgres
+  testCompile library.java.slf4j_jdk14
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  shadow library.java.commons_io_2x
+
+  delegate.add("sparkRunner", project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadow"))
+  delegate.add("sparkRunner", project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadowTest"))
+
+  sparkRunner project(path: ":beam-examples-java", configuration: "shadowTest")
+  sparkRunner project(path: ":beam-runners-spark", configuration: "shadow")
+  sparkRunner project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+  sparkRunner library.java.spark_streaming
+  sparkRunner library.java.spark_core
+}
+
+def runnerClass = "org.apache.beam.runners.spark.TestSparkRunner"
+task sparkRunner(type: Test) {
+  group = "Verification"
+  def beamTestPipelineOptions = [
+          "--project=hadoop-format",
+          "--tempRoot=/tmp/hadoop-format/",
+          "--streaming=false",
+          "--runner=" + runnerClass,
+          "--enableSparkMetricSinks=false",
+  ]
+  classpath = configurations.sparkRunner
+  include "**/HadoopFormatIOSequenceFileTest.class"
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+  }
+  forkEvery 1
+  maxParallelForks 4
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
+}
