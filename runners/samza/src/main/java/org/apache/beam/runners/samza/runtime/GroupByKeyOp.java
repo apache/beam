@@ -56,6 +56,7 @@ import org.slf4j.LoggerFactory;
 public class GroupByKeyOp<K, InputT, OutputT>
     implements Op<KeyedWorkItem<K, InputT>, KV<K, OutputT>, K> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupByKeyOp.class);
+  private static final String TIMER_STATE_ID = "timer";
 
   private final TupleTag<KV<K, OutputT>> mainOutputTag;
   private final KeyedWorkItemCoder<K, InputT> inputCoder;
@@ -105,17 +106,29 @@ public class GroupByKeyOp<K, InputT, OutputT>
             .get()
             .as(SamzaPipelineOptions.class);
 
+    final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
+        SamzaStoreStateInternals.createStateInternalFactory(
+            null, context, pipelineOptions, null, mainOutputTag);
+
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
             mainOutputTag.getId(),
-            SamzaStoreStateInternals.getBeamStore(context),
+            Collections.singletonMap(
+                SamzaStoreStateInternals.BEAM_STORE,
+                SamzaStoreStateInternals.getBeamStore(context)),
             keyCoder,
             pipelineOptions.getStoreBatchGetSize());
 
     this.timerInternalsFactory =
-        new SamzaTimerInternalsFactory<>(inputCoder.getKeyCoder(), timerRegistry);
+        SamzaTimerInternalsFactory.createTimerInternalFactory(
+            keyCoder,
+            timerRegistry,
+            TIMER_STATE_ID,
+            nonKeyedStateInternalsFactory,
+            windowingStrategy,
+            pipelineOptions);
 
     final DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =
         GroupAlsoByWindowViaWindowSetNewDoFn.create(
@@ -191,6 +204,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
     fnRunner.startBundle();
     fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
     fnRunner.finishBundle();
+
+    timerInternalsFactory.removeProcessingTimer(keyedTimerData);
   }
 
   private void fireTimer(K key, TimerData timer) {
