@@ -142,6 +142,37 @@ def leaf_transform_stages(
         yield stage
 
 
+def with_stages(pipeline_proto, stages):
+  new_proto = beam_runner_api_pb2.Pipeline()
+  new_proto.CopyFrom(pipeline_proto)
+  components = new_proto.components
+  components.transforms.clear()
+
+  parents = {
+      child: parent
+      for parent, proto in pipeline_proto.components.transforms.items()
+      for child in proto.subtransforms
+  }
+
+  def add_parent(child, parent):
+    if parent not in components.transforms:
+      components.transforms[parent].CopyFrom(
+          pipeline_proto.components.transforms[parent])
+      del components.transforms[parent].subtransforms[:]
+      if parent in parents:
+        add_parent(parent, parents[parent])
+    components.transforms[parent].subtransforms.append(child)
+
+  for stage in stages:
+    for transform in stage.transforms:
+      id = unique_name(components.transforms, stage.name)
+      components.transforms[id].CopyFrom(transform)
+      if stage.parent:
+        add_parent(id, stage.parent)
+
+  return new_proto
+
+
 def lift_combiners(stages, context):
   """Expands CombinePerKey into pre- and post-grouping stages.
 
@@ -224,14 +255,16 @@ def lift_combiners(stages, context):
             transform.unique_name,
             [transform],
             downstream_side_inputs=base_stage.downstream_side_inputs,
-            must_follow=base_stage.must_follow)
+            must_follow=base_stage.must_follow,
+            parent=base_stage.name)
 
       yield make_stage(
           stage,
           beam_runner_api_pb2.PTransform(
               unique_name=transform.unique_name + '/Precombine',
               spec=beam_runner_api_pb2.FunctionSpec(
-                  urn=common_urns.combine_components.COMBINE_PGBKCV.urn,
+                  urn=common_urns.combine_components
+                  .COMBINE_PER_KEY_PRECOMBINE.urn,
                   payload=transform.spec.payload),
               inputs=transform.inputs,
               outputs={'out': precombined_pcoll_id}))
@@ -251,7 +284,7 @@ def lift_combiners(stages, context):
               unique_name=transform.unique_name + '/Merge',
               spec=beam_runner_api_pb2.FunctionSpec(
                   urn=common_urns.combine_components
-                  .COMBINE_MERGE_ACCUMULATORS.urn,
+                  .COMBINE_PER_KEY_MERGE_ACCUMULATORS.urn,
                   payload=transform.spec.payload),
               inputs={'in': grouped_pcoll_id},
               outputs={'out': merged_pcoll_id}))
@@ -262,7 +295,7 @@ def lift_combiners(stages, context):
               unique_name=transform.unique_name + '/ExtractOutputs',
               spec=beam_runner_api_pb2.FunctionSpec(
                   urn=common_urns.combine_components
-                  .COMBINE_EXTRACT_OUTPUTS.urn,
+                  .COMBINE_PER_KEY_EXTRACT_OUTPUTS.urn,
                   payload=transform.spec.payload),
               inputs={'in': merged_pcoll_id},
               outputs=transform.outputs))

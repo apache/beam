@@ -91,6 +91,12 @@ public class PTransformTranslation {
       getUrn(StandardPTransforms.Composites.COMBINE_GLOBALLY);
   public static final String COMBINE_GROUPED_VALUES_TRANSFORM_URN =
       getUrn(CombineComponents.COMBINE_GROUPED_VALUES);
+  public static final String COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN =
+      getUrn(CombineComponents.COMBINE_PER_KEY_PRECOMBINE);
+  public static final String COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN =
+      getUrn(CombineComponents.COMBINE_PER_KEY_MERGE_ACCUMULATORS);
+  public static final String COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN =
+      getUrn(CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS);
   public static final String RESHUFFLE_URN = getUrn(StandardPTransforms.Composites.RESHUFFLE);
   public static final String WRITE_FILES_TRANSFORM_URN =
       getUrn(StandardPTransforms.Composites.WRITE_FILES);

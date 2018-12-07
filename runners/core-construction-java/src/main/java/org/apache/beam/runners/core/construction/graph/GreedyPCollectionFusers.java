@@ -47,8 +47,17 @@ class GreedyPCollectionFusers {
       ImmutableMap.<String, FusibilityChecker>builder()
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, GreedyPCollectionFusers::canFuseParDo)
           .put(
+              PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
+              GreedyPCollectionFusers::canFuseCompatibleEnvironment)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
+              GreedyPCollectionFusers::canFuseCompatibleEnvironment)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
+              GreedyPCollectionFusers::canFuseCompatibleEnvironment)
+          .put(
               PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
-              GreedyPCollectionFusers::canFuseAssignWindows)
+              GreedyPCollectionFusers::canFuseCompatibleEnvironment)
           .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, GreedyPCollectionFusers::canAlwaysFuse)
           .put(
               // GroupByKeys are runner-implemented only. PCollections consumed by a GroupByKey must
@@ -65,6 +74,15 @@ class GreedyPCollectionFusers {
           .put(
               PTransformTranslation.PAR_DO_TRANSFORM_URN,
               GreedyPCollectionFusers::parDoCompatibility)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
+              GreedyPCollectionFusers::compatibleEnvironments)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
+              GreedyPCollectionFusers::compatibleEnvironments)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
+              GreedyPCollectionFusers::compatibleEnvironments)
           .put(
               PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
               GreedyPCollectionFusers::compatibleEnvironments)
@@ -213,15 +231,15 @@ class GreedyPCollectionFusers {
   /**
    * A WindowInto can be fused into a stage if it executes in the same Environment as that stage.
    */
-  private static boolean canFuseAssignWindows(
-      PTransformNode window,
+  private static boolean canFuseCompatibleEnvironment(
+      PTransformNode operation,
       Environment environmemnt,
       @SuppressWarnings("unused") PCollectionNode candidate,
       @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       QueryablePipeline pipeline) {
     // WindowInto transforms may not have an environment
-    Optional<Environment> windowEnvironment = pipeline.getEnvironment(window);
-    return environmemnt.equals(windowEnvironment.orElse(null));
+    Optional<Environment> operationEnvironment = pipeline.getEnvironment(operation);
+    return environmemnt.equals(operationEnvironment.orElse(null));
   }
 
   private static boolean compatibleEnvironments(
