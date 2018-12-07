@@ -46,9 +46,9 @@ import org.apache.spark.sql.streaming.StreamingQueryException;
  */
 public class TranslationContext {
 
-  /** All the datasets of the DAG */
+  /** All the datasets of the DAG. */
   private final Map<PValue, Dataset<?>> datasets;
-  /** datasets that are not used as input to other datasets (leaves of the DAG) */
+  /** datasets that are not used as input to other datasets (leaves of the DAG). */
   private final Set<Dataset<?>> leaves;
 
   private final SparkPipelineOptions options;
