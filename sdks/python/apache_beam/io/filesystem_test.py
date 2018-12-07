@@ -228,7 +228,10 @@ class TestFileSystem(unittest.TestCase):
         expected_num_items)
 
   @parameterized.expand([
-      param(os_path=posixpath, sep_re='\\/'),
+      param(os_path=posixpath,
+            # re.escape does not escape forward slashes since Python 3.7
+            # https://docs.python.org/3/whatsnew/3.7.html ("bpo-29995")
+            sep_re='\\/' if sys.version_info < (3, 7, 0) else '/'),
       param(os_path=ntpath, sep_re='\\\\'),
   ])
   def test_translate_pattern(self, os_path, sep_re):
