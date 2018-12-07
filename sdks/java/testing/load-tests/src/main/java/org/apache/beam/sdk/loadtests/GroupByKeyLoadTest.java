@@ -21,7 +21,6 @@ import static java.lang.String.format;
 
 import java.io.IOException;
 import java.util.Optional;
-import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
 import org.apache.beam.sdk.options.Default;
@@ -36,17 +35,17 @@ import org.apache.beam.sdk.values.PCollection;
  * Load test for {@link GroupByKey} operation.
  *
  * <p>The purpose of this test is to measure {@link GroupByKey}'s behaviour in stressful conditions.
- * It uses {@link SyntheticBoundedIO} and {@link SyntheticStep} which both can be parametrized to
- * generate keys and values of various size, impose delay (sleep or cpu burnout) in various moments
- * during the pipeline execution and provide some other performance challenges.
+ * It uses synthetic sources and {@link SyntheticStep} which both can be parametrized to generate
+ * keys and values of various size, impose delay (sleep or cpu burnout) in various moments during
+ * the pipeline execution and provide some other performance challenges.
  *
- * @see SyntheticStep
- * @see SyntheticBoundedIO
- *     <p>In addition, this test allows to: - fanout: produce one input (using Synthetic Source) and
- *     process it with multiple sessions performing the same set of operations - reiterate produced
- *     PCollection multiple times
- *     <p>To run it manually, use the following command:
- *     <pre>
+ * <p>In addition, this test allows to: - fanout: produce one input (using Synthetic Source) and
+ * process it with multiple sessions performing the same set of operations - reiterate produced
+ * PCollection multiple times
+ *
+ * <p>To run it manually, use the following command:
+ *
+ * <pre>
  *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
  *      --fanout=1
  *      --iterations=1
@@ -85,7 +84,7 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
 
     PCollection<KV<byte[], byte[]>> input =
         pipeline
-            .apply(SyntheticBoundedIO.readFrom(sourceOptions))
+            .apply("Read input", readFromSource(sourceOptions))
             .apply("Collect start time metrics", ParDo.of(runtimeMonitor))
             .apply(
                 "Total bytes monitor",

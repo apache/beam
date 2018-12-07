@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Optional;
-import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
 import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
@@ -45,16 +44,16 @@ import org.apache.beam.sdk.values.PCollection;
  * Load test for {@link ParDo} operation.
  *
  * <p>The purpose of this test is to measure {@link Combine}'s behaviour in stressful conditions. It
- * uses {@link SyntheticBoundedIO} and {@link SyntheticStep} which both can be parametrized to
- * generate keys and values of various size, impose delay (sleep or cpu burnout) in various moments
- * during the pipeline execution and provide some other performance challenges.
+ * uses synthetic sources and {@link SyntheticStep} which both can be parametrized to generate keys
+ * and values of various size, impose delay (sleep or cpu burnout) in various moments during the
+ * pipeline execution and provide some other performance challenges.
  *
- * @see SyntheticStep
- * @see SyntheticBoundedIO
- *     <p>You can choose between multiple combine modes to test per key combine operations ({@link
- *     CombinerType}).
- *     <p>To run it manually, use the following command:
- *     <pre>
+ * <p>You can choose between multiple combine modes to test per key combine operations ({@link
+ * CombinerType}).
+ *
+ * <p>To run it manually, use the following command:
+ *
+ * <pre>
  *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
  *      --fanout=1
  *      --perKeyCombinerType=TOP_LARGEST
@@ -112,7 +111,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
 
     PCollection<KV<byte[], byte[]>> input =
         pipeline
-            .apply("Read input", SyntheticBoundedIO.readFrom(sourceOptions))
+            .apply("Read input", readFromSource(sourceOptions))
             .apply(
                 "Collect start time metric",
                 ParDo.of(new TimeMonitor<>(METRICS_NAMESPACE, "runtime")))
