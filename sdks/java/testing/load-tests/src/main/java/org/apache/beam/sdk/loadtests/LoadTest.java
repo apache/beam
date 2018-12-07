@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
+import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
@@ -45,7 +45,7 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   protected OptionsT options;
 
-  protected SyntheticBoundedIO.SyntheticSourceOptions sourceOptions;
+  protected SyntheticSourceOptions sourceOptions;
 
   protected SyntheticStep.Options stepOptions;
 
@@ -55,8 +55,7 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
     this.metricsNamespace = metricsNamespace;
     this.runtimeMonitor = new TimeMonitor<>(metricsNamespace, "runtime");
     this.options = LoadTestOptions.readFromArgs(args, testOptions);
-    this.sourceOptions =
-        fromJsonString(options.getSourceOptions(), SyntheticBoundedIO.SyntheticSourceOptions.class);
+    this.sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
     this.stepOptions = fromJsonString(options.getStepOptions(), SyntheticStep.Options.class);
     this.pipeline = Pipeline.create(options);
   }
