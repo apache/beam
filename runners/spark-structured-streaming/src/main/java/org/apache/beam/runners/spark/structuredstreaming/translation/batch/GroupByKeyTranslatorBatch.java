@@ -17,18 +17,59 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import java.util.List;
+import org.apache.beam.runners.spark.structuredstreaming.translation.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.spark.api.java.function.MapFunction;
+import org.apache.spark.api.java.function.MapGroupsFunction;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.KeyValueGroupedDataset;
 
-class GroupByKeyTranslatorBatch<K, InputT>
+class GroupByKeyTranslatorBatch<K, V>
     implements TransformTranslator<
-        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>>> {
+        PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>> {
 
   @Override
   public void translateTransform(
-      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> transform,
-      TranslationContext context) {}
+      PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> transform,
+      TranslationContext context) {
+
+    Dataset<WindowedValue<KV<K, V>>> input = context.getDataset(context.getInput());
+
+    // group by key only.
+    KeyValueGroupedDataset<K, KV<K, V>> grouped =
+        input
+            .map(
+                (MapFunction<WindowedValue<KV<K, V>>, KV<K, V>>) WindowedValue::getValue,
+                EncoderHelpers.encoder())
+            .groupByKey((MapFunction<KV<K, V>, K>) KV::getKey, EncoderHelpers.<K>encoder());
+
+    Dataset<KV<K, Iterable<V>>> materialized =
+        grouped.mapGroups(
+            (MapGroupsFunction<K, KV<K, V>, KV<K, Iterable<V>>>)
+                (key, iterator) -> {
+                  // TODO: can we use here just "Iterable<V> iterable = () -> iterator;" ?
+                  List<V> values = Lists.newArrayList();
+                  while (iterator.hasNext()) {
+                    values.add(iterator.next().getValue());
+                  }
+                  return KV.of(key, Iterables.unmodifiableIterable(values));
+                },
+            EncoderHelpers.encoder());
+
+    Dataset<WindowedValue<KV<K, Iterable<V>>>> output =
+        materialized.map(
+            (MapFunction<KV<K, Iterable<V>>, WindowedValue<KV<K, Iterable<V>>>>)
+                WindowedValue::valueInGlobalWindow,
+            EncoderHelpers.encoder());
+
+    context.putDataset(context.getOutput(), output);
+  }
 }
