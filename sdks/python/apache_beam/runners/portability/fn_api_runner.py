@@ -454,9 +454,12 @@ class FnApiRunner(runner.PipelineRunner):
                 pipeline_components.pcollections[pcoll_id], pipeline_components)
 
           # This is used later to correlate the read and write.
-          grouping_buffer = create_buffer_id(stage.name, kind='group')
-          if stage.name not in pipeline_components.transforms:
-            pipeline_components.transforms[stage.name].CopyFrom(transform)
+          transform_id = stage.name
+          if transform != pipeline_components.transforms.get(transform_id):
+            transform_id = unique_name(
+                pipeline_components.transforms, stage.name)
+            pipeline_components.transforms[transform_id].CopyFrom(transform)
+          grouping_buffer = create_buffer_id(transform_id, kind='group')
           gbk_write = Stage(
               transform.unique_name + '/Write',
               [beam_runner_api_pb2.PTransform(

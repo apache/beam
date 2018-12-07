@@ -27,6 +27,7 @@ import grpc
 from apache_beam import metrics
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
@@ -34,6 +35,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
+from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.portability.job_server import DockerizedJobServer
 
@@ -131,6 +133,17 @@ class PortableRunner(runner.PipelineRunner):
         for sub_transform in transform_proto.subtransforms:
           del proto_pipeline.components.transforms[sub_transform]
         del transform_proto.subtransforms[:]
+
+    # Preemptively apply combiner lifting, until all runners support it.
+    # This optimization is idempotent.
+    if not options.view_as(StandardOptions).streaming:
+      stages = list(fn_api_runner_transforms.leaf_transform_stages(
+          proto_pipeline.root_transform_ids, proto_pipeline.components))
+      stages = fn_api_runner_transforms.lift_combiners(
+          stages,
+          fn_api_runner_transforms.TransformContext(proto_pipeline.components))
+      proto_pipeline = fn_api_runner_transforms.with_stages(
+          proto_pipeline, stages)
 
     # TODO: Define URNs for options.
     # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
