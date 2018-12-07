@@ -28,20 +28,18 @@ import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionServi
 import org.apache.beam.sdk.fn.IdGenerator;
 
 /**
- * An {@link EnvironmentFactory} that creates StaticRemoteEnvironment used by Dataflow runner
- * harness.
+ * An {@link EnvironmentFactory} that creates StaticRemoteEnvironment used by a runner harness that
+ * would like to use an existing InstructionRequestHandler.
  */
 public class StaticRemoteEnvironmentFactory implements EnvironmentFactory {
   public static StaticRemoteEnvironmentFactory forService(
       InstructionRequestHandler instructionRequestHandler) {
-    StaticRemoteEnvironmentFactory factory = new StaticRemoteEnvironmentFactory();
-    factory.setStaticServiceContent(instructionRequestHandler);
-    return factory;
+    return new StaticRemoteEnvironmentFactory(instructionRequestHandler);
   }
 
-  private InstructionRequestHandler instructionRequestHandler;
+  private final InstructionRequestHandler instructionRequestHandler;
 
-  private void setStaticServiceContent(InstructionRequestHandler instructionRequestHandler) {
+  private StaticRemoteEnvironmentFactory(InstructionRequestHandler instructionRequestHandler) {
     this.instructionRequestHandler = instructionRequestHandler;
   }
 

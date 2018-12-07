@@ -82,6 +82,7 @@ import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -96,6 +97,8 @@ public class ReferenceRunner {
   @Nullable private final File artifactsDir;
 
   private final EnvironmentType environmentType;
+
+  private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
 
   private ReferenceRunner(
       Pipeline p, Struct options, @Nullable File artifactsDir, EnvironmentType environmentType) {
@@ -197,7 +200,8 @@ public class ReferenceRunner {
       EnvironmentFactory environmentFactory =
           createEnvironmentFactory(control, logging, artifact, provisioning, controlClientPool);
       JobBundleFactory jobBundleFactory =
-          SingleEnvironmentInstanceJobBundleFactory.create(environmentFactory, data, state, null);
+          SingleEnvironmentInstanceJobBundleFactory.create(
+              environmentFactory, data, state, idGenerator);
 
       TransformEvaluatorRegistry transformRegistry =
           TransformEvaluatorRegistry.portableRegistry(
@@ -238,12 +242,7 @@ public class ReferenceRunner {
       case DOCKER:
         return new DockerEnvironmentFactory.Provider(PipelineOptionsTranslation.fromProto(options))
             .createEnvironmentFactory(
-                control,
-                logging,
-                artifact,
-                provisioning,
-                controlClient,
-                IdGenerators.incrementingLongs());
+                control, logging, artifact, provisioning, controlClient, idGenerator);
       case IN_PROCESS:
         return EmbeddedEnvironmentFactory.create(
             PipelineOptionsFactory.create(), logging, control, controlClient.getSource());
