@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Optional;
@@ -275,6 +276,91 @@ public class RemoteExecutionTest implements Serializable {
               WindowedValue.valueInGlobalWindow(kvBytes("foo", 4)),
               WindowedValue.valueInGlobalWindow(kvBytes("foo", 3)),
               WindowedValue.valueInGlobalWindow(kvBytes("foo", 3))));
+    }
+  }
+
+  @Test
+  public void testBundleProcessorThrowsExecutionExceptionWhenUserCodeThrows() throws Exception {
+    Pipeline p = Pipeline.create();
+    p.apply("impulse", Impulse.create())
+        .apply(
+            "create",
+            ParDo.of(
+                new DoFn<byte[], KV<String, String>>() {
+                  @ProcessElement
+                  public void process(ProcessContext ctxt) throws Exception {
+                    String element =
+                        CoderUtils.decodeFromByteArray(StringUtf8Coder.of(), ctxt.element());
+                    if (element.equals("X")) {
+                      throw new Exception("testBundleExecutionFailure");
+                    }
+                    ctxt.output(KV.of(element, element));
+                  }
+                }))
+        .apply("gbk", GroupByKey.create());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
+    checkState(fused.getFusedStages().size() == 1, "Expected exactly one fused stage");
+    ExecutableStage stage = fused.getFusedStages().iterator().next();
+
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "my_stage", stage, dataServer.getApiServiceDescriptor());
+
+    BundleProcessor processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(), descriptor.getRemoteInputDestinations());
+    Map<Target, ? super Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+    Map<Target, Collection<? super WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<Target, ? super Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+      List<? super WindowedValue<?>> outputContents =
+          Collections.synchronizedList(new ArrayList<>());
+      outputValues.put(targetCoder.getKey(), outputContents);
+      outputReceivers.put(
+          targetCoder.getKey(),
+          RemoteOutputReceiver.of(
+              (Coder) targetCoder.getValue(),
+              (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
+    }
+
+    try (ActiveBundle bundle =
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+    }
+
+    try {
+      try (ActiveBundle bundle =
+          processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
+        Iterables.getOnlyElement(bundle.getInputReceivers().values())
+            .accept(
+                WindowedValue.valueInGlobalWindow(
+                    CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+      }
+      // Fail the test if we reach this point and never threw the exception.
+      fail();
+    } catch (ExecutionException e) {
+      assertTrue(e.getMessage().contains("testBundleExecutionFailure"));
+    }
+
+    try (ActiveBundle bundle =
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Z")));
+    }
+
+    for (Collection<? super WindowedValue<?>> windowedValues : outputValues.values()) {
+      assertThat(
+          windowedValues,
+          containsInAnyOrder(
+              WindowedValue.valueInGlobalWindow(kvBytes("Y", "Y")),
+              WindowedValue.valueInGlobalWindow(kvBytes("Z", "Z"))));
     }
   }
 
