@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.synthetic;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.sdk.io.synthetic.SyntheticUtils.delay;
+import static org.apache.beam.sdk.io.synthetic.delay.SyntheticDelay.delay;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.cache.CacheBuilder;
@@ -27,6 +27,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.RateLimiter;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.io.synthetic.delay.SyntheticDelay;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -149,7 +150,7 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
   @StartBundle
   public void startBundle() throws Exception {
     if (options.perBundleDelay > 0) {
-      SyntheticUtils.delay(
+      SyntheticDelay.delay(
           Duration.millis(options.perBundleDelay),
           options.cpuUtilizationInMixedDelay,
           options.perBundleDelayType,

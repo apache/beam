@@ -15,49 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.synthetic;
+package org.apache.beam.sdk.io.synthetic.delay;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.joda.time.Duration;
 
 /** Utility functions used in {@link org.apache.beam.sdk.io.synthetic}. */
-class SyntheticUtils {
+public class SyntheticDelay {
 
   // cpu delay implementation:
 
   private static final long MASK = (1L << 16) - 1L;
   private static final long HASH = 0x243F6A8885A308D3L;
   private static final long INIT_PLAINTEXT = 50000L;
-
-  /** Keep cpu busy for {@code delayMillis} by calculating lots of hashes. */
-  private static void cpuDelay(long delayMillis) {
-    // Note that the delay is enforced in terms of walltime. That implies this thread may not
-    // keep CPU busy if it gets preempted by other threads. There is more of chance of this
-    // occurring in a streaming pipeline as there could be lots of threads running this. The loop
-    // measures cpu time spent for each iteration, so that these effects are some what minimized.
-
-    long cpuMicros = delayMillis * 1000;
-    Stopwatch timer = Stopwatch.createUnstarted();
-
-    while (timer.elapsed(TimeUnit.MICROSECONDS) < cpuMicros) {
-      // Find a long which hashes to HASH in lowest MASK bits.
-      // Values chosen to roughly take 1ms on typical workstation.
-      timer.start();
-      long p = INIT_PLAINTEXT;
-      while (true) {
-        long t = Hashing.murmur3_128().hashLong(p).asLong();
-        if ((t & MASK) == (HASH & MASK)) {
-          break;
-        }
-        p++;
-      }
-      timer.stop();
-    }
-  }
 
   /**
    * Implements a mechanism to delay a thread in various fashions. * {@code CPU}: Burn CPU while
@@ -67,7 +42,7 @@ class SyntheticUtils {
    *
    * @return Millis spent sleeping, does not include time spent spinning.
    */
-  static long delay(
+  public static long delay(
       Duration delay,
       double cpuUtilizationInMixedDelay,
       SyntheticOptions.DelayType delayType,
@@ -95,6 +70,32 @@ class SyntheticUtils {
         return sleepMillis;
       default:
         throw new IllegalArgumentException("Unknown delay type " + delayType);
+    }
+  }
+
+  /** Keep cpu busy for {@code delayMillis} by calculating lots of hashes. */
+  private static void cpuDelay(long delayMillis) {
+    // Note that the delay is enforced in terms of walltime. That implies this thread may not
+    // keep CPU busy if it gets preempted by other threads. There is more of chance of this
+    // occurring in a streaming pipeline as there could be lots of threads running this. The loop
+    // measures cpu time spent for each iteration, so that these effects are some what minimized.
+
+    long cpuMicros = delayMillis * 1000;
+    Stopwatch timer = Stopwatch.createUnstarted();
+
+    while (timer.elapsed(TimeUnit.MICROSECONDS) < cpuMicros) {
+      // Find a long which hashes to HASH in lowest MASK bits.
+      // Values chosen to roughly take 1ms on typical workstation.
+      timer.start();
+      long p = INIT_PLAINTEXT;
+      while (true) {
+        long t = Hashing.murmur3_128().hashLong(p).asLong();
+        if ((t & MASK) == (HASH & MASK)) {
+          break;
+        }
+        p++;
+      }
+      timer.stop();
     }
   }
 }

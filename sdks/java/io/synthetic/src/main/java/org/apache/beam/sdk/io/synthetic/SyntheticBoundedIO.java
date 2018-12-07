@@ -24,7 +24,6 @@ import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Random;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions.ProgressShape;
+import org.apache.beam.sdk.io.synthetic.delay.ReaderDelay;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -190,9 +190,11 @@ public class SyntheticBoundedIO {
     private KV<byte[], byte[]> currentKvPair;
     private long currentOffset;
     private boolean isAtSplitPoint;
+    private ReaderDelay readerDelay;
 
     SyntheticSourceReader(SyntheticBoundedSource source) {
       super(source);
+      this.readerDelay = new ReaderDelay(source.sourceOptions);
       this.currentKvPair = null;
       this.splitPointFrequencyRecords = source.sourceOptions.splitPointFrequencyRecords;
     }
@@ -231,14 +233,7 @@ public class SyntheticBoundedIO {
           ++currentOffset;
         }
       }
-
-      SyntheticSourceOptions options = getCurrentSource().sourceOptions;
-      SyntheticUtils.delay(
-          options.nextInitializeDelay(this.currentOffset),
-          options.cpuUtilizationInMixedDelay,
-          options.delayType,
-          new Random(this.currentOffset));
-
+      readerDelay.delayStart(currentOffset);
       isAtSplitPoint = true;
       --currentOffset;
       return advanceImpl();
@@ -253,12 +248,7 @@ public class SyntheticBoundedIO {
       SyntheticSourceOptions options = getCurrentSource().sourceOptions;
       SyntheticSourceOptions.Record record = options.genRecord(currentOffset);
       currentKvPair = record.kv;
-      // TODO: add a separate distribution for the sleep time of reading the first record
-      // (e.g.,"open" the files).
-      long hashCodeOfVal = options.hashFunction().hashBytes(currentKvPair.getValue()).asLong();
-      Random random = new Random(hashCodeOfVal);
-      SyntheticUtils.delay(
-          record.sleepMsec, options.cpuUtilizationInMixedDelay, options.delayType, random);
+      readerDelay.delayRecord(record);
 
       return true;
     }
