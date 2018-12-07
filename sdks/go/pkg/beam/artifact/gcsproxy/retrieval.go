@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"io"
 
+	"cloud.google.com/go/storage"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
-	"google.golang.org/api/storage/v1"
 )
 
 // RetrievalServer is a artifact retrieval server backed by Google
@@ -41,7 +41,7 @@ func ReadProxyManifest(ctx context.Context, object string) (*pb.ProxyManifest, e
 		return nil, fmt.Errorf("invalid manifest object %v: %v", object, err)
 	}
 
-	cl, err := gcsx.NewClient(ctx, storage.DevstorageReadOnlyScope)
+	cl, err := gcsx.NewClient(ctx, storage.ScopeReadOnly)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GCS client: %v", err)
 	}
@@ -88,22 +88,22 @@ func (s *RetrievalServer) GetArtifact(req *pb.GetArtifactRequest, stream pb.Arti
 
 	bucket, object := parseObject(blob)
 
-	client, err := gcsx.NewClient(stream.Context(), storage.DevstorageReadOnlyScope)
+	client, err := gcsx.NewClient(stream.Context(), storage.ScopeReadOnly)
 	if err != nil {
 		return fmt.Errorf("Failed to create client for %v: %v", key, err)
 	}
 
 	// Stream artifact in up to 1MB chunks.
-
-	resp, err := client.Objects.Get(bucket, object).Download()
+	ctx := context.TODO()
+	r, err := client.Bucket(bucket).Object(object).NewReader(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to read object for %v: %v", key, err)
 	}
-	defer resp.Body.Close()
+	defer r.Close()
 
 	data := make([]byte, 1<<20)
 	for {
-		n, err := resp.Body.Read(data)
+		n, err := r.Read(data)
 		if n > 0 {
 			if err := stream.Send(&pb.ArtifactChunk{Data: data[:n]}); err != nil {
 				return fmt.Errorf("chunk send failed: %v", err)
