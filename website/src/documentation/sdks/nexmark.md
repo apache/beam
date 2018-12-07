@@ -3,6 +3,7 @@ layout: section
 title: "Nexmark benchmark suite"
 section_menu: section-menu/sdks.html
 permalink: /documentation/sdks/java/testing/nexmark/
+redirect_from: /documentation/sdks/java/nexmark/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
