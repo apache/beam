@@ -15,101 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(
-  exportJavadoc: false,
-  validateShadowJar: false,
-  shadowClosure: {
-    append "reference.conf"
-  },
-)
+def basePath = '.'
 
-description = "Apache Beam :: Runners :: Flink :: Job Server"
-
-apply plugin: "application"
-
-mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
-
-configurations {
-  validatesPortableRunner
+project.ext {
+  // Look for the source code in the parent module
+  main_source_dirs = ["$basePath/src/main/java"]
+  test_source_dirs = ["$basePath/src/test/java"]
+  main_resources_dirs = ["$basePath/src/main/resources"]
+  test_resources_dirs = ["$basePath/src/test/resources"]
 }
 
-configurations.all {
-    // replace commons logging with the jcl-over-slf4j bridge
-    exclude group: "commons-logging", module: "commons-logging"
-}
-
-dependencies {
-  compile project(path: ":beam-runners-flink_2.11", configuration: "shadow")
-  compile group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
-  validatesPortableRunner project(path: ":beam-runners-flink_2.11", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
-  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  compile library.java.slf4j_simple
-//  TODO: Enable AWS and HDFS file system.
-}
-
-// NOTE: runShadow must be used in order to run the job server. The standard run
-// task will not work because the flink runner classes only exist in the shadow
-// jar.
-runShadow {
-  args = []
-  if (project.hasProperty('jobHost'))
-    args += ["--job-host=${project.property('jobHost')}"]
-  if (project.hasProperty('artifactsDir'))
-    args += ["--artifacts-dir=${project.property('artifactsDir')}"]
-  if (project.hasProperty('cleanArtifactsPerJob'))
-    args += ["--clean-artifacts-per-job"]
-  if (project.hasProperty('flinkMasterUrl'))
-    args += ["--flink-master-url=${project.property('flinkMasterUrl')}"]
-  if (project.hasProperty('flinkConfDir'))
-    args += ["--flink-conf-dir=${project.property('flinkConfDir')}"]
-
-  // Enable remote debugging.
-  jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
-  if (project.hasProperty("logLevel"))
-    jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
-}
-
-def portableValidatesRunnerTask(String name, Boolean streaming) {
-  createPortableValidatesRunnerTask(
-          name: "validatesPortableRunner${name}",
-          jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
-          jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0",
-          testClasspathConfiguration: configurations.validatesPortableRunner,
-          parallelism: 2,
-          pipelineOpts: streaming ? ["--streaming"] : [],
-          testCategories: {
-            includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-            excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-            excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-            //SplitableDoFnTests
-            excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-          },
-  )
-}
-
-project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false)
-project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true)
-
-task validatesPortableRunner() {
-  dependsOn validatesPortableRunnerBatch
-  dependsOn validatesPortableRunnerStreaming
-}
+// Load the main build script which contains all build logic.
+apply from: "$basePath/flink_job_server.gradle"
