@@ -198,9 +198,9 @@ public final class DeduceNodeLocationsFunctionTest {
     //               --> Flatten --> D
     // B --> out2 --/-->C
     Node a = createReadNode("A", CUSTOM_SOURCE);
-    Node out1 = InstructionOutputNode.create(new InstructionOutput());
+    Node out1 = InstructionOutputNode.create(new InstructionOutput(), "fakeId");
     Node b = createReadNode("B", RUNNER_SOURCE);
-    Node out2 = InstructionOutputNode.create(new InstructionOutput());
+    Node out2 = InstructionOutputNode.create(new InstructionOutput(), "fakeId");
     Node c = createParDoNode("C", "RunnerDoFn");
     Node flatten =
         ParallelInstructionNode.create(

@@ -120,7 +120,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
   private static final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToNetwork =
       new FixMultiOutputInfosOnParDoInstructions(idGenerator)
-          .andThen(new MapTaskToNetworkFunction());
+          .andThen(new MapTaskToNetworkFunction(idGenerator));
 
   private static final CloudObject windowedStringCoder =
       CloudObjects.asCloudObject(
@@ -130,6 +130,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
   private PipelineOptions options;
   private ReaderRegistry readerRegistry;
   private SinkRegistry sinkRegistry;
+  private static final String PCOLLECTION_ID = "fakeId";
+
   @Mock private Network<Node, Edge> network;
   @Mock private CounterUpdateExtractor<?> updateExtractor;
 
@@ -326,7 +328,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
                     .apply(
                         InstructionOutputNode.create(
-                            instructionNode.getParallelInstruction().getOutputs().get(0)))));
+                            instructionNode.getParallelInstruction().getOutputs().get(0),
+                            PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
     Node operationNode =
@@ -524,7 +527,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
         IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
             .apply(
                 InstructionOutputNode.create(
-                    instructionNode.getParallelInstruction().getOutputs().get(0)));
+                    instructionNode.getParallelInstruction().getOutputs().get(0), PCOLLECTION_ID));
 
     when(network.successors(instructionNode)).thenReturn(ImmutableSet.of(outputReceiverNode));
     when(network.outDegree(instructionNode)).thenReturn(1);
@@ -601,7 +604,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
                     .apply(
                         InstructionOutputNode.create(
-                            instructionNode.getParallelInstruction().getOutputs().get(0)))));
+                            instructionNode.getParallelInstruction().getOutputs().get(0),
+                            PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
     Node operationNode =
@@ -652,7 +656,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
                     .apply(
                         InstructionOutputNode.create(
-                            instructionNode.getParallelInstruction().getOutputs().get(0)))));
+                            instructionNode.getParallelInstruction().getOutputs().get(0),
+                            PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
     Node operationNode =
@@ -729,7 +734,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
                     .apply(
                         InstructionOutputNode.create(
-                            instructionNode.getParallelInstruction().getOutputs().get(0)))));
+                            instructionNode.getParallelInstruction().getOutputs().get(0),
+                            PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
     Node operationNode =

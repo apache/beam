@@ -357,7 +357,7 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
                     cloudOutput.getName()));
         outputReceiver.addOutputCounter(outputCounter);
 
-        return OutputReceiverNode.create(outputReceiver, coder);
+        return OutputReceiverNode.create(outputReceiver, coder, input.getPcollectionId());
       }
     };
   }
