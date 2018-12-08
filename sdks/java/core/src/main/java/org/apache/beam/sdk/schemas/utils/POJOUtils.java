@@ -150,7 +150,6 @@ public class POJOUtils {
               .method(ElementMatchers.named("create"))
               .intercept(new CreateInstruction(fields, clazz));
 
-
       return builder
           .make()
           .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
