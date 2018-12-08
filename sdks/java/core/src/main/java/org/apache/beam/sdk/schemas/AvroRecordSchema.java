@@ -17,35 +17,35 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import org.apache.avro.specific.SpecificRecord;
-import org.apache.beam.sdk.schemas.utils.AvroSpecificRecordTypeInformationFactory;
+import org.apache.beam.sdk.schemas.utils.AvroTypeInformationFactory;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link SchemaProvider} for AVRO generated SpecificRecords.
+ * A {@link SchemaProvider} for AVRO generated SpecificRecords and POJOs.
  *
- * <p>This provider infers a schema from generates SpecificRecord objects, and creates schemas and
- * rows that bind to the appropriate fields.
+ * <p>This provider infers a schema from generated SpecificRecord objects, and creates schemas and
+ * rows that bind to the appropriate fields. This provider also infers schemas from Java POJO
+ * objects, creating a schema that matches that inferred by the AVRO libraries.
  */
-public class AvroSpecificRecordSchema extends GetterBasedSchemaProvider {
+public class AvroRecordSchema extends GetterBasedSchemaProvider {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return AvroUtils.getSchema((Class<? extends SpecificRecord>) typeDescriptor.getRawType());
+    return AvroUtils.getSchema(typeDescriptor.getRawType());
   }
 
   @Override
   public FieldValueGetterFactory fieldValueGetterFactory() {
-    return new AvroSpecificRecordGetterFactory();
+    return new AvroClassGetterFactory();
   }
 
   @Override
   public UserTypeCreatorFactory schemaTypeCreatorFactory() {
-    return new AvroSpecificRecordUserTypeCreatorFactory();
+    return new AvroUserTypeCreatorFactory();
   }
 
   @Override
   public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
-    return new AvroSpecificRecordTypeInformationFactory();
+    return new AvroTypeInformationFactory();
   }
 }

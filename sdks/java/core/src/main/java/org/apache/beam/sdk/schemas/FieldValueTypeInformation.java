@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Represents type information for a schema field. */
@@ -51,13 +52,17 @@ public abstract class FieldValueTypeInformation implements Serializable {
   @Nullable
   public abstract Type getMapValueType();
 
-  public static FieldValueTypeInformation of(Field field) {
-    return new AutoValue_FieldValueTypeInformation(
-        field.getName(),
-        field.getType(),
-        getArrayComponentType(field),
-        getMapKeyType(field),
-        getMapValueType(field));
+  public static FieldValueTypeInformation of(
+      Field field, SerializableFunction<String, String> fieldNamePolicy) {
+    String name = fieldNamePolicy.apply(field.getName());
+    return (name != null)
+        ? new AutoValue_FieldValueTypeInformation(
+            name,
+            field.getType(),
+            getArrayComponentType(field),
+            getMapKeyType(field),
+            getMapValueType(field))
+        : null;
   }
 
   public static FieldValueTypeInformation of(TypeInformation typeInformation) {

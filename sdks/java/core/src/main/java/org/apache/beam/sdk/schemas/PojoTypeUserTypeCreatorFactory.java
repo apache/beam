@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import org.apache.beam.sdk.schemas.utils.FieldNamePolicies;
 import org.apache.beam.sdk.schemas.utils.POJOUtils;
 
 /** Vends constructors for POJOs. */
 class PojoTypeUserTypeCreatorFactory implements UserTypeCreatorFactory {
   @Override
   public SchemaUserTypeCreator create(Class<?> clazz, Schema schema) {
-    return POJOUtils.getCreator(clazz, schema);
+    return POJOUtils.getCreator(clazz, schema, FieldNamePolicies.identity());
   }
 }

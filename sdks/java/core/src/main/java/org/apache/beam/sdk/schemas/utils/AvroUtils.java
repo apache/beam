@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -42,6 +43,8 @@ import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.reflect.AvroIgnore;
+import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
@@ -53,9 +56,11 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.SchemaUserTypeConstructorCreator;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
@@ -260,59 +265,67 @@ public class AvroUtils {
     return g -> toGenericRecord(g, avroSchema);
   }
 
-  /** Infer a {@link Schema} from an AVRO-generated SpecificRecord. */
-  public static <T extends SpecificRecord> Schema getSchema(Class<T> clazz) {
-    try {
-      org.apache.avro.Schema avroSchema =
-          (org.apache.avro.Schema) (clazz.getDeclaredField("SCHEMA$").get(null));
-      return toBeamSchema(avroSchema);
-    } catch (NoSuchFieldException | IllegalAccessException e) {
-      throw new IllegalArgumentException(
-          "Class "
-              + clazz
-              + " is not an AVRO SpecificRecord. "
-              + "No public SCHEMA$ field was found.");
-    }
+  /** Infer a {@link Schema} from either an AVRO-generated SpecificRecord or a POJO. */
+  public static <T> Schema getSchema(Class<T> clazz) {
+    return toBeamSchema(ReflectData.get().getSchema(clazz));
   }
 
-  private static final class AvroSpecificRecordFieldNamePolicy
-      implements SerializableFunction<String, String> {
-    Schema schema;
-    Map<String, String> nameMapping = Maps.newHashMap();
-
-    AvroSpecificRecordFieldNamePolicy(Schema schema) {
-      this.schema = schema;
+  private static final class AvroSpecificRecordFieldNamePolicy implements FieldNamePolicy {
+    @Override
+    public SerializableFunction<String, String> get(Class<?> clazz, Schema schema) {
+      Map<String, String> nameMapping = Maps.newHashMap();
       for (Field field : schema.getFields()) {
         String getter = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, field.getName());
         nameMapping.put(getter, field.getName());
         // The Avro compiler might add a $ at the end of a getter to disambiguate.
         nameMapping.put(getter + "$", field.getName());
       }
+      return s -> nameMapping.getOrDefault(s, s);
     }
+  }
 
+  private static final class AvroPojoFieldNamePolicy implements FieldNamePolicy {
     @Override
-    public String apply(String input) {
-      return nameMapping.getOrDefault(input, input);
+    public SerializableFunction<String, String> get(Class<?> clazz, Schema schema) {
+      Map<String, String> nameMapping = Maps.newHashMap();
+      for (java.lang.reflect.Field f : ReflectUtils.getFields(clazz)) {
+        if (f.isAnnotationPresent(AvroIgnore.class)) {
+          continue;
+        }
+        AvroName avroname = f.getAnnotation(AvroName.class);
+        nameMapping.put(f.getName(), (avroname != null) ? avroname.value() : f.getName());
+      }
+      return s -> nameMapping.getOrDefault(s, s);
     }
   }
 
-  /** Get field types for an AVRO-generated SpecificRecord. */
-  public static <T extends SpecificRecord> List<FieldValueTypeInformation> getFieldTypes(
-      Class<T> clazz, Schema schema) {
-    return JavaBeanUtils.getFieldTypes(
-        clazz, schema, new AvroSpecificRecordFieldNamePolicy(schema));
+  /** Get field types for an AVRO-generated SpecificRecord or a POJO. */
+  public static <T> List<FieldValueTypeInformation> getFieldTypes(Class<T> clazz, Schema schema) {
+    if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
+      return JavaBeanUtils.getFieldTypes(clazz, schema, new AvroSpecificRecordFieldNamePolicy());
+    } else {
+      return POJOUtils.getFieldTypes(clazz, schema, new AvroPojoFieldNamePolicy());
+    }
   }
 
-  /** Get generated getters for an AVRO-generated SpecificRecord. */
-  public static <T extends SpecificRecord> List<FieldValueGetter> getGetters(
-      Class<T> clazz, Schema schema) {
-    return JavaBeanUtils.getGetters(clazz, schema, new AvroSpecificRecordFieldNamePolicy(schema));
+  /** Get generated getters for an AVRO-generated SpecificRecord or a POJO. */
+  public static <T> List<FieldValueGetter> getGetters(Class<T> clazz, Schema schema) {
+    if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
+      return JavaBeanUtils.getGetters(clazz, schema, new AvroSpecificRecordFieldNamePolicy());
+    } else {
+      return POJOUtils.getGetters(clazz, schema, new AvroPojoFieldNamePolicy());
+    }
   }
 
   /** Get an object creator for an AVRO-generated SpecificRecord. */
-  public static <T extends SpecificRecord> SchemaUserTypeCreator getCreator(
-      Class<T> clazz, Schema schema) {
-    return AvroByteBuddyUtils.getCreator(clazz, schema);
+  public static <T> SchemaUserTypeCreator getCreator(Class<T> clazz, Schema schema) {
+    if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
+      return AvroByteBuddyUtils.getCreator((Class<? extends SpecificRecord>) clazz, schema);
+    } else {
+      Constructor constructor =
+          POJOUtils.getConstructor(clazz, schema, new AvroPojoFieldNamePolicy());
+      return new SchemaUserTypeConstructorCreator(clazz, constructor);
+    }
   }
 
   /** Converts AVRO schema to Beam field. */

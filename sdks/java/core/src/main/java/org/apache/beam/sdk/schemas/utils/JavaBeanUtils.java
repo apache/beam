@@ -50,26 +50,25 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /** A set of utilities to generate getter and setter classes for JavaBean objects. */
 @Experimental(Kind.SCHEMAS)
 public class JavaBeanUtils {
   /** Create a {@link Schema} for a Java Bean class. */
-  public static Schema schemaFromJavaBeanClass(
-      Class<?> clazz, SerializableFunction<String, String> fieldNamePolicy) {
+  public static Schema schemaFromJavaBeanClass(Class<?> clazz) {
     return StaticSchemaInference.schemaFromClass(
-        clazz, c -> JavaBeanUtils.typeInformationFromClass(c, fieldNamePolicy));
+        clazz, c -> JavaBeanUtils.typeInformationFromClass(c));
   }
 
-  private static List<TypeInformation> typeInformationFromClass(
-      Class<?> clazz, SerializableFunction<String, String> fieldNamePolicy) {
+  private static List<TypeInformation> typeInformationFromClass(Class<?> clazz) {
     try {
       List<TypeInformation> getterTypes =
           ReflectUtils.getMethods(clazz)
               .stream()
               .filter(ReflectUtils::isGetter)
-              .map(m -> TypeInformation.forGetter(m, fieldNamePolicy))
+              .map(m -> TypeInformation.forGetter(m, SerializableFunctions.identity()))
               .collect(Collectors.toList());
 
       Map<String, TypeInformation> setterTypes =
@@ -118,7 +117,8 @@ public class JavaBeanUtils {
       Maps.newConcurrentMap();
 
   public static List<FieldValueTypeInformation> getFieldTypes(
-      Class<?> clazz, Schema schema, SerializableFunction<String, String> fieldNamePolicy) {
+      Class<?> clazz, Schema schema, FieldNamePolicy fieldNamePolicy) {
+    SerializableFunction<String, String> transformName = fieldNamePolicy.get(clazz, schema);
     return CACHED_FIELD_TYPES.computeIfAbsent(
         new ClassWithSchema(clazz, schema),
         c -> {
@@ -127,7 +127,7 @@ public class JavaBeanUtils {
                 ReflectUtils.getMethods(clazz)
                     .stream()
                     .filter(ReflectUtils::isGetter)
-                    .map(m -> TypeInformation.forGetter(m, fieldNamePolicy))
+                    .map(m -> TypeInformation.forGetter(m, transformName))
                     .map(FieldValueTypeInformation::of)
                     .collect(
                         Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
@@ -153,7 +153,9 @@ public class JavaBeanUtils {
    * <p>The returned list is ordered by the order of fields in the schema.
    */
   public static List<FieldValueGetter> getGetters(
-      Class<?> clazz, Schema schema, SerializableFunction<String, String> fieldNamePolicy) {
+      Class<?> clazz, Schema schema, FieldNamePolicy fieldNamePolicy) {
+    SerializableFunction<String, String> transformName = fieldNamePolicy.get(clazz, schema);
+
     return CACHED_GETTERS.computeIfAbsent(
         new ClassWithSchema(clazz, schema),
         c -> {
@@ -162,7 +164,7 @@ public class JavaBeanUtils {
                 ReflectUtils.getMethods(clazz)
                     .stream()
                     .filter(ReflectUtils::isGetter)
-                    .map(m -> JavaBeanUtils.createGetter(m, fieldNamePolicy))
+                    .map(m -> JavaBeanUtils.createGetter(m, transformName))
                     .collect(Collectors.toMap(FieldValueGetter::name, Function.identity()));
             return schema
                 .getFields()
@@ -176,14 +178,14 @@ public class JavaBeanUtils {
   }
 
   private static <T> FieldValueGetter createGetter(
-      Method getterMethod, SerializableFunction<String, String> fieldNamePolicy) {
-    TypeInformation typeInformation = TypeInformation.forGetter(getterMethod, fieldNamePolicy);
+      Method getterMethod, SerializableFunction<String, String> transformName) {
+    TypeInformation typeInformation = TypeInformation.forGetter(getterMethod, transformName);
     DynamicType.Builder<FieldValueGetter> builder =
         ByteBuddyUtils.subclassGetterInterface(
             BYTE_BUDDY,
             getterMethod.getDeclaringClass(),
             new ConvertType(false).convert(typeInformation.getType()));
-    builder = implementGetterMethods(builder, getterMethod, fieldNamePolicy);
+    builder = implementGetterMethods(builder, getterMethod, transformName);
     try {
       return builder
           .make()
@@ -202,13 +204,13 @@ public class JavaBeanUtils {
   private static DynamicType.Builder<FieldValueGetter> implementGetterMethods(
       DynamicType.Builder<FieldValueGetter> builder,
       Method method,
-      SerializableFunction<String, String> fieldNamePolicy) {
-    TypeInformation typeInformation = TypeInformation.forGetter(method, fieldNamePolicy);
+      SerializableFunction<String, String> transformName) {
+    TypeInformation typeInformation = TypeInformation.forGetter(method, transformName);
     return builder
         .method(ElementMatchers.named("name"))
         .intercept(FixedValue.reference(typeInformation.getName()))
         .method(ElementMatchers.named("get"))
-        .intercept(new InvokeGetterInstruction(method, fieldNamePolicy));
+        .intercept(new InvokeGetterInstruction(method, transformName));
   }
 
   // The list of setters for a class is cached, so we only create the classes the first time
@@ -278,13 +280,13 @@ public class JavaBeanUtils {
 
   // Implements a method to read a public getter out of an object.
   private static class InvokeGetterInstruction implements Implementation {
-    // Getter method that wil be invoked
+    // Getter method that will be invoked
     private Method method;
-    private SerializableFunction<String, String> fieldNamePolicy;
+    private SerializableFunction<String, String> transformName;
 
-    InvokeGetterInstruction(Method method, SerializableFunction<String, String> fieldNamePolicy) {
+    InvokeGetterInstruction(Method method, SerializableFunction<String, String> transformName) {
       this.method = method;
-      this.fieldNamePolicy = fieldNamePolicy;
+      this.transformName = transformName;
     }
 
     @Override
@@ -295,7 +297,7 @@ public class JavaBeanUtils {
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        TypeInformation typeInformation = TypeInformation.forGetter(method, fieldNamePolicy);
+        TypeInformation typeInformation = TypeInformation.forGetter(method, transformName);
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 

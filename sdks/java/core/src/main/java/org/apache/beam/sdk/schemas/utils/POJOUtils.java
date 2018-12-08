@@ -22,6 +22,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -79,14 +81,16 @@ public class POJOUtils {
   private static final Map<ClassWithSchema, List<FieldValueTypeInformation>> CACHED_FIELD_TYPES =
       Maps.newConcurrentMap();
 
-  public static List<FieldValueTypeInformation> getFieldTypes(Class<?> clazz, Schema schema) {
+  public static List<FieldValueTypeInformation> getFieldTypes(
+      Class<?> clazz, Schema schema, FieldNamePolicy fieldNamePolicy) {
+    SerializableFunction<String, String> transformName = fieldNamePolicy.get(clazz, schema);
     return CACHED_FIELD_TYPES.computeIfAbsent(
         new ClassWithSchema(clazz, schema),
         c -> {
           Map<String, FieldValueTypeInformation> typeInformationMap =
               ReflectUtils.getFields(clazz)
                   .stream()
-                  .map(FieldValueTypeInformation::of)
+                  .map(f -> FieldValueTypeInformation.of(f, transformName))
                   .collect(
                       Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
           return schema
@@ -102,7 +106,9 @@ public class POJOUtils {
   private static final Map<ClassWithSchema, List<FieldValueGetter>> CACHED_GETTERS =
       Maps.newConcurrentMap();
 
-  public static List<FieldValueGetter> getGetters(Class<?> clazz, Schema schema) {
+  public static List<FieldValueGetter> getGetters(
+      Class<?> clazz, Schema schema, FieldNamePolicy fieldNamePolicy) {
+    SerializableFunction<String, String> transformName = fieldNamePolicy.get(clazz, schema);
     // Return the getters ordered by their position in the schema.
     return CACHED_GETTERS.computeIfAbsent(
         new ClassWithSchema(clazz, schema),
@@ -110,13 +116,22 @@ public class POJOUtils {
           Map<String, FieldValueGetter> getterMap =
               ReflectUtils.getFields(clazz)
                   .stream()
-                  .map(POJOUtils::createGetter)
+                  .map(f -> POJOUtils.createGetter(f, transformName))
+                  .filter(Objects::nonNull)
                   .collect(Collectors.toMap(FieldValueGetter::name, Function.identity()));
-          return schema
-              .getFields()
-              .stream()
-              .map(f -> getterMap.get(f.getName()))
-              .collect(Collectors.toList());
+          List<FieldValueGetter> getters =
+              schema
+                  .getFields()
+                  .stream()
+                  .map(Schema.Field::getName)
+                  .map(getterMap::get)
+                  .filter(Objects::nonNull)
+                  .collect(Collectors.toList());
+          if (getters.size() != schema.getFieldCount()) {
+            throw new RuntimeException(
+                "Was not able to generate getters for schema: " + schema + " class: " + clazz);
+          }
+          return getters;
         });
   }
 
@@ -125,17 +140,21 @@ public class POJOUtils {
   public static final Map<ClassWithSchema, SchemaUserTypeCreator> CACHED_CREATORS =
       Maps.newConcurrentMap();
 
-  public static <T> SchemaUserTypeCreator getCreator(Class<T> clazz, Schema schema) {
+  public static <T> SchemaUserTypeCreator getCreator(
+      Class<T> clazz, Schema schema, FieldNamePolicy fieldNamePolicy) {
+    SerializableFunction<String, String> transformName = fieldNamePolicy.get(clazz, schema);
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema), c -> createCreator(clazz, schema));
+        new ClassWithSchema(clazz, schema), c -> createCreator(clazz, schema, transformName));
   }
 
-  private static <T> SchemaUserTypeCreator createCreator(Class<T> clazz, Schema schema) {
+  private static <T> SchemaUserTypeCreator createCreator(
+      Class<T> clazz, Schema schema, SerializableFunction<String, String> transformName) {
     // Get the list of class fields ordered by schema.
     Map<String, Field> fieldMap =
         ReflectUtils.getFields(clazz)
             .stream()
-            .collect(Collectors.toMap(Field::getName, Function.identity()));
+            .collect(Collectors.toMap(f -> transformName.apply(f.getName()), Function.identity()));
+
     List<Field> fields =
         schema
             .getFields()
@@ -179,13 +198,18 @@ public class POJOUtils {
    * </code></pre>
    */
   @SuppressWarnings("unchecked")
-  static <ObjectT, ValueT> FieldValueGetter<ObjectT, ValueT> createGetter(Field field) {
+  static <ObjectT, ValueT> FieldValueGetter<ObjectT, ValueT> createGetter(
+      Field field, SerializableFunction<String, String> fieldNamePolicy) {
+    String newName = fieldNamePolicy.apply(field.getName());
+    if (newName == null) {
+      return null;
+    }
     DynamicType.Builder<FieldValueGetter> builder =
         ByteBuddyUtils.subclassGetterInterface(
             BYTE_BUDDY,
             field.getDeclaringClass(),
             new ConvertType(false).convert(TypeDescriptor.of(field.getType())));
-    builder = implementGetterMethods(builder, field);
+    builder = implementGetterMethods(builder, field, newName);
     try {
       return builder
           .make()
@@ -202,10 +226,10 @@ public class POJOUtils {
   }
 
   private static DynamicType.Builder<FieldValueGetter> implementGetterMethods(
-      DynamicType.Builder<FieldValueGetter> builder, Field field) {
+      DynamicType.Builder<FieldValueGetter> builder, Field field, String name) {
     return builder
         .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(field.getName()))
+        .intercept(FixedValue.reference(name))
         .method(ElementMatchers.named("get"))
         .intercept(new ReadFieldInstruction(field));
   }
@@ -284,7 +308,7 @@ public class POJOUtils {
   // Implements a method to read a public field out of an object.
   static class ReadFieldInstruction implements Implementation {
     // Field that will be read.
-    private Field field;
+    private final Field field;
 
     ReadFieldInstruction(Field field) {
       this.field = field;

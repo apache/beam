@@ -126,7 +126,8 @@ public class POJOUtilsTest {
             new BigDecimal(42),
             new StringBuilder("stringBuilder"));
 
-    List<FieldValueGetter> getters = POJOUtils.getGetters(SimplePOJO.class, SIMPLE_POJO_SCHEMA);
+    List<FieldValueGetter> getters =
+        POJOUtils.getGetters(SimplePOJO.class, SIMPLE_POJO_SCHEMA, FieldNamePolicies.identity());
     assertEquals(12, getters.size());
     assertEquals("str", getters.get(0).name());
     assertEquals("field1", getters.get(0).get(simplePojo));
@@ -182,7 +183,8 @@ public class POJOUtilsTest {
     POJOWithBoxedFields pojo = new POJOWithBoxedFields((byte) 41, (short) 42, 43, 44L, true);
 
     List<FieldValueGetter> getters =
-        POJOUtils.getGetters(POJOWithBoxedFields.class, POJO_WITH_BOXED_FIELDS_SCHEMA);
+        POJOUtils.getGetters(
+            POJOWithBoxedFields.class, POJO_WITH_BOXED_FIELDS_SCHEMA, FieldNamePolicies.identity());
     assertEquals((byte) 41, getters.get(0).get(pojo));
     assertEquals((short) 42, getters.get(1).get(pojo));
     assertEquals((int) 43, getters.get(2).get(pojo));

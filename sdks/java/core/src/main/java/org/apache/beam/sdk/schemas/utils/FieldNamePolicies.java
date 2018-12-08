@@ -17,15 +17,10 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
 import org.apache.beam.sdk.schemas.Schema;
 
-/** A factory for creating {@link FieldValueGetter} objects for a POJO. */
-public class PojoValueGetterFactory implements FieldValueGetterFactory {
-  @Override
-  public List<FieldValueGetter> create(Class<?> targetClass, Schema schema) {
-    return POJOUtils.getGetters(targetClass, schema, FieldNamePolicies.identity());
+public class FieldNamePolicies {
+  public static FieldNamePolicy identity() {
+    return (Class<?> clazz, Schema schema) -> s -> s;
   }
 }

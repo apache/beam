@@ -27,7 +27,7 @@ public class SchemaUserTypeConstructorCreator implements SchemaUserTypeCreator {
   private final Class<?> clazz;
   private final transient Constructor<?> constructor;
 
-  SchemaUserTypeConstructorCreator(Class<?> clazz, Constructor<?> constructor) {
+  public SchemaUserTypeConstructorCreator(Class<?> clazz, Constructor<?> constructor) {
     this.clazz = clazz;
     this.constructor = checkNotNull(constructor);
   }

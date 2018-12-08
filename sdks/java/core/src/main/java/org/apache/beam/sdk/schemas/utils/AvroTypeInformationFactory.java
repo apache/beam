@@ -15,15 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.schemas.utils;
 
-import org.apache.avro.specific.SpecificRecord;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformationFactory;
+import org.apache.beam.sdk.schemas.Schema;
 
-/** A {@link UserTypeCreatorFactory} for AVRO-generated specific records. */
-public class AvroSpecificRecordUserTypeCreatorFactory implements UserTypeCreatorFactory {
+/** A {@link FieldValueTypeInformation} for AVRO-generated specific records and POJOs. */
+public class AvroTypeInformationFactory implements FieldValueTypeInformationFactory {
   @Override
-  public SchemaUserTypeCreator create(Class<?> clazz, Schema schema) {
-    return AvroUtils.getCreator((Class<? extends SpecificRecord>) clazz, schema);
+  public List<FieldValueTypeInformation> create(Class<?> targetClass, Schema schema) {
+    return AvroUtils.getFieldTypes(targetClass, schema);
   }
 }

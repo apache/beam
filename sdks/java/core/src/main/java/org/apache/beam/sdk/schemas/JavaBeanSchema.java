@@ -23,7 +23,6 @@ import org.apache.beam.sdk.schemas.utils.JavaBeanGetterFactory;
 import org.apache.beam.sdk.schemas.utils.JavaBeanSetterFactory;
 import org.apache.beam.sdk.schemas.utils.JavaBeanTypeInformationFactory;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -43,8 +42,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class JavaBeanSchema extends GetterBasedSchemaProvider {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return JavaBeanUtils.schemaFromJavaBeanClass(
-        typeDescriptor.getRawType(), SerializableFunctions.identity());
+    return JavaBeanUtils.schemaFromJavaBeanClass(typeDescriptor.getRawType());
   }
 
   @Override

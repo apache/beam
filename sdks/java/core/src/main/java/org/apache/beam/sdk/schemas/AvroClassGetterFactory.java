@@ -18,13 +18,12 @@
 package org.apache.beam.sdk.schemas;
 
 import java.util.List;
-import org.apache.avro.specific.SpecificRecord;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 
-/** A {@link FieldValueGetterFactory} for AVRO-generated specific records. */
-public class AvroSpecificRecordGetterFactory implements FieldValueGetterFactory {
+/** A {@link FieldValueGetterFactory} for AVRO-generated specific records and POJOs. */
+public class AvroClassGetterFactory implements FieldValueGetterFactory {
   @Override
   public List<FieldValueGetter> create(Class<?> targetClass, Schema schema) {
-    return AvroUtils.getGetters((Class<? extends SpecificRecord>) targetClass, schema);
+    return AvroUtils.getGetters(targetClass, schema);
   }
 }

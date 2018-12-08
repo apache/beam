@@ -21,12 +21,11 @@ import java.util.List;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformationFactory;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 
 /** A {@link FieldValueTypeInformationFactory} for Java Bean objects. */
 public class JavaBeanTypeInformationFactory implements FieldValueTypeInformationFactory {
   @Override
   public List<FieldValueTypeInformation> create(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getFieldTypes(targetClass, schema, SerializableFunctions.identity());
+    return JavaBeanUtils.getFieldTypes(targetClass, schema, FieldNamePolicies.identity());
   }
 }
