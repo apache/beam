@@ -382,7 +382,7 @@ public final class CloneAmbiguousFlattensFunctionTest {
 
   /** Creates an {@link InstructionOutputNode} to act as a PCollection. */
   private static InstructionOutputNode createPCollection(String name) {
-    return InstructionOutputNode.create(new InstructionOutput().setName(name));
+    return InstructionOutputNode.create(new InstructionOutput().setName(name), "fakeId");
   }
 
   /** Creates a {@link NoLocationNode} to use for testing nodes that have no ExecutionLocation */

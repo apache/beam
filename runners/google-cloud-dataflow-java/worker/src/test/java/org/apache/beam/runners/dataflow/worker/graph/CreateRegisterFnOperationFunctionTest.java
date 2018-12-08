@@ -535,7 +535,7 @@ public class CreateRegisterFnOperationFunctionTest {
   }
 
   private static InstructionOutputNode createInstructionOutputNode(String name) {
-    return InstructionOutputNode.create(new InstructionOutput().setName(name));
+    return InstructionOutputNode.create(new InstructionOutput().setName(name), "fakeId");
   }
 
   /** A named node to easily differentiate graph construction problems during testing. */

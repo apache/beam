@@ -89,21 +89,24 @@ public class CloneAmbiguousFlattensFunction
    */
   private void cloneFlatten(Node flatten, MutableNetwork<Node, Edge> network) {
     // Start by creating the clones of the flatten and its PCollection.
-    Node flattenOut = Iterables.getOnlyElement(network.successors(flatten));
+    InstructionOutputNode flattenOut =
+        (InstructionOutputNode) Iterables.getOnlyElement(network.successors(flatten));
     ParallelInstruction flattenInstruction =
         ((ParallelInstructionNode) flatten).getParallelInstruction();
 
     Node runnerFlatten =
         ParallelInstructionNode.create(flattenInstruction, ExecutionLocation.RUNNER_HARNESS);
     Node runnerFlattenOut =
-        InstructionOutputNode.create(((InstructionOutputNode) flattenOut).getInstructionOutput());
+        InstructionOutputNode.create(
+            flattenOut.getInstructionOutput(), flattenOut.getPcollectionId());
     network.addNode(runnerFlatten);
     network.addNode(runnerFlattenOut);
 
     Node sdkFlatten =
         ParallelInstructionNode.create(flattenInstruction, ExecutionLocation.SDK_HARNESS);
     Node sdkFlattenOut =
-        InstructionOutputNode.create(((InstructionOutputNode) flattenOut).getInstructionOutput());
+        InstructionOutputNode.create(
+            flattenOut.getInstructionOutput(), flattenOut.getPcollectionId());
     network.addNode(sdkFlatten);
     network.addNode(sdkFlattenOut);
 
