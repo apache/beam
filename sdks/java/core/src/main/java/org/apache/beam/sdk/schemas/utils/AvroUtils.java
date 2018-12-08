@@ -298,7 +298,7 @@ public class AvroUtils {
 
   /** Get field types for an AVRO-generated SpecificRecord. */
   public static <T extends SpecificRecord> List<FieldValueTypeInformation> getFieldTypes(
-      Class<T> clazz, @Nullable Schema schema) {
+      Class<T> clazz, Schema schema) {
     return JavaBeanUtils.getFieldTypes(
         clazz, schema, new AvroSpecificRecordFieldNamePolicy(schema));
   }
