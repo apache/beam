@@ -227,7 +227,7 @@ public class CreateExecutableStageNodeFunction
             e);
       }
 
-      String pcollectionId = "generatedPcollection" + idGenerator.getId();
+      String pcollectionId = node.getPcollectionId();
       RunnerApi.PCollection pCollection =
           RunnerApi.PCollection.newBuilder()
               .setCoderId(coderId)
@@ -349,6 +349,10 @@ public class CreateExecutableStageNodeFunction
 
       pTransform.setSpec(transformSpec);
       executableStageTransforms.add(PipelineNode.pTransform(ptransformId, pTransform.build()));
+    }
+
+    if (executableStageInputs.size() != 1) {
+      throw new UnsupportedOperationException("ExecutableStage only support one input PCollection");
     }
 
     PCollectionNode executableInput = executableStageInputs.iterator().next();

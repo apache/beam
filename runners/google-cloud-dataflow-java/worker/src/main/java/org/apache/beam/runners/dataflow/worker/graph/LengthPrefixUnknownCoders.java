@@ -153,7 +153,7 @@ public class LengthPrefixUnknownCoders {
                 e);
           }
         }
-        return InstructionOutputNode.create(cloudOutput);
+        return InstructionOutputNode.create(cloudOutput, input.getPcollectionId());
       }
     };
   }
@@ -179,7 +179,7 @@ public class LengthPrefixUnknownCoders {
                   input.getInstructionOutput()),
               e);
         }
-        return InstructionOutputNode.create(instructionOutput);
+        return InstructionOutputNode.create(instructionOutput, input.getPcollectionId());
       }
     };
   }

@@ -158,7 +158,8 @@ public class InsertFetchAndFilterStreamingSideInputNodes {
       InstructionOutputNode predecessor =
           (InstructionOutputNode) network.incidentNodes(mainInput).source();
       InstructionOutputNode predecessorCopy =
-          InstructionOutputNode.create(predecessor.getInstructionOutput());
+          InstructionOutputNode.create(
+              predecessor.getInstructionOutput(), predecessor.getPcollectionId());
       network.removeEdge(mainInput);
       network.addNode(streamingSideInputWindowHandlerNode);
       network.addNode(predecessorCopy);

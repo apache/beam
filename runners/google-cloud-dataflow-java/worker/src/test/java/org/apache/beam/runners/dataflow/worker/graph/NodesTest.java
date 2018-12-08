@@ -57,6 +57,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link Nodes}. */
 @RunWith(JUnit4.class)
 public class NodesTest {
+  private static final String PCOLLECTION_ID = "fakeId";
+
   @Test
   public void testParallelInstructionNode() {
     ParallelInstruction param = new ParallelInstruction();
@@ -73,18 +75,22 @@ public class NodesTest {
   @Test
   public void testInstructionOutputNode() {
     InstructionOutput param = new InstructionOutput();
-    assertSame(param, InstructionOutputNode.create(param).getInstructionOutput());
-    assertNotEquals(InstructionOutputNode.create(param), InstructionOutputNode.create(param));
+    assertSame(param, InstructionOutputNode.create(param, PCOLLECTION_ID).getInstructionOutput());
+    assertNotEquals(
+        InstructionOutputNode.create(param, PCOLLECTION_ID),
+        InstructionOutputNode.create(param, PCOLLECTION_ID));
   }
 
   @Test
   public void testOutputReceiverNode() {
     OutputReceiver receiver = new OutputReceiver();
     Coder<?> coder = StringUtf8Coder.of();
-    assertSame(receiver, OutputReceiverNode.create(receiver, coder).getOutputReceiver());
-    assertSame(coder, OutputReceiverNode.create(receiver, coder).getCoder());
+    assertSame(
+        receiver, OutputReceiverNode.create(receiver, coder, PCOLLECTION_ID).getOutputReceiver());
+    assertSame(coder, OutputReceiverNode.create(receiver, coder, PCOLLECTION_ID).getCoder());
     assertNotEquals(
-        OutputReceiverNode.create(receiver, coder), OutputReceiverNode.create(receiver, coder));
+        OutputReceiverNode.create(receiver, coder, PCOLLECTION_ID),
+        OutputReceiverNode.create(receiver, coder, PCOLLECTION_ID));
   }
 
   @Test

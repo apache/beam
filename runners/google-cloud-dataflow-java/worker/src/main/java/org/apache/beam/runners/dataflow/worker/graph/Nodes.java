@@ -206,20 +206,25 @@ public class Nodes {
     public abstract ExecutionLocation getExecutionLocation();
   }
 
-  /** A node that stores {@link InstructionOutput}s. */
+  /** A node that stores {@link InstructionOutput}s with the corresponding . */
   @AutoValue
   public abstract static class InstructionOutputNode extends Node {
-    public static InstructionOutputNode create(InstructionOutput instructionOutput) {
+    public static InstructionOutputNode create(
+        InstructionOutput instructionOutput, String pcollectionId) {
       checkNotNull(instructionOutput);
-      return new AutoValue_Nodes_InstructionOutputNode(instructionOutput);
+      checkNotNull(pcollectionId);
+      return new AutoValue_Nodes_InstructionOutputNode(instructionOutput, pcollectionId);
     }
 
     public abstract InstructionOutput getInstructionOutput();
+
+    public abstract String getPcollectionId();
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this)
           .add("instructionOutput", toStringWithTrimmedLiterals(getInstructionOutput()))
+          .add("pcollectionId", getPcollectionId())
           .toString();
     }
   }
@@ -227,14 +232,18 @@ public class Nodes {
   /** A node that stores {@link OutputReceiver}s. */
   @AutoValue
   public abstract static class OutputReceiverNode extends Node {
-    public static OutputReceiverNode create(OutputReceiver outputReceiver, Coder<?> coder) {
+    public static OutputReceiverNode create(
+        OutputReceiver outputReceiver, Coder<?> coder, String pcollectionId) {
       checkNotNull(outputReceiver);
-      return new AutoValue_Nodes_OutputReceiverNode(outputReceiver, coder);
+      checkNotNull(pcollectionId);
+      return new AutoValue_Nodes_OutputReceiverNode(outputReceiver, coder, pcollectionId);
     }
 
     public abstract OutputReceiver getOutputReceiver();
 
     public abstract Coder<?> getCoder();
+
+    public abstract String getPcollectionId();
   }
 
   /** A node that stores {@link Operation}s. */
