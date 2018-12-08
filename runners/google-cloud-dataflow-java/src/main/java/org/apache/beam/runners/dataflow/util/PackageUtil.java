@@ -64,6 +64,8 @@ import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.joda.time.Seconds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -316,6 +318,7 @@ class PackageUtil implements Closeable {
         "Uploading {} files from PipelineOptions.filesToStage to staging location to "
             + "prepare for execution.",
         classpathElements.size());
+    Instant start = Instant.now();
 
     if (classpathElements.size() > SANE_CLASSPATH_SIZE) {
       LOG.warn(
@@ -386,10 +389,12 @@ class PackageUtil implements Closeable {
         }
       } while (!finished);
       List<DataflowPackage> stagedPackages = MoreFutures.get(stagingFutures);
+      Instant done = Instant.now();
       LOG.info(
-          "Staging files complete: {} files cached, {} files newly uploaded",
+          "Staging files complete: {} files cached, {} files newly uploaded in {} seconds",
           numCached.get(),
-          numUploaded.get());
+          numUploaded.get(),
+          Seconds.secondsBetween(start, done).getSeconds());
       return stagedPackages;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
