@@ -22,38 +22,39 @@ import CommonJobProperties as commonJobProperties
 
 def testsConfigurations = [
         [
-                jobName           : 'beam_Java_LoadTests_GroupByKey_Direct',
-                jobDescription    : 'Runs GroupByKey load tests on direct runner',
+                jobName           : 'beam_Java_LoadTests_GroupByKey_Direct_Small',
+                jobDescription    : 'Runs GroupByKey load tests on direct runner small records 10b',
                 itClass           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                prCommitStatusName: 'Java GroupByKey Load Test Direct',
-                prTriggerPhase    : 'Run GroupByKey Java Load Test Direct',
+                prCommitStatusName: 'Java GroupByKey Small Java Load Test Direct',
+                prTriggerPhase    : 'Run GroupByKey Small Java Load Test Direct',
                 runner            : loadTestsBuilder.Runner.DIRECT,
                 jobProperties     : [
                         publishToBigQuery: true,
-                        bigQueryDataset  : 'load_tests_java',
-                        bigQueryTable    : 'direct_gbk',
-                        sourceOptions    : '{"numRecords":1000,"splitPointFrequencyRecords":1,"keySizeBytes":10,"valueSizeBytes":20,"numHotKeys":3,"hotKeyFraction":0.3,"seed":123456,"bundleSizeDistribution":{"type":"const","const":42},"forceNumInitialBundles":100,"progressShape":"LINEAR","initializeDelayDistribution":{"type":"const","const":42}}',
-                        stepOptions      : '{"outputRecordsPerInputRecord":2,"preservesInputKeyDistribution":2,"keySizeBytes":10,"valueSizeBytes":20,"numHotKeys":3,"hotKeyFraction":0.3,"seed":123456}}',
+                        bigQueryDataset  : 'load_test_PRs',
+                        bigQueryTable    : 'direct_gbk_small',
+                        sourceOptions    : '{"numRecords":1000000000,"splitPointFrequencyRecords":1,"keySizeBytes":1,"valueSizeBytes":9,"numHotKeys":0,"hotKeyFraction":0,"seed":123456,"bundleSizeDistribution":{"type":"const","const":42},"forceNumInitialBundles":100,"progressShape":"LINEAR","initializeDelayDistribution":{"type":"const","const":42}}',
+                        stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true,"perBundleDelay":10000,"perBundleDelayType":"MIXED","cpuUtilizationInMixedDelay":0.5}',
                         fanout           : 10,
                         iterations       : 1,
                 ]
 
         ],
         [
-                jobName           : 'beam_Java_LoadTests_GroupByKey_Dataflow',
-                jobDescription    : 'Runs GroupByKey load tests on Dataflow',
+                jobName           : 'beam_Java_LoadTests_GroupByKey_Dataflow_Small',
+                jobDescription    : 'Runs GroupByKey load tests on Dataflow runner small records 10b',
                 itClass           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                prCommitStatusName: 'Java GroupByKey Load Test Dataflow',
-                prTriggerPhase    : 'Run GroupByKey Java Load Test Dataflow',
+                prCommitStatusName: 'Java GroupByKey Small Load Test Dataflow',
+                prTriggerPhase    : 'Run GroupByKey Small Java Load Test Dataflow',
                 runner            : loadTestsBuilder.Runner.DATAFLOW,
                 jobProperties     : [
-                        publishToBigQuery: true,
-                        bigQueryDataset  : 'load_tests_java',
-                        bigQueryTable    : 'dataflow_gbk',
-                        sourceOptions    : '{"numRecords":1000,"splitPointFrequencyRecords":1,"keySizeBytes":10,"valueSizeBytes":20,"numHotKeys":3,"hotKeyFraction":0.3,"seed":123456,"bundleSizeDistribution":{"type":"const","const":42},"forceNumInitialBundles":100,"progressShape":"LINEAR","initializeDelayDistribution":{"type":"const","const":42}}',
-                        stepOptions      : '{"outputRecordsPerInputRecord":2,"preservesInputKeyDistribution":2,"keySizeBytes":10,"valueSizeBytes":20,"numHotKeys":3,"hotKeyFraction":0.3,"seed":123456}}',
-                        fanout           : 10,
-                        iterations       : 1,
+                        publishToBigQuery   : true,
+                        bigQueryDataset     : 'load_test_PRs',
+                        bigQueryTable       : 'dataflow_gbk_small',
+                        sourceOptions       : '{"numRecords":1000000000,"splitPointFrequencyRecords":1,"keySizeBytes":1,"valueSizeBytes":9,"numHotKeys":0,"hotKeyFraction":0,"seed":123456,"bundleSizeDistribution":{"type":"const","const":42},"forceNumInitialBundles":100,"progressShape":"LINEAR","initializeDelayDistribution":{"type":"const","const":42}}',
+                        stepOptions         : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true,"perBundleDelay":10000,"perBundleDelayType":"MIXED","cpuUtilizationInMixedDelay":0.5}',
+                        fanout              : 10,
+                        iterations          : 1,
+                        maxNumWorkers       : 10,
                 ]
 
         ],

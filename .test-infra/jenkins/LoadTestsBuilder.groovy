@@ -22,7 +22,8 @@ import CommonJobProperties as commonJobProperties
 class LoadTestsBuilder {
 
     private static Map<String, Object> defaultOptions = [
-            project: 'apache-beam-testing',
+            project             :'apache-beam-testing',
+            tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
     ]
 
     enum Runner {
@@ -41,16 +42,10 @@ class LoadTestsBuilder {
     }
 
     static void buildTest(context, String title, Runner runner, Map<String, Object> jobSpecificOptions, String mainClass) {
-        Map<String, Object> options = getFullOptions(jobSpecificOptions, runner)
+        Map<String, Object> options = jobSpecificOptions + defaultOptions
+        options.put('runner', runner.option)
 
         suite(context, title, runner, options, mainClass)
-    }
-
-    private static Map<String, Object> getFullOptions(Map<String, Object> jobSpecificOptions, Runner runner) {
-        Map<String, Object> options = defaultOptions + jobSpecificOptions
-
-        options.put('runner', runner.option)
-        options
     }
 
     static void suite(context, String title, Runner runner, Map<String, Object> options, String mainClass) {
@@ -62,7 +57,7 @@ class LoadTestsBuilder {
                 commonJobProperties.setGradleSwitches(delegate)
                 switches("-Dorg.gradle.daemon=false")
                 switches("-PloadTest.mainClass=\"${mainClass}\"")
-                switches("-PloadTest.runner=${runner.dependency}")
+                switches("-Prunner=${runner.dependency}")
                 switches("-PloadTest.args=\"${parseOptions(options)}\"")
             }
         }
