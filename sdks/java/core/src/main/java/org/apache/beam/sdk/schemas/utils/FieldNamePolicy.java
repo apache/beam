@@ -21,6 +21,10 @@ import java.io.Serializable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
+
+/** A naming policy for schema fields. This maps a name from the class (field name or getter name)
+ * to the matching field name in the schema.
+ */
 public interface FieldNamePolicy extends Serializable {
   SerializableFunction<String, String> get(Class<?> clazz, Schema schema);
 }

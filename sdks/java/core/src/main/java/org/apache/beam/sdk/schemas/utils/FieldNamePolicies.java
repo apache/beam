@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.utils;
 
 import org.apache.beam.sdk.schemas.Schema;
 
+/** Some useful {@link FieldNamePolicy}s. */
 public class FieldNamePolicies {
   public static FieldNamePolicy identity() {
     return (Class<?> clazz, Schema schema) -> s -> s;
