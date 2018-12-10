@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.extensions.sql.TestUtils.tuple;
 
 import java.io.Serializable;
 import java.util.Objects;
-import org.apache.beam.sdk.schemas.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;

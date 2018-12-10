@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.transforms.SerializableFunction;

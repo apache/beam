@@ -31,6 +31,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -52,6 +53,7 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
+import sun.misc.Unsafe;
 
 /** Tests for the {@link POJOUtils} class. */
 public class POJOUtilsTest {
@@ -225,5 +227,50 @@ public class POJOUtilsTest {
 
     assertArrayEquals("not equal", BYTE_ARRAY, pojo.bytes1);
     assertEquals(BYTE_BUFFER, pojo.bytes2);
+  }
+
+  static class Foo {
+    private final int field1;
+    private final String field2;
+
+    public Foo(int field1, String field2) {
+      this.field1 = field1;
+      this.field2 = field2;
+    }
+
+    @Override
+    public String toString() {
+      return "Foo{" +
+          "field1=" + field1 +
+          ", field2='" + field2 + '\'' +
+          '}';
+    }
+  }
+
+  private static final Unsafe UNSAFE;
+  static {
+    try {
+      Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
+      theUnsafe.setAccessible(true);
+      UNSAFE = (Unsafe) theUnsafe.get(null);
+      // It seems not all Unsafe implementations implement the following method.
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Test
+  public void testUnsafe() throws Exception {
+    Field field1 = Foo.class.getDeclaredField("field1");
+    Field field2 = Foo.class.getDeclaredField("field2");
+
+    long offsetField1 = UNSAFE.objectFieldOffset(field1);
+    long offsetField2 = UNSAFE.objectFieldOffset(field2);
+
+    Foo foo = new Foo(42, "Hello!");
+    System.err.println("BEFORE " + foo);
+    UNSAFE.putInt(foo, offsetField1, 43);
+    UNSAFE.putObject(foo, offsetField2, "Goodby!");
+    System.err.println("AFTER " + foo);
   }
 }
