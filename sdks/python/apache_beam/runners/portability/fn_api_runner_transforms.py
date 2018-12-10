@@ -152,8 +152,15 @@ def union(a, b):
     return frozenset.union(a, b)
 
 
+_global_counter = 0
+
+
 def unique_name(existing, prefix):
-  if prefix in existing:
+  if existing is None:
+    global _global_counter
+    _global_counter += 1
+    return '%s_%d' % (prefix, _global_counter)
+  elif prefix in existing:
     counter = 0
     while True:
       counter += 1
