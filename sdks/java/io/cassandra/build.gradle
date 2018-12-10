@@ -17,7 +17,12 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+// Do not relocate guava to avoid issues with Cassandra's version.
+applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+  dependencies {
+    exclude(dependency(project.library.java.guava))
+  }
+})
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
