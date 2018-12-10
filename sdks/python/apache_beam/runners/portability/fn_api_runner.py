@@ -53,6 +53,9 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
+from apache_beam.runners.portability import fn_api_runner_transforms
+from apache_beam.runners.portability.fn_api_runner_transforms import only_element
+from apache_beam.runners.portability.fn_api_runner_transforms import unique_name
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
@@ -292,98 +295,15 @@ class FnApiRunner(runner.PipelineRunner):
 
   def create_stages(self, pipeline_proto):
 
-    # First define a couple of helpers.
-
-    def union(a, b):
-      # Minimize the number of distinct sets.
-      if not a or a == b:
-        return b
-      elif not b:
-        return a
-      else:
-        return frozenset.union(a, b)
-
-    class Stage(object):
-      """A set of Transforms that can be sent to the worker for processing."""
-      def __init__(self, name, transforms,
-                   downstream_side_inputs=None, must_follow=frozenset()):
-        self.name = name
-        self.transforms = transforms
-        self.downstream_side_inputs = downstream_side_inputs
-        self.must_follow = must_follow
-        self.timer_pcollections = []
-
-      def __repr__(self):
-        must_follow = ', '.join(prev.name for prev in self.must_follow)
-        downstream_side_inputs = ', '.join(
-            str(si) for si in self.downstream_side_inputs)
-        return "%s\n  %s\n  must follow: %s\n  downstream_side_inputs: %s" % (
-            self.name,
-            '\n'.join(["%s:%s" % (transform.unique_name, transform.spec.urn)
-                       for transform in self.transforms]),
-            must_follow,
-            downstream_side_inputs)
-
-      def can_fuse(self, consumer):
-        def no_overlap(a, b):
-          return not a.intersection(b)
-        return (
-            not self in consumer.must_follow
-            and not self.is_flatten() and not consumer.is_flatten()
-            and no_overlap(self.downstream_side_inputs, consumer.side_inputs()))
-
-      def fuse(self, other):
-        return Stage(
-            "(%s)+(%s)" % (self.name, other.name),
-            self.transforms + other.transforms,
-            union(self.downstream_side_inputs, other.downstream_side_inputs),
-            union(self.must_follow, other.must_follow))
-
-      def is_flatten(self):
-        return any(transform.spec.urn == common_urns.primitives.FLATTEN.urn
-                   for transform in self.transforms)
-
-      def side_inputs(self):
-        for transform in self.transforms:
-          if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
-            payload = proto_utils.parse_Bytes(
-                transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-            for side_input in payload.side_inputs:
-              yield transform.inputs[side_input]
-
-      def has_as_main_input(self, pcoll):
-        for transform in self.transforms:
-          if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
-            payload = proto_utils.parse_Bytes(
-                transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-            local_side_inputs = payload.side_inputs
-          else:
-            local_side_inputs = {}
-          for local_id, pipeline_id in transform.inputs.items():
-            if pcoll == pipeline_id and local_id not in local_side_inputs:
-              return True
-
-      def deduplicate_read(self):
-        seen_pcolls = set()
-        new_transforms = []
-        for transform in self.transforms:
-          if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-            pcoll = only_element(list(transform.outputs.items()))[1]
-            if pcoll in seen_pcolls:
-              continue
-            seen_pcolls.add(pcoll)
-          new_transforms.append(transform)
-        self.transforms = new_transforms
-
     # Some helper functions.
+    # TODO(BEAM-6186): Move these to fn_api_runner_transforms.
+
+    Stage = fn_api_runner_transforms.Stage
+    union = fn_api_runner_transforms.union
 
     def add_or_get_coder_id(coder_proto):
-      for coder_id, coder in pipeline_components.coders.items():
-        if coder == coder_proto:
-          return coder_id
-      new_coder_id = unique_name(pipeline_components.coders, 'coder')
-      pipeline_components.coders[new_coder_id].CopyFrom(coder_proto)
-      return new_coder_id
+      return fn_api_runner_transforms.TransformContext(
+          pipeline_components).add_or_get_coder_id(coder_proto)
 
     def windowed_coder_id(coder_id, window_coder_id):
       proto = beam_runner_api_pb2.Coder(
@@ -467,10 +387,6 @@ class FnApiRunner(runner.PipelineRunner):
     def impulse_to_input(stages):
       bytes_coder_id = add_or_get_coder_id(
           beam.coders.BytesCoder().to_runner_api(None))
-      global_window_coder_id = add_or_get_coder_id(
-          beam.coders.coders.GlobalWindowCoder().to_runner_api(None))
-      globally_windowed_bytes_coder_id = windowed_coder_id(
-          bytes_coder_id, global_window_coder_id)
 
       for stage in stages:
         # First map Reads, if any, to Impulse + triggered read op.
@@ -483,7 +399,7 @@ class FnApiRunner(runner.PipelineRunner):
             pipeline_components.pcollections[impulse_pc].CopyFrom(
                 beam_runner_api_pb2.PCollection(
                     unique_name=impulse_pc,
-                    coder_id=globally_windowed_bytes_coder_id,
+                    coder_id=bytes_coder_id,
                     windowing_strategy_id=read_pc_proto.windowing_strategy_id,
                     is_bounded=read_pc_proto.is_bounded))
             stage.transforms.remove(transform)
@@ -539,10 +455,7 @@ class FnApiRunner(runner.PipelineRunner):
           output_pcoll = pipeline_components.pcollections[only_element(
               list(transform.outputs.values()))]
 
-          windowed_input_coder = pipeline_components.coders[
-              input_pcoll.coder_id]
-          element_coder_id, window_coder_id = (
-              windowed_input_coder.component_coder_ids)
+          element_coder_id = input_pcoll.coder_id
           element_coder = pipeline_components.coders[element_coder_id]
           key_coder_id, _ = element_coder.component_coder_ids
           accumulator_coder_id = combine_payload.accumulator_coder_id
@@ -575,8 +488,7 @@ class FnApiRunner(runner.PipelineRunner):
           pipeline_components.pcollections[precombined_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
                   unique_name=transform.unique_name + '/Precombine.out',
-                  coder_id=windowed_coder_id(
-                      key_accumulator_coder_id, window_coder_id),
+                  coder_id=key_accumulator_coder_id,
                   windowing_strategy_id=input_pcoll.windowing_strategy_id,
                   is_bounded=input_pcoll.is_bounded))
 
@@ -585,8 +497,7 @@ class FnApiRunner(runner.PipelineRunner):
           pipeline_components.pcollections[grouped_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
                   unique_name=transform.unique_name + '/Group.out',
-                  coder_id=windowed_coder_id(
-                      key_accumulator_iter_coder_id, window_coder_id),
+                  coder_id=key_accumulator_iter_coder_id,
                   windowing_strategy_id=output_pcoll.windowing_strategy_id,
                   is_bounded=output_pcoll.is_bounded))
 
@@ -595,8 +506,7 @@ class FnApiRunner(runner.PipelineRunner):
           pipeline_components.pcollections[merged_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
                   unique_name=transform.unique_name + '/Merge.out',
-                  coder_id=windowed_coder_id(
-                      key_accumulator_coder_id, window_coder_id),
+                  coder_id=key_accumulator_coder_id,
                   windowing_strategy_id=output_pcoll.windowing_strategy_id,
                   is_bounded=output_pcoll.is_bounded))
 
@@ -920,10 +830,6 @@ class FnApiRunner(runner.PipelineRunner):
               # Create the appropriate coder for the timer PCollection.
               key_coder_id = input_pcoll.coder_id
               if (pipeline_components.coders[key_coder_id].spec.spec.urn
-                  == common_urns.coders.WINDOWED_VALUE.urn):
-                key_coder_id = pipeline_components.coders[
-                    key_coder_id].component_coder_ids[0]
-              if (pipeline_components.coders[key_coder_id].spec.spec.urn
                   == common_urns.coders.KV.urn):
                 key_coder_id = pipeline_components.coders[
                     key_coder_id].component_coder_ids[0]
@@ -933,10 +839,6 @@ class FnApiRunner(runner.PipelineRunner):
                           spec=beam_runner_api_pb2.FunctionSpec(
                               urn=common_urns.coders.KV.urn)),
                       component_coder_ids=[key_coder_id, spec.timer_coder_id]))
-              timer_pcoll_coder_id = windowed_coder_id(
-                  key_timer_coder_id,
-                  pipeline_components.windowing_strategies[
-                      input_pcoll.windowing_strategy_id].window_coder_id)
               # Inject the read and write pcollections.
               timer_read_pcoll = unique_name(
                   pipeline_components.pcollections,
@@ -947,13 +849,13 @@ class FnApiRunner(runner.PipelineRunner):
               pipeline_components.pcollections[timer_read_pcoll].CopyFrom(
                   beam_runner_api_pb2.PCollection(
                       unique_name=timer_read_pcoll,
-                      coder_id=timer_pcoll_coder_id,
+                      coder_id=key_timer_coder_id,
                       windowing_strategy_id=input_pcoll.windowing_strategy_id,
                       is_bounded=input_pcoll.is_bounded))
               pipeline_components.pcollections[timer_write_pcoll].CopyFrom(
                   beam_runner_api_pb2.PCollection(
                       unique_name=timer_write_pcoll,
-                      coder_id=timer_pcoll_coder_id,
+                      coder_id=key_timer_coder_id,
                       windowing_strategy_id=input_pcoll.windowing_strategy_id,
                       is_bounded=input_pcoll.is_bounded))
               stage.transforms.append(
@@ -996,47 +898,42 @@ class FnApiRunner(runner.PipelineRunner):
         process(stage)
       return ordered
 
+    def window_pcollection_coders(stages):
+      # Some SDK workers require windowed coders for their PCollections.
+      # TODO(BEAM-4150): Consistently use unwindowed coders everywhere.
+      for pcoll in pipeline_components.pcollections.values():
+        if (pipeline_components.coders[pcoll.coder_id].spec.spec.urn
+            != common_urns.coders.WINDOWED_VALUE.urn):
+          original_coder_id = pcoll.coder_id
+          pcoll.coder_id = windowed_coder_id(
+              pcoll.coder_id,
+              pipeline_components.windowing_strategies[
+                  pcoll.windowing_strategy_id].window_coder_id)
+          if (original_coder_id in safe_coders
+              and pcoll.coder_id not in safe_coders):
+            # TODO: This assumes the window coder is safe.
+            safe_coders[pcoll.coder_id] = windowed_coder_id(
+                safe_coders[original_coder_id],
+                pipeline_components.windowing_strategies[
+                    pcoll.windowing_strategy_id].window_coder_id)
+
+      return stages
+
     # Now actually apply the operations.
 
     pipeline_components = copy.deepcopy(pipeline_proto.components)
 
-    # Some SDK workers require windowed coders for their PCollections.
-    # TODO(BEAM-4150): Consistently use unwindowed coders everywhere.
-    for pcoll in pipeline_components.pcollections.values():
-      if (pipeline_components.coders[pcoll.coder_id].spec.spec.urn
-          != common_urns.coders.WINDOWED_VALUE.urn):
-        pcoll.coder_id = windowed_coder_id(
-            pcoll.coder_id,
-            pipeline_components.windowing_strategies[
-                pcoll.windowing_strategy_id].window_coder_id)
-
-    known_composites = set(
-        [common_urns.primitives.GROUP_BY_KEY.urn,
-         common_urns.composites.COMBINE_PER_KEY.urn])
-
-    def leaf_transforms(root_ids):
-      for root_id in root_ids:
-        root = pipeline_proto.components.transforms[root_id]
-        if root.spec.urn in known_composites:
-          yield root_id
-        elif not root.subtransforms:
-          # Make sure its outputs are not a subset of its inputs.
-          if set(root.outputs.values()) - set(root.inputs.values()):
-            yield root_id
-        else:
-          for leaf in leaf_transforms(root.subtransforms):
-            yield leaf
-
     # Initial set of stages are singleton leaf transforms.
-    stages = [
-        Stage(name, [pipeline_proto.components.transforms[name]])
-        for name in leaf_transforms(pipeline_proto.root_transform_ids)]
+    stages = list(fn_api_runner_transforms.leaf_transform_stages(
+        pipeline_proto.root_transform_ids,
+        pipeline_proto.components))
 
     # Apply each phase in order.
     for phase in [
         annotate_downstream_side_inputs, fix_side_input_pcoll_coders,
         lift_combiners, expand_gbk, sink_flattens, greedily_fuse,
-        impulse_to_input, inject_timer_pcollections, sort_stages]:
+        impulse_to_input, inject_timer_pcollections, sort_stages,
+        window_pcollection_coders]:
       logging.info('%s %s %s', '=' * 20, phase, '=' * 20)
       stages = list(phase(stages))
       logging.debug('Stages: %s', [str(s) for s in stages])
@@ -1661,23 +1558,6 @@ class RunnerResult(runner.PipelineResult):
       self._monitoring_metrics = FnApiMetrics(
           self._monitoring_infos_by_stage, user_metrics_only=False)
     return self._monitoring_metrics
-
-
-def only_element(iterable):
-  element, = iterable
-  return element
-
-
-def unique_name(existing, prefix):
-  if prefix in existing:
-    counter = 0
-    while True:
-      counter += 1
-      prefix_counter = prefix + "_%s" % counter
-      if prefix_counter not in existing:
-        return prefix_counter
-  else:
-    return prefix
 
 
 def create_buffer_id(name, kind='materialize'):
