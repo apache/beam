@@ -85,7 +85,7 @@ public class StreamingModeExecutionContextTest {
   @Mock private WindmillStateReader stateReader;
 
   private StreamingModeExecutionStateRegistry executionStateRegistry =
-      new StreamingModeExecutionStateRegistry();
+      new StreamingModeExecutionStateRegistry(null);
   private StreamingModeExecutionContext executionContext;
 
   @Before

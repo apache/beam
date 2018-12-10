@@ -450,7 +450,7 @@ public class WorkerCustomSourcesTest {
   public void testReadUnboundedReader() throws Exception {
     CounterSet counterSet = new CounterSet();
     StreamingModeExecutionStateRegistry executionStateRegistry =
-        new StreamingModeExecutionStateRegistry();
+        new StreamingModeExecutionStateRegistry(null);
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,
