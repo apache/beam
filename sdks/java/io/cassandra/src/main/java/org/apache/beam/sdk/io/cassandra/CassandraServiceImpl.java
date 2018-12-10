@@ -263,7 +263,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
           queries.add(query);
         }
       }
-      sources.add(new CassandraIO.CassandraSource(spec, queries));
+      sources.add(new CassandraIO.CassandraSource<>(spec, queries));
     }
     return sources;
   }
@@ -395,7 +395,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   }
 
   /** Writer storing an entity into Apache Cassandra database. */
-  protected class WriterImpl extends MutatorImpl implements Writer<T> {
+  class WriterImpl extends MutatorImpl implements Writer<T> {
 
     WriterImpl(CassandraIO.Mutate<T> spec) {
       super(spec, Mapper::saveAsync, "writes");
@@ -408,7 +408,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   }
 
   /** Mutator allowing to do side effects into Apache Cassandra database. */
-  protected abstract class MutatorImpl {
+  abstract class MutatorImpl {
     /**
      * The threshold of 100 concurrent async queries is a heuristic commonly used by the Apache
      * Cassandra community. There is no real gain to expect in tuning this value.
@@ -421,8 +421,8 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     private final Session session;
     private final MappingManager mappingManager;
     private List<ListenableFuture<Void>> mutateFutures;
-    private BiFunction<Mapper<T>, T, ListenableFuture<Void>> mutator;
-    private String operationName;
+    private final BiFunction<Mapper<T>, T, ListenableFuture<Void>> mutator;
+    private final String operationName;
 
     MutatorImpl(
         CassandraIO.Mutate<T> spec,
@@ -450,7 +450,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
      * asynchronous. Beam will wait for all futures to complete, to guarantee all writes have
      * succeeded.
      */
-    public void mutate(T entity) throws ExecutionException, InterruptedException {
+    void mutate(T entity) throws ExecutionException, InterruptedException {
       Mapper<T> mapper = (Mapper<T>) mappingManager.mapper(entity.getClass());
       this.mutateFutures.add(mutator.apply(mapper, entity));
       if (this.mutateFutures.size() == CONCURRENT_ASYNC_QUERIES) {
@@ -488,7 +488,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   }
 
   @Override
-  public Writer createWriter(CassandraIO.Mutate<T> spec) {
+  public Writer<T> createWriter(CassandraIO.Mutate<T> spec) {
     return new WriterImpl(spec);
   }
 
@@ -496,7 +496,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   protected class DeleterImpl extends MutatorImpl implements Deleter<T> {
 
     DeleterImpl(CassandraIO.Mutate<T> spec) {
-      super(spec, (tMapper, t) -> tMapper.deleteAsync(t), "deletes");
+      super(spec, Mapper::deleteAsync, "deletes");
     }
 
     @Override
@@ -506,7 +506,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   }
 
   @Override
-  public Deleter createDeleter(CassandraIO.Mutate<T> spec) {
+  public Deleter<T> createDeleter(CassandraIO.Mutate<T> spec) {
     return new DeleterImpl(spec);
   }
 }

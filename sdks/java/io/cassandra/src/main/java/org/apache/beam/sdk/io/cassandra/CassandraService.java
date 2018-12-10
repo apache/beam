@@ -23,7 +23,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.io.BoundedSource;
 
 /** An interface for real or fake implementations of Cassandra. */
-public interface CassandraService<T> extends Serializable {
+interface CassandraService<T> extends Serializable {
   /**
    * Returns a {@link org.apache.beam.sdk.io.BoundedSource.BoundedReader} that will read from
    * Cassandra using the spec from {@link
@@ -38,7 +38,7 @@ public interface CassandraService<T> extends Serializable {
   List<BoundedSource<T>> split(CassandraIO.Read<T> spec, long desiredBundleSizeBytes);
 
   /** Create a {@link Writer} that writes entities into the Cassandra instance. */
-  Writer createWriter(CassandraIO.Mutate<T> spec);
+  Writer<T> createWriter(CassandraIO.Mutate<T> spec);
 
   /** Writer for an entity. */
   interface Writer<T> extends AutoCloseable {
@@ -50,7 +50,7 @@ public interface CassandraService<T> extends Serializable {
   }
 
   /** Create a {@link Writer} that writes entities into the Cassandra instance. */
-  Deleter createDeleter(CassandraIO.Mutate<T> spec);
+  Deleter<T> createDeleter(CassandraIO.Mutate<T> spec);
 
   /** Deleter for an entity. */
   interface Deleter<T> extends AutoCloseable {

@@ -506,9 +506,9 @@ public class CassandraIO {
     @Override
     public PDone expand(PCollection<T> input) {
       if (mutationType() == MutationType.DELETE) {
-        input.apply(ParDo.of(new DeleteFn<T>(this)));
+        input.apply(ParDo.of(new DeleteFn<>(this)));
       } else {
-        input.apply(ParDo.of(new WriteFn<T>(this)));
+        input.apply(ParDo.of(new WriteFn<>(this)));
       }
       return PDone.in(input.getPipeline());
     }
