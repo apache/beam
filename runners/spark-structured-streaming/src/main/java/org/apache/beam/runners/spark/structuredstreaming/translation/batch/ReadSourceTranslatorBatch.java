@@ -22,17 +22,24 @@ import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.io.DatasetSource;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.streaming.DataStreamReader;
 
 class ReadSourceTranslatorBatch<T>
     implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
+
+  private String SOURCE_PROVIDER_CLASS = DatasetSource.class.getCanonicalName();
 
   @SuppressWarnings("unchecked")
   @Override
@@ -41,18 +48,28 @@ class ReadSourceTranslatorBatch<T>
     AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> rootTransform =
         (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>)
             context.getCurrentTransform();
-    BoundedSource<T> source;
+
+        String providerClassName = SOURCE_PROVIDER_CLASS.substring(0, SOURCE_PROVIDER_CLASS.indexOf("$"));
+        BoundedSource<T> source;
     try {
       source = ReadTranslation.boundedSourceFromTransform(rootTransform);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    PCollection<T> output = (PCollection<T>) context.getOutput();
-
     SparkSession sparkSession = context.getSparkSession();
-    DatasetSource datasetSource = new DatasetSource(context, source);
-    Dataset<Row> dataset = sparkSession.readStream().format("DatasetSource").load();
+    Dataset<Row> rowDataset = sparkSession.readStream().format(providerClassName).load();
+    //TODO initialize source : how, to get a reference to the DatasetSource instance that spark
+    // instantiates to be able to call DatasetSource.initialize()
+    MapFunction<Row, WindowedValue<T>> func = new MapFunction<Row, WindowedValue<T>>() {
+      @Override public WindowedValue<T> call(Row value) throws Exception {
+        //TODO fix row content extraction: I guess cast is not enough
+        return (WindowedValue<T>) value.get(0);
+      }
+    };
+    //TODO fix encoder
+    Dataset<WindowedValue<T>> dataset = rowDataset.map(func, null);
 
+    PCollection<T> output = (PCollection<T>) context.getOutput();
     context.putDataset(output, dataset);
   }
 }
