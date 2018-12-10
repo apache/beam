@@ -37,15 +37,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.MismatchingNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArraysBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedMapBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBeanWithAnnotations;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /** Tests for the {@link JavaBeanSchema} schema provider. */
 public class JavaBeanSchemaTest {
@@ -54,6 +58,21 @@ public class JavaBeanSchemaTest {
 
   private SimpleBean createSimple(String name) {
     return new SimpleBean(
+        name,
+        (byte) 1,
+        (short) 2,
+        3,
+        4L,
+        true,
+        DATE,
+        DATE.toInstant(),
+        BYTE_ARRAY,
+        BigDecimal.ONE,
+        new StringBuilder(name).append("builder"));
+  }
+
+  private SimpleBeanWithAnnotations createAnnotated(String name) {
+    return new SimpleBeanWithAnnotations(
         name,
         (byte) 1,
         (short) 2,
@@ -238,9 +257,9 @@ public class JavaBeanSchemaTest {
     NestedArrayBean bean = new NestedArrayBean(simple1, simple2, simple3);
     Row row = registry.getToRowFunction(NestedArrayBean.class).apply(bean);
     List<Row> rows = row.getArray("beans");
-    assertSame(simple1, registry.getFromRowFunction(NestedArrayBean.class).apply(rows.get(0)));
-    assertSame(simple2, registry.getFromRowFunction(NestedArrayBean.class).apply(rows.get(1)));
-    assertSame(simple3, registry.getFromRowFunction(NestedArrayBean.class).apply(rows.get(2)));
+    assertSame(simple1, registry.getFromRowFunction(SimpleBean.class).apply(rows.get(0)));
+    assertSame(simple2, registry.getFromRowFunction(SimpleBean.class).apply(rows.get(1)));
+    assertSame(simple3, registry.getFromRowFunction(SimpleBean.class).apply(rows.get(2)));
   }
 
   @Test
@@ -333,5 +352,43 @@ public class JavaBeanSchemaTest {
     assertEquals("string1", bean.getMap().get("simple1").getStr());
     assertEquals("string2", bean.getMap().get("simple2").getStr());
     assertEquals("string3", bean.getMap().get("simple3").getStr());
+  }
+
+  @Test
+  public void testAnnotations() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(SimpleBeanWithAnnotations.class);
+    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_BEAN_SCHEMA, schema);
+
+    SimpleBeanWithAnnotations pojo = createAnnotated("string");
+    Row row = registry.getToRowFunction(SimpleBeanWithAnnotations.class).apply(pojo);
+    assertEquals(12, row.getFieldCount());
+    assertEquals("string", row.getString("str"));
+    assertEquals((byte) 1, (Object) row.getByte("aByte"));
+    assertEquals((short) 2, (Object) row.getInt16("aShort"));
+    assertEquals((int) 3, (Object) row.getInt32("anInt"));
+    assertEquals((long) 4, (Object) row.getInt64("aLong"));
+    assertEquals(true, (Object) row.getBoolean("aBoolean"));
+    assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
+    assertEquals(DATE.toInstant(), row.getDateTime("instant"));
+    assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
+    assertArrayEquals(BYTE_ARRAY, row.getBytes("byteBuffer"));
+    assertEquals(BigDecimal.ONE, row.getDecimal("bigDecimal"));
+    assertEquals("stringbuilder", row.getString("stringBuilder"));
+
+    SimpleBeanWithAnnotations pojo2 =
+        registry
+            .getFromRowFunction(SimpleBeanWithAnnotations.class)
+            .apply(createSimpleRow("string"));
+    assertEquals(pojo, pojo2);
+  }
+
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testMismatchingNullable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    thrown.expect(RuntimeException.class);
+    Schema schema = registry.getSchema(MismatchingNullableBean.class);
   }
 }

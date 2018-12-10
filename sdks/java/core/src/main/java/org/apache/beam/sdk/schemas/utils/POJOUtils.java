@@ -18,11 +18,12 @@
 package org.apache.beam.sdk.schemas.utils;
 
 import com.google.common.collect.Maps;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
@@ -53,9 +54,11 @@ import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConstructorCreateInstruction;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstruction;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -63,14 +66,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /** A set of utilities yo generate getter and setter classes for POJOs. */
 @Experimental(Kind.SCHEMAS)
 public class POJOUtils {
-  public static Schema schemaFromPojoClass(Class<?> clazz) {
-    Function<Class, List<FieldValueTypeInformation>> getTypesForClass =
-        c ->
-            ReflectUtils.getFields(c)
-                .stream()
-                .map(FieldValueTypeInformation::forField)
-                .collect(Collectors.toList());
-    return StaticSchemaInference.schemaFromClass(clazz, getTypesForClass);
+  public static Schema schemaFromPojoClass(
+      Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return StaticSchemaInference.schemaFromClass(clazz, fieldValueTypeSupplier);
   }
 
   // Static ByteBuddy instance used by all helpers.
@@ -112,17 +110,17 @@ public class POJOUtils {
   public static final Map<ClassWithSchema, SchemaUserTypeCreator> CACHED_CREATORS =
       Maps.newConcurrentMap();
 
-  public static <T> SchemaUserTypeCreator getCreator(
+  public static <T> SchemaUserTypeCreator getSetFieldCreator(
       Class<T> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     return CACHED_CREATORS.computeIfAbsent(
         new ClassWithSchema(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
-          return createCreator(clazz, schema, types);
+          return createSetFieldCreator(clazz, schema, types);
         });
   }
 
-  private static <T> SchemaUserTypeCreator createCreator(
+  private static <T> SchemaUserTypeCreator createSetFieldCreator(
       Class<T> clazz, Schema schema, List<FieldValueTypeInformation> types) {
     // Get the list of class fields ordered by schema.
     List<Field> fields =
@@ -133,7 +131,81 @@ public class POJOUtils {
               .with(new InjectPackageStrategy(clazz))
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
-              .intercept(new CreateInstruction(fields, clazz));
+              .intercept(new SetFieldCreateInstruction(fields, clazz));
+
+      return builder
+          .make()
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .getLoaded()
+          .getDeclaredConstructor()
+          .newInstance();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      throw new RuntimeException(
+          "Unable to generate a creator for class " + clazz + " with schema " + schema);
+    }
+  }
+
+  public static SchemaUserTypeCreator getConstructorCreator(
+      Class clazz,
+      Constructor constructor,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return CACHED_CREATORS.computeIfAbsent(
+        new ClassWithSchema(clazz, schema),
+        c -> {
+          List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
+          return createConstructorCreator(clazz, constructor, schema, types);
+        });
+  }
+
+  public static <T> SchemaUserTypeCreator createConstructorCreator(
+      Class<T> clazz,
+      Constructor<T> constructor,
+      Schema schema,
+      List<FieldValueTypeInformation> types) {
+    try {
+      DynamicType.Builder<SchemaUserTypeCreator> builder =
+          BYTE_BUDDY
+              .subclass(SchemaUserTypeCreator.class)
+              .method(ElementMatchers.named("create"))
+              .intercept(new ConstructorCreateInstruction(types, clazz, constructor));
+
+      return builder
+          .make()
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .getLoaded()
+          .getDeclaredConstructor()
+          .newInstance();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      throw new RuntimeException(
+          "Unable to generate a creator for class " + clazz + " with schema " + schema);
+    }
+  }
+
+  public static SchemaUserTypeCreator getStaticCreator(
+      Class clazz, Method creator, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return CACHED_CREATORS.computeIfAbsent(
+        new ClassWithSchema(clazz, schema),
+        c -> {
+          List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
+          return createStaticCreator(clazz, creator, schema, types);
+        });
+  }
+
+  public static <T> SchemaUserTypeCreator createStaticCreator(
+      Class<T> clazz, Method creator, Schema schema, List<FieldValueTypeInformation> types) {
+    try {
+      DynamicType.Builder<SchemaUserTypeCreator> builder =
+          BYTE_BUDDY
+              .subclass(SchemaUserTypeCreator.class)
+              .method(ElementMatchers.named("create"))
+              .intercept(new StaticFactoryMethodInstruction(types, clazz, creator));
 
       return builder
           .make()
@@ -345,11 +417,11 @@ public class POJOUtils {
   }
 
   // Implements a method to construct an object.
-  static class CreateInstruction implements Implementation {
+  static class SetFieldCreateInstruction implements Implementation {
     private final List<Field> fields;
     private final Class pojoClass;
 
-    CreateInstruction(List<Field> fields, Class pojoClass) {
+    SetFieldCreateInstruction(List<Field> fields, Class pojoClass) {
       this.fields = fields;
       this.pojoClass = pojoClass;
     }

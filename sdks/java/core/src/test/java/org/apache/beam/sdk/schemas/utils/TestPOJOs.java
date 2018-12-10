@@ -24,10 +24,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -100,6 +103,249 @@ public class TestPOJOs {
   /** The schema for {@link POJOWithNestedNullable}. * */
   public static final Schema NESTED_NULLABLE_SCHEMA =
       Schema.builder().addNullableField("nested", FieldType.row(NULLABLES_SCHEMA)).build();
+
+  /** A POJO for testing static factory methods. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class StaticCreationSimplePojo {
+    public final String str;
+    public final byte aByte;
+    public final short aShort;
+    public final int anInt;
+    public final long aLong;
+    public final boolean aBoolean;
+    public final DateTime dateTime;
+    public final Instant instant;
+    public final byte[] bytes;
+    public final ByteBuffer byteBuffer;
+    public final BigDecimal bigDecimal;
+    public final StringBuilder stringBuilder;
+
+    private StaticCreationSimplePojo(
+        String str,
+        byte aByte,
+        short aShort,
+        int anInt,
+        long aLong,
+        boolean aBoolean,
+        DateTime dateTime,
+        Instant instant,
+        byte[] bytes,
+        ByteBuffer byteBuffer,
+        BigDecimal bigDecimal,
+        StringBuilder stringBuilder) {
+      this.str = str;
+      this.aByte = aByte;
+      this.aShort = aShort;
+      this.anInt = anInt;
+      this.aLong = aLong;
+      this.aBoolean = aBoolean;
+      this.dateTime = dateTime;
+      this.instant = instant;
+      this.bytes = bytes;
+      this.byteBuffer = byteBuffer;
+      this.bigDecimal = bigDecimal;
+      this.stringBuilder = stringBuilder;
+    }
+
+    @SchemaCreate
+    public static StaticCreationSimplePojo of(
+        String str,
+        long aLong,
+        byte aByte,
+        short aShort,
+        int anInt,
+        boolean aBoolean,
+        DateTime dateTime,
+        ByteBuffer byteBuffer,
+        Instant instant,
+        byte[] bytes,
+        BigDecimal bigDecimal,
+        StringBuilder stringBuilder) {
+      return new StaticCreationSimplePojo(
+          str,
+          aByte,
+          aShort,
+          anInt,
+          aLong,
+          aBoolean,
+          dateTime,
+          instant,
+          bytes,
+          byteBuffer,
+          bigDecimal,
+          stringBuilder);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof StaticCreationSimplePojo)) {
+        return false;
+      }
+      StaticCreationSimplePojo that = (StaticCreationSimplePojo) o;
+      return aByte == that.aByte
+          && aShort == that.aShort
+          && anInt == that.anInt
+          && aLong == that.aLong
+          && aBoolean == that.aBoolean
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder.toString(), that.stringBuilder.toString());
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              aByte,
+              aShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder);
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
+  }
+
+  /** A POJO for testing annotations. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class AnnotatedSimplePojo {
+    public final String str;
+
+    @SchemaFieldName("aByte")
+    public final byte theByte;
+
+    @SchemaFieldName("aShort")
+    public final short theShort;
+
+    public final int anInt;
+    public final long aLong;
+    public final boolean aBoolean;
+    public final DateTime dateTime;
+    public final Instant instant;
+    public final byte[] bytes;
+    public final ByteBuffer byteBuffer;
+    public final BigDecimal bigDecimal;
+    public final StringBuilder stringBuilder;
+    @SchemaIgnore public final Integer pleaseIgnore;
+
+    // Marked with SchemaCreate, so this will be called to construct instances.
+    @SchemaCreate
+    public AnnotatedSimplePojo(
+        String str,
+        byte theByte,
+        long aLong,
+        short theShort,
+        int anInt,
+        boolean aBoolean,
+        DateTime dateTime,
+        BigDecimal bigDecimal,
+        Instant instant,
+        byte[] bytes,
+        ByteBuffer byteBuffer,
+        StringBuilder stringBuilder) {
+      this.str = str;
+      this.theByte = theByte;
+      this.theShort = theShort;
+      this.anInt = anInt;
+      this.aLong = aLong;
+      this.aBoolean = aBoolean;
+      this.dateTime = dateTime;
+      this.instant = instant;
+      this.bytes = bytes;
+      this.byteBuffer = byteBuffer;
+      this.bigDecimal = bigDecimal;
+      this.stringBuilder = stringBuilder;
+      this.pleaseIgnore = 42;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      AnnotatedSimplePojo that = (AnnotatedSimplePojo) o;
+      return theByte == that.theByte
+          && theShort == that.theShort
+          && anInt == that.anInt
+          && aLong == that.aLong
+          && aBoolean == that.aBoolean
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder.toString(), that.stringBuilder.toString());
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              theByte,
+              theShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder.toString());
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "AnnotatedSimplePojo{"
+          + "str='"
+          + str
+          + '\''
+          + ", theByte="
+          + theByte
+          + ", theShort="
+          + theShort
+          + ", anInt="
+          + anInt
+          + ", aLong="
+          + aLong
+          + ", aBoolean="
+          + aBoolean
+          + ", dateTime="
+          + dateTime
+          + ", instant="
+          + instant
+          + ", bytes="
+          + Arrays.toString(bytes)
+          + ", byteBuffer="
+          + byteBuffer
+          + ", bigDecimal="
+          + bigDecimal
+          + ", stringBuilder="
+          + stringBuilder
+          + ", pleaseIgnore="
+          + pleaseIgnore
+          + '}';
+    }
+  }
 
   /** A simple POJO containing basic types. * */
   @DefaultSchema(JavaFieldSchema.class)

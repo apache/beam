@@ -15,26 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
-
-import java.io.Serializable;
-import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
-import org.apache.beam.sdk.schemas.Schema;
-
 /**
- * A naming policy for schema fields. This maps a name from the class (field name or getter name) to
- * the matching field name in the schema.
+ * Defines {@link org.apache.beam.sdk.schemas.Schema} and other classes for representing schema'd
+ * data in a {@link org.apache.beam.sdk.Pipeline}.
+ *
+ * <p>For further details, see the documentation for each class in this package.
  */
-public interface FieldValueTypeSupplier extends Serializable {
-  /** Return all the FieldValueTypeInformations. */
-  List<FieldValueTypeInformation> get(Class<?> clazz);
+@DefaultAnnotation(NonNull.class)
+package org.apache.beam.sdk.schemas.annotations;
 
-  /**
-   * Return all the FieldValueTypeInformations.
-   *
-   * <p>If the schema parameter is not null, then the returned list must be in the same order as
-   * fields in the schema.
-   */
-  List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema);
-}
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;
