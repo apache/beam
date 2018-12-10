@@ -203,7 +203,7 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
     PTransformNode leftRoot = null;
     PTransformNode rightRoot = null;
     for (PTransformNode root : fusedQP.getRootTransforms()) {
-      if (root.getId().equals("left")) {
+      if ("left".equals(root.getId())) {
         leftRoot = root;
       } else {
         rightRoot = root;
