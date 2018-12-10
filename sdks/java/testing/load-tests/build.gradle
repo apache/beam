@@ -51,6 +51,7 @@ dependencies {
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-synthetic", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-test-utils", configuration: "shadow")
+  compile project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
 
   gradleRun project(path: project.path, configuration: "shadow")
   gradleRun project(path: runnerDependency, configuration: "shadow")
