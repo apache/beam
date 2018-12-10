@@ -208,6 +208,7 @@
   <li><a href="#flake_is_failing">A flaky test is a critical/P1 issue</a></li>
   <li><a href="#remove_flake">Flaky tests must be fixed or removed</a></li>
   <li><a href="#precommit_for_postcommit">Add new pre-commit tests as part of a post-commit fix</a></li>
+  <li><a href="#inform_community">Inform the community if Beam breaks downstream projects</a></li>
 </ul>
 
 
@@ -298,6 +299,26 @@ post-commit tests.</p>
 test that will detect similar failures in the future. For example, you can
 implement a new unit test that covers a problematic code branch.</p>
 
+<h2 id="inform_community">Inform the community if Beam breaks downstream projects</h2>
+
+<p>There are multiple external projects depending on Beam which contain tests that are
+outside of Beam repository. For example, Dataflow, Samza runner, and IBM Streams.</p>
+
+<p>When an external project encounters an issue caused by (a PR) in Beam
+and, in consequence, requests for a change in the Beam repository,
+the first thing is to create a JIRA entry that addresses 
+the following three questions:</p>
+
+<ol>
+  <li>Descriptions on what the issue is.</li>
+  <li>Does a revert fix it? (Or it is supposed to be fixed differently)</li>
+  <li>Is a revert the best way to fix it?</li>
+</ol>
+
+<p>It is encouraged to bring the discussion to the dev mailing list as well. 
+Ideally, after the incident, we prefer to have discussions regarding
+whether we should extend tests in Beam repository, with the goal of
+catching similar issues early in the future.</p>
 
       </div>
     </div>
