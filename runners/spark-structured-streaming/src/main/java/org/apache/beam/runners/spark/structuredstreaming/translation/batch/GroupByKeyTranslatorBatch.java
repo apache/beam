@@ -17,9 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import java.util.List;
+import com.google.common.collect.Iterators;
 import org.apache.beam.runners.spark.structuredstreaming.translation.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
@@ -54,14 +52,7 @@ class GroupByKeyTranslatorBatch<K, V>
     Dataset<KV<K, Iterable<V>>> materialized =
         grouped.mapGroups(
             (MapGroupsFunction<K, KV<K, V>, KV<K, Iterable<V>>>)
-                (key, iterator) -> {
-                  // TODO: can we use here just "Iterable<V> iterable = () -> iterator;" ?
-                  List<V> values = Lists.newArrayList();
-                  while (iterator.hasNext()) {
-                    values.add(iterator.next().getValue());
-                  }
-                  return KV.of(key, Iterables.unmodifiableIterable(values));
-                },
+                (key, iterator) -> KV.of(key, () -> Iterators.transform(iterator, KV::getValue)),
             EncoderHelpers.encoder());
 
     Dataset<WindowedValue<KV<K, Iterable<V>>>> output =
