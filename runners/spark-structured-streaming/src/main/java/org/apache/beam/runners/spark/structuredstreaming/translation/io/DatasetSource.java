@@ -30,6 +30,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.sources.DataSourceRegister;
 import org.apache.spark.sql.sources.v2.ContinuousReadSupport;
 import org.apache.spark.sql.sources.v2.DataSourceOptions;
 import org.apache.spark.sql.sources.v2.DataSourceV2;
@@ -45,14 +46,15 @@ import org.apache.spark.sql.types.StructType;
  * is tagged experimental in spark, this class does no implement {@link ContinuousReadSupport}. This
  * class is just a mix-in.
  */
-public class DatasetSource<T> implements DataSourceV2, MicroBatchReadSupport {
+public class DatasetSource<T> implements DataSourceV2, MicroBatchReadSupport{
 
-  private final int numPartitions;
-  private final Long bundleSize;
+  private int numPartitions;
+  private Long bundleSize;
   private TranslationContext context;
   private BoundedSource<T> source;
 
-  public DatasetSource(TranslationContext context, BoundedSource<T> source) {
+
+  public void initialize(TranslationContext context, BoundedSource<T> source){
     this.context = context;
     this.source = source;
     this.numPartitions = context.getSparkSession().sparkContext().defaultParallelism();
