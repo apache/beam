@@ -154,7 +154,9 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             Schema.Field.of("f9", FieldType.INT16),
             Schema.Field.of("f10", FieldType.INT32),
             Schema.Field.of("f11", FieldType.INT64),
-            Schema.Field.of("f12", FieldType.INT64));
+            Schema.Field.of("f12", FieldType.INT64),
+            Schema.Field.of("f13", FieldType.STRING),
+            Schema.Field.of("f14", FieldType.STRING));
     Row row1 =
         Row.withSchema(schema)
             .addValue(new DateTime(2030, 10, 1, 0, 0, 0, DateTimeZone.UTC))
@@ -170,6 +172,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             .addValue(10)
             .addValue(11L)
             .addValue(12L)
+            .addValue("abc")
+            .addValue("cde")
             .build();
 
     executeSql(
@@ -186,7 +190,9 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             + "f9  UInt8,"
             + "f10 UInt16,"
             + "f11 UInt32,"
-            + "f12 UInt64"
+            + "f12 UInt64,"
+            + "f13 Enum8('abc' = 1, 'cde' = 2),"
+            + "f14 Enum16('abc' = -1, 'cde' = -2)"
             + ") ENGINE=Log");
 
     pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_primitive_types"));
@@ -209,6 +215,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
       assertEquals("10", rs.getString("f10"));
       assertEquals("11", rs.getString("f11"));
       assertEquals("12", rs.getString("f12"));
+      assertEquals("abc", rs.getString("f13"));
+      assertEquals("cde", rs.getString("f14"));
     }
   }
 
@@ -228,7 +236,9 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             Schema.Field.of("f9", FieldType.array(FieldType.INT16)),
             Schema.Field.of("f10", FieldType.array(FieldType.INT32)),
             Schema.Field.of("f11", FieldType.array(FieldType.INT64)),
-            Schema.Field.of("f12", FieldType.array(FieldType.INT64)));
+            Schema.Field.of("f12", FieldType.array(FieldType.INT64)),
+            Schema.Field.of("f13", FieldType.array(FieldType.STRING)),
+            Schema.Field.of("f14", FieldType.array(FieldType.STRING)));
     Row row1 =
         Row.withSchema(schema)
             .addArray(
@@ -248,6 +258,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             .addArray(10, 11)
             .addArray(11L, 12L)
             .addArray(12L, 13L)
+            .addArray("abc", "cde")
+            .addArray("cde", "abc")
             .build();
 
     executeSql(
@@ -264,7 +276,9 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             + "f9  Array(UInt8),"
             + "f10 Array(UInt16),"
             + "f11 Array(UInt32),"
-            + "f12 Array(UInt64)"
+            + "f12 Array(UInt64),"
+            + "f13 Array(Enum8('abc' = 1, 'cde' = 2)),"
+            + "f14 Array(Enum16('abc' = -1, 'cde' = -2))"
             + ") ENGINE=Log");
 
     pipeline
@@ -289,6 +303,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
       assertEquals("[10,11]", rs.getString("f10"));
       assertEquals("[11,12]", rs.getString("f11"));
       assertEquals("[12,13]", rs.getString("f12"));
+      assertEquals("['abc','cde']", rs.getString("f13"));
+      assertEquals("['cde','abc']", rs.getString("f14"));
     }
   }
 

@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.io.StringReader;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -98,6 +99,10 @@ public abstract class TableSchema implements Serializable {
 
       case ARRAY:
         return Schema.FieldType.array(getEquivalentFieldType(columnType.arrayElementType()));
+
+      case ENUM8:
+      case ENUM16:
+        return Schema.FieldType.STRING;
     }
 
     // not possible, errorprone checks for exhaustive switch
@@ -140,6 +145,8 @@ public abstract class TableSchema implements Serializable {
     // Primitive types
     DATE,
     DATETIME,
+    ENUM8,
+    ENUM16,
     FLOAT32,
     FLOAT64,
     INT8,
@@ -198,7 +205,14 @@ public abstract class TableSchema implements Serializable {
     public abstract TypeName typeName();
 
     @Nullable
+    public abstract Map<String, Integer> enumValues();
+
+    @Nullable
     public abstract ColumnType arrayElementType();
+
+    public ColumnType withNullable(boolean nullable) {
+      return toBuilder().nullable(nullable).build();
+    }
 
     public static ColumnType of(TypeName typeName) {
       return ColumnType.builder().typeName(typeName).nullable(false).build();
@@ -206,6 +220,22 @@ public abstract class TableSchema implements Serializable {
 
     public static ColumnType nullable(TypeName typeName) {
       return ColumnType.builder().typeName(typeName).nullable(true).build();
+    }
+
+    public static ColumnType enum8(Map<String, Integer> enumValues) {
+      return ColumnType.builder()
+          .typeName(TypeName.ENUM8)
+          .nullable(false)
+          .enumValues(enumValues)
+          .build();
+    }
+
+    public static ColumnType enum16(Map<String, Integer> enumValues) {
+      return ColumnType.builder()
+          .typeName(TypeName.ENUM16)
+          .nullable(false)
+          .enumValues(enumValues)
+          .build();
     }
 
     public static ColumnType array(ColumnType arrayElementType) {
@@ -259,6 +289,8 @@ public abstract class TableSchema implements Serializable {
           case INT64:
             return Long.valueOf(value);
           case STRING:
+          case ENUM8:
+          case ENUM16:
             return value;
           case UINT8:
             return Short.valueOf(value);
@@ -276,6 +308,8 @@ public abstract class TableSchema implements Serializable {
       }
     }
 
+    abstract Builder toBuilder();
+
     public static Builder builder() {
       return new AutoValue_TableSchema_ColumnType.Builder();
     }
@@ -288,6 +322,8 @@ public abstract class TableSchema implements Serializable {
       public abstract Builder arrayElementType(ColumnType arrayElementType);
 
       public abstract Builder nullable(boolean nullable);
+
+      public abstract Builder enumValues(Map<String, Integer> enumValues);
 
       public abstract ColumnType build();
     }
