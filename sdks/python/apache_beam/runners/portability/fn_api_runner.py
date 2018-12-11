@@ -468,131 +468,9 @@ class FnApiRunner(runner.PipelineRunner):
         yield stage
 
     def lift_combiners(stages):
-      """Expands CombinePerKey into pre- and post-grouping stages.
-
-      ... -> CombinePerKey -> ...
-
-      becomes
-
-      ... -> PreCombine -> GBK -> MergeAccumulators -> ExtractOutput -> ...
-      """
-      for stage in stages:
-        assert len(stage.transforms) == 1
-        transform = stage.transforms[0]
-        if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn:
-          combine_payload = proto_utils.parse_Bytes(
-              transform.spec.payload, beam_runner_api_pb2.CombinePayload)
-
-          input_pcoll = pipeline_components.pcollections[only_element(
-              list(transform.inputs.values()))]
-          output_pcoll = pipeline_components.pcollections[only_element(
-              list(transform.outputs.values()))]
-
-          element_coder_id = input_pcoll.coder_id
-          element_coder = pipeline_components.coders[element_coder_id]
-          key_coder_id, _ = element_coder.component_coder_ids
-          accumulator_coder_id = combine_payload.accumulator_coder_id
-
-          key_accumulator_coder = beam_runner_api_pb2.Coder(
-              spec=beam_runner_api_pb2.SdkFunctionSpec(
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.coders.KV.urn)),
-              component_coder_ids=[key_coder_id, accumulator_coder_id])
-          key_accumulator_coder_id = add_or_get_coder_id(key_accumulator_coder)
-
-          accumulator_iter_coder = beam_runner_api_pb2.Coder(
-              spec=beam_runner_api_pb2.SdkFunctionSpec(
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.coders.ITERABLE.urn)),
-              component_coder_ids=[accumulator_coder_id])
-          accumulator_iter_coder_id = add_or_get_coder_id(
-              accumulator_iter_coder)
-
-          key_accumulator_iter_coder = beam_runner_api_pb2.Coder(
-              spec=beam_runner_api_pb2.SdkFunctionSpec(
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.coders.KV.urn)),
-              component_coder_ids=[key_coder_id, accumulator_iter_coder_id])
-          key_accumulator_iter_coder_id = add_or_get_coder_id(
-              key_accumulator_iter_coder)
-
-          precombined_pcoll_id = unique_name(
-              pipeline_components.pcollections, 'pcollection')
-          pipeline_components.pcollections[precombined_pcoll_id].CopyFrom(
-              beam_runner_api_pb2.PCollection(
-                  unique_name=transform.unique_name + '/Precombine.out',
-                  coder_id=key_accumulator_coder_id,
-                  windowing_strategy_id=input_pcoll.windowing_strategy_id,
-                  is_bounded=input_pcoll.is_bounded))
-
-          grouped_pcoll_id = unique_name(
-              pipeline_components.pcollections, 'pcollection')
-          pipeline_components.pcollections[grouped_pcoll_id].CopyFrom(
-              beam_runner_api_pb2.PCollection(
-                  unique_name=transform.unique_name + '/Group.out',
-                  coder_id=key_accumulator_iter_coder_id,
-                  windowing_strategy_id=output_pcoll.windowing_strategy_id,
-                  is_bounded=output_pcoll.is_bounded))
-
-          merged_pcoll_id = unique_name(
-              pipeline_components.pcollections, 'pcollection')
-          pipeline_components.pcollections[merged_pcoll_id].CopyFrom(
-              beam_runner_api_pb2.PCollection(
-                  unique_name=transform.unique_name + '/Merge.out',
-                  coder_id=key_accumulator_coder_id,
-                  windowing_strategy_id=output_pcoll.windowing_strategy_id,
-                  is_bounded=output_pcoll.is_bounded))
-
-          def make_stage(base_stage, transform):
-            return Stage(
-                transform.unique_name,
-                [transform],
-                downstream_side_inputs=base_stage.downstream_side_inputs,
-                must_follow=base_stage.must_follow)
-
-          yield make_stage(
-              stage,
-              beam_runner_api_pb2.PTransform(
-                  unique_name=transform.unique_name + '/Precombine',
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.combine_components.COMBINE_PGBKCV.urn,
-                      payload=transform.spec.payload),
-                  inputs=transform.inputs,
-                  outputs={'out': precombined_pcoll_id}))
-
-          yield make_stage(
-              stage,
-              beam_runner_api_pb2.PTransform(
-                  unique_name=transform.unique_name + '/Group',
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.primitives.GROUP_BY_KEY.urn),
-                  inputs={'in': precombined_pcoll_id},
-                  outputs={'out': grouped_pcoll_id}))
-
-          yield make_stage(
-              stage,
-              beam_runner_api_pb2.PTransform(
-                  unique_name=transform.unique_name + '/Merge',
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.combine_components
-                      .COMBINE_MERGE_ACCUMULATORS.urn,
-                      payload=transform.spec.payload),
-                  inputs={'in': grouped_pcoll_id},
-                  outputs={'out': merged_pcoll_id}))
-
-          yield make_stage(
-              stage,
-              beam_runner_api_pb2.PTransform(
-                  unique_name=transform.unique_name + '/ExtractOutputs',
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.combine_components
-                      .COMBINE_EXTRACT_OUTPUTS.urn,
-                      payload=transform.spec.payload),
-                  inputs={'in': merged_pcoll_id},
-                  outputs=transform.outputs))
-
-        else:
-          yield stage
+      return fn_api_runner_transforms.lift_combiners(
+          stages,
+          fn_api_runner_transforms.TransformContext(pipeline_components))
 
     def expand_gbk(stages):
       """Transforms each GBK into a write followed by a read.
@@ -613,9 +491,12 @@ class FnApiRunner(runner.PipelineRunner):
                 pipeline_components.pcollections[pcoll_id], pipeline_components)
 
           # This is used later to correlate the read and write.
-          grouping_buffer = create_buffer_id(stage.name, kind='group')
-          if stage.name not in pipeline_components.transforms:
-            pipeline_components.transforms[stage.name].CopyFrom(transform)
+          transform_id = stage.name
+          if transform != pipeline_components.transforms.get(transform_id):
+            transform_id = unique_name(
+                pipeline_components.transforms, stage.name)
+            pipeline_components.transforms[transform_id].CopyFrom(transform)
+          grouping_buffer = create_buffer_id(transform_id, kind='group')
           gbk_write = Stage(
               transform.unique_name + '/Write',
               [beam_runner_api_pb2.PTransform(
