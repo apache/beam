@@ -25,10 +25,12 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExternalPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
@@ -66,7 +68,9 @@ public class Environments {
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   public static final String ENVIRONMENT_DOCKER = "DOCKER";
   public static final String ENVIRONMENT_PROCESS = "PROCESS";
+  public static final String ENVIRONMENT_EXTERNAL = "EXTERNAL";
   public static final String ENVIRONMENT_EMBEDDED = "EMBEDDED"; // Non Public urn for testing
+  public static final String ENVIRONMENT_LOOPBACK = "LOOPBACK"; // Non Public urn for testing
 
   /* For development, use the container build by the current user to ensure that the SDK harness and
    * the SDK agree on how they should interact. This should be changed to a version-specific
@@ -90,6 +94,9 @@ public class Environments {
     switch (type) {
       case ENVIRONMENT_EMBEDDED:
         return createEmbeddedEnvironment(config);
+      case ENVIRONMENT_EXTERNAL:
+      case ENVIRONMENT_LOOPBACK:
+        return createExternalEnvironment(config);
       case ENVIRONMENT_PROCESS:
         return createProcessEnvironment(config);
       case ENVIRONMENT_DOCKER:
@@ -104,6 +111,17 @@ public class Environments {
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
         .setPayload(
             DockerPayload.newBuilder().setContainerImage(dockerImageUrl).build().toByteString())
+        .build();
+  }
+
+  private static Environment createExternalEnvironment(String config) {
+    return Environment.newBuilder()
+        .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL))
+        .setPayload(
+            ExternalPayload.newBuilder()
+                .setEndpoint(ApiServiceDescriptor.newBuilder().setUrl(config).build())
+                .build()
+                .toByteString())
         .build();
   }
 

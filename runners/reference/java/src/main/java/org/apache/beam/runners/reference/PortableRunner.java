@@ -38,9 +38,11 @@ import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingS
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.reference.CloseableResource.CloseException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -137,6 +139,32 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
   public PipelineResult run(Pipeline pipeline) {
     pipeline.replaceAll(ImmutableList.of(JavaReadViaImpulse.boundedOverride()));
 
+    Runnable cleanup;
+    if (Environments.ENVIRONMENT_LOOPBACK.equals(
+        options.as(PortablePipelineOptions.class).getDefaultEnvironmentType())) {
+      GrpcFnServer<ExternalWorkerService> workerService;
+      try {
+        workerService = new ExternalWorkerService(options).start();
+      } catch (Exception exn) {
+        throw new RuntimeException(exn);
+      }
+      LOG.info("Starting worker service at {}", workerService.getApiServiceDescriptor().getUrl());
+      options
+          .as(PortablePipelineOptions.class)
+          .setDefaultEnvironmentConfig(workerService.getApiServiceDescriptor().getUrl());
+      cleanup =
+          () -> {
+            try {
+              LOG.warn("closing worker service {}", workerService);
+              workerService.close();
+            } catch (Exception exn) {
+              throw new RuntimeException(exn);
+            }
+          };
+    } else {
+      cleanup = null;
+    }
+
     LOG.debug("Initial files to stage: " + filesToStage);
 
     PrepareJobRequest prepareJobRequest =
@@ -187,7 +215,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
       LOG.info("RunJobResponse: {}", runJobResponse);
       ByteString jobId = runJobResponse.getJobIdBytes();
 
-      return new JobServicePipelineResult(jobId, wrappedJobService.transfer());
+      return new JobServicePipelineResult(jobId, wrappedJobService.transfer(), cleanup);
     } catch (CloseException e) {
       throw new RuntimeException(e);
     }
