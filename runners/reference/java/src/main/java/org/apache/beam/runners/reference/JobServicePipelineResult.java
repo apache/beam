@@ -44,11 +44,14 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   private final ByteString jobId;
   private final CloseableResource<JobServiceBlockingStub> jobService;
   @Nullable private State terminationState;
+  @Nullable private Runnable cleanup;
 
-  JobServicePipelineResult(ByteString jobId, CloseableResource<JobServiceBlockingStub> jobService) {
+  JobServicePipelineResult(
+      ByteString jobId, CloseableResource<JobServiceBlockingStub> jobService, Runnable cleanup) {
     this.jobId = jobId;
     this.jobService = jobService;
     this.terminationState = null;
+    this.cleanup = cleanup;
   }
 
   @Override
@@ -124,6 +127,9 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   @Override
   public void close() {
     try (CloseableResource<JobServiceBlockingStub> jobService = this.jobService) {
+      if (cleanup != null) {
+        cleanup.run();
+      }
     } catch (Exception e) {
       LOG.warn("Error cleaning up job service", e);
     }
