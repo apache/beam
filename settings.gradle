@@ -206,3 +206,5 @@ include "beam-runners-google-cloud-dataflow-java-windmill"
 project(":beam-runners-google-cloud-dataflow-java-windmill").dir = file("runners/google-cloud-dataflow-java/worker/windmill")
 include "beam-test-infra-metrics"
 project(":beam-test-infra-metrics").dir = file(".test-infra/metrics")
+include "beam-sdks-java-bom"
+project(":beam-sdks-java-bom").dir = file("sdks/java/bom")

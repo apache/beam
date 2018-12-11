@@ -80,6 +80,7 @@ def excluded_dependencies = [
 
 applyJavaNature(
         publish: false,
+        exportJavadoc: false,
         enableFindbugs: false /* TODO(BEAM-5658): enable findbugs */,
         shadowJarValidationExcludes: [
             "org/apache/beam/runners/dataflow/worker/**",
