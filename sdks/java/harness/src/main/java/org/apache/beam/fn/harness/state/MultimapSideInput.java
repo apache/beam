@@ -23,6 +23,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of a multimap side input that utilizes the Beam Fn State API to fetch values.
@@ -30,6 +32,7 @@ import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
  * <p>TODO: Support block level caching and prefetch.
  */
 public class MultimapSideInput<K, V> implements MultimapView<K, V> {
+  private static final Logger LOG = LoggerFactory.getLogger(MultimapSideInput.class);
 
   private final BeamFnStateClient beamFnStateClient;
   private final String instructionId;
@@ -47,6 +50,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
       ByteString encodedWindow,
       Coder<K> keyCoder,
       Coder<V> valueCoder) {
+    System.out.println("MultimapSideInput constructed.");
     this.beamFnStateClient = beamFnStateClient;
     this.instructionId = instructionId;
     this.ptransformId = ptransformId;
@@ -75,10 +79,17 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
         .setWindow(encodedWindow)
         .setKey(output.toByteString());
 
-    return new LazyCachingIteratorToIterable<>(
+    LOG.warn("Debug-MultimapSideInput.get():  request built " + requestBuilder.build());
+
+    DataStreams.DataStreamDecoder decoder =
         new DataStreams.DataStreamDecoder(
             valueCoder,
             DataStreams.inbound(
-                StateFetchingIterators.forFirstChunk(beamFnStateClient, requestBuilder.build()))));
+                StateFetchingIterators.forFirstChunk(beamFnStateClient, requestBuilder.build())));
+
+    Iterable<V> rst = new LazyCachingIteratorToIterable<>(decoder);
+    LOG.warn("Debug-MultimapSideInput.get(): Get back result from " + rst);
+
+    return rst;
   }
 }

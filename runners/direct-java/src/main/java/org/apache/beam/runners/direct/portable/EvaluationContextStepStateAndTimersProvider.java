@@ -22,8 +22,12 @@ import org.apache.beam.runners.local.StructuralKey;
 
 /** A {@link StepStateAndTimers.Provider} that uses an {@link EvaluationContext}. */
 class EvaluationContextStepStateAndTimersProvider implements StepStateAndTimers.Provider {
-  public static StepStateAndTimers.Provider forContext(EvaluationContext context) {
+  public static EvaluationContextStepStateAndTimersProvider forContext(EvaluationContext context) {
     return new EvaluationContextStepStateAndTimersProvider(context);
+  }
+
+  public EvaluationContext getContext() {
+    return context;
   }
 
   private final EvaluationContext context;

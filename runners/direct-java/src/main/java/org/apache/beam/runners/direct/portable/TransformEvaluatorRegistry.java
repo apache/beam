@@ -48,7 +48,7 @@ class TransformEvaluatorRegistry {
       Components components,
       BundleFactory bundleFactory,
       JobBundleFactory jobBundleFactory,
-      StepStateAndTimers.Provider stepStateAndTimers) {
+      EvaluationContextStepStateAndTimersProvider stepStateAndTimers) {
     return new TransformEvaluatorRegistry(
         ImmutableMap.<String, TransformEvaluatorFactory>builder()
             .put(
@@ -66,7 +66,8 @@ class TransformEvaluatorRegistry {
                     graph, components, bundleFactory, stepStateAndTimers))
             .put(
                 ExecutableStage.URN,
-                new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory))
+                new RemoteStageEvaluatorFactory(
+                    bundleFactory, jobBundleFactory, stepStateAndTimers.getContext()))
             .put(
                 SplittableRemoteStageEvaluatorFactory.URN,
                 new SplittableRemoteStageEvaluatorFactory(

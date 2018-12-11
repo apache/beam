@@ -18,17 +18,23 @@
 package org.apache.beam.runners.direct.portable;
 
 import com.google.common.collect.Iterables;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumMap;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -41,16 +47,22 @@ class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
 
   private final JobBundleFactory jobFactory;
 
-  RemoteStageEvaluatorFactory(BundleFactory bundleFactory, JobBundleFactory jobFactory) {
+  private final EvaluationContext evaluationContext;
+
+  RemoteStageEvaluatorFactory(
+      BundleFactory bundleFactory,
+      JobBundleFactory jobFactory,
+      EvaluationContext evaluationContext) {
     this.bundleFactory = bundleFactory;
     this.jobFactory = jobFactory;
+    this.evaluationContext = evaluationContext;
   }
 
   @Nullable
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       PTransformNode application, CommittedBundle<?> inputBundle) throws Exception {
-    return new RemoteStageEvaluator<>(application);
+    return new RemoteStageEvaluator<>(application, evaluationContext);
   }
 
   @Override
@@ -64,21 +76,49 @@ class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
     private final FnDataReceiver<WindowedValue<?>> mainInput;
     private final Collection<UncommittedBundle<?>> outputs;
 
-    private RemoteStageEvaluator(PTransformNode transform) throws Exception {
+    private RemoteStageEvaluator(PTransformNode transform, EvaluationContext evaluationContext)
+        throws Exception {
       this.transform = transform;
       ExecutableStage stage =
           ExecutableStage.fromPayload(
               ExecutableStagePayload.parseFrom(transform.getTransform().getSpec().getPayload()));
       this.outputs = new ArrayList<>();
       StageBundleFactory stageFactory = jobFactory.forStage(stage);
+
+      StateRequestHandler handler =
+          getStateRequestHandler(
+              stage, stageFactory.getProcessBundleDescriptor(), evaluationContext);
+
       this.bundle =
           stageFactory.getBundle(
               BundleFactoryOutputReceiverFactory.create(
                   bundleFactory, stage.getComponents(), outputs::add),
-              StateRequestHandler.unsupported(),
+              handler,
               BundleProgressHandler.ignored());
+
       // TODO(BEAM-4680): Add support for timers as inputs to the ULR
       this.mainInput = Iterables.getOnlyElement(bundle.getInputReceivers().values());
+    }
+
+    private StateRequestHandler getStateRequestHandler(
+        ExecutableStage executableStage,
+        ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor,
+        EvaluationContext evaluationContext) {
+      final StateRequestHandler sideInputHandler;
+      StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
+          ReferenceSideInputHandlerFactory.forStage(executableStage, evaluationContext);
+      try {
+        sideInputHandler =
+            StateRequestHandlers.forSideInputHandlerFactory(
+                ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to setup state handler for side input", e);
+      }
+
+      EnumMap<TypeCase, StateRequestHandler> handlerMap = new EnumMap<>(StateKey.TypeCase.class);
+      handlerMap.put(StateKey.TypeCase.MULTIMAP_SIDE_INPUT, sideInputHandler);
+
+      return StateRequestHandlers.delegateBasedUponType(handlerMap);
     }
 
     @Override

@@ -113,7 +113,7 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
     JobBundleFactory jobBundleFactory =
         SingleEnvironmentInstanceJobBundleFactory.create(
             environmentFactory, dataServer, stateServer, IdGenerators.incrementingLongs());
-    factory = new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory);
+    factory = new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory, null);
   }
 
   @After
