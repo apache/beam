@@ -30,7 +30,6 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.sources.DataSourceRegister;
 import org.apache.spark.sql.sources.v2.ContinuousReadSupport;
 import org.apache.spark.sql.sources.v2.DataSourceOptions;
 import org.apache.spark.sql.sources.v2.DataSourceV2;
@@ -137,6 +136,8 @@ public class DatasetSource<T> implements DataSourceV2, MicroBatchReadSupport{
                   try {
                     reader = source.createReader(options);
                   } catch (IOException e) {
+                    throw new RuntimeException(
+                        "Error creating BoundedReader " + reader.getClass().getCanonicalName(), e);
                   }
                   return new DatasetMicroBatchPartitionReader(reader);
                 }
@@ -145,9 +146,9 @@ public class DatasetSource<T> implements DataSourceV2, MicroBatchReadSupport{
         return result;
 
       } catch (Exception e) {
-        e.printStackTrace();
+        throw new RuntimeException(
+            "Error in splitting BoundedSource " + source.getClass().getCanonicalName(), e);
       }
-      return result;
     }
   }
 
