@@ -77,7 +77,6 @@ class SdkHarness(object):
     self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
     self._process_thread_pool = futures.ThreadPoolExecutor(
         max_workers=self._worker_count)
-    self._monitoring_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
     self._instruction_id_vs_worker = {}
     self._fns = {}
     self._responses = queue.Queue()
@@ -106,8 +105,6 @@ class SdkHarness(object):
               fns=self._fns,
               profiler_factory=self._profiler_factory))
 
-    self._monitoring_thread_pool.submit(self._monitor_process_bundle)
-
     def get_responses():
       while True:
         response = self._responses.get()
@@ -115,21 +112,27 @@ class SdkHarness(object):
           return
         yield response
 
-    for work_request in control_stub.Control(get_responses()):
-      logging.debug('Got work %s', work_request.instruction_id)
-      request_type = work_request.WhichOneof('request')
-      # Name spacing the request method with 'request_'. The called method
-      # will be like self.request_register(request)
-      getattr(self, SdkHarness.REQUEST_METHOD_PREFIX + request_type)(
-          work_request)
+    self._alive = True
+    monitoring_thread = threading.Thread(target=self._monitor_process_bundle)
+    monitoring_thread.daemon = True
+    monitoring_thread.start()
+
+    try:
+      for work_request in control_stub.Control(get_responses()):
+        logging.debug('Got work %s', work_request.instruction_id)
+        request_type = work_request.WhichOneof('request')
+        # Name spacing the request method with 'request_'. The called method
+        # will be like self.request_register(request)
+        getattr(self, SdkHarness.REQUEST_METHOD_PREFIX + request_type)(
+            work_request)
+    finally:
+      self._alive = False
 
     logging.info('No more requests from control plane')
     logging.info('SDK Harness waiting for in-flight requests to complete')
-    self._alive = False
     # Wait until existing requests are processed.
     self._progress_thread_pool.shutdown()
     self._process_thread_pool.shutdown()
-    self._monitoring_thread_pool.shutdown(wait=False)
     # get_responses may be blocked on responses.get(), but we need to return
     # control to its caller.
     self._responses.put(no_more_work)
