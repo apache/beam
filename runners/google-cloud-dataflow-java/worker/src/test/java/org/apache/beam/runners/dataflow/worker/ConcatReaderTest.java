@@ -181,8 +181,7 @@ public class ConcatReaderTest {
         @Nullable DataflowExecutionContext executionContext,
         DataflowOperationContext operationContext)
         throws Exception {
-      NativeReader<?> reader = (NativeReader<?>) spec.get(READER_OBJECT);
-      return reader;
+      return (NativeReader<?>) spec.get(READER_OBJECT);
     }
   }
 

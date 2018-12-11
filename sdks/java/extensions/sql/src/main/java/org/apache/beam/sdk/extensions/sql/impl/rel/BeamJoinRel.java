@@ -406,13 +406,11 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     }
 
     Schema schema = CalciteUtils.toSchema(getRowType());
-    PCollection<Row> ret =
-        joinedRows
-            .apply(
-                "JoinParts2WholeRow",
-                MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow(schema)))
-            .setRowSchema(schema);
-    return ret;
+    return joinedRows
+        .apply(
+            "JoinParts2WholeRow",
+            MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow(schema)))
+        .setRowSchema(schema);
   }
 
   public PCollection<Row> sideInputJoin(
@@ -456,16 +454,13 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     final PCollectionView<Map<Row, Iterable<Row>>> rowsView = rightRows.apply(View.asMultimap());
 
     Schema schema = CalciteUtils.toSchema(getRowType());
-    PCollection<Row> ret =
-        leftRows
-            .apply(
-                ParDo.of(
-                        new BeamJoinTransforms.SideInputJoinDoFn(
-                            joinType, rightNullRow, rowsView, swapped, schema))
-                    .withSideInputs(rowsView))
-            .setRowSchema(schema);
-
-    return ret;
+    return leftRows
+        .apply(
+            ParDo.of(
+                    new BeamJoinTransforms.SideInputJoinDoFn(
+                        joinType, rightNullRow, rowsView, swapped, schema))
+                .withSideInputs(rowsView))
+        .setRowSchema(schema);
   }
 
   private Schema buildNullSchema(Schema schema) {

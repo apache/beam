@@ -522,8 +522,7 @@ public class TriggerExample {
     fields.add(new TableFieldSchema().setName("timing").setType("STRING"));
     fields.add(new TableFieldSchema().setName("event_time").setType("TIMESTAMP"));
     fields.add(new TableFieldSchema().setName("processing_time").setType("TIMESTAMP"));
-    TableSchema schema = new TableSchema().setFields(fields);
-    return schema;
+    return new TableSchema().setFields(fields);
   }
 
   private static Integer tryIntegerParse(String number) {

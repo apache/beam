@@ -274,8 +274,7 @@ public class WindowEvaluatorFactoryTest {
     evaluator.processElement(valueInGlobalWindow);
     evaluator.processElement(valueInGlobalAndTwoIntervalWindows);
     evaluator.processElement(valueInIntervalWindow);
-    TransformResult<Long> result = evaluator.finishBundle();
-    return result;
+    return evaluator.finishBundle();
   }
 
   private static class EvaluatorTestWindowFn extends NonMergingWindowFn<Long, BoundedWindow> {
