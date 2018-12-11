@@ -56,6 +56,7 @@ import tempfile
 import pkg_resources
 
 from apache_beam.internal import pickler
+from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import WorkerOptions
@@ -286,7 +287,7 @@ class Stager(object):
         # even for a 404 response (file will contain the contents of the 404
         # response).
         # TODO(angoenka): Extract and use the filename when downloading file.
-        response, content = __import__('httplib2').Http().request(from_url)
+        response, content = get_new_http().request(from_url)
         if int(response['status']) >= 400:
           raise RuntimeError(
               'Artifact not found at %s (response: %s)' % (from_url, response))
