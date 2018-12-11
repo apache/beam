@@ -104,6 +104,8 @@ import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
  * <tr><td>{@link TableSchema.TypeName#DATE}</td> <td>{@link Schema.TypeName#DATETIME}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#DATETIME}</td> <td>{@link Schema.TypeName#DATETIME}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ARRAY}</td> <td>{@link Schema.TypeName#ARRAY}</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#ENUM8}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#ENUM16}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
  * </table>
  *
  * Nullable row columns are supported through Nullable type in ClickHouse.
@@ -464,6 +466,13 @@ public class ClickHouseIO {
     }
   }
 
+  /**
+   * Returns {@link TableSchema} for a given table.
+   *
+   * @param jdbcUrl jdbc connection url
+   * @param table table name
+   * @return table schema
+   */
   public static TableSchema getTableSchema(String jdbcUrl, String table) {
     List<TableSchema.Column> columns = new ArrayList<>();
 
