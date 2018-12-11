@@ -87,7 +87,7 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
 
   def Run(self, request, context=None):
     job_id = request.preparation_id
-    logging.debug("Runing job '%s'", job_id)
+    logging.info("Runing job '%s'", job_id)
     self._jobs[job_id].start()
     return beam_job_api_pb2.RunJobResponse(job_id=job_id)
 
@@ -103,7 +103,7 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   def GetStateStream(self, request, context=None):
     job = self._jobs[request.job_id]
     state_queue = queue.Queue()
-    job.add_state_change_callback(lambda state: state_queue.put(state))
+    job.add_state_change_callback(state_queue.put)
     try:
       current_state = state_queue.get()
     except queue.Empty:
@@ -115,15 +115,27 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
 
   def GetMessageStream(self, request, context=None):
     job = self._jobs[request.job_id]
+    log_queue = queue.Queue()
+    if job._last_log_message:
+      # This is likely to contain important information, like errors for
+      # an already failed job.
+      # TODO: Decide on proper semantics for the message stream of a
+      # long-running or completed job.
+      yield job._last_log_message
+    job.add_log_callback(log_queue.put)
+    job.add_state_change_callback(lambda state: log_queue.put(
+        beam_job_api_pb2.JobMessagesResponse(
+            state_response=beam_job_api_pb2.GetJobStateResponse(
+                state=state))))
     current_state = job.state
     while current_state not in TERMINAL_STATES:
-      msg = job.log_queue.get(block=True)
+      msg = log_queue.get(block=True)
       yield msg
       if msg.HasField('state_response'):
         current_state = msg.state_response.state
     try:
       while True:
-        yield job.log_queue.get(block=False)
+        yield log_queue.get(block=False)
     except queue.Empty:
       pass
 
@@ -181,14 +193,10 @@ class BeamJob(threading.Thread):
     self._job_id = job_id
     self._pipeline_options = pipeline_options
     self._pipeline_proto = pipeline_proto
-    self._log_queue = queue.Queue()
-    self._state_change_callbacks = [
-        lambda new_state: self._log_queue.put(
-            beam_job_api_pb2.JobMessagesResponse(
-                state_response=
-                beam_job_api_pb2.GetJobStateResponse(state=new_state)))
-    ]
     self._state = None
+    self._state_change_callbacks = []
+    self._last_log_message = None
+    self._log_callbacks = [lambda msg: setattr(self, '_last_log_message', msg)]
     self.state = beam_job_api_pb2.JobState.STARTING
     self.daemon = True
 
@@ -196,9 +204,8 @@ class BeamJob(threading.Thread):
     self._state_change_callbacks.append(f)
     f(self.state)
 
-  @property
-  def log_queue(self):
-    return self._log_queue
+  def add_log_callback(self, f):
+    self._log_callbacks.append(f)
 
   @property
   def state(self):
@@ -211,7 +218,7 @@ class BeamJob(threading.Thread):
     self._state = new_state
 
   def run(self):
-    with JobLogHandler(self._log_queue):
+    with JobLogHandler(self._log_callbacks):
       try:
         fn_api_runner.FnApiRunner().run_via_runner_api(self._pipeline_proto)
         logging.info('Successfully completed job.')
@@ -246,17 +253,18 @@ class JobLogHandler(logging.Handler):
   # Mapping from logging levels to LogEntry levels.
   LOG_LEVEL_MAP = {
       logging.FATAL: beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR,
+      logging.CRITICAL: beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR,
       logging.ERROR: beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR,
       logging.WARNING: beam_job_api_pb2.JobMessage.JOB_MESSAGE_WARNING,
       logging.INFO: beam_job_api_pb2.JobMessage.JOB_MESSAGE_BASIC,
       logging.DEBUG: beam_job_api_pb2.JobMessage.JOB_MESSAGE_DEBUG,
   }
 
-  def __init__(self, message_queue):
+  def __init__(self, log_callbacks):
     super(JobLogHandler, self).__init__()
-    self._message_queue = message_queue
     self._last_id = 0
     self._logged_thread = None
+    self._log_callbacks = log_callbacks
 
   def __enter__(self):
     # Remember the current thread to demultiplex the logs of concurrently
@@ -274,11 +282,12 @@ class JobLogHandler(logging.Handler):
 
   def emit(self, record):
     if self._logged_thread is threading.current_thread():
-      self._message_queue.put(
-          beam_job_api_pb2.JobMessagesResponse(
-              message_response=beam_job_api_pb2.JobMessage(
-                  message_id=self._next_id(),
-                  time=time.strftime('%Y-%m-%d %H:%M:%S.',
-                                     time.localtime(record.created)),
-                  importance=self.LOG_LEVEL_MAP[record.levelno],
-                  message_text=self.format(record))))
+      msg = beam_job_api_pb2.JobMessagesResponse(
+          message_response=beam_job_api_pb2.JobMessage(
+              message_id=self._next_id(),
+              time=time.strftime('%Y-%m-%d %H:%M:%S.',
+                                 time.localtime(record.created)),
+              importance=self.LOG_LEVEL_MAP[record.levelno],
+              message_text=self.format(record)))
+      for callback in self._log_callbacks:
+        callback(msg)
