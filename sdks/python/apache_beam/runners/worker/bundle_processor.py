@@ -136,11 +136,16 @@ class _StateBackedIterable(object):
       self._coder_impl = coder_or_impl
 
   def __iter__(self):
-    # TODO(robertwb): Support pagination.
-    input_stream = coder_impl.create_InputStream(
-        self._state_handler.blocking_get(self._state_key))
-    while input_stream.size() > 0:
-      yield self._coder_impl.decode_from_stream(input_stream, True)
+    data, continuation_token = self._state_handler.blocking_get(self._state_key)
+    while True:
+      input_stream = coder_impl.create_InputStream(data)
+      while input_stream.size() > 0:
+        yield self._coder_impl.decode_from_stream(input_stream, True)
+      if not continuation_token:
+        break
+      else:
+        data, continuation_token = self._state_handler.blocking_get(
+            self._state_key, continuation_token)
 
   def __reduce__(self):
     return list, (list(self),)
