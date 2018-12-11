@@ -340,7 +340,6 @@ public class LengthPrefixUnknownCoders {
   /** Clone a cloud object by converting it to json string and back. */
   @VisibleForTesting
   static <T extends GenericJson> T clone(T cloudObject, Class<T> type) throws IOException {
-    T copy = cloudObject.getFactory().fromString(cloudObject.toString(), type);
-    return copy;
+    return cloudObject.getFactory().fromString(cloudObject.toString(), type);
   }
 }

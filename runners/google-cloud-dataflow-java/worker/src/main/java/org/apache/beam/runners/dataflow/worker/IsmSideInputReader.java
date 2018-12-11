@@ -326,8 +326,7 @@ public class IsmSideInputReader implements SideInputReader {
             .get(
                 PCollectionViewWindow.of(view, window),
                 () -> {
-                  ViewT viewT = getMapSingletonForViewAndWindow(tag, window);
-                  return viewT;
+                  return getMapSingletonForViewAndWindow(tag, window);
                 });
       } else {
         return executionContext

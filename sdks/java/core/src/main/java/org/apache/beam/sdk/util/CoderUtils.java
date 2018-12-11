@@ -168,7 +168,6 @@ public final class CoderUtils {
   public static TypeDescriptor getCodedType(TypeDescriptor coderDescriptor) {
     ParameterizedType coderType =
         (ParameterizedType) coderDescriptor.getSupertype(Coder.class).getType();
-    TypeDescriptor codedType = TypeDescriptor.of(coderType.getActualTypeArguments()[0]);
-    return codedType;
+    return TypeDescriptor.of(coderType.getActualTypeArguments()[0]);
   }
 }
