@@ -483,7 +483,7 @@ def examples_wordcount_wordcount(renames):
   with beam.Pipeline(options=options) as p:
     lines = p | beam.io.ReadFromText(word_count_options.input)
     # [END examples_wordcount_wordcount_options]
-    
+
     # [START examples_wordcount_wordcount_composite]
     class CountWords(beam.PTransform):
 
