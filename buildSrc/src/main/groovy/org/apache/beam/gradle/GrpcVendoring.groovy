@@ -72,7 +72,7 @@ class GrpcVendoring {
     // those libraries may provide. The 'validateShadedJarDoesntLeakNonOrgApacheBeamClasses'
     // ensures that there are no classes outside of the 'org.apache.beam' namespace.
 
-    String prefix = "org.apache.beam.vendor.grpc.v1_13_1";
+    String prefix = "org.apache.beam.vendor.grpc.v1p13p1";
     List<String> packagesToRelocate = [
       // guava uses the com.google.common and com.google.thirdparty package namespaces
       "com.google.common",
@@ -92,14 +92,14 @@ class GrpcVendoring {
     ]
 
     return packagesToRelocate.collectEntries {
-      [ (it): "org.apache.beam.vendor.grpc.v1_13_1.${it}" ]
+      [ (it): "org.apache.beam.vendor.grpc.v1p13p1.${it}" ]
     } + [
       // Adapted from https://github.com/grpc/grpc-java/blob/e283f70ad91f99c7fee8b31b605ef12a4f9b1690/netty/shaded/build.gradle#L41
       // We       "io.netty": "${prefix}.io.netty",have to be careful with these replacements as they must not match any
       // string in NativeLibraryLoader, else they cause corruption. Note that
       // this includes concatenation of string literals and constants.
-      'META-INF/native/libnetty': 'META-INF/native/liborg_apache_beam_vendor_grpc_v1_13_1_netty',
-      'META-INF/native/netty': 'META-INF/native/org_apache_beam_vendor_grpc_v1_13_1_netty',
+      'META-INF/native/libnetty': 'META-INF/native/liborg_apache_beam_vendor_grpc_v1p13p1_netty',
+      'META-INF/native/netty': 'META-INF/native/org_apache_beam_vendor_grpc_v1p13p1_netty',
     ]
   }
 
