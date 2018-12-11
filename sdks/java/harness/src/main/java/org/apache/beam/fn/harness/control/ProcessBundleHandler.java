@@ -48,6 +48,7 @@ import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
@@ -61,10 +62,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.metrics.MetricUpdates;
-import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -141,21 +139,6 @@ public class ProcessBundleHandler {
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
     this.defaultPTransformRunnerFactory =
         new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
-  }
-
-  private void extractMonitoringInfosToResponse(
-      MetricsContainerImpl metricsContainer, ProcessBundleResponse.Builder response) {
-    // Extract user metrics and store as MonitoringInfos.
-    MetricUpdates mus = metricsContainer.getUpdates();
-
-    for (MetricUpdate<Long> mu : mus.counterUpdates()) {
-      SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
-      builder.setUrnForUserMetric(
-          mu.getKey().metricName().getNamespace(), mu.getKey().metricName().getName());
-      builder.setInt64Value(mu.getUpdate());
-      builder.setTimestampToNow();
-      response.addMonitoringInfos(builder.build());
-    }
   }
 
   private void createRunnerAndConsumersForPTransformRecursively(
@@ -333,7 +316,9 @@ public class ProcessBundleHandler {
           response.addAllResidualRoots(allResiduals.values());
         }
 
-        extractMonitoringInfosToResponse(metricsContainer, response);
+        for (MonitoringInfo mi : metricsContainer.getMonitoringInfos()) {
+          response.addMonitoringInfos(mi);
+        }
       }
     }
 
