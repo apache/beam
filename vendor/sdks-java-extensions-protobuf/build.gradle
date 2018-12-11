@@ -17,7 +17,9 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+applyJavaNature(
+    exportJavadoc: false,
+    shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     dependencies {
         include(dependency('com.google.guava:guava:20.0'))
         include(dependency('com.google.protobuf:protobuf-java:3.5.1'))
@@ -33,7 +35,8 @@ applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     relocate "com.google.thirdparty", "org.apache.beam.vendor.grpc.v1_13_1.com.google.thirdparty"
 
     relocate "com.google.protobuf", "org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf"
-})
+    }
+)
 
 description = "Apache Beam :: Vendored Dependencies :: SDKs :: Java :: Extensions :: Protobuf"
 ext.summary = "Add support to Apache Beam for Vendored Google Protobuf."
