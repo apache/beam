@@ -250,6 +250,7 @@ message StandardPTransforms {
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
+    // TODO(BEAM-6199): Remove these old URNs.
     COMBINE_PGBKCV = 0 [(beam_urn) = "beam:transform:combine_pgbkcv:v1"];
     COMBINE_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_merge_accumulators:v1"];
     COMBINE_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_extract_outputs:v1"];
