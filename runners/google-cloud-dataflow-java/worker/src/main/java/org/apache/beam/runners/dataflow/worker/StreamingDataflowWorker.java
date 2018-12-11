@@ -1671,7 +1671,7 @@ public class StreamingDataflowWorker {
    * Adds the given failure message to the queue of messages to be reported to DFE in periodic
    * updates.
    */
-  public void addFailure(String failureMessage){
+  public void addFailure(String failureMessage) {
     synchronized (pendingFailuresToReport) {
       pendingFailuresToReport.add(failureMessage);
     }
