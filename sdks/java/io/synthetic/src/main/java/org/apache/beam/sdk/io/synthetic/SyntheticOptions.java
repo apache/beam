@@ -355,4 +355,12 @@ public class SyntheticOptions implements Serializable {
     random.nextBytes(val);
     return KV.of(key, val);
   }
+
+  public static <T extends SyntheticOptions> T fromJsonString(String json, Class<T> type)
+      throws IOException {
+    ObjectMapper mapper = new ObjectMapper();
+    T result = mapper.readValue(json, type);
+    result.validate();
+    return result;
+  }
 }
