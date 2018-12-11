@@ -368,4 +368,59 @@ public class MongoDbIOTest implements Serializable {
 
     Assert.assertEquals(0, collection.count());
   }
+
+  @Test(expected = Exception.class)
+  public void testWriteDuplicate() throws Exception {
+
+    Document doc =
+        Document.parse("{\"_id\":\"521df3a4300466f1f2b5ae82\",\"scientist\":\"Test %s\"}");
+    ArrayList<Document> data = new ArrayList<>();
+    data.add(doc);
+    data.add(doc);
+
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            MongoDbIO.write()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase("test")
+                .withCollection("test"));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testWriteDuplicateIgnore() throws Exception {
+
+    Document doc =
+        Document.parse("{\"_id\":\"521df3a4300466f1f2b5ae82\",\"scientist\":\"Test %s\"}");
+    ArrayList<Document> data = new ArrayList<>();
+    data.add(doc);
+    data.add(doc);
+
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            MongoDbIO.write()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase("test")
+                .withOrdered(false)
+                .withCollection("test"));
+
+    pipeline.run();
+
+    MongoClient client = new MongoClient("localhost", port);
+    MongoDatabase database = client.getDatabase("test");
+    MongoCollection collection = database.getCollection("test");
+
+    MongoCursor cursor = collection.find().iterator();
+
+    int count = 0;
+    while (cursor.hasNext()) {
+      count = count + 1;
+      cursor.next();
+    }
+
+    assertEquals(1, count);
+  }
 }
