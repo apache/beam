@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat;
+package org.apache.beam.sdk.io.hadoop.format;
 
 import com.google.common.base.Splitter;
 import java.io.DataInput;
@@ -37,10 +37,10 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * as {@linkplain EmployeeRecordReader#employeeDataList employeeDataList} . {@linkplain
  * EmployeeRecordReader#employeeDataList employeeDataList} is populated using {@linkplain
  * TestEmployeeDataSet#populateEmployeeData()}. {@linkplain EmployeeInputFormat} is used to test
- * whether the {@linkplain HadoopInputFormatIO } source returns immutable records in the scenario
- * when RecordReader creates new key and value objects every time it reads data.
+ * whether the {@linkplain HadoopFormatIO } source returns immutable records in the scenario when
+ * RecordReader creates new key and value objects every time it reads data.
  */
-public class EmployeeInputFormat extends InputFormat<Text, Employee> {
+class EmployeeInputFormat extends InputFormat<Text, Employee> {
 
   public EmployeeInputFormat() {}
 
