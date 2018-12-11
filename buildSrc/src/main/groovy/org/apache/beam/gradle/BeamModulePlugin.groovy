@@ -1382,7 +1382,7 @@ artifactId=${project.name}
               shadowClosure: GrpcVendoring.shadowClosure() << {
                 // We perform all the code relocations but don't include
                 // any of the actual dependencies since they will be supplied
-                // by org.apache.beam:beam-vendor-grpc-v1_13_1:0.1
+                // by org.apache.beam:beam-vendor-grpc-v1p13p1:0.1
                 dependencies {
                   include(dependency { return false })
                 }

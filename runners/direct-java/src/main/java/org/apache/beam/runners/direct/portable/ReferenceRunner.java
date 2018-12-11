@@ -86,7 +86,7 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
