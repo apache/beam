@@ -256,6 +256,7 @@ class TestParquet(unittest.TestCase):
   def test_sink_transform_int96(self):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
+      # pylint: disable=c-extension-no-member
       with self.assertRaises(pl.ArrowInvalid):
         with TestPipeline() as p:
           _ = p \
