@@ -58,11 +58,15 @@ class CompressionTypes(object):
   # The following extensions are currently recognized by auto-detection:
   #   .bz2 (implies BZIP2 as described below).
   #   .gz  (implies GZIP as described below)
+  #   .deflate (implies DEFLATE as described below)
   # Any non-recognized extension implies UNCOMPRESSED as described below.
   AUTO = 'auto'
 
   # BZIP2 compression.
   BZIP2 = 'bzip2'
+
+  # DEFLATE compression
+  DEFLATE = 'deflate'
 
   # GZIP compression (deflate with GZIP headers).
   GZIP = 'gzip'
@@ -76,6 +80,7 @@ class CompressionTypes(object):
     types = set([
         CompressionTypes.AUTO,
         CompressionTypes.BZIP2,
+        CompressionTypes.DEFLATE,
         CompressionTypes.GZIP,
         CompressionTypes.UNCOMPRESSED
     ])
@@ -85,6 +90,7 @@ class CompressionTypes(object):
   def mime_type(cls, compression_type, default='application/octet-stream'):
     mime_types_by_compression_type = {
         cls.BZIP2: 'application/x-bz2',
+        cls.DEFLATE: 'application/x-deflate',
         cls.GZIP: 'application/x-gzip',
     }
     return mime_types_by_compression_type.get(compression_type, default)
@@ -92,7 +98,8 @@ class CompressionTypes(object):
   @classmethod
   def detect_compression_type(cls, file_path):
     """Returns the compression type of a file (based on its suffix)."""
-    compression_types_by_suffix = {'.bz2': cls.BZIP2, '.gz': cls.GZIP}
+    compression_types_by_suffix = {'.bz2': cls.BZIP2, '.deflate': cls.DEFLATE,
+                                   '.gz': cls.GZIP}
     lowercased_path = file_path.lower()
     for suffix, compression_type in compression_types_by_suffix.items():
       if lowercased_path.endswith(suffix):
@@ -150,6 +157,8 @@ class CompressedFile(object):
   def _initialize_decompressor(self):
     if self._compression_type == CompressionTypes.BZIP2:
       self._decompressor = bz2.BZ2Decompressor()
+    elif self._compression_type == CompressionTypes.DEFLATE:
+      self._decompressor = zlib.decompressobj()
     else:
       assert self._compression_type == CompressionTypes.GZIP
       self._decompressor = zlib.decompressobj(self._gzip_mask)
@@ -157,6 +166,9 @@ class CompressedFile(object):
   def _initialize_compressor(self):
     if self._compression_type == CompressionTypes.BZIP2:
       self._compressor = bz2.BZ2Compressor()
+    elif self._compression_type == CompressionTypes.DEFLATE:
+      self._compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
+                                          zlib.DEFLATED)
     else:
       assert self._compression_type == CompressionTypes.GZIP
       self._compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
@@ -208,19 +220,25 @@ class CompressedFile(object):
         # file. We read concatenated files by recursively creating decompressor
         # objects for the unused compressed data.
         if (self._compression_type == CompressionTypes.BZIP2 or
+            self._compression_type == CompressionTypes.DEFLATE or
             self._compression_type == CompressionTypes.GZIP):
           if self._decompressor.unused_data != b'':
             buf = self._decompressor.unused_data
-            self._decompressor = (
-                bz2.BZ2Decompressor()
-                if self._compression_type == CompressionTypes.BZIP2
-                else zlib.decompressobj(self._gzip_mask))
+
+            if self._compression_type == CompressionTypes.BZIP2:
+              self._decompressor = bz2.BZ2Decompressor()
+            elif self._compression_type == CompressionTypes.DEFLATE:
+              self._decompressor = zlib.decompressobj()
+            else:
+              self._decompressor = zlib.decompressobj(self._gzip_mask)
+
             decompressed = self._decompressor.decompress(buf)
             self._read_buffer.write(decompressed)
             continue
         else:
-          # Gzip and bzip2 formats do not require flushing remaining data in the
-          # decompressor into the read buffer when fully decompressing files.
+          # Deflate, Gzip and bzip2 formats do not require flushing
+          # remaining data in the decompressor into the read buffer when
+          # fully decompressing files.
           self._read_buffer.write(self._decompressor.flush())
 
         # Record that we have hit the end of file, so we won't unnecessarily
