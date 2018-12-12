@@ -50,7 +50,6 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.HeapInternalTimerService;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -59,7 +58,7 @@ import org.apache.flink.util.Preconditions;
  *
  * <p>Note: Ignore index of key. Just implement BagState.
  *
- * <p>Reference from {@link HeapInternalTimerService} to the local key-group range.
+ * <p>Reference from Flink's HeapInternalTimerService to the local key-group range.
  */
 public class FlinkKeyGroupStateInternals<K> implements StateInternals {
 

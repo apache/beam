@@ -16,39 +16,10 @@
  * limitations under the License.
  */
 
-/**
- * Build a Docker image to bootstrap FlinkJobServerDriver which requires a Java environment.
- * Alternatively, it can also be bootstrapped through :beam-runners-flink_2.11-job-server:runShadow
- * or by directly running the generated JAR file.
- */
-
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyDockerNature()
-
-description = "Apache Beam :: Runners :: Flink :: Job Server :: Container"
-
-configurations {
-  dockerDependency
+project.ext {
+  docker_file = file('Dockerfile')
+  startup_script = file('flink-job-server.sh')
 }
 
-dependencies {
-  dockerDependency project(path: ":beam-runners-flink_2.11-job-server", configuration: "shadow")
-}
-
-task copyDockerfileDependencies(type: Copy) {
-  // Required Jars
-  from configurations.dockerDependency
-  rename 'beam-runners-flink_2.11-job-server.*.jar', 'beam-runners-flink-job-server.jar'
-  into "build/target"
-  // Entry script
-  from file("./flink-job-server.sh")
-  into "build/target"
-}
-
-docker {
-  name containerImageName(name: "flink-job-server")
-  files "./build/"
-}
-
-// Ensure that we build the required resources and copy and file dependencies from related projects
-dockerPrepare.dependsOn copyDockerfileDependencies
+// Load the main build script which contains all build logic.
+apply from: 'flink_job_server_container.gradle'

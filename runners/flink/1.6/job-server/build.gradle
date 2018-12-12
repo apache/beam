@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-/* All properties required for loading the Flink build script. */
+def basePath = '../../job-server'
+
 project.ext {
-  // Set the version of all Flink-related dependencies here.
-  flink_version = '1.5.5'
-  // Look for the source code in the current module
-  main_source_dirs = ['./src/main/java']
-  test_source_dirs = ['./src/test/java']
-  main_resources_dirs = ['./src/main/resources']
-  test_resources_dirs = ['./src/test/resources']
+  // Look for the source code in the parent module
+  main_source_dirs = ["$basePath/src/main/java"]
+  test_source_dirs = ["$basePath/src/test/java"]
+  main_resources_dirs = ["$basePath/src/main/resources"]
+  test_resources_dirs = ["$basePath/src/test/resources"]
 }
 
 // Load the main build script which contains all build logic.
-apply from: 'flink_runner.gradle'
+apply from: "$basePath/flink_job_server.gradle"
