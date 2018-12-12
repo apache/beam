@@ -115,12 +115,14 @@ def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: projec
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
 def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
+// If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
+def fnapiExperiments = project.findProperty('useExecutableStage') ? 'beam_fn_api,use_executable_stage_bundle_execution' : "beam_fn_api"
 ext.dockerImageName = "${dockerImageContainer}:${dockerTag}"
 
 def fnApiPipelineOptions = [
       "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
       "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-      "--experiments=beam_fn_api",
+      "--experiments=${fnapiExperiments}",
 ]
 
 def commonExcludeCategories = [
