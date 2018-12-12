@@ -46,7 +46,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--streamTimeout=60' ,
               '--manageResources=false',
               '--monitorJobs=true',
-              '--flinkMaster=local"'].join(' '))
+              '--flinkMaster=[local]"'].join(' '))
     }
     shell('echo *** RUN NEXMARK IN STREAMING MODE USING FLINK RUNNER ***')
     gradle {
@@ -62,7 +62,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--streamTimeout=60' ,
               '--manageResources=false',
               '--monitorJobs=true',
-              '--flinkMaster=local"'].join(' '))
+              '--flinkMaster=[local]"'].join(' '))
     }
     shell('echo *** RUN NEXMARK IN SQL BATCH MODE USING FLINK RUNNER ***')
     gradle {
@@ -79,7 +79,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--streamTimeout=60' ,
               '--manageResources=false',
               '--monitorJobs=true',
-              '--flinkMaster=local"'].join(' '))
+              '--flinkMaster=[local]"'].join(' '))
     }
     shell('echo *** RUN NEXMARK IN SQL STREAMING MODE USING FLINK RUNNER ***')
     gradle {
@@ -96,7 +96,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--streamTimeout=60' ,
               '--manageResources=false',
               '--monitorJobs=true',
-              '--flinkMaster=local"'].join(' '))
+              '--flinkMaster=[local]"'].join(' '))
     }
   }
 }
@@ -111,7 +111,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Fl
   def final JOB_SPECIFIC_OPTIONS = [
           'suite'        : 'SMOKE',
           'streamTimeout': 60,
-          'flinkMaster'  : 'local'
+          'flinkMaster'  : '[local]'
   ]
 
   Nexmark.standardJob(delegate, Nexmark.Runner.FLINK, JOB_SPECIFIC_OPTIONS, Nexmark.TriggeringContext.PR)
