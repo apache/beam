@@ -122,6 +122,11 @@ public class AvroUtils {
       this.size = size;
     }
 
+    /** Create a {@link FixedBytesField} with the specified size. */
+    public static FixedBytesField withSize(int size) {
+      return new FixedBytesField(size);
+    }
+
     /** Create a {@link FixedBytesField} from a Beam {@link FieldType}. */
     @Nullable
     public static FixedBytesField fromBeamFieldType(FieldType fieldType) {

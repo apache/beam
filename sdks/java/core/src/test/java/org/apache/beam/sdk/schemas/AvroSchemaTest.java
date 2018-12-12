@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -30,9 +31,11 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
+import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.schemas.utils.AvroUtils.FixedBytesField;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -98,6 +101,11 @@ public class AvroSchemaTest {
 
     @org.apache.avro.reflect.Nullable public String string;
     @org.apache.avro.reflect.Nullable public ByteBuffer bytes;
+
+    @AvroSchema("{\"type\": \"fixed\", \"size\": 4, \"name\": \"fixed4\"}")
+    @org.apache.avro.reflect.Nullable
+    public byte[] fixed;
+
     @org.apache.avro.reflect.Nullable public AvroSubPojo row;
     @org.apache.avro.reflect.Nullable public List<AvroSubPojo> array;
     @org.apache.avro.reflect.Nullable public Map<String, AvroSubPojo> map;
@@ -119,6 +127,7 @@ public class AvroSchemaTest {
           && Objects.equals(aDouble, avroPojo.aDouble)
           && Objects.equals(string, avroPojo.string)
           && Objects.equals(bytes, avroPojo.bytes)
+          && Arrays.equals(fixed, avroPojo.fixed)
           && Objects.equals(row, avroPojo.row)
           && Objects.equals(array, avroPojo.array)
           && Objects.equals(map, avroPojo.map);
@@ -127,7 +136,17 @@ public class AvroSchemaTest {
     @Override
     public int hashCode() {
       return Objects.hash(
-          boolNonNullable, anInt, aLong, aFloat, aDouble, string, bytes, row, array, map);
+          boolNonNullable,
+          anInt,
+          aLong,
+          aFloat,
+          aDouble,
+          string,
+          bytes,
+          Arrays.hashCode(fixed),
+          row,
+          array,
+          map);
     }
 
     public AvroPojo(
@@ -138,6 +157,7 @@ public class AvroSchemaTest {
         double aDouble,
         String string,
         ByteBuffer bytes,
+        byte[] fixed,
         AvroSubPojo row,
         List<AvroSubPojo> array,
         Map<String, AvroSubPojo> map) {
@@ -148,6 +168,7 @@ public class AvroSchemaTest {
       this.aDouble = aDouble;
       this.string = string;
       this.bytes = bytes;
+      this.fixed = fixed;
       this.row = row;
       this.array = array;
       this.map = map;
@@ -155,36 +176,6 @@ public class AvroSchemaTest {
     }
 
     public AvroPojo() {}
-
-    @Override
-    public String toString() {
-      return "AvroPojo{"
-          + "boolNonNullable="
-          + boolNonNullable
-          + ", anInt="
-          + anInt
-          + ", aLong="
-          + aLong
-          + ", aFloat="
-          + aFloat
-          + ", aDouble="
-          + aDouble
-          + ", string='"
-          + string
-          + '\''
-          + ", bytes="
-          + bytes
-          + ", row="
-          + row
-          + ", array="
-          + array
-          + ", map="
-          + map
-          + ", extraField='"
-          + extraField
-          + '\''
-          + '}';
-    }
   }
 
   private static final Schema SUBSCHEMA =
@@ -203,7 +194,7 @@ public class AvroSchemaTest {
           .addNullableField("double", FieldType.DOUBLE)
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
-          .addField("fixed", FieldType.BYTES.withMetadata("FIXED:4"))
+          .addField("fixed", FixedBytesField.withSize(4).toBeamType())
           .addNullableField("timestampMillis", FieldType.DATETIME)
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE))
@@ -219,6 +210,7 @@ public class AvroSchemaTest {
           .addNullableField("double", FieldType.DOUBLE)
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
+          .addField("fixed", FixedBytesField.withSize(4).toBeamType())
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE.withNullable(false)))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE.withNullable(false)))
@@ -337,6 +329,7 @@ public class AvroSchemaTest {
           (double) 44.2,
           "mystring",
           ByteBuffer.wrap(BYTE_ARRAY),
+          BYTE_ARRAY,
           SUB_POJO,
           ImmutableList.of(SUB_POJO, SUB_POJO),
           ImmutableMap.of("k1", SUB_POJO, "k2", SUB_POJO));
@@ -350,6 +343,7 @@ public class AvroSchemaTest {
               (float) 44.1,
               (double) 44.2,
               "mystring",
+              ByteBuffer.wrap(BYTE_ARRAY),
               ByteBuffer.wrap(BYTE_ARRAY),
               NESTED_ROW,
               ImmutableList.of(NESTED_ROW, NESTED_ROW),
