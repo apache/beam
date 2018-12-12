@@ -34,6 +34,7 @@ import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.ReadableInstant;
 
@@ -85,7 +86,8 @@ public class StaticSchemaInference {
     }
 
     /** Construct a {@link TypeInformation} from a class getter. */
-    public static TypeInformation forGetter(Method method) {
+    public static TypeInformation forGetter(
+        Method method, SerializableFunction<String, String> fieldNamePolicy) {
       String name;
       if (method.getName().startsWith("get")) {
         name = ReflectUtils.stripPrefix(method.getName(), "get");
@@ -94,6 +96,8 @@ public class StaticSchemaInference {
       } else {
         throw new RuntimeException("Getter has wrong prefix " + method.getName());
       }
+      name = fieldNamePolicy.apply(name);
+
       TypeDescriptor type = TypeDescriptor.of(method.getGenericReturnType());
       boolean nullable = method.isAnnotationPresent(Nullable.class);
       return new TypeInformation(name, type, nullable);
