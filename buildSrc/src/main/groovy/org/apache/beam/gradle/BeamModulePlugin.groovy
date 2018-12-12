@@ -902,7 +902,7 @@ artifactId=${project.name}
         project.artifacts.archives project.javadocJar
 
         project.publishing {
-          repositories = project.ext.repositories
+          repositories project.ext.repositories
 
           publications {
             mavenJava(MavenPublication) {
