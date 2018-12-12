@@ -25,6 +25,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -45,6 +47,8 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
@@ -57,8 +61,18 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
 
   private final GcsOptions options;
 
+  /** Number of copy operations performed. */
+  private Counter numCopies;
+
+  /** Time spent performing copies. */
+  private Counter copyTimeMsec;
+
   GcsFileSystem(GcsOptions options) {
     this.options = checkNotNull(options, "options");
+    if (options.getGcsPerformanceMetrics()) {
+      numCopies = Metrics.counter(GcsFileSystem.class, "num_copies");
+      copyTimeMsec = Metrics.counter(GcsFileSystem.class, "copy_time_msec");
+    }
   }
 
   @Override
@@ -149,7 +163,13 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   @Override
   protected void copy(List<GcsResourceId> srcResourceIds, List<GcsResourceId> destResourceIds)
       throws IOException {
+    Stopwatch stopwatch = Stopwatch.createStarted();
     options.getGcsUtil().copy(toFilenames(srcResourceIds), toFilenames(destResourceIds));
+    stopwatch.stop();
+    if (options.getGcsPerformanceMetrics()) {
+      numCopies.inc(srcResourceIds.size());
+      copyTimeMsec.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    }
   }
 
   @Override

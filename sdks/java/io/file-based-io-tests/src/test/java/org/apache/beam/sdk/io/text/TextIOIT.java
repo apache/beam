@@ -22,6 +22,9 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampS
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
+import com.google.cloud.Timestamp;
+import java.util.UUID;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
@@ -31,6 +34,9 @@ import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
@@ -41,6 +47,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Integration tests for {@link org.apache.beam.sdk.io.TextIO}.
@@ -63,10 +71,14 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class TextIOIT {
+  private static final Logger LOG = LoggerFactory.getLogger(TextIOIT.class);
 
   private static String filenamePrefix;
   private static Integer numberOfTextLines;
   private static Compression compressionType;
+  private static Integer numShards;
+  private static String bigQueryDataset;
+  private static String bigQueryTable;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -77,12 +89,40 @@ public class TextIOIT {
     numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     compressionType = Compression.valueOf(options.getCompressionType());
+    numShards = options.getNumberOfShards();
+    bigQueryDataset = options.getBigQueryDataset();
+    bigQueryTable = options.getBigQueryTable();
+  }
+
+  private void publishGcsResults(PipelineResult result) {
+    MetricsReader metricsReader =
+        new MetricsReader(result, "org.apache.beam.sdk.extensions.gcp.storage.GcsFileSystem");
+    long numCopies = metricsReader.getCounterMetric("num_copies");
+    long copyTimeMsec = metricsReader.getCounterMetric("copy_time_msec");
+    if (numCopies < 0 || copyTimeMsec < 0) {
+      return;
+    }
+    double copiesPerSec = numCopies / (copyTimeMsec / 1e3);
+    LOG.info("GCS copies / sec: {}", copiesPerSec);
+
+    if (bigQueryDataset != null && bigQueryTable != null) {
+      Timestamp timestamp = Timestamp.now();
+      String uuid = UUID.randomUUID().toString();
+      BigQueryResultsPublisher publisher =
+          BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema());
+      publisher.publish(
+          NamedTestResult.create(uuid, timestamp.toString(), "copies_per_sec", copiesPerSec),
+          bigQueryTable);
+    }
   }
 
   @Test
   public void writeThenReadAll() {
     TextIO.TypedWrite<String, Object> write =
         TextIO.write().to(filenamePrefix).withOutputFilenames().withCompression(compressionType);
+    if (numShards != null) {
+      write = write.withNumShards(numShards);
+    }
 
     PCollection<String> testFilenames =
         pipeline
@@ -107,6 +147,8 @@ public class TextIOIT {
         ParDo.of(new DeleteFileFn())
             .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
-    pipeline.run().waitUntilFinish();
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+    publishGcsResults(result);
   }
 }
