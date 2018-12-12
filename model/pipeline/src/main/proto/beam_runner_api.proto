@@ -29,6 +29,7 @@ option go_package = "pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "RunnerApi";
 
+import "endpoints.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
 
@@ -250,6 +251,7 @@ message StandardPTransforms {
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
+    // TODO(BEAM-6199): Remove these old URNs.
     COMBINE_PGBKCV = 0 [(beam_urn) = "beam:transform:combine_pgbkcv:v1"];
     COMBINE_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_merge_accumulators:v1"];
     COMBINE_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_extract_outputs:v1"];
@@ -549,6 +551,22 @@ message StandardCoders {
     VARINT = 2 [(beam_urn) = "beam:coder:varint:v1"];
 
     // Encodes an iterable of elements.
+    //
+    // The encoding for an iterable [e1...eN] of known length N is
+    //
+    //    fixed32(N)
+    //    encode(e1) encode(e2) encode(e3) ... encode(eN)
+    //
+    // If the length is unknown, it is batched up into groups of size b1..bM
+    // and encoded as
+    //
+    //     fixed32(0)
+    //     varInt64(b1) encode(e1) encode(e2) ... encode(e_b1)
+    //     varInt64(b2) encode(e_(b1+1)) encode(e_(b1+2)) ... encode(e_(b1+b2))
+    //     ...
+    //     varInt64(bM) encode(e_(N-bM+1)) encode(e_(N-bM+2)) ... encode(eN)
+    //     varInt64(0)
+    //
     // Components: Coder for a single element.
     ITERABLE = 3 [(beam_urn) = "beam:coder:iterable:v1"];
 
@@ -588,6 +606,23 @@ message StandardCoders {
     // of the element
     // Components: The element coder and the window coder, in that order
     WINDOWED_VALUE = 8 [(beam_urn) = "beam:coder:windowed_value:v1"];
+
+    // Encodes an iterable of elements, some of which may be stored elsewhere.
+    //
+    // The encoding for a state-backed iterable is the same as that for
+    // an iterable, but the final varInt64(0) terminating the set of batches
+    // may instead be replaced by
+    //
+    //     varInt64(-1)
+    //     varInt64(len(token))
+    //     token
+    //
+    // where token is an opaque byte string that can be used to fetch the
+    // remainder of the iterable (e.g. over the state API).
+    //
+    // Components: Coder for a single element.
+    // Experimental.
+    STATE_BACKED_ITERABLE = 9 [(beam_urn) = "beam:coder:state_backed_iterable:v1"];
   }
 }
 
@@ -946,6 +981,11 @@ message ProcessPayload {
   string arch = 2;  // "amd64", ..
   string command = 3; // process to execute
   map<string, string> env = 4; // Environment variables
+}
+
+message ExternalPayload {
+  ApiServiceDescriptor endpoint = 1;
+  map<string, string> params = 2;  // Arbitrary extra parameters to pass
 }
 
 // A specification of a user defined function.

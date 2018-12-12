@@ -148,6 +148,25 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
   }
 
   @Override
+  public boolean consistentWithEquals() {
+    return keyCoder.consistentWithEquals() && valueCoder.consistentWithEquals();
+  }
+
+  @Override
+  public Object structuralValue(Map<K, V> value) {
+    if (consistentWithEquals()) {
+      return value;
+    } else {
+      Map<Object, Object> ret = Maps.newHashMapWithExpectedSize(value.size());
+      for (Map.Entry<K, V> entry : value.entrySet()) {
+        ret.put(
+            keyCoder.structuralValue(entry.getKey()), valueCoder.structuralValue(entry.getValue()));
+      }
+      return ret;
+    }
+  }
+
+  @Override
   public void registerByteSizeObserver(Map<K, V> map, ElementByteSizeObserver observer)
       throws Exception {
     observer.update(4L);

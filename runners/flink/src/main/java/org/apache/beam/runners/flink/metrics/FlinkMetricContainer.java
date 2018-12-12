@@ -19,12 +19,14 @@ package org.apache.beam.runners.flink.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -32,6 +34,8 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.slf4j.Logger;
@@ -47,10 +51,8 @@ public class FlinkMetricContainer {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkMetricContainer.class);
 
-  private static final String METRIC_KEY_SEPARATOR = "__";
-  private static final String COUNTER_PREFIX = "__counter";
-  private static final String DISTRIBUTION_PREFIX = "__distribution";
-  private static final String GAUGE_PREFIX = "__gauge";
+  private static final String METRIC_KEY_SEPARATOR =
+      GlobalConfiguration.loadConfiguration().getString(MetricOptions.SCOPE_DELIMITER);
 
   private final RuntimeContext runtimeContext;
   private final Map<String, Counter> flinkCounterCache;
@@ -94,7 +96,7 @@ public class FlinkMetricContainer {
 
   private void updateCounters(Iterable<MetricResult<Long>> counters) {
     for (MetricResult<Long> metricResult : counters) {
-      String flinkMetricName = getFlinkMetricNameString(COUNTER_PREFIX, metricResult);
+      String flinkMetricName = getFlinkMetricNameString(metricResult);
 
       Long update = metricResult.getAttempted();
 
@@ -109,7 +111,7 @@ public class FlinkMetricContainer {
 
   private void updateDistributions(Iterable<MetricResult<DistributionResult>> distributions) {
     for (MetricResult<DistributionResult> metricResult : distributions) {
-      String flinkMetricName = getFlinkMetricNameString(DISTRIBUTION_PREFIX, metricResult);
+      String flinkMetricName = getFlinkMetricNameString(metricResult);
 
       DistributionResult update = metricResult.getAttempted();
 
@@ -129,7 +131,7 @@ public class FlinkMetricContainer {
 
   private void updateGauge(Iterable<MetricResult<GaugeResult>> gauges) {
     for (MetricResult<GaugeResult> metricResult : gauges) {
-      String flinkMetricName = getFlinkMetricNameString(GAUGE_PREFIX, metricResult);
+      String flinkMetricName = getFlinkMetricNameString(metricResult);
 
       GaugeResult update = metricResult.getAttempted();
 
@@ -144,14 +146,13 @@ public class FlinkMetricContainer {
     }
   }
 
-  private static String getFlinkMetricNameString(String prefix, MetricResult<?> metricResult) {
-    return prefix
-        + METRIC_KEY_SEPARATOR
-        + metricResult.getStep()
-        + METRIC_KEY_SEPARATOR
-        + metricResult.getName().getNamespace()
-        + METRIC_KEY_SEPARATOR
-        + metricResult.getName().getName();
+  @VisibleForTesting
+  static String getFlinkMetricNameString(MetricResult<?> metricResult) {
+    MetricName metricName = metricResult.getName();
+    // We use only the MetricName here, the step name is already contained
+    // in the operator name which is passed to Flink's MetricGroup to which
+    // the metric with the following name will be added.
+    return metricName.getNamespace() + METRIC_KEY_SEPARATOR + metricName.getName();
   }
 
   /** Flink {@link Gauge} for {@link DistributionResult}. */

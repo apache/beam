@@ -112,8 +112,8 @@ task preCommit() {
 task portablePreCommit() {
   dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
   dependsOn ':beam-sdks-python-container:docker'
-  dependsOn portableWordCountTask('portableWordCountBatch', false, envdir)
-  dependsOn portableWordCountTask('portableWordCountStreaming', true, envdir)
+  dependsOn portableWordCountTask('portableWordCountBatch', false)
+  dependsOn portableWordCountTask('portableWordCountStreaming', true)
 }
 
 
@@ -207,10 +207,10 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 //    ./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099
 //
 task portableWordCount {
-  dependsOn portableWordCountTask('portableWordCountExample', project.hasProperty("streaming"), envdir)
+  dependsOn portableWordCountTask('portableWordCountExample', project.hasProperty("streaming"))
 }
 
-def portableWordCountTask(name, streaming, envdir) {
+def portableWordCountTask(name, streaming) {
   tasks.create(name) {
     dependsOn = ['installGcpTest']
     mustRunAfter = [':beam-runners-flink_2.11-job-server-container:docker', ':beam-sdks-python-container:docker']

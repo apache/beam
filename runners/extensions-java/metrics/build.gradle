@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: Runners :: Extensions Java :: Metrics"
 ext.summary = "Beam Runners Extensions Metrics provides implementations of runners core metrics APIs."

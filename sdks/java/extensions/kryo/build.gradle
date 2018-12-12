@@ -22,14 +22,17 @@ ext {
     kryoVersion = '4.0.2'
 }
 
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+applyJavaNature(
+    exportJavadoc: false,
+    shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     dependencies {
         include(dependency('com.esotericsoftware:.*'))
         include(dependency('org.ow2.asm:asm'))
     }
     relocate 'com.esotericsoftware', getJavaRelocatedPath('com.esotericsoftware')
     relocate 'org.objectweb', getJavaRelocatedPath('org.objectweb')
-})
+    }
+)
 
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: Kryo'
 

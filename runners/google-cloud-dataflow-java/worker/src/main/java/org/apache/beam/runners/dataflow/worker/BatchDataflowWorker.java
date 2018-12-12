@@ -97,7 +97,7 @@ public class BatchDataflowWorker implements Closeable {
    */
   private static final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToBaseNetwork =
       new FixMultiOutputInfosOnParDoInstructions(idGenerator)
-          .andThen(new MapTaskToNetworkFunction());
+          .andThen(new MapTaskToNetworkFunction(idGenerator));
 
   /** Registry of known {@link ReaderFactory ReaderFactories}. */
   private final ReaderRegistry readerRegistry = ReaderRegistry.defaultRegistry();

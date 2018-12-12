@@ -46,6 +46,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link RemoveFlattenInstructionsFunction}. */
 @RunWith(JUnit4.class)
 public class RemoveFlattenInstructionsFunctionTest {
+  private static final String PCOLLECTION_ID = "fakeId";
+
   @Test
   public void testEmptyNetwork() {
     assertTrue(
@@ -59,24 +61,28 @@ public class RemoveFlattenInstructionsFunctionTest {
     Node a =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("A"), Nodes.ExecutionLocation.UNKNOWN);
-    Node aPCollection = InstructionOutputNode.create(new InstructionOutput().setName("A.out"));
+    Node aPCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("A.out"), PCOLLECTION_ID);
     Edge aOutput = DefaultEdge.create();
     Node b =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("B"), Nodes.ExecutionLocation.UNKNOWN);
     Edge bOutput = DefaultEdge.create();
-    Node bPCollection = InstructionOutputNode.create(new InstructionOutput().setName("B.out"));
+    Node bPCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("B.out"), PCOLLECTION_ID);
     Node flatten =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("Flatten").setFlatten(new FlattenInstruction()),
             Nodes.ExecutionLocation.UNKNOWN);
     Node flattenPCollection =
-        InstructionOutputNode.create(new InstructionOutput().setName("Flatten.out"));
+        InstructionOutputNode.create(
+            new InstructionOutput().setName("Flatten.out"), PCOLLECTION_ID);
     Node c =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("C"), Nodes.ExecutionLocation.UNKNOWN);
     Edge cOutput = DefaultEdge.create();
-    Node cPCollection = InstructionOutputNode.create(new InstructionOutput().setName("C.out"));
+    Node cPCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("C.out"), PCOLLECTION_ID);
 
     // A --\
     //      Flatten --> C
@@ -109,9 +115,12 @@ public class RemoveFlattenInstructionsFunctionTest {
     Node a =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("A"), Nodes.ExecutionLocation.UNKNOWN);
-    Node aOut1PCollection = InstructionOutputNode.create(new InstructionOutput().setName("A.out1"));
-    Node aOut2PCollection = InstructionOutputNode.create(new InstructionOutput().setName("A.out2"));
-    Node aOut3PCollection = InstructionOutputNode.create(new InstructionOutput().setName("A.out3"));
+    Node aOut1PCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("A.out1"), PCOLLECTION_ID);
+    Node aOut2PCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("A.out2"), PCOLLECTION_ID);
+    Node aOut3PCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("A.out3"), PCOLLECTION_ID);
     Edge aOut1 = MultiOutputInfoEdge.create(new MultiOutputInfo().setTag("out1"));
     Edge aOut2 = MultiOutputInfoEdge.create(new MultiOutputInfo().setTag("out2"));
     Edge aOut3 = MultiOutputInfoEdge.create(new MultiOutputInfo().setTag("out3"));
@@ -119,8 +128,10 @@ public class RemoveFlattenInstructionsFunctionTest {
     Node b =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("B"), Nodes.ExecutionLocation.UNKNOWN);
-    Node bOut1PCollection = InstructionOutputNode.create(new InstructionOutput().setName("B.out1"));
-    Node bOut2PCollection = InstructionOutputNode.create(new InstructionOutput().setName("B.out1"));
+    Node bOut1PCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("B.out1"), PCOLLECTION_ID);
+    Node bOut2PCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("B.out1"), PCOLLECTION_ID);
     Edge bOut1 = MultiOutputInfoEdge.create(new MultiOutputInfo().setTag("out1"));
     Edge bOut2 = MultiOutputInfoEdge.create(new MultiOutputInfo().setTag("out2"));
     Edge bOut1PCollectionEdge = DefaultEdge.create();
@@ -129,22 +140,26 @@ public class RemoveFlattenInstructionsFunctionTest {
             new ParallelInstruction().setName("Flatten").setFlatten(new FlattenInstruction()),
             Nodes.ExecutionLocation.UNKNOWN);
     Node flattenPCollection =
-        InstructionOutputNode.create(new InstructionOutput().setName("Flatten.out"));
+        InstructionOutputNode.create(
+            new InstructionOutput().setName("Flatten.out"), PCOLLECTION_ID);
     Node c =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("C"), Nodes.ExecutionLocation.UNKNOWN);
     Edge cOutput = DefaultEdge.create();
-    Node cPCollection = InstructionOutputNode.create(new InstructionOutput().setName("C.out"));
+    Node cPCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("C.out"), PCOLLECTION_ID);
     Node d =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("D"), Nodes.ExecutionLocation.UNKNOWN);
     Edge dOutput = DefaultEdge.create();
-    Node dPCollection = InstructionOutputNode.create(new InstructionOutput().setName("D.out"));
+    Node dPCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("D.out"), PCOLLECTION_ID);
     Node e =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("E"), Nodes.ExecutionLocation.UNKNOWN);
     Edge eOutput = DefaultEdge.create();
-    Node ePCollection = InstructionOutputNode.create(new InstructionOutput().setName("E.out"));
+    Node ePCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("E.out"), PCOLLECTION_ID);
 
     //  /-out1-> C
     // A -out2-\
@@ -196,13 +211,16 @@ public class RemoveFlattenInstructionsFunctionTest {
     Node a =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("A"), Nodes.ExecutionLocation.UNKNOWN);
-    Node aPCollection = InstructionOutputNode.create(new InstructionOutput().setName("A.out"));
+    Node aPCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("A.out"), PCOLLECTION_ID);
     Edge aOutput = DefaultEdge.create();
     Node b =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("B"), Nodes.ExecutionLocation.UNKNOWN);
-    Node bOut1PCollection = InstructionOutputNode.create(new InstructionOutput().setName("B.out1"));
-    Node bOut2PCollection = InstructionOutputNode.create(new InstructionOutput().setName("B.out1"));
+    Node bOut1PCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("B.out1"), PCOLLECTION_ID);
+    Node bOut2PCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("B.out1"), PCOLLECTION_ID);
     Edge bOut1 = MultiOutputInfoEdge.create(new MultiOutputInfo().setTag("out1"));
     Edge bOut2 = MultiOutputInfoEdge.create(new MultiOutputInfo().setTag("out2"));
     Node flatten1 =
@@ -210,18 +228,21 @@ public class RemoveFlattenInstructionsFunctionTest {
             new ParallelInstruction().setName("Flatten1").setFlatten(new FlattenInstruction()),
             Nodes.ExecutionLocation.UNKNOWN);
     Node flatten1PCollection =
-        InstructionOutputNode.create(new InstructionOutput().setName("Flatten1.out"));
+        InstructionOutputNode.create(
+            new InstructionOutput().setName("Flatten1.out"), PCOLLECTION_ID);
     Node flatten2 =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("Flatten2").setFlatten(new FlattenInstruction()),
             Nodes.ExecutionLocation.UNKNOWN);
     Node flatten2PCollection =
-        InstructionOutputNode.create(new InstructionOutput().setName("Flatten2.out"));
+        InstructionOutputNode.create(
+            new InstructionOutput().setName("Flatten2.out"), PCOLLECTION_ID);
     Node c =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("C"), Nodes.ExecutionLocation.UNKNOWN);
     Edge cOutput = DefaultEdge.create();
-    Node cPCollection = InstructionOutputNode.create(new InstructionOutput().setName("C.out"));
+    Node cPCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("C.out"), PCOLLECTION_ID);
 
     // A ------\
     //          Flatten1 --\
@@ -262,29 +283,34 @@ public class RemoveFlattenInstructionsFunctionTest {
     Node a =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("A"), Nodes.ExecutionLocation.UNKNOWN);
-    Node aPCollection = InstructionOutputNode.create(new InstructionOutput().setName("A.out"));
+    Node aPCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("A.out"), PCOLLECTION_ID);
     Edge aOutput = DefaultEdge.create();
     Node b =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("B"), Nodes.ExecutionLocation.UNKNOWN);
     Edge bOutput = DefaultEdge.create();
-    Node bPCollection = InstructionOutputNode.create(new InstructionOutput().setName("B.out"));
+    Node bPCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("B.out"), PCOLLECTION_ID);
     Node flatten =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("Flatten").setFlatten(new FlattenInstruction()),
             Nodes.ExecutionLocation.UNKNOWN);
     Node flattenPCollection =
-        InstructionOutputNode.create(new InstructionOutput().setName("Flatten.out"));
+        InstructionOutputNode.create(
+            new InstructionOutput().setName("Flatten.out"), PCOLLECTION_ID);
     Node c =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("C"), Nodes.ExecutionLocation.UNKNOWN);
     Edge cOutput = DefaultEdge.create();
-    Node cPCollection = InstructionOutputNode.create(new InstructionOutput().setName("C.out"));
+    Node cPCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("C.out"), PCOLLECTION_ID);
     Node d =
         ParallelInstructionNode.create(
             new ParallelInstruction().setName("D"), Nodes.ExecutionLocation.UNKNOWN);
     Edge dOutput = DefaultEdge.create();
-    Node dPCollection = InstructionOutputNode.create(new InstructionOutput().setName("D.out"));
+    Node dPCollection =
+        InstructionOutputNode.create(new InstructionOutput().setName("D.out"), PCOLLECTION_ID);
 
     // A --\
     //      -> Flatten --> C

@@ -424,24 +424,27 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         // Requires https://github.com/apache/beam/pull/6799 to be merged.
         if (urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
           if (!type.equals("beam:metrics:sum_int_64")) {
-            throw new RuntimeException(
+            LOG.info(
                 "Encountered user-counter MonitoringInfo with unexpected type."
                     + "Expected: beam:metrics:sum_int_64. Received: "
                     + monitoringInfo.toString());
+            return null;
           }
 
           final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
           if (ptransform == null) {
-            throw new RuntimeException(
+            LOG.info(
                 "Encountered user-counter MonitoringInfo with missing ptransformId: "
                     + monitoringInfo.toString());
+            return null;
           }
 
           DataflowStepContext stepContext = transformIdMapping.get(ptransform);
           if (stepContext == null) {
-            throw new RuntimeException(
+            LOG.info(
                 "Encountered user-counter MonitoringInfo with unknown ptransformId: "
                     + monitoringInfo.toString());
+            return null;
           }
 
           CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();

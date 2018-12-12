@@ -36,7 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@link EnvironmentFactory} which forks processes based on the given URL in the Environment.
+ * An {@link EnvironmentFactory} which forks processes based on the parameters in the Environment.
  * The returned {@link ProcessEnvironment} has to make sure to stop the processes.
  */
 public class ProcessEnvironmentFactory implements EnvironmentFactory {
