@@ -34,6 +34,7 @@ import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.ExternalEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.ProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
@@ -52,6 +53,8 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
                     PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())),
                 BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
                 new ProcessEnvironmentFactory.Provider(),
+                BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL),
+                new ExternalEnvironmentFactory.Provider(),
                 Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
                 new EmbeddedEnvironmentFactory.Provider()));
     return new FlinkDefaultExecutableStageContext(jobBundleFactory);
