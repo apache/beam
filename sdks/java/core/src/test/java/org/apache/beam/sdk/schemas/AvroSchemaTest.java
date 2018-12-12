@@ -44,6 +44,7 @@ import org.junit.Test;
 
 /** Tests for AVRO schema classes. */
 public class AvroSchemaTest {
+  /** A test POJO that corresponds to our AVRO schema. */
   public static class AvroSubPojo {
     @AvroName("bool_non_nullable")
     public boolean boolNonNullable;
@@ -82,6 +83,7 @@ public class AvroSchemaTest {
     }
   }
 
+  /** A test POJO that corresponds to our AVRO schema. */
   public static class AvroPojo {
     public @AvroName("bool_non_nullable") boolean boolNonNullable;
 
