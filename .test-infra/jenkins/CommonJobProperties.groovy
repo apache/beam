@@ -280,7 +280,7 @@ class CommonJobProperties {
   }
 
   // Adds the standard performance test job steps.
-  static def buildPerformanceTest(def context, def argMap, def language = "DEFAULT") {
+  static def buildPerformanceTest(def context, def argMap) {
     def pkbArgs = genPerformanceArgs(argMap)
 
     // Absolute path of project root and virtualenv path of Beam and Perfkit.
