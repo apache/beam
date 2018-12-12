@@ -117,7 +117,7 @@ public class AvroUtils {
       this.size = size;
     }
 
-    /** Create a {@link FixedBytesField} from a Beam {@link FieldType} */
+    /** Create a {@link FixedBytesField} from a Beam {@link FieldType}. */
     @Nullable
     public static FixedBytesField fromBeamFieldType(FieldType fieldType) {
       String metadata = fieldType.getMetadataString();
