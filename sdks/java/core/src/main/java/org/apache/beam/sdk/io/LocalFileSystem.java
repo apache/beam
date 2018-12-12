@@ -214,7 +214,11 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
       }
     }
 
-    File file = Paths.get(spec).toFile();
+    // BEAM-6213: Windows breaks on Paths.get(spec).toFile() with a glob because
+    // it considers it an invalid file system pattern. We should use
+    // new File(spec) to avoid such validation.
+    // See https://bugs.openjdk.java.net/browse/JDK-8197918
+    final File file = new File(spec);
     if (file.exists()) {
       return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
     }
