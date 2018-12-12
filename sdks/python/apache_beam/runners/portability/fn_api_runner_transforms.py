@@ -187,6 +187,11 @@ def leaf_transform_stages(
 
 
 def with_stages(pipeline_proto, stages):
+
+  # In case it was a generator that mutates components as it
+  # produces outputs (as is the case with most transformations).
+  stages = list(stages)
+
   new_proto = beam_runner_api_pb2.Pipeline()
   new_proto.CopyFrom(pipeline_proto)
   components = new_proto.components
