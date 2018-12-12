@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import functools
 from builtins import object
 
 from apache_beam.portability import common_urns
@@ -39,13 +40,18 @@ class Stage(object):
   """A set of Transforms that can be sent to the worker for processing."""
   def __init__(self, name, transforms,
                downstream_side_inputs=None, must_follow=frozenset(),
-               parent=None):
+               parent=None, environment=None):
     self.name = name
     self.transforms = transforms
     self.downstream_side_inputs = downstream_side_inputs
     self.must_follow = must_follow
     self.timer_pcollections = []
     self.parent = parent
+    if environment is None:
+      environment = functools.reduce(
+          self._merge_environments,
+          (self._extract_environment(t) for t in transforms))
+    self.environment = environment
 
   def __repr__(self):
     must_follow = ', '.join(prev.name for prev in self.must_follow)
@@ -61,9 +67,45 @@ class Stage(object):
         must_follow,
         downstream_side_inputs)
 
+  @staticmethod
+  def _extract_environment(transform):
+    if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+      pardo_payload = proto_utils.parse_Bytes(
+          transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+      return pardo_payload.do_fn.environment_id
+    elif transform.spec.urn in (
+        common_urns.composites.COMBINE_PER_KEY.urn,
+        common_urns.combine_components.COMBINE_PGBKCV.urn,
+        common_urns.combine_components.COMBINE_MERGE_ACCUMULATORS.urn,
+        common_urns.combine_components.COMBINE_EXTRACT_OUTPUTS.urn):
+      combine_payload = proto_utils.parse_Bytes(
+          transform.spec.payload, beam_runner_api_pb2.CombinePayload)
+      return combine_payload.combine_fn.environment_id
+    else:
+      return None
+
+  @staticmethod
+  def _merge_environments(env1, env2):
+    if env1 is None:
+      return env2
+    elif env2 is None:
+      return env1
+    else:
+      if env1 != env2:
+        raise ValueError("Incompatible environments: '%s' != '%s'" % (
+            str(env1).replace('\n', ' '),
+            str(env2).replace('\n', ' ')))
+      return env1
+
   def can_fuse(self, consumer):
+    try:
+      self._merge_environments(self.environment, consumer.environment)
+    except ValueError:
+      return False
+
     def no_overlap(a, b):
       return not a.intersection(b)
+
     return (
         not self in consumer.must_follow
         and not self.is_flatten() and not consumer.is_flatten()
@@ -74,7 +116,9 @@ class Stage(object):
         "(%s)+(%s)" % (self.name, other.name),
         self.transforms + other.transforms,
         union(self.downstream_side_inputs, other.downstream_side_inputs),
-        union(self.must_follow, other.must_follow))
+        union(self.must_follow, other.must_follow),
+        environment=self._merge_environments(
+            self.environment, other.environment))
 
   def is_flatten(self):
     return any(transform.spec.urn == common_urns.primitives.FLATTEN.urn

@@ -124,7 +124,7 @@ class PipelineContext(object):
               self, cls, getattr(proto, name, None)))
     if default_environment:
       self._default_environment_id = self.environments.get_id(
-          Environment(default_environment))
+          Environment(default_environment), label='default_environment')
     else:
       self._default_environment_id = None
     self.use_fake_coders = use_fake_coders
