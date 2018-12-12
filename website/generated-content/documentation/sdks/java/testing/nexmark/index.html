@@ -545,7 +545,7 @@ or may be published to Pub/Sub or Kafka.</p>
 <h3 id="flink-runner-specific-configuration">Flink runner specific configuration</h3>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
---flinkMaster=local --parallelism=#numcores
+--flinkMaster=[local] --parallelism=#numcores
 </code></pre>
 </div>
 
@@ -911,7 +911,7 @@ configure logging.</p>
         --streaming=false
         --manageResources=false
         --monitorJobs=true
-        --flinkMaster=local"
+        --flinkMaster=[local]"
 </code></pre>
 </div>
 
@@ -926,7 +926,7 @@ configure logging.</p>
         --streaming=true
         --manageResources=false
         --monitorJobs=true
-        --flinkMaster=local"
+        --flinkMaster=[local]"
 </code></pre>
 </div>
 
