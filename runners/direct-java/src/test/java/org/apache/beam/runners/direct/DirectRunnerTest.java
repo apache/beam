@@ -132,7 +132,7 @@ public class DirectRunnerTest implements Serializable {
 
     PAssert.that(countStrs).containsInAnyOrder("baz: 1", "bar: 2", "foo: 3");
 
-    DirectPipelineResult result = ((DirectPipelineResult) p.run());
+    DirectPipelineResult result = (DirectPipelineResult) p.run();
     result.waitUntilFinish();
   }
 
@@ -176,10 +176,10 @@ public class DirectRunnerTest implements Serializable {
 
     PAssert.that(countStrs).containsInAnyOrder("baz: 1", "bar: 2", "foo: 3");
 
-    DirectPipelineResult result = ((DirectPipelineResult) p.run());
+    DirectPipelineResult result = (DirectPipelineResult) p.run();
     result.waitUntilFinish();
 
-    DirectPipelineResult otherResult = ((DirectPipelineResult) p.run());
+    DirectPipelineResult otherResult = (DirectPipelineResult) p.run();
     otherResult.waitUntilFinish();
 
     assertThat("Each element should have been processed twice", changed.get(), equalTo(6));

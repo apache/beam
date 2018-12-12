@@ -220,7 +220,7 @@ public class S3ResourceIdTest {
     assertFalse(parent.getKey().startsWith(path.getKey()));
 
     // s3://bucket/
-    S3ResourceId grandParent = ((S3ResourceId) parent.resolve("..", RESOLVE_DIRECTORY));
+    S3ResourceId grandParent = (S3ResourceId) parent.resolve("..", RESOLVE_DIRECTORY);
     assertEquals("bucket", grandParent.getBucket());
     assertEquals("", grandParent.getKey());
   }

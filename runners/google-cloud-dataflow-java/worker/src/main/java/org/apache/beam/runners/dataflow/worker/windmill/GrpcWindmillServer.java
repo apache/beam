@@ -149,7 +149,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     } else if (!streamingEngineEnabled() && options.getLocalWindmillHostport() != null) {
       int portStart = options.getLocalWindmillHostport().lastIndexOf(':');
       String endpoint = options.getLocalWindmillHostport().substring(0, portStart);
-      assert (endpoint.equals("grpc:localhost"));
+      assert ("grpc:localhost".equals(endpoint));
       int port = Integer.parseInt(options.getLocalWindmillHostport().substring(portStart + 1));
       this.endpoints = ImmutableSet.<HostAndPort>of(HostAndPort.fromParts("localhost", port));
       initializeLocalHost(port);
@@ -303,7 +303,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     this.syncStubList.clear();
     this.endpoints = ImmutableSet.<HostAndPort>copyOf(endpoints);
     for (HostAndPort endpoint : this.endpoints) {
-      if (endpoint.getHostText().equals("localhost")) {
+      if ("localhost".equals(endpoint.getHostText())) {
         initializeLocalHost(endpoint.getPort());
       } else {
         CallCredentials creds =

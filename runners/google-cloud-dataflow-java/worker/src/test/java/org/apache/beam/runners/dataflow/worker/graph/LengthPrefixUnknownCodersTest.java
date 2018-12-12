@@ -367,6 +367,6 @@ public class LengthPrefixUnknownCodersTest {
             .setName(name)
             .setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
     instructionOutput.setFactory(new JacksonFactory());
-    return InstructionOutputNode.create(instructionOutput);
+    return InstructionOutputNode.create(instructionOutput, "fakeId");
   }
 }

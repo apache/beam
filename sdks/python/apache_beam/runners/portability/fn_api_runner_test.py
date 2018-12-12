@@ -17,7 +17,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import functools
 import logging
 import os
 import sys
@@ -32,9 +31,10 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.portability import python_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -50,8 +50,7 @@ else:
 class FnApiRunnerTest(unittest.TestCase):
 
   def create_pipeline(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_grpc=False))
+    return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
@@ -684,7 +683,9 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_grpc=True))
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
 
 
 class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
@@ -692,16 +693,16 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            use_grpc=True,
-            sdk_harness_factory=functools.partial(
-                sdk_worker.SdkHarness, worker_count=2)))
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC,
+                payload=b'2')))
 
 
 class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_grpc=False, bundle_repeat=3))
+        runner=fn_api_runner.FnApiRunner(bundle_repeat=3))
 
 
 if __name__ == '__main__':

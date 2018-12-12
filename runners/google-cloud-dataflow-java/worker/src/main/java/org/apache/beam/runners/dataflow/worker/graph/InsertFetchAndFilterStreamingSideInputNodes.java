@@ -82,7 +82,7 @@ public class InsertFetchAndFilterStreamingSideInputNodes {
 
       // Skip ParDoInstruction nodes that contain payloads without side inputs.
       String userFnClassName = userFnSpec.getClassName();
-      if (userFnClassName.equals("CombineValuesFn") || userFnClassName.equals("KeyedCombineFn")) {
+      if ("CombineValuesFn".equals(userFnClassName) || "KeyedCombineFn".equals(userFnClassName)) {
         continue; // These nodes have CombinePayloads which have no side inputs.
       }
 
@@ -158,7 +158,8 @@ public class InsertFetchAndFilterStreamingSideInputNodes {
       InstructionOutputNode predecessor =
           (InstructionOutputNode) network.incidentNodes(mainInput).source();
       InstructionOutputNode predecessorCopy =
-          InstructionOutputNode.create(predecessor.getInstructionOutput());
+          InstructionOutputNode.create(
+              predecessor.getInstructionOutput(), predecessor.getPcollectionId());
       network.removeEdge(mainInput);
       network.addNode(streamingSideInputWindowHandlerNode);
       network.addNode(predecessorCopy);

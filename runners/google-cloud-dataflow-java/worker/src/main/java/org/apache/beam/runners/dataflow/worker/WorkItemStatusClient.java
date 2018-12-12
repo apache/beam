@@ -263,6 +263,7 @@ public class WorkItemStatusClient {
     return status;
   }
 
+  // todo(migryz) this method should return List<CounterUpdate> instead of updating member variable
   @VisibleForTesting
   synchronized void populateCounterUpdates(WorkItemStatus status) {
     if (worker == null) {
@@ -270,13 +271,18 @@ public class WorkItemStatusClient {
     }
 
     boolean isFinalUpdate = Boolean.TRUE.equals(status.getCompleted());
-    ImmutableList.Builder<CounterUpdate> counterUpdatesBuilder = ImmutableList.builder();
-    counterUpdatesBuilder.addAll(extractCounters(worker.getOutputCounters()));
-    counterUpdatesBuilder.addAll(extractMetrics(isFinalUpdate));
-    counterUpdatesBuilder.addAll(extractMsecCounters(isFinalUpdate));
-    counterUpdatesBuilder.addAll(worker.extractMetricUpdates());
 
-    ImmutableList<CounterUpdate> counterUpdates = counterUpdatesBuilder.build();
+    ImmutableList.Builder<CounterUpdate> counterUpdatesListBuilder = ImmutableList.builder();
+    // Output counters
+    counterUpdatesListBuilder.addAll(extractCounters(worker.getOutputCounters()));
+    // User metrics reported in Worker
+    counterUpdatesListBuilder.addAll(extractMetrics(isFinalUpdate));
+    // MSec counters reported in worker
+    counterUpdatesListBuilder.addAll(extractMsecCounters(isFinalUpdate));
+    // Metrics reported in SDK runner.
+    counterUpdatesListBuilder.addAll(worker.extractMetricUpdates());
+
+    ImmutableList<CounterUpdate> counterUpdates = counterUpdatesListBuilder.build();
     status.setCounterUpdates(counterUpdates);
   }
 

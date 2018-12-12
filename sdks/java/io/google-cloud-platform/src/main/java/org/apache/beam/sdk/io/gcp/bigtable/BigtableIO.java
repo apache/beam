@@ -1134,7 +1134,7 @@ public class BigtableIO {
           "Desired bundle size %s bytes must be greater than 0.",
           desiredBundleSizeBytes);
 
-      int splitCount = (int) Math.ceil(((double) sampleSizeBytes) / (desiredBundleSizeBytes));
+      int splitCount = (int) Math.ceil(((double) sampleSizeBytes) / desiredBundleSizeBytes);
       List<ByteKey> splitKeys = range.split(splitCount);
       ImmutableList.Builder<BigtableSource> splits = ImmutableList.builder();
       Iterator<ByteKey> keys = splitKeys.iterator();

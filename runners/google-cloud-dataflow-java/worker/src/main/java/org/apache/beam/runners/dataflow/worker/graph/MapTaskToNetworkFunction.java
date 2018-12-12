@@ -36,6 +36,7 @@ import org.apache.beam.runners.dataflow.worker.graph.Edges.MultiOutputInfoEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.util.Transport;
 
 /**
@@ -61,6 +62,12 @@ public class MapTaskToNetworkFunction implements Function<MapTask, MutableNetwor
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private final IdGenerator idGenerator;
+
+  public MapTaskToNetworkFunction(IdGenerator idGenerator) {
+    this.idGenerator = idGenerator;
   }
 
   @Override
@@ -98,7 +105,9 @@ public class MapTaskToNetworkFunction implements Function<MapTask, MutableNetwor
       // Connect the instruction node output to the output PCollection node
       for (int j = 0; j < outputs.size(); ++j) {
         InstructionOutput instructionOutput = outputs.get(j);
-        InstructionOutputNode outputNode = InstructionOutputNode.create(instructionOutput);
+        InstructionOutputNode outputNode =
+            InstructionOutputNode.create(
+                instructionOutput, "generatedPcollection" + this.idGenerator.getId());
         network.addNode(outputNode);
         if (parallelInstruction.getParDo() != null) {
           network.addEdge(

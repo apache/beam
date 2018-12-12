@@ -162,7 +162,7 @@ public class StreamingDataflowWorker {
    * </ul>
    */
   private static final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToBaseNetwork =
-      new MapTaskToNetworkFunction();
+      new MapTaskToNetworkFunction(idGenerator);
 
   // Maximum number of threads for processing.  Currently each thread processes one key at a time.
   static final int MAX_PROCESSING_THREADS = 300;
@@ -641,7 +641,10 @@ public class StreamingDataflowWorker {
 
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork =
           new CreateRegisterFnOperationFunction(
-              idGenerator, this::createPortNode, lengthPrefixUnknownCoders.andThen(sdkFusedStage));
+              idGenerator,
+              this::createPortNode,
+              lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+              false);
 
       mapTaskToNetwork =
           mapTaskToBaseNetwork

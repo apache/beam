@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.loadtests;
 
+import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
+
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;

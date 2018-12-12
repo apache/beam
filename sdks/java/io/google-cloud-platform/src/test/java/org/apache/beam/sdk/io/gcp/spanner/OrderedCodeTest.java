@@ -654,7 +654,7 @@ public class OrderedCodeTest {
     assertEquals(2, orderedCode.getSignedEncodingLength(64));
     assertEquals(2, orderedCode.getSignedEncodingLength(8191));
     assertEquals(3, orderedCode.getSignedEncodingLength(8192));
-    assertEquals(9, orderedCode.getSignedEncodingLength((1L << 62)) - 1);
+    assertEquals(9, orderedCode.getSignedEncodingLength(1L << 62) - 1);
     assertEquals(10, orderedCode.getSignedEncodingLength(1L << 62));
     assertEquals(10, orderedCode.getSignedEncodingLength(Long.MAX_VALUE));
   }

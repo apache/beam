@@ -33,6 +33,7 @@ from builtins import object
 from future.utils import itervalues
 
 import apache_beam as beam
+from apache_beam import coders
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import coder_impl
 from apache_beam.internal import pickler
@@ -126,10 +127,13 @@ class DataInputOperation(RunnerIOOperation):
 
 
 class _StateBackedIterable(object):
-  def __init__(self, state_handler, state_key, coder):
+  def __init__(self, state_handler, state_key, coder_or_impl):
     self._state_handler = state_handler
     self._state_key = state_key
-    self._coder_impl = coder.get_impl()
+    if isinstance(coder_or_impl, coders.Coder):
+      self._coder_impl = coder_or_impl.get_impl()
+    else:
+      self._coder_impl = coder_or_impl
 
   def __iter__(self):
     # TODO(robertwb): Support pagination.
@@ -546,7 +550,14 @@ class BeamTransformFactory(object):
     self.counter_factory = counter_factory
     self.state_sampler = state_sampler
     self.state_handler = state_handler
-    self.context = pipeline_context.PipelineContext(descriptor)
+    self.context = pipeline_context.PipelineContext(
+        descriptor,
+        iterable_state_read=lambda token, element_coder_impl:
+        _StateBackedIterable(
+            state_handler,
+            beam_fn_api_pb2.StateKey(
+                runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
+            element_coder_impl))
 
   _known_urns = {}
 

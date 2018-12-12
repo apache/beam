@@ -26,6 +26,7 @@ import com.google.common.base.Objects;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -58,8 +59,8 @@ public class CassandraIOTest implements Serializable {
     service.load();
 
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
-    CassandraIO.Read spec = CassandraIO.<Scientist>read().withCassandraService(service);
-    CassandraIO.CassandraSource source = new CassandraIO.CassandraSource(spec, null);
+    CassandraIO.Read<Scientist> spec = CassandraIO.<Scientist>read().withCassandraService(service);
+    CassandraIO.CassandraSource<Scientist> source = new CassandraIO.CassandraSource<>(spec, null);
     long estimatedSizeBytes = source.getEstimatedSizeBytes(pipelineOptions);
     // the size is the sum of the bytes size of the String representation of a scientist in the map
     assertEquals(113890, estimatedSizeBytes);
@@ -129,6 +130,32 @@ public class CassandraIOTest implements Serializable {
     }
   }
 
+  @Test
+  public void testDelete() {
+    FakeCassandraService service = new FakeCassandraService();
+    service.load();
+
+    assertEquals(10000, service.getTable().size());
+
+    pipeline
+        .apply(
+            CassandraIO.<Scientist>read()
+                .withCassandraService(service)
+                .withKeyspace("beam")
+                .withTable("scientist")
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class))
+        .apply(
+            CassandraIO.<Scientist>delete()
+                .withCassandraService(service)
+                .withKeyspace("beam")
+                .withEntity(Scientist.class));
+
+    pipeline.run();
+
+    assertEquals(0, service.getTable().size());
+  }
+
   /** A {@link CassandraService} implementation that stores the entity in memory. */
   private static class FakeCassandraService implements CassandraService<Scientist> {
     private static final Map<Integer, Scientist> table = new ConcurrentHashMap<>();
@@ -161,17 +188,17 @@ public class CassandraIOTest implements Serializable {
     }
 
     @Override
-    public BoundedReader<Scientist> createReader(CassandraIO.CassandraSource source) {
+    public BoundedReader<Scientist> createReader(CassandraIO.CassandraSource<Scientist> source) {
       return new FakeCassandraReader(source);
     }
 
-    private static class FakeCassandraReader extends BoundedSource.BoundedReader {
-      private final CassandraIO.CassandraSource source;
+    private static class FakeCassandraReader extends BoundedSource.BoundedReader<Scientist> {
+      private final CassandraIO.CassandraSource<Scientist> source;
 
       private Iterator<Scientist> iterator;
       private Scientist current;
 
-      FakeCassandraReader(CassandraIO.CassandraSource source) {
+      FakeCassandraReader(CassandraIO.CassandraSource<Scientist> source) {
         this.source = source;
       }
 
@@ -206,7 +233,7 @@ public class CassandraIOTest implements Serializable {
       }
 
       @Override
-      public CassandraIO.CassandraSource getCurrentSource() {
+      public CassandraIO.CassandraSource<Scientist> getCurrentSource() {
         return this.source;
       }
     }
@@ -222,10 +249,8 @@ public class CassandraIOTest implements Serializable {
 
     @Override
     public List<BoundedSource<Scientist>> split(
-        CassandraIO.Read spec, long desiredBundleSizeBytes) {
-      List<BoundedSource<Scientist>> sources = new ArrayList<>();
-      sources.add(new CassandraIO.CassandraSource<Scientist>(spec, null));
-      return sources;
+        CassandraIO.Read<Scientist> spec, long desiredBundleSizeBytes) {
+      return Collections.singletonList(new CassandraIO.CassandraSource<>(spec, null));
     }
 
     private static class FakeCassandraWriter implements Writer<Scientist> {
@@ -241,8 +266,25 @@ public class CassandraIOTest implements Serializable {
     }
 
     @Override
-    public FakeCassandraWriter createWriter(CassandraIO.Write<Scientist> spec) {
+    public FakeCassandraWriter createWriter(CassandraIO.Mutate<Scientist> spec) {
       return new FakeCassandraWriter();
+    }
+
+    private static class FakeCassandraDeleter implements Deleter<Scientist> {
+      @Override
+      public void delete(Scientist scientist) {
+        table.remove(scientist.id);
+      }
+
+      @Override
+      public void close() {
+        // nothing to do
+      }
+    }
+
+    @Override
+    public FakeCassandraDeleter createDeleter(CassandraIO.Mutate<Scientist> spec) {
+      return new FakeCassandraDeleter();
     }
   }
 

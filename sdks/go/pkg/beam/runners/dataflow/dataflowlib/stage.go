@@ -22,8 +22,8 @@ import (
 	"io"
 	"os"
 
+	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
-	"google.golang.org/api/storage/v1"
 )
 
 // StageModel uploads the pipeline model to GCS as a unique object.
@@ -47,7 +47,7 @@ func upload(ctx context.Context, project, object string, r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("invalid staging location %v: %v", object, err)
 	}
-	client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
+	client, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 	if err != nil {
 		return err
 	}

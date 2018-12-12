@@ -50,6 +50,7 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -111,7 +112,7 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
     bundleFactory = ImmutableListBundleFactory.create();
     JobBundleFactory jobBundleFactory =
         SingleEnvironmentInstanceJobBundleFactory.create(
-            environmentFactory, dataServer, stateServer);
+            environmentFactory, dataServer, stateServer, IdGenerators.incrementingLongs());
     factory = new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory);
   }
 
@@ -202,7 +203,7 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
     PTransformNode leftRoot = null;
     PTransformNode rightRoot = null;
     for (PTransformNode root : fusedQP.getRootTransforms()) {
-      if (root.getId().equals("left")) {
+      if ("left".equals(root.getId())) {
         leftRoot = root;
       } else {
         rightRoot = root;

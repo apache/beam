@@ -41,6 +41,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -138,6 +139,7 @@ public class ProcessBundleHandler {
 
   private void createRunnerAndConsumersForPTransformRecursively(
       BeamFnStateClient beamFnStateClient,
+      BeamFnDataClient queueingClient,
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
@@ -158,6 +160,7 @@ public class ProcessBundleHandler {
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
         createRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
+            queueingClient,
             consumingPTransformId,
             processBundleDescriptor.getTransformsMap().get(consumingPTransformId),
             processBundleInstructionId,
@@ -188,7 +191,7 @@ public class ProcessBundleHandler {
           .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
           .createRunnerForPTransform(
               options,
-              beamFnDataClient,
+              queueingClient,
               beamFnStateClient,
               pTransformId,
               pTransform,
@@ -204,8 +207,17 @@ public class ProcessBundleHandler {
     }
   }
 
+  /**
+   * Processes a bundle, running the start(), process(), and finish() functions. This function is
+   * required to be reentrant.
+   */
   public BeamFnApi.InstructionResponse.Builder processBundle(BeamFnApi.InstructionRequest request)
       throws Exception {
+    // Note: We must create one instance of the QueueingBeamFnDataClient as it is designed to
+    // handle the life of a bundle. It will insert elements onto a queue and drain them off so all
+    // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
+    QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(this.beamFnDataClient);
+
     String bundleId = request.getProcessBundle().getProcessBundleDescriptorReference();
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
@@ -255,6 +267,7 @@ public class ProcessBundleHandler {
       // Create a BeamFnStateClient
       for (Map.Entry<String, RunnerApi.PTransform> entry :
           bundleDescriptor.getTransformsMap().entrySet()) {
+
         // Skip anything which isn't a root
         // TODO: Remove source as a root and have it be triggered by the Runner.
         if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
@@ -266,6 +279,7 @@ public class ProcessBundleHandler {
 
         createRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
+            queueingClient,
             entry.getKey(),
             entry.getValue(),
             request::getInstructionId,
@@ -283,6 +297,8 @@ public class ProcessBundleHandler {
         LOG.debug("Starting function {}", startFunction);
         startFunction.run();
       }
+
+      queueingClient.drainAndBlock();
 
       // Need to reverse this since we want to call finish in topological order.
       for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
