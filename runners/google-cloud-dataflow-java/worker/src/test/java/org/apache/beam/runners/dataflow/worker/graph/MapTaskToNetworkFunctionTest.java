@@ -47,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.graph.Edges.MultiOutputInfoEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.util.Transport;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -58,7 +59,8 @@ import org.junit.runners.JUnit4;
 public class MapTaskToNetworkFunctionTest {
   @Test
   public void testEmptyMapTask() {
-    Network<Node, Edge> network = new MapTaskToNetworkFunction().apply(new MapTask());
+    Network<Node, Edge> network =
+        new MapTaskToNetworkFunction(IdGenerators.decrementingLongs()).apply(new MapTask());
     assertTrue(network.isDirected());
     assertTrue(network.allowsParallelEdges());
     assertFalse(network.allowsSelfLoops());
@@ -75,7 +77,8 @@ public class MapTaskToNetworkFunctionTest {
     mapTask.setInstructions(ImmutableList.of(read));
     mapTask.setFactory(Transport.getJsonFactory());
 
-    Network<Node, Edge> network = new MapTaskToNetworkFunction().apply(mapTask);
+    Network<Node, Edge> network =
+        new MapTaskToNetworkFunction(IdGenerators.decrementingLongs()).apply(mapTask);
     assertNetworkProperties(network);
     assertEquals(2, network.nodes().size());
     assertEquals(1, network.edges().size());
@@ -103,7 +106,8 @@ public class MapTaskToNetworkFunctionTest {
     mapTask.setInstructions(ImmutableList.of(read, parDo));
     mapTask.setFactory(Transport.getJsonFactory());
 
-    Network<Node, Edge> network = new MapTaskToNetworkFunction().apply(mapTask);
+    Network<Node, Edge> network =
+        new MapTaskToNetworkFunction(IdGenerators.decrementingLongs()).apply(mapTask);
     assertNetworkProperties(network);
     assertEquals(4, network.nodes().size());
     assertEquals(3, network.edges().size());
@@ -149,7 +153,8 @@ public class MapTaskToNetworkFunctionTest {
     mapTask.setInstructions(ImmutableList.of(readA, readB, flatten));
     mapTask.setFactory(Transport.getJsonFactory());
 
-    Network<Node, Edge> network = new MapTaskToNetworkFunction().apply(mapTask);
+    Network<Node, Edge> network =
+        new MapTaskToNetworkFunction(IdGenerators.decrementingLongs()).apply(mapTask);
     assertNetworkProperties(network);
     assertEquals(6, network.nodes().size());
     assertEquals(5, network.edges().size());
@@ -193,7 +198,8 @@ public class MapTaskToNetworkFunctionTest {
     mapTask.setInstructions(ImmutableList.of(read, flatten));
     mapTask.setFactory(Transport.getJsonFactory());
 
-    Network<Node, Edge> network = new MapTaskToNetworkFunction().apply(mapTask);
+    Network<Node, Edge> network =
+        new MapTaskToNetworkFunction(IdGenerators.decrementingLongs()).apply(mapTask);
     assertNetworkProperties(network);
     assertEquals(4, network.nodes().size());
     assertEquals(5, network.edges().size());
@@ -225,7 +231,8 @@ public class MapTaskToNetworkFunctionTest {
     mapTask.setInstructions(ImmutableList.of(read, write));
     mapTask.setFactory(Transport.getJsonFactory());
 
-    Network<Node, Edge> network = new MapTaskToNetworkFunction().apply(mapTask);
+    Network<Node, Edge> network =
+        new MapTaskToNetworkFunction(IdGenerators.decrementingLongs()).apply(mapTask);
     assertNetworkProperties(network);
     assertEquals(3, network.nodes().size());
     assertEquals(2, network.edges().size());
@@ -260,7 +267,8 @@ public class MapTaskToNetworkFunctionTest {
     mapTask.setInstructions(ImmutableList.of(read, pgbk, write));
     mapTask.setFactory(Transport.getJsonFactory());
 
-    Network<Node, Edge> network = new MapTaskToNetworkFunction().apply(mapTask);
+    Network<Node, Edge> network =
+        new MapTaskToNetworkFunction(IdGenerators.decrementingLongs()).apply(mapTask);
     assertNetworkProperties(network);
     assertEquals(5, network.nodes().size());
     assertEquals(4, network.edges().size());
@@ -310,7 +318,8 @@ public class MapTaskToNetworkFunctionTest {
     mapTask.setInstructions(ImmutableList.of(read, parDo, writeA, writeB));
     mapTask.setFactory(Transport.getJsonFactory());
 
-    Network<Node, Edge> network = new MapTaskToNetworkFunction().apply(mapTask);
+    Network<Node, Edge> network =
+        new MapTaskToNetworkFunction(IdGenerators.decrementingLongs()).apply(mapTask);
     assertNetworkProperties(network);
     assertEquals(7, network.nodes().size());
     assertEquals(6, network.edges().size());

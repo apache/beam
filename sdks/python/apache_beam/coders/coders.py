@@ -263,8 +263,9 @@ class Coder(object):
                 context.default_environment_id() if context else None),
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=urn,
-                payload=typed_param.SerializeToString()
-                if typed_param is not None else None)),
+                payload=typed_param
+                if isinstance(typed_param, (bytes, type(None)))
+                else typed_param.SerializeToString())),
         component_coder_ids=[context.coders.get_id(c) for c in components])
 
   @classmethod
@@ -1046,3 +1047,54 @@ class LengthPrefixCoder(FastCoder):
 
 Coder.register_structured_urn(
     common_urns.coders.LENGTH_PREFIX.urn, LengthPrefixCoder)
+
+
+class StateBackedIterableCoder(FastCoder):
+  def __init__(
+      self,
+      element_coder,
+      read_state=None,
+      write_state=None,
+      write_state_threshold=1):
+    self._element_coder = element_coder
+    self._read_state = read_state
+    self._write_state = write_state
+    self._write_state_threshold = write_state_threshold
+
+  def _create_impl(self):
+    return coder_impl.IterableCoderImpl(
+        self._element_coder.get_impl(),
+        self._read_state,
+        self._write_state,
+        self._write_state_threshold)
+
+  def is_deterministic(self):
+    return False
+
+  def _get_component_coders(self):
+    return (self._element_coder,)
+
+  def __repr__(self):
+    return 'StateBackedIterableCoder[%r]' % self._element_coder
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._element_coder == other._element_coder
+            and self._write_state_threshold == other._write_state_threshold)
+
+  def __hash__(self):
+    return hash((type(self), self._element_coder, self._write_state_threshold))
+
+  def to_runner_api_parameter(self, context):
+    return (
+        common_urns.coders.STATE_BACKED_ITERABLE.urn,
+        str(self._write_state_threshold).encode('ascii'),
+        self._get_component_coders())
+
+  @Coder.register_urn(common_urns.coders.STATE_BACKED_ITERABLE.urn, bytes)
+  def from_runner_api_parameter(payload, components, context):
+    return StateBackedIterableCoder(
+        components[0],
+        read_state=context.iterable_state_read,
+        write_state=context.iterable_state_write,
+        write_state_threshold=int(payload))

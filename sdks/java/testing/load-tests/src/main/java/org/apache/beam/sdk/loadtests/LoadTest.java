@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.loadtests;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
@@ -25,7 +26,6 @@ import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
-import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
@@ -107,13 +107,6 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
     Preconditions.checkArgument(
         table != null, "Please specify --bigQueryTable option if you want to publish to BigQuery");
-  }
-
-  <T extends SyntheticOptions> T fromJsonString(String json, Class<T> type) throws IOException {
-    ObjectMapper mapper = new ObjectMapper();
-    T result = mapper.readValue(json, type);
-    result.validate();
-    return result;
   }
 
   Optional<SyntheticStep> createStep(String stepOptions) throws IOException {

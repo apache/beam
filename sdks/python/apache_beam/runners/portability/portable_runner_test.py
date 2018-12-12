@@ -35,6 +35,7 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -48,7 +49,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   TIMEOUT_SECS = 30
 
-  _use_grpc = False
+  # Controls job service interaction, not sdk harness interaction.
   _use_subprocesses = False
 
   def setUp(self):
@@ -127,13 +128,8 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   def _create_job_endpoint(cls):
     if cls._use_subprocesses:
       return cls._start_local_runner_subprocess_job_service()
-    elif cls._use_grpc:
-      # Use GRPC for workers.
-      cls._servicer = LocalJobServicer(use_grpc=True)
-      return 'localhost:%d' % cls._servicer.start_grpc_server()
     else:
-      # Do not use GRPC for worker.
-      cls._servicer = LocalJobServicer(use_grpc=False)
+      cls._servicer = LocalJobServicer()
       return 'localhost:%d' % cls._servicer.start_grpc_server()
 
   @classmethod
@@ -162,6 +158,9 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
         'job_name': get_pipeline_name() + '_' + str(time.time())
     })
     options.view_as(PortableOptions).job_endpoint = self._get_job_endpoint()
+    # Override the default environment type for testing.
+    options.view_as(PortableOptions).environment_type = (
+        python_urns.EMBEDDED_PYTHON)
     return options
 
   def create_pipeline(self):
@@ -170,14 +169,36 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
 
 
-class PortableRunnerTestWithGrpc(PortableRunnerTest):
-  _use_grpc = True
+class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
+
+  @classmethod
+  def setUpClass(cls):
+    cls._worker_address, cls._worker_server = (
+        portable_runner.BeamFnExternalWorkerPoolServicer.start())
+
+  @classmethod
+  def tearDownClass(cls):
+    cls._worker_server.stop(1)
+
+  def create_options(self):
+    options = super(PortableRunnerTestWithExternalEnv, self).create_options()
+    options.view_as(PortableOptions).environment_type = 'EXTERNAL'
+    options.view_as(PortableOptions).environment_config = self._worker_address
+    return options
 
 
 @unittest.skip("BEAM-3040")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
-  _use_grpc = True
   _use_subprocesses = True
+
+  def create_options(self):
+    options = super(PortableRunnerTestWithSubprocesses, self).create_options()
+    options.view_as(PortableOptions).environment_type = (
+        python_urns.SUBPROCESS_SDK)
+    options.view_as(PortableOptions).environment_config = (
+        b'%s -m apache_beam.runners.worker.sdk_worker_main' %
+        sys.executable.encode('ascii'))
+    return options
 
   @classmethod
   def _subprocess_command(cls, port):
@@ -185,8 +206,6 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
         sys.executable,
         '-m', 'apache_beam.runners.portability.local_job_service_main',
         '-p', str(port),
-        '--worker_command_line',
-        '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable,
     ]
 
 

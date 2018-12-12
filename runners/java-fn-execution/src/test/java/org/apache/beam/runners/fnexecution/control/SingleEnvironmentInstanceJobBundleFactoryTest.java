@@ -47,6 +47,7 @@ import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
@@ -84,7 +85,7 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
 
     factory =
         SingleEnvironmentInstanceJobBundleFactory.create(
-            environmentFactory, dataServer, stateServer, null);
+            environmentFactory, dataServer, stateServer, IdGenerators.incrementingLongs());
   }
 
   @After

@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import com.google.common.collect.Iterables;
 import java.io.Closeable;
+import java.util.Map;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReceivingOperation;
@@ -35,22 +36,21 @@ import org.slf4j.LoggerFactory;
 /**
  * This {@link org.apache.beam.runners.dataflow.worker.util.common.worker.Operation} is responsible
  * for communicating with the SDK harness and asking it to process a bundle of work. This operation
- * request a RemoteBundle{@link org.apache.beam.runners.fnexecution.control.RemoteBundle}, send data
- * elements to SDK and receive processed results from SDK, then pass these elements to next
- * Operations.
+ * requests a {@link org.apache.beam.runners.fnexecution.control.RemoteBundle}, sends elements to
+ * SDK and receive processed results from SDK, passing these elements downstream.
  */
 public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessRemoteBundleOperation.class);
   private final StageBundleFactory stageBundleFactory;
+  private static final OutputReceiver[] EMPTY_RECEIVER_ARRAY = new OutputReceiver[0];
+  private final Map<String, OutputReceiver> outputReceiverMap;
   private final OutputReceiverFactory receiverFactory =
       new OutputReceiverFactory() {
         @Override
         public FnDataReceiver<?> create(String pCollectionId) {
           return receivedElement -> {
-            for (OutputReceiver receiver : receivers) {
-              LOG.debug("Consume element {}", receivedElement);
-              receiver.process((WindowedValue<?>) receivedElement);
-            }
+            LOG.debug("Consume element {}", receivedElement);
+            outputReceiverMap.get(pCollectionId).process((WindowedValue<?>) receivedElement);
           };
         }
       };
@@ -59,11 +59,14 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private RemoteBundle remoteBundle;
 
   public ProcessRemoteBundleOperation(
-      OperationContext context, StageBundleFactory stageBundleFactory, OutputReceiver[] receivers) {
-    super(receivers, context);
+      OperationContext context,
+      StageBundleFactory stageBundleFactory,
+      Map<String, OutputReceiver> outputReceiverMap) {
+    super(EMPTY_RECEIVER_ARRAY, context);
     this.stageBundleFactory = stageBundleFactory;
-    stateRequestHandler = StateRequestHandler.unsupported();
-    progressHandler = BundleProgressHandler.ignored();
+    this.outputReceiverMap = outputReceiverMap;
+    this.stateRequestHandler = StateRequestHandler.unsupported();
+    this.progressHandler = BundleProgressHandler.ignored();
   }
 
   @Override

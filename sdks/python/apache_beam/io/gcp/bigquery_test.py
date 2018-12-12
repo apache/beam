@@ -99,20 +99,23 @@ class TestTableRowJsonCoder(unittest.TestCase):
         ('f', 'FLOAT'),
         ('b', 'BOOLEAN'),
         ('n', 'NUMERIC'),
-        ('r', 'RECORD')]
+        ('r', 'RECORD'),
+        ('g', 'GEOGRAPHY')]
     data_definition = [
         'abc',
         123,
         123.456,
         True,
         decimal.Decimal('987654321.987654321'),
-        {'a': 'b'}]
+        {'a': 'b'},
+        'LINESTRING(1 2, 3 4, 5 6, 7 8)']
     str_def = ('{"s": "abc", '
                '"i": 123, '
                '"f": 123.456, '
                '"b": true, '
                '"n": "987654321.987654321", '
-               '"r": {"a": "b"}}')
+               '"r": {"a": "b"}, '
+               '"g": "LINESTRING(1 2, 3 4, 5 6, 7 8)"}')
     schema = bigquery.TableSchema(
         fields=[bigquery.TableFieldSchema(name=k, type=v)
                 for k, v in schema_definition])
@@ -871,7 +874,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
-        client=client)
+        test_client=client)
 
     fn.start_bundle()
     self.assertTrue(client.tables.Get.called)
@@ -895,7 +898,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
-        client=client)
+        test_client=client)
 
     fn.start_bundle()
     self.assertTrue(client.tables.Get.called)
@@ -921,7 +924,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
-        client=client)
+        test_client=client)
 
     fn.start_bundle()
     fn.process({'month': 1})
@@ -950,7 +953,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
-        client=client)
+        test_client=client)
 
     fn.start_bundle()
     fn.process({'month': 1})
@@ -979,7 +982,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
-        client=client)
+        test_client=client)
 
     fn.start_bundle()
     fn.process({'month': 1})
@@ -1012,7 +1015,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
-        client=client)
+        test_client=client)
 
     fn.start_bundle()
     self.assertTrue(client.tables.Get.called)

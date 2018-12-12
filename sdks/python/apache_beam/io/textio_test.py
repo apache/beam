@@ -20,6 +20,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 import bz2
+import datetime
 import glob
 import gzip
 import logging
@@ -43,6 +44,7 @@ from apache_beam.io.textio import _TextSink as TextSink
 from apache_beam.io.textio import _TextSource as TextSource
 # Importing following private classes for testing.
 from apache_beam.io.textio import ReadFromText
+from apache_beam.io.textio import ReadFromTextWithFilename
 from apache_beam.io.textio import WriteToText
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import TempDir
@@ -347,6 +349,15 @@ class TextSourceTest(unittest.TestCase):
     assert_that(pcoll, equal_to(expected_data))
     pipeline.run()
 
+  def test_read_from_text_with_file_name_single_file(self):
+    file_name, data = write_data(5)
+    expected_data = [(file_name, el) for el in data]
+    assert len(expected_data) == 5
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Read' >> ReadFromTextWithFilename(file_name)
+    assert_that(pcoll, equal_to(expected_data))
+    pipeline.run()
+
   def test_read_all_single_file(self):
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5
@@ -413,6 +424,21 @@ class TextSourceTest(unittest.TestCase):
     assert len(expected_data) == 40
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(pattern)
+    assert_that(pcoll, equal_to(expected_data))
+    pipeline.run()
+
+  def test_read_from_text_with_file_name_file_pattern(self):
+    prefix = datetime.datetime.now().strftime("%Y%m%d%H%M%s")
+    file_name_1, data_1 = write_data(5, prefix=prefix)
+    file_name_2, data_2 = write_data(5, prefix=prefix)
+    expected_data = []
+    expected_data.extend([(file_name_1, el) for el in data_1])
+    expected_data.extend([(file_name_2, el) for el in data_2])
+    folder = file_name_1[:file_name_1.rfind(os.path.sep)]
+    pattern = folder + os.path.sep + prefix + '*'
+    assert len(expected_data) == 10
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Read' >> ReadFromTextWithFilename(pattern)
     assert_that(pcoll, equal_to(expected_data))
     pipeline.run()
 

@@ -82,8 +82,9 @@ import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
- * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into an
- * {@link Node} containing {@link org.apache.beam.runners.core.construction.graph.ExecutableStage}.
+ * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into a
+ * {@link Node} containing an {@link
+ * org.apache.beam.runners.core.construction.graph.ExecutableStage}.
  */
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
@@ -226,7 +227,7 @@ public class CreateExecutableStageNodeFunction
             e);
       }
 
-      String pcollectionId = "generatedPcollection" + idGenerator.getId();
+      String pcollectionId = node.getPcollectionId();
       RunnerApi.PCollection pCollection =
           RunnerApi.PCollection.newBuilder()
               .setCoderId(coderId)
@@ -348,6 +349,10 @@ public class CreateExecutableStageNodeFunction
 
       pTransform.setSpec(transformSpec);
       executableStageTransforms.add(PipelineNode.pTransform(ptransformId, pTransform.build()));
+    }
+
+    if (executableStageInputs.size() != 1) {
+      throw new UnsupportedOperationException("ExecutableStage only support one input PCollection");
     }
 
     PCollectionNode executableInput = executableStageInputs.iterator().next();

@@ -261,9 +261,11 @@ public class CreateRegisterFnOperationFunction
       Set<Node> successors) {
 
     InstructionOutputNode newPredecessorOutputNode =
-        InstructionOutputNode.create(outputNode.getInstructionOutput());
+        InstructionOutputNode.create(
+            outputNode.getInstructionOutput(), outputNode.getPcollectionId());
     InstructionOutputNode portOutputNode =
-        InstructionOutputNode.create(outputNode.getInstructionOutput());
+        InstructionOutputNode.create(
+            outputNode.getInstructionOutput(), outputNode.getPcollectionId());
     String predecessorPortEdgeId = idGenerator.getId();
     String successorPortEdgeId = idGenerator.getId();
     Node portNode = portSupplier.apply(predecessorPortEdgeId, successorPortEdgeId);

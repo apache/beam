@@ -114,6 +114,7 @@ REQUIRED_PACKAGES_PY3_ONLY = [
 REQUIRED_PACKAGES = [
     'crcmod>=1.7,<2.0',
     'fastavro>=0.21.4,<0.22',
+    'pyarrow>=0.11.1,<0.12.0',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.11.3',
@@ -132,6 +133,7 @@ REQUIRED_PACKAGES = [
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
+    'pandas>=0.23.4,<0.24',
     'parameterized>=0.6.0,<0.7.0',
     'numpy>=1.14.3,<2',
     'pyhamcrest>=1.9,<2.0',

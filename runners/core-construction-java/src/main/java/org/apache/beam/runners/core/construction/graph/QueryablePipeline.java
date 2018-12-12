@@ -19,6 +19,9 @@ package org.apache.beam.runners.core.construction.graph;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.CREATE_VIEW_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
@@ -162,6 +165,9 @@ public class QueryablePipeline {
           MAP_WINDOWS_TRANSFORM_URN,
           READ_TRANSFORM_URN,
           CREATE_VIEW_TRANSFORM_URN,
+          COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
+          COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
+          COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
           SPLITTABLE_PROCESS_KEYED_URN,
           SPLITTABLE_PROCESS_ELEMENTS_URN);
 

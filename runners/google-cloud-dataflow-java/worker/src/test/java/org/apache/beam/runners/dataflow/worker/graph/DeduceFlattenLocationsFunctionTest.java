@@ -381,7 +381,7 @@ public final class DeduceFlattenLocationsFunctionTest {
 
   /** Creates an {@link InstructionOutputNode} to act as a PCollection. */
   private static InstructionOutputNode createPCollection(String name) {
-    return InstructionOutputNode.create(new InstructionOutput().setName(name));
+    return InstructionOutputNode.create(new InstructionOutput().setName(name), "fakeID");
   }
 
   private static ExecutionLocation getExecutionLocationOf(
