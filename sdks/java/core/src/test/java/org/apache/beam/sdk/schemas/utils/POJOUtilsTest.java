@@ -240,14 +240,12 @@ public class POJOUtilsTest {
 
     @Override
     public String toString() {
-      return "Foo{" +
-          "field1=" + field1 +
-          ", field2='" + field2 + '\'' +
-          '}';
+      return "Foo{" + "field1=" + field1 + ", field2='" + field2 + '\'' + '}';
     }
   }
 
   private static final Unsafe UNSAFE;
+
   static {
     try {
       Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");

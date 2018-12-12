@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas.annotations;
 
 import java.lang.annotation.Documented;
@@ -23,18 +22,16 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import javax.annotation.CheckForNull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.SchemaProvider;
 
-/** When used on a POJO field or a JavaBean getter, that field or getter is ignored from the
- * inferred schema.
+/**
+ * When used on a POJO field or a JavaBean getter, that field or getter is ignored from the inferred
+ * schema.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @SuppressWarnings("rawtypes")
 @Experimental(Kind.SCHEMAS)
-public @interface SchemaIgnore {
-}
+public @interface SchemaIgnore {}

@@ -15,9 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas.annotations;
-
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -28,7 +26,8 @@ import javax.annotation.CheckForNull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/** When used on a POJO field or a JavaBean getter, the specified name is used for the generated
+/**
+ * When used on a POJO field or a JavaBean getter, the specified name is used for the generated
  * schema field.
  */
 @Documented
