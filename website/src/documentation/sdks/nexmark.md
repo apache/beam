@@ -220,7 +220,7 @@ Available suites are:
 ### Flink runner specific configuration
 
     --manageResources=false --monitorJobs=true \
-    --flinkMaster=local --parallelism=#numcores
+    --flinkMaster=[local] --parallelism=#numcores
 
 ### Spark runner specific configuration
 
@@ -565,7 +565,7 @@ Batch Mode:
             --streaming=false
             --manageResources=false
             --monitorJobs=true
-            --flinkMaster=local"
+            --flinkMaster=[local]"
 
 Streaming Mode:
 
@@ -578,7 +578,7 @@ Streaming Mode:
             --streaming=true
             --manageResources=false
             --monitorJobs=true
-            --flinkMaster=local"
+            --flinkMaster=[local]"
 
 ### Running SMOKE suite on the ApexRunner (local)
 
