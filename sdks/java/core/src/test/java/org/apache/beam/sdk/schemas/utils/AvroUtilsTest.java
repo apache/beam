@@ -25,6 +25,7 @@ import static org.junit.Assume.assumeThat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
@@ -32,6 +33,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
@@ -292,7 +294,7 @@ public class AvroUtilsTest {
         new org.apache.avro.Schema.Field(
             "array",
             org.apache.avro.Schema.createArray(
-                ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
+                ReflectData.makeNullable(org.apache.avro.Schema.create(Type.BYTES))),
             "",
             null));
     fields.add(
@@ -307,10 +309,26 @@ public class AvroUtilsTest {
     Schema expectedSchema =
         Schema.builder()
             .addNullableField("int", FieldType.INT32)
-            .addArrayField("array", FieldType.INT32.withNullable(true))
+            .addArrayField("array", FieldType.BYTES.withNullable(true))
             .addMapField("map", FieldType.STRING, FieldType.INT32.withNullable(true))
             .build();
     assertEquals(expectedSchema, AvroUtils.toBeamSchema(avroSchema));
+
+    Map<String, Object> nullMap = Maps.newHashMap();
+    nullMap.put("k1", null);
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(avroSchema)
+            .set("int", null)
+            .set("array", Lists.newArrayList((Object) null))
+            .set("map", nullMap)
+            .build();
+    Row expectedRow =
+        Row.withSchema(expectedSchema)
+            .addValue(null)
+            .addValue(Lists.newArrayList((Object) null))
+            .addValue(nullMap)
+            .build();
+    assertEquals(expectedRow, AvroUtils.toBeamRowStrict(genericRecord, expectedSchema));
   }
 
   @Test
@@ -342,6 +360,25 @@ public class AvroUtilsTest {
             null));
     org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);
     assertEquals(avroSchema, AvroUtils.toAvroSchema(beamSchema));
+
+    Map<Utf8, Object> nullMapUtf8 = Maps.newHashMap();
+    nullMapUtf8.put(new Utf8("k1"), null);
+    Map<String, Object> nullMapString = Maps.newHashMap();
+    nullMapString.put("k1", null);
+
+    GenericRecord expectedGenericRecord =
+        new GenericRecordBuilder(avroSchema)
+            .set("int", null)
+            .set("array", Lists.newArrayList((Object) null))
+            .set("map", nullMapUtf8)
+            .build();
+    Row row =
+        Row.withSchema(beamSchema)
+            .addValue(null)
+            .addValue(Lists.newArrayList((Object) null))
+            .addValue(nullMapString)
+            .build();
+    assertEquals(expectedGenericRecord, AvroUtils.toGenericRecord(row, avroSchema));
   }
 
   @Test

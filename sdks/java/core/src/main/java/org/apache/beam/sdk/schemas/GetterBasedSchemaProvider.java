@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -34,45 +34,12 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   /** Implementing class should override to return a getter factory. */
   abstract FieldValueGetterFactory fieldValueGetterFactory();
 
-  /** Implementing class should override to return a setter factory. */
-  abstract FieldValueSetterFactory fieldValueSetterFactory();
-
   /** Implementing class should override to return a type-information factory. */
   abstract FieldValueTypeInformationFactory fieldValueTypeInformationFactory();
 
-  /**
-   * Implementing class should override to return a constructor factory.
-   *
-   * <p>Tne default factory uses the default constructor and the setters to construct an object.
-   */
-  UserTypeCreatorFactory schemaTypeCreatorFactory() {
-    Factory<List<FieldValueSetter>> setterFactory = new CachingFactory<>(fieldValueSetterFactory());
-    return new UserTypeCreatorFactory() {
-      @Override
-      public SchemaUserTypeCreator create(Class<?> clazz, Schema schema) {
-        List<FieldValueSetter> setters = setterFactory.create(clazz, schema);
-        return new SchemaUserTypeCreator() {
-          @Override
-          public Object create(Object... params) {
-            Object object;
-            try {
-              object = clazz.getDeclaredConstructor().newInstance();
-            } catch (NoSuchMethodException
-                | IllegalAccessException
-                | InvocationTargetException
-                | InstantiationException e) {
-              throw new RuntimeException("Failed to instantiate object ", e);
-            }
-            for (int i = 0; i < params.length; ++i) {
-              FieldValueSetter setter = setters.get(i);
-              setter.set(object, params[i]);
-            }
-            return object;
-          }
-        };
-      }
-    };
-  }
+  /** Implementing class should override to return a constructor factory. */
+  @Nullable
+  abstract UserTypeCreatorFactory schemaTypeCreatorFactory();
 
   @Override
   public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
