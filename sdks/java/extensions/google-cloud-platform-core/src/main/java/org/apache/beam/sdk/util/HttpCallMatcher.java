@@ -22,5 +22,7 @@ package org.apache.beam.sdk.util;
  * generate a custom error message with more context.
  */
 interface HttpCallMatcher {
+
+  /** @return true iff the request and response represent a matching http c\all. */
   boolean matchResponse(HttpRequestWrapper req, HttpResponseWrapper response);
 }

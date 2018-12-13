@@ -25,7 +25,7 @@ import com.google.api.client.http.HttpResponse;
  * feature, but it causes many issues and several tests fail when it is enabled.
  * https://stackoverflow.com/questions/14292863/how-to-mock-a-final-class-with-mockito
  */
-public class HttpResponseWrapper {
+class HttpResponseWrapper {
   private HttpResponse response;
 
   public HttpResponseWrapper(HttpResponse response) {

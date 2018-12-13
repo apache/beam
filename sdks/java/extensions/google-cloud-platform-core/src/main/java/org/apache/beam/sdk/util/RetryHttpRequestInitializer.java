@@ -70,14 +70,14 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     private final Set<Integer> ignoredResponseCodes;
     private int ioExceptionRetries;
     private int unsuccessfulResponseRetries;
-    private CustomHttpErrors customHttpErrors;
+    @Nullable private CustomHttpErrors customHttpErrors;
 
     private LoggingHttpBackOffHandler(
         Sleeper sleeper,
         BackOff ioExceptionBackOff,
         BackOff unsucessfulResponseBackOff,
         Set<Integer> ignoredResponseCodes,
-        CustomHttpErrors customHttpErrors) {
+        @Nullable CustomHttpErrors customHttpErrors) {
       this.sleeper = sleeper;
       this.ioExceptionBackOff = ioExceptionBackOff;
       this.unsuccessfulResponseBackOff = unsucessfulResponseBackOff;

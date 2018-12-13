@@ -19,5 +19,7 @@ package org.apache.beam.sdk.util;
 
 /** Lambda interface for defining a custom error to log based on an http request and response. */
 interface HttpCallCustomError {
+
+  /** @return A string which represents a custom error to be logged for the request and response. */
   String customError(HttpRequestWrapper request, HttpResponseWrapper response);
 }

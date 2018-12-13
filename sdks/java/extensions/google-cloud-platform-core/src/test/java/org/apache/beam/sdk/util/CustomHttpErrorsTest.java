@@ -38,7 +38,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class CustomHttpErrorsTest {
 
-  public final String BQ_TABLES_LIST_URL =
+  private static final String BQ_TABLES_LIST_URL =
       ("http://www.googleapis.com/bigquery/v2/projects/"
           + "myproject/datasets/mydataset/tables?maxResults=1000");
 
@@ -70,7 +70,7 @@ public class CustomHttpErrorsTest {
   }
 
   @Test
-  public void testMatchCode() throws IOException {
+  public void testMatchesCode() throws IOException {
     HttpRequestWrapper request = createHttpRequest(BQ_TABLES_LIST_URL);
     HttpResponseWrapper response = createHttpResponse(403);
     HttpCallCustomError mockCustomError = mock(HttpCallCustomError.class);
@@ -84,7 +84,7 @@ public class CustomHttpErrorsTest {
   }
 
   @Test
-  public void testNoMatchCode() throws IOException {
+  public void testNotMatchesCode() throws IOException {
     HttpRequestWrapper request = createHttpRequest(BQ_TABLES_LIST_URL);
     HttpResponseWrapper response = createHttpResponse(404);
     HttpCallCustomError mockCustomError = mock(HttpCallCustomError.class);
@@ -113,7 +113,7 @@ public class CustomHttpErrorsTest {
   }
 
   @Test
-  public void testNoMatchesCodeAndUrlContains() throws IOException {
+  public void testNotMatchesCodeAndUrlContains() throws IOException {
     HttpRequestWrapper request = createHttpRequest(BQ_TABLES_LIST_URL);
     HttpResponseWrapper response = createHttpResponse(404);
     HttpCallCustomError mockCustomError = mock(HttpCallCustomError.class);

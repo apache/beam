@@ -26,7 +26,7 @@ import com.google.api.client.http.HttpRequest;
  * feature, but it causes many issues and several tests fail when it is enabled.
  * https://stackoverflow.com/questions/14292863/how-to-mock-a-final-class-with-mockito
  */
-public class HttpRequestWrapper {
+class HttpRequestWrapper {
 
   private HttpRequest request;
 
