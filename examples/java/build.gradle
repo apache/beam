@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+applyJavaNature(exportJavadoc: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

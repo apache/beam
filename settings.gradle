@@ -38,12 +38,26 @@ include "beam-runners-direct-java"
 project(":beam-runners-direct-java").dir = file("runners/direct-java")
 include "beam-runners-extensions-java-metrics"
 project(":beam-runners-extensions-java-metrics").dir = file("runners/extensions-java/metrics")
+/* Begin Flink Runner related settings */
+// 1.5 version with Scala 2.11 suffix
 include "beam-runners-flink_2.11"
 project(":beam-runners-flink_2.11").dir = file("runners/flink")
 include "beam-runners-flink_2.11-job-server"
 project(":beam-runners-flink_2.11-job-server").dir = file("runners/flink/job-server")
 include "beam-runners-flink_2.11-job-server-container"
 project(":beam-runners-flink_2.11-job-server-container").dir = file("runners/flink/job-server-container")
+// 1.6 version
+include "beam-runners-flink-1.6"
+project(":beam-runners-flink-1.6").dir = file("runners/flink/1.6")
+include "beam-runners-flink-1.6-job-server"
+project(":beam-runners-flink-1.6-job-server").dir = file("runners/flink/1.6/job-server")
+include "beam-runners-flink-1.6-job-server-container"
+project(":beam-runners-flink-1.6-job-server-container").dir = file("runners/flink/1.6/job-server-container")
+/* End Flink Runner related settings */
+include "beam-runners-gcp-gcemd"
+project(":beam-runners-gcp-gcemd").dir = file("runners/gcp/gcemd")
+include "beam-runners-gcp-gcsproxy"
+project(":beam-runners-gcp-gcsproxy").dir = file("runners/gcp/gcsproxy")
 include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
@@ -132,6 +146,8 @@ include "beam-sdks-java-io-hadoop-file-system"
 project(":beam-sdks-java-io-hadoop-file-system").dir = file("sdks/java/io/hadoop-file-system")
 include "beam-sdks-java-io-hadoop-input-format"
 project(":beam-sdks-java-io-hadoop-input-format").dir = file("sdks/java/io/hadoop-input-format")
+include "beam-sdks-java-io-hadoop-format"
+project(":beam-sdks-java-io-hadoop-format").dir = file("sdks/java/io/hadoop-format")
 include "beam-sdks-java-io-hbase"
 project(":beam-sdks-java-io-hbase").dir = file("sdks/java/io/hbase")
 include "beam-sdks-java-io-hcatalog"
@@ -180,9 +196,8 @@ include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
 include "beam-sdks-python-container-py3"
 project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
-// Temporary version that will be deleted once we migrate to using the published version.
-include "beam-vendor-grpc-v1_13_1"
-project(":beam-vendor-grpc-v1_13_1").dir = file("vendor/grpc-v1_13_1")
+include "beam-sdks-python-precommit-dataflow"
+project(":beam-sdks-python-precommit-dataflow").dir = file("sdks/python/precommit/dataflow")
 include "beam-vendor-grpc-1_13_1"
 project(":beam-vendor-grpc-1_13_1").dir = file("vendor/grpc-1_13_1")
 include "beam-sdks-java-test-utils"
@@ -201,3 +216,5 @@ include "beam-runners-google-cloud-dataflow-java-windmill"
 project(":beam-runners-google-cloud-dataflow-java-windmill").dir = file("runners/google-cloud-dataflow-java/worker/windmill")
 include "beam-test-infra-metrics"
 project(":beam-test-infra-metrics").dir = file(".test-infra/metrics")
+include "beam-sdks-java-bom"
+project(":beam-sdks-java-bom").dir = file("sdks/java/bom")

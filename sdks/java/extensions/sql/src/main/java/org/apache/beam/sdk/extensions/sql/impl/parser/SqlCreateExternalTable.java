@@ -138,7 +138,7 @@ public class SqlCreateExternalTable extends SqlCreate implements SqlExecutableSt
     writer.identifier(column.getName());
     writer.identifier(CalciteUtils.toSqlTypeName(column.getType()).name());
 
-    if (column.getNullable() != null && !column.getNullable()) {
+    if (column.getType().getNullable() != null && !column.getType().getNullable()) {
       writer.keyword("NOT NULL");
     }
 

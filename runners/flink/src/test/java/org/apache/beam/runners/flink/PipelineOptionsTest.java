@@ -70,6 +70,7 @@ public class PipelineOptionsTest {
   public void testDefaults() {
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
     assertThat(options.getParallelism(), is(-1));
+    assertThat(options.getMaxParallelism(), is(-1));
     assertThat(options.getFlinkMaster(), is("[auto]"));
     assertThat(options.getFilesToStage(), is(nullValue()));
     assertThat(options.getLatencyTrackingInterval(), is(0L));
@@ -86,6 +87,8 @@ public class PipelineOptionsTest {
     assertThat(options.getMaxBundleSize(), is(1000L));
     assertThat(options.getMaxBundleTimeMills(), is(1000L));
     assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED));
+    assertThat(options.getSavepointPath(), is(nullValue()));
+    assertThat(options.getAllowNonRestoredState(), is(false));
   }
 
   @Test(expected = Exception.class)

@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -46,12 +47,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
@@ -63,7 +64,6 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowPortabilityPCollectionView;
-import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
@@ -71,6 +71,8 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -140,15 +142,21 @@ public class RegisterAndProcessBundleOperationTest {
             });
   }
 
-  private Supplier<String> makeIdGeneratorStartingFrom(long initialValue) {
-    AtomicLong longIdGenerator = new AtomicLong(initialValue);
-    return () -> Long.toString(longIdGenerator.getAndIncrement());
+  private IdGenerator makeIdGeneratorStartingFrom(long initialValue) {
+    return new IdGenerator() {
+      AtomicLong longs = new AtomicLong(initialValue);
+
+      @Override
+      public String getId() {
+        return Long.toString(longs.getAndIncrement());
+      }
+    };
   }
 
   @Test
   public void testSupportsRestart() {
     new RegisterAndProcessBundleOperation(
-            IdGenerator::generate,
+            IdGenerators.decrementingLongs(),
             new InstructionRequestHandler() {
               @Override
               public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
@@ -173,7 +181,7 @@ public class RegisterAndProcessBundleOperationTest {
   @Test
   public void testRegisterOnlyOnFirstBundle() throws Exception {
     List<BeamFnApi.InstructionRequest> requests = new ArrayList<>();
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
+    IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
     RegisterAndProcessBundleOperation operation =
         new RegisterAndProcessBundleOperation(
             idGenerator,
@@ -243,7 +251,7 @@ public class RegisterAndProcessBundleOperationTest {
 
   @Test
   public void testTentativeUserMetrics() throws Exception {
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
+    IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
 
     CountDownLatch processBundleLatch = new CountDownLatch(1);
 
@@ -316,7 +324,7 @@ public class RegisterAndProcessBundleOperationTest {
 
     operation.start();
 
-    BeamFnApi.Metrics metrics = MoreFutures.get(operation.getMetrics());
+    BeamFnApi.Metrics metrics = MoreFutures.get(operation.getProcessBundleProgress()).getMetrics();
     assertThat(metrics.getPtransformsOrThrow(stepName).getUserCount(), equalTo(1));
 
     BeamFnApi.Metrics.User userMetric = metrics.getPtransformsOrThrow(stepName).getUser(0);
@@ -330,7 +338,7 @@ public class RegisterAndProcessBundleOperationTest {
   @Test
   public void testFinalUserMetrics() throws Exception {
     List<BeamFnApi.InstructionRequest> requests = new ArrayList<>();
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
+    IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
     ExecutorService executorService = Executors.newCachedThreadPool();
 
     CountDownLatch processBundleLatch = new CountDownLatch(1);
@@ -420,7 +428,7 @@ public class RegisterAndProcessBundleOperationTest {
     operation.start();
 
     // Force some intermediate metrics to test crosstalk is not introduced
-    BeamFnApi.Metrics metrics = MoreFutures.get(operation.getMetrics());
+    BeamFnApi.Metrics metrics = MoreFutures.get(operation.getProcessBundleProgress()).getMetrics();
     BeamFnApi.Metrics.User userMetric = metrics.getPtransformsOrThrow(stepName).getUser(0);
     assertThat(userMetric.getMetricName(), equalTo(metricName));
     assertThat(userMetric.getCounterData().getValue(), not(equalTo(finalCounterValue)));
@@ -438,7 +446,7 @@ public class RegisterAndProcessBundleOperationTest {
   @Test
   public void testProcessingBundleBlocksOnFinish() throws Exception {
     List<BeamFnApi.InstructionRequest> requests = new ArrayList<>();
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
+    IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
     ExecutorService executorService = Executors.newCachedThreadPool();
     RegisterAndProcessBundleOperation operation =
         new RegisterAndProcessBundleOperation(
@@ -510,7 +518,7 @@ public class RegisterAndProcessBundleOperationTest {
 
   @Test
   public void testProcessingBundleHandlesUserStateRequests() throws Exception {
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
+    IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
     ExecutorService executorService = Executors.newCachedThreadPool();
 
     InMemoryStateInternals<ByteString> stateInternals =
@@ -620,7 +628,7 @@ public class RegisterAndProcessBundleOperationTest {
 
   @Test
   public void testProcessingBundleHandlesMultimapSideInputRequests() throws Exception {
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
+    IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
     ExecutorService executorService = Executors.newCachedThreadPool();
 
     DataflowStepContext mockStepContext = mock(DataflowStepContext.class);
@@ -748,7 +756,7 @@ public class RegisterAndProcessBundleOperationTest {
 
   @Test
   public void testAbortCancelsAndCleansUpDuringRegister() throws Exception {
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
+    IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
     ExecutorService executorService = Executors.newCachedThreadPool();
 
     CountDownLatch waitForAbortToComplete = new CountDownLatch(1);
@@ -795,7 +803,7 @@ public class RegisterAndProcessBundleOperationTest {
 
   @Test
   public void testAbortCancelsAndCleansUpDuringProcessBundle() throws Exception {
-    Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
+    IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
     ExecutorService executorService = Executors.newCachedThreadPool();
 
     CountDownLatch waitForAbortToComplete = new CountDownLatch(1);
@@ -850,5 +858,59 @@ public class RegisterAndProcessBundleOperationTest {
         BeamFnApi.InstructionResponse.newBuilder()
             .setInstructionId(request.getInstructionId())
             .build());
+  }
+
+  @Test
+  public void testGetProcessBundleProgressReturnsDefaultInstanceIfNoBundleIdCached()
+      throws Exception {
+    InstructionRequestHandler mockInstructionRequestHandler = mock(InstructionRequestHandler.class);
+
+    RegisterAndProcessBundleOperation operation =
+        new RegisterAndProcessBundleOperation(
+            IdGenerators.decrementingLongs(),
+            mockInstructionRequestHandler,
+            mockBeamFnStateDelegator,
+            REGISTER_REQUEST,
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableTable.of(),
+            mockContext);
+
+    assertEquals(
+        ProcessBundleProgressResponse.getDefaultInstance(),
+        MoreFutures.get(operation.getProcessBundleProgress()));
+  }
+
+  @Test
+  public void testGetProcessBundleProgressFetchesProgressResponseWhenBundleIdCached()
+      throws Exception {
+    InstructionRequestHandler mockInstructionRequestHandler = mock(InstructionRequestHandler.class);
+
+    RegisterAndProcessBundleOperation operation =
+        new RegisterAndProcessBundleOperation(
+            IdGenerators.decrementingLongs(),
+            mockInstructionRequestHandler,
+            mockBeamFnStateDelegator,
+            REGISTER_REQUEST,
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            ImmutableTable.of(),
+            mockContext);
+
+    operation.getProcessBundleInstructionId(); // this generates and caches bundleId
+
+    ProcessBundleProgressResponse expectedResult =
+        ProcessBundleProgressResponse.newBuilder().build();
+    InstructionResponse instructionResponse =
+        InstructionResponse.newBuilder().setProcessBundleProgress(expectedResult).build();
+    CompletableFuture resultFuture = CompletableFuture.completedFuture(instructionResponse);
+    when(mockInstructionRequestHandler.handle(any())).thenReturn(resultFuture);
+
+    final ProcessBundleProgressResponse result =
+        MoreFutures.get(operation.getProcessBundleProgress());
+
+    assertSame("Return value from mockInstructionRequestHandler", expectedResult, result);
   }
 }

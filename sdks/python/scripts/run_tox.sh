@@ -43,8 +43,8 @@ fi
 
 tox -c tox.ini --recreate -e $1
 exit_code=$?
-# Retry once for the specific exit code -11.
-if [[ $exit_code == -11 ]]; then
+# Retry once for the specific exit code 245.
+if [[ $exit_code == 245 ]]; then
   tox -c tox.ini --recreate -e $1
   exit_code=$?
 fi

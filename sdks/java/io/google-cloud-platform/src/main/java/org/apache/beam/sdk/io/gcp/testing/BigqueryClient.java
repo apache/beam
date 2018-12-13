@@ -181,21 +181,21 @@ public class BigqueryClient {
       return values.build();
     }
 
-    if (fieldSchema.getType().equals("RECORD")) {
+    if ("RECORD".equals(fieldSchema.getType())) {
       @SuppressWarnings("unchecked")
       Map<String, Object> typedV = (Map<String, Object>) v;
       return getTypedTableRow(fieldSchema.getFields(), typedV);
     }
 
-    if (fieldSchema.getType().equals("FLOAT")) {
+    if ("FLOAT".equals(fieldSchema.getType())) {
       return Double.parseDouble((String) v);
     }
 
-    if (fieldSchema.getType().equals("BOOLEAN")) {
+    if ("BOOLEAN".equals(fieldSchema.getType())) {
       return Boolean.parseBoolean((String) v);
     }
 
-    if (fieldSchema.getType().equals("TIMESTAMP")) {
+    if ("TIMESTAMP".equals(fieldSchema.getType())) {
       return (String) v;
     }
 

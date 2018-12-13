@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.math.BigDecimal;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.junit.Rule;
 import org.junit.Test;
@@ -156,11 +157,33 @@ public class OffsetRangeTrackerTest {
   }
 
   @Test
-  public void testCheckDoneWhenExplicitlyMarkedDone() {
-    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
-    assertTrue(tracker.tryClaim(150L));
-    assertTrue(tracker.tryClaim(175L));
-    tracker.markDone();
-    tracker.checkDone();
+  public void testBacklogUnstarted() {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0, 200));
+    assertEquals(BigDecimal.valueOf(200), tracker.getBacklog().backlog());
+
+    tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    assertEquals(BigDecimal.valueOf(100), tracker.getBacklog().backlog());
+  }
+
+  @Test
+  public void testBacklogFinished() {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0, 200));
+    tracker.tryClaim(300L);
+    assertEquals(BigDecimal.ZERO, tracker.getBacklog().backlog());
+
+    tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    tracker.tryClaim(300L);
+    assertEquals(BigDecimal.ZERO, tracker.getBacklog().backlog());
+  }
+
+  @Test
+  public void testBacklogPartiallyCompleted() {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0, 200));
+    tracker.tryClaim(150L);
+    assertEquals(BigDecimal.valueOf(50), tracker.getBacklog().backlog());
+
+    tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    tracker.tryClaim(150L);
+    assertEquals(BigDecimal.valueOf(50), tracker.getBacklog().backlog());
   }
 }

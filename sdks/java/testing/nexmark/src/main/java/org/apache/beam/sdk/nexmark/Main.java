@@ -40,7 +40,7 @@ import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testutils.publishing.BigQueryClient;
+import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -80,13 +80,13 @@ public class Main {
     private final NexmarkConfiguration configuration;
 
     private Run(NexmarkOptions options, NexmarkConfiguration configuration) {
-      this.nexmarkLauncher = new NexmarkLauncher<>(options);
+      this.nexmarkLauncher = new NexmarkLauncher<>(options, configuration);
       this.configuration = configuration;
     }
 
     @Override
     public Result call() throws IOException {
-      NexmarkPerf perf = nexmarkLauncher.run(configuration);
+      NexmarkPerf perf = nexmarkLauncher.run();
       return new Result(configuration, perf);
     }
   }
@@ -95,10 +95,7 @@ public class Main {
   void runAll(String[] args) throws IOException {
     NexmarkOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(NexmarkOptions.class);
-    runAll(options);
-  }
 
-  void runAll(NexmarkOptions options) throws IOException {
     Instant start = Instant.now();
     Map<NexmarkConfiguration, NexmarkPerf> baseline = loadBaseline(options.getBaselineFilename());
     Map<NexmarkConfiguration, NexmarkPerf> actual = new LinkedHashMap<>();
@@ -111,7 +108,8 @@ public class Main {
     try {
       // Schedule all the configurations.
       for (NexmarkConfiguration configuration : configurations) {
-        completion.submit(new Run(options, configuration));
+        NexmarkOptions optionsCopy = PipelineOptionsFactory.fromArgs(args).as(NexmarkOptions.class);
+        completion.submit(new Run(optionsCopy, configuration));
       }
 
       // Collect all the results.
@@ -144,8 +142,19 @@ public class Main {
       }
 
       if (options.getExportSummaryToBigQuery()) {
-        BigQueryClient publisher = BigQueryClient.create(options.getBigQueryDataset());
-        savePerfsToBigQuery(publisher, options, actual, start);
+        ImmutableMap<String, String> schema =
+            ImmutableMap.<String, String>builder()
+                .put("timestamp", "timestamp")
+                .put("runtimeSec", "float")
+                .put("eventsPerSec", "float")
+                .put("numResults", "integer")
+                .build();
+
+        savePerfsToBigQuery(
+            BigQueryResultsPublisher.create(options.getBigQueryDataset(), schema),
+            options,
+            actual,
+            start);
       }
     } finally {
       if (options.getMonitorJobs()) {
@@ -163,7 +172,7 @@ public class Main {
 
   @VisibleForTesting
   static void savePerfsToBigQuery(
-      BigQueryClient bigQueryClient,
+      BigQueryResultsPublisher publisher,
       NexmarkOptions options,
       Map<NexmarkConfiguration, NexmarkPerf> perfs,
       Instant start) {
@@ -174,25 +183,7 @@ public class Main {
               options.getQueryLanguage(), entry.getKey().query.getNumberOrName());
       String tableName = NexmarkUtils.tableName(options, queryName, 0L, null);
 
-      ImmutableMap<String, String> schema =
-          ImmutableMap.<String, String>builder()
-              .put("timestamp", "timestamp")
-              .put("runtimeSec", "float")
-              .put("eventsPerSec", "float")
-              .put("numResults", "integer")
-              .build();
-      bigQueryClient.createTableIfNotExists(tableName, schema);
-
-      // convert millis to seconds (it's a BigQuery's requirement).
-      Map<String, Object> record =
-          ImmutableMap.<String, Object>builder()
-              .put("timestamp", start.getMillis() / 1000)
-              .put("runtimeSec", entry.getValue().runtimeSec)
-              .put("eventsPerSec", entry.getValue().eventsPerSec)
-              .put("numResults", entry.getValue().numResults)
-              .build();
-
-      bigQueryClient.insertRow(record, tableName);
+      publisher.publish(entry.getValue(), tableName, start.getMillis());
     }
   }
 

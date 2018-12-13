@@ -40,13 +40,13 @@ import com.google.common.graph.NetworkBuilder;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.DefaultEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.HappensBeforeEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
@@ -70,7 +70,7 @@ public class CreateRegisterFnOperationFunctionTest {
     MockitoAnnotations.initMocks(this);
     createRegisterFnOperation =
         new CreateRegisterFnOperationFunction(
-            IdGenerator::generate, portSupplier, registerFnOperationFunction);
+            IdGenerators.decrementingLongs(), portSupplier, registerFnOperationFunction, false);
   }
 
   @Test
@@ -535,7 +535,7 @@ public class CreateRegisterFnOperationFunctionTest {
   }
 
   private static InstructionOutputNode createInstructionOutputNode(String name) {
-    return InstructionOutputNode.create(new InstructionOutput().setName(name));
+    return InstructionOutputNode.create(new InstructionOutput().setName(name), "fakeId");
   }
 
   /** A named node to easily differentiate graph construction problems during testing. */

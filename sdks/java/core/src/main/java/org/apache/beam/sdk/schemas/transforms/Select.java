@@ -149,11 +149,8 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
       FieldType nestedType =
           FieldType.row(getOutputSchema(field.getType().getRowSchema(), nestedDescriptor));
 
-      if (field.getNullable()) {
-        builder.addNullableField(field.getName(), nestedType);
-      } else {
-        builder.addField(field.getName(), nestedType);
-      }
+      nestedType = nestedType.withNullable(field.getType().getNullable());
+      builder.addField(field.getName(), nestedType);
     }
     return builder.build();
   }

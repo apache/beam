@@ -123,6 +123,11 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
   private static class InMemoryTable implements BeamSqlTable {
     private TableWithRows tableWithRows;
 
+    @Override
+    public PCollection.IsBounded isBounded() {
+      return PCollection.IsBounded.BOUNDED;
+    }
+
     public InMemoryTable(TableWithRows tableWithRows) {
       this.tableWithRows = tableWithRows;
     }

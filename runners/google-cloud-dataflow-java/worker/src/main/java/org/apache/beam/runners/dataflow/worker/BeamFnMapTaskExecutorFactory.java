@@ -32,15 +32,16 @@ import com.google.api.services.dataflow.model.WriteInstruction;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.Network;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
@@ -54,6 +55,7 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor;
+import org.apache.beam.runners.dataflow.worker.fn.control.ProcessRemoteBundleOperation;
 import org.apache.beam.runners.dataflow.worker.fn.control.RegisterAndProcessBundleOperation;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortReadOperation;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
@@ -61,6 +63,7 @@ import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.MultiOutputInfoEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Networks;
 import org.apache.beam.runners.dataflow.worker.graph.Networks.TypeSafeNodeFunction;
+import org.apache.beam.runners.dataflow.worker.graph.Nodes.ExecutableStageNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.FetchAndFilterStreamingSideInputsNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
@@ -82,11 +85,19 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WriteOperation;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
+import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
+import org.apache.beam.runners.fnexecution.control.SingleEnvironmentInstanceJobBundleFactory;
+import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
+import org.apache.beam.runners.fnexecution.data.GrpcDataService;
+import org.apache.beam.runners.fnexecution.environment.StaticRemoteEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -115,9 +126,9 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
   @Override
   public DataflowMapTaskExecutor create(
       InstructionRequestHandler instructionRequestHandler,
-      FnDataService beamFnDataService,
+      GrpcFnServer<GrpcDataService> grpcDataFnServer,
       Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
-      StateDelegator beamFnStateDelegator,
+      GrpcFnServer<GrpcStateService> grpcStateFnServer,
       MutableNetwork<Node, Edge> network,
       PipelineOptions options,
       String stageName,
@@ -125,7 +136,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
       SinkFactory sinkFactory,
       DataflowExecutionContext<?> executionContext,
       CounterSet counterSet,
-      Supplier<String> idGenerator) {
+      IdGenerator idGenerator) {
 
     // TODO: remove this once we trust the code paths
     checkArgument(
@@ -137,26 +148,41 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
     Networks.replaceDirectedNetworkNodes(
         network, createOutputReceiversTransform(stageName, counterSet));
 
-    // Swap out all the RegisterFnRequest nodes with Operation nodes
-    Networks.replaceDirectedNetworkNodes(
-        network,
-        createOperationTransformForRegisterFnNodes(
-            idGenerator,
-            instructionRequestHandler,
-            beamFnStateDelegator,
-            stageName,
-            executionContext));
-
-    // Swap out all the RemoteGrpcPort nodes with Operation nodes, note that it is expected
-    // that the RegisterFnRequest nodes have already been replaced.
-    Networks.replaceDirectedNetworkNodes(
-        network,
-        createOperationTransformForGrpcPortNodes(
-            network,
-            beamFnDataService,
-            // TODO: Set NameContext properly for these operations.
-            executionContext.createOperationContext(
-                NameContext.create(stageName, stageName, stageName, stageName))));
+    if (DataflowRunner.hasExperiment(
+        options.as(DataflowPipelineDebugOptions.class), "use_executable_stage_bundle_execution")) {
+      LOG.debug("Using SingleEnvironmentInstanceJobBundleFactory");
+      JobBundleFactory jobBundleFactory =
+          SingleEnvironmentInstanceJobBundleFactory.create(
+              StaticRemoteEnvironmentFactory.forService(instructionRequestHandler),
+              grpcDataFnServer,
+              grpcStateFnServer,
+              idGenerator);
+      // If the use_executable_stage_bundle_execution is enabled, use ExecutableStage instead.
+      Networks.replaceDirectedNetworkNodes(
+          network,
+          createOperationTransformForExecutableStageNode(
+              network, stageName, executionContext, jobBundleFactory));
+    } else {
+      // Swap out all the RegisterFnRequest nodes with Operation nodes
+      Networks.replaceDirectedNetworkNodes(
+          network,
+          createOperationTransformForRegisterFnNodes(
+              idGenerator,
+              instructionRequestHandler,
+              grpcStateFnServer.getService(),
+              stageName,
+              executionContext));
+      // Swap out all the RemoteGrpcPort nodes with Operation nodes, note that it is expected
+      // that the RegisterFnRequest nodes have already been replaced.
+      Networks.replaceDirectedNetworkNodes(
+          network,
+          createOperationTransformForGrpcPortNodes(
+              network,
+              grpcDataFnServer.getService(),
+              // TODO: Set NameContext properly for these operations.
+              executionContext.createOperationContext(
+                  NameContext.create(stageName, stageName, stageName, stageName))));
+    }
 
     // Swap out all the FetchAndFilterStreamingSideInput nodes with operation nodes
     Networks.replaceDirectedNetworkNodes(
@@ -165,7 +191,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             network,
             idGenerator,
             instructionRequestHandler,
-            beamFnDataService,
+            grpcDataFnServer.getService(),
             dataApiServiceDescriptor,
             executionContext,
             stageName));
@@ -201,7 +227,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
 
   private Function<Node, Node> createOperationTransformForFetchAndFilterStreamingSideInputNodes(
       MutableNetwork<Node, Edge> network,
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       InstructionRequestHandler instructionRequestHandler,
       FnDataService beamFnDataService,
       Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
@@ -299,8 +325,39 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
     };
   }
 
+  private Function<Node, Node> createOperationTransformForExecutableStageNode(
+      final Network<Node, Edge> network,
+      final String stageName,
+      final DataflowExecutionContext<?> executionContext,
+      final JobBundleFactory jobBundleFactory) {
+    return new TypeSafeNodeFunction<ExecutableStageNode>(ExecutableStageNode.class) {
+      @Override
+      public Node typedApply(ExecutableStageNode input) {
+        StageBundleFactory stageBundleFactory =
+            jobBundleFactory.forStage(input.getExecutableStage());
+        Iterable<OutputReceiverNode> outputReceiverNodes =
+            Iterables.filter(network.successors(input), OutputReceiverNode.class);
+
+        Map<String, OutputReceiver> outputReceiverMap = new HashMap<>();
+        Lists.newArrayList(outputReceiverNodes)
+            .stream()
+            .forEach(
+                outputReceiverNode ->
+                    outputReceiverMap.put(
+                        outputReceiverNode.getPcollectionId(),
+                        outputReceiverNode.getOutputReceiver()));
+        return OperationNode.create(
+            new ProcessRemoteBundleOperation(
+                executionContext.createOperationContext(
+                    NameContext.create(stageName, stageName, stageName, stageName)),
+                stageBundleFactory,
+                outputReceiverMap));
+      }
+    };
+  }
+
   private Function<Node, Node> createOperationTransformForRegisterFnNodes(
-      final Supplier<String> idGenerator,
+      final IdGenerator idGenerator,
       final InstructionRequestHandler instructionRequestHandler,
       final StateDelegator beamFnStateDelegator,
       final String stageName,
@@ -611,7 +668,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                     cloudOutput.getName()));
         outputReceiver.addOutputCounter(outputCounter);
 
-        return OutputReceiverNode.create(outputReceiver, coder);
+        return OutputReceiverNode.create(outputReceiver, coder, input.getPcollectionId());
       }
     };
   }

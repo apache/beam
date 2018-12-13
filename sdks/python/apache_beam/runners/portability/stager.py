@@ -50,13 +50,13 @@ import glob
 import logging
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 
 import pkg_resources
 
 from apache_beam.internal import pickler
+from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import WorkerOptions
@@ -64,6 +64,7 @@ from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.runners.dataflow.internal.names import DATAFLOW_SDK_TARBALL_FILE
 from apache_beam.runners.internal import names
 from apache_beam.utils import processes
+from apache_beam.utils import retry
 
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
@@ -72,6 +73,13 @@ from apache_beam.utils import processes
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
+
+
+def retry_on_non_zero_exit(exception):
+  if (isinstance(exception, processes.CalledProcessError) and
+      exception.returncode != 0):
+    return True
+  return False
 
 
 class Stager(object):
@@ -279,7 +287,7 @@ class Stager(object):
         # even for a 404 response (file will contain the contents of the 404
         # response).
         # TODO(angoenka): Extract and use the filename when downloading file.
-        response, content = __import__('httplib2').Http().request(from_url)
+        response, content = get_new_http().request(from_url)
         if int(response['status']) >= 400:
           raise RuntimeError(
               'Artifact not found at %s (response: %s)' % (from_url, response))
@@ -393,6 +401,8 @@ class Stager(object):
     return python_bin
 
   @staticmethod
+  @retry.with_exponential_backoff(num_retries=4,
+                                  retry_filter=retry_on_non_zero_exit)
   def _populate_requirements_cache(requirements_file, cache_dir):
     # The 'pip download' command will not download again if it finds the
     # tarball with the proper version already present.
@@ -414,7 +424,7 @@ class Stager(object):
         ':all:'
     ]
     logging.info('Executing command: %s', cmd_args)
-    processes.check_output(cmd_args)
+    processes.check_output(cmd_args, stderr=processes.STDOUT)
 
   @staticmethod
   def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
@@ -556,7 +566,7 @@ class Stager(object):
     logging.info('Executing command: %s', cmd_args)
     try:
       processes.check_output(cmd_args)
-    except subprocess.CalledProcessError as e:
+    except processes.CalledProcessError as e:
       raise RuntimeError(repr(e))
 
     for sdk_file in expected_files:

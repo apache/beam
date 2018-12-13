@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.fn.splittabledofn;
 
+import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlogs;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 
 /** Support utilities for interacting with {@link RestrictionTracker RestrictionTrackers}. */
@@ -35,53 +38,22 @@ public class RestrictionTrackers {
    * A {@link RestrictionTracker} which forwards all calls to the delegate {@link
    * RestrictionTracker}.
    */
-  private static class ForwardingRestrictionTracker<RestrictionT, PositionT>
-      extends RestrictionTracker<RestrictionT, PositionT> {
-    private final RestrictionTracker<RestrictionT, PositionT> delegate;
-
-    protected ForwardingRestrictionTracker(RestrictionTracker<RestrictionT, PositionT> delegate) {
-      this.delegate = delegate;
-    }
-
-    @Override
-    public boolean tryClaim(PositionT position) {
-      return delegate.tryClaim(position);
-    }
-
-    @Override
-    public RestrictionT currentRestriction() {
-      return delegate.currentRestriction();
-    }
-
-    @Override
-    public RestrictionT checkpoint() {
-      return delegate.checkpoint();
-    }
-
-    @Override
-    public void checkDone() throws IllegalStateException {
-      delegate.checkDone();
-    }
-  }
-
-  /**
-   * A {@link RestrictionTracker} which notifies the {@link ClaimObserver} if a claim succeeded or
-   * failed.
-   */
+  @ThreadSafe
   private static class RestrictionTrackerObserver<RestrictionT, PositionT>
-      extends ForwardingRestrictionTracker<RestrictionT, PositionT> {
+      extends RestrictionTracker<RestrictionT, PositionT> {
+    protected final RestrictionTracker<RestrictionT, PositionT> delegate;
     private final ClaimObserver<PositionT> claimObserver;
 
-    private RestrictionTrackerObserver(
+    protected RestrictionTrackerObserver(
         RestrictionTracker<RestrictionT, PositionT> delegate,
         ClaimObserver<PositionT> claimObserver) {
-      super(delegate);
+      this.delegate = delegate;
       this.claimObserver = claimObserver;
     }
 
     @Override
-    public boolean tryClaim(PositionT position) {
-      if (super.tryClaim(position)) {
+    public synchronized boolean tryClaim(PositionT position) {
+      if (delegate.tryClaim(position)) {
         claimObserver.onClaimed(position);
         return true;
       } else {
@@ -89,16 +61,78 @@ public class RestrictionTrackers {
         return false;
       }
     }
+
+    @Override
+    public synchronized RestrictionT currentRestriction() {
+      return delegate.currentRestriction();
+    }
+
+    @Override
+    public synchronized RestrictionT checkpoint() {
+      return delegate.checkpoint();
+    }
+
+    @Override
+    public synchronized void checkDone() throws IllegalStateException {
+      delegate.checkDone();
+    }
   }
 
   /**
-   * Returns a {@link RestrictionTracker} which reports all claim attempts to the specified {@link
-   * ClaimObserver}.
+   * A {@link RestrictionTracker} which forwards all calls to the delegate backlog reporting {@link
+   * RestrictionTracker}.
+   */
+  @ThreadSafe
+  private static class RestrictionTrackerObserverWithBacklog<RestrictionT, PositionT>
+      extends RestrictionTrackerObserver<RestrictionT, PositionT> implements Backlogs.HasBacklog {
+
+    protected RestrictionTrackerObserverWithBacklog(
+        RestrictionTracker<RestrictionT, PositionT> delegate,
+        ClaimObserver<PositionT> claimObserver) {
+      super(delegate, claimObserver);
+    }
+
+    @Override
+    public synchronized Backlog getBacklog() {
+      return ((Backlogs.HasBacklog) delegate).getBacklog();
+    }
+  }
+
+  /**
+   * A {@link RestrictionTracker} which forwards all calls to the delegate partitioned backlog
+   * reporting {@link RestrictionTracker}.
+   */
+  @ThreadSafe
+  private static class RestrictionTrackerObserverWithPartitionedBacklog<RestrictionT, PositionT>
+      extends RestrictionTrackerObserverWithBacklog<RestrictionT, PositionT>
+      implements Backlogs.HasPartitionedBacklog {
+
+    protected RestrictionTrackerObserverWithPartitionedBacklog(
+        RestrictionTracker<RestrictionT, PositionT> delegate,
+        ClaimObserver<PositionT> claimObserver) {
+      super(delegate, claimObserver);
+    }
+
+    @Override
+    public synchronized byte[] getBacklogPartition() {
+      return ((Backlogs.HasPartitionedBacklog) delegate).getBacklogPartition();
+    }
+  }
+
+  /**
+   * Returns a thread safe {@link RestrictionTracker} which reports all claim attempts to the
+   * specified {@link ClaimObserver}.
    */
   public static <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> observe(
       RestrictionTracker<RestrictionT, PositionT> restrictionTracker,
       ClaimObserver<PositionT> claimObserver) {
-    return new RestrictionTrackerObserver<RestrictionT, PositionT>(
-        restrictionTracker, claimObserver);
+    if (restrictionTracker instanceof Backlogs.HasPartitionedBacklog) {
+      return new RestrictionTrackerObserverWithPartitionedBacklog<>(
+          restrictionTracker, claimObserver);
+    } else if (restrictionTracker instanceof Backlogs.HasBacklog) {
+      return new RestrictionTrackerObserverWithBacklog<>(restrictionTracker, claimObserver);
+    } else {
+      return new RestrictionTrackerObserver<>(restrictionTracker, claimObserver);
+    }
   }
 }

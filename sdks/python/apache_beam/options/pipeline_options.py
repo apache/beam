@@ -108,6 +108,14 @@ class _BeamArgumentParser(argparse.ArgumentParser):
     # have add_argument do most of the work
     self.add_argument(*args, **kwargs)
 
+  # The argparse package by default tries to autocomplete option names. This
+  # results in an "ambiguous option" error from argparse when an unknown option
+  # matching multiple known ones are used. This suppresses that behavior.
+  def error(self, message):
+    if message.startswith('ambiguous option: '):
+      return
+    super(_BeamArgumentParser, self).error(message)
+
 
 class PipelineOptions(HasDisplayData):
   """Pipeline options class used as container for command line options.

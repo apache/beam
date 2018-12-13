@@ -367,9 +367,9 @@ public class MongoDbGridFSIO {
       private DBCursor createCursor(GridFS gridfs) {
         if (spec.filter() != null) {
           DBObject query = (DBObject) JSON.parse(spec.filter());
-          return gridfs.getFileList(query).sort(null);
+          return gridfs.getFileList(query);
         }
-        return gridfs.getFileList().sort(null);
+        return gridfs.getFileList();
       }
 
       @Override

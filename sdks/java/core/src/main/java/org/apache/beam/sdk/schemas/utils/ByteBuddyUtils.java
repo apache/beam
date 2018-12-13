@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -27,13 +24,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.implementation.FixedValue;
-import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.Duplication;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
@@ -44,6 +38,7 @@ import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.matcher.ElementMatchers;
+import org.apache.avro.generic.GenericFixed;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -102,6 +97,9 @@ class ByteBuddyUtils {
         return convertDateTime(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
         return convertByteBuffer(typeDescriptor);
+      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+        // TODO: Refactor AVRO-specific check into separate class.
+        return convertGenericFixed(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(CharSequence.class))) {
         return convertCharSequence(typeDescriptor);
       } else if (typeDescriptor.getRawType().isPrimitive()) {
@@ -120,6 +118,8 @@ class ByteBuddyUtils {
     protected abstract T convertDateTime(TypeDescriptor<?> type);
 
     protected abstract T convertByteBuffer(TypeDescriptor<?> type);
+
+    protected abstract T convertGenericFixed(TypeDescriptor<?> type);
 
     protected abstract T convertCharSequence(TypeDescriptor<?> type);
 
@@ -147,9 +147,16 @@ class ByteBuddyUtils {
    * <pre><code>{@literal FieldValueGetter<POJO, List<Integer>>}</code></pre>
    */
   static class ConvertType extends TypeConversion<Type> {
+    private boolean returnRawTypes;
+
+    public ConvertType(boolean returnRawTypes) {
+      this.returnRawTypes = returnRawTypes;
+    }
+
     @Override
     protected Type convertArray(TypeDescriptor<?> type) {
-      return createListType(type).getType();
+      TypeDescriptor ret = createListType(type);
+      return returnRawTypes ? ret.getRawType() : ret.getType();
     }
 
     @Override
@@ -173,6 +180,11 @@ class ByteBuddyUtils {
     }
 
     @Override
+    protected Type convertGenericFixed(TypeDescriptor<?> type) {
+      return byte[].class;
+    }
+
+    @Override
     protected Type convertCharSequence(TypeDescriptor<?> type) {
       return String.class;
     }
@@ -184,7 +196,7 @@ class ByteBuddyUtils {
 
     @Override
     protected Type convertDefault(TypeDescriptor<?> type) {
-      return type.getType();
+      return returnRawTypes ? type.getRawType() : type.getType();
     }
 
     @SuppressWarnings("unchecked")
@@ -300,6 +312,23 @@ class ByteBuddyUtils {
                   .getDeclaredMethods()
                   .filter(
                       ElementMatchers.named("array").and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
+                  .getOnly()));
+    }
+
+    @Override
+    protected StackManipulation convertGenericFixed(TypeDescriptor<?> type) {
+      // TODO: Refactor AVRO-specific code into separate class.
+
+      // Generate the following code:
+      // return value.bytes();
+
+      return new Compound(
+          readValue,
+          MethodInvocation.invoke(
+              new ForLoadedType(GenericFixed.class)
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.named("bytes").and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
                   .getOnly()));
     }
 
@@ -464,6 +493,28 @@ class ByteBuddyUtils {
     }
 
     @Override
+    protected StackManipulation convertGenericFixed(TypeDescriptor<?> type) {
+      // Generate the following code:
+      // return T((byte[]) value);
+
+      // TODO: Refactor AVRO-specific code out of this class.
+      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+      return new Compound(
+          TypeCreation.of(loadedType),
+          Duplication.SINGLE,
+          readValue,
+          TypeCasting.to(BYTE_ARRAY_TYPE),
+          // Create a new instance that wraps this byte[].
+          MethodInvocation.invoke(
+              loadedType
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.isConstructor()
+                          .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
+                  .getOnly()));
+    }
+
+    @Override
     protected StackManipulation convertCharSequence(TypeDescriptor<?> type) {
       // If the type is a String, just return it.
       if (type.getRawType().isAssignableFrom(String.class)) {
@@ -506,56 +557,5 @@ class ByteBuddyUtils {
     protected StackManipulation convertDefault(TypeDescriptor<?> type) {
       return readValue;
     }
-  }
-
-  // If the Field is a container type, returns the element type. Otherwise returns a null reference.
-  @SuppressWarnings("unchecked")
-  static Implementation getArrayComponentType(TypeDescriptor valueType) {
-    if (valueType.isArray()) {
-      Type component = valueType.getComponentType().getType();
-      if (!component.equals(byte.class)) {
-        return FixedValue.reference(component);
-      }
-    } else if (valueType.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
-      TypeDescriptor<Collection<?>> collection = valueType.getSupertype(Collection.class);
-      if (collection.getType() instanceof ParameterizedType) {
-        ParameterizedType ptype = (ParameterizedType) collection.getType();
-        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-        checkArgument(params.length == 1);
-        return FixedValue.reference(params[0]);
-      } else {
-        throw new RuntimeException("Collection parameter is not parameterized!");
-      }
-    }
-    return FixedValue.nullValue();
-  }
-
-  // If the Field is a map type, returns the key type, otherwise returns a null reference.
-  @Nullable
-  static Implementation getMapKeyType(TypeDescriptor valueType) {
-    return getMapType(valueType, 0);
-  }
-
-  // If the Field is a map type, returns the value type, otherwise returns a null reference.
-  @Nullable
-  static Implementation getMapValueType(TypeDescriptor valueType) {
-    return getMapType(valueType, 1);
-  }
-
-  // If the Field is a map type, returns the key or value type (0 is key type, 1 is value).
-  // Otherwise returns a null reference.
-  @SuppressWarnings("unchecked")
-  private static Implementation getMapType(TypeDescriptor valueType, int index) {
-    if (valueType.isSubtypeOf(TypeDescriptor.of(Map.class))) {
-      TypeDescriptor<Collection<?>> map = valueType.getSupertype(Map.class);
-      if (map.getType() instanceof ParameterizedType) {
-        ParameterizedType ptype = (ParameterizedType) map.getType();
-        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-        return FixedValue.reference(params[index]);
-      } else {
-        throw new RuntimeException("Map type is not parameterized! " + map);
-      }
-    }
-    return FixedValue.nullValue();
   }
 }

@@ -21,11 +21,12 @@ import java.util.List;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 
 /** A factory for creating {@link FieldValueGetter} objects for a JavaBean object. */
 public class JavaBeanGetterFactory implements FieldValueGetterFactory {
   @Override
-  public List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getGetters(targetClass, schema);
+  public List<FieldValueGetter> create(Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getGetters(targetClass, schema, SerializableFunctions.identity());
   }
 }

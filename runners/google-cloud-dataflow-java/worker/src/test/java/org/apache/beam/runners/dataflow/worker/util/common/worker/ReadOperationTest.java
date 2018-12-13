@@ -239,7 +239,7 @@ public class ReadOperationTest {
           @Override
           public void process(Object elem) throws Exception {
             ReadOperation readOperation = readOperationHolder[0];
-            if (elem.equals("1")) {
+            if ("1".equals(elem)) {
               NativeReader.DynamicSplitResultWithPosition split =
                   (NativeReader.DynamicSplitResultWithPosition) readOperation.requestCheckpoint();
               assertNotNull(split);
@@ -307,7 +307,7 @@ public class ReadOperationTest {
           @Override
           public void process(Object elem) throws Exception {
             ReadOperation readOperation = operationHolder[0];
-            if (elem.equals("1")) {
+            if ("1".equals(elem)) {
               NativeReader.DynamicSplitResultWithPosition split =
                   (NativeReader.DynamicSplitResultWithPosition)
                       readOperation.requestDynamicSplit(splitRequestAtIndex(8L));
@@ -318,7 +318,7 @@ public class ReadOperationTest {
               ApproximateReportedProgress progress =
                   readerProgressToCloudProgress(readOperation.getProgress());
               assertEquals(1, progress.getPosition().getRecordIndex().longValue());
-            } else if (elem.equals("3")) {
+            } else if ("3".equals(elem)) {
               // Should accept a split at an earlier position than previously requested.
               // Should reject a split at a later position than previously requested.
               // Note that here we're testing our own MockReaderIterator class, so it's

@@ -43,7 +43,7 @@ public class BeamSqlGreaterThanOrEqualsExpression extends BeamSqlCompareExpressi
     return (leftValue == null && rightValue == null)
         || (leftValue != null
             && rightValue != null
-            && leftValue.floatValue() >= (rightValue).floatValue());
+            && leftValue.floatValue() >= rightValue.floatValue());
   }
 
   @Override

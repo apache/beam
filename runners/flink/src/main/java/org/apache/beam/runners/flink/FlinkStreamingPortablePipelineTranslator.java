@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.runners.core.construction.ExecutableStageTranslation.generateNameFromStagePayload;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.getWindowingStrategy;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
 
@@ -105,9 +106,13 @@ public class FlinkStreamingPortablePipelineTranslator
    * {@link StreamExecutionEnvironment}.
    */
   public static StreamingTranslationContext createTranslationContext(
-      JobInfo jobInfo, FlinkPipelineOptions pipelineOptions, List<String> filesToStage) {
+      JobInfo jobInfo,
+      FlinkPipelineOptions pipelineOptions,
+      String confDir,
+      List<String> filesToStage) {
     StreamExecutionEnvironment executionEnvironment =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(pipelineOptions, filesToStage);
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            pipelineOptions, filesToStage, confDir);
     return new StreamingTranslationContext(jobInfo, pipelineOptions, executionEnvironment);
   }
 
@@ -410,7 +415,7 @@ public class FlinkStreamingPortablePipelineTranslator
     SingleOutputStreamOperator<WindowedValue<byte[]>> source =
         context
             .getExecutionEnvironment()
-            .addSource(new ImpulseSourceFunction(keepSourceAlive))
+            .addSource(new ImpulseSourceFunction(keepSourceAlive), "Impulse")
             .returns(typeInfo);
 
     context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);
@@ -448,7 +453,9 @@ public class FlinkStreamingPortablePipelineTranslator
     SingleOutputStreamOperator<WindowedValue<byte[]>> source =
         context
             .getExecutionEnvironment()
-            .addSource(new StreamingImpulseSource(intervalMillis, messageCount))
+            .addSource(
+                new StreamingImpulseSource(intervalMillis, messageCount),
+                StreamingImpulseSource.class.getSimpleName())
             .returns(typeInfo);
 
     context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);
@@ -492,8 +499,6 @@ public class FlinkStreamingPortablePipelineTranslator
 
   private <InputT, OutputT> void translateExecutableStage(
       String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
-    // TODO: Fail on stateful DoFns for now.
-    // TODO: Support stateful DoFns by inserting group-by-keys where necessary.
     // TODO: Fail on splittable DoFns.
     // TODO: Special-case single outputs to avoid multiplexing PCollections.
     RunnerApi.Components components = pipeline.getComponents();
@@ -605,14 +610,15 @@ public class FlinkStreamingPortablePipelineTranslator
             keyCoder,
             keySelector);
 
+    final String operatorName = generateNameFromStagePayload(stagePayload);
+
     if (transformedSideInputs.unionTagToView.isEmpty()) {
-      outputStream =
-          inputDataStream.transform(transform.getUniqueName(), outputTypeInformation, doFnOperator);
+      outputStream = inputDataStream.transform(operatorName, outputTypeInformation, doFnOperator);
     } else {
       outputStream =
           inputDataStream
               .connect(transformedSideInputs.unionedSideInputs.broadcast())
-              .transform(transform.getUniqueName(), outputTypeInformation, doFnOperator);
+              .transform(operatorName, outputTypeInformation, doFnOperator);
     }
 
     if (mainOutputTag != null) {

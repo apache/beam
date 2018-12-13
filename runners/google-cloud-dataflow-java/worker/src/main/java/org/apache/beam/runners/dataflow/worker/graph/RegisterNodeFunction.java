@@ -42,7 +42,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterRequest;
@@ -79,6 +78,7 @@ import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
@@ -115,7 +115,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
   private static final String SERIALIZED_SOURCE = "serialized_source";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-  private final Supplier<String> idGenerator;
+  private final IdGenerator idGenerator;
   private final Endpoints.ApiServiceDescriptor stateApiServiceDescriptor;
   private final @Nullable RunnerApi.Pipeline pipeline;
 
@@ -125,7 +125,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
    */
   public static RegisterNodeFunction forPipeline(
       RunnerApi.Pipeline pipeline,
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
     return new RegisterNodeFunction(pipeline, idGenerator, stateApiServiceDescriptor);
   }
@@ -136,13 +136,13 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
    * harnesses, then this method should be removed.
    */
   public static RegisterNodeFunction withoutPipeline(
-      Supplier<String> idGenerator, Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
+      IdGenerator idGenerator, Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
     return new RegisterNodeFunction(null, idGenerator, stateApiServiceDescriptor);
   }
 
   private RegisterNodeFunction(
       @Nullable RunnerApi.Pipeline pipeline,
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
     this.pipeline = pipeline;
     this.idGenerator = idGenerator;
@@ -173,7 +173,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
             input.addEdge(
                 node,
                 successor,
-                MultiOutputInfoEdge.create(new MultiOutputInfo().setTag(idGenerator.get())));
+                MultiOutputInfoEdge.create(new MultiOutputInfo().setTag(idGenerator.getId())));
           }
         }
       }
@@ -185,7 +185,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
 
     ProcessBundleDescriptor.Builder processBundleDescriptor =
         ProcessBundleDescriptor.newBuilder()
-            .setId(idGenerator.get())
+            .setId(idGenerator.getId())
             .setStateApiServiceDescriptor(stateApiServiceDescriptor);
 
     // For intermediate PCollections we fabricate, we make a bogus WindowingStrategy
@@ -199,7 +199,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
     }
 
-    String fakeWindowingStrategyId = "fakeWindowingStrategy" + idGenerator.get();
+    String fakeWindowingStrategyId = "fakeWindowingStrategy" + idGenerator.getId();
     try {
       RunnerApi.MessageWithComponents fakeWindowingStrategyProto =
           WindowingStrategyTranslation.toMessageProto(
@@ -224,7 +224,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
         Iterables.filter(input.nodes(), InstructionOutputNode.class)) {
       InstructionOutput instructionOutput = node.getInstructionOutput();
 
-      String coderId = "generatedCoder" + idGenerator.get();
+      String coderId = "generatedCoder" + idGenerator.getId();
       try (ByteString.Output output = ByteString.newOutput()) {
         try {
           Coder<?> javaCoder =
@@ -259,7 +259,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
             e);
       }
 
-      String pcollectionId = "generatedPcollection" + idGenerator.get();
+      String pcollectionId = "generatedPcollection" + idGenerator.getId();
       processBundleDescriptor.putPcollections(
           pcollectionId,
           RunnerApi.PCollection.newBuilder()
@@ -273,7 +273,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
     for (ParallelInstructionNode node :
         Iterables.filter(input.nodes(), ParallelInstructionNode.class)) {
       ParallelInstruction parallelInstruction = node.getParallelInstruction();
-      String ptransformId = "generatedPtransform" + idGenerator.get();
+      String ptransformId = "generatedPtransform" + idGenerator.getId();
       ptransformIdToNameContexts.put(
           ptransformId,
           NameContext.create(
@@ -290,7 +290,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
         CloudObject userFnSpec = CloudObject.fromSpec(parDoInstruction.getUserFn());
         String userFnClassName = userFnSpec.getClassName();
 
-        if (userFnClassName.equals("CombineValuesFn") || userFnClassName.equals("KeyedCombineFn")) {
+        if ("CombineValuesFn".equals(userFnClassName) || "KeyedCombineFn".equals(userFnClassName)) {
           transformSpec = transformCombineValuesFnToFunctionSpec(userFnSpec);
           ptransformIdToPCollectionViews.put(ptransformId, Collections.emptyList());
         } else {
@@ -383,7 +383,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
 
       for (Node predecessorOutput : input.predecessors(node)) {
         pTransform.putInputs(
-            "generatedInput" + idGenerator.get(), nodesToPCollections.get(predecessorOutput));
+            "generatedInput" + idGenerator.getId(), nodesToPCollections.get(predecessorOutput));
       }
 
       for (Edge edge : input.outEdges(node)) {

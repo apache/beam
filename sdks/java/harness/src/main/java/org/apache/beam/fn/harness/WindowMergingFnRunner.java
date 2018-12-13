@@ -120,12 +120,12 @@ public abstract class WindowMergingFnRunner<T, W extends BoundedWindow> {
   /** An implementation which uses a {@link WindowFn} to merge windows. */
   private static class MergingViaWindowFnRunner<T, W extends BoundedWindow>
       extends WindowMergingFnRunner<T, W> {
-    private final WindowFn<?, W> windowFn;
+    private final WindowFn<T, W> windowFn;
     private final WindowFn<?, W>.MergeContext mergeContext;
     private Collection<W> currentWindows;
     private List<KV<W, Collection<W>>> mergedWindows;
 
-    private MergingViaWindowFnRunner(WindowFn<?, W> windowFn) {
+    private MergingViaWindowFnRunner(WindowFn<T, W> windowFn) {
       this.windowFn = windowFn;
       this.mergedWindows = new ArrayList<>();
       this.currentWindows = new ArrayList<>();

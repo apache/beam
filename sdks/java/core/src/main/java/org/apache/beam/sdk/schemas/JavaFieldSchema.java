@@ -21,7 +21,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.utils.POJOUtils;
 import org.apache.beam.sdk.schemas.utils.PojoValueGetterFactory;
-import org.apache.beam.sdk.schemas.utils.PojoValueSetterFactory;
+import org.apache.beam.sdk.schemas.utils.PojoValueTypeInformationFactory;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -50,7 +50,12 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  public FieldValueSetterFactory fieldValueSetterFactory() {
-    return new PojoValueSetterFactory();
+  public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
+    return new PojoValueTypeInformationFactory();
+  }
+
+  @Override
+  UserTypeCreatorFactory schemaTypeCreatorFactory() {
+    return new PojoTypeUserTypeCreatorFactory();
   }
 }

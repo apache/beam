@@ -148,7 +148,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
           return Collections.singletonList(
               CompatibilityError.create(context.path(), "Field is missing in output schema"));
         } else {
-          if (left.get().getNullable() && !right.get().getNullable()) {
+          if (left.get().getType().getNullable() && !right.get().getType().getNullable()) {
             return Collections.singletonList(
                 CompatibilityError.create(
                     context.path(), "Can't cast nullable field to non-nullable field"));

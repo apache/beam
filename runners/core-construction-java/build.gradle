@@ -37,7 +37,7 @@ dependencies {
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-job-management", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-vendor-grpc-v1_13_1", configuration: "shadow")
+  shadow library.java.vendored_grpc_1_13_1
   shadow library.java.jackson_core
   shadow library.java.jackson_databind
   shadow library.java.joda_time

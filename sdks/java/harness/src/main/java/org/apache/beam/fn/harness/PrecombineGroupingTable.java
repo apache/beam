@@ -557,7 +557,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       // Yes this formula is unstable for small stddev, but we only care about large stddev.
       double mean = sampledSum / (double) sampledElements;
       double sumSquareDiff =
-          (sampledSumSquares - (2 * mean * sampledSum) + (sampledElements * mean * mean));
+          sampledSumSquares - (2 * mean * sampledSum) + (sampledElements * mean * mean);
       double stddev = Math.sqrt(sumSquareDiff / (sampledElements - 1));
       double sqrtDesiredSamples =
           (CONFIDENCE_INTERVAL_SIGMA * stddev) / (CONFIDENCE_INTERVAL_SIZE * mean);

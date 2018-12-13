@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.graph;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -131,8 +132,8 @@ public final class CloneAmbiguousFlattensFunctionTest {
         }
       }
     }
-    assertTrue("Ambiguous flatten was not cloned into sdk flatten.", sdkFlatten != null);
-    assertTrue("Ambiguous flatten was not cloned into runner flatten.", runnerFlatten != null);
+    assertNotNull("Ambiguous flatten was not cloned into sdk flatten.", sdkFlatten);
+    assertNotNull("Ambiguous flatten was not cloned into runner flatten.", runnerFlatten);
 
     Node sdkFlattenOutput = Iterables.getOnlyElement(network.successors(sdkFlatten));
     Node runnerFlattenOutput = Iterables.getOnlyElement(network.successors(runnerFlatten));
@@ -381,7 +382,7 @@ public final class CloneAmbiguousFlattensFunctionTest {
 
   /** Creates an {@link InstructionOutputNode} to act as a PCollection. */
   private static InstructionOutputNode createPCollection(String name) {
-    return InstructionOutputNode.create(new InstructionOutput().setName(name));
+    return InstructionOutputNode.create(new InstructionOutput().setName(name), "fakeId");
   }
 
   /** Creates a {@link NoLocationNode} to use for testing nodes that have no ExecutionLocation */

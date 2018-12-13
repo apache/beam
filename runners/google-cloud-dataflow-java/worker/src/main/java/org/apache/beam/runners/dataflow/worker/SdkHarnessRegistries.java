@@ -26,8 +26,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.dataflow.worker.fn.data.BeamFnDataGrpcService;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
-import org.apache.beam.runners.fnexecution.data.FnDataService;
+import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -187,14 +188,15 @@ public class SdkHarnessRegistries {
 
       @Override
       @Nullable
-      public FnDataService getDataService() {
-        return beamFnDataGrpcService.getDataService(getWorkerId());
+      public GrpcFnServer<GrpcDataService> getGrpcDataFnServer() {
+        return GrpcFnServer.create(
+            beamFnDataGrpcService.getDataService(getWorkerId()), beamFnDataApiServiceDescriptor());
       }
 
       @Override
       @Nullable
-      public GrpcStateService getStateService() {
-        return beamFnStateService;
+      public GrpcFnServer<GrpcStateService> getGrpcStateFnServer() {
+        return GrpcFnServer.create(beamFnStateService, beamFnDataApiServiceDescriptor());
       }
     }
   }
@@ -228,13 +230,13 @@ public class SdkHarnessRegistries {
 
           @Nullable
           @Override
-          public FnDataService getDataService() {
+          public GrpcFnServer<GrpcDataService> getGrpcDataFnServer() {
             return null;
           }
 
           @Nullable
           @Override
-          public GrpcStateService getStateService() {
+          public GrpcFnServer<GrpcStateService> getGrpcStateFnServer() {
             return null;
           }
         };

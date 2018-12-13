@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
@@ -39,7 +40,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/hooks/perf"
 	"github.com/golang/protobuf/proto"
-	"google.golang.org/api/storage/v1"
 )
 
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
@@ -178,7 +178,7 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 	}
 
 	return func(ctx context.Context, spec string, r io.Reader) error {
-		client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
+		client, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 		if err != nil {
 			return fmt.Errorf("couldn't establish GCS client: %v", err)
 		}

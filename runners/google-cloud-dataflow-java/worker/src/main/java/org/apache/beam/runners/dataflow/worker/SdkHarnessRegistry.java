@@ -19,9 +19,10 @@ package org.apache.beam.runners.dataflow.worker;
 
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
-import org.apache.beam.runners.fnexecution.data.FnDataService;
-import org.apache.beam.runners.fnexecution.state.StateDelegator;
+import org.apache.beam.runners.fnexecution.data.GrpcDataService;
+import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 
 /** Registry used to manage all the connections (Control, Data, State) from SdkHarness */
 public interface SdkHarnessRegistry {
@@ -60,9 +61,9 @@ public interface SdkHarnessRegistry {
     public String getWorkerId();
 
     @Nullable
-    public FnDataService getDataService();
+    public GrpcFnServer<GrpcDataService> getGrpcDataFnServer();
 
     @Nullable
-    public StateDelegator getStateService();
+    public GrpcFnServer<GrpcStateService> getGrpcStateFnServer();
   }
 }

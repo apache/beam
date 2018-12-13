@@ -33,7 +33,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.grpc.BeamFnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
-import org.apache.beam.runners.fnexecution.data.FnDataService;
+import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataBufferingOutboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
@@ -204,9 +204,9 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     }
   }
 
-  /** Get the DataService for the clientId */
-  public FnDataService getDataService(final String clientId) {
-    return new FnDataService() {
+  /** Get the anonymous subclass of GrpcDataService for the clientId */
+  public GrpcDataService getDataService(final String clientId) {
+    return new GrpcDataService() {
       @Override
       public <T> InboundDataClient receive(
           LogicalEndpoint inputLocation,
@@ -239,6 +239,10 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
           throw new RuntimeException(e);
         }
       }
+
+      /** It is intended to do nothing in close. */
+      @Override
+      public void close() throws Exception {}
     };
   }
 

@@ -35,7 +35,6 @@ import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -52,8 +51,10 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
   public static JobBundleFactory create(
       EnvironmentFactory environmentFactory,
       GrpcFnServer<GrpcDataService> data,
-      GrpcFnServer<GrpcStateService> state) {
-    return new SingleEnvironmentInstanceJobBundleFactory(environmentFactory, data, state);
+      GrpcFnServer<GrpcStateService> state,
+      IdGenerator idGenerator) {
+    return new SingleEnvironmentInstanceJobBundleFactory(
+        environmentFactory, data, state, idGenerator);
   }
 
   private final EnvironmentFactory environmentFactory;
@@ -66,15 +67,17 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
   private final ConcurrentMap<Environment, RemoteEnvironment> environments =
       new ConcurrentHashMap<>();
 
-  private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
+  private final IdGenerator idGenerator;
 
   private SingleEnvironmentInstanceJobBundleFactory(
       EnvironmentFactory environmentFactory,
       GrpcFnServer<GrpcDataService> dataService,
-      GrpcFnServer<GrpcStateService> stateService) {
+      GrpcFnServer<GrpcStateService> stateService,
+      IdGenerator idGenerator) {
     this.environmentFactory = environmentFactory;
     this.dataService = dataService;
     this.stateService = stateService;
+    this.idGenerator = idGenerator;
   }
 
   @Override

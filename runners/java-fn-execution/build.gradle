@@ -30,7 +30,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-vendor-sdks-java-extensions-protobuf", configuration: "shadow")
-  shadow project(path: ":beam-vendor-grpc-v1_13_1", configuration: "shadow")
+  shadow library.java.vendored_grpc_1_13_1
   shadow library.java.slf4j_api
   testCompile project(":beam-sdks-java-harness")
   testCompile project(path: ":beam-runners-core-construction-java", configuration: "shadow")

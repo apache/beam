@@ -47,10 +47,13 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
-  import tensorflow as tf  # pylint: disable=import-error
+  import tensorflow.compat.v1 as tf  # pylint: disable=import-error
 except ImportError:
-  tf = None  # pylint: disable=invalid-name
-  logging.warning('Tensorflow is not installed, so skipping some tests.')
+  try:
+    import tensorflow as tf  # pylint: disable=import-error
+  except ImportError:
+    tf = None  # pylint: disable=invalid-name
+    logging.warning('Tensorflow is not installed, so skipping some tests.')
 
 # Created by running following code in python:
 # >>> import tensorflow as tf
@@ -405,6 +408,9 @@ class TestReadAllFromTFRecord(unittest.TestCase):
         assert_that(result, equal_to(['foo', 'bar']))
 
 
+@unittest.skipIf(sys.version_info[0] == 3,
+                 'This test still needs to be fixed on Python 3'
+                 'TODO: BEAM-5623 - several IO tests hang indefinitely')
 class TestEnd2EndWriteAndRead(unittest.TestCase):
 
   def create_inputs(self):

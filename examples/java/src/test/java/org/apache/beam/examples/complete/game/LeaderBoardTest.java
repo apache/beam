@@ -351,7 +351,7 @@ public class LeaderBoardTest implements Serializable {
             // allowed lateness, and are taken into account alongside on-time elements
             .addElements(
                 event(TestUser.RED_ONE, 3, Duration.standardMinutes(7)),
-                event(TestUser.RED_ONE, 2, (ALLOWED_LATENESS).plus(Duration.standardHours(13))))
+                event(TestUser.RED_ONE, 2, ALLOWED_LATENESS.plus(Duration.standardHours(13))))
             .advanceProcessingTime(Duration.standardMinutes(6))
             .addElements(event(TestUser.BLUE_TWO, 5, Duration.standardMinutes(12)))
             .advanceProcessingTime(Duration.standardMinutes(20))

@@ -38,7 +38,7 @@ Rolling back is usually the fastest way to fix a failing test.  However it is
 is often inconvenient for the original author. To help the author fix the
 issue, follow these steps when you rollback someone's change.
 
-1.  Rollback the PR.
+1.  Rollback the PR (or individual commit of the PR). The rollback PR should be green except in rare cases.
 1.  Create a JIRA issue that contains the following information:
     * the reason for the rollback
     * a link to the test failure's JIRA issue

@@ -67,6 +67,11 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
     return this;
   }
 
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.UNBOUNDED;
+  }
+
   public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
       getPTransformForInput();
 

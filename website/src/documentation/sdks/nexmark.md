@@ -3,6 +3,7 @@ layout: section
 title: "Nexmark benchmark suite"
 section_menu: section-menu/sdks.html
 permalink: /documentation/sdks/java/testing/nexmark/
+redirect_from: /documentation/sdks/java/nexmark/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -179,7 +180,7 @@ Run query **N**:
 
     --query=N
 
-Run query called **PASSTROUGH**:
+Run query called **PASSTHROUGH**:
 
     --query=PASSTHROUGH
 
@@ -219,7 +220,7 @@ Available suites are:
 ### Flink runner specific configuration
 
     --manageResources=false --monitorJobs=true \
-    --flinkMaster=local --parallelism=#numcores
+    --flinkMaster=[local] --parallelism=#numcores
 
 ### Spark runner specific configuration
 
@@ -564,7 +565,7 @@ Batch Mode:
             --streaming=false
             --manageResources=false
             --monitorJobs=true
-            --flinkMaster=local"
+            --flinkMaster=[local]"
 
 Streaming Mode:
 
@@ -577,7 +578,7 @@ Streaming Mode:
             --streaming=true
             --manageResources=false
             --monitorJobs=true
-            --flinkMaster=local"
+            --flinkMaster=[local]"
 
 ### Running SMOKE suite on the ApexRunner (local)
 

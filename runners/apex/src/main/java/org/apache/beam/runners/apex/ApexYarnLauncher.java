@@ -65,7 +65,6 @@ import org.apache.apex.api.Launcher.LaunchMode;
 import org.apache.apex.api.Launcher.LauncherException;
 import org.apache.apex.api.Launcher.ShutdownMode;
 import org.apache.apex.api.YarnAppLauncher;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -257,7 +256,7 @@ public class ApexYarnLauncher {
         if (!manifestFile.exists()) {
           new Manifest().write(out);
         } else {
-          FileUtils.copyFile(manifestFile, out);
+          Files.copy(manifestFile.toPath(), out);
         }
       }
 
@@ -289,7 +288,7 @@ public class ApexYarnLauncher {
               String name = relativePath + file.getFileName();
               if (!JarFile.MANIFEST_NAME.equals(name)) {
                 try (final OutputStream out = Files.newOutputStream(zipfs.getPath(name))) {
-                  FileUtils.copyFile(file.toFile(), out);
+                  Files.copy(file, out);
                 }
               }
               return super.visitFile(file, attrs);

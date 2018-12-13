@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20181116'
+    'dataflow.container_version' : 'beam-master-20181128'
   ]
 }
 
@@ -63,7 +63,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-vendor-grpc-v1_13_1", configuration: "shadow")
+  shadow library.java.vendored_grpc_1_13_1
   shadow library.java.google_api_client
   shadow library.java.google_http_client
   shadow library.java.google_http_client_jackson2
@@ -115,12 +115,14 @@ def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: projec
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
 def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
+// If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
+def fnapiExperiments = project.findProperty('useExecutableStage') ? 'beam_fn_api,use_executable_stage_bundle_execution' : "beam_fn_api"
 ext.dockerImageName = "${dockerImageContainer}:${dockerTag}"
 
 def fnApiPipelineOptions = [
       "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
       "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-      "--experiments=beam_fn_api",
+      "--experiments=${fnapiExperiments}",
 ]
 
 def commonExcludeCategories = [
@@ -173,6 +175,10 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
   }
 }
 
+// Push docker images to a container registry for use within tests.
+// NB: Tasks which consume docker images from the registry should depend on this
+// task directly ('dependsOn buildAndPushDockerContainer'). This ensures the correct
+// task ordering such that the registry doesn't get cleaned up prior to task completion.
 task buildAndPushDockerContainer() {
   dependsOn ":beam-sdks-java-container:docker"
   finalizedBy 'cleanUpDockerImages'
@@ -245,15 +251,7 @@ task validatesRunnerPortabilityApi {
   group = "Verification"
   description "Validates Dataflow PortabilityApi runner"
   dependsOn validatesRunnerFnApiWorkerTest
-  // Clean up docker image
-  doLast {
-    exec {
-      commandLine "docker", "rmi", "${dockerImageName}"
-    }
-    exec {
-      commandLine "gcloud", "--quiet", "container", "images", "delete", "${dockerImageName}"
-    }
-  }
+  dependsOn buildAndPushDockerContainer
 }
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
@@ -406,6 +404,7 @@ task postCommit {
 task postCommitPortabilityApi {
   group = "Verification"
   description = "Various integration tests using the Dataflow FnApi runner."
+  dependsOn buildAndPushDockerContainer
   dependsOn googleCloudPlatformFnApiWorkerIntegrationTest
   dependsOn examplesJavaFnApiWorkerIntegrationTest
   dependsOn coreSDKJavaFnApiWorkerIntegrationTest

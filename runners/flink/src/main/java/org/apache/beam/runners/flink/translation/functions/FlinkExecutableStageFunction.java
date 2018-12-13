@@ -214,7 +214,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
                 executableStage.getTimers(),
                 stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs(),
                 (WindowedValue timerElement, TimerInternals.TimerData timerData) -> {
-                  currentTimerKey = (((KV) timerElement.getValue()).getKey());
+                  currentTimerKey = ((KV) timerElement.getValue()).getKey();
                   timerInternals.setTimer(timerData);
                 },
                 windowCoder));
