@@ -241,6 +241,38 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
     }
 }
 
+task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
+    group = "Verification"
+    dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+    dependsOn buildAndPushDockerContainer
+    fnApiPipelineOptions.remove(2)
+    fnApiPipelineOptions.add("--experiments=beam_fn_api,use_executable_stage_bundle_execution")
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--runner=TestDataflowRunner",
+            "--project=${dataflowProject}",
+            "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
+    )
+
+    // Increase test parallelism up to the number of Gradle workers. By default this is equal
+    // to the number of CPU cores, but can be increased by setting --max-workers=N.
+    maxParallelForks Integer.MAX_VALUE
+    classpath = configurations.validatesRunner
+    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+    exclude '**/ViewTest.class'
+    useJUnit {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        commonExcludeCategories.each {
+            excludeCategories it
+        }
+        fnApiWorkerExcludeCategories.each {
+            excludeCategories it
+        }
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.DataflowPortabilityExecutableStageUnsupported'
+    }
+}
+
 task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
@@ -252,6 +284,13 @@ task validatesRunnerPortabilityApi {
   description "Validates Dataflow PortabilityApi runner"
   dependsOn validatesRunnerFnApiWorkerTest
   dependsOn buildAndPushDockerContainer
+}
+
+task validatesRunnerPortabilityApiExecutableStage {
+    group = "Verification"
+    description "Validates Dataflow PortabilityApi runner"
+    dependsOn validatesRunnerFnApiWorkerExecutableStageTest
+    dependsOn buildAndPushDockerContainer
 }
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
