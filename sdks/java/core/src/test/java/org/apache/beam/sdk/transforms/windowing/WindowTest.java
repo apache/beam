@@ -52,6 +52,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
+import org.apache.beam.sdk.testing.DataflowPortabilityExecutableStageUnsupported;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesCustomWindowMerging;
@@ -439,7 +440,7 @@ public class WindowTest implements Serializable {
    * the windowing function default, the end of the window.
    */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
   public void testTimestampCombinerDefault() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
@@ -473,7 +474,7 @@ public class WindowTest implements Serializable {
    * the windowing function customized to use the end of the window.
    */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
   public void testTimestampCombinerEndOfWindow() {
     pipeline.enableAbandonedNodeEnforcement(true);
 

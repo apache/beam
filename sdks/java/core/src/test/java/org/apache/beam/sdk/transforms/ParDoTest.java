@@ -82,10 +82,12 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
+import org.apache.beam.sdk.testing.DataflowPortabilityExecutableStageUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
@@ -342,7 +344,6 @@ public class ParDoTest implements Serializable {
           pipeline.apply(Create.of(inputs)).apply(ParDo.of(new TestDoFn()));
 
       PAssert.that(output).satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
-
       pipeline.run();
     }
 
@@ -706,7 +707,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testParDoWithSideInputs() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -738,7 +739,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testParDoWithSideInputsIsCumulative() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -772,7 +773,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testMultiOutputParDoWithSideInputs() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -810,7 +811,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class,UsesSideInputs.class})
     public void testMultiOutputParDoWithSideInputsIsCumulative() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -866,7 +867,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSideInputsWithMultipleWindows() {
       // Tests that the runner can safely run a DoFn that uses side inputs
       // on an input where the element is in multiple windows. The complication is
@@ -1186,7 +1187,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
     public void testWindowingInStartAndFinishBundle() {
 
       final FixedWindows windowFn = FixedWindows.of(Duration.millis(1));
@@ -1961,7 +1962,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSideInputs.class})
     public void testBagStateSideInput() {
 
       final PCollectionView<List<Integer>> listView =
