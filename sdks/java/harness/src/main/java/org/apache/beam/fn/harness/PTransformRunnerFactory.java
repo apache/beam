@@ -22,16 +22,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 
 /** A factory able to instantiate an appropriate handler for a given PTransform. */
 public interface PTransformRunnerFactory<T> {
@@ -50,7 +48,7 @@ public interface PTransformRunnerFactory<T> {
    * @param pCollections A mapping from PCollection id to PCollection definition.
    * @param coders A mapping from coder id to coder definition.
    * @param windowingStrategies
-   * @param pCollectionIdsToConsumers A mapping from PCollection id to a collection of consumers.
+   * @param pCollectionConsumerRegistry A mapping from PCollection id to a collection of consumers.
    *     Note that if this handler is a consumer, it should register itself within this multimap
    *     under the appropriate PCollection ids. Also note that all output consumers needed by this
    *     PTransform (based on the values of the {@link PTransform#getOutputsMap()} will have already
@@ -69,7 +67,7 @@ public interface PTransformRunnerFactory<T> {
       Map<String, PCollection> pCollections,
       Map<String, Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-      ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+      PCollectionConsumerRegistry pCollectionConsumerRegistry,
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
       BundleSplitListener splitListener)
