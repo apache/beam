@@ -39,15 +39,13 @@ public class SimpleMonitoringInfoBuilderTest {
     builder.setInt64Value(1);
     assertNull(builder.build());
 
-    builder.setPTransformLabel("myTransform");
-    assertNull(builder.build());
-
     builder.setPCollectionLabel("myPcollection");
     // Pass now that the spec is fully met.
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
-    assertEquals("myTransform", monitoringInfo.getLabelsOrDefault("PTRANSFORM", null));
-    assertEquals("myPcollection", monitoringInfo.getLabelsOrDefault("PCOLLECTION", null));
+    assertEquals(
+        "myPcollection",
+        monitoringInfo.getLabelsOrDefault(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, null));
     assertEquals(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, monitoringInfo.getUrn());
     assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());

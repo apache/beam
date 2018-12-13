@@ -19,12 +19,11 @@ package org.apache.beam.fn.harness;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -47,7 +46,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 
 /** Executes different components of Combine PTransforms. */
 public class CombineRunners {
@@ -124,7 +122,7 @@ public class CombineRunners {
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         BundleSplitListener splitListener)
@@ -160,24 +158,19 @@ public class CombineRunners {
       Coder<AccumT> accumCoder =
           (Coder<AccumT>) rehydratedComponents.getCoder(combinePayload.getAccumulatorCoderId());
 
-      Collection<FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>>> consumers =
-          (Collection)
-              pCollectionIdsToConsumers.get(
+      FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> consumer =
+          (FnDataReceiver)
+              pCollectionConsumerRegistry.getMultiplexingConsumer(
                   Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
 
       // TODO make the receiver aware of its transform context as well.
       // Create the runner.
       PrecombineRunner<KeyT, InputT, AccumT> runner =
-          new PrecombineRunner<>(
-              pipelineOptions,
-              combineFn,
-              MultiplexingFnDataReceiver.forConsumers(consumers),
-              keyCoder,
-              accumCoder);
+          new PrecombineRunner<>(pipelineOptions, combineFn, consumer, keyCoder, accumCoder);
 
       // Register the appropriate handlers.
       startFunctionRegistry.register(pTransformId, runner::startBundle);
-      pCollectionIdsToConsumers.put(
+      pCollectionConsumerRegistry.register(
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
           (FnDataReceiver)
               (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement);

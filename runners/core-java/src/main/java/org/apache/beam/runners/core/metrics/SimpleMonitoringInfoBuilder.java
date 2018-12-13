@@ -22,11 +22,14 @@ import java.util.HashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo.MonitoringInfoLabels;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoLabelProps;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoTypeUrns;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +68,9 @@ public class SimpleMonitoringInfoBuilder {
   private static final HashMap<String, MonitoringInfoSpec> specs =
       new HashMap<String, MonitoringInfoSpec>();
 
+  public static final String PCOLLECTION_LABEL = getLabelString(MonitoringInfoLabels.PCOLLECTION);
+  public static final String PTRANSFORM_LABEL = getLabelString(MonitoringInfoLabels.TRANSFORM);
+
   private final boolean validateAndDropInvalid;
 
   private static final Logger LOG = LoggerFactory.getLogger(SimpleMonitoringInfoBuilder.class);
@@ -85,6 +91,13 @@ public class SimpleMonitoringInfoBuilder {
     }
   }
 
+  /** Returns the label string constant defined in the MonitoringInfoLabel enum proto. */
+  private static String getLabelString(MonitoringInfoLabels label) {
+    MonitoringInfoLabelProps props =
+        label.getValueDescriptor().getOptions().getExtension(BeamFnApi.labelProps);
+    return props.getName();
+  }
+
   public SimpleMonitoringInfoBuilder() {
     this(true);
   }
@@ -95,7 +108,7 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /** @return The metric URN for a user metric, with a proper URN prefix. */
-  private static String userMetricUrn(String metricNamespace, String metricName) {
+  public static String userMetricUrn(String metricNamespace, String metricName) {
     String fixedMetricNamespace = metricNamespace.replace(':', '_');
     String fixedMetricName = metricName.replace(':', '_');
     StringBuilder sb = new StringBuilder();
@@ -144,13 +157,13 @@ public class SimpleMonitoringInfoBuilder {
   /** Sets the PTRANSFORM MonitoringInfo label to the given param. */
   public SimpleMonitoringInfoBuilder setPTransformLabel(String pTransform) {
     // TODO(ajamato): Add validation that it is a valid pTransform name in the bundle descriptor.
-    setLabel("PTRANSFORM", pTransform);
+    setLabel(PTRANSFORM_LABEL, pTransform);
     return this;
   }
 
   /** Sets the PCOLLECTION MonitoringInfo label to the given param. */
   public SimpleMonitoringInfoBuilder setPCollectionLabel(String pCollection) {
-    setLabel("PCOLLECTION", pCollection);
+    setLabel(PCOLLECTION_LABEL, pCollection);
     return this;
   }
 
@@ -161,17 +174,27 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /**
+   * @return A copy of the MonitoringInfo with the timestamp cleared, to allow comparing two
+   *     MonitoringInfos.
+   */
+  @VisibleForTesting
+  public static MonitoringInfo clearTimestamp(MonitoringInfo input) {
+    MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
+    builder.mergeFrom(input);
+    builder.clearTimestamp();
+    return builder.build();
+  }
+
+  /**
    * Builds the provided MonitoringInfo. Returns null if validateAndDropInvalid set and fields do
    * not match respecting MonitoringInfoSpec based on urn.
    */
   @Nullable
   public MonitoringInfo build() {
     final MonitoringInfo result = this.builder.build();
-
     if (validateAndDropInvalid && this.validator.validate(result).isPresent()) {
       return null;
     }
-
     return result;
   }
 }

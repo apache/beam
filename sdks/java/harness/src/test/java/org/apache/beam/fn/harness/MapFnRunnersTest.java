@@ -28,10 +28,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.fn.harness.MapFnRunners.ValueMapFnFactory;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -39,10 +39,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -62,8 +59,8 @@ public class MapFnRunnersTest {
   @Test
   public void testValueOnlyMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put("outputPC", outputConsumer::add);
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    consumers.register("outputPC", outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
     PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
@@ -90,7 +87,7 @@ public class MapFnRunnersTest {
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("abc"));
+    consumers.getMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -98,8 +95,8 @@ public class MapFnRunnersTest {
   @Test
   public void testFullWindowedValueMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put("outputPC", outputConsumer::add);
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    consumers.register("outputPC", outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
     PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
@@ -125,7 +122,7 @@ public class MapFnRunnersTest {
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("abc"));
+    consumers.getMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -133,8 +130,8 @@ public class MapFnRunnersTest {
   @Test
   public void testFullWindowedValueMappingWithCompressedWindow() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put("outputPC", outputConsumer::add);
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    consumers.register("outputPC", outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
     PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
@@ -163,7 +160,8 @@ public class MapFnRunnersTest {
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0L), Duration.standardMinutes(10L));
     IntervalWindow secondWindow =
         new IntervalWindow(new Instant(-10L), Duration.standardSeconds(22L));
-    Iterables.getOnlyElement(consumers.get("inputPC"))
+    consumers
+        .getMultiplexingConsumer("inputPC")
         .accept(
             WindowedValue.of(
                 "abc",
