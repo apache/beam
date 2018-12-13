@@ -21,4 +21,5 @@ package org.apache.beam.sdk.testing;
  * Category tag for validation tests which are not supported by Dataflow portable worker with
  * use_exetuable_stage_bundle_execution, which needs more investigations.
  */
-public class DataflowPortabilityExecutableStageUnsupported {}
+// TODO(BEAM-6231): Triage test failures introduced by using ExecutableStage.
+public interface DataflowPortabilityExecutableStageUnsupported {}
