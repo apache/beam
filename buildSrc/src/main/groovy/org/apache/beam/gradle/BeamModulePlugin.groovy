@@ -1508,7 +1508,7 @@ artifactId=${project.name}
       // For some reason base doesn't define a test task  so we define it below and make
       // check depend on it. This makes the Python project similar to the task layout like
       // Java projects, see https://docs.gradle.org/4.2.1/userguide/img/javaPluginTasks.png
-      project.task('test', type: Test) {}
+      project.task('test') {}
       project.check.dependsOn project.test
 
       project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
