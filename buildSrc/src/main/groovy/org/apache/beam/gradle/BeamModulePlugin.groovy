@@ -1420,7 +1420,7 @@ artifactId=${project.name}
         }
       }
 
-      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow 'org.apache.beam:beam-vendor-grpc-1_13_1:0.1' }
+      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow it.project(path: ":beam-vendor-grpc-1_13_1", configuration: "shadow") }
     }
 
     /** ***********************************************************************************************/
