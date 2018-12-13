@@ -19,9 +19,8 @@ package org.apache.beam.sdk.schemas;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.utils.JavaBeanGetterFactory;
+import org.apache.beam.sdk.schemas.utils.FieldNamePolicies;
 import org.apache.beam.sdk.schemas.utils.JavaBeanSetterFactory;
-import org.apache.beam.sdk.schemas.utils.JavaBeanTypeInformationFactory;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -47,7 +46,8 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
 
   @Override
   public FieldValueGetterFactory fieldValueGetterFactory() {
-    return new JavaBeanGetterFactory();
+    return (Class<?> targetClass, Schema schema) ->
+        JavaBeanUtils.getGetters(targetClass, schema, FieldNamePolicies.identity());
   }
 
   @Override
@@ -57,6 +57,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
 
   @Override
   public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
-    return new JavaBeanTypeInformationFactory();
+    return (Class<?> targetClass, Schema schema) ->
+        JavaBeanUtils.getFieldTypes(targetClass, schema, FieldNamePolicies.identity());
   }
 }

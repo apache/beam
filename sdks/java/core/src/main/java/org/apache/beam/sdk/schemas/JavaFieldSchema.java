@@ -19,9 +19,8 @@ package org.apache.beam.sdk.schemas;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.schemas.utils.FieldNamePolicies;
 import org.apache.beam.sdk.schemas.utils.POJOUtils;
-import org.apache.beam.sdk.schemas.utils.PojoValueGetterFactory;
-import org.apache.beam.sdk.schemas.utils.PojoValueTypeInformationFactory;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -46,16 +45,19 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
 
   @Override
   public FieldValueGetterFactory fieldValueGetterFactory() {
-    return new PojoValueGetterFactory();
+    return (Class<?> targetClass, Schema schema) ->
+        POJOUtils.getGetters(targetClass, schema, FieldNamePolicies.identity());
   }
 
   @Override
   public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
-    return new PojoValueTypeInformationFactory();
+    return (Class<?> targetClass, Schema schema) ->
+        POJOUtils.getFieldTypes(targetClass, schema, FieldNamePolicies.identity());
   }
 
   @Override
   UserTypeCreatorFactory schemaTypeCreatorFactory() {
-    return new PojoTypeUserTypeCreatorFactory();
+    return (Class<?> targetClass, Schema schema) ->
+        POJOUtils.getCreator(targetClass, schema, FieldNamePolicies.identity());
   }
 }
