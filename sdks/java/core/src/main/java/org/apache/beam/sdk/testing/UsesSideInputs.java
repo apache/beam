@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 /**
- * Category tag for validation tests which use sideinputs. Tests
- * tagged with {@link UsesSideInputs} should be run for runners which support sideinputs.
+ * Category tag for validation tests which use sideinputs. Tests tagged with {@link UsesSideInputs}
+ * should be run for runners which support sideinputs.
  */
 public interface UsesSideInputs {}

@@ -39,9 +39,9 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesBoundedSplittableParDo;
 import org.apache.beam.sdk.testing.UsesParDoLifecycle;
+import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
@@ -154,8 +154,11 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class,
-      DataflowPortabilityExecutableStageUnsupported.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesBoundedSplittableParDo.class,
+    DataflowPortabilityExecutableStageUnsupported.class
+  })
   public void testPairWithIndexWindowedTimestampedBounded() {
     testPairWithIndexWindowedTimestamped(IsBounded.BOUNDED);
   }
