@@ -412,7 +412,8 @@ public class FlinkBatchPortablePipelineTranslator
 
     for (SideInputId sideInputId : stagePayload.getSideInputsList()) {
       String collectionId =
-          components
+          stagePayload
+              .getComponents()
               .getTransformsOrThrow(sideInputId.getTransformId())
               .getInputsOrThrow(sideInputId.getLocalName());
       // Register under the global PCollection name. Only ExecutableStageFunction needs to know the
