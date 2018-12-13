@@ -52,6 +52,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
   @Nullable
   public abstract Type getMapValueType();
 
+  @Nullable
   public static FieldValueTypeInformation of(
       Field field, SerializableFunction<String, String> fieldNamePolicy) {
     String name = fieldNamePolicy.apply(field.getName());
