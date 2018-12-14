@@ -41,15 +41,6 @@ For more information on changes in 2.9.0, check out the
 &lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12344258&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
 
 &lt;h2 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h2&gt;
-&lt;ul&gt;
-  &lt;li&gt;Support set/delete of timers by ID in Flink runner.&lt;/li&gt;
-  &lt;li&gt;Improvements to stabilize integration tests.&lt;/li&gt;
-  &lt;li&gt;Updates Spark runner to show Beam metrics in web UI&lt;/li&gt;
-  &lt;li&gt;Vendor gRPC and Protobuf separately from beam-model-* Java packages&lt;/li&gt;
-  &lt;li&gt;Avoid reshuffle for zero and one element creates&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;known-issues&quot;&gt;Known Issues&lt;/h2&gt;
 
 &lt;h3 id=&quot;dependency-upgrades&quot;&gt;Dependency Upgrades&lt;/h3&gt;
 &lt;ul&gt;
@@ -59,10 +50,6 @@ For more information on changes in 2.9.0, check out the
   &lt;li&gt;Upgrade google-apitools to 0.5.24&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&quot;sdks&quot;&gt;SDKs&lt;/h3&gt;
-
-&lt;h3 id=&quot;portability&quot;&gt;Portability&lt;/h3&gt;
-
 &lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
 
 &lt;ul&gt;
@@ -71,9 +58,14 @@ For more information on changes in 2.9.0, check out the
   &lt;li&gt;Add PFADD method to RedisIO.&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h2 id=&quot;miscellaneous-fixes&quot;&gt;Miscellaneous Fixes&lt;/h2&gt;
+&lt;h3 id=&quot;miscellaneous-fixes&quot;&gt;Miscellaneous Fixes&lt;/h3&gt;
 &lt;ul&gt;
-  &lt;li&gt;DataflowRunner was updated to &lt;strong&gt;not&lt;/strong&gt; use &lt;a href=&quot;https://github.com/google/conscrypt&quot;&gt;Conscrypt&lt;/a&gt; as the default security provider.&lt;/li&gt;
+  &lt;li&gt;Dataflow runner was updated to &lt;strong&gt;not&lt;/strong&gt; use &lt;a href=&quot;https://github.com/google/conscrypt&quot;&gt;Conscrypt&lt;/a&gt; as the default security provider.&lt;/li&gt;
+  &lt;li&gt;Support set/delete of timers by ID in Flink runner.&lt;/li&gt;
+  &lt;li&gt;Improvements to stabilize integration tests.&lt;/li&gt;
+  &lt;li&gt;Updates Spark runner to show Beam metrics in web UI&lt;/li&gt;
+  &lt;li&gt;Vendor gRPC and Protobuf separately from beam-model-* Java packages&lt;/li&gt;
+  &lt;li&gt;Avoid reshuffle for zero and one element creates&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
@@ -81,7 +73,7 @@ For more information on changes in 2.9.0, check out the
 &lt;p&gt;According to git shortlog, the following people contributed
 to the 2.9.0 release. Thank you to all contributors!&lt;/p&gt;
 
-&lt;p&gt;Adam Horky ,Ahmet Altay ,Alan Myrvold ,Alex Amato ,Alexey Romanenko ,Andrea Foegler ,Andrew Fulton ,Andrew Pilloud ,Ankur ,Ankur Goenka ,Anton Kedin ,Babu ,Ben Song ,Bingfeng Shu ,Boyuan Zhang ,Brian Martin ,Brian Quinlan ,Chamikara Jayalath ,Charles Chen ,Christian Schneider ,Colm O hEigeartaigh ,Cory Brzycki ,CraigChambersG ,Daniel Oliveira ,David Moravek ,Dusan Rychnovsky ,Etienne Chauchot ,Eugene Kirpichov ,Fabien Rousseau ,Gleb Kanterov ,Heejong Lee ,Henning Rohde ,Ismaël Mejía ,Jan Lukavsky ,Jan Lukavský ,Jaromir Vanek ,Jason Kuster ,Jean-Baptiste Onofré ,Jeff Klukas ,Jeroen Steggink ,Julien Tournay ,Jára Vaněk ,Katarzyna Kucharczyk ,Keisuke Kondo ,Kenn Knowles ,Kenneth Knowles ,Liam Miller-Cushon ,Lukasz Cwik ,Luke Cwik ,Manu Zhang ,Mark Liu ,Maximilian Michels ,Melissa Pashniak ,Mergebot ,Micah Wylde ,Michael Luckey ,Mike Pedersen ,Mikhail Gryzykhin ,Novotnik , Petr ,Ondrej Kvasnicka ,Pablo ,Pavel Slechta ,Raghu Angadi ,Reuven Lax ,Robbe Sneyders ,Robert Bradshaw ,Robert Burke ,Ruoyu Liu ,Ruoyun ,Ruoyun Huang ,Sam Rohde ,Sam sam ,Scott Wegner ,Simon Plovyt ,Thomas Weise ,Tim Robertson ,Tomas Novak ,Udi Meiri ,Vaclav Plajt ,Valentyn Tymofieiev ,Varun Dhussa ,Vojtech Janota ,Wout Scheepers ,Xinyu Liu ,XuMingmin ,Yifan Zou ,Yueyang Qiu ,akedin ,amaliujia ,chamikara@google.com ,connelloG ,flyisland ,huygaa11 ,jasonkuster ,jglezt ,kkpoon ,marek.simunek ,mareksimunek ,matthiasa4 ,melissa ,mingmxu ,nielm ,reuvenlax ,robbe ,ruoyu90 ,splovyt ,svXaverius ,timrobertson100 ,tvalentyn ,vaclav.plajt@gmail.com ,xinyuiscool ,xitep ,Łukasz Gajowy&lt;/p&gt;
+&lt;p&gt;Adam Horky, Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Andrea Foegler, Andrew Fulton, Andrew Pilloud, Ankur Goenka, Anton Kedin, Babu, Ben Song, Bingfeng Shu, Boyuan Zhang, Brian Martin, Brian Quinlan, Chamikara Jayalath, Charles Chen, Christian Schneider, Colm O hEigeartaigh, Cory Brzycki, CraigChambersG, Daniel Oliveira, David Moravek, Dusan Rychnovsky, Etienne Chauchot, Eugene Kirpichov, Fabien Rousseau, Gleb Kanterov, Heejong Lee, Henning Rohde, Ismaël Mejía, Jan Lukavský, Jaromir Vanek, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, Jeroen Steggink, Julien Tournay, Jára Vaněk, Katarzyna Kucharczyk, Keisuke Kondo, Kenneth Knowles, Liam Miller-Cushon, Luke Cwik, Manu Zhang, Mark Liu, Maximilian Michels, Melissa Pashniak, Micah Wylde, Michael Luckey, Mike Pedersen, Mikhail Gryzykhin, Novotnik,  Petr, Ondrej Kvasnicka, Pablo Estrada, Pavel Slechta, Raghu Angadi, Reuven Lax, Robbe Sneyders, Robert Bradshaw, Robert Burke, Ruoyu Liu, Ruoyun Huang, Sam Rohde, Sam sam, Scott Wegner, Simon Plovyt, Thomas Weise, Tim Robertson, Tomas Novak, Udi Meiri, Vaclav Plajt, Valentyn Tymofieiev, Varun Dhussa, Vojtech Janota, Wout Scheepers, Xinyu Liu, XuMingmin, Yifan Zou, Yueyang Qiu, akedin, amaliujia, connelloG, flyisland, huygaa11, jasonkuster, jglezt, kkpoon, mareksimunek, matthiasa4, melissa, mingmxu, nielm, reuvenlax, robbe, ruoyu90, splovyt, svXaverius, vaclav.plajt@gmail.com, xinyuiscool, xitep, Łukasz Gajowy&lt;/p&gt;
 </description>
         <pubDate>Thu, 13 Dec 2018 00:00:01 -0800</pubDate>
         <link>https://beam.apache.org/blog/2018/12/13/beam-2.9.0.html</link>

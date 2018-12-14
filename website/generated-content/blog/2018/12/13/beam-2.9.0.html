@@ -152,7 +152,7 @@
   <header class="post-header">
     <h1 class="post-title" itemprop="name headline">Apache Beam 2.9.0</h1>
     <p class="post-meta"><time datetime="2018-12-13T00:00:01-08:00" itemprop="datePublished">Dec 13, 2018</time> •
-        
+       Chamikara Jayalath 
       
     </p>
   </header>
@@ -178,15 +178,6 @@ For more information on changes in 2.9.0, check out the
 <a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12344258">detailed release notes</a>.</p>
 
 <h2 id="new-features--improvements">New Features / Improvements</h2>
-<ul>
-  <li>Support set/delete of timers by ID in Flink runner.</li>
-  <li>Improvements to stabilize integration tests.</li>
-  <li>Updates Spark runner to show Beam metrics in web UI</li>
-  <li>Vendor gRPC and Protobuf separately from beam-model-* Java packages</li>
-  <li>Avoid reshuffle for zero and one element creates</li>
-</ul>
-
-<h2 id="known-issues">Known Issues</h2>
 
 <h3 id="dependency-upgrades">Dependency Upgrades</h3>
 <ul>
@@ -196,10 +187,6 @@ For more information on changes in 2.9.0, check out the
   <li>Upgrade google-apitools to 0.5.24</li>
 </ul>
 
-<h3 id="sdks">SDKs</h3>
-
-<h3 id="portability">Portability</h3>
-
 <h3 id="ios">I/Os</h3>
 
 <ul>
@@ -208,9 +195,14 @@ For more information on changes in 2.9.0, check out the
   <li>Add PFADD method to RedisIO.</li>
 </ul>
 
-<h2 id="miscellaneous-fixes">Miscellaneous Fixes</h2>
+<h3 id="miscellaneous-fixes">Miscellaneous Fixes</h3>
 <ul>
-  <li>DataflowRunner was updated to <strong>not</strong> use <a href="https://github.com/google/conscrypt">Conscrypt</a> as the default security provider.</li>
+  <li>Dataflow runner was updated to <strong>not</strong> use <a href="https://github.com/google/conscrypt">Conscrypt</a> as the default security provider.</li>
+  <li>Support set/delete of timers by ID in Flink runner.</li>
+  <li>Improvements to stabilize integration tests.</li>
+  <li>Updates Spark runner to show Beam metrics in web UI</li>
+  <li>Vendor gRPC and Protobuf separately from beam-model-* Java packages</li>
+  <li>Avoid reshuffle for zero and one element creates</li>
 </ul>
 
 <h2 id="list-of-contributors">List of Contributors</h2>
@@ -218,7 +210,7 @@ For more information on changes in 2.9.0, check out the
 <p>According to git shortlog, the following people contributed
 to the 2.9.0 release. Thank you to all contributors!</p>
 
-<p>Adam Horky ,Ahmet Altay ,Alan Myrvold ,Alex Amato ,Alexey Romanenko ,Andrea Foegler ,Andrew Fulton ,Andrew Pilloud ,Ankur ,Ankur Goenka ,Anton Kedin ,Babu ,Ben Song ,Bingfeng Shu ,Boyuan Zhang ,Brian Martin ,Brian Quinlan ,Chamikara Jayalath ,Charles Chen ,Christian Schneider ,Colm O hEigeartaigh ,Cory Brzycki ,CraigChambersG ,Daniel Oliveira ,David Moravek ,Dusan Rychnovsky ,Etienne Chauchot ,Eugene Kirpichov ,Fabien Rousseau ,Gleb Kanterov ,Heejong Lee ,Henning Rohde ,Ismaël Mejía ,Jan Lukavsky ,Jan Lukavský ,Jaromir Vanek ,Jason Kuster ,Jean-Baptiste Onofré ,Jeff Klukas ,Jeroen Steggink ,Julien Tournay ,Jára Vaněk ,Katarzyna Kucharczyk ,Keisuke Kondo ,Kenn Knowles ,Kenneth Knowles ,Liam Miller-Cushon ,Lukasz Cwik ,Luke Cwik ,Manu Zhang ,Mark Liu ,Maximilian Michels ,Melissa Pashniak ,Mergebot ,Micah Wylde ,Michael Luckey ,Mike Pedersen ,Mikhail Gryzykhin ,Novotnik , Petr ,Ondrej Kvasnicka ,Pablo ,Pavel Slechta ,Raghu Angadi ,Reuven Lax ,Robbe Sneyders ,Robert Bradshaw ,Robert Burke ,Ruoyu Liu ,Ruoyun ,Ruoyun Huang ,Sam Rohde ,Sam sam ,Scott Wegner ,Simon Plovyt ,Thomas Weise ,Tim Robertson ,Tomas Novak ,Udi Meiri ,Vaclav Plajt ,Valentyn Tymofieiev ,Varun Dhussa ,Vojtech Janota ,Wout Scheepers ,Xinyu Liu ,XuMingmin ,Yifan Zou ,Yueyang Qiu ,akedin ,amaliujia ,chamikara@google.com ,connelloG ,flyisland ,huygaa11 ,jasonkuster ,jglezt ,kkpoon ,marek.simunek ,mareksimunek ,matthiasa4 ,melissa ,mingmxu ,nielm ,reuvenlax ,robbe ,ruoyu90 ,splovyt ,svXaverius ,timrobertson100 ,tvalentyn ,vaclav.plajt@gmail.com ,xinyuiscool ,xitep ,Łukasz Gajowy</p>
+<p>Adam Horky, Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Andrea Foegler, Andrew Fulton, Andrew Pilloud, Ankur Goenka, Anton Kedin, Babu, Ben Song, Bingfeng Shu, Boyuan Zhang, Brian Martin, Brian Quinlan, Chamikara Jayalath, Charles Chen, Christian Schneider, Colm O hEigeartaigh, Cory Brzycki, CraigChambersG, Daniel Oliveira, David Moravek, Dusan Rychnovsky, Etienne Chauchot, Eugene Kirpichov, Fabien Rousseau, Gleb Kanterov, Heejong Lee, Henning Rohde, Ismaël Mejía, Jan Lukavský, Jaromir Vanek, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, Jeroen Steggink, Julien Tournay, Jára Vaněk, Katarzyna Kucharczyk, Keisuke Kondo, Kenneth Knowles, Liam Miller-Cushon, Luke Cwik, Manu Zhang, Mark Liu, Maximilian Michels, Melissa Pashniak, Micah Wylde, Michael Luckey, Mike Pedersen, Mikhail Gryzykhin, Novotnik,  Petr, Ondrej Kvasnicka, Pablo Estrada, Pavel Slechta, Raghu Angadi, Reuven Lax, Robbe Sneyders, Robert Bradshaw, Robert Burke, Ruoyu Liu, Ruoyun Huang, Sam Rohde, Sam sam, Scott Wegner, Simon Plovyt, Thomas Weise, Tim Robertson, Tomas Novak, Udi Meiri, Vaclav Plajt, Valentyn Tymofieiev, Varun Dhussa, Vojtech Janota, Wout Scheepers, Xinyu Liu, XuMingmin, Yifan Zou, Yueyang Qiu, akedin, amaliujia, connelloG, flyisland, huygaa11, jasonkuster, jglezt, kkpoon, mareksimunek, matthiasa4, melissa, mingmxu, nielm, reuvenlax, robbe, ruoyu90, splovyt, svXaverius, vaclav.plajt@gmail.com, xinyuiscool, xitep, Łukasz Gajowy</p>
 
   </div>
 
