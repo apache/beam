@@ -1973,7 +1973,7 @@ PTransform.register_urn(
 class Create(PTransform):
   """A transform that creates a PCollection from an iterable."""
 
-  def __init__(self, values):
+  def __init__(self, values, reshuffle=True):
     """Initializes a Create transform.
 
     Args:
@@ -1986,6 +1986,7 @@ class Create(PTransform):
     elif isinstance(values, dict):
       values = values.items()
     self.values = tuple(values)
+    self.reshuffle = reshuffle
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
@@ -2010,13 +2011,14 @@ class Create(PTransform):
     if fn_api:
       coder = typecoders.registry.get_coder(self.get_output_type())
       serialized_values = [coder.encode(v) for v in self.values]
+      reshuffle = self.reshuffle
       # Avoid the "redistributing" reshuffle for 0 and 1 element Creates.
       # These special cases are often used in building up more complex
       # transforms (e.g. Write).
 
       class MaybeReshuffle(PTransform):
         def expand(self, pcoll):
-          if len(serialized_values) > 1:
+          if len(serialized_values) > 1 and reshuffle:
             from apache_beam.transforms.util import Reshuffle
             return pcoll | Reshuffle()
           else:
