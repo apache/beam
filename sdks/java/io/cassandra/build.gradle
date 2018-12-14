@@ -17,10 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(shadowClosure: {
-    dependencies {
-        include(dependency(project.library.java.guava))
-    }
+applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE >> {
     // guava uses the com.google.common and com.google.thirdparty package namespaces
     relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
         // com.google.common is too generic, need to exclude guava-testlib
@@ -33,7 +30,6 @@ applyJavaNature(shadowClosure: {
     }
     // we haven't relocated this so we shouldn't shadow it either
     exclude "com/google/common/util/concurrent/ListenableFuture.class"
-    relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
 })
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -44,11 +40,11 @@ ext.summary = "IO to read and write with Apache Cassandra database"
 def cassandra_version = "3.5.0"
 
 dependencies {
-  compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow "com.datastax.cassandra:cassandra-driver-core:$cassandra_version"
   shadow "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_version"
+  shadow library.java.vendored_guava_20_0
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile library.java.junit
