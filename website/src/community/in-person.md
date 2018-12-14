@@ -37,7 +37,7 @@ We occassionally meetup in various locations around the globe.  Active or to-be-
 | San Francisco | [Bay Area Apache Beam](https://www.meetup.com/San-Francisco-Apache-Beam/) |
 | Los Angeles | [Los Angeles Apache Beam](https://www.meetup.com/Los-Angeles-Apache-Beam/) |
 | Washington DC | [Washington DC Apache Beam Meetup](https://www.meetup.com/DC-Apache-Beam/) |
-| New York City | [New York Apache Beam](https://www.meetup.com/New-York-Apache-Beam/) |
+| New York City | [New York Apache Beam](https://www.meetup.com/New-York-Apache-Beam/) |:
 {:.table}
 
 ## Conference Talks
