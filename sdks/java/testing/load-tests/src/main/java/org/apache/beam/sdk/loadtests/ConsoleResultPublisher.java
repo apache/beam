@@ -22,6 +22,6 @@ public class ConsoleResultPublisher {
 
   static void publish(LoadTestResult result) {
     System.out.println(String.format("Total bytes: %s", result.getTotalBytesCount()));
-    System.out.println(String.format("Total time (millis): %s", result.getRuntime()));
+    System.out.println(String.format("Total time (sec): %s", result.getRuntime()));
   }
 }
