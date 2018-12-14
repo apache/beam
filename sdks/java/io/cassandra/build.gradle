@@ -17,19 +17,11 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE >> {
-    // guava uses the com.google.common and com.google.thirdparty package namespaces
-    relocate("com.google.common", project.getJavaRelocatedPath("com.google.common")) {
-        // com.google.common is too generic, need to exclude guava-testlib
-        exclude "com.google.common.collect.testing.**"
-        exclude "com.google.common.escape.testing.**"
-        exclude "com.google.common.testing.**"
-        exclude "com.google.common.util.concurrent.testing.**"
-        // don't relocate because the cassandra driver's public API uses it
-        exclude "com.google.common.util.concurrent.ListenableFuture"
-    }
-    // we haven't relocated this so we shouldn't shadow it either
-    exclude "com/google/common/util/concurrent/ListenableFuture.class"
+// exclude everything because we don't need to repackage any dependencies
+applyJavaNature(shadowClosure: {
+  dependencies {
+    exclude { true }
+  }
 })
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()

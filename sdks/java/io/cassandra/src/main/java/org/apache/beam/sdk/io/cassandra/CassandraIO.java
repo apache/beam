@@ -79,6 +79,7 @@ import org.apache.beam.sdk.values.PDone;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class CassandraIO {
+
   private CassandraIO() {}
 
   /** Provide a {@link Read} {@link PTransform} to read data from a Cassandra database. */
