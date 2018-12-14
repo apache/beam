@@ -22,7 +22,7 @@ import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_DataflowPortabilityExecutableStage_Gradle',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_DataflowPortabilityExecutableStage',
   'Run Dataflow Portability ExecutableStage ValidatesRunner', 'Google Cloud Dataflow Runner PortabilityApi ExecutableStage ValidatesRunner Tests', this) {
 
   description('Runs the ValidatesRunner suite on the Dataflow PortabilityApi runner with ExecutableStage code path enabled.')
@@ -48,4 +48,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
       commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }
   }
+
+  // [BEAM-6236] "use_executable_stage_bundle_execution" hasn't been rolled out.
+  disabled()
 }
