@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Experimental(Kind.SCHEMAS)
 public class JavaFieldSchema extends GetterBasedSchemaProvider {
+  /** {@link FieldValueTypeSupplier} that's based on public fields. */
   @VisibleForTesting
   public static class JavaFieldTypeSupplier implements FieldValueTypeSupplier {
     @Override

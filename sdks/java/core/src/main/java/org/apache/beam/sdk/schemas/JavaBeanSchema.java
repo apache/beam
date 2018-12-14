@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Experimental(Kind.SCHEMAS)
 public class JavaBeanSchema extends GetterBasedSchemaProvider {
+  /** {@link FieldValueTypeSupplier} that's based on getter methods. */
   @VisibleForTesting
   public static class GetterTypeSupplier implements FieldValueTypeSupplier {
     @Override
@@ -63,6 +64,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     }
   }
 
+  /** {@link FieldValueTypeSupplier} that's based on setter methods. */
   @VisibleForTesting
   public static class SetterTypeSupplier implements FieldValueTypeSupplier {
     @Override
