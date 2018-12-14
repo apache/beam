@@ -55,12 +55,34 @@ public class MapElementsTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   /**
+   * A {@link SimpleFunction} to test that the coder registry can propagate coders that are bound to
+   * type variables.
+   */
+  private static class PolymorphicSimpleFunction<T> extends SimpleFunction<T, T> {
+    @Override
+    public T apply(T input) {
+      return input;
+    }
+  }
+
+  /**
+   * A {@link SimpleFunction} to test that the coder registry can propagate coders that are bound to
+   * type variables, when the variable appears nested in the output.
+   */
+  private static class NestedPolymorphicSimpleFunction<T> extends SimpleFunction<T, KV<T, String>> {
+    @Override
+    public KV<T, String> apply(T input) {
+      return KV.of(input, "hello");
+    }
+  }
+
+  /**
    * An {@link InferableFunction} to test that the coder registry can propagate coders that are
    * bound to type variables.
    */
   private static class PolymorphicInferableFunction<T> extends InferableFunction<T, T> {
     @Override
-    public T apply(T input) {
+    public T apply(T input) throws Exception {
       return input;
     }
   }
@@ -72,15 +94,35 @@ public class MapElementsTest implements Serializable {
   private static class NestedPolymorphicInferableFunction<T>
       extends InferableFunction<T, KV<T, String>> {
     @Override
-    public KV<T, String> apply(T input) {
+    public KV<T, String> apply(T input) throws Exception {
       return KV.of(input, "hello");
     }
+  }
+
+  /** Basic test of {@link MapElements} with a {@link SimpleFunction}. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapSimpleFunction() throws Exception {
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<Integer, Integer>() {
+                      @Override
+                      public Integer apply(Integer input) {
+                        return -input;
+                      }
+                    }));
+
+    PAssert.that(output).containsInAnyOrder(-2, -1, -3);
+    pipeline.run();
   }
 
   /** Basic test of {@link MapElements} with an {@link InferableFunction}. */
   @Test
   @Category(NeedsRunner.class)
-  public void testMapBasic() throws Exception {
+  public void testMapInferableFunction() throws Exception {
     PCollection<Integer> output =
         pipeline
             .apply(Create.of(1, 2, 3))
@@ -88,7 +130,7 @@ public class MapElementsTest implements Serializable {
                 MapElements.via(
                     new InferableFunction<Integer, Integer>() {
                       @Override
-                      public Integer apply(Integer input) {
+                      public Integer apply(Integer input) throws Exception {
                         return -input;
                       }
                     }));
@@ -116,6 +158,31 @@ public class MapElementsTest implements Serializable {
   }
 
   /**
+   * Basic test of {@link MapElements} coder propagation with a parametric {@link SimpleFunction}.
+   */
+  @Test
+  public void testPolymorphicSimpleFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    pipeline
+        .apply(Create.of(1, 2, 3))
+
+        // This is the function that needs to propagate the input T to output T
+        .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<>()))
+
+        // This is a consumer to ensure that all coder inference logic is executed.
+        .apply(
+            "Test Consumer",
+            MapElements.via(
+                new SimpleFunction<Integer, Integer>() {
+                  @Override
+                  public Integer apply(Integer input) {
+                    return input;
+                  }
+                }));
+  }
+
+  /**
    * Basic test of {@link MapElements} coder propagation with a parametric {@link
    * InferableFunction}.
    */
@@ -125,18 +192,40 @@ public class MapElementsTest implements Serializable {
 
     pipeline
         .apply(Create.of(1, 2, 3))
-
-        // This is the function that needs to propagate the input T to output T
         .apply("Polymorphic Identity", MapElements.via(new PolymorphicInferableFunction<>()))
-
-        // This is a consumer to ensure that all coder inference logic is executed.
         .apply(
             "Test Consumer",
             MapElements.via(
                 new InferableFunction<Integer, Integer>() {
                   @Override
-                  public Integer apply(Integer input) {
+                  public Integer apply(Integer input) throws Exception {
                     return input;
+                  }
+                }));
+  }
+
+  /**
+   * Test of {@link MapElements} coder propagation with a parametric {@link SimpleFunction} where
+   * the type variable occurs nested within other concrete type constructors.
+   */
+  @Test
+  public void testNestedPolymorphicSimpleFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    pipeline
+        .apply(Create.of(1, 2, 3))
+
+        // This is the function that needs to propagate the input T to output T
+        .apply("Polymorphic Identity", MapElements.via(new NestedPolymorphicSimpleFunction<>()))
+
+        // This is a consumer to ensure that all coder inference logic is executed.
+        .apply(
+            "Test Consumer",
+            MapElements.via(
+                new SimpleFunction<KV<Integer, String>, Integer>() {
+                  @Override
+                  public Integer apply(KV<Integer, String> input) {
+                    return 42;
                   }
                 }));
   }
@@ -151,33 +240,55 @@ public class MapElementsTest implements Serializable {
 
     pipeline
         .apply(Create.of(1, 2, 3))
-
-        // This is the function that needs to propagate the input T to output T
         .apply("Polymorphic Identity", MapElements.via(new NestedPolymorphicInferableFunction<>()))
-
-        // This is a consumer to ensure that all coder inference logic is executed.
         .apply(
             "Test Consumer",
             MapElements.via(
                 new InferableFunction<KV<Integer, String>, Integer>() {
                   @Override
-                  public Integer apply(KV<Integer, String> input) {
+                  public Integer apply(KV<Integer, String> input) throws Exception {
                     return 42;
                   }
                 }));
   }
 
-  /**
-   * Basic test of {@link MapElements} with a {@link SerializableFunction}. This style is generally
-   * discouraged in Java 7, in favor of {@link InferableFunction}.
-   */
+  /** Basic test of {@link MapElements} with a {@link ProcessFunction}. */
   @Test
   @Category(NeedsRunner.class)
-  public void testMapBasicSerializableFunction() throws Exception {
+  public void testMapBasicProcessFunction() throws Exception {
     PCollection<Integer> output =
         pipeline.apply(Create.of(1, 2, 3)).apply(MapElements.into(integers()).via(input -> -input));
 
     PAssert.that(output).containsInAnyOrder(-2, -1, -3);
+    pipeline.run();
+  }
+
+  /**
+   * Tests that when built with a concrete subclass of {@link SimpleFunction}, the type descriptor
+   * of the output reflects its static type.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSimpleFunctionOutputTypeDescriptor() throws Exception {
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of("hello"))
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<String, String>() {
+                      @Override
+                      public String apply(String input) {
+                        return input;
+                      }
+                    }));
+    assertThat(
+        output.getTypeDescriptor(),
+        equalTo((TypeDescriptor<String>) new TypeDescriptor<String>() {}));
+    assertThat(
+        pipeline.getCoderRegistry().getCoder(output.getTypeDescriptor()),
+        equalTo(pipeline.getCoderRegistry().getCoder(new TypeDescriptor<String>() {})));
+
+    // Make sure the pipeline runs too
     pipeline.run();
   }
 
@@ -195,7 +306,7 @@ public class MapElementsTest implements Serializable {
                 MapElements.via(
                     new InferableFunction<String, String>() {
                       @Override
-                      public String apply(String input) {
+                      public String apply(String input) throws Exception {
                         return input;
                       }
                     }));
@@ -231,9 +342,17 @@ public class MapElementsTest implements Serializable {
   }
 
   @Test
-  public void testInferableFunctionClassDisplayData() {
-    InferableFunction<?, ?> simpleFn =
-        new InferableFunction<Integer, Integer>() {
+  public void testProcessFunctionDisplayData() {
+    ProcessFunction<Integer, Integer> processFn = input -> input;
+
+    MapElements<?, ?> processMap = MapElements.into(integers()).via(processFn);
+    assertThat(DisplayData.from(processMap), hasDisplayItem("class", processFn.getClass()));
+  }
+
+  @Test
+  public void testSimpleFunctionClassDisplayData() {
+    SimpleFunction<?, ?> simpleFn =
+        new SimpleFunction<Integer, Integer>() {
           @Override
           public Integer apply(Integer input) {
             return input;
@@ -245,9 +364,23 @@ public class MapElementsTest implements Serializable {
   }
 
   @Test
-  public void testInferableFunctionDisplayData() {
-    InferableFunction<Integer, ?> simpleFn =
+  public void testInferableFunctionClassDisplayData() {
+    InferableFunction<?, ?> inferableFn =
         new InferableFunction<Integer, Integer>() {
+          @Override
+          public Integer apply(Integer input) throws Exception {
+            return input;
+          }
+        };
+
+    MapElements<?, ?> inferableMap = MapElements.via(inferableFn);
+    assertThat(DisplayData.from(inferableMap), hasDisplayItem("class", inferableFn.getClass()));
+  }
+
+  @Test
+  public void testSimpleFunctionDisplayData() {
+    SimpleFunction<Integer, ?> simpleFn =
+        new SimpleFunction<Integer, Integer>() {
           @Override
           public Integer apply(Integer input) {
             return input;
@@ -265,10 +398,30 @@ public class MapElementsTest implements Serializable {
   }
 
   @Test
+  public void testInferableFunctionDisplayData() {
+    InferableFunction<Integer, ?> inferableFn =
+        new InferableFunction<Integer, Integer>() {
+          @Override
+          public Integer apply(Integer input) {
+            return input;
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "baz"));
+          }
+        };
+
+    MapElements<?, ?> inferableMap = MapElements.via(inferableFn);
+    assertThat(DisplayData.from(inferableMap), hasDisplayItem("class", inferableFn.getClass()));
+    assertThat(DisplayData.from(inferableMap), hasDisplayItem("foo", "baz"));
+  }
+
+  @Test
   @Category(ValidatesRunner.class)
   public void testPrimitiveDisplayData() {
-    InferableFunction<Integer, ?> mapFn =
-        new InferableFunction<Integer, Integer>() {
+    SimpleFunction<Integer, ?> mapFn =
+        new SimpleFunction<Integer, Integer>() {
           @Override
           public Integer apply(Integer input) {
             return input;
@@ -292,7 +445,7 @@ public class MapElementsTest implements Serializable {
     public PCollection<KV<K, Void>> expand(PCollection<KV<K, V>> input) {
       return input.apply(
           MapElements.via(
-              new InferableFunction<KV<K, V>, KV<K, Void>>() {
+              new SimpleFunction<KV<K, V>, KV<K, Void>>() {
                 @Override
                 public KV<K, Void> apply(KV<K, V> input) {
                   return KV.of(input.getKey(), null);
@@ -323,7 +476,7 @@ public class MapElementsTest implements Serializable {
   }
 
   /**
-   * Basic test of {@link MapElements} with a lambda wrapped into a {@link InferableFunction} to
+   * Basic test of {@link MapElements} with a lambda wrapped into a {@link SimpleFunction} to
    * remember its type.
    */
   @Test
@@ -333,8 +486,7 @@ public class MapElementsTest implements Serializable {
     PCollection<Integer> output =
         pipeline
             .apply(Create.of(1, 2, 3))
-            .apply(
-                MapElements.via(new InferableFunction<Integer, Integer>((Integer i) -> i * 2) {}));
+            .apply(MapElements.via(new SimpleFunction<Integer, Integer>((Integer i) -> i * 2) {}));
 
     PAssert.that(output).containsInAnyOrder(6, 2, 4);
     pipeline.run();

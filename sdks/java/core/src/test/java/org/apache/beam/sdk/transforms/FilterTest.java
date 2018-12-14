@@ -38,7 +38,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FilterTest implements Serializable {
 
-  static class TrivialFn implements ProcessFunction<Integer, Boolean> {
+  static class TrivialFn implements SerializableFunction<Integer, Boolean> {
     private final Boolean returnVal;
 
     TrivialFn(Boolean returnVal) {
@@ -51,9 +51,16 @@ public class FilterTest implements Serializable {
     }
   }
 
-  static class EvenFn implements ProcessFunction<Integer, Boolean> {
+  static class EvenFn implements SerializableFunction<Integer, Boolean> {
     @Override
     public Boolean apply(Integer elem) {
+      return elem % 2 == 0;
+    }
+  }
+
+  static class EvenProcessFn implements ProcessFunction<Integer, Boolean> {
+    @Override
+    public Boolean apply(Integer elem) throws Exception {
       return elem % 2 == 0;
     }
   }
@@ -88,6 +95,16 @@ public class FilterTest implements Serializable {
   public void testFilterByPredicate() {
     PCollection<Integer> output =
         p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.by(new EvenFn()));
+
+    PAssert.that(output).containsInAnyOrder(2, 4, 6);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFilterByProcessFunction() {
+    PCollection<Integer> output =
+        p.apply(Create.of(1, 2, 3, 4, 5, 6, 7)).apply(Filter.by(new EvenProcessFn()));
 
     PAssert.that(output).containsInAnyOrder(2, 4, 6);
     p.run();
