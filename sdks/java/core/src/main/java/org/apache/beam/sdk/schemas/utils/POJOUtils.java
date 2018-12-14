@@ -57,7 +57,6 @@ import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
-import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -67,11 +66,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class POJOUtils {
   public static Schema schemaFromPojoClass(Class<?> clazz) {
     // We should cache the field order.
-    Function<Class, List<TypeInformation>> getTypesForClass =
+    Function<Class, List<FieldValueTypeInformation>> getTypesForClass =
         c ->
             ReflectUtils.getFields(c)
                 .stream()
-                .map(TypeInformation::forField)
+                .map(FieldValueTypeInformation::forField)
                 .collect(Collectors.toList());
     return StaticSchemaInference.schemaFromClass(clazz, getTypesForClass);
   }
@@ -91,7 +90,7 @@ public class POJOUtils {
           Map<String, FieldValueTypeInformation> typeInformationMap =
               ReflectUtils.getFields(clazz)
                   .stream()
-                  .map(f -> FieldValueTypeInformation.of(f, transformName))
+                  .map(f -> FieldValueTypeInformation.forField(f).withNamePolicy(transformName))
                   .collect(
                       Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
           return schema

@@ -48,9 +48,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
-import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /** A set of utilities to generate getter and setter classes for JavaBean objects. */
@@ -62,21 +60,21 @@ public class JavaBeanUtils {
         clazz, c -> JavaBeanUtils.typeInformationFromClass(c));
   }
 
-  private static List<TypeInformation> typeInformationFromClass(Class<?> clazz) {
+  private static List<FieldValueTypeInformation> typeInformationFromClass(Class<?> clazz) {
     try {
-      List<TypeInformation> getterTypes =
+      List<FieldValueTypeInformation> getterTypes =
           ReflectUtils.getMethods(clazz)
               .stream()
               .filter(ReflectUtils::isGetter)
-              .map(m -> TypeInformation.forGetter(m, SerializableFunctions.identity()))
+              .map(m -> FieldValueTypeInformation.forGetter(m))
               .collect(Collectors.toList());
 
-      Map<String, TypeInformation> setterTypes =
+      Map<String, FieldValueTypeInformation> setterTypes =
           ReflectUtils.getMethods(clazz)
               .stream()
               .filter(ReflectUtils::isSetter)
-              .map(m -> TypeInformation.forSetter(m))
-              .collect(Collectors.toMap(TypeInformation::getName, Function.identity()));
+              .map(m -> FieldValueTypeInformation.forSetter(m))
+              .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
       validateJavaBean(getterTypes, setterTypes);
       return getterTypes;
     } catch (IOException e) {
@@ -86,9 +84,9 @@ public class JavaBeanUtils {
 
   // Make sure that there are matching setters and getters.
   private static void validateJavaBean(
-      List<TypeInformation> getters, Map<String, TypeInformation> setters) {
-    for (TypeInformation type : getters) {
-      TypeInformation setterType = setters.get(type.getName());
+      List<FieldValueTypeInformation> getters, Map<String, FieldValueTypeInformation> setters) {
+    for (FieldValueTypeInformation type : getters) {
+      FieldValueTypeInformation setterType = setters.get(type.getName());
       if (setterType == null) {
         throw new RuntimeException(
             "JavaBean contained a getter for field "
@@ -127,8 +125,7 @@ public class JavaBeanUtils {
                 ReflectUtils.getMethods(clazz)
                     .stream()
                     .filter(ReflectUtils::isGetter)
-                    .map(m -> TypeInformation.forGetter(m, transformName))
-                    .map(FieldValueTypeInformation::of)
+                    .map(m -> FieldValueTypeInformation.forGetter(m).withNamePolicy(transformName))
                     .collect(
                         Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
             return schema
@@ -179,12 +176,13 @@ public class JavaBeanUtils {
 
   private static <T> FieldValueGetter createGetter(
       Method getterMethod, SerializableFunction<String, String> transformName) {
-    TypeInformation typeInformation = TypeInformation.forGetter(getterMethod, transformName);
+    FieldValueTypeInformation javaTypeInformation =
+        FieldValueTypeInformation.forGetter(getterMethod).withNamePolicy(transformName);
     DynamicType.Builder<FieldValueGetter> builder =
         ByteBuddyUtils.subclassGetterInterface(
             BYTE_BUDDY,
             getterMethod.getDeclaringClass(),
-            new ConvertType(false).convert(typeInformation.getType()));
+            new ConvertType(false).convert(javaTypeInformation.getType()));
     builder = implementGetterMethods(builder, getterMethod, transformName);
     try {
       return builder
@@ -205,10 +203,11 @@ public class JavaBeanUtils {
       DynamicType.Builder<FieldValueGetter> builder,
       Method method,
       SerializableFunction<String, String> transformName) {
-    TypeInformation typeInformation = TypeInformation.forGetter(method, transformName);
+    FieldValueTypeInformation javaTypeInformation =
+        FieldValueTypeInformation.forGetter(method).withNamePolicy(transformName);
     return builder
         .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(typeInformation.getName()))
+        .intercept(FixedValue.reference(javaTypeInformation.getName()))
         .method(ElementMatchers.named("get"))
         .intercept(new InvokeGetterInstruction(method, transformName));
   }
@@ -246,12 +245,13 @@ public class JavaBeanUtils {
   }
 
   private static <T> FieldValueSetter createSetter(Method setterMethod) {
-    TypeInformation typeInformation = TypeInformation.forSetter(setterMethod);
+    FieldValueTypeInformation javaTypeInformation =
+        FieldValueTypeInformation.forSetter(setterMethod);
     DynamicType.Builder<FieldValueSetter> builder =
         ByteBuddyUtils.subclassSetterInterface(
             BYTE_BUDDY,
             setterMethod.getDeclaringClass(),
-            new ConvertType(false).convert(typeInformation.getType()));
+            new ConvertType(false).convert(javaTypeInformation.getType()));
     builder = implementSetterMethods(builder, setterMethod);
     try {
       return builder
@@ -270,10 +270,10 @@ public class JavaBeanUtils {
 
   private static DynamicType.Builder<FieldValueSetter> implementSetterMethods(
       DynamicType.Builder<FieldValueSetter> builder, Method method) {
-    TypeInformation typeInformation = TypeInformation.forSetter(method);
+    FieldValueTypeInformation javaTypeInformation = FieldValueTypeInformation.forSetter(method);
     return builder
         .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(typeInformation.getName()))
+        .intercept(FixedValue.reference(javaTypeInformation.getName()))
         .method(ElementMatchers.named("set"))
         .intercept(new InvokeSetterInstruction(method));
   }
@@ -297,7 +297,8 @@ public class JavaBeanUtils {
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        TypeInformation typeInformation = TypeInformation.forGetter(method, transformName);
+        FieldValueTypeInformation javaTypeInformation =
+            FieldValueTypeInformation.forGetter(method).withNamePolicy(transformName);
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 
@@ -311,7 +312,7 @@ public class JavaBeanUtils {
 
         StackManipulation stackManipulation =
             new StackManipulation.Compound(
-                new ConvertValueForGetter(readValue).convert(typeInformation.getType()),
+                new ConvertValueForGetter(readValue).convert(javaTypeInformation.getType()),
                 MethodReturn.REFERENCE);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
@@ -337,7 +338,7 @@ public class JavaBeanUtils {
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        TypeInformation typeInformation = TypeInformation.forSetter(method);
+        FieldValueTypeInformation javaTypeInformation = FieldValueTypeInformation.forSetter(method);
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 
@@ -351,7 +352,7 @@ public class JavaBeanUtils {
                 MethodVariableAccess.REFERENCE.loadFrom(1),
                 // Do any conversions necessary.
                 new ByteBuddyUtils.ConvertValueForSetter(readField)
-                    .convert(typeInformation.getType()),
+                    .convert(javaTypeInformation.getType()),
                 // Now update the field and return void.
                 MethodInvocation.invoke(new ForLoadedMethod(method)),
                 MethodReturn.VOID);

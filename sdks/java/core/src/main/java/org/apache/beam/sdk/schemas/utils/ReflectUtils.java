@@ -40,7 +40,7 @@ public class ReflectUtils {
     private final Class clazz;
     private final Schema schema;
 
-    public ClassWithSchema(Class clazz, Schema schema) {
+    ClassWithSchema(Class clazz, Schema schema) {
       this.clazz = clazz;
       this.schema = schema;
     }
@@ -124,7 +124,7 @@ public class ReflectUtils {
         && method.getName().startsWith("set");
   }
 
-  static String stripPrefix(String methodName, String prefix) {
+  public static String stripPrefix(String methodName, String prefix) {
     String firstLetter = methodName.substring(prefix.length(), prefix.length() + 1).toLowerCase();
 
     return (methodName.length() == prefix.length() + 1)
