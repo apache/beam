@@ -56,7 +56,7 @@ kramdown:
   toc_levels:     2..6
 
 # The most recent release of Beam.
-release_latest: 2.8.0
+release_latest: 2.9.0
 
 # Plugins are configured in the Gemfile.
 
