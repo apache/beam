@@ -84,7 +84,7 @@ public class MapTaskExecutor implements WorkExecutor {
           op.finish();
         }
       } catch (Exception | Error exn) {
-        LOG.warn("Aborting operations", exn);
+        LOG.debug("Aborting operations", exn);
         for (Operation op : operations) {
           try {
             op.abort();
