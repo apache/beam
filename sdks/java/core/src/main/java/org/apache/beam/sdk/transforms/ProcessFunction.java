@@ -21,19 +21,25 @@ import java.io.Serializable;
 
 /**
  * A function that computes an output value of type {@code OutputT} from an input value of type
- * {@code InputT}, is {@link Serializable}, and does not allow checked exceptions to be declared.
+ * {@code InputT} and is {@link Serializable}.
  *
- * <p>To allow checked exceptions, implement the superinterface {@link ProcessFunction} instead. To
- * allow more robust {@link org.apache.beam.sdk.coders.Coder Coder} inference, see {@link
- * InferableFunction}.
+ * <p>This is the most general function type provided in this SDK, allowing arbitrary {@code
+ * Exception}s to be thrown, and matching Java's expectations of a <i>functional interface</i> that
+ * can be supplied as a lambda expression or method reference. It is named {@code ProcessFunction}
+ * because it is particularly appropriate anywhere a user needs to provide code that will eventually
+ * be executed as part of a {@link DoFn} {@link org.apache.beam.sdk.transforms.DoFn.ProcessElement
+ * ProcessElement} function, which is allowed to declare throwing {@code Exception}. If you need to
+ * execute user code in a context where arbitrary checked exceptions should not be allowed, require
+ * that users implement the subinterface {@link SerializableFunction} instead.
+ *
+ * <p>For more robust {@link org.apache.beam.sdk.coders.Coder Coder} inference, consider extending
+ * {@link InferableFunction} rather than implementing this interface directly.
  *
  * @param <InputT> input value type
  * @param <OutputT> output value type
  */
 @FunctionalInterface
-public interface SerializableFunction<InputT, OutputT>
-    extends ProcessFunction<InputT, OutputT>, Serializable {
+public interface ProcessFunction<InputT, OutputT> extends Serializable {
   /** Returns the result of invoking this function on the given input. */
-  @Override
-  OutputT apply(InputT input);
+  OutputT apply(InputT input) throws Exception;
 }
