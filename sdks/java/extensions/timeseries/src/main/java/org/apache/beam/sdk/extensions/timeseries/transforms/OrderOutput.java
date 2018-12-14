@@ -26,6 +26,7 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -224,20 +225,9 @@ public class OrderOutput
       List<TSAccum> newElements = Lists.newArrayList(newElementsBag.read());
 
       // Sort the list and then add to processedTimeSeriesList
-      if (!newElements.isEmpty()) {
+      addElementsToOrderedProcessQueue(c, processedTimeSeriesList, newElements);
 
-        LOG.debug(
-            "Timer firing at {} with fresh elements starting {} ending {}, Size of newElements list {} ",
-            c.timestamp(),
-            TSAccums.getTSAccumKeyWithPrettyTimeBoundary(newElements.get(0)),
-            TSAccums.getTSAccumKeyWithPrettyTimeBoundary(newElements.get(newElements.size() - 1)),
-            newElements.size());
-
-        for (TSAccum next : sortByUpperBoundary(newElements)) {
-          addElementToOrderedProcessQueue(processedTimeSeriesList, next);
-        }
-      }
-
+      // Clear the elements now that they have been processed
       newElementsBag.clear();
 
       // Output the value stored in the the processed que which matches this timers time
@@ -272,7 +262,7 @@ public class OrderOutput
     TSAccum lastValue = lastAccumState.read();
     List<TSAccum> processedTSAccums = processedTimeSeriesList.read();
 
-    // If the lastAccum is Null this is the first time the Key has fired a timer.
+    // If the lastAccum is Null this is the first time the Key has fired a timer series.
     // There will always be a value in the list for this situation
     if (lastValue == null) {
       TSAccum output = processedTSAccums.get(0);
@@ -282,7 +272,8 @@ public class OrderOutput
     }
 
     // If the list is empty then we emit a heartbeat timestamp
-    if (processedTSAccums == null) {
+    // TODO check why we need to confirm size, if all paths lead to nulling of the list when done
+    if (processedTSAccums == null || processedTSAccums.size()==0) {
       TSAccum heartBeat = heartBeat(lastValue, options);
       outputAccum(heartBeat, context, lastAccumState);
       return;
@@ -290,12 +281,8 @@ public class OrderOutput
 
     TSAccum output = processedTSAccums.get(0);
 
-    if (toMillis(output.getLowerWindowBoundary()) < context.timestamp().getMillis()) {
-      throw new IllegalStateException(
-          String.format(
-              "The first value in the list %s is smaller than our Timer. %s",
-              toMillis(output.getLowerWindowBoundary()), context.timestamp().getMillis()));
-    }
+    // If timer is past the upper boundary of the first element something has gone wrong.
+    checkTimerIsNotGreaterThanFirstValueInQueue(output,context);
 
     // If the list is not empty and the first value timestamp is > current timestamp then emit HB
 
@@ -308,10 +295,11 @@ public class OrderOutput
     // As the timestamp of the value in the Que matches our timestamp emit with previous value attached.
     // When saving back to lastAccum, use the original object
 
-    TSAccum outputWithPrevious = setPreviousWindowValue(output, lastValue, context);
+    TSAccum outputWithPrevious = setPreviousWindowValue(output, lastValue, context, processedTSAccums);
 
     context.outputWithTimestamp(
         KV.of(outputWithPrevious.getKey(), outputWithPrevious), context.timestamp());
+
     lastAccumState.write(output);
 
     removeFirstValueFromList(processedTSAccums, processedTimeSeriesList);
@@ -357,7 +345,18 @@ public class OrderOutput
     }
   }
   // Check correctness
-  private static void checkAccumState(TSAccum accum, Instant timestamp)
+
+  private static void checkTimerIsNotGreaterThanFirstValueInQueue(TSAccum output, DoFn.OnTimerContext context ){
+    if (toMillis(output.getLowerWindowBoundary()) < context.timestamp().getMillis()) {
+      throw new IllegalStateException(
+          String.format(
+              "The first value in the list %s is smaller than our Timer %s. The value is %s",
+              toMillis(output.getLowerWindowBoundary()),
+              context.timestamp().getMillis(),
+              output.toString()));
+    }
+  }
+  private static void checkAccumState(TSAccum accum, Instant timestamp, List<TSAccum> processedQueue)
       throws IllegalStateException {
 
     if (accum.getPreviousWindowValue() == null) {
@@ -367,15 +366,28 @@ public class OrderOutput
     if (toMillis(accum.getLowerWindowBoundary())
         < toMillis(accum.getPreviousWindowValue().getUpperWindowBoundary())) {
 
-      LOG.error(
-          "Timer Timestamp is {} Current Value is {} previous is {} value of old is {}",
+      String errMsg = String.format("Accum has previous value with upper boundary greater "
+              + "than existing lower boundary. "
+              + "Timer Timestamp is %s Current Value TS is %s "
+              + "previous Value TS is %s value of key is %s previous value is HB %s "
+              + "current value is HB %s",
           timestamp,
-          Timestamps.toString(accum.getLowerWindowBoundary()),
+      Timestamps.toString(accum.getLowerWindowBoundary()),
           Timestamps.toString(accum.getPreviousWindowValue().getUpperWindowBoundary()),
-          accum.getKey());
+          accum.getKey(),
+          accum.containsMetadata(TSConfiguration.HEARTBEAT),
+          accum.getPreviousWindowValue().containsMetadata(TSConfiguration.HEARTBEAT)
+      );
 
-      throw new IllegalStateException(
-          " Accum has previous value with upper boundary greater than existing lower boundary");
+      if(processedQueue!=null && processedQueue.size()>0){
+        errMsg += String.format(" Size of process queue %s, first timestamp in processed queue %s"
+            + " last timestamp in processed queue %s", processedQueue.size(), processedQueue.get(0),
+            processedQueue.get(processedQueue.size()-1));
+      }else{
+        errMsg += String.format(" Size of process queue %s", 0);
+      }
+
+      throw new IllegalStateException(errMsg);
     }
   }
 
@@ -438,8 +450,20 @@ public class OrderOutput
     return new Instant(toMillis(timestamp));
   }
 
-  private static void addElementToOrderedProcessQueue(
-      ValueState<List<TSAccum>> processedTimeSeriesList, TSAccum current) {
+  private static void addElementsToOrderedProcessQueue(DoFn.OnTimerContext c,
+      ValueState<List<TSAccum>> processedTimeSeriesList, List<TSAccum> newElements) {
+
+    if(newElements.isEmpty()){
+      return;
+    }
+
+    LOG.debug(
+        "Timer firing at {} with fresh elements starting {} ending {}, Size of newElements list {} ",
+        c.timestamp(),
+        TSAccums.getTSAccumKeyWithPrettyTimeBoundary(newElements.get(0)),
+        TSAccums.getTSAccumKeyWithPrettyTimeBoundary(newElements.get(newElements.size() - 1)),
+        newElements.size());
+
 
     List<TSAccum> accumList = processedTimeSeriesList.read();
 
@@ -447,18 +471,20 @@ public class OrderOutput
       accumList = new ArrayList<>();
     }
 
-    accumList.add(current);
+    accumList.addAll(newElements);
+
+    sortByUpperBoundary(accumList);
 
     processedTimeSeriesList.write(accumList);
   }
 
   private static TSAccum setPreviousWindowValue(
-      TSAccum current, @Nullable TSAccum prev, DoFn.OnTimerContext context) {
+      TSAccum current, @Nullable TSAccum prev, DoFn.OnTimerContext context, List<TSAccum> processedTimeSeriesList) {
 
     TSAccum output =
         (prev == null) ? current : current.toBuilder().setPreviousWindowValue(prev).build();
 
-    checkAccumState(output, context.timestamp());
+    checkAccumState(output, context.timestamp(), processedTimeSeriesList);
 
     return output;
   }
@@ -496,13 +522,13 @@ public class OrderOutput
     TSAccum output =
         (prev == null) ? current : current.toBuilder().setPreviousWindowValue(prev).build();
 
-    checkAccumState(output, context.timestamp());
+ //   checkAccumState(output, context.timestamp());
 
     processedTimeSeriesMap.put(Timestamps.toMillis(output.getLowerWindowBoundary()), output);
   }
 
   /**
-   * To be used when Runner supports MapState
+   * To be used when Runner supports MapState.
    *
    * @param processedTimeSeriesMap
    * @param options

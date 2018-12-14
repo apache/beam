@@ -23,9 +23,15 @@ import static com.google.protobuf.util.Timestamps.compare;
 import static com.google.protobuf.util.Timestamps.toMillis;
 import static java.util.Comparator.comparing;
 
+import com.google.api.services.bigquery.model.TableCell;
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
+import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.Timestamps;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -363,6 +369,130 @@ public class TSAccums {
   }
 
   /** Push to tf Examples generated from TSAccum's to BigTable. */
+  public static class ConvertTSAccumToBQTableRow
+      extends PTransform<PCollection<TSAccum>, PCollection<TableRow>> {
+
+    private static final byte[] TF_ACCUM = Bytes.toBytes("TF_ACCUM");
+    private static final byte[] DOWNSAMPLE_SIZE_MS = Bytes.toBytes("DOWNSAMPLE_SIZE_MS");
+
+    @Override public PCollection<TableRow> expand(PCollection<TSAccum> input) {
+      return input.apply(ParDo.of(new WriteTFAccumToBigQuery()));
+    }
+
+    public static final String TSACCUM_SCHEMA_MAJOR_KEY = "MAJOR_KEY";
+    public static final String TSACCUM_SCHEMA_MINOR_KEY = "MINOR_KEY";
+    public static final String TSACCUM_SCHEMA_LOWER_WINDOW_BOUNDARY = "L_WIN_BOUNDARY";
+    public static final String TSACCUM_SCHEMA_UPPER_WINDOW_BOUNDARY = "U_WIN_BOUNDARY";
+    public static final String TSACCUM_SCHEMA_DURATION = "WIN_DURATION";
+    public static final String TSACCUM_SCHEMA_DATA = "DATA";
+    public static final String TSACCUM_SCHEMA_DATA_PREVIOUS = "PREVIOUS";
+    public static final String TSACCUM_HB = "HB";
+
+    public static final String TSACCUM_DATA_COUNT = "COUNT";
+    public static final String TSACCUM_DATA_SUM = "SUM";
+    public static final String TSACCUM_DATA_FIRST_TIMESTAMP = "FIRST_TIMESTAMP";
+    public static final String TSACCUM_DATA_FIRST_VALUE = "FIRST_VALUE";
+    public static final String TSACCUM_DATA_LAST_TIMESTAMP = "LAST_TIMESTAMP";
+    public static final String TSACCUM_DATA_LAST_VALUE = "LAST_VALUE";
+    public static final String TSACCUM_DATA_MIN = "MIN";
+    public static final String TSACCUM_DATA_MAX = "MAX";
+
+    /** Write to BigQuery. */
+    public static class WriteTFAccumToBigQuery extends DoFn<TSAccum, TableRow> {
+
+      @ProcessElement public void processElement(DoFn<TSAccum, TableRow>.ProcessContext c)
+          throws Exception {
+
+        TSAccum accum = c.element();
+        TableRow row = new TableRow();
+
+        // Set all Metadata for the TSAccum
+        row.set(TSACCUM_SCHEMA_MAJOR_KEY, accum.getKey().getMajorKey());
+        row.set(TSACCUM_SCHEMA_MINOR_KEY, accum.getKey().getMinorKeyString());
+        row.set(TSACCUM_SCHEMA_LOWER_WINDOW_BOUNDARY, toMillis(accum.getLowerWindowBoundary())/1000);
+        row.set(TSACCUM_SCHEMA_UPPER_WINDOW_BOUNDARY, toMillis(accum.getUpperWindowBoundary())/1000);
+        row.set(TSACCUM_SCHEMA_DURATION, Durations.toMillis(accum.getDuration()));
+        row.set(TSACCUM_HB, accum.getMetadataMap().containsKey(TSConfiguration.HEARTBEAT));
+
+        // Set a repeated field for all the data points in the accum
+
+
+        TableRow dataRecord = new TableRow();
+
+        dataRecord.set(TSACCUM_DATA_COUNT, accum.getDataAccum().getCount().getIntVal());
+        dataRecord.set(TSACCUM_DATA_SUM, accum.getDataAccum().getSum().getDoubleVal());
+        dataRecord.set(TSACCUM_DATA_MAX, accum.getDataAccum().getMaxValue().getDoubleVal());
+        dataRecord.set(TSACCUM_DATA_MIN, accum.getDataAccum().getMinValue().getDoubleVal());
+
+        dataRecord.set(TSACCUM_DATA_FIRST_TIMESTAMP, toMillis(accum.getDataAccum().getFirst().getTimestamp())/1000);
+        dataRecord.set(TSACCUM_DATA_LAST_TIMESTAMP, toMillis(accum.getDataAccum().getLast().getTimestamp())/1000);
+
+        dataRecord.set(TSACCUM_DATA_FIRST_VALUE, accum.getDataAccum().getFirst().getData().getDoubleVal());
+        dataRecord.set(TSACCUM_DATA_LAST_VALUE, accum.getDataAccum().getLast().getData().getDoubleVal());
+
+
+        row.set(TSACCUM_SCHEMA_DATA, dataRecord);
+
+        if(accum.hasPreviousWindowValue()) {
+
+          TableRow dataRecordPrevious = new TableRow();
+
+          dataRecordPrevious.set(TSACCUM_DATA_COUNT, accum.getPreviousWindowValue().getDataAccum().getCount().getIntVal());
+          dataRecordPrevious.set(TSACCUM_DATA_SUM, accum.getPreviousWindowValue().getDataAccum().getSum().getDoubleVal());
+          dataRecordPrevious.set(TSACCUM_DATA_MAX, accum.getPreviousWindowValue().getDataAccum().getMaxValue().getDoubleVal());
+          dataRecordPrevious.set(TSACCUM_DATA_MIN, accum.getPreviousWindowValue().getDataAccum().getMinValue().getDoubleVal());
+
+          dataRecordPrevious.set(TSACCUM_DATA_FIRST_TIMESTAMP,
+              toMillis(accum.getPreviousWindowValue().getDataAccum().getFirst().getTimestamp()) / 1000);
+          dataRecordPrevious.set(TSACCUM_DATA_LAST_TIMESTAMP,
+              toMillis(accum.getPreviousWindowValue().getDataAccum().getLast().getTimestamp()) / 1000);
+
+          dataRecordPrevious.set(TSACCUM_DATA_FIRST_VALUE,
+              accum.getPreviousWindowValue().getDataAccum().getFirst().getData().getDoubleVal());
+          dataRecordPrevious.set(TSACCUM_DATA_LAST_VALUE, accum.getPreviousWindowValue().getDataAccum().getLast().getData().getDoubleVal());
+
+          row.set(TSACCUM_SCHEMA_DATA_PREVIOUS, dataRecordPrevious);
+        }
+        c.output(row);
+
+      }
+    }
+
+    public static final TableSchema TS_ACCUM_SCHEMA = new TableSchema().setFields(ImmutableList
+        .of((new TableFieldSchema().setName(TSACCUM_SCHEMA_MAJOR_KEY).setType("STRING")),
+            (new TableFieldSchema().setName(TSACCUM_SCHEMA_MINOR_KEY).setType("STRING")),
+            (new TableFieldSchema().setName(TSACCUM_SCHEMA_LOWER_WINDOW_BOUNDARY).setType("TIMESTAMP")),
+            (new TableFieldSchema().setName(TSACCUM_SCHEMA_UPPER_WINDOW_BOUNDARY).setType("TIMESTAMP")),
+            (new TableFieldSchema().setName(TSACCUM_SCHEMA_DURATION).setType("FLOAT")),
+            (new TableFieldSchema().setName(TSACCUM_HB).setType("BOOLEAN")),
+            (new TableFieldSchema().setName(TSACCUM_SCHEMA_DATA).setType("RECORD")
+                .setFields(ImmutableList.of(
+                  new TableFieldSchema().setName(TSACCUM_DATA_COUNT).setType("FLOAT"),
+                  new TableFieldSchema().setName(TSACCUM_DATA_SUM).setType("FLOAT"),
+                  new TableFieldSchema().setName(TSACCUM_DATA_MIN).setType("FLOAT"),
+                  new TableFieldSchema().setName(TSACCUM_DATA_MAX).setType("FLOAT"),
+                  new TableFieldSchema().setName(TSACCUM_DATA_FIRST_TIMESTAMP).setType("TIMESTAMP"),
+                  new TableFieldSchema().setName(TSACCUM_DATA_LAST_TIMESTAMP).setType("TIMESTAMP"),
+                  new TableFieldSchema().setName(TSACCUM_DATA_FIRST_VALUE).setType("FLOAT"),
+                  new TableFieldSchema().setName(TSACCUM_DATA_LAST_VALUE).setType("FLOAT")
+
+            ))),
+                    (new TableFieldSchema().setName(TSACCUM_SCHEMA_DATA_PREVIOUS).setType("RECORD")
+                        .setFields(ImmutableList.of(
+                            new TableFieldSchema().setName(TSACCUM_DATA_COUNT).setType("FLOAT"),
+                            new TableFieldSchema().setName(TSACCUM_DATA_SUM).setType("FLOAT"),
+                            new TableFieldSchema().setName(TSACCUM_DATA_MIN).setType("FLOAT"),
+                            new TableFieldSchema().setName(TSACCUM_DATA_MAX).setType("FLOAT"),
+                            new TableFieldSchema().setName(TSACCUM_DATA_FIRST_TIMESTAMP).setType("TIMESTAMP"),
+                            new TableFieldSchema().setName(TSACCUM_DATA_LAST_TIMESTAMP).setType("TIMESTAMP"),
+                            new TableFieldSchema().setName(TSACCUM_DATA_FIRST_VALUE).setType("FLOAT"),
+                            new TableFieldSchema().setName(TSACCUM_DATA_LAST_VALUE).setType("FLOAT")
+
+                        )))
+                ));
+  }
+
+    /** Push to tf Examples generated from TSAccum's to BigTable. */
   public static class OutputAccumWithTimestamp
       extends PTransform<PCollection<TSAccum>, PCollection<TSAccum>> {
 
