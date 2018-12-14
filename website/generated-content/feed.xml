@@ -20,6 +20,79 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Apache Beam 2.9.0</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to present the new 2.9.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&quot;/get-started/downloads/#290-2018-12-13&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+For more information on changes in 2.9.0, check out the
+&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12344258&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;Support set/delete of timers by ID in Flink runner.&lt;/li&gt;
+  &lt;li&gt;Improvements to stabilize integration tests.&lt;/li&gt;
+  &lt;li&gt;Updates Spark runner to show Beam metrics in web UI&lt;/li&gt;
+  &lt;li&gt;Vendor gRPC and Protobuf separately from beam-model-* Java packages&lt;/li&gt;
+  &lt;li&gt;Avoid reshuffle for zero and one element creates&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;known-issues&quot;&gt;Known Issues&lt;/h2&gt;
+
+&lt;h3 id=&quot;dependency-upgrades&quot;&gt;Dependency Upgrades&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;Update google-api-client libraries to 1.27.0.&lt;/li&gt;
+  &lt;li&gt;Update byte-buddy to 1.9.3&lt;/li&gt;
+  &lt;li&gt;Update Flink Runner to 1.5.5&lt;/li&gt;
+  &lt;li&gt;Upgrade google-apitools to 0.5.24&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;sdks&quot;&gt;SDKs&lt;/h3&gt;
+
+&lt;h3 id=&quot;portability&quot;&gt;Portability&lt;/h3&gt;
+
+&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;I/O connector for RabbitMQ.&lt;/li&gt;
+  &lt;li&gt;Update SpannerIO to support unbounded writes.&lt;/li&gt;
+  &lt;li&gt;Add PFADD method to RedisIO.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;miscellaneous-fixes&quot;&gt;Miscellaneous Fixes&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;DataflowRunner was updated to &lt;strong&gt;not&lt;/strong&gt; use &lt;a href=&quot;https://github.com/google/conscrypt&quot;&gt;Conscrypt&lt;/a&gt; as the default security provider.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
+
+&lt;p&gt;According to git shortlog, the following people contributed
+to the 2.9.0 release. Thank you to all contributors!&lt;/p&gt;
+
+&lt;p&gt;Adam Horky ,Ahmet Altay ,Alan Myrvold ,Alex Amato ,Alexey Romanenko ,Andrea Foegler ,Andrew Fulton ,Andrew Pilloud ,Ankur ,Ankur Goenka ,Anton Kedin ,Babu ,Ben Song ,Bingfeng Shu ,Boyuan Zhang ,Brian Martin ,Brian Quinlan ,Chamikara Jayalath ,Charles Chen ,Christian Schneider ,Colm O hEigeartaigh ,Cory Brzycki ,CraigChambersG ,Daniel Oliveira ,David Moravek ,Dusan Rychnovsky ,Etienne Chauchot ,Eugene Kirpichov ,Fabien Rousseau ,Gleb Kanterov ,Heejong Lee ,Henning Rohde ,Ismaël Mejía ,Jan Lukavsky ,Jan Lukavský ,Jaromir Vanek ,Jason Kuster ,Jean-Baptiste Onofré ,Jeff Klukas ,Jeroen Steggink ,Julien Tournay ,Jára Vaněk ,Katarzyna Kucharczyk ,Keisuke Kondo ,Kenn Knowles ,Kenneth Knowles ,Liam Miller-Cushon ,Lukasz Cwik ,Luke Cwik ,Manu Zhang ,Mark Liu ,Maximilian Michels ,Melissa Pashniak ,Mergebot ,Micah Wylde ,Michael Luckey ,Mike Pedersen ,Mikhail Gryzykhin ,Novotnik , Petr ,Ondrej Kvasnicka ,Pablo ,Pavel Slechta ,Raghu Angadi ,Reuven Lax ,Robbe Sneyders ,Robert Bradshaw ,Robert Burke ,Ruoyu Liu ,Ruoyun ,Ruoyun Huang ,Sam Rohde ,Sam sam ,Scott Wegner ,Simon Plovyt ,Thomas Weise ,Tim Robertson ,Tomas Novak ,Udi Meiri ,Vaclav Plajt ,Valentyn Tymofieiev ,Varun Dhussa ,Vojtech Janota ,Wout Scheepers ,Xinyu Liu ,XuMingmin ,Yifan Zou ,Yueyang Qiu ,akedin ,amaliujia ,chamikara@google.com ,connelloG ,flyisland ,huygaa11 ,jasonkuster ,jglezt ,kkpoon ,marek.simunek ,mareksimunek ,matthiasa4 ,melissa ,mingmxu ,nielm ,reuvenlax ,robbe ,ruoyu90 ,splovyt ,svXaverius ,timrobertson100 ,tvalentyn ,vaclav.plajt@gmail.com ,xinyuiscool ,xitep ,Łukasz Gajowy&lt;/p&gt;
+</description>
+        <pubDate>Thu, 13 Dec 2018 00:00:01 -0800</pubDate>
+        <link>https://beam.apache.org/blog/2018/12/13/beam-2.9.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2018/12/13/beam-2.9.0.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Inaugural edition of the Beam Summit Europe 2018 - aftermath</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1102,534 +1175,6 @@ big-data deployments.&lt;/li&gt;
         <pubDate>Tue, 09 Jan 2018 00:00:01 -0800</pubDate>
         <link>https://beam.apache.org/blog/2018/01/09/beam-a-look-back.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2018/01/09/beam-a-look-back.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Timely (and Stateful) Processing with Apache Beam</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;In a &lt;a href=&quot;/blog/2017/02/13/stateful-processing.html&quot;&gt;prior blog
-post&lt;/a&gt;, I
-introduced the basics of stateful processing in Apache Beam, focusing on the
-addition of state to per-element processing. So-called &lt;em&gt;timely&lt;/em&gt; processing
-complements stateful processing in Beam by letting you set timers to request a
-(stateful) callback at some point in the future.&lt;/p&gt;
-
-&lt;p&gt;What can you do with timers in Beam? Here are some examples:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;You can output data buffered in state after some amount of processing time.&lt;/li&gt;
-  &lt;li&gt;You can take special action when the watermark estimates that you have
-received all data up to a specified point in event time.&lt;/li&gt;
-  &lt;li&gt;You can author workflows with timeouts that alter state and emit output in
-response to the absence of additional input for some period of time.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;These are just a few possibilities. State and timers together form a powerful
-programming paradigm for fine-grained control to express a huge variety of
-workflows.  Stateful and timely processing in Beam is portable across data
-processing engines and integrated with Beam’s unified model of event time
-windowing in both streaming and batch processing.&lt;/p&gt;
-
-&lt;!--more--&gt;
-
-&lt;h2 id=&quot;what-is-stateful-and-timely-processing&quot;&gt;What is stateful and timely processing?&lt;/h2&gt;
-
-&lt;p&gt;In my prior post, I developed an understanding of stateful processing largely
-by contrast with associative, commutative combiners. In this post, I’ll
-emphasize a perspective that I had mentioned only briefly: that elementwise
-processing with access to per-key-and-window state and timers represents a
-fundamental pattern for “embarrassingly parallel” computation, distinct from
-the others in Beam.&lt;/p&gt;
-
-&lt;p&gt;In fact, stateful and timely computation is the low-level computational pattern
-that underlies the others. Precisely because it is lower level, it allows you
-to really micromanage your computations to unlock new use cases and new
-efficiencies. This incurs the complexity of manually managing your state and
-timers - it isn’t magic! Let’s first look again at the two primary
-computational patterns in Beam.&lt;/p&gt;
-
-&lt;h3 id=&quot;element-wise-processing-pardo-map-etc&quot;&gt;Element-wise processing (ParDo, Map, etc)&lt;/h3&gt;
-
-&lt;p&gt;The most elementary embarrassingly parallel pattern is just using a bunch of
-computers to apply the same function to every input element of a massive
-collection. In Beam, per-element processing like this is expressed as a basic
-&lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&gt; - analogous to “Map” from MapReduce - which is like an enhanced “map”,
-“flatMap”, etc, from functional programming.&lt;/p&gt;
-
-&lt;p&gt;The following diagram illustrates per-element processing. Input elements are
-squares, output elements are triangles. The colors of the elements represent
-their key, which will matter later. Each input element maps to the
-corresponding output element(s) completely independently. Processing may be
-distributed across computers in any way, yielding essentially limitless
-parallelism.&lt;/p&gt;
-
-&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/timely-processing/ParDo.png&quot; alt=&quot;ParDo offers limitless parallelism&quot; width=&quot;600&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;This pattern is obvious, exists in all data-parallel paradigms, and has
-a simple stateless implementation. Every input element can be processed
-independently or in arbitrary bundles. Balancing the work between computers is
-actually the hard part, and can be addressed by splitting, progress estimation,
-work-stealing, etc.&lt;/p&gt;
-
-&lt;h3 id=&quot;per-key-and-window-aggregation-combine-reduce-groupbykey-etc&quot;&gt;Per-key (and window) aggregation (Combine, Reduce, GroupByKey, etc.)&lt;/h3&gt;
-
-&lt;p&gt;The other embarassingly parallel design pattern at the heart of Beam is per-key
-(and window) aggregation. Elements sharing a key are colocated and then
-combined using some associative and commutative operator. In Beam this is
-expressed as a &lt;code class=&quot;highlighter-rouge&quot;&gt;GroupByKey&lt;/code&gt; or &lt;code class=&quot;highlighter-rouge&quot;&gt;Combine.perKey&lt;/code&gt;, and corresponds to the shuffle
-and “Reduce” from MapReduce.  It is sometimes helpful to think of per-key
-&lt;code class=&quot;highlighter-rouge&quot;&gt;Combine&lt;/code&gt; as the fundamental operation, and raw &lt;code class=&quot;highlighter-rouge&quot;&gt;GroupByKey&lt;/code&gt; as a combiner that
-just concatenates input elements. The communication pattern for the input
-elements is the same, modulo some optimizations possible for &lt;code class=&quot;highlighter-rouge&quot;&gt;Combine&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;In the illustration here, recall that the color of each element represents the
-key. So all of the red squares are routed to the same location where they are
-aggregated and the red triangle is the output.  Likewise for the yellow and
-green squares, etc. In a real application, you may have millions of keys, so
-the parallelism is still massive.&lt;/p&gt;
-
-&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/timely-processing/CombinePerKey.png&quot; alt=&quot;Gathering elements per key then combining them&quot; width=&quot;600&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;The underlying data processing engine will, at some level of abstraction, use
-state to perform this aggregation across all the elements arriving for a key.
-In particular, in a streaming execution, the aggregation process may need to
-wait for more data to arrive or for the watermark to estimate that all input
-for an event time window is complete. This requires some way to store the
-intermediate aggregation between input elements as well a way to a receive a
-callback when it is time to emit the result. As a result, the &lt;em&gt;execution&lt;/em&gt; of
-per key aggregation by a stream processing engine fundamentally involves state
-and timers.&lt;/p&gt;
-
-&lt;p&gt;However, &lt;em&gt;your&lt;/em&gt; code is just a declarative expression of the aggregation
-operator.  The runner can choose a variety of ways to execute your operator. 
-I went over this in detail in &lt;a href=&quot;/blog/2017/02/13/stateful-processing.html&quot;&gt;my prior post focused on state alone&lt;/a&gt;. Since you do not
-observe elements in any defined order, nor manipulate mutable state or timers
-directly, I call this neither stateful nor timely processing.&lt;/p&gt;
-
-&lt;h3 id=&quot;per-key-and-window-stateful-timely-processing&quot;&gt;Per-key-and-window stateful, timely processing&lt;/h3&gt;
-
-&lt;p&gt;Both &lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;Combine.perKey&lt;/code&gt; are standard patterns for parallelism that go
-back decades. When implementing these in a massive-scale distributed data
-processing engine, we can highlight a few characteristics that are particularly
-important.&lt;/p&gt;
-
-&lt;p&gt;Let us consider these characteristics of &lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&gt;:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;You write single-threaded code to process one element.&lt;/li&gt;
-  &lt;li&gt;Elements are processed in arbitrary order with no dependencies
-or interaction between processing of elements.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;And these characteristics for &lt;code class=&quot;highlighter-rouge&quot;&gt;Combine.perKey&lt;/code&gt;:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Elements for a common key and window are gathered together.&lt;/li&gt;
-  &lt;li&gt;A user-defined operator is applied to those elements.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Combining some of the characteristics of unrestricted parallel mapping and
-per-key-and-window combination, we can discern a megaprimitive from which we
-build stateful and timely processing:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Elements for a common key and window are gathered together.&lt;/li&gt;
-  &lt;li&gt;Elements are processed in arbitrary order.&lt;/li&gt;
-  &lt;li&gt;You write single-threaded code to process one element or timer, possibly
-accessing state or setting timers.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;In the illustration below, the red squares are gathered and fed one by one to
-the stateful, timely, &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;. As each element is processed, the &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; has
-access to state (the color-partitioned cylinder on the right) and can set
-timers to receive callbacks (the colorful clocks on the left).&lt;/p&gt;
-
-&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/timely-processing/StateAndTimers.png&quot; alt=&quot;Gathering elements per key then timely, stateful processing&quot; width=&quot;600&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;So that is the abstract notion of per-key-and-window stateful, timely
-processing in Apache Beam. Now let’s see what it looks like to write code that
-accesses state, sets timers, and receives callbacks.&lt;/p&gt;
-
-&lt;h2 id=&quot;example-batched-rpc&quot;&gt;Example: Batched RPC&lt;/h2&gt;
-
-&lt;p&gt;To demonstrate stateful and timely processing, let’s work through a concrete
-example, with code.&lt;/p&gt;
-
-&lt;p&gt;Suppose you are writing a system to analyze events.  You have a ton of data
-coming in and you need to enrich each event by RPC to an external system. You
-can’t just issue an RPC per event.  Not only would this be terrible for
-performance, but it would also likely blow your quota with the external system.
-So you’d like to gather a number of events, make one RPC for them all, and then
-output all the enriched events.&lt;/p&gt;
-
-&lt;h3 id=&quot;state&quot;&gt;State&lt;/h3&gt;
-
-&lt;p&gt;Let’s set up the state we need to track batches of elements. As each element
-comes in, we will write the element to a buffer while tracking the number of
-elements we have buffered. Here are the state cells in code:&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DoFn&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EnrichedEvent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;buffer&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StateSpec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BagState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bufferedEvents&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StateSpecs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;bag&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;count&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StateSpec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Integer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;countState&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StateSpecs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-
-  &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TBD&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt; 
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# State and timers are not yet supported in Beam's Python SDK.&lt;/span&gt;
-&lt;span class=&quot;c&quot;&gt;# Follow https://issues.apache.org/jira/browse/BEAM-2687 for updates.&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Walking through the code, we have:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The state cell &lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;buffer&quot;&lt;/code&gt; is an unordered bag of buffered events.&lt;/li&gt;
-  &lt;li&gt;The state cell &lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;count&quot;&lt;/code&gt; tracks how many events have been buffered.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Next, as a recap of reading and writing state, let’s write our &lt;code class=&quot;highlighter-rouge&quot;&gt;@ProcessElement&lt;/code&gt;
-method. We will choose a limit on the size of the buffer, &lt;code class=&quot;highlighter-rouge&quot;&gt;MAX_BUFFER_SIZE&lt;/code&gt;. If
-our buffer reaches this size, we will perform a single RPC to enrich all the
-events, and output.&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DoFn&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EnrichedEvent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-
-  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX_BUFFER_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;500&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;buffer&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StateSpec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BagState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bufferedEvents&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StateSpecs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;bag&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;count&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StateSpec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Integer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;countState&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StateSpecs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@ProcessElement&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;ProcessContext&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;buffer&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BagState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;count&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Integer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;countState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-
-    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;firstNonNull&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;countState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;countState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;add&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;element&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;());&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX_BUFFER_SIZE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EnrichedEvent&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;enrichedEvent&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;enrichEvents&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;enrichedEvent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-      &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;clear&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;countState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;clear&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-  &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TBD&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt; 
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# State and timers are not yet supported in Beam's Python SDK.&lt;/span&gt;
-&lt;span class=&quot;c&quot;&gt;# Follow https://issues.apache.org/jira/browse/BEAM-2687 for updates.&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Here is an illustration to accompany the code:&lt;/p&gt;
-
-&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/timely-processing/BatchedRpcState.png&quot; alt=&quot;Batching elements in state, then performing RPCs&quot; width=&quot;600&quot; /&gt;&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The blue box is the &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;.&lt;/li&gt;
-  &lt;li&gt;The yellow box within it is the &lt;code class=&quot;highlighter-rouge&quot;&gt;@ProcessElement&lt;/code&gt; method.&lt;/li&gt;
-  &lt;li&gt;Each input event is a red square - this diagram just shows the activity for
-a single key, represented by the color red. Your &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; will run the same
-workflow in parallel for all keys which are perhaps user IDs.&lt;/li&gt;
-  &lt;li&gt;Each input event is written to the buffer as a red triangle, representing
-the fact that you might actually buffer more than just the raw input, even
-though this code doesn’t.&lt;/li&gt;
-  &lt;li&gt;The external service is drawn as a cloud. When there are enough buffered
-events, the &lt;code class=&quot;highlighter-rouge&quot;&gt;@ProcessElement&lt;/code&gt; method reads the events from state and issues
-a single RPC.&lt;/li&gt;
-  &lt;li&gt;Each output enriched event is drawn as a red circle. To consumers of this
-output, it looks just like an element-wise operation.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;So far, we have only used state, but not timers. You may have noticed that
-there is a problem - there will usually be data left in the buffer. If no more
-input arrives, that data will never be processed. In Beam, every window has
-some point in event time when any further input for the window is considered
-too late and is discarded. At this point, we say that the window has “expired”.
-Since no further input can arrive to access the state for that window, the
-state is also discarded. For our example, we need to ensure that all leftover
-events are output when the window expires.&lt;/p&gt;
-
-&lt;h3 id=&quot;event-time-timers&quot;&gt;Event Time Timers&lt;/h3&gt;
-
-&lt;p&gt;An event time timer requests a call back when the watermark for an input
-&lt;code class=&quot;highlighter-rouge&quot;&gt;PCollection&lt;/code&gt; reaches some threshold. In other words, you can use an event time
-timer to take action at a specific moment in event time - a particular point of
-completeness for a &lt;code class=&quot;highlighter-rouge&quot;&gt;PCollection&lt;/code&gt; - such as when a window expires.&lt;/p&gt;
-
-&lt;p&gt;For our example, let us add an event time timer so that when the window expires,
-any events remaining in the buffer are processed.&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DoFn&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EnrichedEvent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@TimerId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;expiry&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TimerSpec&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;expirySpec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TimerSpecs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;timer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TimeDomain&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;EVENT_TIME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@ProcessElement&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;ProcessContext&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;BoundedWindow&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;window&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;buffer&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BagState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;count&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Integer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;countState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@TimerId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;expiry&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Timer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;expiryTimer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-
-    &lt;span class=&quot;n&quot;&gt;expiryTimer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;window&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;maxTimestamp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;plus&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;allowedLateness&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;));&lt;/span&gt;
-
-    &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;same&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;logic&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;above&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt;
-  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@OnTimer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;expiry&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;onExpiry&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;OnTimerContext&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;buffer&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BagState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;isEmpty&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EnrichedEvent&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;enrichedEvent&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;enrichEvents&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;enrichedEvent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-      &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# State and timers are not yet supported in Beam's Python SDK.&lt;/span&gt;
-&lt;span class=&quot;c&quot;&gt;# Follow https://issues.apache.org/jira/browse/BEAM-2687 for updates.&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Let’s unpack the pieces of this snippet:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;We declare an event time timer with &lt;code class=&quot;highlighter-rouge&quot;&gt;@TimerId(&quot;expiry&quot;)&lt;/code&gt;. We will use the
-identifier &lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;expiry&quot;&lt;/code&gt; to identify the timer for setting the callback time as
-well as receiving the callback.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;The variable &lt;code class=&quot;highlighter-rouge&quot;&gt;expiryTimer&lt;/code&gt;, annotated with &lt;code class=&quot;highlighter-rouge&quot;&gt;@TimerId&lt;/code&gt;, is set to the value
-&lt;code class=&quot;highlighter-rouge&quot;&gt;TimerSpecs.timer(TimeDomain.EVENT_TIME)&lt;/code&gt;, indicating that we want a
-callback according to the event time watermark of the input elements.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;In the &lt;code class=&quot;highlighter-rouge&quot;&gt;@ProcessElement&lt;/code&gt; element we annotate a parameter &lt;code class=&quot;highlighter-rouge&quot;&gt;@TimerId(&quot;expiry&quot;)
-Timer&lt;/code&gt;. The Beam runner automatically provides this &lt;code class=&quot;highlighter-rouge&quot;&gt;Timer&lt;/code&gt; parameter by which
-we can set (and reset) the timer. It is inexpensive to reset a timer
-repeatedly, so we simply set it on every element.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;We define the &lt;code class=&quot;highlighter-rouge&quot;&gt;onExpiry&lt;/code&gt; method, annotated with &lt;code class=&quot;highlighter-rouge&quot;&gt;@OnTimer(&quot;expiry&quot;)&lt;/code&gt;, that
-performs a final event enrichment RPC and outputs the result. The Beam runner
-delivers the callback to this method by matching its identifier.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Illustrating this logic, we have the diagram below:&lt;/p&gt;
-
-&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/timely-processing/BatchedRpcExpiry.png&quot; alt=&quot;Batched RPCs with window expiration&quot; width=&quot;600&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Both the &lt;code class=&quot;highlighter-rouge&quot;&gt;@ProcessElement&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;@OnTimer(&quot;expiry&quot;)&lt;/code&gt; methods perform the same
-access to buffered state, perform the same batched RPC, and output enriched
-elements.&lt;/p&gt;
-
-&lt;p&gt;Now, if we are executing this in a streaming real-time manner, we might still
-have unbounded latency for particular buffered data. If the watermark is advancing
-very slowly, or event time windows are chosen to be quite large, then a lot of
-time might pass before output is emitted based either on enough elements or
-window expiration. We can also use timers to limit the amount of wall-clock
-time, aka processing time, before we process buffered elements. We can choose
-some reasonable amount of time so that even though we are issuing RPCs that are
-not as large as they might be, it is still few enough RPCs to avoid blowing our
-quota with the external service.&lt;/p&gt;
-
-&lt;h3 id=&quot;processing-time-timers&quot;&gt;Processing Time Timers&lt;/h3&gt;
-
-&lt;p&gt;A timer in processing time (time as it passes while your pipeline is executing)
-is intuitively simple: you want to wait a certain amount of time and then
-receive a call back.&lt;/p&gt;
-
-&lt;p&gt;To put the finishing touches on our example, we will set a processing time
-timer as soon as any data is buffered. We track whether or not the timer has
-been set so we don’t continually reset it. When an element arrives, if the
-timer has not been set, then we set it for the current moment plus
-&lt;code class=&quot;highlighter-rouge&quot;&gt;MAX_BUFFER_DURATION&lt;/code&gt;. After the allotted processing time has passed, a
-callback will fire and enrich and emit any buffered elements.&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DoFn&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EnrichedEvent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt;
-
-  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Duration&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX_BUFFER_DURATION&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Duration&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;standardSeconds&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@TimerId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;stale&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TimerSpec&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;staleSpec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TimerSpecs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;timer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TimeDomain&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;PROCESSING_TIME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@ProcessElement&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;ProcessContext&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;BoundedWindow&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;window&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;count&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Integer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;countState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;buffer&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BagState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@TimerId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;stale&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Timer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;staleTimer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@TimerId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;expiry&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Timer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;expiryTimer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-
-    &lt;span class=&quot;kt&quot;&gt;boolean&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;staleTimerSet&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;firstNonNull&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;staleSetState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;firstNonNull&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;countState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;staleTimer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;offset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MAX_BUFFER_DURATION&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;setRelative&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;());&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-    &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;same&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;processing&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;logic&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;above&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt;
-  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@OnTimer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;stale&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;onStale&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;OnTimerContext&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;buffer&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BagState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;count&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Integer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;countState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;isEmpty&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EnrichedEvent&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;enrichedEvent&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;enrichEvents&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;enrichedEvent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-      &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;bufferState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;clear&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;countState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;clear&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-  &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;same&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;expiry&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;above&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# State and timers are not yet supported in Beam's Python SDK.&lt;/span&gt;
-&lt;span class=&quot;c&quot;&gt;# Follow https://issues.apache.org/jira/browse/BEAM-2687 for updates.&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Here is an illustration of the final code:&lt;/p&gt;
-
-&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/timely-processing/BatchedRpcStale.png&quot; alt=&quot;Batching elements in state, then performing RPCs&quot; width=&quot;600&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Recapping the entirety of the logic:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;As events arrive at &lt;code class=&quot;highlighter-rouge&quot;&gt;@ProcessElement&lt;/code&gt; they are buffered in state.&lt;/li&gt;
-  &lt;li&gt;If the size of the buffer exceeds a maximum, the events are enriched and output.&lt;/li&gt;
-  &lt;li&gt;If the buffer fills too slowly and the events get stale before the maximum is reached,
-a timer causes a callback which enriches the buffered events and outputs.&lt;/li&gt;
-  &lt;li&gt;Finally, as any window is expiring, any events buffered in that window are
-processed and output prior to the state for that window being discarded.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;In the end, we have a full example that uses state and timers to explicitly
-manage the low-level details of a performance-sensitive transform in Beam. As
-we added more and more features, our &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; actually became pretty large. That
-is a normal characteristic of stateful, timely processing. You are really
-digging in and managing a lot of details that are handled automatically when
-you express your logic using Beam’s higher-level APIs. What you gain from this
-extra effort is an ability to tackle use cases and achieve efficiencies that
-may not have been possible otherwise.&lt;/p&gt;
-
-&lt;h2 id=&quot;state-and-timers-in-beams-unified-model&quot;&gt;State and Timers in Beam’s Unified Model&lt;/h2&gt;
-
-&lt;p&gt;Beam’s unified model for event time across streaming and batch processing has
-novel implications for state and timers. Usually, you don’t need to do anything
-for your stateful and timely &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; to work well in the Beam model. But it will
-help to be aware of the considerations below, especially if you have used
-similar features before outside of Beam.&lt;/p&gt;
-
-&lt;h3 id=&quot;event-time-windowing-just-works&quot;&gt;Event Time Windowing “Just Works”&lt;/h3&gt;
-
-&lt;p&gt;One of the raisons d’etre for Beam is correct processing of out-of-order event
-data, which is almost all event data. Beam’s solution to out-of-order data is
-event time windowing, where windows in event time yield correct results no
-matter what windowing a user chooses or what order the events come in.&lt;/p&gt;
-
-&lt;p&gt;If you write a stateful, timely transform, it should work no matter how the
-surrounding pipeline chooses to window event time. If the pipeline chooses
-fixed windows of one hour (sometimes called tumbling windows) or windows of 30
-minutes sliding by 10 minutes, the stateful, timely transform should
-transparently work correctly.&lt;/p&gt;
-
-&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/timely-processing/WindowingChoices.png&quot; alt=&quot;Two windowing strategies for the same stateful and timely transform&quot; width=&quot;600&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;This works in Beam automatically, because state and timers are partitioned per
-key and window. Within each key and window, the stateful, timely processing is
-essentially independent.  As an added benefit, the passing of event time (aka
-advancement of the watermark) allows automatic release of unreachable state
-when a window expires, so you often don’t have to worry about evicting old
-state.&lt;/p&gt;
-
-&lt;h3 id=&quot;unified-real-time-and-historical-processing&quot;&gt;Unified real-time and historical processing&lt;/h3&gt;
-
-&lt;p&gt;A second tenet of Beam’s semantic model is that processing must be unified
-between batch and streaming. One important use case for this unification
-is the ability to apply the same logic to a stream of events in real time and
-to archived storage of the same events.&lt;/p&gt;
-
-&lt;p&gt;A common characteristic of archived data is that it may arrive radically out of
-order. The sharding of archived files often results in a totally different
-ordering for processing than events coming in near-real-time. The data will
-also all be all available and hence delivered instantaneously from the point of
-view of your pipeline. Whether running experiments on past data or reprocessing
-past results to fix a data processing bug, it is critically important that your
-processing logic be applicable to archived events just as easily as incoming
-near-real-time data.&lt;/p&gt;
-
-&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/timely-processing/UnifiedModel.png&quot; alt=&quot;Unified stateful processing over streams and file archives&quot; width=&quot;600&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;It is (deliberately) possible to write a stateful and timely DoFn that delivers
-results that depend on ordering or delivery timing, so in this sense there is
-additional burden on you, the &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; author, to ensure that this nondeterminism
-falls within documented allowances.&lt;/p&gt;
-
-&lt;h2 id=&quot;go-use-it&quot;&gt;Go use it!&lt;/h2&gt;
-
-&lt;p&gt;I’ll end this post in the same way I ended the last. I hope you will go try out
-Beam with stateful, timely processing. If it opens up new possibilities for
-you, then great! If not, we want to hear about it. Since this is a new feature,
-please check the &lt;a href=&quot;/documentation/runners/capability-matrix/&quot;&gt;capability matrix&lt;/a&gt; to see the level of support for
-your preferred Beam backend(s).&lt;/p&gt;
-
-&lt;p&gt;And please do join the Beam community at
-&lt;a href=&quot;/get-started/support&quot;&gt;user@beam.apache.org&lt;/a&gt; and follow
-&lt;a href=&quot;https://twitter.com/ApacheBeam&quot;&gt;@ApacheBeam&lt;/a&gt; on Twitter.&lt;/p&gt;
-</description>
-        <pubDate>Mon, 28 Aug 2017 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2017/08/28/timely-processing.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2017/08/28/timely-processing.html</guid>
         
         
         <category>blog</category>
