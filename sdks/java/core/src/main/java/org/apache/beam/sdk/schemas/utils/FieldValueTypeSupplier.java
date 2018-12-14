@@ -17,11 +17,19 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import java.io.Serializable;
+import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 
-/** Some useful {@link FieldNamePolicy}s. */
-public class FieldNamePolicies {
-  public static FieldNamePolicy identity() {
-    return (Class<?> clazz, Schema schema) -> s -> s;
-  }
+/**
+ * A naming policy for schema fields. This maps a name from the class (field name or getter name) to
+ * the matching field name in the schema.
+ */
+public interface FieldValueTypeSupplier extends Serializable {
+  /**
+   * Return all the FieldValueTypeInformations. The returned list must be in the same order as
+   * fields in the schema.
+   */
+  List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema);
 }

@@ -17,10 +17,16 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.utils.FieldNamePolicies;
+import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.POJOUtils;
+import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -38,6 +44,24 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Experimental(Kind.SCHEMAS)
 public class JavaFieldSchema extends GetterBasedSchemaProvider {
+  @VisibleForTesting
+  public static class JavaFieldTypeSupplier implements FieldValueTypeSupplier {
+    @Override
+    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+      Map<String, FieldValueTypeInformation> types =
+          ReflectUtils.getFields(clazz)
+              .stream()
+              .map(FieldValueTypeInformation::forField)
+              .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
+      // Return the list ordered by the schema fields.
+      return schema
+          .getFields()
+          .stream()
+          .map(f -> types.get(f.getName()))
+          .collect(Collectors.toList());
+    }
+  }
+
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
     return POJOUtils.schemaFromPojoClass(typeDescriptor.getRawType());
@@ -46,18 +70,18 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
   @Override
   public FieldValueGetterFactory fieldValueGetterFactory() {
     return (Class<?> targetClass, Schema schema) ->
-        POJOUtils.getGetters(targetClass, schema, FieldNamePolicies.identity());
+        POJOUtils.getGetters(targetClass, schema, new JavaFieldTypeSupplier());
   }
 
   @Override
   public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
     return (Class<?> targetClass, Schema schema) ->
-        POJOUtils.getFieldTypes(targetClass, schema, FieldNamePolicies.identity());
+        POJOUtils.getFieldTypes(targetClass, schema, new JavaFieldTypeSupplier());
   }
 
   @Override
   UserTypeCreatorFactory schemaTypeCreatorFactory() {
     return (Class<?> targetClass, Schema schema) ->
-        POJOUtils.getCreator(targetClass, schema, FieldNamePolicies.identity());
+        POJOUtils.getCreator(targetClass, schema, new JavaFieldTypeSupplier());
   }
 }

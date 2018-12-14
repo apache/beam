@@ -17,11 +17,16 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.utils.FieldNamePolicies;
-import org.apache.beam.sdk.schemas.utils.JavaBeanSetterFactory;
+import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
+import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -39,6 +44,44 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Experimental(Kind.SCHEMAS)
 public class JavaBeanSchema extends GetterBasedSchemaProvider {
+  @VisibleForTesting
+  public static class GetterTypeSupplier implements FieldValueTypeSupplier {
+    @Override
+    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+      Map<String, FieldValueTypeInformation> types =
+          ReflectUtils.getMethods(clazz)
+              .stream()
+              .filter(ReflectUtils::isGetter)
+              .map(FieldValueTypeInformation::forGetter)
+              .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
+      // Return the list ordered by the schema fields.
+      return schema
+          .getFields()
+          .stream()
+          .map(f -> types.get(f.getName()))
+          .collect(Collectors.toList());
+    }
+  }
+
+  @VisibleForTesting
+  public static class SetterTypeSupplier implements FieldValueTypeSupplier {
+    @Override
+    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+      Map<String, FieldValueTypeInformation> types =
+          ReflectUtils.getMethods(clazz)
+              .stream()
+              .filter(ReflectUtils::isSetter)
+              .map(FieldValueTypeInformation::forSetter)
+              .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
+      // Return the list ordered by the schema fields.
+      return schema
+          .getFields()
+          .stream()
+          .map(f -> types.get(f.getName()))
+          .collect(Collectors.toList());
+    }
+  }
+
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
     return JavaBeanUtils.schemaFromJavaBeanClass(typeDescriptor.getRawType());
@@ -47,7 +90,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   @Override
   public FieldValueGetterFactory fieldValueGetterFactory() {
     return (Class<?> targetClass, Schema schema) ->
-        JavaBeanUtils.getGetters(targetClass, schema, FieldNamePolicies.identity());
+        JavaBeanUtils.getGetters(targetClass, schema, new GetterTypeSupplier());
   }
 
   @Override
@@ -58,6 +101,14 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   @Override
   public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
     return (Class<?> targetClass, Schema schema) ->
-        JavaBeanUtils.getFieldTypes(targetClass, schema, FieldNamePolicies.identity());
+        JavaBeanUtils.getFieldTypes(targetClass, schema, new GetterTypeSupplier());
+  }
+
+  /** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
+  public static class JavaBeanSetterFactory implements FieldValueSetterFactory {
+    @Override
+    public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {
+      return JavaBeanUtils.getSetters(targetClass, schema, new SetterTypeSupplier());
+    }
   }
 }

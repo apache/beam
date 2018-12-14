@@ -30,7 +30,6 @@ import java.util.Collection;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Represents type information for a Java type that will be used to infer a Schema type. */
@@ -42,10 +41,14 @@ public abstract class FieldValueTypeInformation implements Serializable {
   /** Returns whether the field is nullable. */
   public abstract boolean isNullable();
 
-  public abstract boolean isIgnore();
-
   /** Returns the field type. */
   public abstract TypeDescriptor getType();
+
+  @Nullable
+  public abstract Field getField();
+
+  @Nullable
+  public abstract Method getMethod();
 
   /** If the field is a container type, returns the element type. */
   @Nullable
@@ -67,9 +70,11 @@ public abstract class FieldValueTypeInformation implements Serializable {
 
     public abstract Builder setNullable(boolean nullable);
 
-    public abstract Builder setIgnore(boolean ignore);
-
     public abstract Builder setType(TypeDescriptor type);
+
+    public abstract Builder setField(@Nullable Field field);
+
+    public abstract Builder setMethod(@Nullable Method method);
 
     public abstract Builder setElementType(@Nullable Type elementType);
 
@@ -80,13 +85,12 @@ public abstract class FieldValueTypeInformation implements Serializable {
     abstract FieldValueTypeInformation build();
   }
 
-  @Nullable
   public static FieldValueTypeInformation forField(Field field) {
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(field.getName())
         .setNullable(field.isAnnotationPresent(Nullable.class))
-        .setIgnore(false)
         .setType(TypeDescriptor.of(field.getGenericType()))
+        .setField(field)
         .setElementType(getArrayComponentType(field))
         .setMapKeyType(getMapKeyType(field))
         .setMapValueType(getMapValueType(field))
@@ -108,8 +112,8 @@ public abstract class FieldValueTypeInformation implements Serializable {
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(name)
         .setNullable(nullable)
-        .setIgnore(false)
         .setType(type)
+        .setMethod(method)
         .setElementType(getArrayComponentType(type))
         .setMapKeyType(getMapKeyType(type))
         .setMapValueType(getMapValueType(type))
@@ -132,21 +136,15 @@ public abstract class FieldValueTypeInformation implements Serializable {
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(name)
         .setNullable(nullable)
-        .setIgnore(false)
         .setType(type)
+        .setMethod(method)
         .setElementType(getArrayComponentType(type))
         .setMapKeyType(getMapKeyType(type))
         .setMapValueType(getMapValueType(type))
         .build();
   }
 
-  public FieldValueTypeInformation withNamePolicy(
-      SerializableFunction<String, String> fieldNamePolicy) {
-    String name = fieldNamePolicy.apply(getName());
-    // XXXXX Fix this
-    if (name == null) {
-      return null;
-    }
+  public FieldValueTypeInformation withName(String name) {
     return toBuilder().setName(name).build();
   }
 
