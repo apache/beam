@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.schemas;
 
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -38,7 +37,6 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   abstract FieldValueTypeInformationFactory fieldValueTypeInformationFactory();
 
   /** Implementing class should override to return a constructor factory. */
-  @Nullable
   abstract UserTypeCreatorFactory schemaTypeCreatorFactory();
 
   @Override

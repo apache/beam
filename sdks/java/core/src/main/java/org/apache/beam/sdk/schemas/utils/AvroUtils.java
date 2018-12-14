@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -42,6 +43,8 @@ import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.reflect.AvroIgnore;
+import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
@@ -56,6 +59,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
@@ -115,6 +119,11 @@ public class AvroUtils {
 
     private FixedBytesField(int size) {
       this.size = size;
+    }
+
+    /** Create a {@link FixedBytesField} with the specified size. */
+    public static FixedBytesField withSize(int size) {
+      return new FixedBytesField(size);
     }
 
     /** Create a {@link FixedBytesField} from a Beam {@link FieldType}. */
@@ -260,59 +269,100 @@ public class AvroUtils {
     return g -> toGenericRecord(g, avroSchema);
   }
 
-  /** Infer a {@link Schema} from an AVRO-generated SpecificRecord. */
-  public static <T extends SpecificRecord> Schema getSchema(Class<T> clazz) {
-    try {
-      org.apache.avro.Schema avroSchema =
-          (org.apache.avro.Schema) (clazz.getDeclaredField("SCHEMA$").get(null));
-      return toBeamSchema(avroSchema);
-    } catch (NoSuchFieldException | IllegalAccessException e) {
-      throw new IllegalArgumentException(
-          "Class "
-              + clazz
-              + " is not an AVRO SpecificRecord. "
-              + "No public SCHEMA$ field was found.");
-    }
+  /** Infer a {@link Schema} from either an AVRO-generated SpecificRecord or a POJO. */
+  public static <T> Schema getSchema(Class<T> clazz) {
+    return toBeamSchema(ReflectData.get().getSchema(clazz));
   }
 
-  private static final class AvroSpecificRecordFieldNamePolicy
-      implements SerializableFunction<String, String> {
-    Schema schema;
-    Map<String, String> nameMapping = Maps.newHashMap();
-
-    AvroSpecificRecordFieldNamePolicy(Schema schema) {
-      this.schema = schema;
-      for (Field field : schema.getFields()) {
-        String getter = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, field.getName());
-        nameMapping.put(getter, field.getName());
-        // The Avro compiler might add a $ at the end of a getter to disambiguate.
-        nameMapping.put(getter + "$", field.getName());
-      }
-    }
-
+  private static final class AvroSpecificRecordFieldValueTypeSupplier
+      implements FieldValueTypeSupplier {
     @Override
-    public String apply(String input) {
-      return nameMapping.getOrDefault(input, input);
+    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+      Map<String, String> mapping = getMapping(schema);
+      Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
+      for (Method method : ReflectUtils.getMethods(clazz)) {
+        if (ReflectUtils.isGetter(method)) {
+          FieldValueTypeInformation fieldValueTypeInformation =
+              FieldValueTypeInformation.forGetter(method);
+          String name = mapping.get(fieldValueTypeInformation.getName());
+          if (name != null) {
+            types.put(name, fieldValueTypeInformation.withName(name));
+          }
+        }
+      }
+
+      // Return the list ordered by the schema fields.
+      return schema
+          .getFields()
+          .stream()
+          .map(f -> types.get(f.getName()))
+          .collect(Collectors.toList());
+    }
+
+    private Map<String, String> getMapping(Schema schema) {
+      Map<String, String> mapping = Maps.newHashMap();
+      for (Field field : schema.getFields()) {
+        String underscore = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, field.getName());
+        mapping.put(underscore, field.getName());
+        // The Avro compiler might add a $ at the end of a getter to disambiguate.
+        mapping.put(underscore + "$", field.getName());
+        // If the field is in camel case already, then it's the identity mapping.
+        mapping.put(field.getName(), field.getName());
+      }
+      return mapping;
     }
   }
 
-  /** Get field types for an AVRO-generated SpecificRecord. */
-  public static <T extends SpecificRecord> List<FieldValueTypeInformation> getFieldTypes(
-      Class<T> clazz, Schema schema) {
-    return JavaBeanUtils.getFieldTypes(
-        clazz, schema, new AvroSpecificRecordFieldNamePolicy(schema));
+  private static final class AvroPojoFieldValueTypeSupplier implements FieldValueTypeSupplier {
+    @Override
+    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+      Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
+      for (java.lang.reflect.Field f : ReflectUtils.getFields(clazz)) {
+        if (!f.isAnnotationPresent(AvroIgnore.class)) {
+          FieldValueTypeInformation typeInformation = FieldValueTypeInformation.forField(f);
+          AvroName avroname = f.getAnnotation(AvroName.class);
+          if (avroname != null) {
+            typeInformation = typeInformation.withName(avroname.value());
+          }
+          types.put(typeInformation.getName(), typeInformation);
+        }
+      }
+      // Return the list ordered by the schema fields.
+      return schema
+          .getFields()
+          .stream()
+          .map(f -> types.get(f.getName()))
+          .collect(Collectors.toList());
+    }
   }
 
-  /** Get generated getters for an AVRO-generated SpecificRecord. */
-  public static <T extends SpecificRecord> List<FieldValueGetter> getGetters(
-      Class<T> clazz, Schema schema) {
-    return JavaBeanUtils.getGetters(clazz, schema, new AvroSpecificRecordFieldNamePolicy(schema));
+  /** Get field types for an AVRO-generated SpecificRecord or a POJO. */
+  public static <T> List<FieldValueTypeInformation> getFieldTypes(Class<T> clazz, Schema schema) {
+    if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
+      return JavaBeanUtils.getFieldTypes(
+          clazz, schema, new AvroSpecificRecordFieldValueTypeSupplier());
+    } else {
+      return POJOUtils.getFieldTypes(clazz, schema, new AvroPojoFieldValueTypeSupplier());
+    }
+  }
+
+  /** Get generated getters for an AVRO-generated SpecificRecord or a POJO. */
+  public static <T> List<FieldValueGetter> getGetters(Class<T> clazz, Schema schema) {
+    if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
+      return JavaBeanUtils.getGetters(
+          clazz, schema, new AvroSpecificRecordFieldValueTypeSupplier());
+    } else {
+      return POJOUtils.getGetters(clazz, schema, new AvroPojoFieldValueTypeSupplier());
+    }
   }
 
   /** Get an object creator for an AVRO-generated SpecificRecord. */
-  public static <T extends SpecificRecord> SchemaUserTypeCreator getCreator(
-      Class<T> clazz, Schema schema) {
-    return AvroByteBuddyUtils.getCreator(clazz, schema);
+  public static <T> SchemaUserTypeCreator getCreator(Class<T> clazz, Schema schema) {
+    if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
+      return AvroByteBuddyUtils.getCreator((Class<? extends SpecificRecord>) clazz, schema);
+    } else {
+      return POJOUtils.getCreator(clazz, schema, new AvroPojoFieldValueTypeSupplier());
+    }
   }
 
   /** Converts AVRO schema to Beam field. */
@@ -480,7 +530,6 @@ public class AvroUtils {
   private static Object genericFromBeamField(
       Schema.FieldType fieldType, org.apache.avro.Schema avroSchema, @Nullable Object value) {
     TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);
-
     if (!fieldType.getNullable().equals(typeWithNullability.nullable)) {
       throw new IllegalArgumentException(
           "FieldType "

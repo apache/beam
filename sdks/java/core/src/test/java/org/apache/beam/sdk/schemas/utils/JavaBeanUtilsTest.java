@@ -37,6 +37,8 @@ import java.nio.charset.Charset;
 import java.util.List;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
+import org.apache.beam.sdk.schemas.JavaBeanSchema;
+import org.apache.beam.sdk.schemas.JavaBeanSchema.SetterTypeSupplier;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithBoxedFields;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithByteArray;
@@ -49,7 +51,6 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveMapBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,8 +62,7 @@ public class JavaBeanUtilsTest {
 
   @Test
   public void testNullable() {
-    Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(NullableBean.class, SerializableFunctions.identity());
+    Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(NullableBean.class);
     assertTrue(schema.getField("str").getType().getNullable());
     assertFalse(schema.getField("anInt").getType().getNullable());
   }
@@ -70,62 +70,48 @@ public class JavaBeanUtilsTest {
   @Test
   public void testMismatchingNullable() {
     thrown.expect(RuntimeException.class);
-    Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(
-            MismatchingNullableBean.class, SerializableFunctions.identity());
+    Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(MismatchingNullableBean.class);
   }
 
   @Test
   public void testSimpleBean() {
-    Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(SimpleBean.class, SerializableFunctions.identity());
+    Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(SimpleBean.class);
     SchemaTestUtils.assertSchemaEquivalent(SIMPLE_BEAN_SCHEMA, schema);
   }
 
   @Test
   public void testNestedBean() {
-    Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(NestedBean.class, SerializableFunctions.identity());
+    Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(NestedBean.class);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_BEAN_SCHEMA, schema);
   }
 
   @Test
   public void testPrimitiveArray() {
-    Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(
-            PrimitiveArrayBean.class, SerializableFunctions.identity());
+    Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(PrimitiveArrayBean.class);
     SchemaTestUtils.assertSchemaEquivalent(PRIMITIVE_ARRAY_BEAN_SCHEMA, schema);
   }
 
   @Test
   public void testNestedArray() {
-    Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(
-            NestedArrayBean.class, SerializableFunctions.identity());
+    Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(NestedArrayBean.class);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_ARRAY_BEAN_SCHEMA, schema);
   }
 
   @Test
   public void testNestedCollection() {
-    Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(
-            NestedCollectionBean.class, SerializableFunctions.identity());
+    Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(NestedCollectionBean.class);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_COLLECTION_BEAN_SCHEMA, schema);
   }
 
   @Test
   public void testPrimitiveMap() {
-    Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(
-            PrimitiveMapBean.class, SerializableFunctions.identity());
+    Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(PrimitiveMapBean.class);
     SchemaTestUtils.assertSchemaEquivalent(PRIMITIVE_MAP_BEAN_SCHEMA, schema);
   }
 
   @Test
   public void testNestedMap() {
-    Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(
-            NestedMapBean.class, SerializableFunctions.identity());
+    Schema schema = JavaBeanUtils.schemaFromJavaBeanClass(NestedMapBean.class);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_MAP_BEAN_SCHEMA, schema);
   }
 
@@ -147,7 +133,7 @@ public class JavaBeanUtilsTest {
 
     List<FieldValueGetter> getters =
         JavaBeanUtils.getGetters(
-            SimpleBean.class, SIMPLE_BEAN_SCHEMA, SerializableFunctions.identity());
+            SimpleBean.class, SIMPLE_BEAN_SCHEMA, new JavaBeanSchema.GetterTypeSupplier());
     assertEquals(12, getters.size());
     assertEquals("str", getters.get(0).name());
 
@@ -174,7 +160,8 @@ public class JavaBeanUtilsTest {
   @Test
   public void testGeneratedSimpleSetters() {
     SimpleBean simpleBean = new SimpleBean();
-    List<FieldValueSetter> setters = JavaBeanUtils.getSetters(SimpleBean.class, SIMPLE_BEAN_SCHEMA);
+    List<FieldValueSetter> setters =
+        JavaBeanUtils.getSetters(SimpleBean.class, SIMPLE_BEAN_SCHEMA, new SetterTypeSupplier());
     assertEquals(12, setters.size());
 
     setters.get(0).set(simpleBean, "field1");
@@ -219,7 +206,7 @@ public class JavaBeanUtilsTest {
         JavaBeanUtils.getGetters(
             BeanWithBoxedFields.class,
             BEAN_WITH_BOXED_FIELDS_SCHEMA,
-            SerializableFunctions.identity());
+            new JavaBeanSchema.GetterTypeSupplier());
     assertEquals((byte) 41, getters.get(0).get(bean));
     assertEquals((short) 42, getters.get(1).get(bean));
     assertEquals((int) 43, getters.get(2).get(bean));
@@ -231,7 +218,8 @@ public class JavaBeanUtilsTest {
   public void testGeneratedSimpleBoxedSetters() {
     BeanWithBoxedFields bean = new BeanWithBoxedFields();
     List<FieldValueSetter> setters =
-        JavaBeanUtils.getSetters(BeanWithBoxedFields.class, BEAN_WITH_BOXED_FIELDS_SCHEMA);
+        JavaBeanUtils.getSetters(
+            BeanWithBoxedFields.class, BEAN_WITH_BOXED_FIELDS_SCHEMA, new SetterTypeSupplier());
 
     setters.get(0).set(bean, (byte) 41);
     setters.get(1).set(bean, (short) 42);
@@ -250,7 +238,8 @@ public class JavaBeanUtilsTest {
   public void testGeneratedByteBufferSetters() {
     BeanWithByteArray bean = new BeanWithByteArray();
     List<FieldValueSetter> setters =
-        JavaBeanUtils.getSetters(BeanWithByteArray.class, BEAN_WITH_BYTE_ARRAY_SCHEMA);
+        JavaBeanUtils.getSetters(
+            BeanWithByteArray.class, BEAN_WITH_BYTE_ARRAY_SCHEMA, new SetterTypeSupplier());
     setters.get(0).set(bean, "field1".getBytes(Charset.defaultCharset()));
     setters.get(1).set(bean, "field2".getBytes(Charset.defaultCharset()));
 
