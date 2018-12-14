@@ -237,7 +237,7 @@ public class TFRecordIO {
     abstract static class Builder {
       abstract Builder setOutputPrefix(ValueProvider<ResourceId> outputPrefix);
 
-      abstract Builder setShardTemplate(String shardTemplate);
+      abstract Builder setShardTemplate(@Nullable String shardTemplate);
 
       abstract Builder setFilenameSuffix(@Nullable String filenameSuffix);
 

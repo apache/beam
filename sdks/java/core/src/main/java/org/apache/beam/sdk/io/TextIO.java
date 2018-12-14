@@ -640,7 +640,7 @@ public class TextIO {
     @AutoValue.Builder
     abstract static class Builder<UserT, DestinationT> {
       abstract Builder<UserT, DestinationT> setFilenamePrefix(
-          ValueProvider<ResourceId> filenamePrefix);
+          @Nullable ValueProvider<ResourceId> filenamePrefix);
 
       abstract Builder<UserT, DestinationT> setTempDirectory(
           @Nullable ValueProvider<ResourceId> tempDirectory);

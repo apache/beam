@@ -934,7 +934,8 @@ public class AvroIO {
       abstract Builder<UserT, DestinationT, OutputT> setFilenamePrefix(
           ValueProvider<ResourceId> filenamePrefix);
 
-      abstract Builder<UserT, DestinationT, OutputT> setFilenameSuffix(String filenameSuffix);
+      abstract Builder<UserT, DestinationT, OutputT> setFilenameSuffix(
+          @Nullable String filenameSuffix);
 
       abstract Builder<UserT, DestinationT, OutputT> setTempDirectory(
           ValueProvider<ResourceId> tempDirectory);

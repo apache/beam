@@ -648,17 +648,18 @@ class BeamModulePlugin implements Plugin<Project> {
         // Note that these plugins specifically use the compileOnly and testCompileOnly
         // configurations because they are never required to be shaded or become a
         // dependency of the output.
-        def auto_value = "com.google.auto.value:auto-value:1.5.3"
+        def auto_value = "com.google.auto.value:auto-value:1.6.3"
+        def auto_value_annotations = "com.google.auto.value:auto-value-annotations:1.6.3"
         def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
 
-        compileOnly auto_value
+        compileOnly auto_value_annotations
+        testCompileOnly auto_value_annotations
         apt auto_value
-        testCompileOnly auto_value
         testApt auto_value
 
         compileOnly auto_service
-        apt auto_service
         testCompileOnly auto_service
+        apt auto_service
         testApt auto_service
 
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
@@ -669,8 +670,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // See: https://www.apache.org/legal/resolved.html#prohibited
         def findbugs_annotations = "com.google.code.findbugs:annotations:3.0.1"
         compileOnly findbugs_annotations
-        apt findbugs_annotations
         testCompileOnly findbugs_annotations
+        apt findbugs_annotations
         testApt findbugs_annotations
       }
 
