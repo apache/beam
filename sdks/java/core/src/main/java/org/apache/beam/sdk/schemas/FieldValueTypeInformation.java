@@ -22,22 +22,33 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
+import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** Represents type information for a schema field. */
+/** Represents type information for a Java type that will be used to infer a Schema type. */
 @AutoValue
 public abstract class FieldValueTypeInformation implements Serializable {
   /** Returns the field name. */
   public abstract String getName();
 
+  /** Returns whether the field is nullable. */
+  public abstract boolean isNullable();
+
   /** Returns the field type. */
-  public abstract Class getType();
+  public abstract TypeDescriptor getType();
+
+  @Nullable
+  public abstract Field getField();
+
+  @Nullable
+  public abstract Method getMethod();
 
   /** If the field is a container type, returns the element type. */
   @Nullable
@@ -51,26 +62,90 @@ public abstract class FieldValueTypeInformation implements Serializable {
   @Nullable
   public abstract Type getMapValueType();
 
-  public static FieldValueTypeInformation of(Field field) {
-    return new AutoValue_FieldValueTypeInformation(
-        field.getName(),
-        field.getType(),
-        getArrayComponentType(field),
-        getMapKeyType(field),
-        getMapValueType(field));
+  abstract Builder toBuilder();
+
+  @AutoValue.Builder
+  abstract static class Builder {
+    public abstract Builder setName(String name);
+
+    public abstract Builder setNullable(boolean nullable);
+
+    public abstract Builder setType(TypeDescriptor type);
+
+    public abstract Builder setField(@Nullable Field field);
+
+    public abstract Builder setMethod(@Nullable Method method);
+
+    public abstract Builder setElementType(@Nullable Type elementType);
+
+    public abstract Builder setMapKeyType(@Nullable Type mapKeyType);
+
+    public abstract Builder setMapValueType(@Nullable Type mapValueType);
+
+    abstract FieldValueTypeInformation build();
   }
 
-  public static FieldValueTypeInformation of(TypeInformation typeInformation) {
-    return new AutoValue_FieldValueTypeInformation(
-        typeInformation.getName(),
-        typeInformation.getType().getRawType(),
-        getArrayComponentType(typeInformation),
-        getMapKeyType(typeInformation),
-        getMapValueType(typeInformation));
+  public static FieldValueTypeInformation forField(Field field) {
+    return new AutoValue_FieldValueTypeInformation.Builder()
+        .setName(field.getName())
+        .setNullable(field.isAnnotationPresent(Nullable.class))
+        .setType(TypeDescriptor.of(field.getGenericType()))
+        .setField(field)
+        .setElementType(getArrayComponentType(field))
+        .setMapKeyType(getMapKeyType(field))
+        .setMapValueType(getMapValueType(field))
+        .build();
   }
 
-  private static Type getArrayComponentType(TypeInformation typeInformation) {
-    return getArrayComponentType(typeInformation.getType());
+  public static FieldValueTypeInformation forGetter(Method method) {
+    String name;
+    if (method.getName().startsWith("get")) {
+      name = ReflectUtils.stripPrefix(method.getName(), "get");
+    } else if (method.getName().startsWith("is")) {
+      name = ReflectUtils.stripPrefix(method.getName(), "is");
+    } else {
+      throw new RuntimeException("Getter has wrong prefix " + method.getName());
+    }
+
+    TypeDescriptor type = TypeDescriptor.of(method.getGenericReturnType());
+    boolean nullable = method.isAnnotationPresent(Nullable.class);
+    return new AutoValue_FieldValueTypeInformation.Builder()
+        .setName(name)
+        .setNullable(nullable)
+        .setType(type)
+        .setMethod(method)
+        .setElementType(getArrayComponentType(type))
+        .setMapKeyType(getMapKeyType(type))
+        .setMapValueType(getMapValueType(type))
+        .build();
+  }
+
+  public static FieldValueTypeInformation forSetter(Method method) {
+    String name;
+    if (method.getName().startsWith("set")) {
+      name = ReflectUtils.stripPrefix(method.getName(), "set");
+    } else {
+      throw new RuntimeException("Setter has wrong prefix " + method.getName());
+    }
+    if (method.getParameterCount() != 1) {
+      throw new RuntimeException("Setter methods should take a single argument.");
+    }
+    TypeDescriptor type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
+    boolean nullable =
+        Arrays.stream(method.getParameterAnnotations()[0]).anyMatch(Nullable.class::isInstance);
+    return new AutoValue_FieldValueTypeInformation.Builder()
+        .setName(name)
+        .setNullable(nullable)
+        .setType(type)
+        .setMethod(method)
+        .setElementType(getArrayComponentType(type))
+        .setMapKeyType(getMapKeyType(type))
+        .setMapValueType(getMapValueType(type))
+        .build();
+  }
+
+  public FieldValueTypeInformation withName(String name) {
+    return toBuilder().setName(name).build();
   }
 
   private static Type getArrayComponentType(Field field) {
@@ -98,15 +173,19 @@ public abstract class FieldValueTypeInformation implements Serializable {
     return null;
   }
 
+  public Class getRawType() {
+    return getType().getRawType();
+  }
+
   // If the Field is a map type, returns the key type, otherwise returns a null reference.
   @Nullable
   private static Type getMapKeyType(Field field) {
-    return getMapType(TypeDescriptor.of(field.getGenericType()), 0);
+    return getMapKeyType(TypeDescriptor.of(field.getGenericType()));
   }
 
   @Nullable
-  private static Type getMapKeyType(TypeInformation typeInformation) {
-    return getMapType(typeInformation.getType(), 0);
+  private static Type getMapKeyType(TypeDescriptor<?> typeDescriptor) {
+    return getMapType(typeDescriptor, 0);
   }
 
   // If the Field is a map type, returns the value type, otherwise returns a null reference.
@@ -116,8 +195,8 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   @Nullable
-  private static Type getMapValueType(TypeInformation typeInformation) {
-    return getMapType(typeInformation.getType(), 1);
+  private static Type getMapValueType(TypeDescriptor typeDescriptor) {
+    return getMapType(typeDescriptor, 1);
   }
 
   // If the Field is a map type, returns the key or value type (0 is key type, 1 is value).

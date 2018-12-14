@@ -73,7 +73,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
           fromValue(
               type,
               row.getValue(i),
-              typeInformation.getType(),
+              typeInformation.getRawType(),
               typeInformation.getElementType(),
               typeInformation.getMapKeyType(),
               typeInformation.getMapValueType(),
