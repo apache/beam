@@ -17,22 +17,17 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription.ForLoadedField;
-import net.bytebuddy.description.method.MethodDescription.ForLoadedConstructor;
-import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -59,8 +54,10 @@ import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConstructorCreateInstruction;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstruction;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -206,7 +203,7 @@ public class POJOUtils {
           BYTE_BUDDY
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
-              .intercept(new StaticMethodCreateInstruction(types, clazz, creator));
+              .intercept(new StaticFactoryMethodInstruction(types, clazz, creator));
 
       return builder
           .make()
@@ -485,144 +482,6 @@ public class POJOUtils {
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
         return new Size(size.getMaximalSize(), numLocals);
       };
-    }
-  }
-
-  static class InvokeUserCreateInstruction implements Implementation {
-    protected final List<FieldValueTypeInformation> fields;
-    protected final Class pojoClass;
-    protected final List<Parameter> parameters;
-    protected final Map<Integer, Integer> fieldMapping;
-
-    protected InvokeUserCreateInstruction(
-        List<FieldValueTypeInformation> fields, Class pojoClass, List<Parameter> parameters) {
-      this.fields = fields;
-      this.pojoClass = pojoClass;
-      this.parameters = parameters;
-
-      Map<String, Integer> fieldsByLogicalName = Maps.newHashMap();
-      Map<String, Integer> fieldsByJavaFieldName = Maps.newHashMap();
-      for (int i = 0; i < fields.size(); ++i) {
-        fieldsByLogicalName.put(fields.get(i).getName(), i);
-        fieldsByJavaFieldName.put(fields.get(i).getField().getName(), i);
-      }
-
-      fieldMapping = Maps.newHashMap();
-      for (int i = 0; i < parameters.size(); ++i) {
-        Parameter parameter = parameters.get(i);
-        String paramName = parameter.getName();
-        Integer index = fieldsByLogicalName.get(paramName);
-        if (index == null) {
-          index = fieldsByJavaFieldName.get(paramName);
-        }
-        if (index == null) {
-          throw new RuntimeException(
-              "Constructor parameter " + paramName + " Doesn't correspond " + "to a schema field");
-        }
-        fieldMapping.put(i, index);
-      }
-    }
-
-    @Override
-    public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      return instrumentedType;
-    }
-
-    @Override
-    public ByteCodeAppender appender(final Target implementationTarget) {
-      return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        // this + method parameters.
-        int numLocals = 1 + instrumentedMethod.getParameters().size();
-
-        StackManipulation stackManipulation = beforePushingParameters();
-
-        // Push all constructor parameters on the stack.
-        ConvertType convertType = new ConvertType(true);
-        for (int i = 0; i < parameters.size(); i++) {
-          Parameter parameter = parameters.get(i);
-          ForLoadedType convertedType =
-              new ForLoadedType(
-                  (Class) convertType.convert(TypeDescriptor.of(parameter.getType())));
-
-          // The instruction to read the parameter. Use the fieldMapping to reorder parameters as
-          // necessary.
-          StackManipulation readParameter =
-              new StackManipulation.Compound(
-                  MethodVariableAccess.REFERENCE.loadFrom(1),
-                  IntegerConstant.forValue(fieldMapping.get(i)),
-                  ArrayAccess.REFERENCE.load(),
-                  TypeCasting.to(convertedType));
-          stackManipulation =
-              new StackManipulation.Compound(
-                  stackManipulation,
-                  new ByteBuddyUtils.ConvertValueForSetter(readParameter)
-                      .convert(TypeDescriptor.of(parameter.getType())));
-        }
-        stackManipulation =
-            new StackManipulation.Compound(
-                stackManipulation, afterPushingParameters(), MethodReturn.REFERENCE);
-
-        StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
-        return new Size(size.getMaximalSize(), numLocals);
-      };
-    }
-
-    protected StackManipulation beforePushingParameters() {
-      return new StackManipulation.Compound();
-    }
-
-    protected StackManipulation afterPushingParameters() {
-      return new StackManipulation.Compound();
-    }
-  }
-
-  static class ConstructorCreateInstruction extends InvokeUserCreateInstruction {
-    private final Constructor constructor;
-
-    ConstructorCreateInstruction(
-        List<FieldValueTypeInformation> fields, Class pojoClass, Constructor constructor) {
-      super(fields, pojoClass, Lists.newArrayList(constructor.getParameters()));
-      this.constructor = constructor;
-    }
-
-    @Override
-    public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      return instrumentedType;
-    }
-
-    @Override
-    protected StackManipulation beforePushingParameters() {
-      // Create the POJO class.
-      ForLoadedType loadedType = new ForLoadedType(pojoClass);
-      return new StackManipulation.Compound(TypeCreation.of(loadedType), Duplication.SINGLE);
-    }
-
-    @Override
-    protected StackManipulation afterPushingParameters() {
-      return MethodInvocation.invoke(new ForLoadedConstructor(constructor));
-    }
-  }
-
-  static class StaticMethodCreateInstruction extends InvokeUserCreateInstruction {
-    private final Method creator;
-
-    StaticMethodCreateInstruction(
-        List<FieldValueTypeInformation> fields, Class pojoClass, Method creator) {
-      super(fields, pojoClass, Lists.newArrayList(creator.getParameters()));
-      if (!Modifier.isStatic(creator.getModifiers())) {
-        throw new IllegalArgumentException("Method " + creator + " is not static");
-      }
-      this.creator = creator;
-    }
-
-    @Override
-    public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      return instrumentedType;
-    }
-
-    @Override
-    protected StackManipulation afterPushingParameters() {
-      return MethodInvocation.invoke(new ForLoadedMethod(creator));
     }
   }
 }

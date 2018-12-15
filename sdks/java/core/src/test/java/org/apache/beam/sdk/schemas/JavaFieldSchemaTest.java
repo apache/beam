@@ -112,7 +112,6 @@ public class JavaFieldSchemaTest {
         new StringBuilder(name).append("builder"));
   }
 
-
   private Row createSimpleRow(String name) {
     return Row.withSchema(SIMPLE_POJO_SCHEMA)
         .addValues(

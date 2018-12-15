@@ -29,10 +29,23 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 /**
  * When used on a POJO field or a JavaBean getter, the specified name is used for the generated
  * schema field.
+ *
+ * <p>For example, a Java POJO with a field that we want in our schema but under a different name.
+ *
+ * <pre><code>
+ *   {@literal @}DefaultSchema(JavaBeanSchema.class)
+ *   class MyClass {
+ *     public String user;
+ *     {@literal @}SchemaName("age")
+ *     public int ageInYears;
+ *   }
+ * </code></pre>
+ *
+ * <p>The resulting schema will have fields named "user" and "age."
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.FIELD)
+@Target({ElementType.FIELD, ElementType.METHOD})
 @SuppressWarnings("rawtypes")
 @Experimental(Kind.SCHEMAS)
 public @interface FieldName {

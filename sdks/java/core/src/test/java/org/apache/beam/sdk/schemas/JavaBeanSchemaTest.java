@@ -43,6 +43,7 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedMapBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBeanWithAnnotations;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.junit.Test;
@@ -54,6 +55,21 @@ public class JavaBeanSchemaTest {
 
   private SimpleBean createSimple(String name) {
     return new SimpleBean(
+        name,
+        (byte) 1,
+        (short) 2,
+        3,
+        4L,
+        true,
+        DATE,
+        DATE.toInstant(),
+        BYTE_ARRAY,
+        BigDecimal.ONE,
+        new StringBuilder(name).append("builder"));
+  }
+
+  private SimpleBeanWithAnnotations createAnnotated(String name) {
+    return new SimpleBeanWithAnnotations(
         name,
         (byte) 1,
         (short) 2,
@@ -333,5 +349,34 @@ public class JavaBeanSchemaTest {
     assertEquals("string1", bean.getMap().get("simple1").getStr());
     assertEquals("string2", bean.getMap().get("simple2").getStr());
     assertEquals("string3", bean.getMap().get("simple3").getStr());
+  }
+
+  @Test
+  public void testAnnotations() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(SimpleBeanWithAnnotations.class);
+    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_BEAN_SCHEMA, schema);
+
+    SimpleBeanWithAnnotations pojo = createAnnotated("string");
+    Row row = registry.getToRowFunction(SimpleBeanWithAnnotations.class).apply(pojo);
+    assertEquals(12, row.getFieldCount());
+    assertEquals("string", row.getString("str"));
+    assertEquals((byte) 1, (Object) row.getByte("aByte"));
+    assertEquals((short) 2, (Object) row.getInt16("aShort"));
+    assertEquals((int) 3, (Object) row.getInt32("anInt"));
+    assertEquals((long) 4, (Object) row.getInt64("aLong"));
+    assertEquals(true, (Object) row.getBoolean("aBoolean"));
+    assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
+    assertEquals(DATE.toInstant(), row.getDateTime("instant"));
+    assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
+    assertArrayEquals(BYTE_ARRAY, row.getBytes("byteBuffer"));
+    assertEquals(BigDecimal.ONE, row.getDecimal("bigDecimal"));
+    assertEquals("stringbuilder", row.getString("stringBuilder"));
+
+    SimpleBeanWithAnnotations pojo2 =
+        registry
+            .getFromRowFunction(SimpleBeanWithAnnotations.class)
+            .apply(createSimpleRow("string"));
+    assertEquals(pojo, pojo2);
   }
 }

@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.schemas;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -65,7 +67,6 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
                     return (fieldName != null) ? t.withName(fieldName.value()) : t;
                   })
               .collect(Collectors.toList());
-
       return (schema != null) ? StaticSchemaInference.sortBySchema(types, schema) : types;
     }
   }
@@ -81,6 +82,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
           ReflectUtils.getMethods(clazz)
               .stream()
               .filter(ReflectUtils::isSetter)
+              .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
               .map(FieldValueTypeInformation::forSetter)
               .collect(Collectors.toList());
 
@@ -90,9 +92,19 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
 
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    // TODO: XXXXX validate getters/setters
-    return JavaBeanUtils.schemaFromJavaBeanClass(
-        typeDescriptor.getRawType(), GetterTypeSupplier.INSTANCE);
+    Schema schema =
+        JavaBeanUtils.schemaFromJavaBeanClass(
+            typeDescriptor.getRawType(), GetterTypeSupplier.INSTANCE);
+
+    // If there are no creator methods, then validate that we have setters for every field.
+    // Otherwise, we will have not way of creating the class.
+    if (ReflectUtils.getAnnotatedCreateMethod(typeDescriptor.getRawType()) == null
+        && ReflectUtils.getAnnotatedConstructor(typeDescriptor.getRawType()) == null) {
+      JavaBeanUtils.validateJavaBean(
+          GetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema),
+          SetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema));
+    }
+    return schema;
   }
 
   @Override
@@ -103,7 +115,26 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
 
   @Override
   UserTypeCreatorFactory schemaTypeCreatorFactory() {
-    return new SetterBasedCreatorFactory(new JavaBeanSetterFactory());
+    UserTypeCreatorFactory setterBasedFactory =
+        new SetterBasedCreatorFactory(new JavaBeanSetterFactory());
+
+    return (Class<?> targetClass, Schema schema) -> {
+      // If a static method is marked with @SchemaCreate, use that.
+      Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
+      if (annotated != null) {
+        return JavaBeanUtils.getStaticCreator(
+            targetClass, annotated, schema, GetterTypeSupplier.INSTANCE);
+      }
+
+      // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
+      Constructor<?> constructor = ReflectUtils.getAnnotatedConstructor(targetClass);
+      if (constructor != null) {
+        return JavaBeanUtils.getConstructorCreator(
+            targetClass, constructor, schema, GetterTypeSupplier.INSTANCE);
+      }
+
+      return setterBasedFactory.create(targetClass, schema);
+    };
   }
 
   @Override

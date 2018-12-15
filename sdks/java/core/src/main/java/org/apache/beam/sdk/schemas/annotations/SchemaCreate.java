@@ -25,6 +25,40 @@ import java.lang.annotation.Target;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
+/**
+ * Can be put on a constructor or a static method, in which case that constructor or method will be
+ * used to created instance of the class by Beam's schema code.
+ *
+ * <p>For example, the following Java POJO.
+ *
+ * <pre><code>
+ *   {@literal @}DefaultSchema(JavaBeanSchema.class)
+ *  class MyClass {
+ *    public final String user;
+ *    public final int age;
+ *
+ *    {@literal @}SchemaCreate
+ *    public MyClass(String user, int age) {
+ *      this.user = user;
+ *      this.age = age;
+ *    }
+ *  }
+ * </code></pre>
+ *
+ * <p>This tells Beam that this constructor can be used to construct instances. Beam will match up
+ * the names of the constructor arguments to schema fields in order to decide how to create the
+ * class from a Row.
+ *
+ * <p>This can also be used to annotate a static factory method on the class. For example:
+ *
+ * <p>{@literal @}DefaultSchema(JavaBeanSchema.class) class MyClass { public final String user;
+ * public final int age;
+ *
+ * <p>private MyClass(String user, int age) { this.user = user; this.age = age; }
+ *
+ * <p>{@literal @}SchemaCreate public MyClass create(String user, int age) { return new
+ * MyClass(user, age); } } </code></pre>
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.CONSTRUCTOR, ElementType.METHOD})

@@ -19,8 +19,11 @@ package org.apache.beam.sdk.schemas;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -65,6 +68,26 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
                     return (fieldName != null) ? t.withName(fieldName.value()) : t;
                   })
               .collect(Collectors.toList());
+
+      // If there are no creators registered, then make sure none of the schema fields are final,
+      // as we (currently) have no way of creating classes in this case.
+      if (ReflectUtils.getAnnotatedCreateMethod(clazz) == null
+          && ReflectUtils.getAnnotatedConstructor(clazz) == null) {
+        Optional<Field> finalField =
+            types
+                .stream()
+                .map(FieldValueTypeInformation::getField)
+                .filter(f -> Modifier.isFinal(f.getModifiers()))
+                .findAny();
+        if (finalField.isPresent()) {
+          throw new IllegalArgumentException(
+              "Class "
+                  + clazz
+                  + " has final fields and no "
+                  + "registered creator. Cannot use as schema, as we don't know how to create this "
+                  + "object automatically");
+        }
+      }
       return (schema != null) ? StaticSchemaInference.sortBySchema(types, schema) : types;
     }
   }
@@ -90,11 +113,11 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
   @Override
   UserTypeCreatorFactory schemaTypeCreatorFactory() {
     return (Class<?> targetClass, Schema schema) -> {
-      // If a static method is marked with @SchemaCreate, use that
+      // If a static method is marked with @SchemaCreate, use that.
       Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
       if (annotated != null) {
-        return POJOUtils.getStaticCreator(targetClass, annotated, schema,
-            JavaFieldTypeSupplier.INSTANCE);
+        return POJOUtils.getStaticCreator(
+            targetClass, annotated, schema, JavaFieldTypeSupplier.INSTANCE);
       }
 
       // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
@@ -106,13 +129,5 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
 
       return POJOUtils.getSetFieldCreator(targetClass, schema, JavaFieldTypeSupplier.INSTANCE);
     };
-  }
-
-  boolean hasCreator(Class<?> clazz) {
-    if (ReflectUtils.getAnnotatedCreateMethod(clazz) != null
-        || ReflectUtils.getAnnotatedConstructor(clazz) != null) {
-      return true;
-    }
-    return false;
   }
 }
