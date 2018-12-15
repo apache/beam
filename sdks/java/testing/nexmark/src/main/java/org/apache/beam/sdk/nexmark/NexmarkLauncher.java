@@ -87,6 +87,7 @@ import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery3;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery5;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery7;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlSessionSideInputJoin;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -1247,6 +1248,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(
             NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN,
             new NexmarkQuery(configuration, new SqlBoundedSideInputJoin(configuration)))
+        .put(
+            NexmarkQueryName.SESSION_SIDE_INPUT_JOIN,
+            new NexmarkQuery(configuration, new SqlSessionSideInputJoin(configuration)))
         .build();
   }
 
