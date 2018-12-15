@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.AvroUtils.toBeamSchema;
+
+import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -30,7 +33,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class AvroRecordSchema extends GetterBasedSchemaProvider {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return AvroUtils.getSchema(typeDescriptor.getRawType());
+    return toBeamSchema(ReflectData.get().getSchema(typeDescriptor.getRawType()));
   }
 
   @Override
