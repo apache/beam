@@ -290,7 +290,7 @@ public class AvroSchemaTest {
 
   @Test
   public void testPojoSchema() {
-    assertEquals(POJO_SCHEMA, AvroUtils.getSchema(AvroPojo.class));
+    assertEquals(POJO_SCHEMA, new AvroRecordSchema().schemaFor(TypeDescriptor.of(AvroPojo.class)));
   }
 
   @Test
