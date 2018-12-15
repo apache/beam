@@ -40,6 +40,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.CombineFns.CoCombineResult;
@@ -97,7 +98,7 @@ public class CombineFnsTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class, UsesSideInputs.class, DataflowPortabilityApiUnsupported.class})
   public void testComposedCombine() {
     p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
@@ -147,7 +148,7 @@ public class CombineFnsTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class, UsesSideInputs.class, DataflowPortabilityApiUnsupported.class})
   public void testComposedCombineWithContext() {
     p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 

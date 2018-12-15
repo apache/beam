@@ -306,7 +306,11 @@ public class PAssertTest implements Serializable {
 
   /** Basic test for {@code isEqualTo}. */
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesStatefulParDo.class, // This test fails if State is unsupported despite no direct usage.
+    DataflowPortabilityExecutableStageUnsupported.class
+  })
   public void testWindowedIsEqualTo() throws Exception {
     PCollection<Integer> pcollection =
         pipeline
