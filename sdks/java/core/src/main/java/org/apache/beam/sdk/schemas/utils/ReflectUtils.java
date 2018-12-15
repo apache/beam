@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -40,7 +39,7 @@ public class ReflectUtils {
     private final Class clazz;
     private final Schema schema;
 
-    public ClassWithSchema(Class clazz, Schema schema) {
+    ClassWithSchema(Class clazz, Schema schema) {
       this.clazz = clazz;
       this.schema = schema;
     }
@@ -67,7 +66,7 @@ public class ReflectUtils {
   private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newHashMap();
 
   /** Returns the list of public, non-static methods in the class, caching the results. */
-  static List<Method> getMethods(Class clazz) throws IOException {
+  public static List<Method> getMethods(Class clazz) {
     return DECLARED_METHODS.computeIfAbsent(
         clazz,
         c -> {
@@ -79,7 +78,7 @@ public class ReflectUtils {
   }
 
   // Get all public, non-static, non-transient fields.
-  static List<Field> getFields(Class<?> clazz) {
+  public static List<Field> getFields(Class<?> clazz) {
     return DECLARED_FIELDS.computeIfAbsent(
         clazz,
         c -> {
@@ -104,7 +103,7 @@ public class ReflectUtils {
         });
   }
 
-  static boolean isGetter(Method method) {
+  public static boolean isGetter(Method method) {
     if (Void.TYPE.equals(method.getReturnType())) {
       return false;
     }
@@ -118,13 +117,13 @@ public class ReflectUtils {
             || Boolean.class.equals(method.getReturnType())));
   }
 
-  static boolean isSetter(Method method) {
+  public static boolean isSetter(Method method) {
     return Void.TYPE.equals(method.getReturnType())
         && method.getParameterCount() == 1
         && method.getName().startsWith("set");
   }
 
-  static String stripPrefix(String methodName, String prefix) {
+  public static String stripPrefix(String methodName, String prefix) {
     String firstLetter = methodName.substring(prefix.length(), prefix.length() + 1).toLowerCase();
 
     return (methodName.length() == prefix.length() + 1)

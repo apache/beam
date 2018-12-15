@@ -20,11 +20,10 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Spark runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Spark_Gradle',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Spark',
   'Run Spark ValidatesRunner', 'Apache Spark Runner ValidatesRunner Tests', this) {
   description('Runs the ValidatesRunner suite on the Spark runner.')
-  previousNames('beam_PostCommit_Java_ValidatesRunner_Spark')
-  previousNames('beam_PostCommit_Java_RunnableOnService_Spark')
+  previousNames(/beam_PostCommit_Java_ValidatesRunner_Spark_Gradle/)
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)

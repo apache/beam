@@ -15,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.schemas.utils.POJOUtils;
+/** Lambda interface for defining a custom error to log based on an http request and response. */
+interface HttpCallCustomError {
 
-/** Vends constructors for POJOs. */
-class PojoTypeUserTypeCreatorFactory implements UserTypeCreatorFactory {
-  @Override
-  public SchemaUserTypeCreator create(Class<?> clazz, Schema schema) {
-    return POJOUtils.getCreator(clazz, schema);
-  }
+  /** @return A string which represents a custom error to be logged for the request and response. */
+  String customError(HttpRequestWrapper request, HttpResponseWrapper response);
 }

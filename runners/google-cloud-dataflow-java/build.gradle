@@ -241,17 +241,55 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
     }
 }
 
+task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
+    group = "Verification"
+    description "Validates Dataflow PortabilityApi runner"
+    dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+    dependsOn buildAndPushDockerContainer
+
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--runner=TestDataflowRunner",
+            "--project=${dataflowProject}",
+            "--tempRoot=${dataflowPostCommitTempRoot}",
+            "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
+            "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+            "--experiments=beam_fn_api,use_executable_stage_bundle_execution"]
+    )
+
+    // Increase test parallelism up to the number of Gradle workers. By default this is equal
+    // to the number of CPU cores, but can be increased by setting --max-workers=N.
+    maxParallelForks Integer.MAX_VALUE
+    classpath = configurations.validatesRunner
+    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+    // TODO(BEAM-6232): ViewTest tests sideinputs, which is not supported bu current bundle execution.
+    exclude '**/ViewTest.class'
+    useJUnit {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        commonExcludeCategories.each {
+            excludeCategories it
+        }
+        fnApiWorkerExcludeCategories.each {
+            excludeCategories it
+        }
+        // TODO(BEAM-6232): Support sideinput.
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
+        // TODO(BEAM-6233): Support timer and state.
+        excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+        // TODO(BEAM-6231): Triage failures.
+        excludeCategories 'org.apache.beam.sdk.testing.DataflowPortabilityExecutableStageUnsupported'
+    }
+}
+
 task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
   dependsOn validatesRunnerLegacyWorkerTest
 }
 
-task validatesRunnerPortabilityApi {
-  group = "Verification"
-  description "Validates Dataflow PortabilityApi runner"
-  dependsOn validatesRunnerFnApiWorkerTest
-  dependsOn buildAndPushDockerContainer
+task validatesRunnerPortabilityApiExecutableStage {
+    group = "Verification"
+    description "Validates Dataflow PortabilityApi runner"
+    dependsOn validatesRunnerFnApiWorkerExecutableStageTest
 }
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {

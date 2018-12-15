@@ -32,9 +32,11 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.testing.DataflowPortabilityExecutableStageUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -118,7 +120,7 @@ public class CoGroupByKeyTest implements Serializable {
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesSideInputs.class})
   public void testCoGroupByKeyGetOnly() {
     final TupleTag<String> tag1 = new TupleTag<>();
     final TupleTag<String> tag2 = new TupleTag<>();
@@ -248,7 +250,7 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesSideInputs.class})
   public void testCoGroupByKey() {
     final TupleTag<String> namesTag = new TupleTag<>();
     final TupleTag<String> addressesTag = new TupleTag<>();
@@ -468,7 +470,7 @@ public class CoGroupByKeyTest implements Serializable {
   /** Tests the pipeline end-to-end with FixedWindows. */
   @SuppressWarnings("unchecked")
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
   public void testCoGroupByKeyWithWindowing() {
     TupleTag<String> clicksTag = new TupleTag<>();
     TupleTag<String> purchasesTag = new TupleTag<>();

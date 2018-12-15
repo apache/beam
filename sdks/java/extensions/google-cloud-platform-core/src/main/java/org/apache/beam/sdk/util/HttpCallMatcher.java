@@ -15,18 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+package org.apache.beam.sdk.util;
 
-import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
+/**
+ * Lambda interface for inspecting an http request and response to match the failure and possibly
+ * generate a custom error message with more context.
+ */
+interface HttpCallMatcher {
 
-/** A factory for creating {@link FieldValueGetter} objects for a JavaBean object. */
-public class JavaBeanGetterFactory implements FieldValueGetterFactory {
-  @Override
-  public List<FieldValueGetter> create(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getGetters(targetClass, schema, SerializableFunctions.identity());
-  }
+  /** @return true iff the request and response represent a matching http c\all. */
+  boolean matchResponse(HttpRequestWrapper req, HttpResponseWrapper response);
 }

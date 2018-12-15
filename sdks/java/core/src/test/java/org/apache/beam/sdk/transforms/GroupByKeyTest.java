@@ -49,6 +49,7 @@ import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
+import org.apache.beam.sdk.testing.DataflowPortabilityExecutableStageUnsupported;
 import org.apache.beam.sdk.testing.LargeKeys;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -254,7 +255,7 @@ public class GroupByKeyTest implements Serializable {
      * two values.
      */
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
     public void testTimestampCombinerEarliest() {
 
       p.apply(
@@ -275,7 +276,7 @@ public class GroupByKeyTest implements Serializable {
      * the windowing function customized to use the latest value.
      */
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
     public void testTimestampCombinerLatest() {
       p.apply(
               Create.timestamped(
@@ -382,7 +383,7 @@ public class GroupByKeyTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class WindowTests extends SharedTestBase {
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
     public void testGroupByKeyAndWindows() {
       List<KV<String, Integer>> ungroupedPairs =
           Arrays.asList(
@@ -423,7 +424,7 @@ public class GroupByKeyTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
     public void testGroupByKeyMultipleWindows() {
       PCollection<KV<String, Integer>> windowedInput =
           p.apply(
@@ -453,7 +454,7 @@ public class GroupByKeyTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
     public void testGroupByKeyMergingWindows() {
       PCollection<KV<String, Integer>> windowedInput =
           p.apply(

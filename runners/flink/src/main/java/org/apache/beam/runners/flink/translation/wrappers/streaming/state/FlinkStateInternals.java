@@ -17,13 +17,16 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
@@ -31,6 +34,7 @@ import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
@@ -49,6 +53,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.CombineContextFactory;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -274,6 +279,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     private final String stateId;
     private final ListStateDescriptor<T> flinkStateDescriptor;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+    private final boolean storesVoidValues;
 
     FlinkBagState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
@@ -284,17 +290,24 @@ public class FlinkStateInternals<K> implements StateInternals {
       this.namespace = namespace;
       this.stateId = stateId;
       this.flinkStateBackend = flinkStateBackend;
-
-      flinkStateDescriptor = new ListStateDescriptor<>(stateId, new CoderTypeSerializer<>(coder));
+      this.storesVoidValues = coder instanceof VoidCoder;
+      this.flinkStateDescriptor =
+          new ListStateDescriptor<>(stateId, new CoderTypeSerializer<>(coder));
     }
 
     @Override
     public void add(T input) {
       try {
-        flinkStateBackend
-            .getPartitionedState(
-                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
-            .add(input);
+        ListState<T> partitionedState =
+            flinkStateBackend.getPartitionedState(
+                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor);
+        if (storesVoidValues) {
+          Preconditions.checkState(input == null, "Expected to a null value but was: %s", input);
+          // Flink does not allow storing null values
+          // If we have null values, we use the structural null value
+          input = (T) VoidCoder.of().structuralValue((Void) input);
+        }
+        partitionedState.add(input);
       } catch (Exception e) {
         throw new RuntimeException("Error adding to bag state.", e);
       }
@@ -306,14 +319,35 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
+    @Nonnull
     public Iterable<T> read() {
       try {
-        Iterable<T> result =
-            flinkStateBackend
-                .getPartitionedState(
-                    namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
-                .get();
+        ListState<T> partitionedState =
+            flinkStateBackend.getPartitionedState(
+                namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor);
+        Iterable<T> result = partitionedState.get();
+        if (storesVoidValues) {
+          return () -> {
+            Iterator underlying = result.iterator();
+            Object structuralNullValue = VoidCoder.of().structuralValue(null);
+            return new Iterator<T>() {
+              @Override
+              public boolean hasNext() {
+                return underlying.hasNext();
+              }
 
+              @Override
+              public T next() {
+                Object next = underlying.next();
+                Preconditions.checkState(
+                    structuralNullValue.equals(next),
+                    "Expected to receive structural null value but was: %s",
+                    next);
+                return null;
+              }
+            };
+          };
+        }
         return result != null ? ImmutableList.copyOf(result) : Collections.emptyList();
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);

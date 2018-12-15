@@ -15,15 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.util;
 
-import org.apache.avro.specific.SpecificRecord;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import com.google.api.client.http.HttpResponse;
 
-/** A {@link UserTypeCreatorFactory} for AVRO-generated specific records. */
-public class AvroSpecificRecordUserTypeCreatorFactory implements UserTypeCreatorFactory {
-  @Override
-  public SchemaUserTypeCreator create(Class<?> clazz, Schema schema) {
-    return AvroUtils.getCreator((Class<? extends SpecificRecord>) clazz, schema);
+/**
+ * These wrapper classes are necessary allow mocking out the HttpRequest and HttpResponse, since
+ * they are final classes and mockito cannot mock them. Note: There is an experimental mockito
+ * feature, but it causes many issues and several tests fail when it is enabled.
+ * https://stackoverflow.com/questions/14292863/how-to-mock-a-final-class-with-mockito
+ */
+class HttpResponseWrapper {
+  private HttpResponse response;
+
+  public HttpResponseWrapper(HttpResponse response) {
+    this.response = response;
+  }
+
+  public int getStatusCode() {
+    return response.getStatusCode();
   }
 }

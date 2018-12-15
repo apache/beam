@@ -63,6 +63,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.BackOffAdapter;
+import org.apache.beam.sdk.util.CustomHttpErrors;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
@@ -906,6 +907,7 @@ class BigQueryServicesImpl implements BigQueryServices {
   private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
     RetryHttpRequestInitializer httpRequestInitializer =
         new RetryHttpRequestInitializer(ImmutableList.of(404));
+    httpRequestInitializer.setCustomErrors(createBigQueryClientCustomErrors());
     httpRequestInitializer.setWriteTimeout(options.getHTTPWriteTimeout());
     return new Bigquery.Builder(
             Transport.getTransport(),
@@ -927,5 +929,19 @@ class BigQueryServicesImpl implements BigQueryServices {
       return new ChainingHttpRequestInitializer(
           new HttpCredentialsAdapter(credential), httpRequestInitializer);
     }
+  }
+
+  public static CustomHttpErrors createBigQueryClientCustomErrors() {
+    CustomHttpErrors.Builder builder = new CustomHttpErrors.Builder();
+    // 403 errors, to list tables, matching this URL:
+    // http://www.googleapis.com/bigquery/v2/projects/myproject/datasets/
+    //     mydataset/tables?maxResults=1000
+    builder.addErrorForCodeAndUrlContains(
+        403,
+        "/tables?",
+        "The GCP project is most likely exceeding the rate limit on "
+            + "bigquery.tables.list, please find the instructions to increase this limit at: "
+            + "https://cloud.google.com/service-infrastructure/docs/rate-limiting#configure");
+    return builder.build();
   }
 }

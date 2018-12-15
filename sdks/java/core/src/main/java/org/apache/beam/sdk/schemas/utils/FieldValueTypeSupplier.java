@@ -15,28 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.schemas.utils;
 
-import CommonJobProperties as commonJobProperties
-import PostcommitJobBuilder
+import java.io.Serializable;
+import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
+import org.apache.beam.sdk.schemas.Schema;
 
-// This is the Go postcommit which runs a gradle build, and the current set
-// of postcommit tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go PostCommit',
-  './gradlew :goPostCommit', this) {
-  description('Runs Go PostCommit tests against master.')
-
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(
-    delegate,
-    'master',
-    150)
-
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':goPostCommit')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('--no-parallel')
-    }
-  }
+/**
+ * A naming policy for schema fields. This maps a name from the class (field name or getter name) to
+ * the matching field name in the schema.
+ */
+public interface FieldValueTypeSupplier extends Serializable {
+  /**
+   * Return all the FieldValueTypeInformations. The returned list must be in the same order as
+   * fields in the schema.
+   */
+  List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema);
 }

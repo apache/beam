@@ -15,18 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+package org.apache.beam.sdk.testing;
 
-import java.util.List;
-import org.apache.avro.specific.SpecificRecord;
-import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
-import org.apache.beam.sdk.schemas.FieldValueTypeInformationFactory;
-import org.apache.beam.sdk.schemas.Schema;
-
-/** A {@link FieldValueTypeInformation} for AVRO-generated specific records. */
-public class AvroSpecificRecordTypeInformationFactory implements FieldValueTypeInformationFactory {
-  @Override
-  public List<FieldValueTypeInformation> create(Class<?> targetClass, Schema schema) {
-    return AvroUtils.getFieldTypes((Class<? extends SpecificRecord>) targetClass, schema);
-  }
-}
+/**
+ * Category tag for validation tests which use sideinputs. Tests tagged with {@link UsesSideInputs}
+ * should be run for runners which support sideinputs.
+ */
+public interface UsesSideInputs {}
