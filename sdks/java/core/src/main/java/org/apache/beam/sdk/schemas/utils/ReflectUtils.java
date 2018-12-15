@@ -25,6 +25,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.security.InvalidParameterException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -84,17 +85,30 @@ public class ReflectUtils {
     return Arrays.stream(clazz.getDeclaredConstructors())
         .filter(m -> Modifier.isPublic(m.getModifiers()))
         .filter(m -> m.getAnnotation(SchemaCreate.class) != null)
-        .findFirst().orElse(null);
+        .findFirst()
+        .orElse(null);
   }
 
   public static Method getAnnotatedCreateMethod(Class clazz) {
-    return ANNOTATED_CONSTRUCTORS.computeIfAbsent(clazz,
-      c -> {
-      return Arrays.stream(clazz.getDeclaredMethods())
-            .filter(m -> Modifier.isPublic(m.getModifiers()))
-            .filter(m -> m.getAnnotation(SchemaCreate.class) != null)
-            .findFirst().orElse(null);
-      });
+    return ANNOTATED_CONSTRUCTORS.computeIfAbsent(
+        clazz,
+        c -> {
+          Method method =
+              Arrays.stream(clazz.getDeclaredMethods())
+                  .filter(m -> Modifier.isPublic(m.getModifiers()))
+                  .filter(m -> Modifier.isStatic(m.getModifiers()))
+                  .filter(m -> m.getAnnotation(SchemaCreate.class) != null)
+                  .findFirst()
+                  .orElse(null);
+          if (method != null && !clazz.isAssignableFrom(method.getReturnType())) {
+            throw new InvalidParameterException(
+                "A method marked with SchemaCreate in class "
+                    + clazz
+                    + " does not return a type assignable to "
+                    + clazz);
+          }
+          return method;
+        });
   }
 
   // Get all public, non-static, non-transient fields.

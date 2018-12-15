@@ -51,6 +51,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
   @VisibleForTesting
   public static class JavaFieldTypeSupplier implements FieldValueTypeSupplier {
     public static final JavaFieldTypeSupplier INSTANCE = new JavaFieldTypeSupplier();
+
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
       List<FieldValueTypeInformation> types =
@@ -58,18 +59,20 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
               .stream()
               .filter(f -> !f.isAnnotationPresent(SchemaIgnore.class))
               .map(FieldValueTypeInformation::forField)
-              .map(t -> {
-                FieldName fieldName = t.getField().getAnnotation(FieldName.class);
-                return (fieldName != null) ? t.withName(fieldName.value()) : t;
-              })
-          .collect(Collectors.toList());;
+              .map(
+                  t -> {
+                    FieldName fieldName = t.getField().getAnnotation(FieldName.class);
+                    return (fieldName != null) ? t.withName(fieldName.value()) : t;
+                  })
+              .collect(Collectors.toList());
       return (schema != null) ? StaticSchemaInference.sortBySchema(types, schema) : types;
     }
   }
 
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return POJOUtils.schemaFromPojoClass(typeDescriptor.getRawType(), JavaFieldTypeSupplier.INSTANCE);
+    return POJOUtils.schemaFromPojoClass(
+        typeDescriptor.getRawType(), JavaFieldTypeSupplier.INSTANCE);
   }
 
   @Override
@@ -87,17 +90,29 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
   @Override
   UserTypeCreatorFactory schemaTypeCreatorFactory() {
     return (Class<?> targetClass, Schema schema) -> {
+      // If a static method is marked with @SchemaCreate, use that
       Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
       if (annotated != null) {
-
+        return POJOUtils.getStaticCreator(targetClass, annotated, schema,
+            JavaFieldTypeSupplier.INSTANCE);
       }
 
+      // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
       Constructor<?> constructor = ReflectUtils.getAnnotatedConstructor(targetClass);
       if (constructor != null) {
-
+        return POJOUtils.getConstructorCreator(
+            targetClass, constructor, schema, JavaFieldTypeSupplier.INSTANCE);
       }
 
       return POJOUtils.getSetFieldCreator(targetClass, schema, JavaFieldTypeSupplier.INSTANCE);
+    };
+  }
+
+  boolean hasCreator(Class<?> clazz) {
+    if (ReflectUtils.getAnnotatedCreateMethod(clazz) != null
+        || ReflectUtils.getAnnotatedConstructor(clazz) != null) {
+      return true;
     }
+    return false;
   }
 }

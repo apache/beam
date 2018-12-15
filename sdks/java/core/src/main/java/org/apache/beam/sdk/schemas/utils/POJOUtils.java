@@ -17,19 +17,22 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.NamingStrategy;
-import net.bytebuddy.NamingStrategy.SuffixingRandom.BaseNameResolver;
 import net.bytebuddy.description.field.FieldDescription.ForLoadedField;
-import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.method.MethodDescription.ForLoadedConstructor;
+import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -49,7 +52,6 @@ import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.matcher.ElementMatchers;
-import net.bytebuddy.utility.RandomString;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
@@ -66,8 +68,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /** A set of utilities yo generate getter and setter classes for POJOs. */
 @Experimental(Kind.SCHEMAS)
 public class POJOUtils {
-  public static Schema schemaFromPojoClass(Class<?> clazz,
-                                           FieldValueTypeSupplier fieldValueTypeSupplier) {
+  public static Schema schemaFromPojoClass(
+      Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
     return StaticSchemaInference.schemaFromClass(clazz, fieldValueTypeSupplier);
   }
 
@@ -144,13 +146,14 @@ public class POJOUtils {
         | InvocationTargetException e) {
       throw new RuntimeException(
           "Unable to generate a creator for class " + clazz + " with schema " + schema);
-
     }
   }
 
-  public static <T> SchemaUserTypeCreator getConstructorCreator(
-      Class<T> clazz, Constructor<T> constructor, Schema schema, FieldValueTypeSupplier
-      fieldValueTypeSupplier) {
+  public static SchemaUserTypeCreator getConstructorCreator(
+      Class clazz,
+      Constructor constructor,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier) {
     return CACHED_CREATORS.computeIfAbsent(
         new ClassWithSchema(clazz, schema),
         c -> {
@@ -160,16 +163,16 @@ public class POJOUtils {
   }
 
   public static <T> SchemaUserTypeCreator createConstructorCreator(
-      Class<T> clazz, Constructor<T> constructor, Schema schema, List<FieldValueTypeInformation> types) {
-    // Get the list of class fields ordered by schema.
-    List<Field> fields =
-        types.stream().map(FieldValueTypeInformation::getField).collect(Collectors.toList());
+      Class<T> clazz,
+      Constructor<T> constructor,
+      Schema schema,
+      List<FieldValueTypeInformation> types) {
     try {
       DynamicType.Builder<SchemaUserTypeCreator> builder =
           BYTE_BUDDY
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
-              .intercept(new ConstructorCreateInstruction(fields, clazz, constructor));
+              .intercept(new ConstructorCreateInstruction(types, clazz, constructor));
 
       return builder
           .make()
@@ -183,7 +186,40 @@ public class POJOUtils {
         | InvocationTargetException e) {
       throw new RuntimeException(
           "Unable to generate a creator for class " + clazz + " with schema " + schema);
+    }
+  }
 
+  public static SchemaUserTypeCreator getStaticCreator(
+      Class clazz, Method creator, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return CACHED_CREATORS.computeIfAbsent(
+        new ClassWithSchema(clazz, schema),
+        c -> {
+          List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
+          return createStaticCreator(clazz, creator, schema, types);
+        });
+  }
+
+  public static <T> SchemaUserTypeCreator createStaticCreator(
+      Class<T> clazz, Method creator, Schema schema, List<FieldValueTypeInformation> types) {
+    try {
+      DynamicType.Builder<SchemaUserTypeCreator> builder =
+          BYTE_BUDDY
+              .subclass(SchemaUserTypeCreator.class)
+              .method(ElementMatchers.named("create"))
+              .intercept(new StaticMethodCreateInstruction(types, clazz, creator));
+
+      return builder
+          .make()
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .getLoaded()
+          .getDeclaredConstructor()
+          .newInstance();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      throw new RuntimeException(
+          "Unable to generate a creator for class " + clazz + " with schema " + schema);
     }
   }
 
@@ -449,6 +485,144 @@ public class POJOUtils {
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
         return new Size(size.getMaximalSize(), numLocals);
       };
+    }
+  }
+
+  static class InvokeUserCreateInstruction implements Implementation {
+    protected final List<FieldValueTypeInformation> fields;
+    protected final Class pojoClass;
+    protected final List<Parameter> parameters;
+    protected final Map<Integer, Integer> fieldMapping;
+
+    protected InvokeUserCreateInstruction(
+        List<FieldValueTypeInformation> fields, Class pojoClass, List<Parameter> parameters) {
+      this.fields = fields;
+      this.pojoClass = pojoClass;
+      this.parameters = parameters;
+
+      Map<String, Integer> fieldsByLogicalName = Maps.newHashMap();
+      Map<String, Integer> fieldsByJavaFieldName = Maps.newHashMap();
+      for (int i = 0; i < fields.size(); ++i) {
+        fieldsByLogicalName.put(fields.get(i).getName(), i);
+        fieldsByJavaFieldName.put(fields.get(i).getField().getName(), i);
+      }
+
+      fieldMapping = Maps.newHashMap();
+      for (int i = 0; i < parameters.size(); ++i) {
+        Parameter parameter = parameters.get(i);
+        String paramName = parameter.getName();
+        Integer index = fieldsByLogicalName.get(paramName);
+        if (index == null) {
+          index = fieldsByJavaFieldName.get(paramName);
+        }
+        if (index == null) {
+          throw new RuntimeException(
+              "Constructor parameter " + paramName + " Doesn't correspond " + "to a schema field");
+        }
+        fieldMapping.put(i, index);
+      }
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        // this + method parameters.
+        int numLocals = 1 + instrumentedMethod.getParameters().size();
+
+        StackManipulation stackManipulation = beforePushingParameters();
+
+        // Push all constructor parameters on the stack.
+        ConvertType convertType = new ConvertType(true);
+        for (int i = 0; i < parameters.size(); i++) {
+          Parameter parameter = parameters.get(i);
+          ForLoadedType convertedType =
+              new ForLoadedType(
+                  (Class) convertType.convert(TypeDescriptor.of(parameter.getType())));
+
+          // The instruction to read the parameter. Use the fieldMapping to reorder parameters as
+          // necessary.
+          StackManipulation readParameter =
+              new StackManipulation.Compound(
+                  MethodVariableAccess.REFERENCE.loadFrom(1),
+                  IntegerConstant.forValue(fieldMapping.get(i)),
+                  ArrayAccess.REFERENCE.load(),
+                  TypeCasting.to(convertedType));
+          stackManipulation =
+              new StackManipulation.Compound(
+                  stackManipulation,
+                  new ByteBuddyUtils.ConvertValueForSetter(readParameter)
+                      .convert(TypeDescriptor.of(parameter.getType())));
+        }
+        stackManipulation =
+            new StackManipulation.Compound(
+                stackManipulation, afterPushingParameters(), MethodReturn.REFERENCE);
+
+        StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
+        return new Size(size.getMaximalSize(), numLocals);
+      };
+    }
+
+    protected StackManipulation beforePushingParameters() {
+      return new StackManipulation.Compound();
+    }
+
+    protected StackManipulation afterPushingParameters() {
+      return new StackManipulation.Compound();
+    }
+  }
+
+  static class ConstructorCreateInstruction extends InvokeUserCreateInstruction {
+    private final Constructor constructor;
+
+    ConstructorCreateInstruction(
+        List<FieldValueTypeInformation> fields, Class pojoClass, Constructor constructor) {
+      super(fields, pojoClass, Lists.newArrayList(constructor.getParameters()));
+      this.constructor = constructor;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    protected StackManipulation beforePushingParameters() {
+      // Create the POJO class.
+      ForLoadedType loadedType = new ForLoadedType(pojoClass);
+      return new StackManipulation.Compound(TypeCreation.of(loadedType), Duplication.SINGLE);
+    }
+
+    @Override
+    protected StackManipulation afterPushingParameters() {
+      return MethodInvocation.invoke(new ForLoadedConstructor(constructor));
+    }
+  }
+
+  static class StaticMethodCreateInstruction extends InvokeUserCreateInstruction {
+    private final Method creator;
+
+    StaticMethodCreateInstruction(
+        List<FieldValueTypeInformation> fields, Class pojoClass, Method creator) {
+      super(fields, pojoClass, Lists.newArrayList(creator.getParameters()));
+      if (!Modifier.isStatic(creator.getModifiers())) {
+        throw new IllegalArgumentException("Method " + creator + " is not static");
+      }
+      this.creator = creator;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    protected StackManipulation afterPushingParameters() {
+      return MethodInvocation.invoke(new ForLoadedMethod(creator));
     }
   }
 }

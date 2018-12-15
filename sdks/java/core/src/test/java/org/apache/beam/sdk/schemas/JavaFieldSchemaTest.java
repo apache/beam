@@ -50,6 +50,7 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNestedNullable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.StaticCreationSimplePojo;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -94,6 +95,23 @@ public class JavaFieldSchemaTest {
         BigDecimal.ONE,
         new StringBuilder(name).append("builder"));
   }
+
+  private StaticCreationSimplePojo createStaticCreation(String name) {
+    return StaticCreationSimplePojo.of(
+        name,
+        (byte) 1,
+        (short) 2,
+        3,
+        4L,
+        true,
+        DATE,
+        INSTANT,
+        BYTE_ARRAY,
+        BYTE_BUFFER,
+        BigDecimal.ONE,
+        new StringBuilder(name).append("builder"));
+  }
+
 
   private Row createSimpleRow(String name) {
     return Row.withSchema(SIMPLE_POJO_SCHEMA)
@@ -410,9 +428,27 @@ public class JavaFieldSchemaTest {
     Schema schema = registry.getSchema(AnnotatedSimplePojo.class);
     SchemaTestUtils.assertSchemaEquivalent(SIMPLE_POJO_SCHEMA, schema);
 
+    Row simpleRow = createSimpleRow("string");
     AnnotatedSimplePojo pojo = createAnnotated("string");
-    Row row = registry.getToRowFunction(AnnotatedSimplePojo.class).apply(pojo);
-    AnnotatedSimplePojo pojo2 = registry.getFromRowFunction(AnnotatedSimplePojo.class).apply(row);
+    assertEquals(simpleRow, registry.getToRowFunction(AnnotatedSimplePojo.class).apply(pojo));
+
+    AnnotatedSimplePojo pojo2 =
+        registry.getFromRowFunction(AnnotatedSimplePojo.class).apply(simpleRow);
+    assertEquals(pojo, pojo2);
+  }
+
+  @Test
+  public void testStaticCreator() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(StaticCreationSimplePojo.class);
+    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_POJO_SCHEMA, schema);
+
+    Row simpleRow = createSimpleRow("string");
+    StaticCreationSimplePojo pojo = createStaticCreation("string");
+    assertEquals(simpleRow, registry.getToRowFunction(StaticCreationSimplePojo.class).apply(pojo));
+
+    StaticCreationSimplePojo pojo2 =
+        registry.getFromRowFunction(StaticCreationSimplePojo.class).apply(simpleRow);
     assertEquals(pojo, pojo2);
   }
 }

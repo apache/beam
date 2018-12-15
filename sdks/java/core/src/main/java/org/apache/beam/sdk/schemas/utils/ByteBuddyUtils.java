@@ -63,9 +63,7 @@ class ByteBuddyUtils {
       new ForLoadedType(ReadableInstant.class);
 
   static class InjectPackageStrategy extends NamingStrategy.AbstractBase {
-    /**
-     * A resolver for the base name for naming the unnamed type.
-     */
+    /** A resolver for the base name for naming the unnamed type. */
     private static final BaseNameResolver baseNameResolver =
         BaseNameResolver.ForUnnamedType.INSTANCE;
 

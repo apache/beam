@@ -31,8 +31,8 @@ public interface FieldValueTypeSupplier extends Serializable {
   /**
    * Return all the FieldValueTypeInformations.
    *
-   * <p> If the schema parameter is not null, then the returned list must be in the same order as
+   * <p>If the schema parameter is not null, then the returned list must be in the same order as
    * fields in the schema.
    */
-  List<FieldValueTypeInformation> get(Class<?> clazz, @Nullable  Schema schema);
+  List<FieldValueTypeInformation> get(Class<?> clazz, @Nullable Schema schema);
 }

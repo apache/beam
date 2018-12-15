@@ -59,11 +59,12 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
               .filter(ReflectUtils::isGetter)
               .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
               .map(FieldValueTypeInformation::forGetter)
-              .map(t -> {
-                FieldName fieldName = t.getMethod().getAnnotation(FieldName.class);
-                return (fieldName != null) ? t.withName(fieldName.value()) : t;
-              })
-          .collect(Collectors.toList());
+              .map(
+                  t -> {
+                    FieldName fieldName = t.getMethod().getAnnotation(FieldName.class);
+                    return (fieldName != null) ? t.withName(fieldName.value()) : t;
+                  })
+              .collect(Collectors.toList());
 
       return (schema != null) ? StaticSchemaInference.sortBySchema(types, schema) : types;
     }
@@ -90,7 +91,8 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
     // TODO: XXXXX validate getters/setters
-    return JavaBeanUtils.schemaFromJavaBeanClass(typeDescriptor.getRawType(), GetterTypeSupplier.INSTANCE);
+    return JavaBeanUtils.schemaFromJavaBeanClass(
+        typeDescriptor.getRawType(), GetterTypeSupplier.INSTANCE);
   }
 
   @Override

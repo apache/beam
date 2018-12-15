@@ -22,7 +22,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
@@ -53,10 +52,10 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 @Experimental(Kind.SCHEMAS)
 public class JavaBeanUtils {
   /** Create a {@link Schema} for a Java Bean class. */
-  public static Schema schemaFromJavaBeanClass(Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
+  public static Schema schemaFromJavaBeanClass(
+      Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
     return StaticSchemaInference.schemaFromClass(clazz, fieldValueTypeSupplier);
   }
-
 
   // Make sure that there are matching setters and getters.
   private static void validateJavaBean(

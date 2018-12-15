@@ -36,10 +36,11 @@ import org.joda.time.ReadableInstant;
 
 /** A set of utilities for inferring a Beam {@link Schema} from static Java types. */
 public class StaticSchemaInference {
-  public static List<FieldValueTypeInformation> sortBySchema(List<FieldValueTypeInformation>
-                                                                 types, Schema schema) {
+  public static List<FieldValueTypeInformation> sortBySchema(
+      List<FieldValueTypeInformation> types, Schema schema) {
     Map<String, FieldValueTypeInformation> typeMap =
-        types.stream()
+        types
+            .stream()
             .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
     return schema
         .getFields()
@@ -94,7 +95,8 @@ public class StaticSchemaInference {
   }
 
   // Map a Java field type to a Beam Schema FieldType.
-  private static Schema.FieldType fieldFromType(TypeDescriptor type, FieldValueTypeSupplier fieldValueTypeSupplier) {
+  private static Schema.FieldType fieldFromType(
+      TypeDescriptor type, FieldValueTypeSupplier fieldValueTypeSupplier) {
     FieldType primitiveType = PRIMITIVE_TYPES.get(type.getRawType());
     if (primitiveType != null) {
       return primitiveType;
