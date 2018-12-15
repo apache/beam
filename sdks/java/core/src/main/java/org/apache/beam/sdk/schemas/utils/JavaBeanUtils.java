@@ -53,27 +53,10 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 @Experimental(Kind.SCHEMAS)
 public class JavaBeanUtils {
   /** Create a {@link Schema} for a Java Bean class. */
-  public static Schema schemaFromJavaBeanClass(Class<?> clazz) {
-    return StaticSchemaInference.schemaFromClass(clazz, JavaBeanUtils::typeInformationFromClass);
+  public static Schema schemaFromJavaBeanClass(Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return StaticSchemaInference.schemaFromClass(clazz, fieldValueTypeSupplier);
   }
 
-  private static List<FieldValueTypeInformation> typeInformationFromClass(Class<?> clazz) {
-    List<FieldValueTypeInformation> getterTypes =
-        ReflectUtils.getMethods(clazz)
-            .stream()
-            .filter(ReflectUtils::isGetter)
-            .map(FieldValueTypeInformation::forGetter)
-            .collect(Collectors.toList());
-
-    Map<String, FieldValueTypeInformation> setterTypes =
-        ReflectUtils.getMethods(clazz)
-            .stream()
-            .filter(ReflectUtils::isSetter)
-            .map(FieldValueTypeInformation::forSetter)
-            .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
-    validateJavaBean(getterTypes, setterTypes);
-    return getterTypes;
-  }
 
   // Make sure that there are matching setters and getters.
   private static void validateJavaBean(

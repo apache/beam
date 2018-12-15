@@ -32,7 +32,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.TYPE)
+@Target(ElementType.FIELD)
 @SuppressWarnings("rawtypes")
 @Experimental(Kind.SCHEMAS)
 public @interface FieldName {

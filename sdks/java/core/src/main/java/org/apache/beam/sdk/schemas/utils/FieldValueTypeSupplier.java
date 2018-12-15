@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.utils;
 
 import java.io.Serializable;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 
@@ -28,8 +29,10 @@ import org.apache.beam.sdk.schemas.Schema;
  */
 public interface FieldValueTypeSupplier extends Serializable {
   /**
-   * Return all the FieldValueTypeInformations. The returned list must be in the same order as
+   * Return all the FieldValueTypeInformations.
+   *
+   * <p> If the schema parameter is not null, then the returned list must be in the same order as
    * fields in the schema.
    */
-  List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema);
+  List<FieldValueTypeInformation> get(Class<?> clazz, @Nullable  Schema schema);
 }

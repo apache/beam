@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -32,6 +33,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 
 /** A set of reflection helper methods. */
 public class ReflectUtils {
@@ -63,6 +65,7 @@ public class ReflectUtils {
   }
 
   private static final Map<Class, List<Method>> DECLARED_METHODS = Maps.newHashMap();
+  private static final Map<Class, Method> ANNOTATED_CONSTRUCTORS = Maps.newHashMap();
   private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newHashMap();
 
   /** Returns the list of public, non-static methods in the class, caching the results. */
@@ -75,6 +78,23 @@ public class ReflectUtils {
               .filter(m -> !Modifier.isStatic(m.getModifiers()))
               .collect(Collectors.toList());
         });
+  }
+
+  public static Constructor getAnnotatedConstructor(Class clazz) {
+    return Arrays.stream(clazz.getDeclaredConstructors())
+        .filter(m -> Modifier.isPublic(m.getModifiers()))
+        .filter(m -> m.getAnnotation(SchemaCreate.class) != null)
+        .findFirst().orElse(null);
+  }
+
+  public static Method getAnnotatedCreateMethod(Class clazz) {
+    return ANNOTATED_CONSTRUCTORS.computeIfAbsent(clazz,
+      c -> {
+      return Arrays.stream(clazz.getDeclaredMethods())
+            .filter(m -> Modifier.isPublic(m.getModifiers()))
+            .filter(m -> m.getAnnotation(SchemaCreate.class) != null)
+            .findFirst().orElse(null);
+      });
   }
 
   // Get all public, non-static, non-transient fields.

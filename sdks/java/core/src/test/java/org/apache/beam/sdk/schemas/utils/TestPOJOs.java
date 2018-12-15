@@ -28,6 +28,8 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.FieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -100,6 +102,97 @@ public class TestPOJOs {
   /** The schema for {@link POJOWithNestedNullable}. * */
   public static final Schema NESTED_NULLABLE_SCHEMA =
       Schema.builder().addNullableField("nested", FieldType.row(NULLABLES_SCHEMA)).build();
+
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class AnnotatedSimplePojo {
+    public String str;
+    @FieldName("aByte")
+    public byte theByte;
+    @FieldName("aShort")
+    public short theShort;
+    public int anInt;
+    public long aLong;
+    public boolean aBoolean;
+    public DateTime dateTime;
+    public Instant instant;
+    public byte[] bytes;
+    public ByteBuffer byteBuffer;
+    public BigDecimal bigDecimal;
+    public StringBuilder stringBuilder;
+    @SchemaIgnore
+    public Integer pleaseIgnore;
+
+    public AnnotatedSimplePojo() {}
+
+    public AnnotatedSimplePojo(
+        String str,
+        byte theByte,
+        short theShort,
+        int anInt,
+        long aLong,
+        boolean aBoolean,
+        DateTime dateTime,
+        Instant instant,
+        byte[] bytes,
+        ByteBuffer byteBuffer,
+        BigDecimal bigDecimal,
+        StringBuilder stringBuilder) {
+      this.str = str;
+      this.theByte = theByte;
+      this.theShort = theShort;
+      this.anInt = anInt;
+      this.aLong = aLong;
+      this.aBoolean = aBoolean;
+      this.dateTime = dateTime;
+      this.instant = instant;
+      this.bytes = bytes;
+      this.byteBuffer = byteBuffer;
+      this.bigDecimal = bigDecimal;
+      this.stringBuilder = stringBuilder;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      AnnotatedSimplePojo that = (AnnotatedSimplePojo) o;
+      return theByte == that.theByte
+          && theShort == that.theShort
+          && anInt == that.anInt
+          && aLong == that.aLong
+          && aBoolean == that.aBoolean
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder, that.stringBuilder);
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              theByte,
+              theShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder);
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
+  }
 
   /** A simple POJO containing basic types. * */
   @DefaultSchema(JavaFieldSchema.class)

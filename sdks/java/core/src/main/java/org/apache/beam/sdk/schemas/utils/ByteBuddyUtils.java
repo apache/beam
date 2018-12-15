@@ -25,6 +25,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.NamingStrategy;
+import net.bytebuddy.NamingStrategy.SuffixingRandom.BaseNameResolver;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
@@ -38,6 +40,7 @@ import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.matcher.ElementMatchers;
+import net.bytebuddy.utility.RandomString;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
@@ -58,6 +61,33 @@ class ByteBuddyUtils {
   private static final ForLoadedType LIST_TYPE = new ForLoadedType(List.class);
   private static final ForLoadedType READABLE_INSTANT_TYPE =
       new ForLoadedType(ReadableInstant.class);
+
+  static class InjectPackageStrategy extends NamingStrategy.AbstractBase {
+    /**
+     * A resolver for the base name for naming the unnamed type.
+     */
+    private static final BaseNameResolver baseNameResolver =
+        BaseNameResolver.ForUnnamedType.INSTANCE;
+
+    private static final String SUFFIX = "SchemaCodeGen";
+
+    private final RandomString randomString;
+
+    private final String targetPackage;
+
+    InjectPackageStrategy(Class<?> baseType) {
+      randomString = new RandomString();
+      this.targetPackage = baseType.getPackage().getName();
+    }
+
+    @Override
+    protected String name(TypeDescription superClass) {
+      String baseName = baseNameResolver.resolve(superClass);
+      int lastDot = baseName.lastIndexOf('.');
+      String className = baseName.substring(lastDot, baseName.length());
+      return targetPackage + "." + className + "$" + SUFFIX + "$" + randomString.nextString();
+    }
+  };
 
   // Create a new FieldValueGetter subclass.
   @SuppressWarnings("unchecked")
