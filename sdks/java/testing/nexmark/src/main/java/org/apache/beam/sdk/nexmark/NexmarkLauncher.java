@@ -78,6 +78,8 @@ import org.apache.beam.sdk.nexmark.queries.Query8;
 import org.apache.beam.sdk.nexmark.queries.Query8Model;
 import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
+import org.apache.beam.sdk.nexmark.queries.SessionSideInputJoin;
+import org.apache.beam.sdk.nexmark.queries.SessionSideInputJoinModel;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlBoundedSideInputJoin;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery0;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
@@ -1218,6 +1220,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(NexmarkQueryName.MONITOR_NEW_USERS, new Query8Model(configuration))
         .put(NexmarkQueryName.WINNING_BIDS, new Query9Model(configuration))
         .put(NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN, new BoundedSideInputJoinModel(configuration))
+        .put(NexmarkQueryName.SESSION_SIDE_INPUT_JOIN, new SessionSideInputJoinModel(configuration))
         .build();
   }
 
@@ -1285,6 +1288,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(
             NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN,
             new NexmarkQuery(configuration, new BoundedSideInputJoin(configuration)))
+        .put(
+            NexmarkQueryName.SESSION_SIDE_INPUT_JOIN,
+            new NexmarkQuery(configuration, new SessionSideInputJoin(configuration)))
         .build();
   }
 
