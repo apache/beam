@@ -17,6 +17,7 @@ package gcsx_test
 
 import (
 	"context"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
@@ -34,7 +35,10 @@ func Example() {
 		// do something
 	}
 
-	bytes, err := gcsx.ReadObject(c, buckets, object)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	bytes, err := gcsx.ReadObject(ctx, c, buckets, object)
 	if err != nil {
 		// do something
 	}
