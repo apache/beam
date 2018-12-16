@@ -310,7 +310,8 @@ public class TSAccumSequences {
             String.format("Accum %s is missing lower or upper window boundary.", firstAccumInList));
       }
 
-      if (Timestamps.compare(firstAccumInList.getLowerWindowBoundary(), lowerFixedWindowBoundary)
+      // The output from OrderOutput sets the TSAccum timestamp == the upper window boundary of the accum
+      if (Timestamps.compare(firstAccumInList.getUpperWindowBoundary(), lowerFixedWindowBoundary)
           < 0) {
         throw new IllegalStateException(
             String.format(

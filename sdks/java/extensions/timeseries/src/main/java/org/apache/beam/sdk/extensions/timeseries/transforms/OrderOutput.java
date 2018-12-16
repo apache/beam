@@ -156,8 +156,8 @@ public class OrderOutput
     private final StateSpec<ValueState<Long>> currentTimerValue =
         StateSpecs.value(BigEndianLongCoder.of());
 
-    @StateId("lastTimestampLowerBoundary")
-    private final StateSpec<ValueState<Long>> lastTimestampLowerBoundary =
+    @StateId("lastTimestampUpperBoundary")
+    private final StateSpec<ValueState<Long>> lastTimestampUpperBoundary =
         StateSpecs.value(BigEndianLongCoder.of());
 
     @TimerId("alarm")
@@ -172,7 +172,7 @@ public class OrderOutput
     public void processElement(
         ProcessContext c,
         @StateId("newElementsBag") BagState<TSAccum> newElementsBag,
-        @StateId("lastTimestampLowerBoundary") ValueState<Long> lastTimestampLowerBoundary,
+        @StateId("lastTimestampUpperBoundary") ValueState<Long> lastTimestampUpperBoundary,
         @StateId("currentTimerValue") ValueState<Long> currentTimerValue,
         @TimerId("alarm") Timer timer) {
 
@@ -187,12 +187,12 @@ public class OrderOutput
       startTimer(
           timer,
           currentTimerValue,
-          c.element().getValue().getLowerWindowBoundary(),
+          c.element().getValue().getUpperWindowBoundary(),
           options.downSampleDuration());
 
-      // Set the value for the highest observed lower boundary timestamp , this will be used to check the TTL on the timer
+      // Set the value for the highest observed upper boundary timestamp , this will be used to check the TTL on the timer
       setHighestTimestamp(
-          lastTimestampLowerBoundary, c.element().getValue().getLowerWindowBoundary());
+          lastTimestampUpperBoundary, c.element().getValue().getUpperWindowBoundary());
     }
 
     /**
@@ -217,7 +217,7 @@ public class OrderOutput
         @StateId("currentTimerValue") ValueState<Long> currentTimerValue,
         //@StateId("processedTimeSeriesMap") MapState<Long,TSAccum> processedTimeSeriesMap,
         @StateId("processedTimeSeriesList") ValueState<List<TSAccum>> processedTimeSeriesList,
-        @StateId("lastTimestampLowerBoundary") ValueState<Long> lastTimestampLowerBoundary,
+        @StateId("lastTimestampUpperBoundary") ValueState<Long> lastTimestampUpperBoundary,
         @TimerId("alarm") Timer timer,
         @StateId("lastKnownValue") ValueState<TSAccum> lastKnownValue) {
 
@@ -234,7 +234,7 @@ public class OrderOutput
       emitTSFromProcessedList(processedTimeSeriesList, options, lastKnownValue, c);
 
       // Check if this timer has already passed the time to live duration since the last call.
-      if (withinTtl(lastTimestampLowerBoundary.read(), c.timestamp(), options)) {
+      if (withinTtl(lastTimestampUpperBoundary.read(), c.timestamp(), options)) {
         resetTimer(timer, currentTimerValue, options.downSampleDuration());
       } else {
         currentTimerValue.clear();
@@ -286,7 +286,7 @@ public class OrderOutput
 
     // If the list is not empty and the first value timestamp is > current timestamp then emit HB
 
-    if (toMillis(output.getLowerWindowBoundary()) > context.timestamp().getMillis()) {
+    if (toMillis(output.getUpperWindowBoundary()) > context.timestamp().getMillis()) {
       TSAccum heartBeat = heartBeat(lastValue, options);
       outputAccum(heartBeat, context, lastAccumState);
       return;
@@ -336,18 +336,18 @@ public class OrderOutput
 
   // Set the value for the highest observed timestamp , this will be used to check the TTL on the timer
   public static void setHighestTimestamp(
-      ValueState<Long> lastTimestampLowerBoundary, com.google.protobuf.Timestamp timestamp) {
+      ValueState<Long> lastTimestampUpperBoundary, com.google.protobuf.Timestamp timestamp) {
 
     Long obeservedTimestamp = Timestamps.toMillis(timestamp);
 
-    if (Optional.ofNullable(lastTimestampLowerBoundary.read()).orElse(0L) < obeservedTimestamp) {
-      lastTimestampLowerBoundary.write(obeservedTimestamp);
+    if (Optional.ofNullable(lastTimestampUpperBoundary.read()).orElse(0L) < obeservedTimestamp) {
+      lastTimestampUpperBoundary.write(obeservedTimestamp);
     }
   }
   // Check correctness
 
   private static void checkTimerIsNotGreaterThanFirstValueInQueue(TSAccum output, DoFn.OnTimerContext context ){
-    if (toMillis(output.getLowerWindowBoundary()) < context.timestamp().getMillis()) {
+    if (toMillis(output.getUpperWindowBoundary()) < context.timestamp().getMillis()) {
       throw new IllegalStateException(
           String.format(
               "The first value in the list %s is smaller than our Timer %s. The value is %s",
@@ -368,9 +368,10 @@ public class OrderOutput
 
       String errMsg = String.format("Accum has previous value with upper boundary greater "
               + "than existing lower boundary. "
-              + "Timer Timestamp is %s Current Value TS is %s "
-              + "previous Value TS is %s value of key is %s previous value is HB %s "
-              + "current value is HB %s",
+              + "Timer Timestamp is %s Current Value Lower TS is %s "
+              + "previous Value Upper TS is %s value of key is %s "
+              + "current value is HB %s "
+              + "previous value is HB %s",
           timestamp,
       Timestamps.toString(accum.getLowerWindowBoundary()),
           Timestamps.toString(accum.getPreviousWindowValue().getUpperWindowBoundary()),
@@ -418,37 +419,17 @@ public class OrderOutput
   }
 
   private static boolean withinTtl(
-      Long lastObservedLowerBoundaryTimestamp, Instant currentTimestamp, TSConfiguration options) {
+      Long lastObservedUpperBoundaryTimestamp, Instant currentTimestamp, TSConfiguration options) {
 
-    Instant ttlEnd = addDurationJoda(lastObservedLowerBoundaryTimestamp, options.timeToLive());
+    Instant ttlEnd = addDurationJoda(lastObservedUpperBoundaryTimestamp, options.timeToLive());
 
     return currentTimestamp.isBefore(ttlEnd);
-  }
-
-  private static boolean hasGap(TSAccum next, TSAccum prev) {
-
-    int compare =
-        Timestamps.comparator()
-            .compare(prev.getUpperWindowBoundary(), next.getLowerWindowBoundary());
-
-    if (compare > 0) {
-      throw new IllegalStateException(
-          String.format(
-              "UpperBoundary of previous accum %s is greater than lower boundary of next accum %s.",
-              TSAccums.getTSAccumKeyWithPrettyTimeBoundary(prev),
-              TSAccums.getTSAccumKeyWithPrettyTimeBoundary(next)));
-    }
-
-    return compare != 0;
   }
 
   private static Instant addDurationJoda(Long timestamp, Duration duration) {
     return new Instant(timestamp).plus(duration);
   }
 
-  private static Instant toInstant(Timestamp timestamp) {
-    return new Instant(toMillis(timestamp));
-  }
 
   private static void addElementsToOrderedProcessQueue(DoFn.OnTimerContext c,
       ValueState<List<TSAccum>> processedTimeSeriesList, List<TSAccum> newElements) {
