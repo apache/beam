@@ -114,7 +114,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	if *autoscalingAlgorithm != "" {
 		if *autoscalingAlgorithm != "NONE" && *autoscalingAlgorithm != "THROUGHPUT_BASED" {
-			return errors.New("autoscaling algorithm must be one of (NONE, THROUGHPUT_BASED). Use --autoscaling_algorithm=(NONE|THROUGHPUT_BASED)")
+			return errors.New("invalid autoscaling algorithm. Use --autoscaling_algorithm=(NONE|THROUGHPUT_BASED)")
 		}
 	}
 
