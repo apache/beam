@@ -81,7 +81,14 @@ class ByteBuddyUtils {
   private static final ForLoadedType READABLE_INSTANT_TYPE =
       new ForLoadedType(ReadableInstant.class);
 
-  static class InjectPackageStrategy extends NamingStrategy.AbstractBase {
+  /**
+   * A naming strategy for ByteBuddy classes.
+   *
+   * <p>We always inject the generatter classes in the same same package as the user's target class.
+   * This way, if the class fields or methods are package private, our generated class can still
+   * access them.
+   */
+  public static class InjectPackageStrategy extends NamingStrategy.AbstractBase {
     /** A resolver for the base name for naming the unnamed type. */
     private static final BaseNameResolver baseNameResolver =
         BaseNameResolver.ForUnnamedType.INSTANCE;
@@ -92,7 +99,7 @@ class ByteBuddyUtils {
 
     private final String targetPackage;
 
-    InjectPackageStrategy(Class<?> baseType) {
+    public InjectPackageStrategy(Class<?> baseType) {
       randomString = new RandomString();
       this.targetPackage = baseType.getPackage().getName();
     }
@@ -102,7 +109,7 @@ class ByteBuddyUtils {
       String baseName = baseNameResolver.resolve(superClass);
       int lastDot = baseName.lastIndexOf('.');
       String className = baseName.substring(lastDot, baseName.length());
-      return targetPackage + "." + className + "$" + SUFFIX + "$" + randomString.nextString();
+      return targetPackage + className + "$" + SUFFIX + "$" + randomString.nextString();
     }
   };
 
@@ -114,7 +121,8 @@ class ByteBuddyUtils {
         TypeDescription.Generic.Builder.parameterizedType(
                 FieldValueGetter.class, objectType, fieldType)
             .build();
-    return (DynamicType.Builder<FieldValueGetter>) byteBuddy.subclass(getterGenericType);
+    return (DynamicType.Builder<FieldValueGetter>)
+        byteBuddy.with(new InjectPackageStrategy((Class) objectType)).subclass(getterGenericType);
   }
 
   // Create a new FieldValueSetter subclass.
@@ -125,7 +133,8 @@ class ByteBuddyUtils {
         TypeDescription.Generic.Builder.parameterizedType(
                 FieldValueSetter.class, objectType, fieldType)
             .build();
-    return (DynamicType.Builder<FieldValueSetter>) byteBuddy.subclass(setterGenericType);
+    return (DynamicType.Builder<FieldValueSetter>)
+        byteBuddy.with(new InjectPackageStrategy((Class) objectType)).subclass(setterGenericType);
   }
 
   // Base class used below to convert types.

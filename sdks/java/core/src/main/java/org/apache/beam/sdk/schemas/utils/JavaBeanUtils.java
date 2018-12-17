@@ -34,6 +34,7 @@ import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import net.bytebuddy.implementation.bytecode.Removal;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConstructorCreateInstruction;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstruction;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -236,6 +238,7 @@ public class JavaBeanUtils {
     try {
       DynamicType.Builder<SchemaUserTypeCreator> builder =
           BYTE_BUDDY
+              .with(new InjectPackageStrategy(clazz))
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
               .intercept(new ConstructorCreateInstruction(types, clazz, constructor));
@@ -350,6 +353,7 @@ public class JavaBeanUtils {
         // The instruction to read the field.
         StackManipulation readField = MethodVariableAccess.REFERENCE.loadFrom(2);
 
+        boolean setterMethodReturnsVoid = method.getReturnType().equals(Void.TYPE);
         // Read the object onto the stack.
         StackManipulation stackManipulation =
             new StackManipulation.Compound(
@@ -359,8 +363,12 @@ public class JavaBeanUtils {
                 new ByteBuddyUtils.ConvertValueForSetter(readField)
                     .convert(javaTypeInformation.getType()),
                 // Now update the field and return void.
-                MethodInvocation.invoke(new ForLoadedMethod(method)),
-                MethodReturn.VOID);
+                MethodInvocation.invoke(new ForLoadedMethod(method)));
+        if (!setterMethodReturnsVoid) {
+          // Discard return type;
+          stackManipulation = new StackManipulation.Compound(stackManipulation, Removal.SINGLE);
+        }
+        stackManipulation = new StackManipulation.Compound(stackManipulation, MethodReturn.VOID);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
         return new Size(size.getMaximalSize(), numLocals);

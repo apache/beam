@@ -69,13 +69,17 @@ public class ReflectUtils {
   private static final Map<Class, Method> ANNOTATED_CONSTRUCTORS = Maps.newHashMap();
   private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newHashMap();
 
-  /** Returns the list of public, non-static methods in the class, caching the results. */
+  /**
+   * Returns the list of non private/protected, non-static methods in the class, caching the
+   * results.
+   */
   public static List<Method> getMethods(Class clazz) {
     return DECLARED_METHODS.computeIfAbsent(
         clazz,
         c -> {
           return Arrays.stream(c.getDeclaredMethods())
-              .filter(m -> Modifier.isPublic(m.getModifiers()))
+              .filter(m -> !Modifier.isPrivate(m.getModifiers()))
+              .filter(m -> !Modifier.isProtected(m.getModifiers()))
               .filter(m -> !Modifier.isStatic(m.getModifiers()))
               .collect(Collectors.toList());
         });
@@ -83,7 +87,8 @@ public class ReflectUtils {
 
   public static Constructor getAnnotatedConstructor(Class clazz) {
     return Arrays.stream(clazz.getDeclaredConstructors())
-        .filter(m -> Modifier.isPublic(m.getModifiers()))
+        .filter(m -> !Modifier.isPrivate(m.getModifiers()))
+        .filter(m -> !Modifier.isProtected(m.getModifiers()))
         .filter(m -> m.getAnnotation(SchemaCreate.class) != null)
         .findFirst()
         .orElse(null);
@@ -95,7 +100,8 @@ public class ReflectUtils {
         c -> {
           Method method =
               Arrays.stream(clazz.getDeclaredMethods())
-                  .filter(m -> Modifier.isPublic(m.getModifiers()))
+                  .filter(m -> !Modifier.isPrivate(m.getModifiers()))
+                  .filter(m -> !Modifier.isProtected(m.getModifiers()))
                   .filter(m -> Modifier.isStatic(m.getModifiers()))
                   .filter(m -> m.getAnnotation(SchemaCreate.class) != null)
                   .findFirst()
@@ -152,16 +158,28 @@ public class ReflectUtils {
   }
 
   public static boolean isSetter(Method method) {
-    return Void.TYPE.equals(method.getReturnType())
-        && method.getParameterCount() == 1
-        && method.getName().startsWith("set");
+    return method.getParameterCount() == 1 && method.getName().startsWith("set");
   }
 
   public static String stripPrefix(String methodName, String prefix) {
+    if (!methodName.startsWith(prefix)) {
+      return methodName;
+    }
     String firstLetter = methodName.substring(prefix.length(), prefix.length() + 1).toLowerCase();
 
     return (methodName.length() == prefix.length() + 1)
         ? firstLetter
         : (firstLetter + methodName.substring(prefix.length() + 1, methodName.length()));
+  }
+
+  public static String stripGetterPrefix(String method) {
+    if (method.startsWith("get")) {
+      return stripPrefix(method, "get");
+    }
+    return stripPrefix(method, "is");
+  }
+
+  public static String stripSetterPrefix(String method) {
+    return stripPrefix(method, "set");
   }
 }
