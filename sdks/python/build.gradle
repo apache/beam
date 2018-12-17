@@ -222,11 +222,16 @@ def portableWordCountTask(name, streaming) {
               "--runner=PortableRunner",
       ]
 
+      // Workaround for ensuring writes to the local file system
+      // stay within the same Docker container. Otherwise the Write
+      // logic would throw because files can't be shared between
+      // different executable stages.
+      options += ["--environment_cache_millis=60000"]
+
       if (streaming) {
         options += ["--streaming"]
+        options += ["--parallelism=8"]
       } else {
-        // workaround for local file output in docker container
-        options += ["--environment_cache_millis=10000"]
         // [BEAM-5167] Workaround for scheduling issue between SDKHarness and Flink
         options += ["--parallelism=1"]
       }
