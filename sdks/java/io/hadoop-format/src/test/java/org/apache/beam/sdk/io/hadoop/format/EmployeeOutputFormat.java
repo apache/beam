@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.hadoop.format;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.io.hadoop.inputformat.Employee;
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.JobContext;
