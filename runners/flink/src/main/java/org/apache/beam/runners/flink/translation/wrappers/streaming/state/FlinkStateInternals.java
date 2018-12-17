@@ -328,8 +328,7 @@ public class FlinkStateInternals<K> implements StateInternals {
         Iterable<T> result = partitionedState.get();
         if (storesVoidValues) {
           return () -> {
-            Iterator underlying = result.iterator();
-            Object structuralNullValue = VoidCoder.of().structuralValue(null);
+            final Iterator underlying = result.iterator();
             return new Iterator<T>() {
               @Override
               public boolean hasNext() {
@@ -338,11 +337,10 @@ public class FlinkStateInternals<K> implements StateInternals {
 
               @Override
               public T next() {
-                Object next = underlying.next();
-                Preconditions.checkState(
-                    structuralNullValue.equals(next),
-                    "Expected to receive structural null value but was: %s",
-                    next);
+                // Simply move the iterator forward but ignore the value.
+                // The value can be the structural null value or NULL itself,
+                // if this has been restored from serialized state.
+                underlying.next();
                 return null;
               }
             };
