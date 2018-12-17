@@ -1,9 +1,11 @@
 ---
 layout: section
-title: "Beam Learning Resources"
-permalink: /documentation/resources/
+title: "Videos and Podcasts"
+permalink: /documentation/resources/videos-and-podcasts/
 section_menu: section-menu/documentation.html
-redirect_from: /learn/resources/
+redirect_from:
+  - /learn/resources/
+  - /documentation/resources/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +20,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# Additional Resources for Learning about Apache Beam
+# Videos and Podcasts
 
-This page provides links to some of our favorite videos, podcasts, and articles that will help you get started and learn more about Apache Beam.
+This page provides links to some of our favorite videos and podcasts that will help you get started and learn more about Apache Beam.
 
 * TOC
 {:toc}
@@ -54,24 +56,6 @@ Presented by Davor Bonaci, *Apache Beam PPMC member*
 Presented by Dan Halperin, *Apache Beam PPMC member*  
 
 <iframe src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&show_text=0&width=560" width="560" height="315" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowTransparency="true" allowFullScreen="true"></iframe>
-<br>
-
-### The World Beyond Batch: Streaming 101
-
-Written by Tyler Akidau, *Apache Beam PPMC member*  
-
-Click on the image to read the article.
-
-<a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101" target="_blank">![alt text]({{ site.baseurl }}/images/resources/streaming-101.png)</a>
-<br>
-
-### The World Beyond Batch: Streaming 102
-
-Written by Tyler Akidau, *Apache Beam PPMC member*  
-
-Click on the image to read the article.
-
-<a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102" target="_blank">![alt text]({{ site.baseurl }}/images/resources/streaming-101.png)</a>
 <br>
 
 ### Software Engineering Radio Podcast Episode 272: Apache Beam
@@ -123,3 +107,7 @@ Strata+Hadoop World, New York, 2016
 Presented by Kenneth Knowles, *Apache Beam PPMC member*
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/E1k0B9LN46M" frameborder="0" allowfullscreen></iframe>
+
+## Next Steps
+
+* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
