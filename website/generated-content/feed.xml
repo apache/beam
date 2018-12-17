@@ -50,6 +50,12 @@ For more information on changes in 2.9.0, check out the
   &lt;li&gt;Upgrade google-apitools to 0.5.24&lt;/li&gt;
 &lt;/ul&gt;
 
+&lt;h3 id=&quot;portability&quot;&gt;Portability&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Added support for user state and timers to Flink runner.&lt;/li&gt;
+&lt;/ul&gt;
+
 &lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
 
 &lt;ul&gt;
