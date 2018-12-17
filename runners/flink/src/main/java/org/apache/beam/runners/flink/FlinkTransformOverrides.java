@@ -31,9 +31,8 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /** {@link PTransform} overrides for Flink runner. */
-public class FlinkTransformOverrides {
-  public static List<PTransformOverride> getDefaultOverrides(
-      boolean streaming, FlinkPipelineOptions options) {
+class FlinkTransformOverrides {
+  static List<PTransformOverride> getDefaultOverrides(FlinkPipelineOptions options) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
     builder
         // TODO: [BEAM-5359] Support @RequiresStableInput on Flink runner
@@ -48,10 +47,10 @@ public class FlinkTransformOverrides {
         .add(
             PTransformOverride.of(
                 PTransformMatchers.urnEqualTo(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
-                streaming
+                options.isStreaming()
                     ? new SplittableParDoViaKeyedWorkItems.OverrideFactory()
                     : new SplittableParDoNaiveBounded.OverrideFactory()));
-    if (streaming) {
+    if (options.isStreaming()) {
       builder
           .add(
               PTransformOverride.of(
