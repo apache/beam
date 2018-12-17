@@ -1110,6 +1110,8 @@ class FnApiRunner(runner.PipelineRunner):
       self._lock = threading.Lock()
       self._state = collections.defaultdict(list)
       self._checkpoint = None
+      self._use_continuation_tokens = False
+      self._continuations = {}
 
     def checkpoint(self):
       assert self._checkpoint is None
@@ -1129,9 +1131,26 @@ class FnApiRunner(runner.PipelineRunner):
     def process_instruction_id(self, unused_instruction_id):
       yield
 
-    def blocking_get(self, state_key):
+    def blocking_get(self, state_key, continuation_token=None):
       with self._lock:
-        return b''.join(self._state[self._to_key(state_key)])
+        full_state = self._state[self._to_key(state_key)]
+        if self._use_continuation_tokens:
+          # The token is "nonce:index".
+          if not continuation_token:
+            token_base = 'token_%x' % len(self._continuations)
+            self._continuations[token_base] = tuple(full_state)
+            return b'', '%s:0' % token_base
+          else:
+            token_base, index = continuation_token.split(':')
+            ix = int(index)
+            full_state = self._continuations[token_base]
+            if ix == len(full_state):
+              return b'', None
+            else:
+              return full_state[ix], '%s:%d' % (token_base, ix + 1)
+        else:
+          assert not continuation_token
+          return b''.join(full_state), None
 
     def blocking_append(self, state_key, data):
       with self._lock:
@@ -1155,10 +1174,12 @@ class FnApiRunner(runner.PipelineRunner):
       for request in request_stream:
         request_type = request.WhichOneof('request')
         if request_type == 'get':
+          data, continuation_token = self._state.blocking_get(
+              request.state_key, request.get.continuation_token)
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               get=beam_fn_api_pb2.StateGetResponse(
-                  data=self._state.blocking_get(request.state_key)))
+                  data=data, continuation_token=continuation_token))
         elif request_type == 'append':
           self._state.blocking_append(request.state_key, request.append.data)
           yield beam_fn_api_pb2.StateResponse(
