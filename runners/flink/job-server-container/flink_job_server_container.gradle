@@ -42,13 +42,13 @@ task copyDockerfileDependencies(type: Copy) {
   // Required Jars
   from configurations.dockerDependency
   rename 'beam-runners-flink.*-job-server.*.jar', 'beam-runners-flink-job-server.jar'
-  into "build/target"
+  into "build"
   // Entry script
-  from startup_script
-  into "build/target"
+  from "$resource_path/flink-job-server.sh"
+  into "build"
   // Dockerfile
-  from docker_file
-  into "build/target"
+  from "$resource_path/Dockerfile"
+  into "build"
 }
 
 docker {
