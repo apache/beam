@@ -149,10 +149,7 @@ public final class TranslationUtils {
 
   /** A pair to {@link KV} flatmap function . */
   static <K, V> FlatMapFunction<Iterator<Tuple2<K, V>>, KV<K, V>> fromPairFlatMapFunction() {
-    return itr -> {
-      final Iterator<KV<K, V>> outputItr = Iterators.transform(itr, t2 -> KV.of(t2._1(), t2._2()));
-      return outputItr;
-    };
+    return itr -> Iterators.transform(itr, t2 -> KV.of(t2._1(), t2._2()));
   }
 
   /** Extract key from a {@link WindowedValue} {@link KV} into a pair. */

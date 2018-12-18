@@ -80,8 +80,7 @@ public class FieldTypeDescriptors {
       if (typeName == null) {
         throw new RuntimeException("Couldn't find field type for " + typeDescriptor);
       }
-      FieldType fieldType = FieldType.of(typeName);
-      return fieldType;
+      return FieldType.of(typeName);
     }
   }
 

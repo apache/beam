@@ -90,8 +90,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
   @Override
   public synchronized BeamSqlTable buildBeamSqlTable(Table table) {
-    InMemoryTable inMemoryTable = new InMemoryTable(tables().get(table.getName()));
-    return inMemoryTable;
+    return new InMemoryTable(tables().get(table.getName()));
   }
 
   public void addRows(String tableName, Row... rows) {

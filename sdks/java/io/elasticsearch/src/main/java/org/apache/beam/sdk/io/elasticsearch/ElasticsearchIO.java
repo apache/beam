@@ -282,13 +282,11 @@ public class ElasticsearchIO {
       checkArgument(addresses.length > 0, "addresses can not be empty");
       checkArgument(index != null, "index can not be null");
       checkArgument(type != null, "type can not be null");
-      ConnectionConfiguration connectionConfiguration =
-          new AutoValue_ElasticsearchIO_ConnectionConfiguration.Builder()
-              .setAddresses(Arrays.asList(addresses))
-              .setIndex(index)
-              .setType(type)
-              .build();
-      return connectionConfiguration;
+      return new AutoValue_ElasticsearchIO_ConnectionConfiguration.Builder()
+          .setAddresses(Arrays.asList(addresses))
+          .setIndex(index)
+          .setType(type)
+          .build();
     }
 
     /**

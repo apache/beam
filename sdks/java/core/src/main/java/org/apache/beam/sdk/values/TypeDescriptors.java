@@ -225,11 +225,8 @@ public class TypeDescriptors {
    */
   public static <K, V> TypeDescriptor<KV<K, V>> kvs(
       TypeDescriptor<K> key, TypeDescriptor<V> value) {
-    TypeDescriptor<KV<K, V>> typeDescriptor =
-        new TypeDescriptor<KV<K, V>>() {}.where(new TypeParameter<K>() {}, key)
-            .where(new TypeParameter<V>() {}, value);
-
-    return typeDescriptor;
+    return new TypeDescriptor<KV<K, V>>() {}.where(new TypeParameter<K>() {}, key)
+        .where(new TypeParameter<V>() {}, value);
   }
 
   /**
@@ -252,19 +249,14 @@ public class TypeDescriptors {
    * @return A {@link TypeDescriptor} for {@link Set}
    */
   public static <T> TypeDescriptor<Set<T>> sets(TypeDescriptor<T> element) {
-    TypeDescriptor<Set<T>> typeDescriptor =
-        new TypeDescriptor<Set<T>>() {}.where(new TypeParameter<T>() {}, element);
-
-    return typeDescriptor;
+    return new TypeDescriptor<Set<T>>() {}.where(new TypeParameter<T>() {}, element);
   }
 
   /** The {@link TypeDescriptor} for {@link Map}. */
   public static <K, V> TypeDescriptor<Map<K, V>> maps(
       TypeDescriptor<K> keyType, TypeDescriptor<V> valueType) {
-    TypeDescriptor<Map<K, V>> typeDescriptor =
-        new TypeDescriptor<Map<K, V>>() {}.where(new TypeParameter<K>() {}, keyType)
-            .where(new TypeParameter<V>() {}, valueType);
-    return typeDescriptor;
+    return new TypeDescriptor<Map<K, V>>() {}.where(new TypeParameter<K>() {}, keyType)
+        .where(new TypeParameter<V>() {}, valueType);
   }
 
   /**
@@ -287,10 +279,7 @@ public class TypeDescriptors {
    * @return A {@link TypeDescriptor} for {@link List}
    */
   public static <T> TypeDescriptor<List<T>> lists(TypeDescriptor<T> element) {
-    TypeDescriptor<List<T>> typeDescriptor =
-        new TypeDescriptor<List<T>>() {}.where(new TypeParameter<T>() {}, element);
-
-    return typeDescriptor;
+    return new TypeDescriptor<List<T>>() {}.where(new TypeParameter<T>() {}, element);
   }
 
   /**
@@ -313,10 +302,7 @@ public class TypeDescriptors {
    * @return A {@link TypeDescriptor} for {@link Iterable}
    */
   public static <T> TypeDescriptor<Iterable<T>> iterables(TypeDescriptor<T> iterable) {
-    TypeDescriptor<Iterable<T>> typeDescriptor =
-        new TypeDescriptor<Iterable<T>>() {}.where(new TypeParameter<T>() {}, iterable);
-
-    return typeDescriptor;
+    return new TypeDescriptor<Iterable<T>>() {}.where(new TypeParameter<T>() {}, iterable);
   }
 
   public static TypeDescriptor<Void> voids() {

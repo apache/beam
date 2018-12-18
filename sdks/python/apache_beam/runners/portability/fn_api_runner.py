@@ -76,24 +76,33 @@ IMPULSE_BUFFER = b'impulse'
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 
-  _DONE = object()
+  UNSTARTED_STATE = 'unstarted'
+  STARTED_STATE = 'started'
+  DONE_STATE = 'done'
+
+  _DONE_MARKER = object()
 
   def __init__(self):
     self._push_queue = queue.Queue()
     self._futures_by_id = dict()
     self._read_thread = threading.Thread(
         name='beam_control_read', target=self._read)
-    self._started = False
     self._uid_counter = 0
+    self._state = self.UNSTARTED_STATE
+    self._lock = threading.Lock()
 
   def Control(self, iterator, context):
+    with self._lock:
+      if self._state == self.DONE_STATE:
+        return
+      else:
+        self._state = self.STARTED_STATE
     self._inputs = iterator
     # Note: We only support one client for now.
     self._read_thread.start()
-    self._started = True
     while True:
       to_push = self._push_queue.get()
-      if to_push is self._DONE:
+      if to_push is self._DONE_MARKER:
         return
       yield to_push
 
@@ -102,7 +111,7 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
       self._futures_by_id.pop(data.instruction_id).set(data)
 
   def push(self, item):
-    if item is self._DONE:
+    if item is self._DONE_MARKER:
       future = None
     else:
       if not item.instruction_id:
@@ -114,11 +123,11 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
     return future
 
   def done(self):
-    self.push(self._DONE)
-    # Can't join a thread before it's started.
-    while not self._started:
-      time.sleep(.01)
-    self._read_thread.join()
+    with self._lock:
+      if self._state == self.STARTED_STATE:
+        self.push(self._DONE_MARKER)
+        self._read_thread.join()
+      self._state = self.DONE_STATE
 
 
 class _GroupingBuffer(object):
@@ -170,21 +179,21 @@ class _GroupingBuffer(object):
 
 class _WindowGroupingBuffer(object):
   """Used to partition windowed side inputs."""
-  def __init__(self, side_input_data, coder):
+  def __init__(self, access_pattern, coder):
     # Here's where we would use a different type of partitioning
     # (e.g. also by key) for a different access pattern.
-    if side_input_data.access_pattern == common_urns.side_inputs.ITERABLE.urn:
+    if access_pattern.urn == common_urns.side_inputs.ITERABLE.urn:
       self._kv_extrator = lambda value: ('', value)
       self._key_coder = coders.SingletonCoder('')
       self._value_coder = coder.wrapped_value_coder
-    elif side_input_data.access_pattern == common_urns.side_inputs.MULTIMAP.urn:
+    elif access_pattern.urn == common_urns.side_inputs.MULTIMAP.urn:
       self._kv_extrator = lambda value: value
       self._key_coder = coder.wrapped_value_coder.key_coder()
       self._value_coder = (
           coder.wrapped_value_coder.value_coder())
     else:
       raise ValueError(
-          "Unknown access pattern: '%s'" % side_input_data.access_pattern)
+          "Unknown access pattern: '%s'" % access_pattern.urn)
     self._windowed_value_coder = coder
     self._window_coder = coder.window_coder
     self._values_by_window = collections.defaultdict(list)
@@ -942,8 +951,7 @@ class FnApiRunner(runner.PipelineRunner):
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           for tag, si in payload.side_inputs.items():
             data_side_input[transform.unique_name, tag] = (
-                create_buffer_id(transform.inputs[tag]),
-                beam.pvalue.SideInputData.from_runner_api(si, context))
+                create_buffer_id(transform.inputs[tag]), si.access_pattern)
       return data_input, data_side_input, data_output
 
     logging.info('Running %s', stage.name)
@@ -1110,6 +1118,8 @@ class FnApiRunner(runner.PipelineRunner):
       self._lock = threading.Lock()
       self._state = collections.defaultdict(list)
       self._checkpoint = None
+      self._use_continuation_tokens = False
+      self._continuations = {}
 
     def checkpoint(self):
       assert self._checkpoint is None
@@ -1129,9 +1139,26 @@ class FnApiRunner(runner.PipelineRunner):
     def process_instruction_id(self, unused_instruction_id):
       yield
 
-    def blocking_get(self, state_key):
+    def blocking_get(self, state_key, continuation_token=None):
       with self._lock:
-        return b''.join(self._state[self._to_key(state_key)])
+        full_state = self._state[self._to_key(state_key)]
+        if self._use_continuation_tokens:
+          # The token is "nonce:index".
+          if not continuation_token:
+            token_base = 'token_%x' % len(self._continuations)
+            self._continuations[token_base] = tuple(full_state)
+            return b'', '%s:0' % token_base
+          else:
+            token_base, index = continuation_token.split(':')
+            ix = int(index)
+            full_state = self._continuations[token_base]
+            if ix == len(full_state):
+              return b'', None
+            else:
+              return full_state[ix], '%s:%d' % (token_base, ix + 1)
+        else:
+          assert not continuation_token
+          return b''.join(full_state), None
 
     def blocking_append(self, state_key, data):
       with self._lock:
@@ -1155,10 +1182,12 @@ class FnApiRunner(runner.PipelineRunner):
       for request in request_stream:
         request_type = request.WhichOneof('request')
         if request_type == 'get':
+          data, continuation_token = self._state.blocking_get(
+              request.state_key, request.get.continuation_token)
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               get=beam_fn_api_pb2.StateGetResponse(
-                  data=self._state.blocking_get(request.state_key)))
+                  data=data, continuation_token=continuation_token))
         elif request_type == 'append':
           self._state.blocking_append(request.state_key, request.append.data)
           yield beam_fn_api_pb2.StateResponse(
@@ -1425,11 +1454,14 @@ class BundleManager(object):
     process_bundle_id = 'bundle_%s' % BundleManager._uid_counter
 
     # Register the bundle descriptor, if needed.
-    if not self._registered:
+    if self._registered:
+      registration_future = None
+    else:
       process_bundle_registration = beam_fn_api_pb2.InstructionRequest(
           register=beam_fn_api_pb2.RegisterRequest(
               process_bundle_descriptor=[self._bundle_descriptor]))
-      self._controller.control_handler.push(process_bundle_registration)
+      registration_future = self._controller.control_handler.push(
+          process_bundle_registration)
       self._registered = True
 
     # Write all the input data to the channel.
@@ -1442,6 +1474,8 @@ class BundleManager(object):
       data_out.close()
 
     # Actually start the bundle.
+    if registration_future and registration_future.get().error:
+      raise RuntimeError(registration_future.get().error)
     process_bundle = beam_fn_api_pb2.InstructionRequest(
         instruction_id=process_bundle_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
@@ -1457,7 +1491,10 @@ class BundleManager(object):
           for (transform_id, output_name), _ in expected_outputs.items()]
       logging.debug('Gather all output data from %s.', expected_targets)
       for output in self._controller.data_plane_handler.input_elements(
-          process_bundle_id, expected_targets):
+          process_bundle_id,
+          expected_targets,
+          abort_callback=lambda: (result_future.is_done()
+                                  and result_future.get().error)):
         target_tuple = (
             output.target.primitive_transform_reference, output.target.name)
         if target_tuple in expected_outputs:
@@ -1517,6 +1554,9 @@ class ControlFuture(object):
     else:
       self._response = None
       self._condition = threading.Condition()
+
+  def is_done(self):
+    return self._response is not None
 
   def set(self, response):
     with self._condition:

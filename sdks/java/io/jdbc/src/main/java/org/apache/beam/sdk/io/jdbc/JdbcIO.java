@@ -369,8 +369,7 @@ public class JdbcIO {
       poolableConnectionFactory.setPool(connectionPool);
       poolableConnectionFactory.setDefaultAutoCommit(false);
       poolableConnectionFactory.setDefaultReadOnly(false);
-      PoolingDataSource poolingDataSource = new PoolingDataSource(connectionPool);
-      return poolingDataSource;
+      return new PoolingDataSource(connectionPool);
     }
   }
 

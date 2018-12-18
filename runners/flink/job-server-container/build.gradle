@@ -17,8 +17,7 @@
  */
 
 project.ext {
-  docker_file = file('Dockerfile')
-  startup_script = file('flink-job-server.sh')
+  resource_path = '.'
 }
 
 // Load the main build script which contains all build logic.

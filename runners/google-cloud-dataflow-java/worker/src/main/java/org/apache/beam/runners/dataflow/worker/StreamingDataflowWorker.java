@@ -440,11 +440,11 @@ public class StreamingDataflowWorker {
     final Counter<Long, Long> totalProcessingMsecs;
     final Counter<Long, Long> timerProcessingMsecs;
 
-    StageInfo(String stageName, String systemName) {
+    StageInfo(String stageName, String systemName, StreamingDataflowWorker worker) {
       this.stageName = stageName;
       this.systemName = systemName;
       metricsContainerRegistry = StreamingStepMetricsContainer.createRegistry();
-      executionStateRegistry = new StreamingModeExecutionStateRegistry();
+      executionStateRegistry = new StreamingModeExecutionStateRegistry(worker);
       NameContext nameContext = NameContext.create(stageName, null, systemName, null);
       deltaCounters = new CounterSet();
       throttledMsecs =
@@ -1099,7 +1099,7 @@ public class StreamingDataflowWorker {
 
     StageInfo stageInfo =
         stageInfoMap.computeIfAbsent(
-            mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName()));
+            mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName(), this));
 
     ExecutionState executionState = null;
 
@@ -1651,10 +1651,7 @@ public class StreamingDataflowWorker {
   // Returns true if reporting the exception is successful and the work should be retried.
   private boolean reportFailure(String computation, Windmill.WorkItem work, Throwable t) {
     // Enqueue the errors to be sent to DFE in periodic updates
-    synchronized (pendingFailuresToReport) {
-      pendingFailuresToReport.add(
-          buildExceptionStackTrace(t, options.getMaxStackTraceDepthToReport()));
-    }
+    addFailure(buildExceptionStackTrace(t, options.getMaxStackTraceDepthToReport()));
     if (windmillServiceEnabled) {
       return true;
     } else {
@@ -1667,6 +1664,16 @@ public class StreamingDataflowWorker {
                   .setWorkToken(work.getWorkToken())
                   .build());
       return !response.getFailed();
+    }
+  }
+
+  /**
+   * Adds the given failure message to the queue of messages to be reported to DFE in periodic
+   * updates.
+   */
+  public void addFailure(String failureMessage) {
+    synchronized (pendingFailuresToReport) {
+      pendingFailuresToReport.add(failureMessage);
     }
   }
 
