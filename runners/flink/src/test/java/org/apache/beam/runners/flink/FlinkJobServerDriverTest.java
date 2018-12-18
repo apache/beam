@@ -24,9 +24,7 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Charsets;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.PrintStream;
-import java.net.ServerSocket;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,22 +87,15 @@ public class FlinkJobServerDriverTest {
     PrintStream newOut = new PrintStream(baos);
     try {
       System.setErr(newOut);
-      int freePort = getFreePort();
-      int freePort2 = getFreePort();
-      driver =
-          FlinkJobServerDriver.fromParams(
-              new String[] {
-                "--job-port", String.valueOf(freePort),
-                "--artifact-port", String.valueOf(freePort2)
-              });
+      driver = FlinkJobServerDriver.fromParams(new String[] {"--job-port=0", "--artifact-port=0"});
       driverThread = new Thread(driver);
       driverThread.start();
       boolean success = false;
       while (!success) {
         newOut.flush();
         String output = baos.toString(Charsets.UTF_8.name());
-        if (output.contains("JobService started on localhost:" + freePort)
-            && output.contains("ArtifactStagingService started on localhost:" + freePort2)) {
+        if (output.contains("JobService started on localhost:")
+            && output.contains("ArtifactStagingService started on localhost:")) {
           success = true;
         } else {
           Thread.sleep(100);
@@ -120,12 +111,6 @@ public class FlinkJobServerDriverTest {
         driverThread.interrupt();
         driverThread.join();
       }
-    }
-  }
-
-  private static int getFreePort() throws IOException {
-    try (ServerSocket socket = new ServerSocket(0)) {
-      return socket.getLocalPort();
     }
   }
 }
