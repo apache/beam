@@ -82,7 +82,7 @@ public class FlinkJobServerDriverTest {
   public void testJobServerDriver() throws Exception {
     FlinkJobServerDriver driver = null;
     Thread driverThread = null;
-    final PrintStream oldOut = System.out;
+    final PrintStream oldOut = System.err;
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     PrintStream newOut = new PrintStream(baos);
     try {
