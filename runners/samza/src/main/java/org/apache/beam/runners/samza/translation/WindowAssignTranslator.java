@@ -46,4 +46,30 @@ class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>>
 
     ctx.registerMessageStream(output, outputStream);
   }
+
+  @Override
+  public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    final RunnerApi.WindowIntoPayload payload;
+    try {
+      payload =
+          RunnerApi.WindowIntoPayload.parseFrom(transform.getTransform().getSpec().getPayload());
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalArgumentException(
+          String.format("failed to parse WindowIntoPayload: %s", transform.getId()), e);
+    }
+
+    @SuppressWarnings("unchecked")
+    final WindowFn<T, ?> windowFn =
+        (WindowFn<T, ?>) WindowingStrategyTranslation.windowFnFromProto(payload.getWindowFn());
+
+    final MessageStream<OpMessage<T>> inputStream = ctx.getOneInputMessageStream(transform);
+
+    final MessageStream<OpMessage<T>> outputStream =
+        inputStream.flatMap(OpAdapter.adapt(new WindowAssignOp<>(windowFn)));
+
+    ctx.registerMessageStream(ctx.getOutputId(transform), outputStream);
+  }
 }

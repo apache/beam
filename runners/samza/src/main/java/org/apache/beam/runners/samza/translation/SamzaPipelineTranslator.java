@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -52,15 +53,7 @@ public class SamzaPipelineTranslator {
 
   private SamzaPipelineTranslator() {}
 
-  public static void translate(
-      Pipeline pipeline,
-      SamzaPipelineOptions options,
-      StreamGraph graph,
-      Map<PValue, String> idMap,
-      PValue dummySource) {
-
-    final TranslationContext ctx = new TranslationContext(graph, idMap, options, dummySource);
-
+  public static void translate(Pipeline pipeline, TranslationContext ctx) {
     final TransformVisitorFn translateFn =
         new TransformVisitorFn() {
           private int topologicalId = 0;
@@ -189,6 +182,8 @@ public class SamzaPipelineTranslator {
           .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslator())
           .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator())
           .put(SamzaPublishView.SAMZA_PUBLISH_VIEW_URN, new SamzaPublishViewTranslator())
+          .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
+          .put(ExecutableStage.URN, new ParDoBoundMultiTranslator())
           .build();
     }
   }
