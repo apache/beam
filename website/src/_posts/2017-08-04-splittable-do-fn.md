@@ -39,7 +39,7 @@ implementations are simply mini-pipelines (composite `PTransform`s) made of the
 basic Beam `ParDo` and `GroupByKey` primitives. For example,
 `ElasticsearchIO.write()`
 [expands](https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/io/elasticsearch/src/main/java/org/apache/beam/sdk/io/elasticsearch/ElasticsearchIO.java#L783)
-into a single `ParDo` with some batching for performance; `JdcbIO.read()`
+into a single `ParDo` with some batching for performance; `JdbcIO.read()`
 [expands](https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/io/jdbc/src/main/java/org/apache/beam/sdk/io/jdbc/JdbcIO.java#L329)
 into `Create.of(query)`, a reshuffle to [prevent
 fusion](https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion),
