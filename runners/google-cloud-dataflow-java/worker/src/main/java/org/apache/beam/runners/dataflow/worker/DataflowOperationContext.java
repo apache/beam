@@ -202,7 +202,7 @@ public class DataflowOperationContext implements OperationContext {
     private static final ImmutableSet<String> FRAMEWORK_CLASSES =
         ImmutableSet.of(SimpleDoFnRunner.class.getName(), DoFnInstanceManagers.class.getName());
 
-    private String getLullMessage(Thread trackedThread, Duration millis) {
+    protected String getLullMessage(Thread trackedThread, Duration millis) {
       StringBuilder message = new StringBuilder();
       message.append("Processing stuck");
       if (getStepName() != null) {
