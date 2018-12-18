@@ -149,15 +149,14 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
         }
       }
 
-      Iterable<WindowedValue<InputT>> nonLateElements =
-          StreamSupport.stream(concatElements.spliterator(), false)
-              .filter(
-                  input -> {
-                    BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
-                    return !canDropDueToExpiredWindow(window);
-                  })
-              .collect(Collectors.toList());
-      return nonLateElements;
+      // return nonLateElements
+      return StreamSupport.stream(concatElements.spliterator(), false)
+          .filter(
+              input -> {
+                BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
+                return !canDropDueToExpiredWindow(window);
+              })
+          .collect(Collectors.toList());
     }
 
     /** Is {@code window} expired w.r.t. the garbage collection watermark? */

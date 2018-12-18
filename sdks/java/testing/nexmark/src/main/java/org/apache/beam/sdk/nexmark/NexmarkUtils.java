@@ -579,37 +579,35 @@ public class NexmarkUtils {
                     }
                   }));
       // Apply actual transform that generates disk IO using state API
-      PCollection<T> output =
-          kvCollection.apply(
-              "diskBusy.generateIO",
-              ParDo.of(
-                  new DoFn<KV<Integer, T>, T>() {
+      return kvCollection.apply(
+          "diskBusy.generateIO",
+          ParDo.of(
+              new DoFn<KV<Integer, T>, T>() {
 
-                    private static final String DISK_BUSY = "diskBusy";
+                private static final String DISK_BUSY = "diskBusy";
 
-                    @StateId(DISK_BUSY)
-                    private final StateSpec<ValueState<byte[]>> spec =
-                        StateSpecs.value(ByteArrayCoder.of());
+                @StateId(DISK_BUSY)
+                private final StateSpec<ValueState<byte[]>> spec =
+                    StateSpecs.value(ByteArrayCoder.of());
 
-                    @ProcessElement
-                    public void processElement(
-                        ProcessContext c, @StateId(DISK_BUSY) ValueState<byte[]> state) {
-                      long remain = bytes;
-                      long now = System.currentTimeMillis();
-                      while (remain > 0) {
-                        long thisBytes = Math.min(remain, MAX_BUFFER_SIZE);
-                        remain -= thisBytes;
-                        byte[] arr = new byte[(int) thisBytes];
-                        for (int i = 0; i < thisBytes; i++) {
-                          arr[i] = (byte) now;
-                        }
-                        state.write(arr);
-                        now = System.currentTimeMillis();
-                      }
-                      c.output(c.element().getValue());
+                @ProcessElement
+                public void processElement(
+                    ProcessContext c, @StateId(DISK_BUSY) ValueState<byte[]> state) {
+                  long remain = bytes;
+                  long now = System.currentTimeMillis();
+                  while (remain > 0) {
+                    long thisBytes = Math.min(remain, MAX_BUFFER_SIZE);
+                    remain -= thisBytes;
+                    byte[] arr = new byte[(int) thisBytes];
+                    for (int i = 0; i < thisBytes; i++) {
+                      arr[i] = (byte) now;
                     }
-                  }));
-      return output;
+                    state.write(arr);
+                    now = System.currentTimeMillis();
+                  }
+                  c.output(c.element().getValue());
+                }
+              }));
     }
   }
 

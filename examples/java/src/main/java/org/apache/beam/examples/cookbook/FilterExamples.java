@@ -228,8 +228,7 @@ public class FilterExamples {
     fields.add(new TableFieldSchema().setName("month").setType("INTEGER"));
     fields.add(new TableFieldSchema().setName("day").setType("INTEGER"));
     fields.add(new TableFieldSchema().setName("mean_temp").setType("FLOAT"));
-    TableSchema schema = new TableSchema().setFields(fields);
-    return schema;
+    return new TableSchema().setFields(fields);
   }
 
   public static void main(String[] args) throws Exception {

@@ -51,8 +51,7 @@ public class SnsIOTest implements Serializable {
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(SnsIO.class);
 
   private static PublishRequest createSampleMessage(String message) {
-    PublishRequest request = new PublishRequest().withTopicArn(topicName).withMessage(message);
-    return request;
+    return new PublishRequest().withTopicArn(topicName).withMessage(message);
   }
 
   private static class Provider implements AwsClientsProvider {

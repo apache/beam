@@ -98,8 +98,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
         WindowFn<InputT, W> windowFn, WindowedValue<InputT> element) throws Exception {
       WindowFn<InputT, W>.AssignContext assignContext =
           new DirectAssignContext<>(windowFn, element);
-      Collection<? extends BoundedWindow> windows = windowFn.assignWindows(assignContext);
-      return windows;
+      return windowFn.assignWindows(assignContext);
     }
 
     @Override

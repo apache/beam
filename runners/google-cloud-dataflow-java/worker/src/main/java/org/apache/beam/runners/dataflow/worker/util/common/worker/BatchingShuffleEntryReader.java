@@ -90,8 +90,7 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
     @Override
     public ShuffleEntry next() throws NoSuchElementException {
       fillEntriesIfNeeded();
-      ShuffleEntry entry = entries.next();
-      return entry;
+      return entries.next();
     }
 
     @Override

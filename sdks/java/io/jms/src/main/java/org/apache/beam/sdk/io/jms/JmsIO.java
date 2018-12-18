@@ -133,22 +133,19 @@ public class JmsIO {
                       properties.put(propertyName, textMessage.getObjectProperty(propertyName));
                     }
 
-                    JmsRecord jmsRecord =
-                        new JmsRecord(
-                            textMessage.getJMSMessageID(),
-                            textMessage.getJMSTimestamp(),
-                            textMessage.getJMSCorrelationID(),
-                            textMessage.getJMSReplyTo(),
-                            textMessage.getJMSDestination(),
-                            textMessage.getJMSDeliveryMode(),
-                            textMessage.getJMSRedelivered(),
-                            textMessage.getJMSType(),
-                            textMessage.getJMSExpiration(),
-                            textMessage.getJMSPriority(),
-                            properties,
-                            textMessage.getText());
-
-                    return jmsRecord;
+                    return new JmsRecord(
+                        textMessage.getJMSMessageID(),
+                        textMessage.getJMSTimestamp(),
+                        textMessage.getJMSCorrelationID(),
+                        textMessage.getJMSReplyTo(),
+                        textMessage.getJMSDestination(),
+                        textMessage.getJMSDeliveryMode(),
+                        textMessage.getJMSRedelivered(),
+                        textMessage.getJMSType(),
+                        textMessage.getJMSExpiration(),
+                        textMessage.getJMSPriority(),
+                        properties,
+                        textMessage.getText());
                   }
                 })
         .build();

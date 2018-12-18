@@ -94,11 +94,9 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
                     "CreateRightIndex",
                     MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
             .apply(CoGroupByKey.create());
-    PCollection<Row> ret =
-        coGbkResultCollection.apply(
-            ParDo.of(
-                new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
-                    leftTag, rightTag, opType, all)));
-    return ret;
+    return coGbkResultCollection.apply(
+        ParDo.of(
+            new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
+                leftTag, rightTag, opType, all)));
   }
 }
