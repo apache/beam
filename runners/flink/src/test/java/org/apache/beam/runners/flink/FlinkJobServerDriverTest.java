@@ -102,6 +102,10 @@ public class FlinkJobServerDriverTest {
         }
       }
       assertThat(driverThread.isAlive(), is(true));
+    } catch (Throwable t) {
+      // restore to print exception
+      System.setErr(oldOut);
+      throw t;
     } finally {
       System.setErr(oldOut);
       if (driver != null) {
