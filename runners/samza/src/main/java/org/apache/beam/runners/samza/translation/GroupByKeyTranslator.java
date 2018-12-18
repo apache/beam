@@ -25,6 +25,7 @@ import org.apache.beam.runners.samza.runtime.GroupByKeyOp;
 import org.apache.beam.runners.samza.runtime.KvToKeyedWorkItemOp;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
+import org.apache.beam.runners.samza.transforms.GroupWithoutRepartition;
 import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -73,8 +74,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
         inputStream.filter(msg -> msg.getType() == OpMessage.Type.ELEMENT);
 
     final MessageStream<OpMessage<KV<K, InputT>>> partitionedInputStream;
-    if (ctx.getPipelineOptions().getMaxSourceParallelism() == 1) {
-      // Only one task will be created, no need for repartition
+    if (!needRepartition(node, ctx)) {
       partitionedInputStream = filteredInputStream;
     } else {
       partitionedInputStream =
@@ -132,6 +132,24 @@ class GroupByKeyTranslator<K, InputT, OutputT>
           AppliedCombineFn.withInputCoder(combineFn, pipeline.getCoderRegistry(), kvInputCoder));
     } else {
       throw new RuntimeException("Transform " + transform + " cannot be translated as GroupByKey.");
+    }
+  }
+
+  private boolean needRepartition(TransformHierarchy.Node node, TranslationContext ctx) {
+
+    if (ctx.getPipelineOptions().getMaxSourceParallelism() == 1) {
+      // Only one task will be created, no need for repartition
+      return false;
+    }
+
+    if (node == null) {
+      return true;
+    }
+
+    if (node.getTransform() instanceof GroupWithoutRepartition) {
+      return false;
+    } else {
+      return needRepartition(node.getEnclosingNode(), ctx);
     }
   }
 }
