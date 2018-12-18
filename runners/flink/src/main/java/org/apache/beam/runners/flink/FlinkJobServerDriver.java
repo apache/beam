@@ -49,8 +49,8 @@ public class FlinkJobServerDriver implements Runnable {
   @VisibleForTesting ServerConfiguration configuration;
   private final ServerFactory jobServerFactory;
   private final ServerFactory artifactServerFactory;
-  private GrpcFnServer<InMemoryJobService> jobServer;
-  private GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingServer;
+  private volatile GrpcFnServer<InMemoryJobService> jobServer;
+  private volatile GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingServer;
 
   /** Configuration for the jobServer. */
   public static class ServerConfiguration {
@@ -184,12 +184,16 @@ public class FlinkJobServerDriver implements Runnable {
     }
   }
 
+  // This method is executed by TestPortableRunner via Reflection
   public String start() throws IOException {
     jobServer = createJobServer();
     return jobServer.getApiServiceDescriptor().getUrl();
   }
 
-  public void stop() {
+  // This method is executed by TestPortableRunner via Reflection
+  // Needs to be synchronized to prevent concurrency issues in testing shutdown
+  @SuppressWarnings("WeakerAccess")
+  public synchronized void stop() {
     if (jobServer != null) {
       try {
         jobServer.close();
