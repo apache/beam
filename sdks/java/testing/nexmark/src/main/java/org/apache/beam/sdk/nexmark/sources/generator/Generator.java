@@ -144,8 +144,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
   /** Return a deep copy of this generator. */
   public Generator copy() {
     checkNotNull(config);
-    Generator result = new Generator(config, eventsCountSoFar, wallclockBaseTime);
-    return result;
+    return new Generator(config, eventsCountSoFar, wallclockBaseTime);
   }
 
   /**

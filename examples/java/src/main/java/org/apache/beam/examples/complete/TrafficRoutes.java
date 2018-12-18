@@ -270,8 +270,7 @@ public class TrafficRoutes {
       fields.add(new TableFieldSchema().setName("avg_speed").setType("FLOAT"));
       fields.add(new TableFieldSchema().setName("slowdown_event").setType("BOOLEAN"));
       fields.add(new TableFieldSchema().setName("window_timestamp").setType("TIMESTAMP"));
-      TableSchema schema = new TableSchema().setFields(fields);
-      return schema;
+      return new TableSchema().setFields(fields);
     }
   }
 

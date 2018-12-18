@@ -56,8 +56,7 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     for (Object topic : topicsArr) {
       topics.add(topic.toString());
     }
-    BeamKafkaCSVTable txtTable = new BeamKafkaCSVTable(schema, bootstrapServers, topics);
-    return txtTable;
+    return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
   }
 
   @Override

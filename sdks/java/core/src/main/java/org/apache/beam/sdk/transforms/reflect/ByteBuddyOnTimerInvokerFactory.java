@@ -66,9 +66,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
           OnTimerMethodSpecifier.forClassAndTimerId(fnClass, timerId);
       Constructor<?> constructor = constructorCache.get(onTimerMethodSpecifier);
 
-      OnTimerInvoker<InputT, OutputT> invoker =
-          (OnTimerInvoker<InputT, OutputT>) constructor.newInstance(fn);
-      return invoker;
+      return (OnTimerInvoker<InputT, OutputT>) constructor.newInstance(fn);
     } catch (InstantiationException
         | IllegalAccessException
         | IllegalArgumentException
