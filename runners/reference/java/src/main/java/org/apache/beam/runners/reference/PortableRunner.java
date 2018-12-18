@@ -146,7 +146,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
       try {
         workerService = new ExternalWorkerService(options).start();
       } catch (Exception exn) {
-        throw new RuntimeException(exn);
+        throw new RuntimeException("Failed to start GrpcFnServer for ExternalWorkerService", exn);
       }
       LOG.info("Starting worker service at {}", workerService.getApiServiceDescriptor().getUrl());
       options
