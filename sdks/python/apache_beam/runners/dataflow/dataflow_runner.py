@@ -323,7 +323,8 @@ class DataflowRunner(PipelineRunner):
           'please install apache_beam[gcp]')
 
     # Convert all side inputs into a form acceptable to Dataflow.
-    if apiclient._use_fnapi(options):
+    if apiclient._use_fnapi(options) and (
+        not apiclient._use_unified_worker(options)):
       pipeline.visit(self.side_input_visitor())
 
     # Performing configured PTransform overrides.  Note that this is currently
@@ -674,8 +675,11 @@ class DataflowRunner(PipelineRunner):
     from apache_beam.runners.dataflow.internal import apiclient
     transform_proto = self.proto_context.transforms.get_proto(transform_node)
     transform_id = self.proto_context.transforms.get_id(transform_node)
-    if (apiclient._use_fnapi(options)
-        and transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
+    # The data transmitted in SERIALIZED_FN is different depending on whether
+    # this is a fnapi pipeline or not.
+    if (apiclient._use_fnapi(options) and
+        (transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn or
+         apiclient._use_unified_worker(options))):
       # Patch side input ids to be unique across a given pipeline.
       if (label_renames and
           transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
