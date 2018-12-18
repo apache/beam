@@ -18,35 +18,84 @@
 package org.apache.beam.runners.spark.coders;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import org.apache.beam.runners.spark.util.ByteArray;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Registration;
+import org.apache.beam.runners.spark.SparkContextOptions;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.TestSparkPipelineOptions;
+import org.apache.beam.runners.spark.TestSparkRunner;
+import org.apache.beam.runners.spark.io.MicrobatchSource;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.serializer.KryoSerializer;
-import org.apache.spark.serializer.Serializer;
 import org.junit.Test;
-import scala.reflect.ClassTag;
-import scala.reflect.ClassTag$;
 
 /** Testing of beam registrar. */
 public class BeamSparkRunnerRegistratorTest {
 
   @Test
   public void testKryoRegistration() {
-
     SparkConf conf = new SparkConf();
+    conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
+    conf.set("spark.kryo.registrator", WrapperKryoRegistrator.class.getName());
+    runSimplePipelineWithSparkContext(conf);
+    assertTrue(
+        "WrapperKryoRegistrator wasn't initiated, probably KryoSerializer is not set",
+        WrapperKryoRegistrator.wasInitiated);
+  }
+
+  @Test
+  public void testDefaultSerializerNotCallingKryo() {
+    SparkConf conf = new SparkConf();
+    conf.set("spark.kryo.registrator", KryoRegistratorIsNotCalled.class.getName());
+    runSimplePipelineWithSparkContext(conf);
+  }
+
+  private void runSimplePipelineWithSparkContext(SparkConf conf) {
+    SparkPipelineOptions options =
+        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
+    options.setRunner(TestSparkRunner.class);
 
     conf.set("spark.master", "local");
     conf.setAppName("test");
-    conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
-    // register immutable collections serializers because the SDK uses them.
-    conf.set("spark.kryo.registrator", BeamSparkRunnerRegistrator.class.getName());
 
-    JavaSparkContext sparkContext = new JavaSparkContext(conf);
+    JavaSparkContext javaSparkContext = new JavaSparkContext(conf);
+    options.setUsesProvidedSparkContext(true);
+    options.as(SparkContextOptions.class).setProvidedSparkContext(javaSparkContext);
+    Pipeline p = Pipeline.create(options);
+    p.apply(Create.of("a")); // some operation to trigger pipeline construction
+    p.run().waitUntilFinish();
+    javaSparkContext.stop();
+  }
 
-    ClassTag<ByteArray> byteArrayClassTag = ClassTag$.MODULE$.apply(ByteArray.class);
-    Serializer serializer =
-        sparkContext.env().serializerManager().getSerializer(byteArrayClassTag, true);
-    assertTrue(serializer instanceof KryoSerializer);
+  public static class KryoRegistratorIsNotCalled extends BeamSparkRunnerRegistrator {
+
+    @Override
+    public void registerClasses(Kryo kryo) {
+      fail(
+          "Default spark.serializer is JavaSerializer"
+              + " so spark.kryo.registrator shouldn't be called");
+    }
+  }
+
+  public static class WrapperKryoRegistrator extends BeamSparkRunnerRegistrator {
+
+    static boolean wasInitiated = false;
+
+    public WrapperKryoRegistrator() {
+      wasInitiated = true;
+    }
+
+    @Override
+    public void registerClasses(Kryo kryo) {
+      super.registerClasses(kryo);
+      Registration registration = kryo.getRegistration(MicrobatchSource.class);
+      com.esotericsoftware.kryo.Serializer kryoSerializer = registration.getSerializer();
+      assertTrue(kryoSerializer instanceof StatelessJavaSerializer);
+    }
   }
 }
