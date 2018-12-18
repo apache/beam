@@ -22,5 +22,22 @@ import org.apache.beam.sdk.transforms.PTransform;
 
 /** Interface of Samza translator for BEAM {@link PTransform}. */
 public interface TransformTranslator<T extends PTransform<?, ?>> {
-  void translate(T transform, TransformHierarchy.Node node, TranslationContext ctx);
+
+  /** Translates the Java {@link PTransform} into Samza API. */
+  default void translate(T transform, TransformHierarchy.Node node, TranslationContext ctx) {
+    throw new UnsupportedOperationException(
+        "Java translation is not supported for " + this.getClass().getSimpleName());
+  }
+
+  /**
+   * Translates the portable {@link org.apache.beam.model.pipeline.v1.RunnerApi.PTransform} into
+   * Samza API.
+   */
+  default void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    throw new UnsupportedOperationException(
+        "Portable translation is not supported for " + this.getClass().getSimpleName());
+  }
 }

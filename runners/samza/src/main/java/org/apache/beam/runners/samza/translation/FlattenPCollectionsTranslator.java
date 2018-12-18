@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -58,6 +59,7 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
     }
 
     if (inputStreams.isEmpty()) {
+      // for some of the validateRunner tests only
       final MessageStream<OpMessage<T>> noOpStream =
           ctx.getDummyStream()
               .flatMap(OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));
@@ -66,21 +68,48 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
     }
 
     if (inputStreams.size() == 1) {
-      ctx.registerMessageStream(output, inputStreams.get(0));
+      ctx.registerMessageStream(output, Iterables.getOnlyElement(inputStreams));
       return;
     }
 
+    ctx.registerMessageStream(output, mergeInputStreams(inputStreams));
+  }
+
+  @Override
+  public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    final List<MessageStream<OpMessage<T>>> inputStreams = ctx.getAllInputMessageStreams(transform);
+    final String outputId = ctx.getOutputId(transform);
+
+    if (inputStreams.isEmpty()) {
+      // For portable api there should be at least the impulse as a dummy input
+      // We will know once validateRunner tests are available for portable runners
+      throw new IllegalArgumentException(
+          String.format("no input streams defined for Flatten: %s", transform.getId()));
+    }
+
+    if (inputStreams.size() == 1) {
+      ctx.registerMessageStream(outputId, Iterables.getOnlyElement(inputStreams));
+      return;
+    }
+
+    ctx.registerMessageStream(outputId, mergeInputStreams(inputStreams));
+  }
+
+  // Merge multiple input streams into one, as this is what "flatten" is meant to do
+  private MessageStream<OpMessage<T>> mergeInputStreams(
+      List<MessageStream<OpMessage<T>>> inputStreams) {
     final Set<MessageStream<OpMessage<T>>> streamsToMerge = new HashSet<>();
     inputStreams.forEach(
         stream -> {
-          boolean inserted = streamsToMerge.add(stream);
-          if (!inserted) {
+          if (!streamsToMerge.add(stream)) {
             // Merge same streams. Make a copy of the current stream.
             streamsToMerge.add(stream.map(m -> m));
           }
         });
 
-    final MessageStream<OpMessage<T>> outputStream = MessageStream.mergeAll(streamsToMerge);
-    ctx.registerMessageStream(output, outputStream);
+    return MessageStream.mergeAll(streamsToMerge);
   }
 }
