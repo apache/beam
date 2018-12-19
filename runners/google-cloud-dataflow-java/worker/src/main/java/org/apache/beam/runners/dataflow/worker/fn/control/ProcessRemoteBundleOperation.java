@@ -54,8 +54,6 @@ import org.slf4j.LoggerFactory;
  * requests a {@link org.apache.beam.runners.fnexecution.control.RemoteBundle}, sends elements to
  * SDK and receive processed results from SDK, passing these elements downstream.
  */
-// TODO(srohde): Clean up logging
-// TODO(srohde): Add unit tests
 public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessRemoteBundleOperation.class);
   private final StageBundleFactory stageBundleFactory;
@@ -87,7 +85,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       StageBundleFactory stageBundleFactory,
     Map<String, OutputReceiver> outputReceiverMap) {
     super(receivers, operationContext);
-    LOG.error("Creating ProcessRemoteBundleOperation for stage {}", operationContext.nameContext());
+
     this.stageBundleFactory = stageBundleFactory;
     this.stateRequestHandler = StateRequestHandler.unsupported();
     this.progressHandler = BundleProgressHandler.ignored();
@@ -103,7 +101,6 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
         stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs().values()) {
       for (ProcessBundleDescriptors.TimerSpec timerSpec : transformTimerMap.values()) {
         timerIdToTimerSpecMap.put(timerSpec.timerId(), timerSpec);
-        LOG.error("got timer spec {}", timerSpec);
       }
     }
 
@@ -113,10 +110,6 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
         timerOutputIdToSpecMap.put(timerSpec.outputCollectionId(), timerSpec);
       }
     }
-
-    LOG.error(
-        "All OutputTargetCoders {}",
-        stageBundleFactory.getProcessBundleDescriptor().getOutputTargetCoders());
 
     for (RunnerApi.PTransform pTransform :
         stageBundleFactory
@@ -165,10 +158,6 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
         }
       }
     }
-
-    LOG.error("timerIdToTimerSpecMap = {}", timerIdToTimerSpecMap.toString());
-    LOG.error("timerOutputIdToSpecMap = {}", this.timerOutputIdToSpecMap.toString());
-    LOG.error("timerWindowCodersMap = {}", this.timerWindowCodersMap.toString());
   }
 
   @Override
@@ -186,13 +175,10 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
 
   @Override
   public void process(Object inputElement) throws Exception {
-    LOG.error(String.format("Sending element: %s", inputElement));
+    LOG.debug(String.format("Sending element: %s", inputElement));
     String mainInputPCollectionId = executableStage.getInputPCollection().getId();
     FnDataReceiver<WindowedValue<?>> mainInputReceiver =
         remoteBundle.getInputReceivers().get(mainInputPCollectionId);
-
-    LOG.error("All InputReceivers {}", remoteBundle.getInputReceivers());
-    LOG.error("Found main receiver {} for mainInput {}", mainInputReceiver, mainInputPCollectionId);
 
     // TODO(srohde): Is this always true? Do we always send the input element to the main input receiver?
     try (Closeable scope = context.enterProcess()) {
@@ -231,7 +217,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
         TimerInternals.TimerData timerData =
             stepContext.getNextFiredTimer(GlobalWindow.Coder.INSTANCE);
         while (timerData != null) {
-          LOG.error("Found fired timer in start {}", timerData);
+          LOG.debug("Found fired timer in start {}", timerData);
 
           // TODO(srohde): get the correct payload and payload coder
           StateNamespaces.WindowNamespace windowNamespace =
@@ -259,21 +245,16 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
     }
   }
 
-  private void receive(String pCollectionId, Object receivedElement) throws Exception {
-    LOG.error("Received element {} for pcollection {}", receivedElement, pCollectionId);
-    LOG.error("All OutputReceivers: {}", new ArrayList<>(Arrays.asList(receivers)));
-
+  private void receive(String pCollectionId, Object receivedElement) {
+    LOG.debug("Received element {} for pcollection {}", receivedElement, pCollectionId);
     // TODO(srohde): move this out into its own receiver class
     if (timerOutputIdToSpecMap.containsKey(pCollectionId)) {
+      WindowedValue<KV<Object, Timer>> windowedValue =
+          (WindowedValue<KV<Object, Timer>>) receivedElement;
+      ProcessBundleDescriptors.TimerSpec timerSpec = timerOutputIdToSpecMap.get(pCollectionId);
+      Timer timer = windowedValue.getValue().getValue();
+
       try {
-        WindowedValue<KV<Object, Timer>> windowedValue =
-            (WindowedValue<KV<Object, Timer>>) receivedElement;
-
-        ProcessBundleDescriptors.TimerSpec timerSpec = timerOutputIdToSpecMap.get(pCollectionId);
-
-        Timer timer = windowedValue.getValue().getValue();
-        LOG.error("Received timer element {} for pcollection {}", timer, pCollectionId);
-        // TODO(srohde): Which window should we set timers in?
         for (BoundedWindow window : windowedValue.getWindows()) {
           Coder<BoundedWindow> windowCoder = timerWindowCodersMap.get(timerSpec.timerId());
           StateNamespace namespace = StateNamespaces.window(windowCoder, window);
@@ -289,30 +270,11 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
 
           timerIdToKey.put(timerId, windowedValue.getValue().getKey());
         }
-
-        /*
-        StateNamespace namespace = StateNamespaces.global();
-
-        String timerId = timerSpec.timerId();
-        TimeDomain timeDomain = timerSpec.getTimerSpec().getTimeDomain();
-        DataflowExecutionContext.DataflowStepContext stepContext = executionContext.getStepContext((DataflowOperationContext) this.context);
-        TimerInternals timerData = stepContext.namespacedToUser().timerInternals();
-        timerData.setTimer(namespace, timerId, timer.getTimestamp(), timeDomain);*/
-
-        //timerIdToKey.put(timerId, windowedValue.getValue().getKey());
       } catch (Exception e) {
-        LOG.error(e.getMessage());
+        LOG.error("Could not set internal timer data {} for timer {} with error {}", timer, e.getMessage());
       }
     } else {
       outputReceiverMap.get(pCollectionId).process((WindowedValue<?>) receivedElement);
-    }
-  }
-
-  private static class TimerReceiverFactory implements OutputReceiverFactory {
-
-    @Override
-    public <OutputT> FnDataReceiver<OutputT> create(String pCollectionId) {
-      return null;
     }
   }
 }
