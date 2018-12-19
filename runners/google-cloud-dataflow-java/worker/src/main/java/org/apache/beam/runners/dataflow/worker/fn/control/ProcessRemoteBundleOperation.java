@@ -22,8 +22,6 @@ import java.util.Map;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import java.io.IOException;
 import java.util.*;
-
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -116,7 +114,9 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       }
     }
 
-    LOG.error("All OutputTargetCoders {}", stageBundleFactory.getProcessBundleDescriptor().getOutputTargetCoders());
+    LOG.error(
+        "All OutputTargetCoders {}",
+        stageBundleFactory.getProcessBundleDescriptor().getOutputTargetCoders());
 
     for (RunnerApi.PTransform pTransform :
         stageBundleFactory
@@ -188,17 +188,22 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   public void process(Object inputElement) throws Exception {
     LOG.error(String.format("Sending element: %s", inputElement));
     String mainInputPCollectionId = executableStage.getInputPCollection().getId();
-    FnDataReceiver<WindowedValue<?>> mainInputReceiver = remoteBundle.getInputReceivers().get(mainInputPCollectionId);
+    FnDataReceiver<WindowedValue<?>> mainInputReceiver =
+        remoteBundle.getInputReceivers().get(mainInputPCollectionId);
 
     LOG.error("All InputReceivers {}", remoteBundle.getInputReceivers());
     LOG.error("Found main receiver {} for mainInput {}", mainInputReceiver, mainInputPCollectionId);
 
     // TODO(srohde): Is this always true? Do we always send the input element to the main input receiver?
     try (Closeable scope = context.enterProcess()) {
-      mainInputReceiver.accept((WindowedValue<InputT>)inputElement);
+      mainInputReceiver.accept((WindowedValue<InputT>) inputElement);
     } catch (Exception e) {
-      LOG.error("Could not process element {} to receiver {} for pcollection {} with error {}",
-          inputElement, mainInputReceiver, mainInputPCollectionId, e.getMessage());
+      LOG.error(
+          "Could not process element {} to receiver {} for pcollection {} with error {}",
+          inputElement,
+          mainInputReceiver,
+          mainInputPCollectionId,
+          e.getMessage());
     }
   }
 
@@ -213,11 +218,14 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       }
 
       // TODO(srohde): do we have to put this in the "start" method as well?
-      try (RemoteBundle bundle = stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler)) {
+      try (RemoteBundle bundle =
+          stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler)) {
 
         // TODO(srohde): Why do we need to namespace this to "user"?
         DataflowExecutionContext.DataflowStepContext stepContext =
-            executionContext.getStepContext((DataflowOperationContext) this.context).namespacedToUser();
+            executionContext
+                .getStepContext((DataflowOperationContext) this.context)
+                .namespacedToUser();
 
         // TODO(srohde): investigate if this is the correct window
         TimerInternals.TimerData timerData =
@@ -226,22 +234,23 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
           LOG.error("Found fired timer in start {}", timerData);
 
           // TODO(srohde): get the correct payload and payload coder
-          StateNamespaces.WindowNamespace windowNamespace = (StateNamespaces.WindowNamespace)timerData.getNamespace();
+          StateNamespaces.WindowNamespace windowNamespace =
+              (StateNamespaces.WindowNamespace) timerData.getNamespace();
           BoundedWindow window = windowNamespace.getWindow();
 
           WindowedValue<KV<Object, Timer>> timerValue =
               WindowedValue.of(
-                  KV.of(timerIdToKey.get(timerData.getTimerId()), Timer.of(timerData.getTimestamp(), new byte[0])),
+                  KV.of(
+                      timerIdToKey.get(timerData.getTimerId()),
+                      Timer.of(timerData.getTimestamp(), new byte[0])),
                   timerData.getTimestamp(),
                   Collections.singleton(window),
                   PaneInfo.NO_FIRING);
 
-          String mainInputId = timerIdToTimerSpecMap.get(timerData.getTimerId()).inputCollectionId();
+          String mainInputId =
+              timerIdToTimerSpecMap.get(timerData.getTimerId()).inputCollectionId();
 
-          bundle
-              .getInputReceivers()
-              .get(mainInputId)
-              .accept(timerValue);
+          bundle.getInputReceivers().get(mainInputId).accept(timerValue);
 
           // TODO(srohde): investigate if this is the correct window
           timerData = stepContext.getNextFiredTimer(GlobalWindow.Coder.INSTANCE);
@@ -257,7 +266,8 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
     // TODO(srohde): move this out into its own receiver class
     if (timerOutputIdToSpecMap.containsKey(pCollectionId)) {
       try {
-        WindowedValue<KV<Object, Timer>> windowedValue = (WindowedValue<KV<Object, Timer>>) receivedElement;
+        WindowedValue<KV<Object, Timer>> windowedValue =
+            (WindowedValue<KV<Object, Timer>>) receivedElement;
 
         ProcessBundleDescriptors.TimerSpec timerSpec = timerOutputIdToSpecMap.get(pCollectionId);
 
@@ -271,7 +281,8 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
           TimeDomain timeDomain = timerSpec.getTimerSpec().getTimeDomain();
           String timerId = timerSpec.timerId();
 
-          DataflowExecutionContext.DataflowStepContext stepContext = executionContext.getStepContext((DataflowOperationContext) this.context);
+          DataflowExecutionContext.DataflowStepContext stepContext =
+              executionContext.getStepContext((DataflowOperationContext) this.context);
 
           TimerInternals timerData = stepContext.namespacedToUser().timerInternals();
           timerData.setTimer(namespace, timerId, timer.getTimestamp(), timeDomain);
