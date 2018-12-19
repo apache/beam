@@ -347,6 +347,8 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                         outputReceiverNode.getOutputReceiver()));
         return OperationNode.create(
             new ProcessRemoteBundleOperation(
+                input.getExecutableStage(),
+                executionContext,
                 executionContext.createOperationContext(
                     NameContext.create(stageName, stageName, stageName, stageName)),
                 stageBundleFactory,
