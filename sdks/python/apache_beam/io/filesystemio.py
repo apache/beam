@@ -80,7 +80,7 @@ class Uploader(with_metaclass(abc.ABCMeta, object)):
 class DownloaderStream(io.RawIOBase):
   """Provides a stream interface for Downloader objects."""
 
-  def __init__(self, downloader, mode='r'):
+  def __init__(self, downloader, mode='rb'):
     """Initializes the stream.
 
     Args:
@@ -161,7 +161,7 @@ class DownloaderStream(io.RawIOBase):
 class UploaderStream(io.RawIOBase):
   """Provides a stream interface for Uploader objects."""
 
-  def __init__(self, uploader, mode='w'):
+  def __init__(self, uploader, mode='wb'):
     """Initializes the stream.
 
     Args:
