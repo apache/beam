@@ -106,6 +106,12 @@ artifactId=${project.name}
         }
       }
 
+      project.jar {
+        // Add a classifier here so it does not conflict with the
+        // real output artifact
+        classifier = 'unshaded'
+      }
+
       project.shadowJar {
         config.relocations.each { srcNamespace, destNamespace ->
           relocate(srcNamespace, destNamespace)
