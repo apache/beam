@@ -265,7 +265,7 @@ class TestCompressedFile(unittest.TestCase):
   which will be deleted at the end of the tests (when tearDown() is called).
   """
 
-  content = """- the BEAM -
+  content = b"""- the BEAM -
 How things really are we would like to know.
 Does
      Time
@@ -291,10 +291,6 @@ atomized in instants hammered around the
     self._tempfiles.append(path)
     return path
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def _create_compressed_file(self, compression_type, content):
     file_name = self._create_temp_file()
 
@@ -395,7 +391,7 @@ atomized in instants hammered around the
         seek_position = 0
         compressed_fd.seek(seek_position, os.SEEK_END)
 
-        expected_data = ''
+        expected_data = b''
         uncompressed_data = compressed_fd.read(10)
 
         self.assertEqual(uncompressed_data, expected_data)
@@ -435,14 +431,10 @@ atomized in instants hammered around the
 
         self.assertEqual(first_pass, second_pass)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_tell(self):
-    lines = ['line%d\n' % i for i in range(10)]
+    lines = [b'line%d\n' % i for i in range(10)]
     tmpfile = self._create_temp_file()
-    with open(tmpfile, 'w') as f:
+    with open(tmpfile, 'wb') as f:
       writeable = CompressedFile(f)
       current_offset = 0
       for line in lines:
@@ -450,7 +442,7 @@ atomized in instants hammered around the
         current_offset += len(line)
         self.assertEqual(current_offset, writeable.tell())
 
-    with open(tmpfile) as f:
+    with open(tmpfile, 'rb') as f:
       readable = CompressedFile(f)
       current_offset = 0
       while True:
