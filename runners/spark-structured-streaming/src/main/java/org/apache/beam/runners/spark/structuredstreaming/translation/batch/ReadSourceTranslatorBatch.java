@@ -30,11 +30,16 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetCache;
 import org.apache.spark.api.java.function.MapFunction;
+import org.apache.spark.scheduler.SparkListener;
+import org.apache.spark.scheduler.SparkListenerApplicationStart;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalog.Catalog;
+import org.apache.spark.sql.catalyst.catalog.CatalogTable;
 import org.apache.spark.sql.streaming.DataStreamReader;
 
 class ReadSourceTranslatorBatch<T>
@@ -58,9 +63,12 @@ class ReadSourceTranslatorBatch<T>
       throw new RuntimeException(e);
     }
     SparkSession sparkSession = context.getSparkSession();
-    Dataset<Row> rowDataset = sparkSession.readStream().format(providerClassName).load();
+
+    DataStreamReader dataStreamReader = sparkSession.readStream().format(providerClassName);
+    Dataset<Row> rowDataset = dataStreamReader.load();
+
     //TODO initialize source : how, to get a reference to the DatasetSource instance that spark
-    // instantiates to be able to call DatasetSource.initialize()
+    // instantiates to be able to call DatasetSource.initialize(). How to pass in a DatasetCatalog?
     MapFunction<Row, WindowedValue<T>> func = new MapFunction<Row, WindowedValue<T>>() {
       @Override public WindowedValue<T> call(Row value) throws Exception {
         //there is only one value put in each Row by the InputPartitionReader
