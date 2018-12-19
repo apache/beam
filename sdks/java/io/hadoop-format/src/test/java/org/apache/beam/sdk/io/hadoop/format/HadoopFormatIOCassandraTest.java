@@ -38,12 +38,14 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests to validate HadoopFormatIO for embedded Cassandra instance. */
+@Ignore("Ignored because of BEAM-6268")
 @RunWith(JUnit4.class)
 public class HadoopFormatIOCassandraTest implements Serializable {
   private static final long serialVersionUID = 1L;
