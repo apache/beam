@@ -28,8 +28,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 
 /**
  * A thread safe {@link StreamObserver} which uses a bounded queue to pass elements to a processing
