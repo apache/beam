@@ -285,7 +285,7 @@ class _BatchSizeEstimator(object):
       return ybar, 0
     if all(xs[0] == x for x in xs):
       # Simply use the mean if all values in xs are same.
-      return 0, ybar/xbar
+      return 0, ybar / xbar
     b = (sum([(x - xbar) * (y - ybar) for x, y in zip(xs, ys)])
          / sum([(x - xbar)**2 for x in xs]))
     a = ybar - b * xbar
