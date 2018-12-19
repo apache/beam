@@ -52,10 +52,6 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 class LineSource(FileBasedSource):
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def read_records(self, file_name, range_tracker):
     f = self.open_file(file_name)
     try:
@@ -445,7 +441,7 @@ class TestFileBasedSource(unittest.TestCase):
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template).name
     with bz2.BZ2File(filename, 'wb') as f:
-      f.write('\n'.join(lines))
+      f.write(b'\n'.join(lines))
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
@@ -460,7 +456,7 @@ class TestFileBasedSource(unittest.TestCase):
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template).name
     with gzip.GzipFile(filename, 'wb') as f:
-      f.write('\n'.join(lines))
+      f.write(b'\n'.join(lines))
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
@@ -478,7 +474,7 @@ class TestFileBasedSource(unittest.TestCase):
     for c in chunks:
       compressobj = bz2.BZ2Compressor()
       compressed_chunks.append(
-          compressobj.compress('\n'.join(c)) + compressobj.flush())
+          compressobj.compress(b'\n'.join(c)) + compressobj.flush())
     file_pattern = write_prepared_pattern(compressed_chunks)
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
@@ -496,7 +492,7 @@ class TestFileBasedSource(unittest.TestCase):
     for c in chunks:
       out = io.BytesIO()
       with gzip.GzipFile(fileobj=out, mode="wb") as f:
-        f.write('\n'.join(c))
+        f.write(b'\n'.join(c))
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(compressed_chunks)
     pipeline = TestPipeline()
@@ -512,7 +508,7 @@ class TestFileBasedSource(unittest.TestCase):
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template, suffix='.bz2').name
     with bz2.BZ2File(filename, 'wb') as f:
-      f.write('\n'.join(lines))
+      f.write(b'\n'.join(lines))
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
@@ -526,7 +522,7 @@ class TestFileBasedSource(unittest.TestCase):
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template, suffix='.gz').name
     with gzip.GzipFile(filename, 'wb') as f:
-      f.write('\n'.join(lines))
+      f.write(b'\n'.join(lines))
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
@@ -543,7 +539,7 @@ class TestFileBasedSource(unittest.TestCase):
     for c in chunks:
       out = io.BytesIO()
       with gzip.GzipFile(fileobj=out, mode="wb") as f:
-        f.write('\n'.join(c))
+        f.write(b'\n'.join(c))
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(
         compressed_chunks, suffixes=['.gz']*len(chunks))
@@ -563,7 +559,7 @@ class TestFileBasedSource(unittest.TestCase):
       if i%2 == 0:
         out = io.BytesIO()
         with gzip.GzipFile(fileobj=out, mode="wb") as f:
-          f.write('\n'.join(c))
+          f.write(b'\n'.join(c))
         chunks_to_write.append(out.getvalue())
       else:
         chunks_to_write.append(b'\n'.join(c))
