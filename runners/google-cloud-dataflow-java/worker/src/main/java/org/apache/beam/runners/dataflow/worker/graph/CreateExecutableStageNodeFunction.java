@@ -86,9 +86,6 @@ import org.slf4j.LoggerFactory;
  */
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(CreateExecutableStageNodeFunction.class);
-
   private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
 
   private static final String DATA_OUTPUT_URN = "urn:org.apache.beam:sink:runner:0.1";
