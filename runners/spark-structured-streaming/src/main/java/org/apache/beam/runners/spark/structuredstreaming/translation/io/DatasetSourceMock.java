@@ -46,7 +46,7 @@ public class DatasetSourceMock implements DataSourceV2, MicroBatchReadSupport {
   }
 
   /** This class can be mapped to Beam {@link BoundedSource}. */
-  private class DatasetMicroBatchReader implements MicroBatchReader {
+  private static class DatasetMicroBatchReader implements MicroBatchReader {
 
     @Override public void setOffsetRange(Optional<Offset> start, Optional<Offset> end) {
     }
@@ -70,7 +70,7 @@ public class DatasetSourceMock implements DataSourceV2, MicroBatchReadSupport {
     }
 
     @Override public StructType readSchema() {
-      return null;
+      return new StructType();
     }
 
     @Override public List<InputPartition<InternalRow>> planInputPartitions() {
@@ -86,7 +86,7 @@ public class DatasetSourceMock implements DataSourceV2, MicroBatchReadSupport {
   }
 
   /** This class is a mocked reader*/
-  private class DatasetMicroBatchPartitionReaderMock implements InputPartitionReader<InternalRow> {
+  private static class DatasetMicroBatchPartitionReaderMock implements InputPartitionReader<InternalRow> {
 
     private ArrayList<Integer> values;
     private int currentIndex = 0;
