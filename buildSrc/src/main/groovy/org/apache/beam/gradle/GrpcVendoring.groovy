@@ -98,8 +98,8 @@ class GrpcVendoring {
       // We       "io.netty": "${prefix}.io.netty",have to be careful with these replacements as they must not match any
       // string in NativeLibraryLoader, else they cause corruption. Note that
       // this includes concatenation of string literals and constants.
-      'META-INF/native/libnetty': 'META-INF/native/liborg_apache_beam_vendor_grpc_v1_13_1_netty',
-      'META-INF/native/netty': 'META-INF/native/org_apache_beam_vendor_grpc_v1_13_1_netty',
+      'META-INF/native/libnetty': 'META-INF/native/liborg_apache_beam_vendor_grpc_v1_113_11_netty',
+      'META-INF/native/netty': 'META-INF/native/org_apache_beam_vendor_grpc_v1_113_11_netty',
     ]
   }
 
