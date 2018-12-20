@@ -17,28 +17,25 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import java.io.IOException;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
-import org.apache.beam.runners.spark.structuredstreaming.translation.io.DatasetSource;
 import org.apache.beam.runners.spark.structuredstreaming.translation.io.DatasetSourceMock;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.streaming.DataStreamReader;
-import org.apache.spark.sql.types.StructType;
-import scala.reflect.ClassTag;
 
+
+/**
+ * Mock translator that generates a source of 0 to 999 and prints it.
+ * @param <T>
+ */
 class ReadSourceTranslatorMockBatch<T>
     implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
 
@@ -48,13 +45,8 @@ class ReadSourceTranslatorMockBatch<T>
   @Override
   public void translateTransform(
       PTransform<PBegin, PCollection<T>> transform, TranslationContext context) {
-    AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> rootTransform =
-        (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>)
-            context.getCurrentTransform();
-
-        String providerClassName = SOURCE_PROVIDER_CLASS.substring(0, SOURCE_PROVIDER_CLASS.indexOf("$"));
     SparkSession sparkSession = context.getSparkSession();
-    DataStreamReader dataStreamReader = sparkSession.readStream().format(providerClassName);
+    DataStreamReader dataStreamReader = sparkSession.readStream().format(SOURCE_PROVIDER_CLASS);
 
     Dataset<Row> rowDataset = dataStreamReader.load();
 
@@ -77,5 +69,6 @@ class ReadSourceTranslatorMockBatch<T>
 
     PCollection<T> output = (PCollection<T>) context.getOutput();
     context.putDataset(output, dataset);
+    dataset.show();
   }
 }
