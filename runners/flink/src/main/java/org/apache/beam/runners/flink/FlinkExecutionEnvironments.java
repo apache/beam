@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getDefaultLocalParallelism;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import java.net.URL;
@@ -144,7 +146,9 @@ public class FlinkExecutionEnvironments {
 
     // depending on the master, create the right environment.
     if ("[local]".equals(masterUrl)) {
-      flinkStreamEnv = StreamExecutionEnvironment.createLocalEnvironment();
+      flinkStreamEnv =
+          StreamExecutionEnvironment.createLocalEnvironment(
+              getDefaultLocalParallelism(), flinkConfig);
     } else if ("[auto]".equals(masterUrl)) {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
     } else {

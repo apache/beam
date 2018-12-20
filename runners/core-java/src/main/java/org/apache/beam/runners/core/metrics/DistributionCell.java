@@ -57,6 +57,11 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
     update(DistributionData.singleton(n));
   }
 
+  @Override
+  public void update(long sum, long count, long min, long max) {
+    update(DistributionData.create(sum, count, min, max));
+  }
+
   void update(DistributionData data) {
     DistributionData original;
     do {
