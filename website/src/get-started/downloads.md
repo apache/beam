@@ -95,6 +95,8 @@ Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.9.0/
 [SHA-512](https://www.apache.org/dist/beam/2.9.0/apache-beam-2.9.0-source-release.zip.sha512).
 [signature](https://www.apache.org/dist/beam/2.9.0/apache-beam-2.9.0-source-release.zip.asc).
 
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12344258).
+
 ### 2.8.0 (2018-10-26)
 Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.8.0/apache-beam-2.8.0-source-release.zip).
 [SHA-512](https://www.apache.org/dist/beam/2.8.0/apache-beam-2.8.0-source-release.zip.sha512).
