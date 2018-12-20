@@ -40,6 +40,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalog.Catalog;
 import org.apache.spark.sql.catalyst.catalog.CatalogTable;
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation;
 import org.apache.spark.sql.streaming.DataStreamReader;
 
 class ReadSourceTranslatorBatch<T>
@@ -63,8 +64,8 @@ class ReadSourceTranslatorBatch<T>
       throw new RuntimeException(e);
     }
     SparkSession sparkSession = context.getSparkSession();
-
     DataStreamReader dataStreamReader = sparkSession.readStream().format(providerClassName);
+
     Dataset<Row> rowDataset = dataStreamReader.load();
 
     //TODO initialize source : how, to get a reference to the DatasetSource instance that spark
