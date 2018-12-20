@@ -84,7 +84,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       DataflowOperationContext operationContext,
       StageBundleFactory stageBundleFactory,
     Map<String, OutputReceiver> outputReceiverMap) {
-    super(receivers, operationContext);
+    super(EMPTY_RECEIVER_ARRAY, operationContext);
 
     this.stageBundleFactory = stageBundleFactory;
     this.stateRequestHandler = StateRequestHandler.unsupported();
@@ -244,7 +244,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
     }
   }
 
-  private void receive(String pCollectionId, Object receivedElement) {
+  private void receive(String pCollectionId, Object receivedElement) throws Exception {
     LOG.debug("Received element {} for pcollection {}", receivedElement, pCollectionId);
     // TODO(srohde): move this out into its own receiver class
     if (timerOutputIdToSpecMap.containsKey(pCollectionId)) {
@@ -253,24 +253,20 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       ProcessBundleDescriptors.TimerSpec timerSpec = timerOutputIdToSpecMap.get(pCollectionId);
       Timer timer = windowedValue.getValue().getValue();
 
-      try {
-        for (BoundedWindow window : windowedValue.getWindows()) {
-          Coder<BoundedWindow> windowCoder = timerWindowCodersMap.get(timerSpec.timerId());
-          StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+      for (BoundedWindow window : windowedValue.getWindows()) {
+        Coder<BoundedWindow> windowCoder = timerWindowCodersMap.get(timerSpec.timerId());
+        StateNamespace namespace = StateNamespaces.window(windowCoder, window);
 
-          TimeDomain timeDomain = timerSpec.getTimerSpec().getTimeDomain();
-          String timerId = timerSpec.timerId();
+        TimeDomain timeDomain = timerSpec.getTimerSpec().getTimeDomain();
+        String timerId = timerSpec.timerId();
 
-          DataflowExecutionContext.DataflowStepContext stepContext =
-              executionContext.getStepContext((DataflowOperationContext) this.context);
+        DataflowExecutionContext.DataflowStepContext stepContext =
+            executionContext.getStepContext((DataflowOperationContext) this.context);
 
-          TimerInternals timerData = stepContext.namespacedToUser().timerInternals();
-          timerData.setTimer(namespace, timerId, timer.getTimestamp(), timeDomain);
+        TimerInternals timerData = stepContext.namespacedToUser().timerInternals();
+        timerData.setTimer(namespace, timerId, timer.getTimestamp(), timeDomain);
 
-          timerIdToKey.put(timerId, windowedValue.getValue().getKey());
-        }
-      } catch (Exception e) {
-        LOG.error("Could not set internal timer data {} for timer {} with error {}", timer, e.getMessage());
+        timerIdToKey.put(timerId, windowedValue.getValue().getKey());
       }
     } else {
       outputReceiverMap.get(pCollectionId).process((WindowedValue<?>) receivedElement);
