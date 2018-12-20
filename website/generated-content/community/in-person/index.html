@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Policies</title>
+  <title>Contact Us</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/community/policies/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/community/in-person/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/community/policies.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/community/in-person.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -188,7 +188,8 @@
 
 
 <ul class="nav">
-  <li><a href="#releases">Releases</a></li>
+  <li><a href="#meetups">Meetups</a></li>
+  <li><a href="#conference-talks">Conference Talks</a></li>
 </ul>
 
 
@@ -209,19 +210,60 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="policies">Policies</h1>
+<h1 id="we-are-nice-find-us-in-person">We are nice, find us in person</h1>
 
-<p>This page contains a list of major policies agreed upon by the Apache Beam community.</p>
+<p>While the official communication happens on the mailing list, and you can find us online (see: <a href="https://beam.apache.org/community/contact-us/">contact-us</a>), we also get together in person at Meetups and Conferences.</p>
 
-<h2 id="releases">Releases</h2>
+<h2 id="meetups">Meetups</h2>
 
-<p>Apache Beam makes minor releases every 6 weeks. Apache Beam has a <a href="https://calendar.google.com/calendar/embed?src=0p73sl034k80oob7seouanigd0%40group.calendar.google.com">calendar</a> for cutting the next release branch. After a release branch is cut, the community works quickly to finalize that release.</p>
+<p>We occassionally meetup in various locations around the globe.  Active or to-be-started meetups include:</p>
 
-<p>Apache Beam aims to make 8 releases in a 12 month period. To accommodate users with longer upgrade cycles, some of these releases will be tagged as long term support (LTS) releases. LTS releases receive patches to fix major issues for 12 months, starting from the release’s initial release date. There will be at least one new LTS release in a 12 month period, and LTS releases are considered deprecated after 12 months. The community will mark a release as a LTS release based on various factors, such as the number of LTS releases currently in flight and whether the accumulated feature set since the last LTS provides significant upgrade value. Non-LTS releases do not receive patches and are considered deprecated immediately after the next following minor release. We encourage you to update early and often; do not wait until the deprecation date of the version you are using.</p>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Meetup City</th>
+      <th>Name</th>
+      <th> </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Stockholm</td>
+      <td><a href="https://www.meetup.com/Apache-Beam-Stockholm/">Apache Beam Stockholm</a></td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>London</td>
+      <td><a href="https://www.meetup.com/London-Apache-Beam-Meetup/">London Apache Beam Meetup</a></td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>San Francisco</td>
+      <td><a href="https://www.meetup.com/San-Francisco-Apache-Beam/">Bay Area Apache Beam</a></td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>Los Angeles</td>
+      <td><a href="https://www.meetup.com/Los-Angeles-Apache-Beam/">Los Angeles Apache Beam</a></td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>Washington DC</td>
+      <td><a href="https://www.meetup.com/DC-Apache-Beam/">Washington DC Apache Beam Meetup</a></td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td>New York City</td>
+      <td><a href="https://www.meetup.com/New-York-Apache-Beam/">New York Apache Beam</a></td>
+      <td>:</td>
+    </tr>
+  </tbody>
+</table>
 
-<p>It is up to the Apache Beam community to decide whether an identified issue is a major issue that warrants a patch release. Some examples of major issues are high severity security issues and high risk data integrity issues.</p>
+<p>The above are the meetups that are already known to the community (please add if you are organizing one!).  For Meetups that are tagged with ‘Apache Beam’, see the <a href="https://www.meetup.com/topics/apache-beam/">list</a>.</p>
 
-<p>If you wish to report a security vulnerability, please contact <a href="mailto:security@apache.org">security@apache.org</a>. Apache Beam follows the typical <a href="https://apache.org/security/committers.html#vulnerability-handling">Apache vulnerability handling process</a>.</p>
+<h2 id="conference-talks">Conference Talks</h2>
+<p>You can find a list <a href="https://docs.google.com/spreadsheets/d/1CloF63FOKSPM6YIuu8eExjhX6xrIiOp5j4zPbSg3Apo/">here</a></p>
 
       </div>
     </div>
