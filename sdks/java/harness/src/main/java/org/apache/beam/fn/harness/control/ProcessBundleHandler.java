@@ -161,13 +161,6 @@ public class ProcessBundleHandler {
     for (String pCollectionId : pTransform.getOutputsMap().values()) {
 
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
-
-        // User timers are PCollections that have an input and an output to a single PTransform.
-        // This means that the consuming PTransform is the same as the producer causing a loop in
-        // the graph.
-        if (consumingPTransformId.equals(pTransformId)) {
-          continue;
-        }
         createRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
             queueingClient,
