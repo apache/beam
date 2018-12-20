@@ -44,6 +44,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
   /** Returns the field type. */
   public abstract TypeDescriptor getType();
 
+  /** Returns the raw class type. */
+  public abstract Class getRawType();
+
   @Nullable
   public abstract Field getField();
 
@@ -72,6 +75,8 @@ public abstract class FieldValueTypeInformation implements Serializable {
 
     public abstract Builder setType(TypeDescriptor type);
 
+    public abstract Builder setRawType(Class type);
+
     public abstract Builder setField(@Nullable Field field);
 
     public abstract Builder setMethod(@Nullable Method method);
@@ -86,10 +91,12 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   public static FieldValueTypeInformation forField(Field field) {
+    TypeDescriptor type = TypeDescriptor.of(field.getGenericType());
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(field.getName())
         .setNullable(field.isAnnotationPresent(Nullable.class))
-        .setType(TypeDescriptor.of(field.getGenericType()))
+        .setType(type)
+        .setRawType(type.getRawType())
         .setField(field)
         .setElementType(getArrayComponentType(field))
         .setMapKeyType(getMapKeyType(field))
@@ -113,6 +120,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setName(name)
         .setNullable(nullable)
         .setType(type)
+        .setRawType(type.getRawType())
         .setMethod(method)
         .setElementType(getArrayComponentType(type))
         .setMapKeyType(getMapKeyType(type))
@@ -137,6 +145,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setName(name)
         .setNullable(nullable)
         .setType(type)
+        .setRawType(type.getRawType())
         .setMethod(method)
         .setElementType(getArrayComponentType(type))
         .setMapKeyType(getMapKeyType(type))
@@ -171,10 +180,6 @@ public abstract class FieldValueTypeInformation implements Serializable {
       }
     }
     return null;
-  }
-
-  public Class getRawType() {
-    return getType().getRawType();
   }
 
   // If the Field is a map type, returns the key type, otherwise returns a null reference.
