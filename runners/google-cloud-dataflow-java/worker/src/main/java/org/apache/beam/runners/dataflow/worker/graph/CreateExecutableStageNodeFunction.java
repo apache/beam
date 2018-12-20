@@ -329,15 +329,11 @@ public class CreateExecutableStageNodeFunction
               throw new RuntimeException("ParDo did not have a ParDoPayload", exc);
             }
 
-            // This will eventually inform the SDK Harness of the existing timers.
-            if (!parDoPayload.getTimerSpecsMap().isEmpty()) {
-
-              // Build the necessary components to inform the SDK Harness of the pipeline's
-              // timers.
-              for (Map.Entry<String, RunnerApi.TimerSpec> entry :
-                  parDoPayload.getTimerSpecsMap().entrySet()) {
-                timerIds.add(entry.getKey());
-              }
+            // Build the necessary components to inform the SDK Harness of the pipeline's
+            // timers.
+            for (Map.Entry<String, RunnerApi.TimerSpec> entry :
+                parDoPayload.getTimerSpecsMap().entrySet()) {
+              timerIds.add(entry.getKey());
             }
 
             transformSpec
