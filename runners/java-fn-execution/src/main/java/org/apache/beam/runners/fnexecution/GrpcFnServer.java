@@ -21,7 +21,7 @@ import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
 
 /**
  * A {@link Server gRPC Server} which manages a single {@link FnService}. The lifetime of the

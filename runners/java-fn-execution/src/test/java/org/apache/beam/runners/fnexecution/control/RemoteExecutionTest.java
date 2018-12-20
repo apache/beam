@@ -113,7 +113,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsIterableContainingInOrder;
@@ -881,8 +881,7 @@ public class RemoteExecutionTest implements Serializable {
       }
     }
 
-    // Set the current system time to a fixed value to get stable values for processing time timer
-    // output.
+    // Set the current system time to a fixed value to get stable values for processing time timer output.
     DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
     try (ActiveBundle bundle =

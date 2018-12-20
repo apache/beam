@@ -19,10 +19,10 @@ package org.apache.beam.fn.harness.control;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Metadata.Key;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.MetadataUtils;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Metadata.Key;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.MetadataUtils;
 
 /** A {@link ClientInterceptor} that attaches a provided SDK Harness ID to outgoing messages. */
 public class AddHarnessIdInterceptor {

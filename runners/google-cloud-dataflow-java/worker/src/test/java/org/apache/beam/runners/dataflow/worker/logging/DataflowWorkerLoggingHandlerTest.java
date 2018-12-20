@@ -35,7 +35,7 @@ import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Timestamp;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
