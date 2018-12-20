@@ -256,7 +256,6 @@ public class CreateExecutableStageNodeFunction
             e);
       }
 
-
       // TODO(BEAM-6275): Set correct IsBounded on generated PCollections
       String pcollectionId = node.getPcollectionId();
       RunnerApi.PCollection pCollection =
