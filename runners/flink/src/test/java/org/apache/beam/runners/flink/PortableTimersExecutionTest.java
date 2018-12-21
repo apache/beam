@@ -67,7 +67,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class PortableTimersExecutionTest implements Serializable {
 
-  @Parameters
+  @Parameters(name = "streaming: {0}")
   public static Object[] testModes() {
     return new Object[] {true, false};
   }
