@@ -163,27 +163,27 @@ Beam SDK for Java 2.9.0 has the following compile and runtime dependencies.
   <tr><td>com.google.errorprone</td><td>error_prone_annotations</td><td>2.0.15</td></tr>
   <tr><td>com.google.api</td><td>gax-grpc</td><td>1.29.0</td></tr>
   <tr><td>com.google.cloud.bigdataoss</td><td>gcsio</td><td>1.9.0</td></tr>
-  <tr><td>com.google.api-client</td><td>google-api-client-jackson2</td><td>1.23.0</td></tr>
-  <tr><td>com.google.api-client</td><td>google-api-client-java6</td><td>1.23.0</td></tr>
-  <tr><td>com.google.api-client</td><td>google-api-client</td><td>1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-bigquery</td><td>v2-rev402-1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-clouddebugger</td><td>v2-rev253-1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-cloudresourcemanager</td><td>v1-rev502-1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-dataflow</td><td>v1b3-rev257-1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-pubsub</td><td>v1-rev399-1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-storage</td><td>v1-rev136-1.23.0</td></tr>
+  <tr><td>com.google.api-client</td><td>google-api-client-jackson2</td><td>1.24.1</td></tr>
+  <tr><td>com.google.api-client</td><td>google-api-client-java6</td><td>1.24.1</td></tr>
+  <tr><td>com.google.api-client</td><td>google-api-client</td><td>1.24.1</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-bigquery</td><td>v2-rev402-1.24.1</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-clouddebugger</td><td>v2-rev253-1.24.1</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-cloudresourcemanager</td><td>v1-rev502-1.24.1</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-dataflow</td><td>v1b3-rev257-1.24.1</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-pubsub</td><td>v1-rev399-1.24.1</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-storage</td><td>v1-rev136-1.24.1</td></tr>
   <tr><td>com.google.auth</td><td>google-auth-library-credentials</td><td>0.10.0</td></tr>
   <tr><td>com.google.auth</td><td>google-auth-library-oauth2-http</td><td>0.10.0</td></tr>
   <tr><td>com.google.cloud</td><td>google-cloud-core-grpc</td><td>1.36.0</td></tr>
   <tr><td>com.google.cloud</td><td>google-cloud-core</td><td>1.36.0</td></tr>
   <tr><td>com.google.cloud.dataflow</td><td>google-cloud-dataflow-java-proto-library-all</td><td>0.5.160304</td></tr>
   <tr><td>com.google.cloud</td><td>google-cloud-spanner</td><td>0.54.0-beta</td></tr>
-  <tr><td>com.google.http-client</td><td>google-http-client-jackson2</td><td>1.23.0</td></tr>
-  <tr><td>com.google.http-client</td><td>google-http-client-jackson</td><td>1.23.0</td></tr>
-  <tr><td>com.google.http-client</td><td>google-http-client-protobuf</td><td>1.23.0</td></tr>
-  <tr><td>com.google.http-client</td><td>google-http-client</td><td>1.23.0</td></tr>
-  <tr><td>com.google.oauth-client</td><td>google-oauth-client-java6</td><td>1.23.0</td></tr>
-  <tr><td>com.google.oauth-client</td><td>google-oauth-client</td><td>1.23.0</td></tr>
+  <tr><td>com.google.http-client</td><td>google-http-client-jackson2</td><td>1.24.1</td></tr>
+  <tr><td>com.google.http-client</td><td>google-http-client-jackson</td><td>1.24.1</td></tr>
+  <tr><td>com.google.http-client</td><td>google-http-client-protobuf</td><td>1.24.1</td></tr>
+  <tr><td>com.google.http-client</td><td>google-http-client</td><td>1.24.1</td></tr>
+  <tr><td>com.google.oauth-client</td><td>google-oauth-client-java6</td><td>1.24.1</td></tr>
+  <tr><td>com.google.oauth-client</td><td>google-oauth-client</td><td>1.24.1</td></tr>
   <tr><td>io.grpc</td><td>grpc-all</td><td>1.13.1</td></tr>
   <tr><td>io.grpc</td><td>grpc-auth</td><td>1.13.1</td></tr>
   <tr><td>io.grpc</td><td>grpc-core</td><td>1.13.1</td></tr>
