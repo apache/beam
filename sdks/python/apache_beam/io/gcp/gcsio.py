@@ -142,6 +142,15 @@ class GcsIO(object):
     # storage_client is None.
     if storage_client is not None:
       self.client = storage_client
+    self._rewrite_cb = None
+
+  def _set_rewrite_response_callback(self, callback):
+    """For testing purposes only. No backward compatibility guarantees.
+
+    Args:
+      callback: A function that receives ``storage.RewriteResponse``.
+    """
+    self._rewrite_cb = callback
 
   def open(self,
            filename,
@@ -231,31 +240,60 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def copy(self, src, dest):
+  def copy(self, src, dest, dest_kms_key_name=None,
+           max_bytes_rewritten_per_call=None):
     """Copies the given GCS object from src to dest.
 
     Args:
       src: GCS file path pattern in the form gs://<bucket>/<name>.
       dest: GCS file path pattern in the form gs://<bucket>/<name>.
+      dest_kms_key_name: Experimental. No backwards compatibility guarantees.
+        Encrypt dest with this Cloud KMS key. If None, will use dest bucket
+        encryption defaults.
+      max_bytes_rewritten_per_call: Experimental. No backwards compatibility
+        guarantees. Each rewrite API call will return after these many bytes.
+        Used for testing.
+
+    Raises:
+      TimeoutError on timeout.
     """
     src_bucket, src_path = parse_gcs_path(src)
     dest_bucket, dest_path = parse_gcs_path(dest)
-    request = storage.StorageObjectsCopyRequest(
+    request = storage.StorageObjectsRewriteRequest(
         sourceBucket=src_bucket,
         sourceObject=src_path,
         destinationBucket=dest_bucket,
-        destinationObject=dest_path)
-    self.client.objects.Copy(request)
+        destinationObject=dest_path,
+        destinationKmsKeyName=dest_kms_key_name,
+        maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
+    response = self.client.objects.Rewrite(request)
+    while not response.done:
+      logging.debug(
+          'Rewrite progress: %d of %d bytes, %s to %s',
+          response.totalBytesRewritten, response.objectSize, src, dest)
+      request.rewriteToken = response.rewriteToken
+      response = self.client.objects.Rewrite(request)
+      if self._rewrite_cb is not None:
+        self._rewrite_cb(response)
+
+    logging.debug('Rewrite done: %s to %s', src, dest)
 
   # We intentionally do not decorate this method with a retry, as retrying is
   # handled in BatchApiRequest.Execute().
-  def copy_batch(self, src_dest_pairs):
+  def copy_batch(self, src_dest_pairs, dest_kms_key_name=None,
+                 max_bytes_rewritten_per_call=None):
     """Copies the given GCS object from src to dest.
 
     Args:
       src_dest_pairs: list of (src, dest) tuples of gs://<bucket>/<name> files
                       paths to copy from src to dest, not to exceed
                       MAX_BATCH_OPERATION_SIZE in length.
+      dest_kms_key_name: Experimental. No backwards compatibility guarantees.
+        Encrypt dest with this Cloud KMS key. If None, will use dest bucket
+        encryption defaults.
+      max_bytes_rewritten_per_call: Experimental. No backwards compatibility
+        guarantees. Each rewrite call will return after these many bytes. Used
+        primarily for testing.
 
     Returns: List of tuples of (src, dest, exception) in the same order as the
              src_dest_pairs argument, where exception is None if the operation
@@ -263,31 +301,51 @@ class GcsIO(object):
     """
     if not src_dest_pairs:
       return []
-    batch_request = BatchApiRequest(
-        batch_url=GCS_BATCH_ENDPOINT,
-        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
-    for src, dest in src_dest_pairs:
-      src_bucket, src_path = parse_gcs_path(src)
-      dest_bucket, dest_path = parse_gcs_path(dest)
-      request = storage.StorageObjectsCopyRequest(
+    pair_to_request = {}
+    for pair in src_dest_pairs:
+      src_bucket, src_path = parse_gcs_path(pair[0])
+      dest_bucket, dest_path = parse_gcs_path(pair[1])
+      request = storage.StorageObjectsRewriteRequest(
           sourceBucket=src_bucket,
           sourceObject=src_path,
           destinationBucket=dest_bucket,
-          destinationObject=dest_path)
-      batch_request.Add(self.client.objects, 'Copy', request)
-    api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
-    result_statuses = []
-    for i, api_call in enumerate(api_calls):
-      src, dest = src_dest_pairs[i]
-      exception = None
-      if api_call.is_error:
-        exception = api_call.exception
-        # Translate 404 to the appropriate not found exception.
-        if isinstance(exception, HttpError) and exception.status_code == 404:
-          exception = (
-              GcsIOError(errno.ENOENT, 'Source file not found: %s' % src))
-      result_statuses.append((src, dest, exception))
-    return result_statuses
+          destinationObject=dest_path,
+          destinationKmsKeyName=dest_kms_key_name,
+          maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
+      pair_to_request[pair] = request
+    pair_to_status = {}
+    while True:
+      pairs_in_batch = list(set(src_dest_pairs) - set(pair_to_status))
+      if not pairs_in_batch:
+        break
+      batch_request = BatchApiRequest(
+          batch_url=GCS_BATCH_ENDPOINT,
+          retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
+      for pair in pairs_in_batch:
+        batch_request.Add(self.client.objects, 'Rewrite', pair_to_request[pair])
+      api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+      for pair, api_call in zip(pairs_in_batch, api_calls):
+        src, dest = pair
+        response = api_call.response
+        if self._rewrite_cb is not None:
+          self._rewrite_cb(response)
+        if api_call.is_error:
+          exception = api_call.exception
+          # Translate 404 to the appropriate not found exception.
+          if isinstance(exception, HttpError) and exception.status_code == 404:
+            exception = (
+                GcsIOError(errno.ENOENT, 'Source file not found: %s' % src))
+          pair_to_status[pair] = exception
+        elif not response.done:
+          logging.debug(
+              'Rewrite progress: %d of %d bytes, %s to %s',
+              response.totalBytesRewritten, response.objectSize, src, dest)
+          pair_to_request[pair].rewriteToken = response.rewriteToken
+        else:
+          logging.debug('Rewrite done: %s to %s', src, dest)
+          pair_to_status[pair] = None
+
+    return [(pair[0], pair[1], pair_to_status[pair]) for pair in src_dest_pairs]
 
   # We intentionally do not decorate this method with a retry, since the
   # underlying copy and delete operations are already idempotent operations
@@ -367,6 +425,22 @@ class GcsIO(object):
     request = storage.StorageObjectsGetRequest(
         bucket=bucket, object=object_path)
     return self.client.objects.Get(request).size
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def kms_key(self, path):
+    """Returns the KMS key of a single GCS object.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single GCS object.
+
+    Returns: KMS key name of the GCS object as a string, or None if it doesn't
+      have one.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsGetRequest(
+        bucket=bucket, object=object_path)
+    return self.client.objects.Get(request).kmsKeyName
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
