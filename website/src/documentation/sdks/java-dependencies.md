@@ -276,12 +276,12 @@ Beam SDK for Java 2.9.0 has the following compile and runtime dependencies.
   <tr><td>com.google.api-client</td><td>google-api-client-jackson2</td><td>1.23.0</td></tr>
   <tr><td>com.google.api-client</td><td>google-api-client-java6</td><td>1.23.0</td></tr>
   <tr><td>com.google.api-client</td><td>google-api-client</td><td>1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-bigquery</td><td>v2-rev402-1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-clouddebugger</td><td>v2-rev253-1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-cloudresourcemanager</td><td>v1-rev502-1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-dataflow</td><td>v1b3-rev257-1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-pubsub</td><td>v1-rev399-1.23.0</td></tr>
-  <tr><td>com.google.apis</td><td>google-api-services-storage</td><td>v1-rev136-1.23.0</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-bigquery</td><td>v2-rev374-1.23.0</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-clouddebugger</td><td>v2-rev233-1.23.0</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-cloudresourcemanager</td><td>v1-rev477-1.23.0</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-dataflow</td><td>v1b3-rev221-1.23.0</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-pubsub</td><td>v1-rev382-1.23.0</td></tr>
+  <tr><td>com.google.apis</td><td>google-api-services-storage</td><td>v1-rev124-1.23.0</td></tr>
   <tr><td>com.google.auth</td><td>google-auth-library-credentials</td><td>0.10.0</td></tr>
   <tr><td>com.google.auth</td><td>google-auth-library-oauth2-http</td><td>0.10.0</td></tr>
   <tr><td>com.google.cloud</td><td>google-cloud-core-grpc</td><td>1.36.0</td></tr>
