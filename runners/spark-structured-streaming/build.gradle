@@ -50,31 +50,18 @@ dependencies {
   compile project(":runners:core-construction-java")
   compile project(":runners:core-java")
   compile library.java.guava
-  compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
-  compile "io.dropwizard.metrics:metrics-core:3.1.2"
-  compile library.java.jackson_module_scala
   provided library.java.spark_sql
-  provided library.java.hadoop_common
-  provided library.java.hadoop_mapreduce_client_core
   provided library.java.commons_compress
   provided library.java.commons_lang3
   provided library.java.commons_io_2x
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
-  provided "org.apache.zookeeper:zookeeper:3.4.11"
-  provided "org.scala-lang:scala-library:2.11.8"
-  provided "com.esotericsoftware.kryo:kryo:2.21"
-  testCompile project(":sdks:java:io:kafka")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-  testCompile library.java.avro
-  testCompile library.java.kafka_clients
   testCompile library.java.junit
   testCompile library.java.mockito_core
-  testCompile library.java.jackson_dataformat_yaml
-  testCompile "org.apache.kafka:kafka_2.11:0.11.0.1"
   validatesRunner project(path: ":examples:java", configuration: "testRuntime")
   validatesRunner project(path: project.path, configuration: "testRuntime")
   validatesRunner project(project.path)
@@ -90,4 +77,3 @@ configurations.validatesRunner {
   // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
-
