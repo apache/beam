@@ -35,7 +35,7 @@ whichever one seems best!
 | [builds@](https://lists.apache.org/list.html?builds@beam.apache.org) mailing list | Firehose of build notifications from Jenkins ([Subscribe](mailto:builds-subscribe@beam.apache.org)[^1], [Unsubscribe](mailto:builds-unsubscribe@beam.apache.org)[^1], [Archives](https://lists.apache.org/list.html?builds@beam.apache.org)) |
 | [JIRA bug tracker](https://issues.apache.org/jira/browse/BEAM) | Report bugs / discover known issues |
 | [StackOverflow](http://stackoverflow.com/questions/tagged/apache-beam) | Ask and answer user support questions |
-| [Slack](https://s.apache.org/beam-slack-channel) | Chat with users and developers on channel #beam ([Join](https://s.apache.org/slack-invite)) |
+| [Slack](https://s.apache.org/beam-slack-channel) | Chat with users and developers in the ASF slack. Please do not ask for questions in the #general channel. Do it in the specific Beam channels #beam ([Join](https://s.apache.org/slack-invite)) |
 {:.table}
 
 [^1]: To subscribe or unsubscribe, a blank email is fine.
