@@ -139,7 +139,7 @@ public class SyntheticUnboundedSource
       this.delay = new ReaderDelay(sourceOptions);
       this.source = source;
       this.currentOffset = 0;
-      this.syntheticWatermark = new SyntheticWatermark(sourceOptions);
+      this.syntheticWatermark = new SyntheticWatermark(sourceOptions, source.endOffset);
     }
 
     @Override
