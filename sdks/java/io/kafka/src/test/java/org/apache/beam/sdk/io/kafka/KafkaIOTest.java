@@ -1291,13 +1291,15 @@ public class KafkaIOTest {
               .withBootstrapServers("myServerA:9092,myServerB:9092")
               .withTopic("myTopic")
               .withValueSerializer(LongSerializer.class)
-              .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey));
+              .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey))
+              .updateProducerProperties(ImmutableMap.of("retry.backoff.ms", 100));
 
       DisplayData displayData = DisplayData.from(write);
 
       assertThat(displayData, hasDisplayItem("topic", "myTopic"));
       assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServerA:9092,myServerB:9092"));
       assertThat(displayData, hasDisplayItem("retries", 3));
+      assertThat(displayData, hasDisplayItem("retry.backoff.ms", 100));
     }
   }
 
