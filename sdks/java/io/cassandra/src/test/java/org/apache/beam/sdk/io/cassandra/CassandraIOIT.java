@@ -24,6 +24,7 @@ import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
 import java.io.Serializable;
 import java.util.List;
+import java.util.UUID;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -40,11 +41,13 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +61,7 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * ./gradlew integrationTest -p sdks/java/io/cassandra -DintegrationTestPipelineOptions='[
  * "--cassandraHost=1.2.3.4",
- * "--cassandraPort=9042"
+ * "--cassandraPort=9042",
  * "--numberOfRecords=1000"
  * ]'
  * --tests org.apache.beam.sdk.io.cassandra.CassandraIOIT
@@ -88,6 +91,8 @@ public class CassandraIOIT implements Serializable {
   private static CassandraIOITOptions options;
   private static final String KEYSPACE = "BEAM";
   private static final String TABLE = "BEAM_TEST";
+  private static final String USERNAME = "cassandra";
+  private static final String ENCRYPTED_PASSWORD = "Y2Fzc2FuZHJh"; // Raw version = "cassandra"
 
   @Rule public transient TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public transient TestPipeline pipelineRead = TestPipeline.create();
@@ -105,40 +110,76 @@ public class CassandraIOIT implements Serializable {
     dropTable(options, KEYSPACE, TABLE);
   }
 
-  /** Tests writing then reading data for a HBase database. */
+  /** Tests writing then reading data for a Cassandra database. */
   @Test
-  public void testWriteThenRead() {
-    runWrite();
-    runRead();
+  public void test_writeThenRead_nominalCase() {
+    runWrite(
+        CassandraIO.<Scientist>write()
+            .withHosts(options.getCassandraHost())
+            .withPort(options.getCassandraPort())
+            .withKeyspace(KEYSPACE)
+            .withEntity(Scientist.class));
+
+    runRead(
+        CassandraIO.<Scientist>read()
+            .withHosts(options.getCassandraHost())
+            .withPort(options.getCassandraPort())
+            .withMinNumberOfSplits(20)
+            .withKeyspace(KEYSPACE)
+            .withTable(TABLE)
+            .withEntity(Scientist.class)
+            .withCoder(SerializableCoder.of(Scientist.class)));
   }
 
-  private void runWrite() {
+  /** Tests writing then reading data for a Cassandra database with password decryption. */
+  @Test
+  public void test_writeThenRead_withPasswordDecryption() {
+    String sessionWriteUID = "session-write-" + UUID.randomUUID();
+    PasswordDecrypter writePwdDecrypter = Mockito.spy(new TestPasswordDecrypter(sessionWriteUID));
+
+    runWrite(
+        CassandraIO.<Scientist>write()
+            .withHosts(options.getCassandraHost())
+            .withPort(options.getCassandraPort())
+            .withKeyspace(KEYSPACE)
+            .withEntity(Scientist.class)
+            .withUsername(USERNAME)
+            .withPassword(ENCRYPTED_PASSWORD)
+            .withPasswordDecrypter(writePwdDecrypter));
+
+    Assert.assertTrue(1L <= TestPasswordDecrypter.getNbCallsBySession(sessionWriteUID));
+
+    String sessionReadUID = "session-read-" + UUID.randomUUID();
+    PasswordDecrypter readPwdDecrypter = Mockito.spy(new TestPasswordDecrypter(sessionReadUID));
+
+    runRead(
+        CassandraIO.<Scientist>read()
+            .withHosts(options.getCassandraHost())
+            .withPort(options.getCassandraPort())
+            .withMinNumberOfSplits(20)
+            .withKeyspace(KEYSPACE)
+            .withTable(TABLE)
+            .withEntity(Scientist.class)
+            .withCoder(SerializableCoder.of(Scientist.class))
+            .withUsername(USERNAME)
+            .withPassword(ENCRYPTED_PASSWORD)
+            .withPasswordDecrypter(readPwdDecrypter));
+
+    Assert.assertTrue(1L <= TestPasswordDecrypter.getNbCallsBySession(sessionReadUID));
+  }
+
+  private void runWrite(CassandraIO.Write<Scientist> write) {
     pipelineWrite
         .apply("GenSequence", GenerateSequence.from(0).to((long) options.getNumberOfRecords()))
         .apply("PrepareTestRows", ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply("MapToEntity", ParDo.of(new CreateScientistFn()))
-        .apply(
-            "WriteToCassandra",
-            CassandraIO.<Scientist>write()
-                .withHosts(options.getCassandraHost())
-                .withPort(options.getCassandraPort())
-                .withKeyspace(KEYSPACE)
-                .withEntity(Scientist.class));
+        .apply("WriteToCassandra", write);
 
     pipelineWrite.run().waitUntilFinish();
   }
 
-  private void runRead() {
-    PCollection<Scientist> output =
-        pipelineRead.apply(
-            CassandraIO.<Scientist>read()
-                .withHosts(options.getCassandraHost())
-                .withPort(options.getCassandraPort())
-                .withMinNumberOfSplits(20)
-                .withKeyspace(KEYSPACE)
-                .withTable(TABLE)
-                .withEntity(Scientist.class)
-                .withCoder(SerializableCoder.of(Scientist.class)));
+  private void runRead(CassandraIO.Read<Scientist> read) {
+    PCollection<Scientist> output = pipelineRead.apply(read);
 
     PCollection<String> consolidatedHashcode =
         output

@@ -73,6 +73,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
               source.spec.port(),
               source.spec.username(),
               source.spec.password(),
+              source.spec.passwordDecrypter(),
               source.spec.localDc(),
               source.spec.consistencyLevel());
       session = cluster.connect(source.spec.keyspace());
@@ -144,6 +145,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
             spec.port(),
             spec.username(),
             spec.password(),
+            spec.passwordDecrypter(),
             spec.localDc(),
             spec.consistencyLevel())) {
       if (isMurmur3Partitioner(cluster)) {
@@ -182,6 +184,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
             spec.port(),
             spec.username(),
             spec.password(),
+            spec.passwordDecrypter(),
             spec.localDc(),
             spec.consistencyLevel())) {
       if (isMurmur3Partitioner(cluster)) {
@@ -283,12 +286,16 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
       int port,
       String username,
       String password,
+      PasswordDecrypter passwordDecrypter,
       String localDc,
       String consistencyLevel) {
     Cluster.Builder builder =
         Cluster.builder().addContactPoints(hosts.toArray(new String[0])).withPort(port);
 
     if (username != null) {
+      if (passwordDecrypter != null) {
+        password = passwordDecrypter.decrypt(password);
+      }
       builder.withAuthProvider(new PlainTextAuthProvider(username, password));
     }
 
@@ -416,6 +423,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
               spec.port(),
               spec.username(),
               spec.password(),
+              spec.passwordDecrypter(),
               spec.localDc(),
               spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
