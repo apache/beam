@@ -84,7 +84,7 @@ class ByteBuddyUtils {
   /**
    * A naming strategy for ByteBuddy classes.
    *
-   * <p>We always inject the generatter classes in the same same package as the user's target class.
+   * <p>We always inject the generated classes in the same same package as the user's target class.
    * This way, if the class fields or methods are package private, our generated class can still
    * access them.
    */

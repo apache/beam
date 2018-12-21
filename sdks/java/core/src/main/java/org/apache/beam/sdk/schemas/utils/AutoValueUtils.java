@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
@@ -77,6 +78,7 @@ public class AutoValueUtils {
     }
   }
 
+  @Nullable
   private static Class getAutoValueGeneratedBuilder(Class<?> clazz) {
     // TODO: Handle extensions. Find the class with the maximum number of $ character prefixexs.
     String builderName = getAutoValueGeneratedName(clazz.getName()) + "$Builder";
@@ -98,13 +100,10 @@ public class AutoValueUtils {
   /**
    * Try to find an accessible constructor for creating an AutoValue class. Otherwise return null.
    */
+  @Nullable
   public static SchemaUserTypeCreator getConstructorCreator(
       Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     Class<?> generatedClass = getAutoValueGenerated(clazz);
-    if (generatedClass == null) {
-      return null;
-    }
-
     List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(clazz, schema);
     Optional<Constructor<?>> constructor =
         Arrays.stream(generatedClass.getDeclaredConstructors())
@@ -143,6 +142,7 @@ public class AutoValueUtils {
   /**
    * Try to find an accessible builder class for creating an AutoValue class. Otherwise return null.
    */
+  @Nullable
   public static SchemaUserTypeCreator getBuilderCreator(
       Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     Class<?> builderClass = getAutoValueGeneratedBuilder(clazz);

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
@@ -31,7 +32,10 @@ import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
+/** A {@link SchemaProvider} for AutoValue classes. */
 public class AutoValueSchema extends GetterBasedSchemaProvider {
+  /** {@link FieldValueTypeSupplier} that's based on AutoValue getters. */
+  @VisibleForTesting
   public static class AbstractGetterTypeSupplier implements FieldValueTypeSupplier {
     public static final AbstractGetterTypeSupplier INSTANCE = new AbstractGetterTypeSupplier();
 
@@ -52,10 +56,10 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
               .map(
                   t -> {
                     FieldName fieldName = t.getMethod().getAnnotation(FieldName.class);
-                    return (fieldName != null) ? t.withName(fieldName.value()) : t;
+                    return (fieldName == null) ? t : t.withName(fieldName.value());
                   })
               .collect(Collectors.toList());
-      return (schema != null) ? StaticSchemaInference.sortBySchema(types, schema) : types;
+      return (schema == null) ? types : StaticSchemaInference.sortBySchema(types, schema);
     }
   }
 

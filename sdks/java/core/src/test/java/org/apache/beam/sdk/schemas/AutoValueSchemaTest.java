@@ -24,19 +24,22 @@ import com.google.auto.value.AutoValue;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import org.apache.beam.sdk.schemas.AutoValueSchemaTest.SimpleAutoValueWithBuilder.Builder;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
 
+/** Tests for {@link AutoValueSchema}. */
 public class AutoValueSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
   static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
   static final StringBuilder STRING_BUILDER = new StringBuilder("stringbuilder");
 
-  public static final Schema SIMPLE_SCHEMA =
+  static final Schema SIMPLE_SCHEMA =
       Schema.builder()
           .addStringField("str")
           .addByteField("aByte")
@@ -51,6 +54,7 @@ public class AutoValueSchemaTest {
           .addDecimalField("bigDecimal")
           .addStringField("stringBuilder")
           .build();
+  static final Schema OUTER_SCHEMA = Schema.builder().addRowField("inner", SIMPLE_SCHEMA).build();
 
   private Row createSimpleRow(String name) {
     return Row.withSchema(SIMPLE_SCHEMA)
@@ -70,91 +74,173 @@ public class AutoValueSchemaTest {
         .build();
   }
 
+  // A base interface for the different varieties of our AutoValue schema to ease in testing.
+  interface SimpleSchema {
+    String getStr();
+
+    byte getaByte();
+
+    short getaShort();
+
+    int getAnInt();
+
+    long getaLong();
+
+    boolean isaBoolean();
+
+    DateTime getDateTime();
+
+    @SuppressWarnings("mutable")
+    byte[] getBytes();
+
+    ByteBuffer getByteBuffer();
+
+    Instant getInstant();
+
+    BigDecimal getBigDecimal();
+
+    StringBuilder getStringBuilder();
+  }
+
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
-  public abstract static class SimpleAutoValue {
+  abstract static class SimpleAutoValue implements SimpleSchema {
+    @Override
     public abstract String getStr();
 
+    @Override
     public abstract byte getaByte();
 
+    @Override
     public abstract short getaShort();
 
+    @Override
     public abstract int getAnInt();
 
+    @Override
     public abstract long getaLong();
 
+    @Override
     public abstract boolean isaBoolean();
 
+    @Override
     public abstract DateTime getDateTime();
 
+    @Override
     @SuppressWarnings("mutable")
     public abstract byte[] getBytes();
 
+    @Override
     public abstract ByteBuffer getByteBuffer();
 
+    @Override
     public abstract Instant getInstant();
 
+    @Override
     public abstract BigDecimal getBigDecimal();
 
+    @Override
     public abstract StringBuilder getStringBuilder();
   }
 
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
-  public abstract static class SimpleAutoValueWithBuilder {
+  abstract static class SimpleAutoValueWithBuilder implements SimpleSchema {
+    @Override
     public abstract String getStr();
 
+    @Override
     public abstract byte getaByte();
 
+    @Override
     public abstract short getaShort();
 
+    @Override
     public abstract int getAnInt();
 
+    @Override
     public abstract long getaLong();
 
+    @Override
     public abstract boolean isaBoolean();
 
+    @Override
     public abstract DateTime getDateTime();
 
+    @Override
     @SuppressWarnings("mutable")
     public abstract byte[] getBytes();
 
+    @Override
     public abstract ByteBuffer getByteBuffer();
 
+    @Override
     public abstract Instant getInstant();
 
+    @Override
     public abstract BigDecimal getBigDecimal();
 
+    @Override
     public abstract StringBuilder getStringBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      public abstract Builder setStr(String str);
+      abstract Builder setStr(String str);
 
-      public abstract Builder setaByte(byte aByte);
+      abstract Builder setaByte(byte aByte);
 
-      public abstract Builder setaShort(short aShort);
+      abstract Builder setaShort(short aShort);
 
-      public abstract Builder setAnInt(int anInt);
+      abstract Builder setAnInt(int anInt);
 
-      public abstract Builder setaLong(long aLong);
+      abstract Builder setaLong(long aLong);
 
-      public abstract Builder setaBoolean(boolean aBoolean);
+      abstract Builder setaBoolean(boolean aBoolean);
 
-      public abstract Builder setDateTime(DateTime dateTime);
+      abstract Builder setDateTime(DateTime dateTime);
 
-      public abstract Builder setBytes(byte[] bytes);
+      abstract Builder setBytes(byte[] bytes);
 
-      public abstract Builder setByteBuffer(ByteBuffer byteBuffer);
+      abstract Builder setByteBuffer(ByteBuffer byteBuffer);
 
-      public abstract Builder setInstant(Instant instant);
+      abstract Builder setInstant(Instant instant);
 
-      public abstract Builder setBigDecimal(BigDecimal bigDecimal);
+      abstract Builder setBigDecimal(BigDecimal bigDecimal);
 
-      public abstract Builder setStringBuilder(StringBuilder stringBuilder);
+      abstract Builder setStringBuilder(StringBuilder stringBuilder);
 
       abstract SimpleAutoValueWithBuilder build();
     }
+  }
+
+  private void verifyRow(Row row) {
+    assertEquals("string", row.getString("str"));
+    assertEquals((byte) 1, (Object) row.getByte("aByte"));
+    assertEquals((short) 2, (Object) row.getInt16("aShort"));
+    assertEquals((int) 3, (Object) row.getInt32("anInt"));
+    assertEquals((long) 4, (Object) row.getInt64("aLong"));
+    assertEquals(true, (Object) row.getBoolean("aBoolean"));
+    assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
+    assertEquals(DATE.toInstant(), row.getDateTime("instant"));
+    assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
+    assertArrayEquals(BYTE_ARRAY, row.getBytes("byteBuffer"));
+    assertEquals(BigDecimal.ONE, row.getDecimal("bigDecimal"));
+    assertEquals("stringbuilder", row.getString("stringBuilder"));
+  }
+
+  private void verifyAutoValue(SimpleSchema value) {
+    assertEquals("string", value.getStr());
+    assertEquals((byte) 1, value.getaByte());
+    assertEquals((short) 2, value.getaShort());
+    assertEquals((int) 3, value.getAnInt());
+    assertEquals((long) 4, value.getaLong());
+    assertEquals(true, value.isaBoolean());
+    assertEquals(DATE, value.getDateTime());
+    assertEquals(DATE.toInstant(), value.getInstant());
+    assertArrayEquals("not equal", BYTE_ARRAY, value.getBytes());
+    assertArrayEquals("not equal", BYTE_ARRAY, value.getByteBuffer().array());
+    assertEquals(BigDecimal.ONE, value.getBigDecimal());
+    assertEquals("stringbuilder", value.getStringBuilder().toString());
   }
 
   @Test
@@ -182,19 +268,7 @@ public class AutoValueSchemaTest {
             BigDecimal.ONE,
             STRING_BUILDER);
     Row row = registry.getToRowFunction(SimpleAutoValue.class).apply(value);
-    assertEquals(12, row.getFieldCount());
-    assertEquals("string", row.getString("str"));
-    assertEquals((byte) 1, (Object) row.getByte("aByte"));
-    assertEquals((short) 2, (Object) row.getInt16("aShort"));
-    assertEquals((int) 3, (Object) row.getInt32("anInt"));
-    assertEquals((long) 4, (Object) row.getInt64("aLong"));
-    assertEquals(true, (Object) row.getBoolean("aBoolean"));
-    assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
-    assertEquals(DATE.toInstant(), row.getDateTime("instant"));
-    assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
-    assertArrayEquals(BYTE_ARRAY, row.getBytes("byteBuffer"));
-    assertEquals(BigDecimal.ONE, row.getDecimal("bigDecimal"));
-    assertEquals("stringbuilder", row.getString("stringBuilder"));
+    verifyRow(row);
   }
 
   @Test
@@ -202,18 +276,7 @@ public class AutoValueSchemaTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Row row = createSimpleRow("string");
     SimpleAutoValue value = registry.getFromRowFunction(SimpleAutoValue.class).apply(row);
-    assertEquals("string", value.getStr());
-    assertEquals((byte) 1, value.getaByte());
-    assertEquals((short) 2, value.getaShort());
-    assertEquals((int) 3, value.getAnInt());
-    assertEquals((long) 4, value.getaLong());
-    assertEquals(true, value.isaBoolean());
-    assertEquals(DATE, value.getDateTime());
-    assertEquals(DATE.toInstant(), value.getInstant());
-    assertArrayEquals("not equal", BYTE_ARRAY, value.getBytes());
-    assertArrayEquals("not equal", BYTE_ARRAY, value.getByteBuffer().array());
-    assertEquals(BigDecimal.ONE, value.getBigDecimal());
-    assertEquals("stringbuilder", value.getStringBuilder().toString());
+    verifyAutoValue(value);
   }
 
   @Test
@@ -236,19 +299,7 @@ public class AutoValueSchemaTest {
             .build();
 
     Row row = registry.getToRowFunction(SimpleAutoValueWithBuilder.class).apply(value);
-    assertEquals(12, row.getFieldCount());
-    assertEquals("string", row.getString("str"));
-    assertEquals((byte) 1, (Object) row.getByte("aByte"));
-    assertEquals((short) 2, (Object) row.getInt16("aShort"));
-    assertEquals((int) 3, (Object) row.getInt32("anInt"));
-    assertEquals((long) 4, (Object) row.getInt64("aLong"));
-    assertEquals(true, (Object) row.getBoolean("aBoolean"));
-    assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
-    assertEquals(DATE.toInstant(), row.getDateTime("instant"));
-    assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
-    assertArrayEquals(BYTE_ARRAY, row.getBytes("byteBuffer"));
-    assertEquals(BigDecimal.ONE, row.getDecimal("bigDecimal"));
-    assertEquals("stringbuilder", row.getString("stringBuilder"));
+    verifyRow(row);
   }
 
   @Test
@@ -257,17 +308,193 @@ public class AutoValueSchemaTest {
     Row row = createSimpleRow("string");
     SimpleAutoValueWithBuilder value =
         registry.getFromRowFunction(SimpleAutoValueWithBuilder.class).apply(row);
-    assertEquals("string", value.getStr());
-    assertEquals((byte) 1, value.getaByte());
-    assertEquals((short) 2, value.getaShort());
-    assertEquals((int) 3, value.getAnInt());
-    assertEquals((long) 4, value.getaLong());
-    assertEquals(true, value.isaBoolean());
-    assertEquals(DATE, value.getDateTime());
-    assertEquals(DATE.toInstant(), value.getInstant());
-    assertArrayEquals("not equal", BYTE_ARRAY, value.getBytes());
-    assertArrayEquals("not equal", BYTE_ARRAY, value.getByteBuffer().array());
-    assertEquals(BigDecimal.ONE, value.getBigDecimal());
-    assertEquals("stringbuilder", value.getStringBuilder().toString());
+    verifyAutoValue(value);
+  }
+
+  // Test nested classes.
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class AutoValueOuter {
+    abstract SimpleAutoValue getInner();
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class AutoValueOuterWithBuilder {
+    abstract SimpleAutoValue getInner();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      public abstract Builder setInner(SimpleAutoValue inner);
+
+      abstract AutoValueOuterWithBuilder build();
+    }
+  }
+
+  @Test
+  public void testToRowNestedConstructor() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SimpleAutoValue inner =
+        new AutoValue_AutoValueSchemaTest_SimpleAutoValue(
+            "string",
+            (byte) 1,
+            (short) 2,
+            (int) 3,
+            (long) 4,
+            true,
+            DATE,
+            BYTE_ARRAY,
+            ByteBuffer.wrap(BYTE_ARRAY),
+            DATE.toInstant(),
+            BigDecimal.ONE,
+            STRING_BUILDER);
+    AutoValueOuter outer = new AutoValue_AutoValueSchemaTest_AutoValueOuter(inner);
+    Row row = registry.getToRowFunction(AutoValueOuter.class).apply(outer);
+    verifyRow(row.getRow("inner"));
+  }
+
+  @Test
+  public void testToRowNestedBuilder() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SimpleAutoValue inner =
+        new AutoValue_AutoValueSchemaTest_SimpleAutoValue(
+            "string",
+            (byte) 1,
+            (short) 2,
+            (int) 3,
+            (long) 4,
+            true,
+            DATE,
+            BYTE_ARRAY,
+            ByteBuffer.wrap(BYTE_ARRAY),
+            DATE.toInstant(),
+            BigDecimal.ONE,
+            STRING_BUILDER);
+    AutoValueOuterWithBuilder outer =
+        new AutoValue_AutoValueSchemaTest_AutoValueOuterWithBuilder.Builder()
+            .setInner(inner)
+            .build();
+    Row row = registry.getToRowFunction(AutoValueOuterWithBuilder.class).apply(outer);
+    verifyRow(row.getRow("inner"));
+  }
+
+  @Test
+  public void testFromRowNestedConstructor() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row inner = createSimpleRow("string");
+    Row outer = Row.withSchema(OUTER_SCHEMA).addValue(inner).build();
+    AutoValueOuter value = registry.getFromRowFunction(AutoValueOuter.class).apply(outer);
+    verifyAutoValue(value.getInner());
+  }
+
+  @Test
+  public void testFromRowNestedBuilder() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row inner = createSimpleRow("string");
+    Row outer = Row.withSchema(OUTER_SCHEMA).addValue(inner).build();
+    AutoValueOuterWithBuilder value =
+        registry.getFromRowFunction(AutoValueOuterWithBuilder.class).apply(outer);
+    verifyAutoValue(value.getInner());
+  }
+
+  // Test that Beam annotations can be used to specify a creator method.
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class SimpleAutoValueWithStaticFactory implements SimpleSchema {
+    @Override
+    public abstract String getStr();
+
+    @Override
+    public abstract byte getaByte();
+
+    @Override
+    public abstract short getaShort();
+
+    @Override
+    public abstract int getAnInt();
+
+    @Override
+    public abstract long getaLong();
+
+    @Override
+    public abstract boolean isaBoolean();
+
+    @Override
+    public abstract DateTime getDateTime();
+
+    @Override
+    @SuppressWarnings("mutable")
+    public abstract byte[] getBytes();
+
+    @Override
+    public abstract ByteBuffer getByteBuffer();
+
+    @Override
+    public abstract Instant getInstant();
+
+    @Override
+    public abstract BigDecimal getBigDecimal();
+
+    @Override
+    public abstract StringBuilder getStringBuilder();
+
+    @SchemaCreate
+    static SimpleAutoValueWithStaticFactory create(
+        String str,
+        byte aByte,
+        short aShort,
+        int anInt,
+        long aLong,
+        boolean aBoolean,
+        DateTime dateTime,
+        byte[] bytes,
+        ByteBuffer byteBuffer,
+        Instant instant,
+        BigDecimal bigDecimal,
+        StringBuilder stringBuilder) {
+      return new AutoValue_AutoValueSchemaTest_SimpleAutoValueWithStaticFactory(
+          str,
+          aByte,
+          aShort,
+          anInt,
+          aLong,
+          aBoolean,
+          dateTime,
+          bytes,
+          byteBuffer,
+          instant,
+          bigDecimal,
+          stringBuilder);
+    }
+  }
+
+  @Test
+  public void testToRowStaticFactory() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SimpleAutoValueWithStaticFactory value =
+        SimpleAutoValueWithStaticFactory.create(
+            "string",
+            (byte) 1,
+            (short) 2,
+            (int) 3,
+            (long) 4,
+            true,
+            DATE,
+            BYTE_ARRAY,
+            ByteBuffer.wrap(BYTE_ARRAY),
+            DATE.toInstant(),
+            BigDecimal.ONE,
+            STRING_BUILDER);
+    Row row = registry.getToRowFunction(SimpleAutoValueWithStaticFactory.class).apply(value);
+    verifyRow(row);
+  }
+
+  @Test
+  public void testFromRowStaticFactory() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = createSimpleRow("string");
+    SimpleAutoValueWithStaticFactory value =
+        registry.getFromRowFunction(SimpleAutoValueWithStaticFactory.class).apply(row);
+    verifyAutoValue(value);
   }
 }
