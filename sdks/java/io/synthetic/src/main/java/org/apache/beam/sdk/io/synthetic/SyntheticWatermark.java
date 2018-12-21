@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.synthetic;
 import java.io.Serializable;
 import java.util.Optional;
 import java.util.stream.LongStream;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -32,15 +33,25 @@ class SyntheticWatermark implements Serializable {
 
   private SyntheticSourceOptions options;
 
+  private final long endOffset;
+
   private Instant watermark;
 
-  SyntheticWatermark(SyntheticSourceOptions options) {
+  SyntheticWatermark(SyntheticSourceOptions options, long endOffset) {
     this.options = options;
+    this.endOffset = endOffset;
     this.watermark = new Instant(0);
   }
 
   /** Calculates new watermark value and returns it if it's greater than the previous one. */
   Instant calculateNew(long currentOffset, Instant processingTime) {
+
+    // the source has seen all elements so the watermark is "+infinity"
+    if (currentOffset >= endOffset) {
+      watermark = BoundedWindow.TIMESTAMP_MAX_VALUE;
+      return watermark;
+    }
+
     Instant newWatermark =
         findLowestEventTimeInAdvance(currentOffset, processingTime)
             .minus(Duration.millis(options.watermarkDriftMillis));
