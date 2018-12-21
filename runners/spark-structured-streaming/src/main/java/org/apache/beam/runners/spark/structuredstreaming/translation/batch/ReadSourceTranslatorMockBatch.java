@@ -50,25 +50,15 @@ class ReadSourceTranslatorMockBatch<T>
 
     Dataset<Row> rowDataset = dataStreamReader.load();
 
-    MapFunction<Row, WindowedValue<Integer>> func = new MapFunction<Row, WindowedValue<Integer>>() {
-      @Override public WindowedValue<Integer> call(Row value) throws Exception {
+    MapFunction<Row, WindowedValue> func = new MapFunction<Row, WindowedValue>() {
+      @Override public WindowedValue call(Row value) throws Exception {
         //there is only one value put in each Row by the InputPartitionReader
-        return value.<WindowedValue<Integer>>getAs(0);
+        return value.<WindowedValue>getAs(0);
       }
     };
-    Dataset<WindowedValue<Integer>> dataset = rowDataset.map(func, new Encoder<WindowedValue<Integer>>() {
-
-      @Override public StructType schema() {
-        return null;
-      }
-
-      @Override public ClassTag<WindowedValue<Integer>> clsTag() {
-        return scala.reflect.ClassTag$.MODULE$.<WindowedValue<Integer>>apply(WindowedValue.class);
-      }
-    });
+    Dataset<WindowedValue> dataset = rowDataset.map(func, Encoders.kryo(WindowedValue.class));
 
     PCollection<T> output = (PCollection<T>) context.getOutput();
-    context.putDataset(output, dataset);
-    dataset.show();
+    context.putDatasetRaw(output, dataset);
   }
 }
