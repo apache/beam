@@ -115,6 +115,14 @@ public class TranslationContext {
     }
   }
 
+    //TODO: remove. It is just for testing
+    public void putDatasetRaw(PValue value, Dataset<WindowedValue> dataset) {
+      if (!datasets.containsKey(value)) {
+        datasets.put(value, dataset);
+        leaves.add(dataset);
+      }
+    }
+
   // --------------------------------------------------------------------------------------------
   //  PCollections methods
   // --------------------------------------------------------------------------------------------
