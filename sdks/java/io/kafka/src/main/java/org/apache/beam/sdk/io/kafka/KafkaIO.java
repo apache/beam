@@ -1274,6 +1274,14 @@ public class KafkaIO {
           getWriteRecordsTransform().withConsumerFactoryFn(consumerFactoryFn));
     }
 
+    /**
+     * Adds the given producer properties, overriding old values of properties with the same key.
+     */
+    public Write<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().updateProducerProperties(configUpdates));
+    }
+
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
       checkArgument(getTopic() != null, "withTopic() is required");
