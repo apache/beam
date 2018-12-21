@@ -159,6 +159,12 @@ elif sys.version_info[0] >= 3:
                       '@7a73fbe3d6aa445f93f58f266687b7315d14a3ac'
                       '#egg=dill-0.2.9.dev0']
 
+# pyarrow is not supported on Windows Python 2 [BEAM-6287]
+if platform.system() == 'Windows' and sys.version_info[0] == 2:
+  REQUIRED_PACKAGES = [
+      x for x in REQUIRED_PACKAGES if not x.startswith("pyarrow")
+  ]
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first(original_cmd):
