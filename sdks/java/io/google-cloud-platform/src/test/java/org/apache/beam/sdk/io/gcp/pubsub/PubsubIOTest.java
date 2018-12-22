@@ -314,7 +314,7 @@ public class PubsubIOTest {
   private static final SubscriptionPath SUBSCRIPTION =
       PubsubClient.subscriptionPathFromName("test-project", "testSubscription");
   private static final Clock CLOCK = (Clock & Serializable) () -> 673L;
-  @Rule public transient TestPipeline readPipeline = TestPipeline.create();
+  transient TestPipeline readPipeline;
 
   private static final String SCHEMA_STRING =
       "{\"namespace\": \"example.avro\",\n"
