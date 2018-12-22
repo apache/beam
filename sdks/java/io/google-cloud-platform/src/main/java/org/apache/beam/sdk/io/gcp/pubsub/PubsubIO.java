@@ -19,7 +19,9 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.util.Clock;
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Message;
@@ -33,7 +35,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.naming.SizeLimitExceededException;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -46,6 +52,8 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -58,6 +66,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -429,7 +438,10 @@ public class PubsubIO {
 
   /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
   private static <T> Read<T> read() {
-    return new AutoValue_PubsubIO_Read.Builder<T>().setNeedsAttributes(false).build();
+    return new AutoValue_PubsubIO_Read.Builder<T>()
+        .setNeedsAttributes(false)
+        .setPubsubClientFactory(FACTORY)
+        .build();
   }
 
   /**
@@ -439,6 +451,7 @@ public class PubsubIO {
    */
   public static Read<PubsubMessage> readMessages() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setPubsubClientFactory(FACTORY)
         .setCoder(PubsubMessagePayloadOnlyCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(false)
@@ -452,6 +465,7 @@ public class PubsubIO {
    */
   public static Read<PubsubMessage> readMessagesWithAttributes() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setPubsubClientFactory(FACTORY)
         .setCoder(PubsubMessageWithAttributesCoder.of())
         .setParseFn(new IdentityMessageFn())
         .setNeedsAttributes(true)
@@ -463,8 +477,12 @@ public class PubsubIO {
    * Pub/Sub stream.
    */
   public static Read<String> readStrings() {
-    return PubsubIO.<String>read()
-        .withCoderAndParseFn(StringUtf8Coder.of(), new ParsePayloadAsUtf8());
+    return new AutoValue_PubsubIO_Read.Builder<String>()
+        .setNeedsAttributes(false)
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(StringUtf8Coder.of())
+        .setParseFn(new ParsePayloadAsUtf8())
+        .build();
   }
 
   /**
@@ -476,7 +494,12 @@ public class PubsubIO {
     // We should not be relying on the fact that ProtoCoder's wire format is identical to
     // the protobuf wire format, as the wire format is not part of a coder's API.
     ProtoCoder<T> coder = ProtoCoder.of(messageClass);
-    return PubsubIO.<T>read().withCoderAndParseFn(coder, new ParsePayloadUsingCoder<>(coder));
+    return new AutoValue_PubsubIO_Read.Builder<T>()
+        .setNeedsAttributes(false)
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(coder)
+        .setParseFn(new ParsePayloadUsingCoder<>(coder))
+        .build();
   }
 
   /**
@@ -488,7 +511,58 @@ public class PubsubIO {
     // We should not be relying on the fact that AvroCoder's wire format is identical to
     // the Avro wire format, as the wire format is not part of a coder's API.
     AvroCoder<T> coder = AvroCoder.of(clazz);
-    return PubsubIO.<T>read().withCoderAndParseFn(coder, new ParsePayloadUsingCoder<>(coder));
+    return new AutoValue_PubsubIO_Read.Builder<T>()
+        .setNeedsAttributes(false)
+        .setPubsubClientFactory(FACTORY)
+        .setCoder(coder)
+        .setParseFn(new ParsePayloadUsingCoder<>(coder))
+        .build();
+  }
+
+  /**
+   * Returns a {@link PTransform} that continuously reads binary encoded Avro messages into the Avro
+   * {@link GenericRecord} type.
+   *
+   * <p>Beam will infer a schema for the Avro schema. This allows the output to be used by SQL and
+   * by the schema-transform library.
+   */
+  @Experimental(Kind.SCHEMAS)
+  public static Read<GenericRecord> readAvroGenericRecords(org.apache.avro.Schema avroSchema) {
+    Schema schema = AvroUtils.getSchema(GenericRecord.class, avroSchema);
+    AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, avroSchema);
+    return new AutoValue_PubsubIO_Read.Builder<GenericRecord>()
+        .setNeedsAttributes(false)
+        .setPubsubClientFactory(FACTORY)
+        .setBeamSchema(schema)
+        .setToRowFn(AvroUtils.getToRowFunction(GenericRecord.class, avroSchema))
+        .setFromRowFn(AvroUtils.getFromRowFunction(GenericRecord.class))
+        .setParseFn(new ParsePayloadUsingCoder<>(coder))
+        .build();
+  }
+
+  /**
+   * Returns a {@link PTransform} that continuously reads binary encoded Avro messages of the
+   * specific type.
+   *
+   * <p>Beam will infer a schema for the Avro schema. This allows the output to be used by SQL and
+   * by the schema-transform library.
+   */
+  @Experimental(Kind.SCHEMAS)
+  public static <T> Read<T> readAvrosWithBeamSchema(Class<T> clazz) {
+    if (clazz.equals(GenericRecord.class)) {
+      throw new IllegalArgumentException("For GenericRecord, please call readAvroGenericRecords");
+    }
+    org.apache.avro.Schema avroSchema = ReflectData.get().getSchema(clazz);
+    AvroCoder<T> coder = AvroCoder.of(clazz);
+    Schema schema = AvroUtils.getSchema(clazz, null);
+    return new AutoValue_PubsubIO_Read.Builder<T>()
+        .setNeedsAttributes(false)
+        .setPubsubClientFactory(FACTORY)
+        .setBeamSchema(schema)
+        .setToRowFn(AvroUtils.getToRowFunction(clazz, avroSchema))
+        .setFromRowFn(AvroUtils.getFromRowFunction(clazz))
+        .setParseFn(new ParsePayloadUsingCoder<>(coder))
+        .build();
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
@@ -553,6 +627,20 @@ public class PubsubIO {
     @Nullable
     abstract SimpleFunction<PubsubMessage, T> getParseFn();
 
+    @Nullable
+    abstract Schema getBeamSchema();
+
+    @Nullable
+    abstract SerializableFunction<T, Row> getToRowFn();
+
+    @Nullable
+    abstract SerializableFunction<Row, T> getFromRowFn();
+
+    abstract PubsubClient.PubsubClientFactory getPubsubClientFactory();
+
+    @Nullable
+    abstract Clock getClock();
+
     abstract boolean getNeedsAttributes();
 
     abstract Builder<T> toBuilder();
@@ -571,7 +659,17 @@ public class PubsubIO {
 
       abstract Builder<T> setParseFn(SimpleFunction<PubsubMessage, T> parseFn);
 
+      abstract Builder<T> setBeamSchema(@Nullable Schema beamSchema);
+
+      abstract Builder<T> setToRowFn(@Nullable SerializableFunction<T, Row> toRowFn);
+
+      abstract Builder<T> setFromRowFn(@Nullable SerializableFunction<Row, T> fromRowFn);
+
       abstract Builder<T> setNeedsAttributes(boolean needsAttributes);
+
+      abstract Builder<T> setPubsubClientFactory(PubsubClient.PubsubClientFactory clientFactory);
+
+      abstract Builder<T> setClock(@Nullable Clock clock);
 
       abstract Read<T> build();
     }
@@ -682,6 +780,26 @@ public class PubsubIO {
       return toBuilder().setCoder(coder).setParseFn(parseFn).build();
     }
 
+    @VisibleForTesting
+    /**
+     * Set's the PubsubClientFactory.
+     *
+     * <p>Only for use by unit tests.
+     */
+    Read<T> withClientFactory(PubsubClient.PubsubClientFactory clientFactory) {
+      return toBuilder().setPubsubClientFactory(clientFactory).build();
+    }
+
+    @VisibleForTesting
+    /**
+     * Set's the internal Clock.
+     *
+     * <p>Only for use by unit tests.
+     */
+    Read<T> withClock(Clock clock) {
+      return toBuilder().setClock(clock).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       if (getTopicProvider() == null && getSubscriptionProvider() == null) {
@@ -705,14 +823,18 @@ public class PubsubIO {
               : NestedValueProvider.of(getSubscriptionProvider(), new SubscriptionPathTranslator());
       PubsubUnboundedSource source =
           new PubsubUnboundedSource(
-              FACTORY,
+              getClock(),
+              getPubsubClientFactory(),
               null /* always get project from runtime PipelineOptions */,
               topicPath,
               subscriptionPath,
               getTimestampAttribute(),
               getIdAttribute(),
               getNeedsAttributes());
-      return input.apply(source).apply(MapElements.via(getParseFn())).setCoder(getCoder());
+      PCollection<T> read = input.apply(source).apply(MapElements.via(getParseFn()));
+      return (getBeamSchema() != null)
+          ? read.setSchema(getBeamSchema(), getToRowFn(), getFromRowFn())
+          : read.setCoder(getCoder());
     }
 
     @Override
