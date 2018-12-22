@@ -65,11 +65,9 @@ class ByteBuddyUtils {
   /**
    * A naming strategy for ByteBuddy classes.
    *
-   * <p>We always inject the generatter classes in the same same package as the user's target class.
-   *
-   * @kanterov kanterov 20 hours ago Contributor nit: s/generatter/generated/
-   * @reuvenlax Reply… This way, if the class fields or methods are package private, our generated
-   *     class can still access them.
+   * <p>We always inject the generator classes in the same same package as the user's target class.
+   * This way, if the class fields or methods are package private, our generated class can still
+   * access them.
    */
   static class InjectPackageStrategy extends NamingStrategy.AbstractBase {
     /** A resolver for the base name for naming the unnamed type. */
