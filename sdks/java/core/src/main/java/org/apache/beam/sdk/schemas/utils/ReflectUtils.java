@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 
 /** A set of reflection helper methods. */
@@ -71,7 +70,8 @@ public class ReflectUtils {
         clazz,
         c -> {
           return Arrays.stream(c.getDeclaredMethods())
-              .filter(m -> Modifier.isPublic(m.getModifiers()))
+              .filter(m -> !Modifier.isPrivate(m.getModifiers()))
+              .filter(m -> !Modifier.isProtected(m.getModifiers()))
               .filter(m -> !Modifier.isStatic(m.getModifiers()))
               .collect(Collectors.toList());
         });
@@ -89,8 +89,7 @@ public class ReflectUtils {
             }
             for (java.lang.reflect.Field field : c.getDeclaredFields()) {
               if ((field.getModifiers() & (Modifier.TRANSIENT | Modifier.STATIC)) == 0) {
-                if ((field.getModifiers() & Modifier.PUBLIC) != 0) {
-                  boolean nullable = field.getAnnotation(Nullable.class) != null;
+                if ((field.getModifiers() & (Modifier.PRIVATE | Modifier.PROTECTED)) == 0) {
                   checkArgument(
                       types.put(field.getName(), field) == null,
                       c.getSimpleName() + " contains two fields named: " + field);
