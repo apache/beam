@@ -1302,6 +1302,11 @@ public class KafkaIO {
     }
 
     @Override
+    public void validate(PipelineOptions options) {
+      getWriteRecordsTransform().validate(options);
+    }
+
+    @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       getWriteRecordsTransform().populateDisplayData(builder);
