@@ -51,8 +51,6 @@ class Repositories {
 
       // Apache release snapshots
       maven { url "https://repository.apache.org/content/repositories/releases" }
-
-      maven { url "https://repository.apache.org/content/repositories/orgapacheflink-1199/" }
     }
 
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
