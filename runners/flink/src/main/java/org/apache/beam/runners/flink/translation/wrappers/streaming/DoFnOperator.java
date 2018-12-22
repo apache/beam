@@ -148,7 +148,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   protected transient FlinkStateInternals<?> keyedStateInternals;
 
-  private final String stepName;
+  protected final String stepName;
 
   private final Coder<WindowedValue<InputT>> windowedInputCoder;
 

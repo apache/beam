@@ -15,17 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
 
-import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueSetter;
-import org.apache.beam.sdk.schemas.FieldValueSetterFactory;
-import org.apache.beam.sdk.schemas.Schema;
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
-/** A factory for creating {@link FieldValueSetter} objects for a POJO. */
-public class PojoValueSetterFactory implements FieldValueSetterFactory {
-  @Override
-  public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {
-    return POJOUtils.getSetters(targetClass, schema);
+// This is the Go postcommit which runs a gradle build, and the current set
+// of postcommit tests.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go', 'Run Go PostCommit',
+  './gradlew :goPostCommit', this) {
+  description('Runs Go PostCommit tests against master.')
+  previousNames(/beam_PostCommit_Go_GradleBuild/)
+
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(
+    delegate,
+    'master',
+    150)
+
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':goPostCommit')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('--no-parallel')
+    }
   }
 }

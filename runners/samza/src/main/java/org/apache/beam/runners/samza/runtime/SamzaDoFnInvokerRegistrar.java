@@ -15,17 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+package org.apache.beam.runners.samza.runtime;
 
-import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueSetter;
-import org.apache.beam.sdk.schemas.FieldValueSetterFactory;
-import org.apache.beam.sdk.schemas.Schema;
+import java.util.Map;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.samza.task.TaskContext;
 
-/** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
-public class JavaBeanSetterFactory implements FieldValueSetterFactory {
-  @Override
-  public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getSetters(targetClass, schema);
-  }
+/** A registrar for Samza DoFnInvoker. */
+public interface SamzaDoFnInvokerRegistrar {
+
+  /** Returns the invoker for a {@link DoFn}. */
+  <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(
+      DoFn<InputT, OutputT> fn, TaskContext context);
+
+  /** Returns the configs for a {@link DoFn}. */
+  <InputT, OutputT> Map<String, String> configFor(DoFn<InputT, OutputT> fn);
 }

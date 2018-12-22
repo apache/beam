@@ -27,8 +27,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.hadoop.inputformat.Employee;
-import org.apache.beam.sdk.io.hadoop.inputformat.TestEmployeeDataSet;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -51,9 +49,9 @@ import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
-/** Unit tests for {@link HadoopFormatIO}. */
+/** Unit tests for {@link HadoopFormatIO.Write}. */
 @RunWith(MockitoJUnitRunner.class)
-public class HadoopFormatIOTest {
+public class HadoopFormatIOWriteTest {
 
   private static final int REDUCERS_COUNT = 2;
   private static final String LOCKS_FOLDER_NAME = "locks";

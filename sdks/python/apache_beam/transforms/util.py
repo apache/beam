@@ -281,6 +281,11 @@ class _BatchSizeEstimator(object):
     n = float(len(xs))
     xbar = sum(xs) / n
     ybar = sum(ys) / n
+    if xbar == 0:
+      return ybar, 0
+    if all(xs[0] == x for x in xs):
+      # Simply use the mean if all values in xs are same.
+      return 0, ybar / xbar
     b = (sum([(x - xbar) * (y - ybar) for x, y in zip(xs, ys)])
          / sum([(x - xbar)**2 for x in xs]))
     a = ybar - b * xbar
@@ -291,13 +296,16 @@ class _BatchSizeEstimator(object):
     # pylint: disable=wrong-import-order, wrong-import-position
     import numpy as np
     from numpy import sum
+    n = len(xs)
+    if all(xs[0] == x for x in xs):
+      # If all values of xs are same then fallback to linear_regression_no_numpy
+      return _BatchSizeEstimator.linear_regression_no_numpy(xs, ys)
     xs = np.asarray(xs, dtype=float)
     ys = np.asarray(ys, dtype=float)
 
     # First do a simple least squares fit for y = a + bx over all points.
     b, a = np.polyfit(xs, ys, 1)
 
-    n = len(xs)
     if n < 10:
       return a, b
     else:

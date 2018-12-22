@@ -297,7 +297,7 @@ public class PAssertTest implements Serializable {
 
   /** Basic test for {@code isEqualTo}. */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesSideInputs.class})
   public void testIsEqualTo() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(43));
     PAssert.thatSingleton(pcollection).isEqualTo(43);
@@ -306,7 +306,11 @@ public class PAssertTest implements Serializable {
 
   /** Basic test for {@code isEqualTo}. */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({
+    ValidatesRunner.class,
+    UsesStatefulParDo.class, // This test fails if State is unsupported despite no direct usage.
+    DataflowPortabilityExecutableStageUnsupported.class
+  })
   public void testWindowedIsEqualTo() throws Exception {
     PCollection<Integer> pcollection =
         pipeline
@@ -326,7 +330,7 @@ public class PAssertTest implements Serializable {
 
   /** Basic test for {@code notEqualTo}. */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesSideInputs.class})
   public void testNotEqualTo() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(43));
     PAssert.thatSingleton(pcollection).notEqualTo(42);
@@ -335,7 +339,7 @@ public class PAssertTest implements Serializable {
 
   /** Test that we throw an error for false assertion on singleton. */
   @Test
-  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  @Category({ValidatesRunner.class, UsesFailureMessage.class, UsesSideInputs.class})
   public void testPAssertEqualsSingletonFalse() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
     PAssert.thatSingleton("The value was not equal to 44", pcollection).isEqualTo(44);
@@ -351,7 +355,7 @@ public class PAssertTest implements Serializable {
 
   /** Test that we throw an error for false assertion on singleton. */
   @Test
-  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  @Category({ValidatesRunner.class, UsesFailureMessage.class, UsesSideInputs.class})
   public void testPAssertEqualsSingletonFalseDefaultReasonString() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
     PAssert.thatSingleton(pcollection).isEqualTo(44);
@@ -385,7 +389,7 @@ public class PAssertTest implements Serializable {
 
   /** Tests that windowed {@code containsInAnyOrder} is actually order-independent. */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
   public void testWindowedContainsInAnyOrder() throws Exception {
     PCollection<Integer> pcollection =
         pipeline

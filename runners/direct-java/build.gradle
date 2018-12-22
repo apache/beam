@@ -64,7 +64,7 @@ dependencies {
     compile project(path: it, configuration: "shadow")
   }
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_13_1
+  shadow project(path: ":beam-vendor-grpc-1_13_1", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.args4j
@@ -160,24 +160,32 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
 createPortableValidatesRunnerTask(
         jobServerDriver: "org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobServer",
         testClasspathConfiguration: configurations.validatesPortableRunner,
+        jobServerConfig: "--port=0",
         testCategories: {
           includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
           excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
           excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
           excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
           excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
           excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
           excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-          //SplitableDoFnTests
+          // TODO(BEAM-5452): Support metrics.
+          excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
+          // TODO(BEAM-3743): Support SplittableDoFn
           excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
           excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
           excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+          // TODO(BEAM-2928): Support sideinput.
+          excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
+          // TODO(BEAM-2917): Support user state.
+          excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+          // TODO(BEAM-4680): Support user timers.
+          excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
         },
 )

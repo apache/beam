@@ -36,14 +36,12 @@ public abstract class StructuralKey<K> {
 
   /** Get the empty {@link StructuralKey}. All instances of the empty key are considered equal. */
   public static StructuralKey<?> empty() {
-    StructuralKey<Object> emptyKey =
-        new StructuralKey<Object>() {
-          @Override
-          public Object getKey() {
-            return this;
-          }
-        };
-    return emptyKey;
+    return new StructuralKey<Object>() {
+      @Override
+      public Object getKey() {
+        return this;
+      }
+    };
   }
 
   /** Create a new Structural Key of the provided key that can be encoded by the provided coder. */

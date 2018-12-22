@@ -83,8 +83,7 @@ public interface ValueProvider<T> extends Serializable {
 
     /** Creates a {@link StaticValueProvider} that wraps the provided value. */
     public static <T> StaticValueProvider<T> of(T value) {
-      StaticValueProvider<T> factory = new StaticValueProvider<>(value);
-      return factory;
+      return new StaticValueProvider<>(value);
     }
 
     @Override
@@ -121,8 +120,7 @@ public interface ValueProvider<T> extends Serializable {
     /** Creates a {@link NestedValueProvider} that wraps the provided value. */
     public static <T, X> NestedValueProvider<T, X> of(
         ValueProvider<X> value, SerializableFunction<X, T> translator) {
-      NestedValueProvider<T, X> factory = new NestedValueProvider<>(value, translator);
-      return factory;
+      return new NestedValueProvider<>(value, translator);
     }
 
     @Override

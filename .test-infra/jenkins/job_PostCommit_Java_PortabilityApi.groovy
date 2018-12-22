@@ -22,10 +22,11 @@ import PostcommitJobBuilder
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PortabilityApi_GradleBuild', 'Run Java PortabilityApi PostCommit',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PortabilityApi', 'Run Java PortabilityApi PostCommit',
   'Java SDK PortabilityApi Post Commit Tests', this) {
 
   description('Runs PostCommit tests on the Java SDK using Portability APIs.')
+  previousNames(/beam_PostCommit_Java_PortabilityApi_GradleBuild/)
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)

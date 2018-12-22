@@ -26,6 +26,11 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Format"
 ext.summary = "IO to read data from sources and to write data to sinks that implement Hadoop MapReduce Format."
 
+def log4j_version = "2.6.2"
+def elastic_search_version = "5.0.0"
+// Migrate to using a version of the driver compatible with Guava 20
+def cassandra_driver = "3.2.0"
+
 configurations.create("sparkRunner")
 configurations.sparkRunner {
   // Ban certain dependencies to prevent a StackOverflow within Spark
@@ -53,9 +58,29 @@ dependencies {
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-hadoop-input-format", configuration: "shadowTest")
   testCompile project(path: ":beam-examples-java", configuration: "shadowTest")
+
+  testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
+  testCompile "org.elasticsearch.client:transport:$elastic_search_version"
+  testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
+  testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testCompile ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
+    // TODO(https://issues.apache.org/jira/browse/BEAM-3715)
+    // These are all optional deps of elasticsearch-hadoop. Why do they have to be excluded?
+    exclude group: "cascading", module: "cascading-local"
+    exclude group: "cascading", module: "cascading-hadoop"
+    exclude group: "org.apache.hive", module: "hive-service"
+    exclude group: "org.apache.pig", module: "pig"
+    exclude group: "org.apache.spark", module: "spark-core_2.10"
+    exclude group: "org.apache.spark", module: "spark-streaming_2.10"
+    exclude group: "org.apache.spark", module: "spark-sql_2.10"
+    exclude group: "org.apache.storm", module: "storm-core"
+  }
+  testCompile "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver"
+  testCompile "org.apache.cassandra:cassandra-all:3.9"
+  testCompile "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver"
   testCompile library.java.postgres
+  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
@@ -71,6 +96,19 @@ dependencies {
   sparkRunner library.java.spark_streaming
   sparkRunner library.java.spark_core
 }
+
+// The cassandra.yaml file currently assumes "target/..." exists.
+// TODO: Update cassandra.yaml to inject new properties representing
+// the root path. Also migrate cassandra.yaml to use any open ports
+// instead of a static port.
+task createTargetDirectoryForCassandra() {
+  doLast {
+    if (!project.file("target").exists()) {
+      project.file("target").mkdirs();
+    }
+  }
+}
+test.dependsOn createTargetDirectoryForCassandra
 
 def runnerClass = "org.apache.beam.runners.spark.TestSparkRunner"
 task sparkRunner(type: Test) {

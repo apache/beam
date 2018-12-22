@@ -31,10 +31,10 @@ applyJavaNature(
     relocate "org.apache.beam.sdk.extensions.protobuf", "org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf"
 
     // guava uses the com.google.common and com.google.thirdparty package namespaces
-    relocate "com.google.common", "org.apache.beam.vendor.grpc.v1_13_1.com.google.common"
-    relocate "com.google.thirdparty", "org.apache.beam.vendor.grpc.v1_13_1.com.google.thirdparty"
+    relocate "com.google.common", "org.apache.beam.vendor.grpc.v1p13p1.com.google.common"
+    relocate "com.google.thirdparty", "org.apache.beam.vendor.grpc.v1p13p1.com.google.thirdparty"
 
-    relocate "com.google.protobuf", "org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf"
+    relocate "com.google.protobuf", "org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf"
     }
 )
 

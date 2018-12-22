@@ -75,8 +75,7 @@ public class ShuffleReaderFactoryTest {
         ReaderRegistry.defaultRegistry()
             .create(cloudSource, PipelineOptionsFactory.create(), context, null);
     Assert.assertThat(reader, new IsInstanceOf(shuffleReaderClass));
-    T shuffleSource = (T) reader;
-    return shuffleSource;
+    return (T) reader;
   }
 
   void runTestCreateUngroupedShuffleReader(

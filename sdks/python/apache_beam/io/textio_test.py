@@ -428,7 +428,7 @@ class TextSourceTest(unittest.TestCase):
     pipeline.run()
 
   def test_read_from_text_with_file_name_file_pattern(self):
-    prefix = datetime.datetime.now().strftime("%Y%m%d%H%M%s")
+    prefix = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     file_name_1, data_1 = write_data(5, prefix=prefix)
     file_name_2, data_2 = write_data(5, prefix=prefix)
     expected_data = []

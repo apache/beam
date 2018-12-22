@@ -58,5 +58,5 @@ job('beam_PerformanceTests_Python'){
       beam_it_args             : pipelineArgsJoined,
   ]
 
-  commonJobProperties.buildPerformanceTest(delegate, argMap, 'PYTHON')
+  commonJobProperties.buildPerformanceTest(delegate, argMap)
 }

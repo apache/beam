@@ -15,28 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.util;
 
-import CommonJobProperties as commonJobProperties
-import PostcommitJobBuilder
+/**
+ * Lambda interface for inspecting an http request and response to match the failure and possibly
+ * generate a custom error message with more context.
+ */
+interface HttpCallMatcher {
 
-// This is the Go postcommit which runs a gradle build, and the current set
-// of postcommit tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go PostCommit',
-  './gradlew :goPostCommit', this) {
-  description('Runs Go PostCommit tests against master.')
-
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(
-    delegate,
-    'master',
-    150)
-
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':goPostCommit')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('--no-parallel')
-    }
-  }
+  /** @return true iff the request and response represent a matching http c\all. */
+  boolean matchResponse(HttpRequestWrapper req, HttpResponseWrapper response);
 }

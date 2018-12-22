@@ -30,6 +30,8 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -43,6 +45,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.TimerReference;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
@@ -97,9 +100,12 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private final Map<String, Integer> outputMap;
   private final FlinkExecutableStageContext.Factory contextFactory;
   private final Coder windowCoder;
+  // Unique name for namespacing metrics; currently just takes the input ID
+  private final String stageName;
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
   private transient RuntimeContext runtimeContext;
+  private transient FlinkMetricContainer container;
   private transient StateRequestHandler stateRequestHandler;
   private transient FlinkExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
@@ -121,6 +127,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     this.outputMap = outputMap;
     this.contextFactory = contextFactory;
     this.windowCoder = windowCoder;
+    this.stageName = stagePayload.getInput();
   }
 
   @Override
@@ -130,6 +137,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
     executableStage = ExecutableStage.fromPayload(stagePayload);
     runtimeContext = getRuntimeContext();
+    container = new FlinkMetricContainer(getRuntimeContext());
     // TODO: Wire this into the distributed cache and make it pluggable.
     stageContext = contextFactory.get(jobInfo);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
@@ -139,7 +147,18 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     stateRequestHandler =
         getStateRequestHandler(
             executableStage, stageBundleFactory.getProcessBundleDescriptor(), runtimeContext);
-    progressHandler = BundleProgressHandler.ignored();
+    progressHandler =
+        new BundleProgressHandler() {
+          @Override
+          public void onProgress(ProcessBundleProgressResponse progress) {
+            container.updateMetrics(stageName, progress.getMonitoringInfosList());
+          }
+
+          @Override
+          public void onCompleted(ProcessBundleResponse response) {
+            container.updateMetrics(stageName, response.getMonitoringInfosList());
+          }
+        };
   }
 
   private StateRequestHandler getStateRequestHandler(

@@ -580,8 +580,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
       @Override
       public UnboundedSource<T, ?> getCurrentSource() {
-        TestUnboundedSource<T> source = TestUnboundedSource.this;
-        return source;
+        return TestUnboundedSource.this;
       }
 
       @Override

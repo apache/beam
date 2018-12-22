@@ -104,11 +104,11 @@ public final class Contextful<ClosureT> implements Serializable {
   }
 
   /**
-   * Wraps a {@link SerializableFunction} as a {@link Contextful} of {@link Fn} with empty {@link
+   * Wraps a {@link ProcessFunction} as a {@link Contextful} of {@link Fn} with empty {@link
    * Requirements}.
    */
   public static <InputT, OutputT> Contextful<Fn<InputT, OutputT>> fn(
-      final SerializableFunction<InputT, OutputT> fn) {
+      final ProcessFunction<InputT, OutputT> fn) {
     return new Contextful<>((element, c) -> fn.apply(element), Requirements.empty());
   }
 

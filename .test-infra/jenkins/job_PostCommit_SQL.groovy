@@ -15,14 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink;
 
-/** The translation mode of the Beam Pipeline. */
-enum TranslationMode {
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
-  /** Uses the batch mode of Flink. */
-  BATCH,
+// This job runs the Java postcommit tests, including the suite of integration
+// tests.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_SQL', 'Run SQL PostCommit',
+  'SQL Post Commit Tests', this) {
 
-  /** Uses the streaming mode of Flink. */
-  STREAMING
+  description('Runs PostCommit tests for Beam SQL.')
+
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
+  // Publish all test results to Jenkins
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+
+  // Gradle goals for this job.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sqlPostCommit')
+      commonJobProperties.setGradleSwitches(delegate)
+    }
+  }
 }
