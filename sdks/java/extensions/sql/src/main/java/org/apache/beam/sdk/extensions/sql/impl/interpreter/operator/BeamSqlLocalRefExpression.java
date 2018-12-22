@@ -41,8 +41,6 @@ public class BeamSqlLocalRefExpression extends BeamSqlExpression {
   public BeamSqlPrimitive evaluate(
       Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
 
-    BeamSqlPrimitive value = env.getLocalRef(index);
-
-    return value;
+    return env.getLocalRef(index);
   }
 }

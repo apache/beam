@@ -148,7 +148,7 @@ public class ShardReadersPoolTest {
         .thenAnswer(
             (Answer<List<KinesisRecord>>)
                 invocation -> {
-                  Thread.sleep(TimeUnit.MINUTES.toMillis(1));
+                  Thread.sleep(TIMEOUT_IN_MILLIS / 2);
                   return Collections.emptyList();
                 });
     shardReadersPool.start();

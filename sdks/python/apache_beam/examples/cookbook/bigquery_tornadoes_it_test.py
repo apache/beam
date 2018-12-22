@@ -41,7 +41,7 @@ class BigqueryTornadoesIT(unittest.TestCase):
 
   # The default checksum is a SHA-1 hash generated from sorted rows reading
   # from expected Bigquery table.
-  DEFAULT_CHECKSUM = '83789a7c1bca7959dcf23d3bc37e9204e594330f'
+  DEFAULT_CHECKSUM = 'd860e636050c559a16a791aff40d6ad809d4daf0'
 
   @attr('IT')
   def test_bigquery_tornadoes_it(self):

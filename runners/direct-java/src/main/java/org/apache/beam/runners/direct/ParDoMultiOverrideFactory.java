@@ -188,15 +188,12 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
               // according to what ParDo already does.
               .setWindowingStrategyInternal(inputWindowingStrategy);
 
-      PCollectionTuple outputs =
-          adjustedInput
-              // Explode the resulting iterable into elements that are exactly the ones from
-              // the input
-              .apply(
-              "Stateful ParDo",
-              new StatefulParDo<>(doFn, mainOutputTag, additionalOutputTags, sideInputs));
-
-      return outputs;
+      return adjustedInput
+          // Explode the resulting iterable into elements that are exactly the ones from
+          // the input
+          .apply(
+          "Stateful ParDo",
+          new StatefulParDo<>(doFn, mainOutputTag, additionalOutputTags, sideInputs));
     }
   }
 
@@ -245,16 +242,13 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
     @Override
     public PCollectionTuple expand(PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input) {
 
-      PCollectionTuple outputs =
-          PCollectionTuple.ofPrimitiveOutputsInternal(
-              input.getPipeline(),
-              TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
-              // TODO
-              Collections.emptyMap(),
-              input.getWindowingStrategy(),
-              input.isBounded());
-
-      return outputs;
+      return PCollectionTuple.ofPrimitiveOutputsInternal(
+          input.getPipeline(),
+          TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
+          // TODO
+          Collections.emptyMap(),
+          input.getWindowingStrategy(),
+          input.isBounded());
     }
   }
 

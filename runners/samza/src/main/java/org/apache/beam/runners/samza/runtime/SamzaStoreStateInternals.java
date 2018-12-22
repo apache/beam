@@ -42,6 +42,7 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
+import org.apache.beam.runners.samza.transforms.UpdatingCombineFn;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -805,7 +806,14 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     @Override
     @Nonnull
     public OutT read() {
-      return combineFn.extractOutput(getAccum());
+      AccumT accum = getAccum();
+      OutT output = combineFn.extractOutput(accum);
+      if (combineFn instanceof UpdatingCombineFn) {
+        AccumT updatedAccum =
+            ((UpdatingCombineFn<InT, AccumT, OutT>) combineFn).updateAfterFiring(accum);
+        writeInternal(updatedAccum);
+      }
+      return output;
     }
   }
 

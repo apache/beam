@@ -621,12 +621,10 @@ public class BigQueryHelpers {
   static TableReference createTempTableReference(String projectId, String jobUuid) {
     String queryTempDatasetId = "temp_dataset_" + jobUuid;
     String queryTempTableId = "temp_table_" + jobUuid;
-    TableReference queryTempTableRef =
-        new TableReference()
-            .setProjectId(projectId)
-            .setDatasetId(queryTempDatasetId)
-            .setTableId(queryTempTableId);
-    return queryTempTableRef;
+    return new TableReference()
+        .setProjectId(projectId)
+        .setDatasetId(queryTempDatasetId)
+        .setTableId(queryTempTableId);
   }
 
   static String resolveTempLocation(

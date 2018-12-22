@@ -40,7 +40,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * whether the {@linkplain HadoopInputFormatIO } source returns immutable records in the scenario
  * when RecordReader creates new key and value objects every time it reads data.
  */
-class EmployeeInputFormat extends InputFormat<Text, Employee> {
+public class EmployeeInputFormat extends InputFormat<Text, Employee> {
 
   public EmployeeInputFormat() {}
 

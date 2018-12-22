@@ -125,8 +125,7 @@ public class DirectRunnerTest implements Serializable {
                 new SimpleFunction<KV<String, Long>, String>() {
                   @Override
                   public String apply(KV<String, Long> input) {
-                    String str = String.format("%s: %s", input.getKey(), input.getValue());
-                    return str;
+                    return String.format("%s: %s", input.getKey(), input.getValue());
                   }
                 }));
 
@@ -160,8 +159,7 @@ public class DirectRunnerTest implements Serializable {
                 new SimpleFunction<KV<String, Long>, String>() {
                   @Override
                   public String apply(KV<String, Long> input) {
-                    String str = String.format("%s: %s", input.getKey(), input.getValue());
-                    return str;
+                    return String.format("%s: %s", input.getKey(), input.getValue());
                   }
                 }));
 

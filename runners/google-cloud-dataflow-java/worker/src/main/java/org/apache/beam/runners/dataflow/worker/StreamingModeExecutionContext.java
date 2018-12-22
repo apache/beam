@@ -60,7 +60,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -133,13 +133,31 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     // 2. The reporting thread calls extractUpdate which reads the current sum *AND* sets it to 0.
     private final AtomicLong totalMillisInState = new AtomicLong();
 
+    // The worker that created this state.  Used to report lulls back to the worker.
+    private final StreamingDataflowWorker worker;
+
     public StreamingModeExecutionState(
         NameContext nameContext,
         String stateName,
         MetricsContainer metricsContainer,
-        ProfileScope profileScope) {
+        ProfileScope profileScope,
+        StreamingDataflowWorker worker) {
       // TODO: Take in the requesting step name and side input index for streaming.
       super(nameContext, stateName, null, null, metricsContainer, profileScope);
+      this.worker = worker;
+    }
+
+    /*
+     * Report the lull to the StreamingDataflowWorker that is stuck in addition to logging the
+     * lull.
+     */
+    @Override
+    public void reportLull(Thread trackedThread, long millis) {
+      super.reportLull(trackedThread, millis);
+      // Also report the failure to the list of pending failures to report on the worker thread
+      // so that the failure gets communicated to the StreamingDataflowWorker.
+      String errorMessage = getLullMessage(trackedThread, Duration.millis(millis));
+      worker.addFailure(errorMessage);
     }
 
     /**
@@ -172,6 +190,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   /** Implementation of ExecutionStateRegistry that creates Streaming versions of ExecutionState. */
   public static class StreamingModeExecutionStateRegistry extends ExecutionStateRegistry {
+    private final StreamingDataflowWorker worker;
+
+    public StreamingModeExecutionStateRegistry(StreamingDataflowWorker worker) {
+      this.worker = worker;
+    }
 
     @Override
     protected DataflowOperationContext.DataflowExecutionState createState(
@@ -181,7 +204,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         Integer inputIndex,
         MetricsContainer container,
         ProfileScope profileScope) {
-      return new StreamingModeExecutionState(nameContext, stateName, container, profileScope);
+      return new StreamingModeExecutionState(
+          nameContext, stateName, container, profileScope, worker);
     }
   }
 

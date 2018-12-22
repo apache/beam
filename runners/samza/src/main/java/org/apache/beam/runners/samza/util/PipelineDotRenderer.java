@@ -65,12 +65,13 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
     final int nodeId = nextNodeId++;
+    writeLine("%d [label=\"%s\"]", nodeId, escapeString(node.getTransform().getName()));
+
     node.getOutputs()
         .values()
         .forEach(
             x -> {
               valueToProducerNodeId.put(x, nodeId);
-              writeLine("%d [label=\"%s\"]", nodeId, escapeString(node.getTransform().getName()));
             });
 
     node.getInputs()

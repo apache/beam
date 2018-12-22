@@ -23,7 +23,8 @@
 def dependOnProjects = [":beam-model-pipeline", ":beam-model-fn-execution", ":beam-sdks-java-core",
                         ":beam-sdks-java-fn-execution",
                         ":beam-sdks-java-extensions-google-cloud-platform-core",
-                        ":beam-runners-core-java", ":beam-runners-core-construction-java",]
+                        ":beam-runners-core-java", ":beam-runners-core-construction-java",
+                        ":beam-vendor-grpc-1_13_1", ]
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(validateShadowJar: false, shadowClosure: DEFAULT_SHADOW_CLOSURE <<
@@ -53,7 +54,6 @@ dependencies {
   compile library.java.guava
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_13_1
   provided library.java.error_prone_annotations
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

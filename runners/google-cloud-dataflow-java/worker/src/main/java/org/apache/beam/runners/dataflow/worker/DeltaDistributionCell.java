@@ -53,6 +53,11 @@ public class DeltaDistributionCell implements Distribution, MetricCell<Distribut
   }
 
   @Override
+  public void update(long sum, long count, long min, long max) {
+    update(DistributionData.create(sum, count, min, max));
+  }
+
+  @Override
   public DirtyState getDirty() {
     throw new UnsupportedOperationException(
         String.format("%s doesn't support the getDirty", getClass().getSimpleName()));

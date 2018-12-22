@@ -26,28 +26,18 @@ import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline. */
-class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
+/**
+ * Traverses the Pipeline to determine the translation mode (i.e. streaming or batch) for this
+ * pipeline.
+ */
+class PipelineTranslationModeOptimizer extends FlinkPipelineTranslator {
 
-  private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslationOptimizer.class);
-
-  private TranslationMode translationMode;
+  private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslationModeOptimizer.class);
 
   private final FlinkPipelineOptions options;
 
-  public PipelineTranslationOptimizer(TranslationMode defaultMode, FlinkPipelineOptions options) {
-    this.translationMode = defaultMode;
+  public PipelineTranslationModeOptimizer(FlinkPipelineOptions options) {
     this.options = options;
-  }
-
-  public TranslationMode getTranslationMode() {
-
-    // override user-specified translation mode
-    if (options.isStreaming()) {
-      return TranslationMode.STREAMING;
-    }
-
-    return translationMode;
   }
 
   @Override
@@ -64,7 +54,7 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
     if (hasUnboundedOutput(appliedPTransform)) {
       Class<? extends PTransform> transformClass = node.getTransform().getClass();
       LOG.info("Found {}. Switching to streaming execution.", transformClass);
-      translationMode = TranslationMode.STREAMING;
+      options.setStreaming(true);
     }
   }
 

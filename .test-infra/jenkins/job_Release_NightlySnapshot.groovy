@@ -20,8 +20,9 @@ import CommonJobProperties as commonJobProperties
 
 // This creates the nightly snapshot build.
 // Into https://repository.apache.org/content/groups/snapshots/org/apache/beam.
-job('beam_Release_Gradle_NightlySnapshot') {
+job('beam_Release_NightlySnapshot') {
   description('Publish a nightly snapshot.')
+  previousNames(/beam_Release_Gradle_NightlySnapshot/)
 
   // Execute concurrent builds if necessary.
   concurrentBuild()

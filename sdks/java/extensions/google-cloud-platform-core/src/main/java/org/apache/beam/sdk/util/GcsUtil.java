@@ -472,23 +472,20 @@ public class GcsUtil {
     Storage.Buckets.Get getBucket = storageClient.buckets().get(path.getBucket());
 
     try {
-      Bucket bucket =
-          ResilientOperation.retry(
-              ResilientOperation.getGoogleRequestCallable(getBucket),
-              backoff,
-              new RetryDeterminer<IOException>() {
-                @Override
-                public boolean shouldRetry(IOException e) {
-                  if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
-                    return false;
-                  }
-                  return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
-                }
-              },
-              IOException.class,
-              sleeper);
-
-      return bucket;
+      return ResilientOperation.retry(
+          ResilientOperation.getGoogleRequestCallable(getBucket),
+          backoff,
+          new RetryDeterminer<IOException>() {
+            @Override
+            public boolean shouldRetry(IOException e) {
+              if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
+                return false;
+              }
+              return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+            }
+          },
+          IOException.class,
+          sleeper);
     } catch (GoogleJsonResponseException e) {
       if (errorExtractor.accessDenied(e)) {
         throw new AccessDeniedException(path.toString(), null, e.getMessage());

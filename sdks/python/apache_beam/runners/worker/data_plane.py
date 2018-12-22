@@ -88,7 +88,8 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):
   """
 
   @abc.abstractmethod
-  def input_elements(self, instruction_id, expected_targets):
+  def input_elements(
+      self, instruction_id, expected_targets, abort_callback=None):
     """Returns an iterable of all Element.Data bundles for instruction_id.
 
     This iterable terminates only once the full set of data has been recieved
@@ -97,6 +98,8 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):
     Args:
         instruction_id: which instruction the results must belong to
         expected_targets: which targets to wait on for completion
+        abort_callback: a callback to invoke if blocking returning whether
+            to abort before consuming all the data
     """
     raise NotImplementedError(type(self))
 
@@ -136,7 +139,8 @@ class InMemoryDataChannel(DataChannel):
   def inverse(self):
     return self._inverse
 
-  def input_elements(self, instruction_id, unused_expected_targets=None):
+  def input_elements(self, instruction_id, unused_expected_targets=None,
+                     abort_callback=None):
     other_inputs = []
     for data in self._inputs:
       if data.instruction_reference == instruction_id:
@@ -188,7 +192,8 @@ class _GrpcDataChannel(DataChannel):
     with self._receive_lock:
       self._received.pop(instruction_id)
 
-  def input_elements(self, instruction_id, expected_targets):
+  def input_elements(self, instruction_id, expected_targets,
+                     abort_callback=None):
     """
     Generator to retrieve elements for an instruction_id
     input_elements should be called only once for an instruction_id
@@ -199,11 +204,14 @@ class _GrpcDataChannel(DataChannel):
     """
     received = self._receiving_queue(instruction_id)
     done_targets = []
+    abort_callback = abort_callback or (lambda: False)
     try:
       while len(done_targets) < len(expected_targets):
         try:
           data = received.get(timeout=1)
         except queue.Empty:
+          if abort_callback():
+            return
           if self._exc_info:
             t, v, tb = self._exc_info
             raise_(t, v, tb)

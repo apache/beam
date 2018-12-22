@@ -187,8 +187,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     Set<BoundedWindow> readyWindows =
         stateInternals.state(StateNamespaces.global(), availableWindowsTags.get(sideInput)).read();
 
-    boolean result = readyWindows != null && readyWindows.contains(window);
-    return result;
+    return readyWindows != null && readyWindows.contains(window);
   }
 
   @Override

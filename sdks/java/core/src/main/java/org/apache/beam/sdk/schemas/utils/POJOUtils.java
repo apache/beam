@@ -18,28 +18,31 @@
 package org.apache.beam.sdk.schemas.utils;
 
 import com.google.common.collect.Maps;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription.ForLoadedField;
-import net.bytebuddy.description.modifier.Visibility;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy.Default;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
-import net.bytebuddy.implementation.MethodCall;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import net.bytebuddy.implementation.bytecode.Duplication;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.TypeCreation;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
+import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.matcher.ElementMatchers;
@@ -49,10 +52,10 @@ import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
-import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -60,12 +63,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Experimental(Kind.SCHEMAS)
 public class POJOUtils {
   public static Schema schemaFromPojoClass(Class<?> clazz) {
-    // We should cache the field order.
-    Function<Class, List<TypeInformation>> getTypesForClass =
+    Function<Class, List<FieldValueTypeInformation>> getTypesForClass =
         c ->
             ReflectUtils.getFields(c)
                 .stream()
-                .map(TypeInformation::forField)
+                .map(FieldValueTypeInformation::forField)
                 .collect(Collectors.toList());
     return StaticSchemaInference.schemaFromClass(clazz, getTypesForClass);
   }
@@ -76,22 +78,10 @@ public class POJOUtils {
   private static final Map<ClassWithSchema, List<FieldValueTypeInformation>> CACHED_FIELD_TYPES =
       Maps.newConcurrentMap();
 
-  public static List<FieldValueTypeInformation> getFieldTypes(Class<?> clazz, Schema schema) {
+  public static List<FieldValueTypeInformation> getFieldTypes(
+      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     return CACHED_FIELD_TYPES.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
-        c -> {
-          Map<String, FieldValueTypeInformation> typeInformationMap =
-              ReflectUtils.getFields(clazz)
-                  .stream()
-                  .map(FieldValueTypeInformation::of)
-                  .collect(
-                      Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
-          return schema
-              .getFields()
-              .stream()
-              .map(f -> typeInformationMap.get(f.getName()))
-              .collect(Collectors.toList());
-        });
+        new ClassWithSchema(clazz, schema), c -> fieldValueTypeSupplier.get(clazz, schema));
   }
 
   // The list of getters for a class is cached, so we only create the classes the first time
@@ -99,75 +89,62 @@ public class POJOUtils {
   private static final Map<ClassWithSchema, List<FieldValueGetter>> CACHED_GETTERS =
       Maps.newConcurrentMap();
 
-  public static List<FieldValueGetter> getGetters(Class<?> clazz, Schema schema) {
+  public static List<FieldValueGetter> getGetters(
+      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     // Return the getters ordered by their position in the schema.
     return CACHED_GETTERS.computeIfAbsent(
         new ClassWithSchema(clazz, schema),
         c -> {
-          Map<String, FieldValueGetter> getterMap =
-              ReflectUtils.getFields(clazz)
-                  .stream()
-                  .map(POJOUtils::createGetter)
-                  .collect(Collectors.toMap(FieldValueGetter::name, Function.identity()));
-          return schema
-              .getFields()
-              .stream()
-              .map(f -> getterMap.get(f.getName()))
-              .collect(Collectors.toList());
+          List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
+          List<FieldValueGetter> getters =
+              types.stream().map(POJOUtils::createGetter).collect(Collectors.toList());
+          if (getters.size() != schema.getFieldCount()) {
+            throw new RuntimeException(
+                "Was not able to generate getters for schema: " + schema + " class: " + clazz);
+          }
+          return getters;
         });
   }
 
   // The list of constructors for a class is cached, so we only create the classes the first time
   // getConstructor is called.
-  public static final Map<ClassWithSchema, Constructor> CACHED_CONSTRUCTORS =
+  public static final Map<ClassWithSchema, SchemaUserTypeCreator> CACHED_CREATORS =
       Maps.newConcurrentMap();
 
-  public static <T> Constructor<? extends T> getConstructor(Class<T> clazz, Schema schema) {
-    return CACHED_CONSTRUCTORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema), c -> createConstructor(clazz, schema));
+  public static <T> SchemaUserTypeCreator getCreator(
+      Class<T> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return CACHED_CREATORS.computeIfAbsent(
+        new ClassWithSchema(clazz, schema),
+        c -> {
+          List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
+          return createCreator(clazz, schema, types);
+        });
   }
 
-  private static <T> Constructor<? extends T> createConstructor(Class<T> clazz, Schema schema) {
+  private static <T> SchemaUserTypeCreator createCreator(
+      Class<T> clazz, Schema schema, List<FieldValueTypeInformation> types) {
     // Get the list of class fields ordered by schema.
-    Map<String, Field> fieldMap =
-        ReflectUtils.getFields(clazz)
-            .stream()
-            .collect(Collectors.toMap(Field::getName, Function.identity()));
     List<Field> fields =
-        schema
-            .getFields()
-            .stream()
-            .map(f -> fieldMap.get(f.getName()))
-            .collect(Collectors.toList());
-
-    List<Type> types =
-        fields
-            .stream()
-            .map(Field::getType)
-            .map(TypeDescriptor::of)
-            // We need raw types back so we can setup the list of constructor params.
-            .map(new ConvertType(true)::convert)
-            .collect(Collectors.toList());
-
+        types.stream().map(FieldValueTypeInformation::getField).collect(Collectors.toList());
     try {
-      DynamicType.Builder<? extends T> builder =
+      DynamicType.Builder<SchemaUserTypeCreator> builder =
           BYTE_BUDDY
-              .subclass(clazz, Default.NO_CONSTRUCTORS)
-              .defineConstructor(Visibility.PUBLIC)
-              .withParameters(types)
-              .intercept(
-                  MethodCall.invoke(clazz.getDeclaredConstructor())
-                      .andThen(new ConstructInstruction(fields)));
+              .subclass(SchemaUserTypeCreator.class)
+              .method(ElementMatchers.named("create"))
+              .intercept(new CreateInstruction(fields, clazz));
 
-      Class[] typeArray = types.toArray(new Class[types.size()]);
       return builder
           .make()
           .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
-          .getDeclaredConstructor(typeArray);
-    } catch (NoSuchMethodException e) {
+          .getDeclaredConstructor()
+          .newInstance();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw new RuntimeException(
-          "Unable to generate a getter for class " + clazz + " with schema " + schema);
+          "Unable to generate a creator for class " + clazz + " with schema " + schema);
     }
   }
 
@@ -185,13 +162,16 @@ public class POJOUtils {
    * </code></pre>
    */
   @SuppressWarnings("unchecked")
-  static <ObjectT, ValueT> FieldValueGetter<ObjectT, ValueT> createGetter(Field field) {
+  @Nullable
+  static <ObjectT, ValueT> FieldValueGetter<ObjectT, ValueT> createGetter(
+      FieldValueTypeInformation typeInformation) {
+    Field field = typeInformation.getField();
     DynamicType.Builder<FieldValueGetter> builder =
         ByteBuddyUtils.subclassGetterInterface(
             BYTE_BUDDY,
             field.getDeclaringClass(),
             new ConvertType(false).convert(TypeDescriptor.of(field.getType())));
-    builder = implementGetterMethods(builder, field);
+    builder = implementGetterMethods(builder, field, typeInformation.getName());
     try {
       return builder
           .make()
@@ -208,10 +188,10 @@ public class POJOUtils {
   }
 
   private static DynamicType.Builder<FieldValueGetter> implementGetterMethods(
-      DynamicType.Builder<FieldValueGetter> builder, Field field) {
+      DynamicType.Builder<FieldValueGetter> builder, Field field, String name) {
     return builder
         .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(field.getName()))
+        .intercept(FixedValue.reference(name))
         .method(ElementMatchers.named("get"))
         .intercept(new ReadFieldInstruction(field));
   }
@@ -221,21 +201,14 @@ public class POJOUtils {
   private static final Map<ClassWithSchema, List<FieldValueSetter>> CACHED_SETTERS =
       Maps.newConcurrentMap();
 
-  public static List<FieldValueSetter> getSetters(Class<?> clazz, Schema schema) {
+  public static List<FieldValueSetter> getSetters(
+      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     // Return the setters, ordered by their position in the schema.
     return CACHED_SETTERS.computeIfAbsent(
         new ClassWithSchema(clazz, schema),
         c -> {
-          Map<String, FieldValueSetter> setterMap =
-              ReflectUtils.getFields(clazz)
-                  .stream()
-                  .map(POJOUtils::createSetter)
-                  .collect(Collectors.toMap(FieldValueSetter::name, Function.identity()));
-          return schema
-              .getFields()
-              .stream()
-              .map(f -> setterMap.get(f.getName()))
-              .collect(Collectors.toList());
+          List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
+          return types.stream().map(POJOUtils::createSetter).collect(Collectors.toList());
         });
   }
 
@@ -256,7 +229,9 @@ public class POJOUtils {
    * </code></pre>
    */
   @SuppressWarnings("unchecked")
-  private static <ObjectT, ValueT> FieldValueSetter<ObjectT, ValueT> createSetter(Field field) {
+  private static <ObjectT, ValueT> FieldValueSetter<ObjectT, ValueT> createSetter(
+      FieldValueTypeInformation typeInformation) {
+    Field field = typeInformation.getField();
     DynamicType.Builder<FieldValueSetter> builder =
         ByteBuddyUtils.subclassSetterInterface(
             BYTE_BUDDY,
@@ -290,7 +265,7 @@ public class POJOUtils {
   // Implements a method to read a public field out of an object.
   static class ReadFieldInstruction implements Implementation {
     // Field that will be read.
-    private Field field;
+    private final Field field;
 
     ReadFieldInstruction(Field field) {
       this.field = field;
@@ -368,11 +343,13 @@ public class POJOUtils {
   }
 
   // Implements a method to construct an object.
-  static class ConstructInstruction implements Implementation {
+  static class CreateInstruction implements Implementation {
     private final List<Field> fields;
+    private final Class pojoClass;
 
-    ConstructInstruction(List<Field> fields) {
+    CreateInstruction(List<Field> fields, Class pojoClass) {
       this.fields = fields;
+      this.pojoClass = pojoClass;
     }
 
     @Override
@@ -386,32 +363,49 @@ public class POJOUtils {
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 
-        // Generate code to initialize all member variables.
-        StackManipulation stackManipulation = null;
+        // Create the POJO class.
+        ForLoadedType loadedType = new ForLoadedType(pojoClass);
+        StackManipulation stackManipulation =
+            new StackManipulation.Compound(
+                TypeCreation.of(loadedType),
+                Duplication.SINGLE,
+                MethodInvocation.invoke(
+                    loadedType
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
+                        .getOnly()));
+
+        // The types in the POJO might be the types returned by Beam's Row class,
+        // so we have to convert the types used by Beam's Row class.
+        ConvertType convertType = new ConvertType(true);
         for (int i = 0; i < fields.size(); ++i) {
           Field field = fields.get(i);
-          // The instruction to read the field.
-          StackManipulation readField = MethodVariableAccess.REFERENCE.loadFrom(i + 1);
 
-          // Read the object onto the stack.
+          ForLoadedType convertedType =
+              new ForLoadedType((Class) convertType.convert(TypeDescriptor.of(field.getType())));
+
+          // The instruction to read the parameter.
+          StackManipulation readParameter =
+              new StackManipulation.Compound(
+                  MethodVariableAccess.REFERENCE.loadFrom(1),
+                  IntegerConstant.forValue(i),
+                  ArrayAccess.REFERENCE.load(),
+                  TypeCasting.to(convertedType));
+
           StackManipulation updateField =
               new StackManipulation.Compound(
-                  // This param is offset 0.
-                  MethodVariableAccess.REFERENCE.loadFrom(0),
+                  // Duplicate object reference.
+                  Duplication.SINGLE,
                   // Do any conversions necessary.
-                  new ByteBuddyUtils.ConvertValueForSetter(readField)
+                  new ByteBuddyUtils.ConvertValueForSetter(readParameter)
                       .convert(TypeDescriptor.of(field.getType())),
-                  // Now update the field and return void.
+                  // Now update the field.
                   FieldAccess.forField(new ForLoadedField(field)).write());
-          stackManipulation =
-              (stackManipulation == null)
-                  ? updateField
-                  : new StackManipulation.Compound(stackManipulation, updateField);
+          stackManipulation = new StackManipulation.Compound(stackManipulation, updateField);
         }
         stackManipulation =
-            (stackManipulation == null)
-                ? MethodReturn.VOID
-                : new StackManipulation.Compound(stackManipulation, MethodReturn.VOID);
+            new StackManipulation.Compound(stackManipulation, MethodReturn.REFERENCE);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
         return new Size(size.getMaximalSize(), numLocals);

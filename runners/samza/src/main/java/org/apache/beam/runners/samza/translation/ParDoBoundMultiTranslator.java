@@ -17,18 +17,22 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import com.google.common.collect.Iterators;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
 import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
+import org.apache.beam.runners.samza.runtime.SamzaDoFnInvokerRegistrar;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -51,6 +55,14 @@ import org.joda.time.Instant;
 class ParDoBoundMultiTranslator<InT, OutT>
     implements TransformTranslator<ParDo.MultiOutput<InT, OutT>>,
         TransformConfigGenerator<ParDo.MultiOutput<InT, OutT>> {
+
+  private final SamzaDoFnInvokerRegistrar doFnInvokerRegistrar;
+
+  ParDoBoundMultiTranslator() {
+    final Iterator<SamzaDoFnInvokerRegistrar> invokerReg =
+        ServiceLoader.load(SamzaDoFnInvokerRegistrar.class).iterator();
+    doFnInvokerRegistrar = invokerReg.hasNext() ? Iterators.getOnlyElement(invokerReg) : null;
+  }
 
   @Override
   public void translate(
@@ -156,6 +168,11 @@ class ParDoBoundMultiTranslator<InT, OutT>
         config.put("stores." + storeId + ".msg.serde", "byteSerde");
       }
     }
+
+    if (doFnInvokerRegistrar != null) {
+      config.putAll(doFnInvokerRegistrar.configFor(transform.getFn()));
+    }
+
     return config;
   }
 

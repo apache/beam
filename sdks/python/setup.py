@@ -144,7 +144,7 @@ GCP_REQUIREMENTS = [
     'google-apitools>=0.5.23,<=0.5.24',
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
     'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
-    'google-cloud-pubsub==0.35.4',
+    'google-cloud-pubsub==0.39.0',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<1.7.0',
 ]

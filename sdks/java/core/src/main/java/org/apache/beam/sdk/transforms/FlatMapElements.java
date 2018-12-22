@@ -52,29 +52,29 @@ public class FlatMapElements<InputT, OutputT>
   }
 
   /**
-   * For a {@code SimpleFunction<InputT, ? extends Iterable<OutputT>>} {@code fn}, return a {@link
-   * PTransform} that applies {@code fn} to every element of the input {@code PCollection<InputT>}
-   * and outputs all of the elements to the output {@code PCollection<OutputT>}.
+   * For a {@code InferableFunction<InputT, ? extends Iterable<OutputT>>} {@code fn}, return a
+   * {@link PTransform} that applies {@code fn} to every element of the input {@code
+   * PCollection<InputT>} and outputs all of the elements to the output {@code
+   * PCollection<OutputT>}.
    *
-   * <p>This overload is intended primarily for use in Java 7. In Java 8, the overload {@link
-   * #via(SerializableFunction)} supports use of lambda for greater concision.
+   * <p>{@link InferableFunction} has the advantage of providing type descriptor information, but it
+   * is generally more convenient to specify output type via {@link #into(TypeDescriptor)}, and
+   * provide the mapping as a lambda expression to {@link #via(ProcessFunction)}.
    *
-   * <p>Example of use in Java 7:
+   * <p>Example usage:
    *
    * <pre>{@code
    * PCollection<String> lines = ...;
    * PCollection<String> words = lines.apply(FlatMapElements.via(
-   *     new SimpleFunction<String, List<String>>() {
-   *       public Integer apply(String line) {
+   *     new InferableFunction<String, List<String>>() {
+   *       public Integer apply(String line) throws Exception {
    *         return Arrays.asList(line.split(" "));
    *       }
    *     });
    * }</pre>
-   *
-   * <p>To use a Java 8 lambda, see {@link #via(SerializableFunction)}.
    */
   public static <InputT, OutputT> FlatMapElements<InputT, OutputT> via(
-      SimpleFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
+      InferableFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
     Contextful<Fn<InputT, Iterable<OutputT>>> wrapped = (Contextful) Contextful.fn(fn);
     TypeDescriptor<OutputT> outputType =
         TypeDescriptors.extractFromTypeParameters(
@@ -87,7 +87,7 @@ public class FlatMapElements<InputT, OutputT>
 
   /**
    * Returns a new {@link FlatMapElements} transform with the given type descriptor for the output
-   * type, but the mapping function yet to be specified using {@link #via(SerializableFunction)}.
+   * type, but the mapping function yet to be specified using {@link #via(ProcessFunction)}.
    */
   public static <OutputT> FlatMapElements<?, OutputT> into(
       final TypeDescriptor<OutputT> outputType) {
@@ -95,29 +95,25 @@ public class FlatMapElements<InputT, OutputT>
   }
 
   /**
-   * For a {@code SerializableFunction<InputT, ? extends Iterable<OutputT>>} {@code fn}, returns a
-   * {@link PTransform} that applies {@code fn} to every element of the input {@code
-   * PCollection<InputT>} and outputs all of the elements to the output {@code
-   * PCollection<OutputT>}.
+   * For a {@code ProcessFunction<InputT, ? extends Iterable<OutputT>>} {@code fn}, returns a {@link
+   * PTransform} that applies {@code fn} to every element of the input {@code PCollection<InputT>}
+   * and outputs all of the elements to the output {@code PCollection<OutputT>}.
    *
-   * <p>Example of use in Java 8:
+   * <p>Example usage:
    *
    * <pre>{@code
    * PCollection<String> words = lines.apply(
    *     FlatMapElements.into(TypeDescriptors.strings())
    *                    .via((String line) -> Arrays.asList(line.split(" ")))
    * }</pre>
-   *
-   * <p>In Java 7, the overload {@link #via(SimpleFunction)} is more concise as the output type
-   * descriptor need not be provided.
    */
   public <NewInputT> FlatMapElements<NewInputT, OutputT> via(
-      SerializableFunction<NewInputT, ? extends Iterable<OutputT>> fn) {
+      ProcessFunction<NewInputT, ? extends Iterable<OutputT>> fn) {
     return new FlatMapElements<>(
         (Contextful) Contextful.fn(fn), fn, TypeDescriptors.inputOf(fn), outputType);
   }
 
-  /** Like {@link #via(SerializableFunction)}, but allows access to additional context. */
+  /** Like {@link #via(ProcessFunction)}, but allows access to additional context. */
   @Experimental(Experimental.Kind.CONTEXTFUL)
   public <NewInputT> FlatMapElements<NewInputT, OutputT> via(
       Contextful<Fn<NewInputT, Iterable<OutputT>>> fn) {

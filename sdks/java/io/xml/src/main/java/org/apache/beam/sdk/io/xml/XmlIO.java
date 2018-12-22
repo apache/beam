@@ -85,7 +85,7 @@ public class XmlIO {
    * <p>Example:
    *
    * <pre>{@code
-   * PCollection<String> output = p.apply(XmlIO.<Record>read()
+   * PCollection<Record> output = p.apply(XmlIO.<Record>read()
    *     .from(file.toPath().toString())
    *     .withRootElement("root")
    *     .withRecordElement("record")
@@ -126,7 +126,7 @@ public class XmlIO {
    *       Duration.standardSeconds(30), afterTimeSinceNewOutput(Duration.standardMinutes(5))))
    *     .apply(FileIO.readMatches().withCompression(GZIP));
    *
-   * PCollection<String> output = files.apply(XmlIO.<Record>readFiles()
+   * PCollection<Record> output = files.apply(XmlIO.<Record>readFiles()
    *     .withRootElement("root")
    *     .withRecordElement("record")
    *     .withRecordClass(Record.class));

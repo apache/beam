@@ -121,6 +121,7 @@ rat {
     "**/.github/**/*",
 
     "**/package-list",
+    "**/test.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
     "**/test/**/.placeholder",
@@ -203,6 +204,9 @@ task javaPreCommitPortabilityApi() {
 task javaPostCommit() {
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
   dependsOn ":beam-sdks-java-io-google-cloud-platform:postCommit"
+}
+
+task sqlPostCommit() {
   dependsOn ":beam-sdks-java-extensions-sql:postCommit"
   dependsOn ":beam-sdks-java-extensions-sql-jdbc:postCommit"
 }
