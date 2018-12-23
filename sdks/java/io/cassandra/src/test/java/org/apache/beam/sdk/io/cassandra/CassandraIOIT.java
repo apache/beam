@@ -168,7 +168,7 @@ public class CassandraIOIT implements Serializable {
     Assert.assertTrue(1L <= TestPasswordDecrypter.getNbCallsBySession(sessionReadUID));
   }
 
-  private void runWrite(CassandraIO.Write<Scientist> write) {
+  private void runWrite(CassandraIO.Mutate<Scientist> write) {
     pipelineWrite
         .apply("GenSequence", GenerateSequence.from(0).to((long) options.getNumberOfRecords()))
         .apply("PrepareTestRows", ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))

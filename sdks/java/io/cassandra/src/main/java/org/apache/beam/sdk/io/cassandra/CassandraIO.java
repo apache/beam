@@ -463,7 +463,7 @@ public class CassandraIO {
      * of the password when connecting to the cluster, which ensures that the raw password is never
      * serialized in the pipeline.
      */
-    public Write<T> withPasswordDecrypter(PasswordDecrypter passwordDecrypter) {
+    public Mutate<T> withPasswordDecrypter(PasswordDecrypter passwordDecrypter) {
       checkArgument(passwordDecrypter != null, "passwordDecrypter can not be null");
       return builder().setPasswordDecrypter(passwordDecrypter).build();
     }
