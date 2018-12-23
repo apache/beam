@@ -42,7 +42,8 @@ public enum NexmarkQueryName {
   PROCESSING_TIME_WINDOWS(12), // Query "12"
 
   // Other non-numbered queries
-  BOUNDED_SIDE_INPUT_JOIN;
+  BOUNDED_SIDE_INPUT_JOIN,
+  SESSION_SIDE_INPUT_JOIN;
 
   private @Nullable Integer number;
 
