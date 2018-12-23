@@ -36,11 +36,11 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.JavaBeanSchema.GetterTypeSupplier;
 import org.apache.beam.sdk.schemas.JavaBeanSchema.SetterTypeSupplier;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithBoxedFields;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithByteArray;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.MismatchingNullableBean;
@@ -171,24 +171,27 @@ public class JavaBeanUtilsTest {
   }
 
   @Test
-  public void testGeneratedSimpleSetters() {
-    SimpleBean simpleBean = new SimpleBean();
-    List<FieldValueSetter> setters =
-        JavaBeanUtils.getSetters(SimpleBean.class, SIMPLE_BEAN_SCHEMA, new SetterTypeSupplier());
-    assertEquals(12, setters.size());
-
-    setters.get(0).set(simpleBean, "field1");
-    setters.get(1).set(simpleBean, (byte) 41);
-    setters.get(2).set(simpleBean, (short) 42);
-    setters.get(3).set(simpleBean, (int) 43);
-    setters.get(4).set(simpleBean, (long) 44);
-    setters.get(5).set(simpleBean, true);
-    setters.get(6).set(simpleBean, DateTime.parse("1979-03-14").toInstant());
-    setters.get(7).set(simpleBean, DateTime.parse("1979-03-15").toInstant());
-    setters.get(8).set(simpleBean, "bytes1".getBytes(Charset.defaultCharset()));
-    setters.get(9).set(simpleBean, "bytes2".getBytes(Charset.defaultCharset()));
-    setters.get(10).set(simpleBean, new BigDecimal(42));
-    setters.get(11).set(simpleBean, "stringBuilder");
+  public void testGeneratedSimpleSetterCreator() {
+    SchemaUserTypeCreator creator =
+        JavaBeanUtils.getSetFieldCreator(
+            SimpleBean.class, SIMPLE_BEAN_SCHEMA, new SetterTypeSupplier());
+    SimpleBean simpleBean =
+        (SimpleBean)
+            creator.create(
+                new Object[] {
+                  "field1",
+                  (byte) 41,
+                  (short) 42,
+                  (int) 43,
+                  (long) 44,
+                  true,
+                  DateTime.parse("1979-03-14").toInstant(),
+                  DateTime.parse("1979-03-15").toInstant(),
+                  "bytes1".getBytes(Charset.defaultCharset()),
+                  "bytes2".getBytes(Charset.defaultCharset()),
+                  new BigDecimal(42),
+                  "stringBuilder"
+                });
 
     assertEquals("field1", simpleBean.getStr());
     assertEquals((byte) 41, simpleBean.getaByte());
@@ -228,17 +231,13 @@ public class JavaBeanUtilsTest {
   }
 
   @Test
-  public void testGeneratedSimpleBoxedSetters() {
-    BeanWithBoxedFields bean = new BeanWithBoxedFields();
-    List<FieldValueSetter> setters =
-        JavaBeanUtils.getSetters(
+  public void testGeneratedSimpleBoxedSetterCreator() {
+    SchemaUserTypeCreator creator =
+        JavaBeanUtils.getSetFieldCreator(
             BeanWithBoxedFields.class, BEAN_WITH_BOXED_FIELDS_SCHEMA, new SetterTypeSupplier());
-
-    setters.get(0).set(bean, (byte) 41);
-    setters.get(1).set(bean, (short) 42);
-    setters.get(2).set(bean, (int) 43);
-    setters.get(3).set(bean, (long) 44);
-    setters.get(4).set(bean, true);
+    BeanWithBoxedFields bean =
+        (BeanWithBoxedFields)
+            creator.create(new Object[] {(byte) 41, (short) 42, (int) 43, (long) 44, true});
 
     assertEquals((byte) 41, bean.getaByte().byteValue());
     assertEquals((short) 42, bean.getaShort().shortValue());
@@ -248,13 +247,17 @@ public class JavaBeanUtilsTest {
   }
 
   @Test
-  public void testGeneratedByteBufferSetters() {
-    BeanWithByteArray bean = new BeanWithByteArray();
-    List<FieldValueSetter> setters =
-        JavaBeanUtils.getSetters(
+  public void testGeneratedByteBufferSetterCreator() {
+    SchemaUserTypeCreator creator =
+        JavaBeanUtils.getSetFieldCreator(
             BeanWithByteArray.class, BEAN_WITH_BYTE_ARRAY_SCHEMA, new SetterTypeSupplier());
-    setters.get(0).set(bean, "field1".getBytes(Charset.defaultCharset()));
-    setters.get(1).set(bean, "field2".getBytes(Charset.defaultCharset()));
+    BeanWithByteArray bean =
+        (BeanWithByteArray)
+            creator.create(
+                new Object[] {
+                  "field1".getBytes(Charset.defaultCharset()),
+                  "field2".getBytes(Charset.defaultCharset())
+                });
 
     assertArrayEquals("not equal", "field1".getBytes(Charset.defaultCharset()), bean.getBytes1());
     assertEquals(ByteBuffer.wrap("field2".getBytes(Charset.defaultCharset())), bean.getBytes2());

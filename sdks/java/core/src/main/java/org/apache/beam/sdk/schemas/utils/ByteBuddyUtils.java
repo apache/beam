@@ -61,7 +61,6 @@ import net.bytebuddy.matcher.ElementMatchers;
 import net.bytebuddy.utility.RandomString;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
@@ -123,18 +122,6 @@ class ByteBuddyUtils {
             .build();
     return (DynamicType.Builder<FieldValueGetter>)
         byteBuddy.with(new InjectPackageStrategy((Class) objectType)).subclass(getterGenericType);
-  }
-
-  // Create a new FieldValueSetter subclass.
-  @SuppressWarnings("unchecked")
-  static DynamicType.Builder<FieldValueSetter> subclassSetterInterface(
-      ByteBuddy byteBuddy, Type objectType, Type fieldType) {
-    TypeDescription.Generic setterGenericType =
-        TypeDescription.Generic.Builder.parameterizedType(
-                FieldValueSetter.class, objectType, fieldType)
-            .build();
-    return (DynamicType.Builder<FieldValueSetter>)
-        byteBuddy.with(new InjectPackageStrategy((Class) objectType)).subclass(setterGenericType);
   }
 
   // Base class used below to convert types.

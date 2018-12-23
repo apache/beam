@@ -31,15 +31,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.JavaFieldSchema.JavaFieldTypeSupplier;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedCollectionPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
@@ -53,7 +52,6 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
-import sun.misc.Unsafe;
 
 /** Tests for the {@link POJOUtils} class. */
 public class POJOUtilsTest {
@@ -155,24 +153,27 @@ public class POJOUtilsTest {
   }
 
   @Test
-  public void testGeneratedSimpleSetters() {
-    SimplePOJO simplePojo = new SimplePOJO();
-    List<FieldValueSetter> setters =
-        POJOUtils.getSetters(SimplePOJO.class, SIMPLE_POJO_SCHEMA, JavaFieldTypeSupplier.INSTANCE);
-    assertEquals(12, setters.size());
-
-    setters.get(0).set(simplePojo, "field1");
-    setters.get(1).set(simplePojo, (byte) 41);
-    setters.get(2).set(simplePojo, (short) 42);
-    setters.get(3).set(simplePojo, (int) 43);
-    setters.get(4).set(simplePojo, (long) 44);
-    setters.get(5).set(simplePojo, true);
-    setters.get(6).set(simplePojo, DATE.toInstant());
-    setters.get(7).set(simplePojo, INSTANT);
-    setters.get(8).set(simplePojo, BYTE_ARRAY);
-    setters.get(9).set(simplePojo, BYTE_BUFFER.array());
-    setters.get(10).set(simplePojo, new BigDecimal(42));
-    setters.get(11).set(simplePojo, "stringBuilder");
+  public void testGeneratedSimpleSetterCreator() {
+    SchemaUserTypeCreator creator =
+        POJOUtils.getSetFieldCreator(
+            SimplePOJO.class, SIMPLE_POJO_SCHEMA, JavaFieldTypeSupplier.INSTANCE);
+    SimplePOJO simplePojo =
+        (SimplePOJO)
+            creator.create(
+                new Object[] {
+                  "field1",
+                  (byte) 41,
+                  (short) 42,
+                  (int) 43,
+                  (long) 44,
+                  true,
+                  DATE.toInstant(),
+                  INSTANT,
+                  BYTE_ARRAY,
+                  BYTE_BUFFER.array(),
+                  new BigDecimal(42),
+                  "stringBuilder"
+                });
 
     assertEquals("field1", simplePojo.str);
     assertEquals((byte) 41, simplePojo.aByte);
@@ -205,19 +206,15 @@ public class POJOUtilsTest {
   }
 
   @Test
-  public void testGeneratedSimpleBoxedSetters() {
-    POJOWithBoxedFields pojo = new POJOWithBoxedFields();
-    List<FieldValueSetter> setters =
-        POJOUtils.getSetters(
+  public void testGeneratedSimpleBoxedSetterCreator() {
+    SchemaUserTypeCreator creator =
+        POJOUtils.getSetFieldCreator(
             POJOWithBoxedFields.class,
             POJO_WITH_BOXED_FIELDS_SCHEMA,
             JavaFieldTypeSupplier.INSTANCE);
-
-    setters.get(0).set(pojo, (byte) 41);
-    setters.get(1).set(pojo, (short) 42);
-    setters.get(2).set(pojo, (int) 43);
-    setters.get(3).set(pojo, (long) 44);
-    setters.get(4).set(pojo, true);
+    POJOWithBoxedFields pojo =
+        (POJOWithBoxedFields)
+            creator.create(new Object[] {(byte) 41, (short) 42, (int) 43, (long) 44, true});
 
     assertEquals((byte) 41, pojo.aByte.byteValue());
     assertEquals((short) 42, pojo.aShort.shortValue());
@@ -227,58 +224,14 @@ public class POJOUtilsTest {
   }
 
   @Test
-  public void testGeneratedByteBufferSetters() {
-    POJOWithByteArray pojo = new POJOWithByteArray();
-    List<FieldValueSetter> setters =
-        POJOUtils.getSetters(
+  public void testGeneratedByteBufferSetterCreator() {
+    SchemaUserTypeCreator creator =
+        POJOUtils.getSetFieldCreator(
             POJOWithByteArray.class, POJO_WITH_BYTE_ARRAY_SCHEMA, JavaFieldTypeSupplier.INSTANCE);
-    setters.get(0).set(pojo, BYTE_ARRAY);
-    setters.get(1).set(pojo, BYTE_BUFFER.array());
+    POJOWithByteArray pojo =
+        (POJOWithByteArray) creator.create(new Object[] {BYTE_ARRAY, BYTE_BUFFER.array()});
 
     assertArrayEquals("not equal", BYTE_ARRAY, pojo.bytes1);
     assertEquals(BYTE_BUFFER, pojo.bytes2);
-  }
-
-  static class Foo {
-    private final int field1;
-    private final String field2;
-
-    public Foo(int field1, String field2) {
-      this.field1 = field1;
-      this.field2 = field2;
-    }
-
-    @Override
-    public String toString() {
-      return "Foo{" + "field1=" + field1 + ", field2='" + field2 + '\'' + '}';
-    }
-  }
-
-  private static final Unsafe UNSAFE;
-
-  static {
-    try {
-      Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
-      theUnsafe.setAccessible(true);
-      UNSAFE = (Unsafe) theUnsafe.get(null);
-      // It seems not all Unsafe implementations implement the following method.
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @Test
-  public void testUnsafe() throws Exception {
-    Field field1 = Foo.class.getDeclaredField("field1");
-    Field field2 = Foo.class.getDeclaredField("field2");
-
-    long offsetField1 = UNSAFE.objectFieldOffset(field1);
-    long offsetField2 = UNSAFE.objectFieldOffset(field2);
-
-    Foo foo = new Foo(42, "Hello!");
-    System.err.println("BEFORE " + foo);
-    UNSAFE.putInt(foo, offsetField1, 43);
-    UNSAFE.putObject(foo, offsetField2, "Goodby!");
-    System.err.println("AFTER " + foo);
   }
 }

@@ -27,6 +27,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
@@ -34,8 +35,13 @@ import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import net.bytebuddy.implementation.bytecode.Duplication;
 import net.bytebuddy.implementation.bytecode.Removal;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.TypeCreation;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
+import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
@@ -43,7 +49,6 @@ import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
@@ -159,34 +164,31 @@ public class JavaBeanUtils {
         .intercept(new InvokeGetterInstruction(typeInformation));
   }
 
-  // The list of setters for a class is cached, so we only create the classes the first time
-  // getSetters is called.
-  private static final Map<ClassWithSchema, List<FieldValueSetter>> CACHED_SETTERS =
+  // The list of constructors for a class is cached, so we only create the classes the first time
+  // getConstructor is called.
+  public static final Map<ClassWithSchema, SchemaUserTypeCreator> CACHED_CREATORS =
       Maps.newConcurrentMap();
 
-  /**
-   * Return the list of {@link FieldValueSetter}s for a Java Bean class
-   *
-   * <p>The returned list is ordered by the order of fields in the schema.
-   */
-  public static List<FieldValueSetter> getSetters(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return CACHED_SETTERS.computeIfAbsent(
+  public static <T> SchemaUserTypeCreator getSetFieldCreator(
+      Class<T> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return CACHED_CREATORS.computeIfAbsent(
         new ClassWithSchema(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
-          return types.stream().map(JavaBeanUtils::createSetter).collect(Collectors.toList());
+          return createSetFieldCreator(clazz, schema, types);
         });
   }
 
-  private static FieldValueSetter createSetter(FieldValueTypeInformation typeInformation) {
-    DynamicType.Builder<FieldValueSetter> builder =
-        ByteBuddyUtils.subclassSetterInterface(
-            BYTE_BUDDY,
-            typeInformation.getMethod().getDeclaringClass(),
-            new ConvertType(false).convert(typeInformation.getType()));
-    builder = implementSetterMethods(builder, typeInformation.getMethod());
+  private static <T> SchemaUserTypeCreator createSetFieldCreator(
+      Class<T> clazz, Schema schema, List<FieldValueTypeInformation> types) {
     try {
+      DynamicType.Builder<SchemaUserTypeCreator> builder =
+          BYTE_BUDDY
+              .with(new InjectPackageStrategy(clazz))
+              .subclass(SchemaUserTypeCreator.class)
+              .method(ElementMatchers.named("create"))
+              .intercept(new SetFieldCreateInstruction(types, clazz));
+
       return builder
           .make()
           .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
@@ -198,24 +200,9 @@ public class JavaBeanUtils {
         | NoSuchMethodException
         | InvocationTargetException e) {
       throw new RuntimeException(
-          "Unable to generate a setter for setter '" + typeInformation.getMethod() + "'");
+          "Unable to generate a creator for class " + clazz + " with schema " + schema);
     }
   }
-
-  private static DynamicType.Builder<FieldValueSetter> implementSetterMethods(
-      DynamicType.Builder<FieldValueSetter> builder, Method method) {
-    FieldValueTypeInformation javaTypeInformation = FieldValueTypeInformation.forSetter(method);
-    return builder
-        .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(javaTypeInformation.getName()))
-        .method(ElementMatchers.named("set"))
-        .intercept(new InvokeSetterInstruction(method));
-  }
-
-  // The list of constructors for a class is cached, so we only create the classes the first time
-  // getConstructor is called.
-  public static final Map<ClassWithSchema, SchemaUserTypeCreator> CACHED_CREATORS =
-      Maps.newConcurrentMap();
 
   public static SchemaUserTypeCreator getConstructorCreator(
       Class clazz,
@@ -329,13 +316,15 @@ public class JavaBeanUtils {
     }
   }
 
-  // Implements a method to write a public set out on an object.
-  private static class InvokeSetterInstruction implements Implementation {
-    // Setter method that wil be invoked
-    private Method method;
+  // Implements a method to construct an object.
+  static class SetFieldCreateInstruction implements Implementation {
+    private final List<FieldValueTypeInformation> types;
+    private final Class beanClass;
 
-    InvokeSetterInstruction(Method method) {
-      this.method = method;
+    SetFieldCreateInstruction(List<FieldValueTypeInformation> types, Class beanClass) {
+      this.types = types;
+      this.beanClass = beanClass;
+      ;
     }
 
     @Override
@@ -346,29 +335,58 @@ public class JavaBeanUtils {
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        FieldValueTypeInformation javaTypeInformation = FieldValueTypeInformation.forSetter(method);
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 
-        // The instruction to read the field.
-        StackManipulation readField = MethodVariableAccess.REFERENCE.loadFrom(2);
-
-        boolean setterMethodReturnsVoid = method.getReturnType().equals(Void.TYPE);
-        // Read the object onto the stack.
+        // Create the target class.
+        ForLoadedType loadedType = new ForLoadedType(beanClass);
         StackManipulation stackManipulation =
             new StackManipulation.Compound(
-                // Object param is offset 1.
-                MethodVariableAccess.REFERENCE.loadFrom(1),
-                // Do any conversions necessary.
-                new ByteBuddyUtils.ConvertValueForSetter(readField)
-                    .convert(javaTypeInformation.getType()),
-                // Now update the field and return void.
-                MethodInvocation.invoke(new ForLoadedMethod(method)));
-        if (!setterMethodReturnsVoid) {
-          // Discard return type;
-          stackManipulation = new StackManipulation.Compound(stackManipulation, Removal.SINGLE);
+                TypeCreation.of(loadedType),
+                Duplication.SINGLE,
+                MethodInvocation.invoke(
+                    loadedType
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
+                        .getOnly()));
+
+        // The types in the target might not be the types returned by Beam's Row class,
+        // so we have to convert the types used by Beam's Row class.
+        ConvertType convertType = new ConvertType(true);
+        for (int i = 0; i < types.size(); ++i) {
+          FieldValueTypeInformation type = types.get(i);
+          Method method = type.getMethod();
+          ForLoadedType convertedType =
+              new ForLoadedType((Class) convertType.convert(type.getType()));
+          boolean setterMethodReturnsVoid = method.getReturnType().equals(Void.TYPE);
+
+          // The instruction to read the parameter.
+          StackManipulation readParameter =
+              new StackManipulation.Compound(
+                  MethodVariableAccess.REFERENCE.loadFrom(1),
+                  IntegerConstant.forValue(i),
+                  ArrayAccess.REFERENCE.load(),
+                  TypeCasting.to(convertedType));
+
+          StackManipulation invokeSetter =
+              new StackManipulation.Compound(
+                  // Duplicate object reference.
+                  Duplication.SINGLE,
+                  // Do any conversions necessary.
+                  new ByteBuddyUtils.ConvertValueForSetter(readParameter).convert(type.getType()),
+                  // Now invole the setter.
+                  MethodInvocation.invoke(new ForLoadedMethod(method)));
+          if (!setterMethodReturnsVoid) {
+            // Some setters return a value (e.g. to enabled chained calls). If this one does, we
+            // need to pop it off the stack as we don't want to use it.
+            invokeSetter = new StackManipulation.Compound(invokeSetter, Removal.SINGLE);
+          }
+          stackManipulation = new StackManipulation.Compound(stackManipulation, invokeSetter);
         }
-        stackManipulation = new StackManipulation.Compound(stackManipulation, MethodReturn.VOID);
+        // Return the newly-created object.
+        stackManipulation =
+            new StackManipulation.Compound(stackManipulation, MethodReturn.REFERENCE);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
         return new Size(size.getMaximalSize(), numLocals);
