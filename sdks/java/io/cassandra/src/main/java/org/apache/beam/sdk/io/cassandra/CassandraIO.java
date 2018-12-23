@@ -156,6 +156,12 @@ public class CassandraIO {
     abstract String password();
 
     @Nullable
+    abstract String encryptedPassword();
+
+    @Nullable
+    abstract PasswordDecrypter passwordDecrypter();
+
+    @Nullable
     abstract String localDc();
 
     @Nullable
@@ -219,6 +225,22 @@ public class CassandraIO {
       return builder().setPassword(password).build();
     }
 
+    /** Specify the encrypted password used for authentication. */
+    public Read<T> withEncryptedPassword(String encryptedPassword) {
+      checkArgument(encryptedPassword != null, "encryptedPassword can not be null");
+      return builder().setEncryptedPassword(encryptedPassword).build();
+    }
+
+    /**
+     * Specify the password decrypter used to decrypt the encrypted password. It delayed the
+     * decryption of the password when connecting to the cluster, which ensures that the raw
+     * password is never serialized in the pipeline.
+     */
+    public Read<T> withPasswordDecrypter(PasswordDecrypter passwordDecrypter) {
+      checkArgument(passwordDecrypter != null, "passwordDecrypter can not be null");
+      return builder().setPasswordDecrypter(passwordDecrypter).build();
+    }
+
     /** Specify the local DC used for the load balancing. */
     public Read<T> withLocalDc(String localDc) {
       checkArgument(localDc != null, "localDc can not be null");
@@ -270,6 +292,10 @@ public class CassandraIO {
 
       abstract Builder<T> setPassword(String password);
 
+      abstract Builder<T> setEncryptedPassword(String encryptedPassword);
+
+      abstract Builder<T> setPasswordDecrypter(PasswordDecrypter passwordDecrypter);
+
       abstract Builder<T> setLocalDc(String localDc);
 
       abstract Builder<T> setConsistencyLevel(String consistencyLevel);
@@ -310,6 +336,8 @@ public class CassandraIO {
               spec.port(),
               spec.username(),
               spec.password(),
+              spec.encryptedPassword(),
+              spec.passwordDecrypter(),
               spec.localDc(),
               spec.consistencyLevel())) {
         if (isMurmur3Partitioner(cluster)) {
@@ -411,6 +439,8 @@ public class CassandraIO {
               spec.port(),
               spec.username(),
               spec.password(),
+              spec.encryptedPassword(),
+              spec.passwordDecrypter(),
               spec.localDc(),
               spec.consistencyLevel())) {
         if (isMurmur3Partitioner(cluster)) {
@@ -560,6 +590,8 @@ public class CassandraIO {
                 source.spec.port(),
                 source.spec.username(),
                 source.spec.password(),
+                source.spec.encryptedPassword(),
+                source.spec.passwordDecrypter(),
                 source.spec.localDc(),
                 source.spec.consistencyLevel());
         session = cluster.connect(source.spec.keyspace());
@@ -651,6 +683,12 @@ public class CassandraIO {
     abstract String password();
 
     @Nullable
+    abstract String encryptedPassword();
+
+    @Nullable
+    abstract PasswordDecrypter passwordDecrypter();
+
+    @Nullable
     abstract String localDc();
 
     @Nullable
@@ -737,6 +775,22 @@ public class CassandraIO {
       return builder().setPassword(password).build();
     }
 
+    /** Specify the encrypted password used for authentication. */
+    public Write<T> withEncryptedPassword(String encryptedPassword) {
+      checkArgument(encryptedPassword != null, "encryptedPassword can not be null");
+      return builder().setEncryptedPassword(encryptedPassword).build();
+    }
+
+    /**
+     * Specify the password decrypter used to decrypt the encrypted password. It delayed the
+     * decryption of the password when connecting to the cluster, which ensures that the raw
+     * password is never serialized in the pipeline.
+     */
+    public Write<T> withPasswordDecrypter(PasswordDecrypter passwordDecrypter) {
+      checkArgument(passwordDecrypter != null, "passwordDecrypter can not be null");
+      return builder().setPasswordDecrypter(passwordDecrypter).build();
+    }
+
     /** Specify the local DC used by the load balancing policy. */
     public Write<T> withLocalDc(String localDc) {
       checkArgument(
@@ -815,6 +869,10 @@ public class CassandraIO {
 
       abstract Builder<T> setPassword(String password);
 
+      abstract Builder<T> setEncryptedPassword(String encryptedPassword);
+
+      abstract Builder<T> setPasswordDecrypter(PasswordDecrypter passwordDecrypter);
+
       abstract Builder<T> setLocalDc(String localDc);
 
       abstract Builder<T> setConsistencyLevel(String consistencyLevel);
@@ -880,12 +938,17 @@ public class CassandraIO {
       int port,
       String username,
       String password,
+      String encryptedPassword,
+      PasswordDecrypter passwordDecrypter,
       String localDc,
       String consistencyLevel) {
     Cluster.Builder builder =
         Cluster.builder().addContactPoints(hosts.toArray(new String[0])).withPort(port);
 
     if (username != null) {
+      if (encryptedPassword != null && passwordDecrypter != null) {
+        password = passwordDecrypter.decrypt(encryptedPassword);
+      }
       builder.withAuthProvider(new PlainTextAuthProvider(username, password));
     }
 
@@ -929,6 +992,8 @@ public class CassandraIO {
               spec.port(),
               spec.username(),
               spec.password(),
+              spec.encryptedPassword(),
+              spec.passwordDecrypter(),
               spec.localDc(),
               spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
