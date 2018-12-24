@@ -62,7 +62,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *     .of("input1", input1)
  *     .and("input2, input2)
  *     .and("input3", input3)
- *   .apply(CoGroup.byFieldNames("user", "country"));
+ *   .apply(CoGroup.join(By.fieldNames("user", "country")));
  * }</pre>
  *
  * <p>In the above case, the key schema will contain the two string fields "user" and "country"; in
@@ -109,8 +109,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *     .of("input1Tag", input1)
  *     .and("input2Tag", input2)
  *   .apply(CoGroup
- *     .byFieldNamesForInput("input1Tag", "referringUser"))
- *     .byFieldNamesForInput("input2Tag", "user"));
+ *     .join("input1Tag", By.fieldNames("referringUser")))
+ *     .join("input2Tag", By.fieldNames("user")));
  * }</pre>
  */
 public class CoGroup {
