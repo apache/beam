@@ -28,6 +28,7 @@ import org.apache.beam.sdk.TestUtils.KvMatcher;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.transforms.CoGroup.By;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -185,7 +186,7 @@ public class CoGroupTest {
         PCollectionTuple.of("pc1", pc1)
             .and("pc2", pc2)
             .and("pc3", pc3)
-            .apply("CoGroup", CoGroup.byFieldNames("user", "country"));
+            .apply("CoGroup", CoGroup.join(By.fieldNames("user", "country")));
     List<KV<Row, Row>> expected =
         ImmutableList.of(
             KV.of(key1, key1Joined),
@@ -330,9 +331,9 @@ public class CoGroupTest {
             .and("pc3", pc3)
             .apply(
                 "CoGroup",
-                CoGroup.byFieldNamesForInput("pc1", "user", "country")
-                    .byFieldNamesForInput("pc2", "user2", "country2")
-                    .byFieldNamesForInput("pc3", "user3", "country3"));
+                CoGroup.join("pc1", By.fieldNames("user", "country"))
+                    .join("pc2", By.fieldNames("user2", "country2"))
+                    .join("pc3", By.fieldNames("user3", "country3")));
 
     List<KV<Row, Row>> expected =
         ImmutableList.of(
@@ -370,8 +371,8 @@ public class CoGroupTest {
             .and("pc3", pc3)
             .apply(
                 "CoGroup",
-                CoGroup.byFieldNamesForInput("pc1", "user", "country")
-                    .byFieldNamesForInput("pc2", "user2", "country2"));
+                CoGroup.join("pc1", By.fieldNames("user", "country"))
+                    .join("pc2", By.fieldNames("user2", "country2")));
     pipeline.run();
   }
 
@@ -397,7 +398,7 @@ public class CoGroupTest {
             .and("pc2", pc2)
             .apply(
                 "CoGroup",
-                CoGroup.byFieldNamesForInput("pc1", "user").byFieldNamesForInput("pc2", "count"));
+                CoGroup.join("pc1", By.fieldNames("user")).join("pc2", By.fieldNames("count")));
     pipeline.run();
   }
 

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -114,120 +115,115 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  */
 public class CoGroup {
   /**
-   * Join by the following field names.
-   *
-   * <p>The same field names are used in all input PCollections.
+   * Defines the set of fields to extract for the join key, as well as other per-input join options.
    */
-  public static Inner byFieldNames(String... fieldNames) {
-    return byFieldAccessDescriptor(FieldAccessDescriptor.withFieldNames(fieldNames));
+  @AutoValue
+  public abstract static class By {
+    abstract FieldAccessDescriptor getFieldAccessDescriptor();
+
+    abstract boolean getOuterJoinParticipation();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setFieldAccessDescriptor(FieldAccessDescriptor fieldAccessDescriptor);
+
+      abstract Builder setOuterJoinParticipation(boolean outerJoinParticipation);
+
+      abstract By build();
+    }
+
+    /** Join by the following field names. */
+    public static By fieldNames(String... fieldNames) {
+      return fieldAccessDescriptor(FieldAccessDescriptor.withFieldNames(fieldNames));
+    }
+
+    /** Join by the following field ids. */
+    public static By fieldIds(Integer... fieldIds) {
+      return fieldAccessDescriptor(FieldAccessDescriptor.withFieldIds(fieldIds));
+    }
+
+    /** Join by the following field access descriptor. */
+    public static By fieldAccessDescriptor(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new AutoValue_CoGroup_By.Builder()
+          .setFieldAccessDescriptor(fieldAccessDescriptor)
+          .setOuterJoinParticipation(false)
+          .build();
+    }
+
+    /**
+     * Means that this field will participate in a join even when not present, similar to SQL
+     * outer-join semantics. Missing entries will be replaced by nulls.
+     *
+     * <p>This only affects the results of expandCrossProduct.
+     */
+    public By withOuterJoinParticipation() {
+      return toBuilder().setOuterJoinParticipation(true).build();
+    }
   }
 
   /**
-   * Join by the following field ids.
+   * Join all input PCollections using the same args.
    *
-   * <p>The same field ids are used in all input PCollections.
+   * <p>The same fields and other options are used in all input PCollections.
    */
-  public static Inner byFieldIds(Integer... fieldIds) {
-    return byFieldAccessDescriptor(FieldAccessDescriptor.withFieldIds(fieldIds));
+  public static Inner join(By joinArgs) {
+    return new Inner(joinArgs);
   }
 
   /**
-   * Join by the following {@link FieldAccessDescriptor}.
+   * Specify the following join arguments (including fields to join by_ for the specified
+   * PCollection.
    *
-   * <p>The same access descriptor is used in all input PCollections.
+   * <p>Each PCollection in the input must have args specified for the join key.
    */
-  public static Inner byFieldAccessDescriptor(FieldAccessDescriptor fieldAccessDescriptor) {
-    return new Inner(fieldAccessDescriptor);
-  }
-
-  /**
-   * Select the following field names for the specified PCollection.
-   *
-   * <p>Each PCollection in the input must have fields specified for the join key.
-   */
-  public static Inner byFieldNamesForInput(String tag, String... fieldNames) {
-    return byFieldAccessDescriptorForInput(tag, FieldAccessDescriptor.withFieldNames(fieldNames));
-  }
-
-  /**
-   * Select the following field ids for the specified PCollection.
-   *
-   * <p>Each PCollection in the input must have fields specified for the join key.
-   */
-  public static Inner byFieldIdsForInput(String tag, Integer... fieldIds) {
-    return byFieldAccessDescriptorForInput(tag, FieldAccessDescriptor.withFieldIds(fieldIds));
-  }
-
-  /**
-   * Select the following fields for the specified PCollection using {@link FieldAccessDescriptor}.
-   *
-   * <p>Each PCollection in the input must have fields specified for the join key.
-   */
-  public static Inner byFieldAccessDescriptorForInput(
-      String tag, FieldAccessDescriptor fieldAccessDescriptor) {
-    return new Inner().byFieldAccessDescriptorForInput(tag, fieldAccessDescriptor);
+  public static Inner join(String tag, By joinArgs) {
+    return new Inner(tag, joinArgs);
   }
 
   /** The implementing PTransform. */
   public static class Inner extends PTransform<PCollectionTuple, PCollection<KV<Row, Row>>> {
-    @Nullable private final FieldAccessDescriptor allInputsFieldAccessDescriptor;
-    private final Map<String, FieldAccessDescriptor> fieldAccessDescriptorMap;
+    @Nullable private final By allInputsJoinArgs;
+    private final Map<String, By> joinArgsMap;
 
     private Inner() {
       this(Collections.emptyMap());
     }
 
-    private Inner(Map<String, FieldAccessDescriptor> fieldAccessDescriptorMap) {
-      this.allInputsFieldAccessDescriptor = null;
-      this.fieldAccessDescriptorMap = fieldAccessDescriptorMap;
+    private Inner(Map<String, By> joinArgsMap) {
+      this.allInputsJoinArgs = null;
+      this.joinArgsMap = joinArgsMap;
     }
 
-    private Inner(FieldAccessDescriptor allInputsFieldAccessDescriptor) {
-      this.allInputsFieldAccessDescriptor = allInputsFieldAccessDescriptor;
-      this.fieldAccessDescriptorMap = Collections.emptyMap();
+    private Inner(By allInputsJoinArgs) {
+      this.allInputsJoinArgs = allInputsJoinArgs;
+      this.joinArgsMap = Collections.emptyMap();
     }
 
-    /**
-     * Join by the following field names.
-     *
-     * <p>The same field names are used in all input PCollections.
-     */
-    public Inner byFieldNamesForInput(String tag, String... fieldNames) {
-      return byFieldAccessDescriptorForInput(tag, FieldAccessDescriptor.withFieldNames(fieldNames));
+    private Inner(String tag, By joinArg) {
+      this.allInputsJoinArgs = null;
+      this.joinArgsMap = ImmutableMap.of(tag, joinArg);
     }
 
     /**
-     * Select the following field ids for the specified PCollection.
+     * Select the following fields for the specified PCollection with the specified join args.
      *
      * <p>Each PCollection in the input must have fields specified for the join key.
      */
-    public Inner byFieldIdsForInput(String tag, Integer... fieldIds) {
-      return byFieldAccessDescriptorForInput(tag, FieldAccessDescriptor.withFieldIds(fieldIds));
-    }
-
-    /**
-     * Select the following fields for the specified PCollection using {@link
-     * FieldAccessDescriptor}.
-     *
-     * <p>Each PCollection in the input must have fields specified for the join key.
-     */
-    public Inner byFieldAccessDescriptorForInput(
-        String tag, FieldAccessDescriptor fieldAccessDescriptor) {
-      if (allInputsFieldAccessDescriptor != null) {
+    public Inner join(String tag, By joinArg) {
+      if (allInputsJoinArgs != null) {
         throw new IllegalStateException("Cannot set both a global and per-tag fields.");
       }
       return new Inner(
-          new ImmutableMap.Builder<String, FieldAccessDescriptor>()
-              .putAll(fieldAccessDescriptorMap)
-              .put(tag, fieldAccessDescriptor)
-              .build());
+          new ImmutableMap.Builder<String, By>().putAll(joinArgsMap).put(tag, joinArg).build());
     }
 
     @Nullable
     private FieldAccessDescriptor getFieldAccessDescriptor(String tag) {
-      return (allInputsFieldAccessDescriptor != null)
-          ? allInputsFieldAccessDescriptor
-          : fieldAccessDescriptorMap.get(tag);
+      return (allInputsJoinArgs != null)
+          ? allInputsJoinArgs.getFieldAccessDescriptor()
+          : joinArgsMap.get(tag).getFieldAccessDescriptor();
     }
 
     @Override
