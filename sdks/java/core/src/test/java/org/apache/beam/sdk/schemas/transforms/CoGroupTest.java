@@ -36,7 +36,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.hamcrest.BaseMatcher;
@@ -183,9 +182,9 @@ public class CoGroupTest {
             .build();
 
     PCollection<KV<Row, Row>> joined =
-        PCollectionTuple.of(new TupleTag<>("pc1"), pc1)
-            .and(new TupleTag<>("pc2"), pc2)
-            .and(new TupleTag<>("pc3"), pc3)
+        PCollectionTuple.of("pc1", pc1)
+            .and("pc2", pc2)
+            .and("pc3", pc3)
             .apply("CoGroup", CoGroup.byFieldNames("user", "country"));
     List<KV<Row, Row>> expected =
         ImmutableList.of(
@@ -325,19 +324,15 @@ public class CoGroupTest {
                     Row.withSchema(CG_SCHEMA_3).addValues("user2", 24, "ar").build()))
             .build();
 
-    TupleTag<Row> pc1Tag = new TupleTag<>("pc1");
-    TupleTag<Row> pc2Tag = new TupleTag<>("pc2");
-    TupleTag<Row> pc3Tag = new TupleTag<>("pc3");
-
     PCollection<KV<Row, Row>> joined =
-        PCollectionTuple.of(pc1Tag, pc1)
-            .and(pc2Tag, pc2)
-            .and(pc3Tag, pc3)
+        PCollectionTuple.of("pc1", pc1)
+            .and("pc2", pc2)
+            .and("pc3", pc3)
             .apply(
                 "CoGroup",
-                CoGroup.byFieldNames(pc1Tag, "user", "country")
-                    .byFieldNames(pc2Tag, "user2", "country2")
-                    .byFieldNames(pc3Tag, "user3", "country3"));
+                CoGroup.byFieldNamesForInput("pc1", "user", "country")
+                    .byFieldNamesForInput("pc2", "user2", "country2")
+                    .byFieldNamesForInput("pc3", "user3", "country3"));
 
     List<KV<Row, Row>> expected =
         ImmutableList.of(
@@ -367,19 +362,16 @@ public class CoGroupTest {
     PCollection<Row> pc3 =
         pipeline.apply(
             "Create3", Create.of(Row.withSchema(CG_SCHEMA_3).addValues("user1", 17, "us").build()));
-    TupleTag<Row> pc1Tag = new TupleTag<>("pc1");
-    TupleTag<Row> pc2Tag = new TupleTag<>("pc2");
-    TupleTag<Row> pc3Tag = new TupleTag<>("pc3");
 
     thrown.expect(IllegalStateException.class);
     PCollection<KV<Row, Row>> joined =
-        PCollectionTuple.of(pc1Tag, pc1)
-            .and(pc2Tag, pc2)
-            .and(pc3Tag, pc3)
+        PCollectionTuple.of("pc1", pc1)
+            .and("pc2", pc2)
+            .and("pc3", pc3)
             .apply(
                 "CoGroup",
-                CoGroup.byFieldNames(pc1Tag, "user", "country")
-                    .byFieldNames(pc2Tag, "user2", "country2"));
+                CoGroup.byFieldNamesForInput("pc1", "user", "country")
+                    .byFieldNamesForInput("pc2", "user2", "country2"));
     pipeline.run();
   }
 
@@ -399,13 +391,13 @@ public class CoGroupTest {
                 Create.of(Row.withSchema(CG_SCHEMA_1).addValues("user1", 9, "us").build()))
             .setRowSchema(CG_SCHEMA_1);
 
-    TupleTag<Row> pc1Tag = new TupleTag<>("pc1");
-    TupleTag<Row> pc2Tag = new TupleTag<>("pc2");
     thrown.expect(IllegalStateException.class);
     PCollection<KV<Row, Row>> joined =
-        PCollectionTuple.of(pc1Tag, pc1)
-            .and(pc2Tag, pc2)
-            .apply("CoGroup", CoGroup.byFieldNames(pc1Tag, "user").byFieldNames(pc2Tag, "count"));
+        PCollectionTuple.of("pc1", pc1)
+            .and("pc2", pc2)
+            .apply(
+                "CoGroup",
+                CoGroup.byFieldNamesForInput("pc1", "user").byFieldNamesForInput("pc2", "count"));
     pipeline.run();
   }
 

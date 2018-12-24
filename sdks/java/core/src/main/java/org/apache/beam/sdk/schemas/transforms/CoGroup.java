@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -57,13 +56,11 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * <p>For example, the following demonstrates joining three PCollections on the "user" and "country"
  * fields:
  *
- * <pre>{@code TupleTag<Input1Type> input1Tag = new TupleTag<>("input1");
- * TupleTag<Input2Type> input2Tag = new TupleTag<>("input2");
- * TupleTag<Input3Type> input3Tag = new TupleTag<>("input3");
- * PCollection<KV<Row, Row>> joined = PCollectionTuple
- *     .of(input1Tag, input1)
- *     .and(input2Tag, input2)
- *     .and(input3Tag, input3)
+
+ * <pre>{@code PCollection<KV<Row, Row>> joined = PCollectionTuple
+ *     .of("input1", input1)
+ *     .and("input2, input2)
+ *     .and("input3", input3)
  *   .apply(CoGroup.byFieldNames("user", "country"));
  * }</pre>
  *
@@ -108,11 +105,11 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * example:
  *
  * <pre>{@code PCollection<KV<Row, Row>> joined = PCollectionTuple
- *     .of(input1Tag, input1)
- *     .and(input2Tag, input2)
+ *     .of("input1Tag", input1)
+ *     .and("input2Tag", input2)
  *   .apply(CoGroup
- *     .byFieldNames(input1Tag, "referringUser"))
- *     .byFieldNames(input2Tag, "user"));
+ *     .byFieldNamesForInput("input1Tag", "referringUser"))
+ *     .byFieldNamesForInput("input2Tag", "user"));
  * }</pre>
  */
 public class CoGroup {
@@ -148,8 +145,8 @@ public class CoGroup {
    *
    * <p>Each PCollection in the input must have fields specified for the join key.
    */
-  public static Inner byFieldNames(TupleTag<?> tag, String... fieldNames) {
-    return byFieldAccessDescriptor(tag, FieldAccessDescriptor.withFieldNames(fieldNames));
+  public static Inner byFieldNamesForInput(String tag, String... fieldNames) {
+    return byFieldAccessDescriptorForInput(tag, FieldAccessDescriptor.withFieldNames(fieldNames));
   }
 
   /**
@@ -157,8 +154,8 @@ public class CoGroup {
    *
    * <p>Each PCollection in the input must have fields specified for the join key.
    */
-  public static Inner byFieldIds(TupleTag<?> tag, Integer... fieldIds) {
-    return byFieldAccessDescriptor(tag, FieldAccessDescriptor.withFieldIds(fieldIds));
+  public static Inner byFieldIdsForInput(String tag, Integer... fieldIds) {
+    return byFieldAccessDescriptorForInput(tag, FieldAccessDescriptor.withFieldIds(fieldIds));
   }
 
   /**
@@ -166,21 +163,21 @@ public class CoGroup {
    *
    * <p>Each PCollection in the input must have fields specified for the join key.
    */
-  public static Inner byFieldAccessDescriptor(
-      TupleTag<?> tag, FieldAccessDescriptor fieldAccessDescriptor) {
-    return new Inner().byFieldAccessDescriptor(tag, fieldAccessDescriptor);
+  public static Inner byFieldAccessDescriptorForInput(
+      String tag, FieldAccessDescriptor fieldAccessDescriptor) {
+    return new Inner().byFieldAccessDescriptorForInput(tag, fieldAccessDescriptor);
   }
 
   /** The implementing PTransform. */
   public static class Inner extends PTransform<PCollectionTuple, PCollection<KV<Row, Row>>> {
     @Nullable private final FieldAccessDescriptor allInputsFieldAccessDescriptor;
-    private final Map<TupleTag<?>, FieldAccessDescriptor> fieldAccessDescriptorMap;
+    private final Map<String, FieldAccessDescriptor> fieldAccessDescriptorMap;
 
     private Inner() {
       this(Collections.emptyMap());
     }
 
-    private Inner(Map<TupleTag<?>, FieldAccessDescriptor> fieldAccessDescriptorMap) {
+    private Inner(Map<String, FieldAccessDescriptor> fieldAccessDescriptorMap) {
       this.allInputsFieldAccessDescriptor = null;
       this.fieldAccessDescriptorMap = fieldAccessDescriptorMap;
     }
@@ -195,8 +192,8 @@ public class CoGroup {
      *
      * <p>The same field names are used in all input PCollections.
      */
-    public Inner byFieldNames(TupleTag<?> tag, String... fieldNames) {
-      return byFieldAccessDescriptor(tag, FieldAccessDescriptor.withFieldNames(fieldNames));
+    public Inner byFieldNamesForInput(String tag, String... fieldNames) {
+      return byFieldAccessDescriptorForInput(tag, FieldAccessDescriptor.withFieldNames(fieldNames));
     }
 
     /**
@@ -204,8 +201,8 @@ public class CoGroup {
      *
      * <p>Each PCollection in the input must have fields specified for the join key.
      */
-    public Inner byFieldIds(TupleTag<?> tag, Integer... fieldIds) {
-      return byFieldAccessDescriptor(tag, FieldAccessDescriptor.withFieldIds(fieldIds));
+    public Inner byFieldIdsForInput(String tag, Integer... fieldIds) {
+      return byFieldAccessDescriptorForInput(tag, FieldAccessDescriptor.withFieldIds(fieldIds));
     }
 
     /**
@@ -214,20 +211,20 @@ public class CoGroup {
      *
      * <p>Each PCollection in the input must have fields specified for the join key.
      */
-    public Inner byFieldAccessDescriptor(
-        TupleTag<?> tag, FieldAccessDescriptor fieldAccessDescriptor) {
+    public Inner byFieldAccessDescriptorForInput(
+        String tag, FieldAccessDescriptor fieldAccessDescriptor) {
       if (allInputsFieldAccessDescriptor != null) {
         throw new IllegalStateException("Cannot set both a global and per-tag fields.");
       }
       return new Inner(
-          new ImmutableMap.Builder<TupleTag<?>, FieldAccessDescriptor>()
+          new ImmutableMap.Builder<String, FieldAccessDescriptor>()
               .putAll(fieldAccessDescriptorMap)
               .put(tag, fieldAccessDescriptor)
               .build());
     }
 
     @Nullable
-    private FieldAccessDescriptor getFieldAccessDescriptor(TupleTag<?> tag) {
+    private FieldAccessDescriptor getFieldAccessDescriptor(String tag) {
       return (allInputsFieldAccessDescriptor != null)
           ? allInputsFieldAccessDescriptor
           : fieldAccessDescriptorMap.get(tag);
@@ -237,10 +234,13 @@ public class CoGroup {
     public PCollection<KV<Row, Row>> expand(PCollectionTuple input) {
       KeyedPCollectionTuple<Row> keyedPCollectionTuple =
           KeyedPCollectionTuple.empty(input.getPipeline());
-      List<TupleTag<Row>> sortedTags =
-          input.getAll().keySet().stream()
-              .sorted(Comparator.comparing(TupleTag::getId))
-              .map(t -> new TupleTag<Row>(t.getId() + "_ROW"))
+
+      List<String> sortedTags =
+          input
+              .getAll()
+              .keySet()
+              .stream()
+              .map(t -> t.getId() + "_ROW")
               .collect(Collectors.toList());
 
       // Keep this in a TreeMap so that it's sorted. This way we get a deterministic output
@@ -250,12 +250,12 @@ public class CoGroup {
 
       Schema keySchema = null;
       for (Map.Entry<TupleTag<?>, PCollection<?>> entry : input.getAll().entrySet()) {
-        TupleTag<?> tag = entry.getKey();
+        String tag = entry.getKey().getId();
         PCollection<?> pc = entry.getValue();
         Schema schema = pc.getSchema();
-        componentSchemas.put(tag.getId(), schema);
-        TupleTag<Row> rowTag = new TupleTag<>(tag.getId() + "_ROW");
-        toRows.put(rowTag.getId(), (SerializableFunction<Object, Row>) pc.getToRowFunction());
+        componentSchemas.put(tag, schema);
+        String rowTag = tag + "_ROW";
+        toRows.put(rowTag, (SerializableFunction<Object, Row>) pc.getToRowFunction());
         FieldAccessDescriptor fieldAccessDescriptor = getFieldAccessDescriptor(tag);
         if (fieldAccessDescriptor == null) {
           throw new IllegalStateException("No fields were set for input " + tag);
@@ -276,7 +276,7 @@ public class CoGroup {
         }
 
         PCollection<KV<Row, Row>> keyedPCollection =
-            extractKey(pc, schema, keySchema, resolved, tag.getId());
+            extractKey(pc, schema, keySchema, resolved, tag);
         keyedPCollectionTuple = keyedPCollectionTuple.and(rowTag, keyedPCollection);
       }
 
@@ -295,12 +295,12 @@ public class CoGroup {
     }
 
     private static class ConvertToRow extends DoFn<KV<Row, CoGbkResult>, KV<Row, Row>> {
-      List<TupleTag<Row>> sortedTags;
+      List<String> sortedTags;
       Map<String, SerializableFunction<Object, Row>> toRows = Maps.newHashMap();
       Schema joinedSchema;
 
       public ConvertToRow(
-          List<TupleTag<Row>> sortedTags,
+          List<String> sortedTags,
           Map<String, SerializableFunction<Object, Row>> toRows,
           Schema joinedSchema) {
         this.sortedTags = sortedTags;
@@ -313,11 +313,11 @@ public class CoGroup {
         Row key = kv.getKey();
         CoGbkResult result = kv.getValue();
         List<Object> fields = Lists.newArrayListWithExpectedSize(sortedTags.size());
-        for (TupleTag<?> tag : sortedTags) {
+        for (String tag : sortedTags) {
           // TODO: This forces the entire join to materialize in memory. We should create a
           // lazy Row interface on top of the iterable returned by CoGbkResult. This will
           // allow the data to be streamed in.
-          SerializableFunction<Object, Row> toRow = toRows.get(tag.getId());
+          SerializableFunction<Object, Row> toRow = toRows.get(tag);
           List<Row> joined = Lists.newArrayList();
           for (Object item : result.getAll(tag)) {
             joined.add(toRow.apply(item));

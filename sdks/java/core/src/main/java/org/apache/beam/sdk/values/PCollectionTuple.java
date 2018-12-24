@@ -91,6 +91,9 @@ public class PCollectionTuple implements PInput, POutput {
     return empty(pc.getPipeline()).and(tag, pc);
   }
 
+  public static <T> PCollectionTuple of(String tag, PCollection<T> pc) {
+    return of(new TupleTag<>(tag), pc);
+  }
   /**
    * Returns a new {@link PCollectionTuple} that has each {@link PCollection} and {@link TupleTag}
    * of this {@link PCollectionTuple} plus the given {@link PCollection} associated with the given
@@ -115,12 +118,20 @@ public class PCollectionTuple implements PInput, POutput {
             .build());
   }
 
+  public <T> PCollectionTuple and(String tag, PCollection<T> pc) {
+    return and(new TupleTag<>(tag), pc);
+  }
+
   /**
    * Returns whether this {@link PCollectionTuple} contains a {@link PCollection} with the given
    * tag.
    */
   public <T> boolean has(TupleTag<T> tag) {
     return pcollectionMap.containsKey(tag);
+  }
+
+  public <T> boolean has(String tag) {
+    return has(new TupleTag<>(tag));
   }
 
   /**
@@ -135,6 +146,10 @@ public class PCollectionTuple implements PInput, POutput {
       throw new IllegalArgumentException("TupleTag not found in this PCollectionTuple tuple");
     }
     return pcollection;
+  }
+
+  public <T> PCollection<T> get(String tag) {
+    return get(new TupleTag<>(tag));
   }
 
   /**

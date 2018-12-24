@@ -52,6 +52,11 @@ public class KeyedPCollectionTuple<K> implements PInput {
     return new KeyedPCollectionTuple<K>(pc.getPipeline()).and(tag, pc);
   }
 
+  /** A version that takes in a string instead of a TupleTag. */
+  public static <K, InputT> KeyedPCollectionTuple<K> of(String tag, PCollection<KV<K, InputT>> pc) {
+    return of(new TupleTag<>(tag), pc);
+  }
+
   /**
    * Returns a new {@code KeyedPCollectionTuple<K>} that is the same as this, appended with the
    * given PCollection.
@@ -65,6 +70,11 @@ public class KeyedPCollectionTuple<K> implements PInput {
     List<TaggedKeyedPCollection<K, ?>> newKeyedCollections = copyAddLast(keyedCollections, wrapper);
     return new KeyedPCollectionTuple<>(
         getPipeline(), newKeyedCollections, schema.getTupleTagList().and(tag), myKeyCoder);
+  }
+
+  /** A version that takes in a string instead of a TupleTag. */
+  public <V> KeyedPCollectionTuple<K> and(String tag, PCollection<KV<K, V>> pc) {
+    return and(new TupleTag<>(tag), pc);
   }
 
   public boolean isEmpty() {
