@@ -53,7 +53,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 /**
  * A transform that performs equijoins across multiple schema {@link PCollection}s.
  *
- * <p>This transform has similarites to {@link CoGroupByKey}, however works on PCollections that
+ * <p>This transform has similarities to {@link CoGroupByKey}, however works on PCollections that
  * have schemas. This allows users of the transform to simply specify schema fields to join on. The
  * output type of the transform is a {@code KV<Row, Row>} where the value contains one field for
  * every input PCollection and the key represents the fields that were joined on. By default the
@@ -159,7 +159,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *
  * <pre>{@code
  * PCollection<Row> joined = PCollectionTuple.of("input1", input1, "input2", input2)
- *   .apply(CoGroup.join("input1", By.fieldNames("user").withOuterJoinParticipation())
+ *   .apply(CoGroup.join("input1", By.fieldNames("user").withOptionalParticipation())
  *                 .join("input2", By.fieldNames("user"))
  *                 .crossProductJoin();
  * }</pre>
@@ -171,7 +171,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * <pre>{@code
  * PCollection<Row> joined = PCollectionTuple.of("input1", input1, "input2", input2)
  *   .apply(CoGroup.join("input1", By.fieldNames("user"))
- *                 .join("input2", By.fieldNames("user").withOuterJoinParticipation())
+ *                 .join("input2", By.fieldNames("user").withOptionalParticipation())
  *                 .crossProductJoin();
  * }</pre>
  *
@@ -181,8 +181,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *
  * <pre>{@code
  * PCollection<Row> joined = PCollectionTuple.of("input1", input1, "input2", input2)
- *   .apply(CoGroup.join("input1", By.fieldNames("user").withOuterJoinParticipation())
- *                 .join("input2", By.fieldNames("user").withOuterJoinParticipation())
+ *   .apply(CoGroup.join("input1", By.fieldNames("user").withOptionalParticipation())
+ *                 .join("input2", By.fieldNames("user").withOptionalParticipation())
  *                 .crossProductJoin();
  * }</pre>
  *
@@ -244,7 +244,7 @@ public class CoGroup {
      *
      * <p>This only affects the results of expandCrossProduct.
      */
-    public By withOuterJoinParticipation() {
+    public By withOptionalParticipation() {
       return toBuilder().setOuterJoinParticipation(true).build();
     }
   }
