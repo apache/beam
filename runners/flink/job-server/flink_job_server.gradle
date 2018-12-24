@@ -111,6 +111,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
   def pipelineOptions = [
       // Limit resource consumption via parallelism
       "--parallelism=2",
+      "--shutdownSourcesOnFinalWatermark",
   ]
   if (streaming) {
     pipelineOptions += "--streaming"
