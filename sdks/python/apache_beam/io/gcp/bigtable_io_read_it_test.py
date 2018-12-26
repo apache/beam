@@ -37,7 +37,6 @@ class BigtableIOReadIT(unittest.TestCase):
 		if self.table.exists():
 			self.table.delete()
 
-	@attr('IT')
 	def test_bigtable_read_python(self):
 		output = self.TABLE_NAME
 		number = self.number
