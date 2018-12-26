@@ -82,9 +82,15 @@ public abstract class MatchResult {
 
     public abstract long sizeBytes();
 
-    public abstract long lastModifiedMillis();
-
     public abstract boolean isReadSeekEfficient();
+
+    /**
+     * Last modification timestamp in milliseconds since Unix epoch.
+     *
+     * <p>Note that this field is not encoded with the default {@link MetadataCoder} due to a need
+     * for compatibility with previous versions of the Beam SDK.
+     */
+    public abstract long lastModifiedMillis();
 
     public static Builder builder() {
       return new AutoValue_MatchResult_Metadata.Builder();
@@ -97,9 +103,9 @@ public abstract class MatchResult {
 
       public abstract Builder setSizeBytes(long value);
 
-      public abstract Builder setLastModifiedMillis(long value);
-
       public abstract Builder setIsReadSeekEfficient(boolean value);
+
+      public abstract Builder setLastModifiedMillis(long value);
 
       public abstract Metadata build();
     }
