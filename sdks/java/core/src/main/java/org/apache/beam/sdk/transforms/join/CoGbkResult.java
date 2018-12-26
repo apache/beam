@@ -183,7 +183,7 @@ public class CoGbkResult {
     return innerGetOnly(tag, null, false);
   }
 
-  /** Like {@link #getOnly(TupleTag)}  but using a String instead of a TupleTag. */
+  /** Like {@link #getOnly(TupleTag)} but using a String instead of a TupleTag. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
   public <V> V getOnly(String tag) {
     return getOnly(new TupleTag<>(tag));
