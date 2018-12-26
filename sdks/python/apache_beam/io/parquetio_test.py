@@ -19,6 +19,7 @@ from __future__ import absolute_import
 import json
 import logging
 import os
+import platform
 import shutil
 import sys
 import tempfile
@@ -26,9 +27,6 @@ import unittest
 
 import hamcrest as hc
 import pandas
-import pyarrow as pa
-import pyarrow.lib as pl
-import pyarrow.parquet as pq
 from parameterized import param
 from parameterized import parameterized
 
@@ -48,7 +46,16 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
+if not (platform.system() == 'Windows' and sys.version_info[0] == 2):
+  import pyarrow as pa
+  import pyarrow.lib as pl
+  import pyarrow.parquet as pq
 
+
+@unittest.skipIf(
+    platform.system() == 'Windows' and sys.version_info[0] == 2,
+    "pyarrow doesn't support Windows Python 2."
+)
 class TestParquet(unittest.TestCase):
 
   @classmethod
@@ -63,36 +70,35 @@ class TestParquet(unittest.TestCase):
     filebasedsource.MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 2
     self.temp_dir = tempfile.mkdtemp()
 
+    self.RECORDS = [{'name': 'Thomas',
+                     'favorite_number': 1,
+                     'favorite_color': 'blue'}, {'name': 'Henry',
+                                                 'favorite_number': 3,
+                                                 'favorite_color': 'green'},
+                    {'name': 'Toby',
+                     'favorite_number': 7,
+                     'favorite_color': 'brown'}, {'name': 'Gordon',
+                                                  'favorite_number': 4,
+                                                  'favorite_color': 'blue'},
+                    {'name': 'Emily',
+                     'favorite_number': -1,
+                     'favorite_color': 'Red'}, {'name': 'Percy',
+                                                'favorite_number': 6,
+                                                'favorite_color': 'Green'}]
+    self.SCHEMA = pa.schema([
+        ('name', pa.binary()),
+        ('favorite_number', pa.int64()),
+        ('favorite_color', pa.binary())
+    ])
+
+    self.SCHEMA96 = pa.schema([
+        ('name', pa.binary()),
+        ('favorite_number', pa.timestamp('ns')),
+        ('favorite_color', pa.binary())
+    ])
+
   def tearDown(self):
     shutil.rmtree(self.temp_dir)
-
-  RECORDS = [{'name': 'Thomas',
-              'favorite_number': 1,
-              'favorite_color': 'blue'}, {'name': 'Henry',
-                                          'favorite_number': 3,
-                                          'favorite_color': 'green'},
-             {'name': 'Toby',
-              'favorite_number': 7,
-              'favorite_color': 'brown'}, {'name': 'Gordon',
-                                           'favorite_number': 4,
-                                           'favorite_color': 'blue'},
-             {'name': 'Emily',
-              'favorite_number': -1,
-              'favorite_color': 'Red'}, {'name': 'Percy',
-                                         'favorite_number': 6,
-                                         'favorite_color': 'Green'}]
-
-  SCHEMA = pa.schema([
-      ('name', pa.binary()),
-      ('favorite_number', pa.int64()),
-      ('favorite_color', pa.binary())
-  ])
-
-  SCHEMA96 = pa.schema([
-      ('name', pa.binary()),
-      ('favorite_number', pa.timestamp('ns')),
-      ('favorite_color', pa.binary())
-  ])
 
   def _record_to_columns(self, records, schema):
     col_list = []
@@ -109,12 +115,15 @@ class TestParquet(unittest.TestCase):
                   prefix=tempfile.template,
                   row_group_size=1000,
                   codec='none',
-                  count=len(RECORDS)):
+                  count=None):
     if schema is None:
       schema = self.SCHEMA
 
     if directory is None:
       directory = self.temp_dir
+
+    if count is None:
+      count = len(self.RECORDS)
 
     with tempfile.NamedTemporaryFile(
         delete=False, dir=directory, prefix=prefix) as f:
