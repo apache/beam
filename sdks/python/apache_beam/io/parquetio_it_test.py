@@ -18,12 +18,12 @@ from __future__ import absolute_import
 from __future__ import division
 
 import logging
+import platform
 import string
 import sys
 import unittest
 from collections import Counter
 
-import pyarrow as pa
 from nose.plugins.attrib import attr
 
 from apache_beam import Create
@@ -41,7 +41,14 @@ from apache_beam.testing.util import BeamAssertException
 from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms.combiners import Count
 
+if not (platform.system() == 'Windows' and sys.version_info[0] == 2):
+  import pyarrow as pa
 
+
+@unittest.skipIf(
+    platform.system() == 'Windows' and sys.version_info[0] == 2,
+    "pyarrow doesn't support Windows Python 2."
+)
 class TestParquetIT(unittest.TestCase):
 
   @classmethod
@@ -55,12 +62,6 @@ class TestParquetIT(unittest.TestCase):
 
   def tearDown(self):
     pass
-
-  SCHEMA = pa.schema([
-      ('name', pa.binary()),
-      ('favorite_number', pa.int64()),
-      ('favorite_color', pa.binary())
-  ])
 
   @attr('IT')
   def test_parquetio_it(self):
