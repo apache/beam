@@ -547,7 +547,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("3 = 5 IS NOT UNKNOWN", true)
             .addExpr("5 = 5 IS NOT UNKNOWN", true)
             .addExpr("(NOT 5 = 5) IS NOT UNKNOWN", true)
-            .addExpr("(3 = NULL) IS UNKNOWN", false)
+            .addExpr("(3 = NULL) IS UNKNOWN", true)
             .addExpr("(3 = NULL) IS NOT UNKNOWN", false)
             .addExpr("(NULL = NULL) IS NOT UNKNOWN", false)
             .addExpr("(NOT NULL = NULL) IS NOT UNKNOWN", false)
