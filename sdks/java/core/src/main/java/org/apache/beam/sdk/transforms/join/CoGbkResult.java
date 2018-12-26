@@ -167,6 +167,7 @@ public class CoGbkResult {
     return unions;
   }
 
+  /** Like {@link #getAll(TupleTag)} but using a String instead of a {@link TupleTag}. */
   public <V> Iterable<V> getAll(String tag) {
     return getAll(new TupleTag<>(tag));
   }
@@ -182,6 +183,7 @@ public class CoGbkResult {
     return innerGetOnly(tag, null, false);
   }
 
+  /** Like {@link #getOnly(TupleTag)}  but using a String instead of a TupleTag. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
   public <V> V getOnly(String tag) {
     return getOnly(new TupleTag<>(tag));
@@ -199,6 +201,7 @@ public class CoGbkResult {
     return innerGetOnly(tag, defaultValue, true);
   }
 
+  /** Like {@link #getOnly(TupleTag, Object)} but uisng a String instead of a TupleTag. */
   @Nullable
   public <V> V getOnly(String tag, @Nullable V defaultValue) {
     return getOnly(new TupleTag<>(tag), defaultValue);
