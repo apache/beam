@@ -76,7 +76,6 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
-import org.apache.beam.sdk.testing.DataflowPortabilityExecutableStageUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -1187,7 +1186,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
+    @Category(ValidatesRunner.class)
     public void testWindowingInStartAndFinishBundle() {
 
       final FixedWindows windowFn = FixedWindows.of(Duration.millis(1));
