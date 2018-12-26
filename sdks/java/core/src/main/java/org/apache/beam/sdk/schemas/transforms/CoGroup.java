@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -33,6 +35,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
@@ -57,12 +60,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * <p>For example, the following demonstrates joining three PCollections on the "user" and "country"
  * fields:
  *
-
- * <pre>{@code PCollection<KV<Row, Row>> joined = PCollectionTuple
- *     .of("input1", input1)
- *     .and("input2, input2)
- *     .and("input3", input3)
- *   .apply(CoGroup.join(By.fieldNames("user", "country")));
+ * <pre>{@code PCollection<KV<Row, Row>> joined =
+ *   PCollectionTuple.of("input1", input1, "input2", input2, "input3", input3)
+ *     .apply(CoGroup.join(By.fieldNames("user", "country")));
  * }</pre>
  *
  * <p>In the above case, the key schema will contain the two string fields "user" and "country"; in
@@ -105,20 +105,97 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * those fields match. In this case, fields must be specified for every input PCollection. For
  * example:
  *
- * <pre>{@code PCollection<KV<Row, Row>> joined = PCollectionTuple
- *     .of("input1Tag", input1)
- *     .and("input2Tag", input2)
+ * <pre>{@code PCollection<KV<Row, Row>> joined
+ *      = PCollectionTuple.of("input1Tag", input1, "input2Tag", input2)
  *   .apply(CoGroup
  *     .join("input1Tag", By.fieldNames("referringUser")))
  *     .join("input2Tag", By.fieldNames("user")));
  * }</pre>
+ *
+ * <p>Traditional (SQL) joins are cross-product joins. All rows that match the join condition are
+ * combined into individual rows and returned; in fact any SQL inner joins is a subset of the
+ * cross-product of two tables. This transform also supports the same functionality using the {@link
+ * Inner#crossProductJoin()} method.
+ *
+ * <p>For example, consider the SQL join:
+ *   SELECT * FROM input1 INNER JOIN input2 ON input1.user = input2.user
+ *
+ * <p>You could express this with:
+ *
+ * <pre>{@code
+ * PCollection<Row> joined = PCollectionTuple.of("input1", input1, "input2", input2)
+ *   .apply(CoGroup.join(By.fieldNames("user")).crossProductJoin();
+ * }</pre>
+ *
+ * <pr>The schema of the output PCollection contains a nested message for each of input1 and
+ * input2. Like above, you could use the {@link Convert} transform to convert it to the following
+ * POJO:
+ *
+ *  <pre>{@code
+ *  {@literal @}DefaultSchema(JavaFieldSchema.class)
+ *  public class JoinedValue {
+ *   public Input1Type input1;
+ *   public Input2Type input2;
+ *  }
+ * }</pre>
+ *
+ * <pre>The {@link Unnest} transform can then be used to flatten all the subfields into one
+ * single top-level row containing all the fields in both Input1 and Input2; this will often be
+ * combined with a {@link Select} transform to select out the fields of interest, as the key
+ * fields will be identical between input1 and input2.
+ *
+ * <p>This transform also supports outer-join semantics. By default, all input PCollections must
+ * participate fully in the join, providing inner-join semantics. This means that if if all input
+ * save one have values for a given user "Bob" the join will produce no values for "Bob."
+ * However, you can mark that input as having outer-join participation; this means that even
+ * though one input has no value for "Bob" an output Row will still be produced with a null in
+ * place for that input. To continue the SQL example:
+ *
+ * <p>  SELECT * FROM input1 LEFT OUTER JOIN input2 ON input1.user = input2.user
+ *
+ * <p>Is equivalent to:
+ *
+ * <pre>{@code
+ * PCollection<Row> joined = PCollectionTuple.of("input1", input1, "input2", input2)
+ *   .apply(CoGroup.join("input1", By.fieldNames("user").withOuterJoinParticipation()
+ *                 .join("input2", By.fieldNames("user")
+ *                 .crossProductJoin();
+ * }</pre>
+ *
+ * <p>  SELECT * FROM input1 RIGHT OUTER JOIN input2 ON input1.user = input2.user
+ *
+ * <p>Is equivalent to:
+ *
+ * <pre>{@code
+ * PCollection<Row> joined = PCollectionTuple.of("input1", input1, "input2", input2)
+ *   .apply(CoGroup.join("input1", By.fieldNames("user")
+ *                 .join("input2", By.fieldNames("user").withOuterJoinParticipation()
+ *                 .crossProductJoin();
+ * }</pre>
+ *
+ * <p>  and SELECT * FROM input1 FULL OUTER JOIN input2 ON input1.user = input2.user
+ *
+ * <p>Is equivalent to:
+ *
+ * <pre>{@code
+ * PCollection<Row> joined = PCollectionTuple.of("input1", input1, "input2", input2)
+ *   .apply(CoGroup.join("input1", By.fieldNames("user").withOuterJoinParticipation()
+ *                 .join("input2", By.fieldNames("user").withOuterJoinParticipation()
+ *                 .crossProductJoin();
+ * }</pre>
+ *
+ * <p>While the above examples use two inputs to mimic SQL's left and right join semantics, the
+ * {@link CoGroup} transform supports any number of inputs, and outer-join participation can be
+ * specified on any subset of them.
+ *
+ * <p>Do note that cross-product joins while simpler and easier to program, can cause
  */
 public class CoGroup {
   /**
    * Defines the set of fields to extract for the join key, as well as other per-input join options.
    */
   @AutoValue
-  public abstract static class By {
+  public abstract static class By implements Serializable {
     abstract FieldAccessDescriptor getFieldAccessDescriptor();
 
     abstract boolean getOuterJoinParticipation();
@@ -163,60 +240,23 @@ public class CoGroup {
     }
   }
 
-  /**
-   * Join all input PCollections using the same args.
-   *
-   * <p>The same fields and other options are used in all input PCollections.
-   */
-  public static Inner join(By joinArgs) {
-    return new Inner(joinArgs);
-  }
-
-  /**
-   * Specify the following join arguments (including fields to join by_ for the specified
-   * PCollection.
-   *
-   * <p>Each PCollection in the input must have args specified for the join key.
-   */
-  public static Inner join(String tag, By joinArgs) {
-    return new Inner(tag, joinArgs);
-  }
-
-  /** The implementing PTransform. */
-  public static class Inner extends PTransform<PCollectionTuple, PCollection<KV<Row, Row>>> {
+  private static class JoinArguments implements Serializable {
     @Nullable private final By allInputsJoinArgs;
     private final Map<String, By> joinArgsMap;
 
-    private Inner() {
-      this(Collections.emptyMap());
-    }
-
-    private Inner(Map<String, By> joinArgsMap) {
-      this.allInputsJoinArgs = null;
-      this.joinArgsMap = joinArgsMap;
-    }
-
-    private Inner(By allInputsJoinArgs) {
+    JoinArguments(@Nullable By allInputsJoinArgs) {
       this.allInputsJoinArgs = allInputsJoinArgs;
       this.joinArgsMap = Collections.emptyMap();
     }
 
-    private Inner(String tag, By joinArg) {
+    JoinArguments(Map<String, By> joinArgsMap) {
       this.allInputsJoinArgs = null;
-      this.joinArgsMap = ImmutableMap.of(tag, joinArg);
+      this.joinArgsMap = joinArgsMap;
     }
 
-    /**
-     * Select the following fields for the specified PCollection with the specified join args.
-     *
-     * <p>Each PCollection in the input must have fields specified for the join key.
-     */
-    public Inner join(String tag, By joinArg) {
-      if (allInputsJoinArgs != null) {
-        throw new IllegalStateException("Cannot set both a global and per-tag fields.");
-      }
-      return new Inner(
-          new ImmutableMap.Builder<String, By>().putAll(joinArgsMap).put(tag, joinArg).build());
+    JoinArguments with(String tag, By clause) {
+      return new JoinArguments(
+          new ImmutableMap.Builder<String, By>().putAll(joinArgsMap).put(tag, clause).build());
     }
 
     @Nullable
@@ -226,8 +266,58 @@ public class CoGroup {
           : joinArgsMap.get(tag).getFieldAccessDescriptor();
     }
 
-    @Override
-    public PCollection<KV<Row, Row>> expand(PCollectionTuple input) {
+    private boolean getOuterJoinParticipation(String tag) {
+      return (allInputsJoinArgs != null)
+          ? allInputsJoinArgs.getOuterJoinParticipation()
+          : joinArgsMap.get(tag).getOuterJoinParticipation();
+    }
+  }
+
+  /**
+   * Join all input PCollections using the same args.
+   *
+   * <p>The same fields and other options are used in all input PCollections.
+   */
+  public static Inner join(By clause) {
+    return new Inner(new JoinArguments(clause));
+  }
+
+  /**
+   * Specify the following join arguments (including fields to join by_ for the specified
+   * PCollection.
+   *
+   * <p>Each PCollection in the input must have args specified for the join key.
+   */
+  public static Inner join(String tag, By clause) {
+    return new Inner(new JoinArguments(ImmutableMap.of(tag, clause)));
+  }
+
+  // Contains summary information needed for implementing the join.
+  private static class JoinInformation {
+    private final KeyedPCollectionTuple<Row> keyedPCollectionTuple;
+    private final Schema keySchema;
+    private final Map<String, Schema> componentSchemas;
+    private final Map<String, SerializableFunction<Object, Row>> toRows;
+    private final List<String> sortedTags;
+    private final Map<String, String> tagToTupleTag;
+
+    private JoinInformation(
+        KeyedPCollectionTuple<Row> keyedPCollectionTuple,
+        Schema keySchema,
+        Map<String, Schema> componentSchemas,
+        Map<String, SerializableFunction<Object, Row>> toRows,
+        List<String> sortedTags,
+        Map<String, String> tagToTupleTag) {
+      this.keyedPCollectionTuple = keyedPCollectionTuple;
+      this.keySchema = keySchema;
+      this.componentSchemas = componentSchemas;
+      this.toRows = toRows;
+      this.sortedTags = sortedTags;
+      this.tagToTupleTag = tagToTupleTag;
+    }
+
+    private static JoinInformation from(
+        PCollectionTuple input, Function<String, FieldAccessDescriptor> getFieldAccessDescriptor) {
       KeyedPCollectionTuple<Row> keyedPCollectionTuple =
           KeyedPCollectionTuple.empty(input.getPipeline());
 
@@ -236,7 +326,8 @@ public class CoGroup {
               .getAll()
               .keySet()
               .stream()
-              .map(t -> t.getId() + "_ROW")
+              .map(TupleTag::getId)
+              .sorted()
               .collect(Collectors.toList());
 
       // Keep this in a TreeMap so that it's sorted. This way we get a deterministic output
@@ -244,15 +335,15 @@ public class CoGroup {
       TreeMap<String, Schema> componentSchemas = Maps.newTreeMap();
       Map<String, SerializableFunction<Object, Row>> toRows = Maps.newHashMap();
 
+      Map<String, String> tagToTupleTag = Maps.newHashMap();
       Schema keySchema = null;
       for (Map.Entry<TupleTag<?>, PCollection<?>> entry : input.getAll().entrySet()) {
         String tag = entry.getKey().getId();
         PCollection<?> pc = entry.getValue();
         Schema schema = pc.getSchema();
         componentSchemas.put(tag, schema);
-        String rowTag = tag + "_ROW";
-        toRows.put(rowTag, (SerializableFunction<Object, Row>) pc.getToRowFunction());
-        FieldAccessDescriptor fieldAccessDescriptor = getFieldAccessDescriptor(tag);
+        toRows.put(tag, (SerializableFunction<Object, Row>) pc.getToRowFunction());
+        FieldAccessDescriptor fieldAccessDescriptor = getFieldAccessDescriptor.apply(tag);
         if (fieldAccessDescriptor == null) {
           throw new IllegalStateException("No fields were set for input " + tag);
         }
@@ -271,57 +362,16 @@ public class CoGroup {
           }
         }
 
+        // Create a new tag for the output.
+        TupleTag randomTag = new TupleTag<>();
+        String keyedTag = tag + "_" + randomTag;
+        tagToTupleTag.put(tag, keyedTag);
         PCollection<KV<Row, Row>> keyedPCollection =
             extractKey(pc, schema, keySchema, resolved, tag);
-        keyedPCollectionTuple = keyedPCollectionTuple.and(rowTag, keyedPCollection);
+        keyedPCollectionTuple = keyedPCollectionTuple.and(keyedTag, keyedPCollection);
       }
-
-      // Construct the output schema. It contains one field for each input PCollection, of type
-      // ARRAY[ROW].
-      Schema.Builder joinedSchemaBuilder = Schema.builder();
-      for (Map.Entry<String, Schema> entry : componentSchemas.entrySet()) {
-        joinedSchemaBuilder.addArrayField(entry.getKey(), FieldType.row(entry.getValue()));
-      }
-      Schema joinedSchema = joinedSchemaBuilder.build();
-
-      return keyedPCollectionTuple
-          .apply("CoGroupByKey", CoGroupByKey.create())
-          .apply("ConvertToRow", ParDo.of(new ConvertToRow(sortedTags, toRows, joinedSchema)))
-          .setCoder(KvCoder.of(SchemaCoder.of(keySchema), SchemaCoder.of(joinedSchema)));
-    }
-
-    private static class ConvertToRow extends DoFn<KV<Row, CoGbkResult>, KV<Row, Row>> {
-      List<String> sortedTags;
-      Map<String, SerializableFunction<Object, Row>> toRows = Maps.newHashMap();
-      Schema joinedSchema;
-
-      public ConvertToRow(
-          List<String> sortedTags,
-          Map<String, SerializableFunction<Object, Row>> toRows,
-          Schema joinedSchema) {
-        this.sortedTags = sortedTags;
-        this.toRows = toRows;
-        this.joinedSchema = joinedSchema;
-      }
-
-      @ProcessElement
-      public void process(@Element KV<Row, CoGbkResult> kv, OutputReceiver<KV<Row, Row>> o) {
-        Row key = kv.getKey();
-        CoGbkResult result = kv.getValue();
-        List<Object> fields = Lists.newArrayListWithExpectedSize(sortedTags.size());
-        for (String tag : sortedTags) {
-          // TODO: This forces the entire join to materialize in memory. We should create a
-          // lazy Row interface on top of the iterable returned by CoGbkResult. This will
-          // allow the data to be streamed in.
-          SerializableFunction<Object, Row> toRow = toRows.get(tag);
-          List<Row> joined = Lists.newArrayList();
-          for (Object item : result.getAll(tag)) {
-            joined.add(toRow.apply(item));
-          }
-          fields.add(joined);
-        }
-        o.output(KV.of(key, Row.withSchema(joinedSchema).addValues(fields).build()));
-      }
+      return new JoinInformation(
+          keyedPCollectionTuple, keySchema, componentSchemas, toRows, sortedTags, tagToTupleTag);
     }
 
     private static <T> PCollection<KV<Row, Row>> extractKey(
@@ -341,6 +391,233 @@ public class CoGroup {
                     }
                   }))
           .setCoder(KvCoder.of(SchemaCoder.of(keySchema), SchemaCoder.of(schema)));
+    }
+  }
+
+  /** The implementing PTransform. */
+  public static class Inner extends PTransform<PCollectionTuple, PCollection<KV<Row, Row>>> {
+    private final JoinArguments joinArgs;
+
+    private Inner() {
+      this(new JoinArguments(Collections.emptyMap()));
+    }
+
+    private Inner(JoinArguments joinArgs) {
+      this.joinArgs = joinArgs;
+    }
+
+    /**
+     * Select the following fields for the specified PCollection with the specified join args.
+     *
+     * <p>Each PCollection in the input must have fields specified for the join key.
+     */
+    public Inner join(String tag, By clause) {
+      if (joinArgs.allInputsJoinArgs != null) {
+        throw new IllegalStateException("Cannot set both a global and per-tag fields.");
+      }
+      return new Inner(joinArgs.with(tag, clause));
+    }
+
+    /** Expand the join into imdividual rows, similar to SQL joins. */
+    public ExpandCrossProduct crossProductJoin() {
+      return new ExpandCrossProduct(joinArgs);
+    }
+
+    private Schema getOutputSchema(JoinInformation joinInformation) {
+      // Construct the output schema. It contains one field for each input PCollection, of type
+      // ARRAY[ROW].
+      Schema.Builder joinedSchemaBuilder = Schema.builder();
+      for (Map.Entry<String, Schema> entry : joinInformation.componentSchemas.entrySet()) {
+        joinedSchemaBuilder.addArrayField(entry.getKey(), FieldType.row(entry.getValue()));
+      }
+      return joinedSchemaBuilder.build();
+    }
+
+    @Override
+    public PCollection<KV<Row, Row>> expand(PCollectionTuple input) {
+      JoinInformation joinInformation =
+          JoinInformation.from(input, joinArgs::getFieldAccessDescriptor);
+
+      Schema joinedSchema = getOutputSchema(joinInformation);
+
+      return joinInformation
+          .keyedPCollectionTuple
+          .apply("CoGroupByKey", CoGroupByKey.create())
+          .apply(
+              "ConvertToRow",
+              ParDo.of(
+                  new ConvertToRow(
+                      joinInformation.sortedTags,
+                      joinInformation.toRows,
+                      joinedSchema,
+                      joinInformation.tagToTupleTag)))
+          .setCoder(
+              KvCoder.of(SchemaCoder.of(joinInformation.keySchema), SchemaCoder.of(joinedSchema)));
+    }
+
+    // Used by the unexpanded join to create the output rows.
+    private static class ConvertToRow extends DoFn<KV<Row, CoGbkResult>, KV<Row, Row>> {
+      private final List<String> sortedTags;
+      private final Map<String, SerializableFunction<Object, Row>> toRows;
+      private final Map<String, String> tagToTupleTag;
+      private final Schema joinedSchema;
+
+      ConvertToRow(
+          List<String> sortedTags,
+          Map<String, SerializableFunction<Object, Row>> toRows,
+          Schema joinedSchema,
+          Map<String, String> tagToTupleTag) {
+        this.sortedTags = sortedTags;
+        this.toRows = toRows;
+        this.joinedSchema = joinedSchema;
+        this.tagToTupleTag = tagToTupleTag;
+      }
+
+      @ProcessElement
+      public void process(@Element KV<Row, CoGbkResult> kv, OutputReceiver<KV<Row, Row>> o) {
+        Row key = kv.getKey();
+        CoGbkResult result = kv.getValue();
+        List<Object> fields = Lists.newArrayListWithExpectedSize(sortedTags.size());
+        for (String tag : sortedTags) {
+          // TODO: This forces the entire join to materialize in memory. We should create a
+          // lazy Row interface on top of the iterable returned by CoGbkResult. This will
+          // allow the data to be streamed in.
+          SerializableFunction<Object, Row> toRow = toRows.get(tag);
+          String tupleTag = tagToTupleTag.get(tag);
+          List<Row> joined = Lists.newArrayList();
+          for (Object item : result.getAll(tupleTag)) {
+            joined.add(toRow.apply(item));
+          }
+          fields.add(joined);
+        }
+        o.output(KV.of(key, Row.withSchema(joinedSchema).addValues(fields).build()));
+      }
+    }
+  }
+
+  /** A {@link PTransform} that calculates the cross-product join. */
+  public static class ExpandCrossProduct extends PTransform<PCollectionTuple, PCollection<Row>> {
+    private final JoinArguments joinArgs;
+
+    ExpandCrossProduct(JoinArguments joinArgs) {
+      this.joinArgs = joinArgs;
+    }
+
+    /**
+     * Select the following fields for the specified PCollection with the specified join args.
+     *
+     * <p>Each PCollection in the input must have fields specified for the join key.
+     */
+    public ExpandCrossProduct join(String tag, By clause) {
+      if (joinArgs.allInputsJoinArgs != null) {
+        throw new IllegalStateException("Cannot set both a global and per-tag fields.");
+      }
+      return new ExpandCrossProduct(joinArgs.with(tag, clause));
+    }
+
+    private Schema getOutputSchema(JoinInformation joinInformation) {
+      // Construct the output schema. It contains one field for each input PCollection, of type
+      // ROW. If a field supports outer-join semantics, then that field will be nullable in the
+      // schema.
+      Schema.Builder joinedSchemaBuilder = Schema.builder();
+      for (Map.Entry<String, Schema> entry : joinInformation.componentSchemas.entrySet()) {
+        FieldType fieldType = FieldType.row(entry.getValue());
+        if (joinArgs.getOuterJoinParticipation(entry.getKey())) {
+          fieldType = fieldType.withNullable(true);
+        }
+        joinedSchemaBuilder.addField(entry.getKey(), fieldType);
+      }
+      return joinedSchemaBuilder.build();
+    }
+
+    @Override
+    public PCollection<Row> expand(PCollectionTuple input) {
+      JoinInformation joinInformation =
+          JoinInformation.from(input, joinArgs::getFieldAccessDescriptor);
+
+      Schema joinedSchema = getOutputSchema(joinInformation);
+
+      return joinInformation
+          .keyedPCollectionTuple
+          .apply("CoGroupByKey", CoGroupByKey.create())
+          .apply("Values", Values.create())
+          .apply(
+              "ExpandToRow",
+              ParDo.of(
+                  new ExpandToRows(
+                      joinInformation.sortedTags,
+                      joinInformation.toRows,
+                      joinedSchema,
+                      joinInformation.tagToTupleTag)))
+          .setRowSchema(joinedSchema);
+    }
+
+    /** A DoFn that expands the result of a CoGroupByKey into the cross product. */
+    private class ExpandToRows extends DoFn<CoGbkResult, Row> {
+      private final List<String> sortedTags;
+      private final Map<String, SerializableFunction<Object, Row>> toRows;
+      private final Schema outputSchema;
+      private final Map<String, String> tagToTupleTag;
+
+      public ExpandToRows(
+          List<String> sortedTags,
+          Map<String, SerializableFunction<Object, Row>> toRows,
+          Schema outputSchema,
+          Map<String, String> tagToTupleTag) {
+        this.sortedTags = sortedTags;
+        this.toRows = toRows;
+        this.outputSchema = outputSchema;
+        this.tagToTupleTag = tagToTupleTag;
+      }
+
+      @ProcessElement
+      public void process(@Element CoGbkResult gbkResult, OutputReceiver<Row> o) {
+        List<Row> accumulatedRows = Lists.newArrayListWithExpectedSize(sortedTags.size());
+        crossProduct(0, accumulatedRows, gbkResult, o);
+      }
+
+      private void crossProduct(
+          int tagIndex, List<Row> accumulatedRows, CoGbkResult gbkResult, OutputReceiver<Row> o) {
+        if (tagIndex >= sortedTags.size()) {
+          return;
+        }
+
+        String tag = sortedTags.get(tagIndex);
+        SerializableFunction<Object, Row> toRow = toRows.get(tag);
+        Iterable items = gbkResult.getAll(tagToTupleTag.get(tag));
+        if (!items.iterator().hasNext() && joinArgs.getOuterJoinParticipation(tag)) {
+          // No items for this input but we are doing outer-join participation semantics. Record
+          // a null for this input and recurse down to calculate the list of expanded records.
+          crossProductHelper(tagIndex, accumulatedRows, null, gbkResult, o);
+        }
+        for (Object item : items) {
+          // For every item that joined for the current input, and recurse down to calculate the list
+          // of expanded records.
+          Row row = toRow.apply(item);
+          crossProductHelper(tagIndex, accumulatedRows, row, gbkResult, o);
+        }
+      }
+
+      private void crossProductHelper(
+          int tagIndex,
+          List<Row> accumulatedRows,
+          Row newRow,
+          CoGbkResult gbkResult,
+          OutputReceiver<Row> o) {
+        boolean atBottom = tagIndex == sortedTags.size() - 1;
+        accumulatedRows.add(newRow);
+        if (atBottom) {
+          // Bottom of recursive call, so output the row we've accumulated.
+          o.output(buildOutputRow(accumulatedRows));
+        } else {
+          crossProduct(tagIndex + 1, accumulatedRows, gbkResult, o);
+        }
+        accumulatedRows.remove(accumulatedRows.size() - 1);
+      }
+
+      private Row buildOutputRow(List rows) {
+        return Row.withSchema(outputSchema).addValues(rows).build();
+      }
     }
   }
 }

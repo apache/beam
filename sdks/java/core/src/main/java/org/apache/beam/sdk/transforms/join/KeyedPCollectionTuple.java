@@ -52,7 +52,12 @@ public class KeyedPCollectionTuple<K> implements PInput {
     return new KeyedPCollectionTuple<K>(pc.getPipeline()).and(tag, pc);
   }
 
-  /** A version that takes in a string instead of a TupleTag. */
+  /**
+   * A version of {@link #of(TupleTag, PCollection)} that takes in a string instead of a TupleTag.
+   *
+   * <p>This method is simpler for cases when a typed tuple-tag is not needed to extract a
+   * PCollection, for example when using schema transforms.
+   */
   public static <K, InputT> KeyedPCollectionTuple<K> of(String tag, PCollection<KV<K, InputT>> pc) {
     return of(new TupleTag<>(tag), pc);
   }
@@ -72,7 +77,12 @@ public class KeyedPCollectionTuple<K> implements PInput {
         getPipeline(), newKeyedCollections, schema.getTupleTagList().and(tag), myKeyCoder);
   }
 
-  /** A version that takes in a string instead of a TupleTag. */
+  /**
+   * A version of {@link #and(String, PCollection)} that takes in a string instead of a TupleTag.
+   *
+   * <p>This method is simpler for cases when a typed tuple-tag is not needed to extract a
+   * PCollection, for example when using schema transforms.
+   */
   public <V> KeyedPCollectionTuple<K> and(String tag, PCollection<KV<K, V>> pc) {
     return and(new TupleTag<>(tag), pc);
   }
