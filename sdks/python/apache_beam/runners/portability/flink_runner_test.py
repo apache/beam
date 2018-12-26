@@ -128,7 +128,9 @@ if __name__ == '__main__':
 
     def create_options(self):
       options = super(FlinkRunnerTest, self).create_options()
-      options.view_as(DebugOptions).experiments = ['beam_fn_api']
+      options.view_as(DebugOptions).experiments = ['beam_fn_api',
+                                                   'worker_threads=100',
+                                                   ]
       options.view_as(FlinkOptions).parallelism = 1
       if environment_type == 'process':
         options.view_as(PortableOptions).environment_type = 'PROCESS'
