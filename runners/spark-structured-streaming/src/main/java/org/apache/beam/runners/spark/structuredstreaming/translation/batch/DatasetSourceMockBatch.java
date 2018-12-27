@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation.io;
+package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import static scala.collection.JavaConversions.asScalaBuffer;
 
@@ -37,7 +37,7 @@ import org.joda.time.Instant;
 /**
  * This is a mock source that gives values between 0 and 999.
  */
-public class DatasetSourceMock implements DataSourceV2, ReadSupport {
+public class DatasetSourceMockBatch implements DataSourceV2, ReadSupport {
 
   @Override public DataSourceReader createReader(DataSourceOptions options) {
     return new DatasetReader();

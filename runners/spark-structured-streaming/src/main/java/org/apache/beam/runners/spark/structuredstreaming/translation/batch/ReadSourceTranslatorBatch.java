@@ -21,32 +21,23 @@ import java.io.IOException;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
-import org.apache.beam.runners.spark.structuredstreaming.translation.io.DatasetSource;
-import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.DatasetStreamingSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetCache;
 import org.apache.spark.api.java.function.MapFunction;
-import org.apache.spark.scheduler.SparkListener;
-import org.apache.spark.scheduler.SparkListenerApplicationStart;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalog.Catalog;
-import org.apache.spark.sql.catalyst.catalog.CatalogTable;
-import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation;
 import org.apache.spark.sql.streaming.DataStreamReader;
 
 class ReadSourceTranslatorBatch<T>
     implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
 
-  private String SOURCE_PROVIDER_CLASS = DatasetSource.class.getCanonicalName();
+  private String SOURCE_PROVIDER_CLASS = DatasetSourceBatch.class.getCanonicalName();
 
   @SuppressWarnings("unchecked")
   @Override
@@ -64,12 +55,11 @@ class ReadSourceTranslatorBatch<T>
       throw new RuntimeException(e);
     }
     SparkSession sparkSession = context.getSparkSession();
-    DataStreamReader dataStreamReader = sparkSession.readStream().format(providerClassName);
 
-    Dataset<Row> rowDataset = dataStreamReader.load();
+    Dataset<Row> rowDataset = sparkSession.read().format(providerClassName).load();
 
-    //TODO initialize source : how, to get a reference to the DatasetSource instance that spark
-    // instantiates to be able to call DatasetSource.initialize(). How to pass in a DatasetCatalog?
+    //TODO initialize source : how, to get a reference to the DatasetStreamingSource instance that spark
+    // instantiates to be able to call DatasetStreamingSource.initialize(). How to pass in a DatasetCatalog?
     MapFunction<Row, WindowedValue<T>> func = new MapFunction<Row, WindowedValue<T>>() {
       @Override public WindowedValue<T> call(Row value) throws Exception {
         //there is only one value put in each Row by the InputPartitionReader

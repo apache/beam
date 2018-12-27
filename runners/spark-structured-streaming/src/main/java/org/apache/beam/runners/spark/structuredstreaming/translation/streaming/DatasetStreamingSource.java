@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation.io;
+package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static scala.collection.JavaConversions.asScalaBuffer;
@@ -56,7 +56,7 @@ import scala.collection.immutable.Map;
  * is tagged experimental in spark, this class does no implement {@link ContinuousReadSupport}. This
  * class is just a mix-in.
  */
-public class DatasetSource<T> implements DataSourceV2, MicroBatchReadSupport{
+public class DatasetStreamingSource<T> implements DataSourceV2, MicroBatchReadSupport{
 
   private int numPartitions;
   private Long bundleSize;
