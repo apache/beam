@@ -19,7 +19,7 @@
 /* All properties required for loading the Flink build script. */
 project.ext {
   // Set the version of all Flink-related dependencies here.
-  flink_version = '1.5.5'
+  flink_version = '1.5.6'
   // Look for the source code in the current module
   main_source_dirs = ['./src/main/java']
   test_source_dirs = ['./src/test/java']
