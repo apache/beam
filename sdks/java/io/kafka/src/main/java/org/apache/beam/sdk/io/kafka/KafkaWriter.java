@@ -24,7 +24,6 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.KV;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -56,15 +55,14 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
     checkForFailures();
 
     ProducerRecord<K, V> record = ctx.element();
-    KV<K, V> kv = KV.of(record.key(), record.value());
-
     Long timestampMillis =
         spec.getPublishTimestampFunction() != null
             ? spec.getPublishTimestampFunction().getTimestamp(record, ctx.timestamp()).getMillis()
             : null;
+    String topicName = record.topic() != null ? record.topic() : spec.getTopic();
 
     producer.send(
-        new ProducerRecord<>(spec.getTopic(), null, timestampMillis, kv.getKey(), kv.getValue()),
+        new ProducerRecord<>(topicName, null, timestampMillis, record.key(), record.value()),
         new SendCallback());
 
     elementsWritten.inc();

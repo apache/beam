@@ -1093,6 +1093,7 @@ public class KafkaIO {
       checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
 
       if (isEOS()) {
+        checkArgument(getTopic() != null, "withTopic() is required when isEOS() is true");
         KafkaExactlyOnceSink.ensureEOSSupport();
 
         // TODO: Verify that the group_id does not have existing state stored on Kafka unless
