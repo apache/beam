@@ -19,7 +19,6 @@ package top
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -29,13 +28,12 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
+//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate starcgen --package=top --identifiers=combineFn
+
 var (
 	sig = funcx.MakePredicate(beam.TType, beam.TType) // (T, T) -> bool
 )
-
-func init() {
-	beam.RegisterType(reflect.TypeOf((*combineFn)(nil)).Elem())
-}
 
 // Largest returns the largest N elements of a PCollection<T>. The order is
 // defined by the comparator, less : T x T -> bool. It returns a single-element

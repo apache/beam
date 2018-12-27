@@ -19,15 +19,10 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
-	"reflect"
 	"sort"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 )
-
-func init() {
-	beam.RegisterType(reflect.TypeOf((*hashFn)(nil)).Elem())
-}
 
 // Hash validates that the incoming PCollection<string> has the given size and
 // base64-encoded MD5 hash code. It buffers the entire PCollection in memory

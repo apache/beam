@@ -19,11 +19,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 )
 
-func init() {
-	beam.RegisterFunction(mapFn)
-	beam.RegisterFunction(keyFn)
-}
-
 // Distinct removes all duplicates from a collection, under coder equality. It
 // expects a PCollection<T> as input and returns a PCollection<T> with
 // duplicates removed.
