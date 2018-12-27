@@ -1,3 +1,59 @@
+
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+"""BigTable sources.
+This module implements reading from BigTable tables. It relies
+on several classes exposed by the BigTable API. The default mode is to return
+table rows read from a BIgTable source as dictionaries. This is done for more
+convenient programming. If desired, the native Table objects can be used
+throughout to represent rows.
+
+The syntax supported is described here:
+https://cloud.google.com/bigtable/docs/quickstart-cbt
+BigTable sources can be used as main inputs or side inputs.
+A main input (common case) is expected to be massive and will be split into
+manageable chunks and processed in parallel. Side inputs are expected to be small
+and will be read completely every time a ParDo DoFn gets executed.
+In the example below the
+lambda function implementing the DoFn for the Map transform will get on each
+call *one* row of the main table and *all* rows of the side table. The runner
+may use some caching techniques to share the side inputs between calls in order
+to avoid excessive reading:::
+  config = BigtableReadConfiguration(project_id, instance_id, table_id)
+  main_table = pipeline | 'read' >> beam.io.Read(ReadFromBigtable(config))
+  results = (
+      main_table
+      | 'ProcessData' >> beam.Map(
+          lambda element, side_input: ..., AsList(side_table)))
+There is no difference in how main and side inputs are read. What makes the
+side_table a 'side input' is the AsList wrapper used when passing the table
+as a parameter to the Map transform. AsList signals to the execution framework
+that its input should be made available whole.
+The main and side inputs are implemented differently. Reading a BigTable table
+as main input entails exporting the table to a set of GCS files (currently in
+JSON format) and then processing those files. Reading the same table as a side
+input entails querying the table for all its rows. The coder argument on
+BigQuerySource controls the reading of the lines in the export files (i.e.,
+transform a JSON object into a PCollection element). The coder is not involved
+when the same table is read as a side input since there is no intermediate
+format involved. We get the table rows directly from the BigQuery service with
+a query.
+"""
+
 import logging
 import apache_beam as beam
 from google.cloud import bigtable
@@ -61,8 +117,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 
 		if self.beam_options.row_set is not None:
 			for sample_row_key in self.beam_options.row_set.row_ranges:
-				self.split_range_based_on_samples(desired_bundle_size, sample_row_keys, sample_row_key )
-				yield iobase.SourceBundle(1,self,sample_row_key.start_key,sample_row_key.end_key)
+				yield self.range_split_fraction(1, desired_bundle_size, sample_row_key.start_key, sample_row_key.end_key)
 		else:
 			suma = 0
 			last_offset = 0
@@ -75,12 +130,28 @@ class ReadFromBigtable(iobase.BoundedSource):
 				current_size = sample_row_key.offset_bytes-last_offset
 				if suma >= desired_bundle_size:
 					end_key = sample_row_key.row_key
-					yield iobase.SourceBundle(suma,self,start_key,end_key)
+					yield self.range_split_fraction(suma, desired_bundle_size, start_key, end_key)
 					start_key = sample_row_key.row_key
 
 					suma = 0
 				suma += current_size
 				last_offset = sample_row_key.offset_bytes
+
+	def split_key_range_into_bundle_sized_sub_ranges(self, sample_size_bytes, desired_bundle_size, ranges):
+		last_key = copy.deepcopy(ranges.stop_position())
+		s = ranges.start_position()
+		e = ranges.stop_position()
+
+		split_ = float(desired_bundle_size) / float(sample_size_bytes)
+		split_count = int( math.ceil( sample_size_bytes / desired_bundle_size ) )
+
+		for i in range(split_count):
+			estimate_position = ((i+1) * split_)
+			position = LexicographicKeyRangeTracker.fraction_to_position(estimate_position, ranges.start_position(), ranges.stop_position())
+			e = position
+			yield iobase.SourceBundle(sample_size_bytes * split_, self, s, e)
+			s = position
+		yield iobase.SourceBundle(sample_size_bytes * split_, self, s, last_key )
 
 	def get_range_tracker(self, start_position, stop_position):
 		return LexicographicKeyRangeTracker(start_position, stop_position)
@@ -103,7 +174,6 @@ class ReadFromBigtable(iobase.BoundedSource):
 			'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id', key='projectId'),
 			'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id',key='instanceId'),
 			'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id', key='tableId'),
-			#'bigtableOptions': DisplayDataItem(str(self.beam_options), label='Bigtable Options', key='bigtableOptions'),
 		}
 		if self.beam_options.row_set is not None:
 			i = 0
