@@ -164,7 +164,12 @@ public class TranslationContext {
     try {
       // to start a pipeline we need a DatastreamWriter to start
       for (Dataset<?> dataset : leaves) {
-        dataset.writeStream().foreach(new NoOpForeachWriter<>()).start().awaitTermination();
+
+        if (options.isStreaming()) {
+          dataset.writeStream().foreach(new NoOpForeachWriter<>()).start().awaitTermination();
+        } else {
+          dataset.write();
+        }
       }
     } catch (StreamingQueryException e) {
       throw new RuntimeException("Pipeline execution failed: " + e);
