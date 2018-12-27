@@ -39,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SystemReduceFn;
@@ -83,6 +84,7 @@ import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -105,7 +107,8 @@ public class FlinkStreamingPortablePipelineTranslator
    * Creates a streaming translation context. The resulting Flink execution dag will live in a new
    * {@link StreamExecutionEnvironment}.
    */
-  public static StreamingTranslationContext createTranslationContext(
+  @Override
+  public StreamingTranslationContext createTranslationContext(
       JobInfo jobInfo,
       FlinkPipelineOptions pipelineOptions,
       String confDir,
@@ -121,7 +124,8 @@ public class FlinkStreamingPortablePipelineTranslator
    * the Flink {@link StreamExecutionEnvironment} that the execution plan will be applied to.
    */
   public static class StreamingTranslationContext
-      implements FlinkPortablePipelineTranslator.TranslationContext {
+      implements FlinkPortablePipelineTranslator.TranslationContext,
+          FlinkPortablePipelineTranslator.Executor {
 
     private final JobInfo jobInfo;
     private final FlinkPipelineOptions options;
@@ -146,6 +150,11 @@ public class FlinkStreamingPortablePipelineTranslator
     @Override
     public FlinkPipelineOptions getPipelineOptions() {
       return options;
+    }
+
+    @Override
+    public JobExecutionResult execute(String jobName) throws Exception {
+      return getExecutionEnvironment().execute(jobName);
     }
 
     public StreamExecutionEnvironment getExecutionEnvironment() {
@@ -192,7 +201,13 @@ public class FlinkStreamingPortablePipelineTranslator
   }
 
   @Override
-  public void translate(StreamingTranslationContext context, RunnerApi.Pipeline pipeline) {
+  public Set<String> knownUrns() {
+    return urnToTransformTranslator.keySet();
+  }
+
+  @Override
+  public FlinkPortablePipelineTranslator.Executor translate(
+      StreamingTranslationContext context, RunnerApi.Pipeline pipeline) {
     QueryablePipeline p =
         QueryablePipeline.forTransforms(
             pipeline.getRootTransformIdsList(), pipeline.getComponents());
@@ -201,6 +216,8 @@ public class FlinkStreamingPortablePipelineTranslator
           .getOrDefault(transform.getTransform().getSpec().getUrn(), this::urnNotFound)
           .translate(transform.getId(), pipeline, context);
     }
+
+    return context;
   }
 
   private void urnNotFound(
