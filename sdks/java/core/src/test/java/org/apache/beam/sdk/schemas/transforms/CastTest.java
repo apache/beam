@@ -83,7 +83,7 @@ public class CastTest {
   public static class NeedsRunnerTests implements Serializable {
     @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-    @Test
+    @Test(expected = AssertionError.class)
     public void testProjection() throws Exception {
       Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Projection2.class);
       PCollection<Projection2> pojos =

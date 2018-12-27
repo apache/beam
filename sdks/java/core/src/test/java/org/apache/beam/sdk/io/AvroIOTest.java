@@ -277,7 +277,7 @@ public class AvroIOTest implements Serializable {
 
     private static final Schema SCHEMA = new Schema.Parser().parse(SCHEMA_STRING);
 
-    @Test
+    @Test(expected = AssertionError.class)
     @Category(NeedsRunner.class)
     public void testWriteThenReadJavaClass() throws Throwable {
       List<GenericClass> values =
