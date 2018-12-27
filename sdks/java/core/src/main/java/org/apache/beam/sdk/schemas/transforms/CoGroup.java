@@ -117,8 +117,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * cross-product of two tables. This transform also supports the same functionality using the {@link
  * Inner#crossProductJoin()} method.
  *
- * <p>For example, consider the SQL join:
- *   SELECT * FROM input1 INNER JOIN input2 ON input1.user = input2.user
+ * <p>For example, consider the SQL join: SELECT * FROM input1 INNER JOIN input2 ON input1.user =
+ * input2.user
  *
  * <p>You could express this with:
  *
@@ -127,31 +127,30 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *   .apply(CoGroup.join(By.fieldNames("user")).crossProductJoin();
  * }</pre>
  *
- * <pr>The schema of the output PCollection contains a nested message for each of input1 and
- * input2. Like above, you could use the {@link Convert} transform to convert it to the following
- * POJO:
+ * <p>The schema of the output PCollection contains a nested message for each of input1 and input2.
+ * Like above, you could use the {@link Convert} transform to convert it to the following POJO:
  *
- *  <pre>{@code
- *  {@literal @}DefaultSchema(JavaFieldSchema.class)
- *  public class JoinedValue {
- *   public Input1Type input1;
- *   public Input2Type input2;
- *  }
+ * <pre>{@code
+ * {@literal @}DefaultSchema(JavaFieldSchema.class)
+ * public class JoinedValue {
+ *  public Input1Type input1;
+ *  public Input2Type input2;
+ * }
  * }</pre>
  *
- * <pre>The {@link Unnest} transform can then be used to flatten all the subfields into one
- * single top-level row containing all the fields in both Input1 and Input2; this will often be
- * combined with a {@link Select} transform to select out the fields of interest, as the key
- * fields will be identical between input1 and input2.
+ * <p>The {@link Unnest} transform can then be used to flatten all the subfields into one single
+ * top-level row containing all the fields in both Input1 and Input2; this will often be combined
+ * with a {@link Select} transform to select out the fields of interest, as the key fields will be
+ * identical between input1 and input2.
  *
  * <p>This transform also supports outer-join semantics. By default, all input PCollections must
  * participate fully in the join, providing inner-join semantics. This means that if if all input
- * save one have values for a given user "Bob" the join will produce no values for "Bob."
- * However, you can mark that input as having outer-join participation; this means that even
- * though one input has no value for "Bob" an output Row will still be produced with a null in
- * place for that input. To continue the SQL example:
+ * save one have values for a given user "Bob" the join will produce no values for "Bob." However,
+ * you can mark that input as having outer-join participation; this means that even though one input
+ * has no value for "Bob" an output Row will still be produced with a null in place for that input.
+ * To continue the SQL example:
  *
- * <p>  SELECT * FROM input1 LEFT OUTER JOIN input2 ON input1.user = input2.user
+ * <p>SELECT * FROM input1 LEFT OUTER JOIN input2 ON input1.user = input2.user
  *
  * <p>Is equivalent to:
  *
@@ -162,7 +161,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *                 .crossProductJoin();
  * }</pre>
  *
- * <p>  SELECT * FROM input1 RIGHT OUTER JOIN input2 ON input1.user = input2.user
+ * <p>SELECT * FROM input1 RIGHT OUTER JOIN input2 ON input1.user = input2.user
  *
  * <p>Is equivalent to:
  *
@@ -173,7 +172,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *                 .crossProductJoin();
  * }</pre>
  *
- * <p>  and SELECT * FROM input1 FULL OUTER JOIN input2 ON input1.user = input2.user
+ * <p>and SELECT * FROM input1 FULL OUTER JOIN input2 ON input1.user = input2.user
  *
  * <p>Is equivalent to:
  *

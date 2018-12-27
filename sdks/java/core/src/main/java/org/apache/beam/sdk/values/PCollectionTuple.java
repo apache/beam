@@ -140,7 +140,7 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
-   * A version of {@link #of(String, PCollection)} that takes in five PCollections of the same type
+   * A version of {@link #of(String, PCollection)} that takes in five PCollections of the same type.
    */
   public static <T> PCollectionTuple of(
       String tag1,
