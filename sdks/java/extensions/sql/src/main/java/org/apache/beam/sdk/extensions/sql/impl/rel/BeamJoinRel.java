@@ -43,7 +43,9 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -263,6 +265,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       PCollection<KV<Row, Row>> extractedLeftRows =
           leftRows
               .apply(
+                  "left_TimestampCombiner",
+                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST))
+              .apply(
                   "left_ExtractJoinFields",
                   MapElements.via(
                       new BeamJoinTransforms.ExtractJoinFields(true, pairs, extractKeySchemaLeft)))
@@ -270,6 +275,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
       PCollection<KV<Row, Row>> extractedRightRows =
           rightRows
+              .apply(
+                  "right_TimestampCombiner",
+                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST))
               .apply(
                   "right_ExtractJoinFields",
                   MapElements.via(
