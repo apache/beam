@@ -27,6 +27,9 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
+//go:generate specialize --input=fn_arity.tmpl
+//go:generate gofmt -w fn_arity.go
+
 // MainInput is the main input and is unfolded in the invocation, if present.
 type MainInput struct {
 	Key    FullValue
@@ -57,6 +60,10 @@ type invoker struct {
 	ctxIdx, wndIdx, etIdx int   // specialized input indexes
 	outEtIdx, errIdx      int   // specialized output indexes
 	in, out               []int // general indexes
+
+	ret                     FullValue                     // ret is a cached allocation for passing to the next Unit. Units never modify the passed in FullValue.
+	elmConvert, elm2Convert func(interface{}) interface{} // Cached conversion functions, which assums this invoker is always used with the same parameter types.
+	call                    func(ws []typex.Window, ts typex.EventTime) (*FullValue, error)
 }
 
 func newInvoker(fn *funcx.Fn) *invoker {
@@ -82,6 +89,9 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	if n.errIdx, ok = fn.Error(); !ok {
 		n.errIdx = -1
 	}
+
+	n.initCall()
+
 	return n
 }
 
@@ -117,10 +127,18 @@ func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventT
 	// (2) Main input from value, if any.
 	i := 0
 	if opt != nil {
-		args[in[i]] = Convert(opt.Key.Elm, fn.Param[in[i]].T)
+		if n.elmConvert == nil {
+			from := reflect.TypeOf(opt.Key.Elm)
+			n.elmConvert = ConvertFn(from, fn.Param[in[i]].T)
+		}
+		args[in[i]] = n.elmConvert(opt.Key.Elm)
 		i++
 		if opt.Key.Elm2 != nil {
-			args[in[i]] = Convert(opt.Key.Elm2, fn.Param[in[i]].T)
+			if n.elm2Convert == nil {
+				from := reflect.TypeOf(opt.Key.Elm2)
+				n.elm2Convert = ConvertFn(from, fn.Param[in[i]].T)
+			}
+			args[in[i]] = n.elm2Convert(opt.Key.Elm2)
 			i++
 		}
 
@@ -147,30 +165,69 @@ func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventT
 	}
 
 	// (4) Invoke
-	ret := fn.Fn.Call(args)
-	if n.errIdx >= 0 && ret[n.errIdx] != nil {
-		return nil, ret[n.errIdx].(error)
+	return n.call(ws, ts)
+}
+
+// ret1 handles processing of a single return value.
+// Errors or single values are the only options.
+func (n *invoker) ret1(ws []typex.Window, ts typex.EventTime, r0 interface{}) (*FullValue, error) {
+	switch {
+	case n.errIdx >= 0:
+		return nil, r0.(error)
+	case n.etIdx >= 0:
+		panic("cannot return event time without a value")
+	default:
+		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0}
+		return &n.ret, nil
 	}
+}
 
-	// (5) Return direct output, if any. Input timestamp and windows are implicitly
-	// propagated.
-
-	out := n.out
-	if len(out) > 0 {
-		value := &FullValue{Windows: ws, Timestamp: ts}
-		if n.outEtIdx >= 0 {
-			value.Timestamp = ret[n.outEtIdx].(typex.EventTime)
+// ret2 handles processing of a pair of return values.
+func (n *invoker) ret2(ws []typex.Window, ts typex.EventTime, r0, r1 interface{}) (*FullValue, error) {
+	switch {
+	case n.errIdx >= 0:
+		if r1 != nil {
+			return nil, r1.(error)
 		}
-		// TODO(herohde) 4/16/2018: apply windowing function to elements with explicit timestamp?
-
-		value.Elm = ret[out[0]]
-		if len(out) > 1 {
-			value.Elm2 = ret[out[1]]
-		}
-		return value, nil
+		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0}
+		return &n.ret, nil
+	case n.etIdx == 0:
+		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1}
+		return &n.ret, nil
+	default:
+		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1}
+		return &n.ret, nil
 	}
+}
 
-	return nil, nil
+// ret3 handles processing of a trio of return values.
+func (n *invoker) ret3(ws []typex.Window, ts typex.EventTime, r0, r1, r2 interface{}) (*FullValue, error) {
+	switch {
+	case n.errIdx >= 0:
+		if r2 != nil {
+			return nil, r2.(error)
+		}
+		if n.etIdx < 0 {
+			n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1}
+			return &n.ret, nil
+		}
+		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1}
+		return &n.ret, nil
+	case n.etIdx == 0:
+		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2}
+		return &n.ret, nil
+	default:
+		panic(fmt.Sprintf("ret3: %T, %T, and %T don't match permitted return values.", r0, r1, r2))
+	}
+}
+
+// ret4 handles processing of a quad of return values.
+func (n *invoker) ret4(ws []typex.Window, ts typex.EventTime, r0, r1, r2, r3 interface{}) (*FullValue, error) {
+	if r3 != nil {
+		return nil, r3.(error)
+	}
+	n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2}
+	return &n.ret, nil
 }
 
 func makeSideInputs(fn *funcx.Fn, in []*graph.Inbound, side []ReStream) ([]ReusableInput, error) {
