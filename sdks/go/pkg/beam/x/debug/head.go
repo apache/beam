@@ -16,16 +16,12 @@
 package debug
 
 import (
-	"reflect"
-
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
-func init() {
-	beam.RegisterType(reflect.TypeOf((*headFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*headKVFn)(nil)))
-}
+//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate starcgen --package=debug --identifiers=headFn,headKVFn,discardFn,printFn,printKVFn,printGBKFn
 
 // Head returns the first "n" elements it sees, it doesn't enforce any logic
 // as to what elements they will be.

@@ -89,6 +89,14 @@ func (t *Top) sort() {
 	sort.SliceStable(t.Shims, func(i, j int) bool {
 		return t.Shims[i].Name < t.Shims[j].Name
 	})
+	sort.SliceStable(t.Wraps, func(i, j int) bool {
+		return t.Wraps[i].Name < t.Wraps[j].Name
+	})
+	for _, w := range t.Wraps {
+		sort.SliceStable(w.Methods, func(i, j int) bool {
+			return w.Methods[i].Name < w.Methods[j].Name
+		})
+	}
 }
 
 // processImports removes imports that are otherwise handled by the template

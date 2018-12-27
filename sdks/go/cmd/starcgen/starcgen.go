@@ -16,6 +16,29 @@
 // starcgen is a tool to generate specialized type assertion shims to be
 // used in Apache Beam Go SDK pipelines instead of the default reflection shim.
 // This is done through static analysis of go sources for the package in question.
+//
+// The generated type assertion shims have much better performance than the default
+// reflection based shims used by beam. Reflection is convenient for development,
+// but is an unnecessary expense on pipeline performance.
+//
+// Using This Tool
+//
+// This tool is intended for use with `go generate`. The recommended convention
+// putting the types and functions used in a separate package from pipeline construction.
+// Then, the tool can be used as follows:
+//
+//   //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//   //go:generate starcgen --package=<mypackagename>
+//
+// This will generate registrations and shim types for all types and functions
+// in the package, in a file `<mypackagename>.shims.go`.
+//
+// Alternatively, it's possible to specify the specific input files and identifiers within
+// the package for generation.
+//
+//   //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//   //go:generate starcgen --package=<mypackagename> --inputs=foo.go --identifiers=myFn,myStructFn --output=custom.shims.go
+//
 package main
 
 import (
@@ -35,9 +58,11 @@ import (
 )
 
 var (
-	inputs = flag.String("inputs", "", "comma separated list of file with types to create")
-	output = flag.String("output", "", "output file with types to create")
-	ids    = flag.String("identifiers", "", "comma separated list of package local identifiers for which to generate code")
+	inputs      = flag.String("inputs", "", "comma separated list of file with types for which to create shims")
+	intendedPkg = flag.String("package", "", "a filter on input go files. Required if inputs unset.")
+	output      = flag.String("output", "", "output file with types to create")
+	ids         = flag.String("identifiers", "", "comma separated list of package local identifiers for which to generate code")
+	debug       = flag.Bool("debug", false, "print out a debugging header in the shim file to help diagnose errors")
 )
 
 // Generate takes the typechecked inputs, and generates the shim file for the relevant
@@ -45,6 +70,7 @@ var (
 func Generate(w io.Writer, filename, pkg string, ids []string, fset *token.FileSet, files []*ast.File) error {
 	e := starcgenx.NewExtractor(pkg)
 	e.Ids = ids
+	e.Debug = *debug
 
 	// Importing from source should work in most cases.
 	imp := importer.For("source", nil)
@@ -53,10 +79,10 @@ func Generate(w io.Writer, filename, pkg string, ids []string, fset *token.FileS
 		if _, errw := w.Write(e.Bytes()); errw != nil {
 			return fmt.Errorf("error writing debug data to file after err %v:%v", err, errw)
 		}
-		return fmt.Errorf("error extracting from asts: %v", err)
+		err = fmt.Errorf("error extracting from asts: %v", err)
+		e.Printf("%v", err)
+		return err
 	}
-
-	e.Print("*/\n")
 	data := e.Generate(filename)
 	if err := write(w, []byte(license)); err != nil {
 		return err
@@ -84,30 +110,54 @@ func main() {
 	log.SetFlags(log.Lshortfile)
 	log.SetPrefix("starcgen: ")
 
-	ipts := strings.Split(*inputs, ",")
-	fset := token.NewFileSet()
-	var fs []*ast.File
-	var pkg string
-
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for _, i := range ipts {
-		f, err := parser.ParseFile(fset, i, nil, 0)
+	var ipts []string
+	// If inputs are empty, parse all go files in the local directory.
+	if len(*inputs) == 0 {
+		if *intendedPkg == "" {
+			log.Fatal("--package flag is required to be set when --inputs unset")
+		}
+		globbed, err := filepath.Glob(filepath.Join(dir, "*.go"))
 		if err != nil {
-			err1 := err
-			f, err = parser.ParseFile(fset, filepath.Join(dir, i), nil, 0)
-			if err != nil {
-				log.Print(err1)
-				log.Fatal(err) // parse error
-			}
+			log.Fatal(err)
+		}
+		ipts = globbed
+	} else {
+		ipts = strings.Split(*inputs, ",")
+	}
+
+	// Get an output file for pre-processing if necessary.
+	if *output == "" && *intendedPkg != "" {
+		*output = *intendedPkg + ".shims.go"
+	}
+
+	outputBase := filepath.Base(*output)
+
+	fset := token.NewFileSet()
+	var fs []*ast.File
+	pkg := *intendedPkg
+	for _, i := range ipts {
+		// Ignore the existing shim file when re-generating.
+		if strings.HasSuffix(i, outputBase) {
+			continue
 		}
 
+		f, err := parser.ParseFile(fset, i, nil, 0)
+		if err != nil {
+			log.Fatal(err) // parse error
+		}
 		if pkg == "" {
 			pkg = f.Name.Name
 		} else if pkg != f.Name.Name {
+			// If we've set an intended package, just filter files outside that package.
+			// eg. for pkg_tests in the same directory.
+			if *intendedPkg != "" {
+				continue
+			}
 			log.Fatalf("Input file %v has mismatched package path, got %q, want %q", i, f.Name.Name, pkg)
 		}
 		fs = append(fs, f)
@@ -116,20 +166,9 @@ func main() {
 		log.Fatalf("No package detected in input files: %v", inputs)
 	}
 
-	if *output == "" {
-		name := pkg
-		if len(ipts) == 1 {
-			name = filepath.Base(ipts[0])
-			if index := strings.Index(name, "."); index > 0 {
-				name = name[:index]
-			}
-		}
-		*output = filepath.Join(filepath.Dir(ipts[0]), name+".shims.go")
-	}
-
 	f, err := os.OpenFile(*output, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error opening %q: %v", *output, err)
 	}
 	if err := Generate(f, *output, pkg, strings.Split(*ids, ","), fset, fs); err != nil {
 		log.Fatal(err)

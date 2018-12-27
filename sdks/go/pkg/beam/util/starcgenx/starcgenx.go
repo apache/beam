@@ -51,7 +51,9 @@ func NewExtractor(pkg string) *Extractor {
 type Extractor struct {
 	w       bytes.Buffer
 	Package string
-	debug   bool
+
+	// Debug enables printing out the analysis information to the output.
+	Debug bool
 
 	// Ids is an optional slice of package local identifiers
 	Ids []string
@@ -110,14 +112,14 @@ func (e *Extractor) Bytes() []byte {
 
 // Print forwards to fmt.Fprint to the extractor buffer.
 func (e *Extractor) Print(s string) {
-	if e.debug {
+	if e.Debug {
 		fmt.Fprint(&e.w, s)
 	}
 }
 
 // Printf forwards to fmt.Printf to the extractor buffer.
 func (e *Extractor) Printf(f string, args ...interface{}) {
-	if e.debug {
+	if e.Debug {
 		fmt.Fprintf(&e.w, f, args...)
 	}
 }

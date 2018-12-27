@@ -18,19 +18,11 @@ package debug
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
-
-func init() {
-	beam.RegisterType(reflect.TypeOf((*printFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*printKVFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*printGBKFn)(nil)))
-	beam.RegisterFunction(discardFn)
-}
 
 // Print prints out all data. Use with care.
 func Print(s beam.Scope, col beam.PCollection) beam.PCollection {

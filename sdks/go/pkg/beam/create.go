@@ -24,10 +24,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
-func init() {
-	RegisterType(reflect.TypeOf((*createFn)(nil)).Elem())
-}
-
 // TODO(herohde) 7/11/2017: add variants that use coder encoding.
 
 // Create inserts a fixed set of values into the pipeline. The values must

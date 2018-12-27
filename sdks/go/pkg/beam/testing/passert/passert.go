@@ -21,7 +21,6 @@ package passert
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
@@ -30,12 +29,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
 )
 
-func init() {
-	beam.RegisterType(reflect.TypeOf((*diffFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*failFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*failKVFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*failGBKFn)(nil)))
-}
+//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate starcgen --package=passert --identifiers=diffFn,failFn,failKVFn,failGBKFn,hashFn,sumFn
 
 // Equals verifies the given collection has the same values as the given
 // values, under coder equality. The values can be provided as single
