@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -36,172 +37,173 @@ import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link Cast}. */
 public class CastTest {
 
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  /** Unit tests. */
+  @RunWith(JUnit4.class)
+  public static class UnitTests {
+    @Test
+    public void testCastArray() {
+      Object output =
+          Cast.castValue(
+              Arrays.asList((short) 1, (short) 2, (short) 3),
+              Schema.FieldType.array(Schema.FieldType.INT16),
+              Schema.FieldType.array(Schema.FieldType.INT32));
 
-  @Test
+      assertEquals(Arrays.asList(1, 2, 3), output);
+    }
+
+    @Test
+    public void testCastMap() {
+      Object output =
+          Cast.castValue(
+              ImmutableMap.of((short) 1, 1, (short) 2, 2, (short) 3, 3),
+              Schema.FieldType.map(Schema.FieldType.INT16, Schema.FieldType.INT32),
+              Schema.FieldType.map(Schema.FieldType.INT32, Schema.FieldType.INT64));
+
+      assertEquals(ImmutableMap.of(1, 1L, 2, 2L, 3, 3L), output);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testIgnoreNullFail() {
+      Schema inputSchema = Schema.of(Schema.Field.nullable("f0", Schema.FieldType.INT32));
+      Schema outputSchema = Schema.of(Schema.Field.of("f0", Schema.FieldType.INT32));
+
+      Cast.castRow(Row.withSchema(inputSchema).addValue(null).build(), inputSchema, outputSchema);
+    }
+  }
+
+  /** NeedsRunner tests. */
   @Category(NeedsRunner.class)
-  public void testProjection() throws Exception {
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Projection2.class);
-    PCollection<Projection2> pojos =
-        pipeline
-            .apply(Create.of(new Projection1()))
-            .apply(Cast.widening(outputSchema))
-            .apply(Convert.to(Projection2.class));
+  @RunWith(JUnit4.class)
+  public static class NeedsRunnerTests implements Serializable {
+    @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-    PAssert.that(pojos).containsInAnyOrder(new Projection2());
-    pipeline.run();
+    @Test
+    public void testProjection() throws Exception {
+      Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Projection2.class);
+      PCollection<Projection2> pojos =
+          pipeline
+              .apply(Create.of(new Projection1()))
+              .apply(Cast.widening(outputSchema))
+              .apply(Convert.to(Projection2.class));
+
+      PAssert.that(pojos).containsInAnyOrder(new Projection2());
+      pipeline.run();
+    }
+
+    @Test
+    public void testTypeWiden() throws Exception {
+      Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden2.class);
+
+      PCollection<TypeWiden2> pojos =
+          pipeline
+              .apply(Create.of(new TypeWiden1()))
+              .apply(Cast.widening(outputSchema))
+              .apply(Convert.to(TypeWiden2.class));
+
+      PAssert.that(pojos).containsInAnyOrder(new TypeWiden2());
+      pipeline.run();
+    }
+
+    @Test
+    public void testTypeNarrow() throws Exception {
+      // narrowing is the opposite of widening
+      Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden1.class);
+
+      PCollection<TypeWiden1> pojos =
+          pipeline
+              .apply(Create.of(new TypeWiden2()))
+              .apply(Cast.narrowing(outputSchema))
+              .apply(Convert.to(TypeWiden1.class));
+
+      PAssert.that(pojos).containsInAnyOrder(new TypeWiden1());
+      pipeline.run();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTypeNarrowFail() throws Exception {
+      // narrowing is the opposite of widening
+      Schema inputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden2.class);
+      Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden1.class);
+
+      Cast.narrowing(outputSchema).verifyCompatibility(inputSchema);
+    }
+
+    @Test
+    public void testWeakedNullable() throws Exception {
+      Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
+
+      PCollection<Nullable2> pojos =
+          pipeline
+              .apply(Create.of(new Nullable1()))
+              .apply(Cast.narrowing(outputSchema))
+              .apply(Convert.to(Nullable2.class));
+
+      PAssert.that(pojos).containsInAnyOrder(new Nullable2());
+      pipeline.run();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testWeakedNullableFail() throws Exception {
+      Schema inputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
+      Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
+
+      Cast.widening(outputSchema).verifyCompatibility(inputSchema);
+    }
+
+    @Test
+    public void testIgnoreNullable() throws Exception {
+      // ignoring nullable is opposite of weakening
+      Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
+
+      PCollection<Nullable1> pojos =
+          pipeline
+              .apply(Create.of(new Nullable2()))
+              .apply(Cast.narrowing(outputSchema))
+              .apply(Convert.to(Nullable1.class));
+
+      PAssert.that(pojos).containsInAnyOrder(new Nullable1());
+      pipeline.run();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testIgnoreNullableFail() throws Exception {
+      // ignoring nullable is opposite of weakening
+      Schema inputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
+      Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
+
+      Cast.widening(outputSchema).verifyCompatibility(inputSchema);
+    }
+
+    @Test
+    public void testComplexCast() throws Exception {
+      Schema outputSchema = pipeline.getSchemaRegistry().getSchema(All2.class);
+
+      PCollection<All2> pojos =
+          pipeline
+              .apply(Create.of(new All1()))
+              .apply(Cast.narrowing(outputSchema))
+              .apply(Convert.to(All2.class));
+
+      PAssert.that(pojos).containsInAnyOrder(new All2());
+      pipeline.run();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testComplexCastFail() throws Exception {
+      Schema inputSchema = pipeline.getSchemaRegistry().getSchema(All1.class);
+      Schema outputSchema = pipeline.getSchemaRegistry().getSchema(All2.class);
+
+      Cast.widening(outputSchema).verifyCompatibility(inputSchema);
+    }
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testTypeWiden() throws Exception {
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden2.class);
-
-    PCollection<TypeWiden2> pojos =
-        pipeline
-            .apply(Create.of(new TypeWiden1()))
-            .apply(Cast.widening(outputSchema))
-            .apply(Convert.to(TypeWiden2.class));
-
-    PAssert.that(pojos).containsInAnyOrder(new TypeWiden2());
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testTypeNarrow() throws Exception {
-    // narrowing is the opposite of widening
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden1.class);
-
-    PCollection<TypeWiden1> pojos =
-        pipeline
-            .apply(Create.of(new TypeWiden2()))
-            .apply(Cast.narrowing(outputSchema))
-            .apply(Convert.to(TypeWiden1.class));
-
-    PAssert.that(pojos).containsInAnyOrder(new TypeWiden1());
-    pipeline.run();
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  @Category(NeedsRunner.class)
-  public void testTypeNarrowFail() throws Exception {
-    // narrowing is the opposite of widening
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden2.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden1.class);
-
-    Cast.narrowing(outputSchema).verifyCompatibility(inputSchema);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testWeakedNullable() throws Exception {
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
-
-    PCollection<Nullable2> pojos =
-        pipeline
-            .apply(Create.of(new Nullable1()))
-            .apply(Cast.narrowing(outputSchema))
-            .apply(Convert.to(Nullable2.class));
-
-    PAssert.that(pojos).containsInAnyOrder(new Nullable2());
-    pipeline.run();
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  @Category(NeedsRunner.class)
-  public void testWeakedNullableFail() throws Exception {
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
-
-    Cast.widening(outputSchema).verifyCompatibility(inputSchema);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testIgnoreNullable() throws Exception {
-    // ignoring nullable is opposite of weakening
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
-
-    PCollection<Nullable1> pojos =
-        pipeline
-            .apply(Create.of(new Nullable2()))
-            .apply(Cast.narrowing(outputSchema))
-            .apply(Convert.to(Nullable1.class));
-
-    PAssert.that(pojos).containsInAnyOrder(new Nullable1());
-    pipeline.run();
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  @Category(NeedsRunner.class)
-  public void testIgnoreNullableFail() throws Exception {
-    // ignoring nullable is opposite of weakening
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
-
-    Cast.widening(outputSchema).verifyCompatibility(inputSchema);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testComplexCast() throws Exception {
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(All2.class);
-
-    PCollection<All2> pojos =
-        pipeline
-            .apply(Create.of(new All1()))
-            .apply(Cast.narrowing(outputSchema))
-            .apply(Convert.to(All2.class));
-
-    PAssert.that(pojos).containsInAnyOrder(new All2());
-    pipeline.run();
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  @Category(NeedsRunner.class)
-  public void testComplexCastFail() throws Exception {
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(All1.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(All2.class);
-
-    Cast.widening(outputSchema).verifyCompatibility(inputSchema);
-  }
-
-  @Test
-  public void testCastArray() {
-    Object output =
-        Cast.castValue(
-            Arrays.asList((short) 1, (short) 2, (short) 3),
-            Schema.FieldType.array(Schema.FieldType.INT16),
-            Schema.FieldType.array(Schema.FieldType.INT32));
-
-    assertEquals(Arrays.asList(1, 2, 3), output);
-  }
-
-  @Test
-  public void testCastMap() {
-    Object output =
-        Cast.castValue(
-            ImmutableMap.of((short) 1, 1, (short) 2, 2, (short) 3, 3),
-            Schema.FieldType.map(Schema.FieldType.INT16, Schema.FieldType.INT32),
-            Schema.FieldType.map(Schema.FieldType.INT32, Schema.FieldType.INT64));
-
-    assertEquals(ImmutableMap.of(1, 1L, 2, 2L, 3, 3L), output);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testIgnoreNullFail() {
-    Schema inputSchema = Schema.of(Schema.Field.nullable("f0", Schema.FieldType.INT32));
-    Schema outputSchema = Schema.of(Schema.Field.of("f0", Schema.FieldType.INT32));
-
-    Cast.castRow(Row.withSchema(inputSchema).addValue(null).build(), inputSchema, outputSchema);
-  }
-
-  /** POJO for {@link CastTest#testProjection()}. */
+  /** POJO for {@link CastTest.NeedsRunnerTests#testProjection()}. */
   @DefaultSchema(JavaFieldSchema.class)
   @VisibleForTesting
   public static class Projection1 {
@@ -241,7 +243,7 @@ public class CastTest {
     }
   }
 
-  /** POJO for {@link CastTest#testProjection()}. */
+  /** POJO for {@link CastTest.NeedsRunnerTests#testProjection()}. */
   @DefaultSchema(JavaFieldSchema.class)
   @VisibleForTesting
   public static class Projection2 {
@@ -270,7 +272,7 @@ public class CastTest {
     }
   }
 
-  /** POJO for {@link CastTest#testTypeWiden()}. */
+  /** POJO for {@link CastTest.NeedsRunnerTests#testTypeWiden()}. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class TypeWiden1 {
 
@@ -300,7 +302,7 @@ public class CastTest {
     }
   }
 
-  /** POJO for {@link CastTest#testTypeWiden()}. */
+  /** POJO for {@link CastTest.NeedsRunnerTests#testTypeWiden()}. */
   @DefaultSchema(JavaFieldSchema.class)
   @VisibleForTesting
   public static class TypeWiden2 {
@@ -331,7 +333,7 @@ public class CastTest {
     }
   }
 
-  /** POJO for {@link CastTest#testWeakedNullable()}. */
+  /** POJO for {@link CastTest.NeedsRunnerTests#testWeakedNullable()}. */
   @DefaultSchema(JavaFieldSchema.class)
   @VisibleForTesting
   public static class Nullable1 {
@@ -361,7 +363,7 @@ public class CastTest {
     }
   }
 
-  /** POJO for {@link CastTest#testWeakedNullable()}. */
+  /** POJO for {@link CastTest.NeedsRunnerTests#testWeakedNullable()}. */
   @DefaultSchema(JavaFieldSchema.class)
   @VisibleForTesting
   public static class Nullable2 {
@@ -391,7 +393,7 @@ public class CastTest {
     }
   }
 
-  /** POJO for {@link CastTest#testComplexCast()}. */
+  /** POJO for {@link CastTest.NeedsRunnerTests#testComplexCast()}. */
   @DefaultSchema(JavaFieldSchema.class)
   @VisibleForTesting
   public static class All1 {
@@ -439,7 +441,7 @@ public class CastTest {
     }
   }
 
-  /** POJO for {@link CastTest#testComplexCast()}. */
+  /** POJO for {@link CastTest.NeedsRunnerTests#testComplexCast()}. */
   @DefaultSchema(JavaFieldSchema.class)
   @VisibleForTesting
   public static class All2 {
