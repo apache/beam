@@ -71,6 +71,22 @@ public class CastTest {
     pipeline.run();
   }
 
+  @Test(expected = IllegalArgumentException.class)
+  @Category(NeedsRunner.class)
+  public void testTypeWidenFail() {
+    Schema inputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT32),
+            Schema.Field.of("f1", Schema.FieldType.INT64));
+
+    Schema outputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT16),
+            Schema.Field.of("f1", Schema.FieldType.INT32));
+
+    Cast.widening(outputSchema).verifyCompatibility(inputSchema);
+  }
+
   @Test
   @Category(NeedsRunner.class)
   public void testTypeNarrow() throws Exception {
@@ -87,19 +103,9 @@ public class CastTest {
     pipeline.run();
   }
 
-  @Test(expected = IllegalArgumentException.class)
-  @Category(NeedsRunner.class)
-  public void testTypeNarrowFail() throws Exception {
-    // narrowing is the opposite of widening
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden2.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden1.class);
-
-    Cast.narrowing(outputSchema).verifyCompatibility(inputSchema);
-  }
-
   @Test
   @Category(NeedsRunner.class)
-  public void testWeakedNullable() throws Exception {
+  public void testWeakenNullable() throws Exception {
     Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
 
     PCollection<Nullable2> pojos =
@@ -110,15 +116,6 @@ public class CastTest {
 
     PAssert.that(pojos).containsInAnyOrder(new Nullable2());
     pipeline.run();
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  @Category(NeedsRunner.class)
-  public void testWeakedNullableFail() throws Exception {
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
-
-    Cast.widening(outputSchema).verifyCompatibility(inputSchema);
   }
 
   @Test
