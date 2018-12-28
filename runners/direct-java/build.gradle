@@ -115,6 +115,8 @@ task needsRunnerTests(type: Test) {
   useJUnit {
     includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+    // MetricsPusher isn't implemented in direct runner
+    excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
   }
 }
 
