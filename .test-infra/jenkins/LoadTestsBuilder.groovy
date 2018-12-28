@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties.Runner
 
 // Class for building Load Tests jobs and suites
 class LoadTestsBuilder {
@@ -25,21 +26,6 @@ class LoadTestsBuilder {
             project             :'apache-beam-testing',
             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
     ]
-
-    enum Runner {
-        DATAFLOW("DataflowRunner", ":beam-runners-google-cloud-dataflow-java"),
-        SPARK("SparkRunner", ":beam-runners-spark"),
-        FLINK("FlinkRunner", ":beam-runners-flink_2.11"),
-        DIRECT("DirectRunner", ":beam-runners-direct-java")
-
-        private final String option
-        private final String dependency
-
-        Runner(String option, String dependency) {
-            this.option = option
-            this.dependency = dependency
-        }
-    }
 
     static void buildTest(context, String title, Runner runner, Map<String, Object> jobSpecificOptions, String mainClass) {
         Map<String, Object> options = jobSpecificOptions + defaultOptions
@@ -55,7 +41,6 @@ class LoadTestsBuilder {
                 rootBuildScriptDir(commonJobProperties.checkoutDir)
                 tasks(':beam-sdks-java-load-tests:run')
                 commonJobProperties.setGradleSwitches(delegate)
-                switches("-Dorg.gradle.daemon=false")
                 switches("-PloadTest.mainClass=\"${mainClass}\"")
                 switches("-Prunner=${runner.dependency}")
                 switches("-PloadTest.args=\"${parseOptions(options)}\"")
