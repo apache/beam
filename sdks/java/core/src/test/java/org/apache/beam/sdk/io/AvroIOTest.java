@@ -99,6 +99,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -301,6 +302,8 @@ public class AvroIOTest implements Serializable {
           .containsInAnyOrder(values);
 
       readPipeline.run();
+
+      Assert.fail();
     }
 
     @Test
