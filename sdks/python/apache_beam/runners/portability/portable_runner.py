@@ -142,6 +142,8 @@ class PortableRunner(runner.PipelineRunner):
       options.view_as(SetupOptions).sdk_location = 'container'
 
     if not job_endpoint:
+      # TODO Provide a way to specify a container Docker URL
+      # https://issues.apache.org/jira/browse/BEAM-6328
       docker = DockerizedJobServer()
       job_endpoint = docker.start()
 
