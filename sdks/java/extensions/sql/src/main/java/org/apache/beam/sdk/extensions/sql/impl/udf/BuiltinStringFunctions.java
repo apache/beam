@@ -60,7 +60,7 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     parameterArray = {TypeName.STRING},
     returnType = TypeName.INT64
   )
-  public Long length(String str) {
+  public Long lengthString(String str) {
     if (str == null) {
       return null;
     }
@@ -72,7 +72,7 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     parameterArray = {TypeName.BYTES},
     returnType = TypeName.INT64
   )
-  public Long length(byte[] bytes) {
+  public Long lengthBytes(byte[] bytes) {
     if (bytes == null) {
       return null;
     }
@@ -84,7 +84,7 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     parameterArray = {TypeName.STRING},
     returnType = TypeName.STRING
   )
-  public String reverse(String str) {
+  public String reverseString(String str) {
     if (str == null) {
       return null;
     }
@@ -96,7 +96,7 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
     parameterArray = {TypeName.BYTES},
     returnType = TypeName.BYTES
   )
-  public byte[] reverse(byte[] bytes) {
+  public byte[] reverseBytes(byte[] bytes) {
     if (bytes == null) {
       return null;
     }
