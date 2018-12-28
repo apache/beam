@@ -7,7 +7,7 @@
 // (the "License"); you may not use this file except in compliance with
 // the License.  You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,8 @@
 package exec
 
 import (
+	"fmt"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -225,28 +227,25 @@ func (n *invoker) initCall() {
 	default:
 		n.call = func(ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
 			ret := n.fn.Fn.Call(n.args)
-			if n.errIdx >= 0 && ret[n.errIdx] != nil {
-				return nil, ret[n.errIdx].(error)
+			if n.outErrIdx >= 0 && ret[n.outErrIdx] != nil {
+				return nil, ret[n.outErrIdx].(error)
 			}
 
 			// (5) Return direct output, if any. Input timestamp and windows are implicitly
 			// propagated.
-
-			out := n.out
-			if len(out) > 0 {
-				n.ret = FullValue{Windows: ws, Timestamp: ts}
-				if n.outEtIdx >= 0 {
-					n.ret.Timestamp = ret[n.outEtIdx].(typex.EventTime)
-				}
-				// TODO(herohde) 4/16/2018: apply windowing function to elements with explicit timestamp?
-
-				n.ret.Elm = ret[out[0]]
-				if len(out) > 1 {
-					n.ret.Elm2 = ret[out[1]]
-				}
-				return &n.ret, nil
+			switch len(ret) {
+			case 0:
+				return nil, nil
+			case 1:
+				return n.ret1(ws, ts, ret[0])
+			case 2:
+				return n.ret2(ws, ts, ret[0], ret[1])
+			case 3:
+				return n.ret3(ws, ts, ret[0], ret[1], ret[2])
+			case 4:
+				return n.ret4(ws, ts, ret[0], ret[1], ret[2], ret[3])
 			}
-			return nil, nil
+			panic(fmt.Sprintf("invoker: %v has > 4 return values, which is not permitted", n.fn.Fn.Name()))
 		}
 	}
 }
