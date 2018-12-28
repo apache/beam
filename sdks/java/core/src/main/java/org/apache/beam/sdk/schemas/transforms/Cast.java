@@ -430,6 +430,10 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
         return outputMap;
 
       default:
+        if (inputType.equals(outputType)) {
+          return inputValue;
+        }
+
         if (inputType.isNumericType()) {
           return castNumber((Number) inputValue, inputType, outputType);
         } else {
