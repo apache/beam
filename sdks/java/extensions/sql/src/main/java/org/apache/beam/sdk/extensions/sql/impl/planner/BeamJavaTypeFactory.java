@@ -15,30 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical;
+package org.apache.beam.sdk.extensions.sql.impl.planner;
 
-import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
+import java.lang.reflect.Type;
+import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.type.BasicSqlType;
+import org.apache.calcite.sql.type.IntervalSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/** {@code BeamSqlExpression} for Logical operators. */
-public abstract class BeamSqlLogicalExpression extends BeamSqlExpression {
-  private BeamSqlLogicalExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
-    super(operands, outputType);
-  }
+/** customized data type in Beam. */
+public class BeamJavaTypeFactory extends JavaTypeFactoryImpl {
+  public static final JavaTypeFactory INSTANCE = new BeamJavaTypeFactory();
 
-  public BeamSqlLogicalExpression(List<BeamSqlExpression> operands) {
-    this(operands, SqlTypeName.BOOLEAN);
+  private BeamJavaTypeFactory() {
+    super(BeamRelDataTypeSystem.INSTANCE);
   }
 
   @Override
-  public boolean accept() {
-    for (BeamSqlExpression exp : operands) {
-      // only accept BOOLEAN expression as operand
-      if (!exp.getOutputType().equals(SqlTypeName.BOOLEAN)) {
-        return false;
+  public Type getJavaClass(RelDataType type) {
+    if (type instanceof BasicSqlType || type instanceof IntervalSqlType) {
+      if (type.getSqlTypeName() == SqlTypeName.FLOAT) {
+        return type.isNullable() ? Float.class : float.class;
       }
     }
-    return true;
+    return super.getJavaClass(type);
   }
 }
