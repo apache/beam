@@ -89,7 +89,8 @@ public class BigQueryToTableIT {
 
   private void runBigQueryToTablePipeline() {
     Pipeline p = Pipeline.create(options);
-    BigQueryIO.Read bigQueryRead = BigQueryIO.read().fromQuery(options.getQuery());
+    BigQueryIO.Read bigQueryRead =
+        BigQueryIO.read().withoutValidation().fromQuery(options.getQuery());
     if (options.getUsingStandardSql()) {
       bigQueryRead = bigQueryRead.usingStandardSql();
     }
@@ -106,7 +107,8 @@ public class BigQueryToTableIT {
         BigQueryIO.writeTableRows()
             .to(options.getOutput())
             .withSchema(options.getOutputSchema())
-            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withoutValidation());
 
     p.run().waitUntilFinish();
   }
