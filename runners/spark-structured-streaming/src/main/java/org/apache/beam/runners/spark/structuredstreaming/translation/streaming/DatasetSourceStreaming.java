@@ -55,7 +55,7 @@ import scala.collection.immutable.Map;
  * This is a spark structured streaming {@link DataSourceV2} implementation. As Continuous streaming
  * is tagged experimental in spark, this class does no implement {@link ContinuousReadSupport}.
  */
-public class DatasetStreamingSource<T> implements DataSourceV2, MicroBatchReadSupport{
+public class DatasetSourceStreaming<T> implements DataSourceV2, MicroBatchReadSupport{
 
   private int numPartitions;
   private Long bundleSize;
