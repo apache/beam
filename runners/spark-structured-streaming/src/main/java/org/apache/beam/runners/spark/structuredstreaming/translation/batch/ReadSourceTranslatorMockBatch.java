@@ -52,6 +52,8 @@ class ReadSourceTranslatorMockBatch<T>
         return value.<WindowedValue>getAs(0);
       }
     };
+    //TODO: is there a better way than using the raw WindowedValue? Can an Encoder<WindowedVAlue<T>>
+    // be created ?
     Dataset<WindowedValue> dataset = rowDataset.map(func, Encoders.kryo(WindowedValue.class));
 
     PCollection<T> output = (PCollection<T>) context.getOutput();
