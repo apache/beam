@@ -47,7 +47,7 @@ from apache_beam.runners.portability.portable_runner import PortableRunner
 
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
-  TIMEOUT_SECS = 30
+  TIMEOUT_SECS = 60
 
   # Controls job service interaction, not sdk harness interaction.
   _use_subprocesses = False
