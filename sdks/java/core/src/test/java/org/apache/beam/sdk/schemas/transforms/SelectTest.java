@@ -26,6 +26,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -159,6 +160,7 @@ public class SelectTest {
     thrown.expect(IllegalArgumentException.class);
     pipeline.apply(Create.of(new POJO1())).apply(Select.fieldNames("missing"));
     pipeline.run();
+    Assert.fail();
   }
 
   @Test
