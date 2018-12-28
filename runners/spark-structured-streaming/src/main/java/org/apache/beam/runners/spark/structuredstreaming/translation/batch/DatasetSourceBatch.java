@@ -41,8 +41,7 @@ import org.apache.spark.sql.types.StructType;
 
 /**
  * This is a spark structured streaming {@link DataSourceV2} implementation. As Continuous streaming
- * is tagged experimental in spark, this class does no implement {@link ContinuousReadSupport}. This
- * class is just a mix-in.
+ * is tagged experimental in spark, this class does no implement {@link ContinuousReadSupport}.
  */
 public class DatasetSourceBatch<T> implements DataSourceV2, ReadSupport {
 
