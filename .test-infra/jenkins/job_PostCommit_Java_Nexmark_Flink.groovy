@@ -17,6 +17,8 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties.Runner
+import CommonTestProperties.TriggeringContext
 import NexmarkBigqueryProperties
 import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
@@ -114,5 +116,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Fl
           'flinkMaster'  : '[local]'
   ]
 
-  Nexmark.standardJob(delegate, Nexmark.Runner.FLINK, JOB_SPECIFIC_OPTIONS, Nexmark.TriggeringContext.PR)
+  Nexmark.standardJob(delegate, Runner.FLINK, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
 }
