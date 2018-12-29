@@ -947,7 +947,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     @Override
     public void setTimer(TimerData timer) {
       try {
-        getKeyedStateBackend().setCurrentKey(getCurrentKey());
         String contextTimerId = getContextTimerId(timer);
         // Only one timer can exist at a time for a given timer id and context.
         // If a timer gets set twice in the same context, the second must
