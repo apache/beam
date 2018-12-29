@@ -33,6 +33,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
@@ -48,6 +51,7 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
+import org.apache.beam.runners.flink.translation.utils.NoopLock;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
@@ -100,6 +104,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private final Map<String, TupleTag<?>> outputMap;
   private final Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputIds;
   private final boolean usesTimers;
+  /** A lock which has to be acquired when concurrently accessing state and setting timers. */
+  private final Lock stateBackendLock;
 
   private transient FlinkExecutableStageContext stageContext;
   private transient StateRequestHandler stateRequestHandler;
@@ -150,6 +156,18 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     this.outputMap = outputMap;
     this.sideInputIds = sideInputIds;
     this.usesTimers = payload.getTimersCount() > 0;
+    if (usesTimers) {
+      // We only need to lock if we have timers. 1) Timers can
+      // interfere with state access. 2) Even without state access,
+      // setting timers can interfere with firing timers.
+      this.stateBackendLock = new ReentrantLock();
+    } else {
+      // Plain state access is guaranteed to not interfere with the state
+      // backend. The current key of the state backend is set manually before
+      // accessing the keyed state. Flink's automatic key setting before
+      // processing elements is overridden in this class.
+      this.stateBackendLock = NoopLock.get();
+    }
   }
 
   @Override
@@ -210,7 +228,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       userStateRequestHandler =
           StateRequestHandlers.forBagUserStateHandlerFactory(
               stageBundleFactory.getProcessBundleDescriptor(),
-              new BagUserStateFactory(keyedStateInternals, getKeyedStateBackend()));
+              new BagUserStateFactory(
+                  keyedStateInternals, getKeyedStateBackend(), stateBackendLock));
     } else {
       userStateRequestHandler = StateRequestHandler.unsupported();
     }
@@ -227,12 +246,16 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     private final StateInternals stateInternals;
     private final KeyedStateBackend<ByteBuffer> keyedStateBackend;
+    private final Lock stateBackendLock;
 
     private BagUserStateFactory(
-        StateInternals stateInternals, KeyedStateBackend<ByteBuffer> keyedStateBackend) {
+        StateInternals stateInternals,
+        KeyedStateBackend<ByteBuffer> keyedStateBackend,
+        Lock stateBackendLock) {
 
       this.stateInternals = stateInternals;
       this.keyedStateBackend = keyedStateBackend;
+      this.stateBackendLock = stateBackendLock;
     }
 
     @Override
@@ -246,31 +269,46 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       return new StateRequestHandlers.BagUserStateHandler<K, V, W>() {
         @Override
         public Iterable<V> get(K key, W window) {
-          prepareStateBackend(key, keyCoder);
-          StateNamespace namespace = StateNamespaces.window(windowCoder, window);
-          BagState<V> bagState =
-              stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
-          return bagState.read();
+          try {
+            stateBackendLock.lock();
+            prepareStateBackend(key, keyCoder);
+            StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+            BagState<V> bagState =
+                stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
+            return bagState.read();
+          } finally {
+            stateBackendLock.unlock();
+          }
         }
 
         @Override
         public void append(K key, W window, Iterator<V> values) {
-          prepareStateBackend(key, keyCoder);
-          StateNamespace namespace = StateNamespaces.window(windowCoder, window);
-          BagState<V> bagState =
-              stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
-          while (values.hasNext()) {
-            bagState.add(values.next());
+          try {
+            stateBackendLock.lock();
+            prepareStateBackend(key, keyCoder);
+            StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+            BagState<V> bagState =
+                stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
+            while (values.hasNext()) {
+              bagState.add(values.next());
+            }
+          } finally {
+            stateBackendLock.unlock();
           }
         }
 
         @Override
         public void clear(K key, W window) {
-          prepareStateBackend(key, keyCoder);
-          StateNamespace namespace = StateNamespaces.window(windowCoder, window);
-          BagState<V> bagState =
-              stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
-          bagState.clear();
+          try {
+            stateBackendLock.lock();
+            prepareStateBackend(key, keyCoder);
+            StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+            BagState<V> bagState =
+                stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
+            bagState.clear();
+          } finally {
+            stateBackendLock.unlock();
+          }
         }
 
         private void prepareStateBackend(K key, Coder<K> keyCoder) {
@@ -312,6 +350,25 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     return sdkHarnessRunner.getCurrentTimerKey();
   }
 
+  private void setTimer(WindowedValue<InputT> timerElement, TimerInternals.TimerData timerData) {
+    try {
+      Object key = keySelector.getKey(timerElement);
+      sdkHarnessRunner.setCurrentTimerKey(key);
+      // We have to synchronize to ensure the state backend is not concurrently accessed by the state requests
+      try {
+        stateBackendLock.lock();
+        getKeyedStateBackend().setCurrentKey(key);
+        timerInternals.setTimer(timerData);
+      } finally {
+        stateBackendLock.unlock();
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Couldn't set timer", e);
+    } finally {
+      sdkHarnessRunner.setCurrentTimerKey(null);
+    }
+  }
+
   @Override
   public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
     // We need to decode the key
@@ -328,7 +385,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
     // Prepare the SdkHarnessRunner with the key for the timer
     sdkHarnessRunner.setCurrentTimerKey(decodedKey);
-    super.fireTimer(timer);
+    // We have to synchronize to ensure the state backend is not concurrently accessed by the state requests
+    try {
+      stateBackendLock.lock();
+      getKeyedStateBackend().setCurrentKey(encodedKey);
+      super.fireTimer(timer);
+    } finally {
+      stateBackendLock.unlock();
+    }
   }
 
   @Override
@@ -371,7 +435,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             outputMap,
             (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder(),
             keySelector,
-            timerInternals);
+            this::setTimer);
     return sdkHarnessRunner;
   }
 
@@ -444,7 +508,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     private final Coder<BoundedWindow> windowCoder;
     private final KeySelector<WindowedValue<InputT>, ?> keySelector;
-    private final TimerInternals timerInternals;
+    private final BiConsumer<WindowedValue<InputT>, TimerInternals.TimerData> timerRegistration;
 
     private RemoteBundle remoteBundle;
     private FnDataReceiver<WindowedValue<?>> mainInputReceiver;
@@ -464,7 +528,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         Map<String, TupleTag<?>> outputMap,
         Coder<BoundedWindow> windowCoder,
         KeySelector<WindowedValue<InputT>, ?> keySelector,
-        TimerInternals timerInternals) {
+        BiConsumer<WindowedValue<InputT>, TimerInternals.TimerData> timerRegistration) {
       this.mainInput = mainInput;
       this.stageBundleFactory = stageBundleFactory;
       this.stateRequestHandler = stateRequestHandler;
@@ -472,7 +536,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       this.outputManager = outputManager;
       this.outputMap = outputMap;
       this.keySelector = keySelector;
-      this.timerInternals = timerInternals;
+      this.timerRegistration = timerRegistration;
       this.timerOutputIdToSpecMap = new HashMap<>();
       // Gather all timers from all transforms by their output pCollectionId which is unique
       for (Map<String, ProcessBundleDescriptors.TimerSpec> transformTimerMap :
@@ -550,6 +614,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     @Override
     public void finishBundle() {
+      if (remoteBundle == null) {
+        return;
+      }
       try {
         // TODO: it would be nice to emit results as they arrive, can thread wait non-blocking?
         // close blocks until all results are received
@@ -617,20 +684,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                     namespace,
                     timer.getTimestamp(),
                     timerSpec.getTimerSpec().getTimeDomain());
-            setTimer(windowedValue, timerData);
+            timerRegistration.accept(windowedValue, timerData);
           }
         }
-      }
-    }
-
-    private void setTimer(WindowedValue timerElement, TimerInternals.TimerData timerData) {
-      try {
-        currentTimerKey = keySelector.getKey(timerElement);
-        timerInternals.setTimer(timerData);
-      } catch (Exception e) {
-        throw new RuntimeException("Couldn't set timer", e);
-      } finally {
-        currentTimerKey = null;
       }
     }
 
