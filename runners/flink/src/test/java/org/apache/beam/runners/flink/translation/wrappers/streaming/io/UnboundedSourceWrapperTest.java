@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.streaming;
+package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
@@ -28,20 +28,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -54,6 +52,7 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
@@ -594,9 +593,17 @@ public class UnboundedSourceWrapperTest {
 
     @Test(timeout = 10_000)
     public void testSourceWithNoReaderDoesNotShutdown() throws Exception {
+      testSourceDoesNotShutdown(false);
+    }
+
+    @Test(timeout = 10_000)
+    public void testSourceWithReadersDoesNotShutdown() throws Exception {
+      testSourceDoesNotShutdown(true);
+    }
+
+    private static void testSourceDoesNotShutdown(boolean shouldHaveReaders) throws Exception {
       final int parallelism = 2;
       FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
-      options.setShutdownSourcesOnFinalWatermark(true);
 
       TestCountingSource source = new TestCountingSource(20).withoutSplitting();
 
@@ -604,15 +611,32 @@ public class UnboundedSourceWrapperTest {
           new UnboundedSourceWrapper<>("noReader", options, source, parallelism);
 
       StreamingRuntimeContext mock = Mockito.mock(StreamingRuntimeContext.class);
-      // Set up the RuntimeContext such that this instance won't receive any readers
-      Mockito.when(mock.getIndexOfThisSubtask()).thenReturn(parallelism - 1);
+      if (shouldHaveReaders) {
+        // Since the source can't be split, the first subtask index will read everything
+        Mockito.when(mock.getIndexOfThisSubtask()).thenReturn(0);
+      } else {
+        // Set up the RuntimeContext such that this instance won't receive any readers
+        Mockito.when(mock.getIndexOfThisSubtask()).thenReturn(parallelism - 1);
+      }
+
       Mockito.when(mock.getNumberOfParallelSubtasks()).thenReturn(parallelism);
+      Mockito.when(mock.getExecutionConfig()).thenReturn(new ExecutionConfig());
+      ProcessingTimeService timerService = Mockito.mock(ProcessingTimeService.class);
+      Mockito.when(timerService.getCurrentProcessingTime()).thenReturn(Long.MAX_VALUE);
+      Mockito.when(mock.getProcessingTimeService()).thenReturn(timerService);
+
       sourceWrapper.setRuntimeContext(mock);
       sourceWrapper.open(new Configuration());
 
       SourceFunction.SourceContext sourceContext = Mockito.mock(SourceFunction.SourceContext.class);
       Object checkpointLock = new Object();
       Mockito.when(sourceContext.getCheckpointLock()).thenReturn(checkpointLock);
+      // Initialize source context early to avoid concurrency issues with its initialization in the run
+      // method and the onProcessingTime call on the wrapper.
+      sourceWrapper.setSourceContext(sourceContext);
+
+      sourceWrapper.open(new Configuration());
+      assertThat(sourceWrapper.getLocalReaders().isEmpty(), is(!shouldHaveReaders));
 
       Thread thread =
           new Thread(
@@ -626,17 +650,35 @@ public class UnboundedSourceWrapperTest {
 
       try {
         thread.start();
-        List<UnboundedSource.UnboundedReader<KV<Integer, Integer>>> localReaders =
-            sourceWrapper.getLocalReaders();
-        while (localReaders != null && !localReaders.isEmpty()) {
-          Thread.sleep(200);
-          // should stay alive
-          assertThat(thread.isAlive(), is(true));
+        // Wait to see if the wrapper shuts down immediately in case it doesn't have readers
+        if (!shouldHaveReaders) {
+          // The expected state is for finalizeSource to sleep instead of exiting
+          while (true) {
+            StackTraceElement[] callStack = thread.getStackTrace();
+            if (callStack.length >= 2
+                && "sleep".equals(callStack[0].getMethodName())
+                && "finalizeSource".equals(callStack[1].getMethodName())) {
+              break;
+            }
+            Thread.sleep(10);
+          }
         }
+        // Source should still be running even if there are no readers
+        assertThat(sourceWrapper.isRunning(), is(true));
+        synchronized (checkpointLock) {
+          // Trigger emission of the watermark by updating processing time.
+          // The actual processing time value does not matter.
+          sourceWrapper.onProcessingTime(42);
+        }
+        // Source should still be running even when watermark is at max
+        assertThat(sourceWrapper.isRunning(), is(true));
+        assertThat(thread.isAlive(), is(true));
         sourceWrapper.cancel();
       } finally {
         thread.interrupt();
-        thread.join();
+        // try to join but also don't mask exceptions with test timeout
+        thread.join(1000);
+        assertThat(thread.isAlive(), is(false));
       }
     }
   }
