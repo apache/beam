@@ -678,8 +678,8 @@ public class UnboundedSourceWrapperTest {
         thread.interrupt();
         // try to join but also don't mask exceptions with test timeout
         thread.join(1000);
-        assertThat(thread.isAlive(), is(false));
       }
+      assertThat(thread.isAlive(), is(false));
     }
   }
 
