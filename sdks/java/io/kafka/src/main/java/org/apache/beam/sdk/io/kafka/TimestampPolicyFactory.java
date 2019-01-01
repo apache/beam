@@ -62,11 +62,26 @@ public interface TimestampPolicyFactory<KeyT, ValueT> extends Serializable {
   /**
    * A {@link TimestampPolicy} that assigns Kafka's log append time (server side ingestion time) to
    * each record. The watermark for each Kafka partition is the timestamp of the last record read.
-   * If a partition is idle, the watermark advances roughly to 'current time - 2 seconds'. See
+   * If a partition is idle and idleWaterMarkDelta isPresent, then the watermark advances roughly to
+   * 'current time - 2 seconds'. If the partition is idle and idleWaterMarkDelta is not present then
+   * the watermark does not advance. See {@link KafkaIO.Read#withLogAppendTime()} for longer
+   * description.
+   */
+  static <K, V> TimestampPolicyFactory<K, V> withLogAppendTime(
+      Optional<Duration> idleWaterMarkDelta) {
+    return (tp, previousWatermark) ->
+        new LogAppendTimePolicy<>(previousWatermark, idleWaterMarkDelta);
+  }
+
+  /**
+   * A {@link TimestampPolicy} that assigns Kafka's log append time (server side ingestion time) to
+   * each record. The watermark for each Kafka partition is the timestamp of the last record read.
+   * If a partition is idle and , the watermark advances roughly to 'current time - 2 seconds'. See
    * {@link KafkaIO.Read#withLogAppendTime()} for longer description.
    */
   static <K, V> TimestampPolicyFactory<K, V> withLogAppendTime() {
-    return (tp, previousWatermark) -> new LogAppendTimePolicy<>(previousWatermark);
+    return (tp, previousWatermark) ->
+        new LogAppendTimePolicy<>(previousWatermark, Optional.of(Duration.standardSeconds(2)));
   }
 
   /**
@@ -133,16 +148,19 @@ public interface TimestampPolicyFactory<KeyT, ValueT> extends Serializable {
     /**
      * When a partition is idle or caught up (i.e. backlog is zero), we advance the watermark to
      * near realtime. Kafka server does not have an API to provide server side current timestamp
-     * which could ensure minimum LogAppendTime for future records. The best we could do is to
-     * advance the watermark to 'last backlog check time - small delta to account for any internal
-     * buffering in Kafka'. Using 2 seconds for this delta. Should this be user configurable?
+     * which could ensure minimum LogAppendTime for future records. We can either advance the
+     * watermark to 'last backlog check time - small delta to account for any internal buffering in
+     * Kafka', or if set to an empty optional the user must ensure periodic heartbeats on each
+     * partition of the topic.
      */
-    private static final Duration IDLE_WATERMARK_DELTA = Duration.standardSeconds(2);
+    private final Optional<Duration> idleWatermarkDelta;
 
     protected Instant currentWatermark;
 
-    public LogAppendTimePolicy(Optional<Instant> previousWatermark) {
+    public LogAppendTimePolicy(
+        Optional<Instant> previousWatermark, Optional<Duration> idleWatermarkDelta) {
       currentWatermark = previousWatermark.orElse(BoundedWindow.TIMESTAMP_MIN_VALUE);
+      this.idleWatermarkDelta = idleWatermarkDelta;
     }
 
     @Override
@@ -164,9 +182,9 @@ public interface TimestampPolicyFactory<KeyT, ValueT> extends Serializable {
 
     @Override
     public Instant getWatermark(PartitionContext context) {
-      if (context.getMessageBacklog() == 0) {
+      if (context.getMessageBacklog() == 0 && idleWatermarkDelta.isPresent()) {
         // The reader is caught up. May need to advance the watermark.
-        Instant idleWatermark = context.getBacklogCheckTime().minus(IDLE_WATERMARK_DELTA);
+        Instant idleWatermark = context.getBacklogCheckTime().minus(idleWatermarkDelta.get());
         if (idleWatermark.isAfter(currentWatermark)) {
           currentWatermark = idleWatermark;
         }

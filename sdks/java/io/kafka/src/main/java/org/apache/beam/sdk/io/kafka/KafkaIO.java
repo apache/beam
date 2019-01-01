@@ -540,6 +540,28 @@ public class KafkaIO {
     }
 
     /**
+     * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.LogAppendTimePolicy}. The
+     * policy assigns Kafka's log append time (server side ingestion time) to each record. The
+     * watermark for each Kafka partition is the timestamp of the last record read. If a partition
+     * is idle, and idleWaterMarkDelta is set, then the watermark advances to the specified duration
+     * behind wall time, if idleWaterMarkDelta is not set the watermark does not advance. Every
+     * record consumed from Kafka is expected to have its timestamp type set to 'LOG_APPEND_TIME'.
+     *
+     * <p>In Kafka, log append time needs to be enabled for each topic, and all the subsequent
+     * records wil have their timestamp set to log append time. If a record does not have its
+     * timestamp type set to 'LOG_APPEND_TIME' for any reason, it's timestamp is set to previous
+     * record timestamp or latest watermark, whichever is larger.
+     *
+     * <p>The watermark for the entire source is the oldest of each partition's watermark. If one of
+     * the readers falls behind possibly due to uneven distribution of records among Kafka
+     * partitions, it ends up holding the watermark for the entire source.
+     */
+    public Read<K, V> withLogAppendTime(Optional<Duration> idleWaterMarkDelta) {
+      return withTimestampPolicyFactory(
+          TimestampPolicyFactory.withLogAppendTime(idleWaterMarkDelta));
+    }
+
+    /**
      * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.ProcessingTimePolicy}. This is
      * the default timestamp policy. It assigns processing time to each record. Specifically, this
      * is the timestamp when the record becomes 'current' in the reader. The watermark aways
