@@ -53,6 +53,7 @@ class BigQueryAvroUtils {
   public static final ImmutableMap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
       ImmutableMap.<String, Type>builder()
           .put("STRING", Type.STRING)
+          .put("GEOGRAPHY", Type.STRING)
           .put("BYTES", Type.BYTES)
           .put("INTEGER", Type.LONG)
           .put("FLOAT", Type.DOUBLE)
@@ -192,6 +193,7 @@ class BigQueryAvroUtils {
       case "DATE":
       case "DATETIME":
       case "TIME":
+      case "GEOGRAPHY":
         // Avro will use a CharSequence to represent String objects, but it may not always use
         // java.lang.String; for example, it may prefer org.apache.avro.util.Utf8.
         verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
