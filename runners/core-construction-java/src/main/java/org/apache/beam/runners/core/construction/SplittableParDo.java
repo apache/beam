@@ -43,6 +43,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
@@ -365,7 +366,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               new ParDoLike() {
                 @Override
                 public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-                  return ParDoTranslation.translateDoFn(fn, pke.getMainOutputTag(), newComponents);
+                  // Schemas not yet supported on splittable DoFn.
+                  return ParDoTranslation.translateDoFn(
+                      fn, pke.getMainOutputTag(), DoFnSchemaInformation.create(), newComponents);
                 }
 
                 @Override

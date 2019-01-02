@@ -38,6 +38,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.DoFnInfo;
@@ -90,6 +91,7 @@ class CombineValuesFnFactory implements ParDoFnFactory {
         outputTupleTagsToReceiverIndices,
         executionContext.getStepContext(operationContext),
         operationContext,
+        doFnInfo.getDoFnSchemaInformation(),
         SimpleDoFnRunnerFactory.INSTANCE);
   }
 
@@ -138,7 +140,8 @@ class CombineValuesFnFactory implements ParDoFnFactory {
           combineFn.getSideInputViews(),
           inputCoder,
           Collections.emptyMap(), // Not needed here.
-          new TupleTag<>(PropertyNames.OUTPUT));
+          new TupleTag<>(PropertyNames.OUTPUT),
+          DoFnSchemaInformation.create());
     }
 
     private final GlobalCombineFnRunner<InputT, ?, OutputT> combineFnRunner;
@@ -202,7 +205,8 @@ class CombineValuesFnFactory implements ParDoFnFactory {
           combineFn.getSideInputViews(),
           inputCoder,
           Collections.emptyMap(), // Not needed here.
-          new TupleTag<>(PropertyNames.OUTPUT));
+          new TupleTag<>(PropertyNames.OUTPUT),
+          DoFnSchemaInformation.create());
     }
 
     private final GlobalCombineFnRunner<InputT, AccumT, ?> combineFnRunner;
@@ -260,7 +264,8 @@ class CombineValuesFnFactory implements ParDoFnFactory {
           combineFn.getSideInputViews(),
           inputCoder,
           Collections.emptyMap(), // Not needed here.
-          new TupleTag<>(PropertyNames.OUTPUT));
+          new TupleTag<>(PropertyNames.OUTPUT),
+          DoFnSchemaInformation.create());
     }
 
     private final GlobalCombineFnRunner<?, AccumT, ?> combineFnRunner;
@@ -308,7 +313,8 @@ class CombineValuesFnFactory implements ParDoFnFactory {
           combineFn.getSideInputViews(),
           inputCoder,
           Collections.emptyMap(), // Not needed here.
-          new TupleTag<>(PropertyNames.OUTPUT));
+          new TupleTag<>(PropertyNames.OUTPUT),
+          DoFnSchemaInformation.create());
     }
 
     private final GlobalCombineFnRunner<?, AccumT, OutputT> combineFnRunner;

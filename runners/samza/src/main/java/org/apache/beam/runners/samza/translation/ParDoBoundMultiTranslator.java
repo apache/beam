@@ -29,6 +29,7 @@ import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -125,6 +127,13 @@ class ParDoBoundMultiTranslator<InT, OutT>
       idToPValueMap.put(ctx.getViewId(view), view);
     }
 
+    DoFnSchemaInformation doFnSchemaInformation;
+    try {
+      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(ctx.getCurrentTransform());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             transform.getMainOutputTag(),
@@ -140,7 +149,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             node.getFullName(),
             false,
             null,
-            Collections.emptyMap());
+            Collections.emptyMap(),
+            doFnSchemaInformation);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
@@ -215,6 +225,13 @@ class ParDoBoundMultiTranslator<InT, OutT>
         SamzaPipelineTranslatorUtils.instantiateCoder(inputId, pipeline.getComponents());
     final String nodeFullname = transform.getTransform().getUniqueName();
 
+    final DoFnSchemaInformation doFnSchemaInformation;
+    try {
+      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             mainOutputTag,
@@ -230,7 +247,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             nodeFullname,
             true,
             stagePayload,
-            idToTupleTagMap);
+            idToTupleTagMap,
+            doFnSchemaInformation);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {

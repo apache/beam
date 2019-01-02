@@ -54,6 +54,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -500,8 +501,11 @@ class FlinkBatchTransformTranslators {
       Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
 
       TupleTag<?> mainOutputTag;
+      DoFnSchemaInformation doFnSchemaInformation;
       try {
         mainOutputTag = ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
+        doFnSchemaInformation =
+            ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -586,7 +590,8 @@ class FlinkBatchTransformTranslators {
                 outputMap,
                 mainOutputTag,
                 inputCoder,
-                outputCoderMap);
+                outputCoderMap,
+                doFnSchemaInformation);
 
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
         // that it is also keyed.
@@ -606,7 +611,8 @@ class FlinkBatchTransformTranslators {
                 outputMap,
                 mainOutputTag,
                 context.getInput(transform).getCoder(),
-                outputCoderMap);
+                outputCoderMap,
+                doFnSchemaInformation);
 
         outputDataSet =
             new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);

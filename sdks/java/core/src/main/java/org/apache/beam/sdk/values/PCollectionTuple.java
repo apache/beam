@@ -212,8 +212,8 @@ public class PCollectionTuple implements PInput, POutput {
       @SuppressWarnings("unchecked")
       PCollection outputCollection =
           PCollection.createPrimitiveOutputInternal(
-                  pipeline, windowingStrategy, isBounded, coders.get(outputTag))
-              .setTypeDescriptor((TypeDescriptor) outputTag.getTypeDescriptor());
+                  pipeline, windowingStrategy, isBounded, (Coder) coders.get(outputTag))
+              .setTypeDescriptor(outputTag.getTypeDescriptor());
 
       pcollectionMap.put(outputTag, outputCollection);
     }

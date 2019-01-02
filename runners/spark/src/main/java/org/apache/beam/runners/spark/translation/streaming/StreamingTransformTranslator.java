@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -62,6 +64,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -400,6 +403,13 @@ public final class StreamingTransformTranslator {
             (UnboundedDataset<InputT>) context.borrowDataset(transform);
         JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
 
+        final DoFnSchemaInformation doFnSchemaInformation;
+        try {
+          doFnSchemaInformation =
+              ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
         final String stepName = context.getCurrentTransform().getFullName();
         JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
             dStream.transformToPair(
@@ -425,7 +435,8 @@ public final class StreamingTransformTranslator {
                           outputCoders,
                           sideInputs,
                           windowingStrategy,
-                          false));
+                          false,
+                          doFnSchemaInformation));
                 });
 
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);

@@ -126,7 +126,8 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
                       FieldAccessDescriptor.withAllFields();
 
                   @ProcessElement
-                  public void process(@FieldAccess("selectFields") Row row, OutputReceiver<Row> r) {
+                  public void process(
+                      @FieldAccess("selectFields") @Element Row row, OutputReceiver<Row> r) {
                     r.output(selectRow(row, resolved, inputSchema, outputSchema));
                   }
                 }))
