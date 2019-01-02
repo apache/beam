@@ -9,7 +9,7 @@ public class SourceTest {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
     Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply(Create.of(1));
+    pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
     pipeline.run();
   }
 
