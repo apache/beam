@@ -26,6 +26,8 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
@@ -118,6 +120,14 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   PathValidator getPathValidator();
 
   void setPathValidator(PathValidator validator);
+
+  /** If true, reports metrics of certain operations, such as batch copies. */
+  @Description("Experimental. Whether to report performance metrics of certain GCS operations.")
+  @Default.Boolean(false)
+  @Experimental(Kind.FILESYSTEM)
+  Boolean getGcsPerformanceMetrics();
+
+  void setGcsPerformanceMetrics(Boolean reportPerformanceMetrics);
 
   /**
    * Returns the default {@link ExecutorService} to use within the Apache Beam SDK. The {@link
