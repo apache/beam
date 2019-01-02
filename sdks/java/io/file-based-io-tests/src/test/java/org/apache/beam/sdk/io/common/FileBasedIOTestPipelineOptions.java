@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.common;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
@@ -35,4 +36,22 @@ public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {
   String getCompressionType();
 
   void setCompressionType(String compressionType);
+
+  @Description("Number of files this test will create during the write phase.")
+  @Nullable
+  Integer getNumberOfShards();
+
+  void setNumberOfShards(@Nullable Integer value);
+
+  @Description("BigQuery dataset to publish results to.")
+  @Nullable
+  String getBigQueryDataset();
+
+  void setBigQueryDataset(@Nullable String dataset);
+
+  @Description("BigQuery table to publish results to.")
+  @Nullable
+  String getBigQueryTable();
+
+  void setBigQueryTable(@Nullable String tableName);
 }
