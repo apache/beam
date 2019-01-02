@@ -66,9 +66,12 @@ class MobileGamingCommands {
     return "java-hourlyteamscore-result-${RUNNERS[runner]}.txt"
   }
 
-  public String createPipelineCommand(String exampleName, String runner, String jobName=''){
+  public String createPipelineCommand(String exampleName, String runner, String jobName='', String className=null){
+    if (className == null) {
+      className = exampleName
+    }
     return """mvn compile exec:java -q \
-      -Dexec.mainClass=org.apache.beam.examples.complete.game.${exampleName} \
+      -Dexec.mainClass=org.apache.beam.examples.complete.game.${className} \
       -Dexec.args=\"${getArgs(exampleName, runner, jobName)}\" \
       -P${RUNNERS[runner]}"""
   }
@@ -91,6 +94,9 @@ class MobileGamingCommands {
         break
       case "LeaderBoard":
         args = getLeaderBoardArgs(runner, jobName)
+        break
+      case "LeaderBoardWithStreamingEngine":
+        args = getLeaderBoardWithStreamingEngineArgs(runner, jobName)
         break
       case "GameStats":
         args = getGameStatsArgs(runner, jobName)
@@ -131,6 +137,16 @@ class MobileGamingCommands {
       leaderBoardTableName: "leaderboard_${runner}",
       teamWindowDuration: 5,
       jobName: jobName]
+  }
+
+  private Map getLeaderBoardWithStreamingEngineArgs(String runner, String jobName){
+    return [project: testScripts.gcpProject(),
+            dataset: testScripts.bqDataset(),
+            topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
+            leaderBoardTableName: "leaderboard_${runner}",
+            teamWindowDuration: 5,
+            jobName: jobName,
+            experiments: "enable_streaming_engine"]
   }
 
   private Map getGameStatsArgs(String runner, String jobName){
