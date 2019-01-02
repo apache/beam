@@ -23,7 +23,7 @@ apply plugin: org.apache.beam.gradle.VendorJavaPlugin
 description = "Apache Beam :: Vendored Dependencies :: gRPC :: 1.13.1"
 
 group = "org.apache.beam"
-version = "0.1"
+version = "0.2"
 
 vendorJava(
   dependencies: GrpcVendoring.dependencies(),

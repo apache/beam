@@ -52,7 +52,11 @@ task copyDockerfileDependencies(type: Copy) {
 }
 
 docker {
-  name containerImageName(name: project.name)
+  // We keep a stable name here instead of using ${project.name}.
+  // Currently this is assumed by the Python SDK, but this could
+  // be changed if multiple containers for different Flink versions
+  // should be used.
+  name containerImageName(name: 'flink-job-server')
   files "./build/"
 }
 

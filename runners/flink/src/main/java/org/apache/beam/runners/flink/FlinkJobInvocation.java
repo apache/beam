@@ -21,6 +21,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Throwables.getStackTraceAsString;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -29,12 +31,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
@@ -98,39 +102,73 @@ public class FlinkJobInvocation implements JobInvocation {
   private PipelineResult runPipeline() throws Exception {
     MetricsEnvironment.setMetricsSupported(false);
 
+    FlinkPortablePipelineTranslator<?> translator;
+    if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
+      // TODO: Do we need to inspect for unbounded sources before fusing?
+      translator = FlinkBatchPortablePipelineTranslator.createTranslator();
+    } else {
+      translator = new FlinkStreamingPortablePipelineTranslator();
+    }
+    return runPipelineWithTranslator(translator);
+  }
+
+  private <T extends FlinkPortablePipelineTranslator.TranslationContext>
+      PipelineResult runPipelineWithTranslator(FlinkPortablePipelineTranslator<T> translator)
+          throws Exception {
     LOG.info("Translating pipeline to Flink program.");
+
+    // Don't let the fuser fuse any subcomponents of native transforms.
+    // TODO(BEAM-6327): Remove the need for this.
+    RunnerApi.Pipeline trimmedPipeline =
+        makeKnownUrnsPrimitives(
+            pipeline,
+            Sets.difference(
+                translator.knownUrns(),
+                ImmutableSet.of(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)));
+
     // Fused pipeline proto.
-    RunnerApi.Pipeline fusedPipeline = GreedyPipelineFuser.fuse(pipeline).toPipeline();
+    RunnerApi.Pipeline fusedPipeline = GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
     JobInfo jobInfo =
         JobInfo.create(
             id,
             pipelineOptions.getJobName(),
             retrievalToken,
             PipelineOptionsTranslation.toProto(pipelineOptions));
-    final JobExecutionResult result;
 
-    if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(fusedPipeline)) {
-      // TODO: Do we need to inspect for unbounded sources before fusing?
-      // batch translation
-      FlinkBatchPortablePipelineTranslator translator =
-          FlinkBatchPortablePipelineTranslator.createTranslator();
-      FlinkBatchPortablePipelineTranslator.BatchTranslationContext context =
-          FlinkBatchPortablePipelineTranslator.createTranslationContext(
-              jobInfo, pipelineOptions, confDir, filesToStage);
-      translator.translate(context, fusedPipeline);
-      result = context.getExecutionEnvironment().execute(pipelineOptions.getJobName());
-    } else {
-      // streaming translation
-      FlinkStreamingPortablePipelineTranslator translator =
-          new FlinkStreamingPortablePipelineTranslator();
-      FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext context =
-          FlinkStreamingPortablePipelineTranslator.createTranslationContext(
-              jobInfo, pipelineOptions, confDir, filesToStage);
-      translator.translate(context, fusedPipeline);
-      result = context.getExecutionEnvironment().execute(pipelineOptions.getJobName());
-    }
+    FlinkPortablePipelineTranslator.Executor executor =
+        translator.translate(
+            translator.createTranslationContext(jobInfo, pipelineOptions, confDir, filesToStage),
+            fusedPipeline);
+    final JobExecutionResult result = executor.execute(pipelineOptions.getJobName());
 
     return FlinkRunner.createPipelineResult(result, pipelineOptions);
+  }
+
+  private RunnerApi.Pipeline makeKnownUrnsPrimitives(
+      RunnerApi.Pipeline pipeline, Set<String> knownUrns) {
+    RunnerApi.Pipeline.Builder trimmedPipeline = pipeline.toBuilder();
+    for (String ptransformId : pipeline.getComponents().getTransformsMap().keySet()) {
+      if (knownUrns.contains(
+          pipeline.getComponents().getTransformsOrThrow(ptransformId).getSpec().getUrn())) {
+        LOG.debug("Removing descendants of known PTransform {}" + ptransformId);
+        removeDescendants(trimmedPipeline, ptransformId);
+      }
+    }
+    return trimmedPipeline.build();
+  }
+
+  private void removeDescendants(RunnerApi.Pipeline.Builder pipeline, String parentId) {
+    RunnerApi.PTransform parentProto =
+        pipeline.getComponents().getTransformsOrDefault(parentId, null);
+    if (parentProto != null) {
+      for (String childId : parentProto.getSubtransformsList()) {
+        removeDescendants(pipeline, childId);
+        pipeline.getComponentsBuilder().removeTransforms(childId);
+      }
+      pipeline
+          .getComponentsBuilder()
+          .putTransforms(parentId, parentProto.toBuilder().clearSubtransforms().build());
+    }
   }
 
   @Override
