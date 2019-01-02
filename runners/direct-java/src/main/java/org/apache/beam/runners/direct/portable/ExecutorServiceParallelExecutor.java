@@ -63,7 +63,7 @@ final class ExecutorServiceParallelExecutor
   private final ExecutorService executorService;
 
   private final RootProviderRegistry rootRegistry;
-  private final TransformEvaluatorRegistry registry;
+  private final TransformEvaluatorRegistry transformRegistry;
 
   private final ExecutableGraph<PTransformNode, PCollectionNode> graph;
   private final EvaluationContext evaluationContext;
@@ -89,7 +89,7 @@ final class ExecutorServiceParallelExecutor
   private ExecutorServiceParallelExecutor(
       int targetParallelism,
       RootProviderRegistry rootRegistry,
-      TransformEvaluatorRegistry registry,
+      TransformEvaluatorRegistry transformRegistry,
       ExecutableGraph<PTransformNode, PCollectionNode> graph,
       EvaluationContext context) {
     this.targetParallelism = targetParallelism;
@@ -103,7 +103,7 @@ final class ExecutorServiceParallelExecutor
                 .setNameFormat("direct-runner-worker")
                 .build());
     this.rootRegistry = rootRegistry;
-    this.registry = registry;
+    this.transformRegistry = transformRegistry;
     this.graph = graph;
     this.evaluationContext = context;
 
@@ -119,7 +119,7 @@ final class ExecutorServiceParallelExecutor
     this.visibleUpdates = new QueueMessageReceiver();
 
     parallelExecutorService = TransformExecutorServices.parallel(executorService);
-    executorFactory = new DirectTransformExecutor.Factory(context, registry);
+    executorFactory = new DirectTransformExecutor.Factory(context, transformRegistry);
   }
 
   private CacheLoader<StepAndKey, TransformExecutorService>
@@ -306,7 +306,7 @@ final class ExecutorServiceParallelExecutor
       errors.add(re);
     }
     try {
-      registry.cleanup();
+      transformRegistry.cleanup();
     } catch (final Exception e) {
       errors.add(e);
     }
