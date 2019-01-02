@@ -45,7 +45,7 @@ public class Base64Serializer {
     }
   }
 
-  public static <T> T deserialize(String serialized, Class<T> klass)
+  private static <T> T deserialize(String serialized, Class<T> klass)
       throws IOException, ClassNotFoundException {
     final byte[] bytes = Base64.getDecoder().decode(serialized);
     final ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes));
