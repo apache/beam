@@ -1427,7 +1427,7 @@ class BeamModulePlugin implements Plugin<Project> {
             // options.  Note the braces cannot be omitted, otherwise the
             // plugin will not be added. This is because of the implicit way
             // NamedDomainObjectContainer binds the methods.
-            grpc { }
+            grpc {}
           }
         }
       }
