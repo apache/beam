@@ -718,6 +718,9 @@ class BeamModulePlugin implements Plugin<Project> {
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat()
+
+          // Details see: https://github.com/diffplug/spotless/blob/master/PADDEDCELL.md
+          paddedCell()
         }
       }
 
@@ -850,9 +853,8 @@ class BeamModulePlugin implements Plugin<Project> {
           doLast {
             new File("${pomPropertiesFile}").text =
                     """version=${project.version}
-groupId=${project.group}
-artifactId=${project.name}
-"""
+                       groupId=${project.group}
+                       artifactId=${project.name}"""
           }
         }
 
