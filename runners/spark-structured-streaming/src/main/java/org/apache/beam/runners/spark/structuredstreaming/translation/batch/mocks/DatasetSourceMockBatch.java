@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
+package org.apache.beam.runners.spark.structuredstreaming.translation.batch.mocks;
 
 import static scala.collection.JavaConversions.asScalaBuffer;
 

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
+package org.apache.beam.runners.spark.structuredstreaming.translation.batch.mocks;
 
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
@@ -33,7 +33,7 @@ import org.apache.spark.sql.SparkSession;
  * Mock translator that generates a source of 0 to 999 and prints it.
  * @param <T>
  */
-class ReadSourceTranslatorMockBatch<T>
+public class ReadSourceTranslatorMockBatch<T>
     implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
 
   private String SOURCE_PROVIDER_CLASS = DatasetSourceMockBatch.class.getCanonicalName();
