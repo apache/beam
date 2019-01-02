@@ -109,7 +109,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
   // If a connection cannot be established, gRPC will fail fast so this deadline can be relatively
   // high.
-  private static final long DEFAULT_RPC_DEADLINE_SECONDS = 300;
+  private static final long DEFAULT_UNARY_RPC_DEADLINE_SECONDS = 300;
+  private static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
+  // Stream clean close seconds must be set lower than the stream deadline seconds.
+  private static final long DEFAULT_STREAM_CLEAN_CLOSE_SECONDS = 180;
+
   private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Duration MAX_BACKOFF = Duration.standardSeconds(30);
   // Internal gRPC batch size is 64KB, so pick something slightly smaller to account for other
@@ -126,7 +130,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
   private final List<CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1BlockingStub>
       syncStubList = new ArrayList<>();
   private WindmillApplianceGrpc.WindmillApplianceBlockingStub syncApplianceStub = null;
-  private long deadlineSeconds = DEFAULT_RPC_DEADLINE_SECONDS;
+  private long unaryDeadlineSeconds = DEFAULT_UNARY_RPC_DEADLINE_SECONDS;
   private ImmutableSet<HostAndPort> endpoints;
   private int logEveryNStreamFailures = 20;
   private Duration maxBackoff = MAX_BACKOFF;
@@ -200,7 +204,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
   private synchronized void initializeLocalHost(int port) throws IOException {
     this.logEveryNStreamFailures = 1;
     this.maxBackoff = Duration.millis(500);
-    this.deadlineSeconds = 10; // For local testing use a short deadline.
+    this.unaryDeadlineSeconds = 10; // For local testing use a short deadline.
     Channel channel = localhostChannel(port);
     if (streamingEngineEnabled()) {
       this.stubList.add(CloudWindmillServiceV1Alpha1Grpc.newStub(channel));
@@ -414,7 +418,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncStub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .getWork(
                       request
                           .toBuilder()
@@ -426,7 +430,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncApplianceStub
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .getWork(request));
     }
   }
@@ -437,7 +441,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncStub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .getData(
                       request
                           .toBuilder()
@@ -448,7 +452,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncApplianceStub
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .getData(request));
     }
   }
@@ -459,7 +463,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncStub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .commitWork(
                       request
                           .toBuilder()
@@ -470,7 +474,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncApplianceStub
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .commitWork(request));
     }
   }
@@ -505,7 +509,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncApplianceStub
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .getConfig(request));
     }
   }
@@ -519,7 +523,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return callWithBackoff(
           () ->
               syncApplianceStub
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(unaryDeadlineSeconds, TimeUnit.SECONDS)
                   .reportStats(request));
     }
   }
@@ -712,6 +716,15 @@ public class GrpcWindmillServer extends WindmillServerStub {
     }
 
     @Override
+    public final void closeAfterDefaultTimeout() throws InterruptedException {
+      if (!finishLatch.await(DEFAULT_STREAM_CLEAN_CLOSE_SECONDS, TimeUnit.SECONDS)) {
+        // If the stream did not close due to error in the specified ammount of time, half-close
+        // the stream cleanly.
+        close();
+      }
+    }
+
+    @Override
     public final Instant startTime() {
       return new Instant(startTimeMs.get());
     }
@@ -730,7 +743,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
                   .getWorkStream(responseObserver));
       this.request = request;
       this.receiver = receiver;
@@ -897,7 +910,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
                   .getDataStream(responseObserver));
       startStream();
     }
@@ -1134,7 +1147,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
+                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
                   .commitWorkStream(responseObserver));
       startStream();
     }
