@@ -18,7 +18,11 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.core.construction.ReadTranslation;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -54,7 +58,15 @@ class ReadSourceTranslatorBatch<T>
     }
     SparkSession sparkSession = context.getSparkSession();
 
-    Dataset<Row> rowDataset = sparkSession.read().format(SOURCE_PROVIDER_CLASS).load();
+    String serializedSource = Base64Serializer.serializeUnchecked(source);
+    Map<String, String> datasetSourceOptions = new HashMap<>();
+    datasetSourceOptions.put(DatasetSourceBatch.BEAM_SOURCE_OPTION, serializedSource);
+    datasetSourceOptions.put(DatasetSourceBatch.DEFAULT_PARALLELISM,
+        String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()));
+    datasetSourceOptions.put(DatasetSourceBatch.PIPELINE_OPTIONS,
+        SerializablePipelineOptions.serializeToJson(context.getOptions()));
+    Dataset<Row> rowDataset = sparkSession.read().format(SOURCE_PROVIDER_CLASS).options(datasetSourceOptions)
+        .load();
 
     //TODO pass the source and the translation context serialized as string to the DatasetSource
     MapFunction<Row, WindowedValue> func = new MapFunction<Row, WindowedValue>() {
@@ -63,7 +75,7 @@ class ReadSourceTranslatorBatch<T>
         return value.<WindowedValue>getAs(0);
       }
     };
-    //TODO: is there a better way than using the raw WindowedValue? Can an Encoder<WindowedVAlue<T>>
+    //TODO: is there a better way than using the raw WindowedValue? Can an Encoder<WindowedValue<T>>
     // be created ?
     Dataset<WindowedValue> dataset = rowDataset.map(func, Encoders.kryo(WindowedValue.class));
 

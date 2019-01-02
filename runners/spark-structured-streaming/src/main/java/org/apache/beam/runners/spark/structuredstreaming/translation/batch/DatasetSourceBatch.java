@@ -24,8 +24,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -45,16 +46,38 @@ import org.apache.spark.sql.types.StructType;
  */
 public class DatasetSourceBatch<T> implements DataSourceV2, ReadSupport {
 
+  static final String BEAM_SOURCE_OPTION = "beam-source";
+  static final String DEFAULT_PARALLELISM = "default-parallelism";
+  static final String PIPELINE_OPTIONS = "pipeline-options";
   private int numPartitions;
   private Long bundleSize;
-  private TranslationContext context;
   private BoundedSource<T> source;
+  private SparkPipelineOptions sparkPipelineOptions;
 
 
-  @Override public DataSourceReader createReader(DataSourceOptions options) {
-    this.numPartitions = context.getSparkSession().sparkContext().defaultParallelism();
+  @SuppressWarnings("unchecked")
+  @Override
+  public DataSourceReader createReader(DataSourceOptions options) {
+    if (!options.get(BEAM_SOURCE_OPTION).isPresent()){
+      throw new RuntimeException("Beam source was not set in DataSource options");
+    }
+    this.source = Base64Serializer
+        .deserializeUnchecked(options.get(BEAM_SOURCE_OPTION).get(), BoundedSource.class);
+
+    if (!options.get(DEFAULT_PARALLELISM).isPresent()){
+      throw new RuntimeException("Spark default parallelism was not set in DataSource options");
+    }
+    if (!options.get(BEAM_SOURCE_OPTION).isPresent()){
+      throw new RuntimeException("Beam source was not set in DataSource options");
+    }
+    this.numPartitions = Integer.valueOf(options.get(DEFAULT_PARALLELISM).get());
     checkArgument(this.numPartitions > 0, "Number of partitions must be greater than zero.");
-    this.bundleSize = context.getOptions().getBundleSize();
+    if (!options.get(PIPELINE_OPTIONS).isPresent()){
+      throw new RuntimeException("Beam pipelineOptions were not set in DataSource options");
+    }
+    this.sparkPipelineOptions = SerializablePipelineOptions
+        .deserializeFromJson(options.get(PIPELINE_OPTIONS).get()).as(SparkPipelineOptions.class);
+    this.bundleSize = sparkPipelineOptions.getBundleSize();
     return new DatasetReader();  }
 
   /** This class can be mapped to Beam {@link BoundedSource}. */
@@ -62,7 +85,6 @@ public class DatasetSourceBatch<T> implements DataSourceV2, ReadSupport {
 
     private Optional<StructType> schema;
     private String checkpointLocation;
-    private DataSourceOptions options;
 
     @Override
     public StructType readSchema() {
@@ -73,13 +95,12 @@ public class DatasetSourceBatch<T> implements DataSourceV2, ReadSupport {
     public List<InputPartition<InternalRow>> planInputPartitions() {
       List<InputPartition<InternalRow>> result = new ArrayList<>();
       long desiredSizeBytes;
-      SparkPipelineOptions options = context.getOptions();
       try {
         desiredSizeBytes =
             (bundleSize == null)
-                ? source.getEstimatedSizeBytes(options) / numPartitions
+                ? source.getEstimatedSizeBytes(sparkPipelineOptions) / numPartitions
                 : bundleSize;
-        List<? extends BoundedSource<T>> sources = source.split(desiredSizeBytes, options);
+        List<? extends BoundedSource<T>> sources = source.split(desiredSizeBytes, sparkPipelineOptions);
         for (BoundedSource<T> source : sources) {
           result.add(
               new InputPartition<InternalRow>() {
@@ -88,7 +109,7 @@ public class DatasetSourceBatch<T> implements DataSourceV2, ReadSupport {
                 public InputPartitionReader<InternalRow> createPartitionReader() {
                   BoundedReader<T> reader = null;
                   try {
-                    reader = source.createReader(options);
+                    reader = source.createReader(sparkPipelineOptions);
                   } catch (IOException e) {
                     throw new RuntimeException(
                         "Error creating BoundedReader " + reader.getClass().getCanonicalName(), e);
