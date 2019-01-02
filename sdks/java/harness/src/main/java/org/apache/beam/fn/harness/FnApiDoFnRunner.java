@@ -436,7 +436,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
     @Override
     public Row asRow(@Nullable String id) {
-      checkState(fieldAccessDescriptor.allFields());
+      checkState(fieldAccessDescriptor.getAllFields());
       return context.schemaCoder.getToRowFunction().apply(element());
     }
 
