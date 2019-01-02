@@ -279,10 +279,8 @@ public class ReferenceRunner {
                 .getWindowingStrategiesOrThrow(input.getWindowingStrategyId())
                 .getWindowCoderId();
         // This coder isn't actually required for the pipeline to function properly - the KWIs can
-        // be
-        // passed around as pure java objects with no coding of the values, but it approximates a
-        // full
-        // pipeline.
+        // be passed around as pure java objects with no coding of the values, but it approximates
+        // a full pipeline.
         Coder kwiCoder =
             Coder.newBuilder()
                 .setSpec(

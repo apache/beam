@@ -28,6 +28,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  * @param <ElemT> the type of elements the input {@link PCollection} contains.
  * @param <ViewT> the type of the PCollectionView this writer writes to.
  */
+@FunctionalInterface
 interface PCollectionViewWriter<ElemT, ViewT> {
   void add(Iterable<WindowedValue<ElemT>> values);
 }
