@@ -20,21 +20,21 @@ package org.apache.beam.runners.spark.util;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * Cache deserialized side inputs for executor so every task doesnt need to deserialize them again.
- * Side inputs are stored in {@link Cache} with weakValues so if there is no reference to a value,
- * sideInput is garbage collected.
+ * Cache deserialized side inputs for executor so every task doesn't need to deserialize them again.
+ * Side inputs are stored in {@link Cache} with 5 minutes expireAfterAccess.
  */
-public class SideInputStorage {
+class SideInputStorage {
 
   /** JVM deserialized side input cache. */
-  private static final Cache<Key<?>, Value<?>> materializedSideInputs =
-      CacheBuilder.newBuilder().weakValues().build();
+  private static final Cache<Key<?>, ?> materializedSideInputs =
+      CacheBuilder.newBuilder().expireAfterAccess(5, TimeUnit.MINUTES).build();
 
-  public static Cache<Key<?>, Value<?>> getMaterializedSideInputs() {
+  static Cache<Key<?>, ?> getMaterializedSideInputs() {
     return materializedSideInputs;
   }
 
@@ -74,42 +74,6 @@ public class SideInputStorage {
     @Override
     public String toString() {
       return "Key{" + "view=" + view + ", window=" + window + '}';
-    }
-  }
-
-  /**
-   * Each {@link CachedSideInputReader} keeps references to value so it won't be garbage collected.
-   * References are stored in Set and adding lasts very long, because calculating of hash on
-   * serialized data. That's why we keep referenceKey and calculate hash only from referenceKey.
-   */
-  public static class Value<T> {
-    private final Key<T> referenceKey;
-    private final T data;
-
-    public Value(Key<T> referenceKey, T data) {
-      this.referenceKey = referenceKey;
-      this.data = data;
-    }
-
-    public T getData() {
-      return data;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      Value<?> value = (Value<?>) o;
-      return Objects.equals(referenceKey, value.referenceKey);
-    }
-
-    @Override
-    public int hashCode() {
-      return referenceKey.hashCode();
     }
   }
 }
