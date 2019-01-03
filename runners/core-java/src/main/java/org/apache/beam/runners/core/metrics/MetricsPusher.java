@@ -32,8 +32,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 
 /** Component that regularly merges metrics and pushes them to a metrics sink. */
@@ -48,7 +48,7 @@ public class MetricsPusher implements Serializable {
 
   public MetricsPusher(
       MetricsContainerStepMap metricsContainerStepMap,
-      PipelineOptions pipelineOptions,
+      MetricsOptions pipelineOptions,
       PipelineResult pipelineResult) {
     this.metricsContainerStepMap = metricsContainerStepMap;
     this.pipelineResult = pipelineResult;
@@ -58,7 +58,7 @@ public class MetricsPusher implements Serializable {
     metricsSink =
         InstanceBuilder.ofType(MetricsSink.class)
             .fromClass(pipelineOptions.getMetricsSink())
-            .withArg(PipelineOptions.class, pipelineOptions)
+            .withArg(MetricsOptions.class, pipelineOptions)
             .build();
   }
 
