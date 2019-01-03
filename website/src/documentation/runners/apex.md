@@ -31,7 +31,7 @@ They are not required for Apex in embedded mode (see [quickstart]({{ site.baseur
 You may set up your own Hadoop cluster. Beam does not require anything extra to launch the pipelines on YARN.
 An optional Apex installation may be useful for monitoring and troubleshooting.
 The Apex CLI can be [built](http://apex.apache.org/docs/apex/apex_development_setup/) or
-obtained as [binary build](http://www.atrato.io/blog/2017/04/08/apache-apex-cli/).
+obtained as binary build.
 For more download options see [distribution information on the Apache Apex website](http://apex.apache.org/downloads.html).
 
 ## Running wordcount with Apex
