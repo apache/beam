@@ -118,7 +118,7 @@ you omit the project ID, Beam uses the default project ID from your
   [pipeline options](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html).
 </span>
 <span class="language-py">
-  [pipeline options](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions).
+  [pipeline options](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions).
 </span>
 
 ```java
