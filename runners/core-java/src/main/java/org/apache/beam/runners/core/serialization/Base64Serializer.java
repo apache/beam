@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.util;
+package org.apache.beam.runners.core.serialization;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -45,7 +45,7 @@ public class Base64Serializer {
     }
   }
 
-  public static <T> T deserialize(String serialized, Class<T> klass)
+  private static <T> T deserialize(String serialized, Class<T> klass)
       throws IOException, ClassNotFoundException {
     final byte[] bytes = Base64.getDecoder().decode(serialized);
     final ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes));
