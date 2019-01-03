@@ -41,6 +41,10 @@ Python is a dynamically-typed language with no static type checking. The Beam SD
 
 When you run your pipeline locally, the packages that your pipeline depends on are available because they are installed on your local machine. However, when you want to run your pipeline remotely, you must make sure these dependencies are available on the remote machines. [Managing Python Pipeline Dependencies]({{ site.baseurl }}/documentation/sdks/python-pipeline-dependencies) shows you how to make your dependencies available to the remote workers.
 
-## Creating new sources and Sinks
+## Developing new I/O connectors for Python
 
-The Beam SDK for Python provides an extensible API that you can use to create new data sources and sinks. [Creating New Sources and Sinks with the Python SDK]({{ site.baseurl }}/documentation/sdks/python-custom-io) shows how to create new sources and sinks using [Beam's Source and Sink API](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py).
+The Beam SDK for Python provides an extensible API that you can use to create
+new I/O connectors. See the [Developing I/O connectors overview]({{ site.baseurl }}/documentation/io/developing-io-overview)
+for information about developing new I/O connectors and links to
+language-specific implementation guidance.
+

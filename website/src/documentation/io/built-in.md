@@ -18,8 +18,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-[Pipeline I/O Table of Contents]({{site.baseurl}}/documentation/io/io-toc/)
-
 # Built-in I/O Transforms
 
 This table contains the currently available I/O transforms.

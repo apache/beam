@@ -18,9 +18,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-[Pipeline I/O Table of Contents]({{site.baseurl}}/documentation/io/io-toc/)
-
-
 ## Testing I/O Transforms in Apache Beam
 
 *Examples and design patterns for testing Apache Beam I/O transforms*
