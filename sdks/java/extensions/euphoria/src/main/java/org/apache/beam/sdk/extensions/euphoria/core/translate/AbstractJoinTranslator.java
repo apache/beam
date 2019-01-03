@@ -56,7 +56,8 @@ abstract class AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT>
       final Window<KV<KeyT, RightT>> rightWindow = (Window) operator.getWindow().get();
       rightKeyed = rightKeyed.apply("window-right", rightWindow);
     }
-    return translate(operator, leftKeyed, rightKeyed)
+
+    return translate(operator, left, leftKeyed, right, rightKeyed)
         .setTypeDescriptor(
             operator
                 .getOutputType()
@@ -66,6 +67,8 @@ abstract class AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT>
 
   abstract PCollection<KV<KeyT, OutputT>> translate(
       Join<LeftT, RightT, KeyT, OutputT> operator,
-      PCollection<KV<KeyT, LeftT>> left,
-      PCollection<KV<KeyT, RightT>> right);
+      PCollection<LeftT> left,
+      PCollection<KV<KeyT, LeftT>> leftKeyed,
+      PCollection<RightT> right,
+      PCollection<KV<KeyT, RightT>> rightKeyed);
 }
