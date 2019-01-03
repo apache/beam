@@ -29,6 +29,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -771,6 +772,8 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testBoundedness() {
+    // use TestPipeline.create() because we assert without p.run();
+    Pipeline p = TestPipeline.create();
     PCollection<String> foo = p.apply(Create.of("foo"));
     {
       PCollection<String> res =
