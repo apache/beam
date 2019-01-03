@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.synthetic;
 
-import com.google.common.primitives.Longs;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -113,11 +112,6 @@ public class SyntheticUnboundedSource
     return splits;
   }
 
-  @Override
-  public boolean requiresDeduping() {
-    return true;
-  }
-
   private class SyntheticUnboundedReader extends UnboundedReader<KV<byte[], byte[]>> {
 
     private final SyntheticUnboundedSource source;
@@ -200,11 +194,6 @@ public class SyntheticUnboundedSource
     @Override
     public CheckpointMark getCheckpointMark() {
       return new SyntheticRecordsCheckpoint(source.startOffset, source.endOffset);
-    }
-
-    @Override
-    public byte[] getCurrentRecordId() throws NoSuchElementException {
-      return Longs.toByteArray(currentOffset);
     }
 
     @Override
