@@ -86,6 +86,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.joda.time.Duration;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -824,6 +825,7 @@ public class TextIOReadTest {
     }
 
     @Test
+    @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
     @Category(NeedsRunner.class)
     public void testReadWatchForNewFiles() throws IOException, InterruptedException {
       final Path basePath = tempFolder.getRoot().toPath().resolve("readWatch");

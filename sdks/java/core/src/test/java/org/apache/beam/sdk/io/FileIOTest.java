@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -184,6 +185,7 @@ public class FileIOTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
     final Path basePath = tmpFolder.getRoot().toPath().resolve("watch");
