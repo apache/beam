@@ -6,18 +6,15 @@ task :test do
   HTMLProofer.check_directory("./generated-local-content", {
     :typhoeus => {
       :timeout => 120,
-      :connecttimeout => 90 },
+      :connecttimeout => 90,
+    },
     :allow_hash_href => true,
     :check_html => true,
     :file_ignore => [/v2/],
     :url_ignore => [
-        /jstorm.io/,
-        /datatorrent.com/,
-        /ai.google/, # https://issues.apache.org/jira/browse/INFRA-16527
-        /globenewswire.com/, # https://issues.apache.org/jira/browse/BEAM-5518
-        /www.se-radio.net/, # BEAM-5611: Can fail with rate limit HTTP 508 error
-        /beam.apache.org\/releases/, # BEAM-4499 remove once publishing is migrated
-        /atrato.io/ # BEAM-5665 atrato.io seems to be down
+        # To ignore link checking for a URL, i.e. if it is temporariliy down,
+        # add a URL regex below with a tracking JIRA issue. For example:
+        # /example.com/, # BEAM-1234 failing due to expired SSL cert
     ],
     :parallel => { :in_processes => 4 },
     }).run
