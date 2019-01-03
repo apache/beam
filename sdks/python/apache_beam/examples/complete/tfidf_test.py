@@ -48,7 +48,7 @@ class TfIdfTest(unittest.TestCase):
 
   def create_file(self, path, contents):
     logging.info('Creating temp file: %s', path)
-    with open(path, 'w') as f:
+    with open(path, 'wb') as f:
       f.write(contents)
 
   def test_tfidf_transform(self):
