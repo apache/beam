@@ -303,7 +303,7 @@ PCollection<KV<Integer, String>> joined =
 // KV(3, "3+rat"), KV(0, "0+null"), KV(4, "4+duck"), KV(3, "3+cat"),
 // KV(3, "3+rat"), KV(1, "1+X")]
 ```
-Euphoria support performance optimization called 'BroadcastHashJoin' for the `LeftJoin`. Broadcast join can be very efficient when joining two datasets where one fits in memory (in `LeftJoin` right dataset has to fit in memory). How to use 'Broadcast Hash Join' is described in [Translation](#Translation) section. 
+Euphoria support performance optimization called 'BroadcastHashJoin' for the `LeftJoin`. Broadcast join can be very efficient when joining two datasets where one fits in memory (in `LeftJoin` right dataset has to fit in memory). How to use 'Broadcast Hash Join' is described in [Translation](#translation) section. 
 
 ### `RightJoin`
 Represents right join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where left is present optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
@@ -322,7 +322,7 @@ PCollection<KV<Integer, String>> joined =
     // KV(4, "4+duck"), KV(3, "3+cat"), KV(3, "3+rat"), KV(1, "1+X"),
     // KV(8, "null+elephant"), KV(5, "null+mouse")]
 ```
-Euphoria support performance optimization called 'BroadcastHashJoin' for the `RightJoin`. Broadcast join can be very efficient when joining two datasets where one fits in memory (in `RightJoin` left dataset has to fit in memory). How to use 'Broadcast Hash Join' is described in [Translation](#Translation) section. 
+Euphoria support performance optimization called 'BroadcastHashJoin' for the `RightJoin`. Broadcast join can be very efficient when joining two datasets where one fits in memory (in `RightJoin` left dataset has to fit in memory). How to use 'Broadcast Hash Join' is described in [Translation](#translation) section. 
 
 ### `FullJoin`
 Represents full outer join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where both are present only optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
