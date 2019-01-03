@@ -1503,7 +1503,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         (lambda key: fanout) if isinstance(fanout, int) else fanout)
 
   def default_label(self):
-    return '%s(%s, fanount=%s)' % (
+    return '%s(%s, fanout=%s)' % (
         self.__class__.__name__,
         ptransform.label_from_callable(self._combine_fn),
         ptransform.label_from_callable(self._fanout_fn))
