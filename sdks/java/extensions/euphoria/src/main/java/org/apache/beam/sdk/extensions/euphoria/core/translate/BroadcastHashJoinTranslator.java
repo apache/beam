@@ -17,18 +17,22 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
+import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.collector.AdaptableCollector;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
@@ -37,38 +41,78 @@ import org.apache.beam.sdk.values.PCollectionView;
  * the join fits in memory so it can be distributed in hash map with the other side.
  */
 public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
-    extends AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT> {
+    implements OperatorTranslator<Object, KV<KeyT, OutputT>, Join<LeftT, RightT, KeyT, OutputT>> {
 
   @Override
-  PCollection<KV<KeyT, OutputT>> translate(
-      Join<LeftT, RightT, KeyT, OutputT> operator,
-      PCollection<KV<KeyT, LeftT>> left,
-      PCollection<KV<KeyT, RightT>> right) {
+  public PCollection<KV<KeyT, OutputT>> translate(
+      Join<LeftT, RightT, KeyT, OutputT> operator, PCollectionList<Object> inputs) {
+
+    checkArgument(inputs.size() == 2, "Join expects exactly two inputs.");
+    @SuppressWarnings("unchecked")
+    final PCollection<LeftT> left = (PCollection) inputs.get(0);
+    @SuppressWarnings("unchecked")
+    final PCollection<RightT> right = (PCollection) inputs.get(1);
+
+    PCollection<KV<KeyT, LeftT>> leftKeyed =
+        left.apply(
+            "extract-keys-left",
+            new ExtractKey<>(
+                operator.getLeftKeyExtractor(), TypeAwareness.orObjects(operator.getKeyType())));
+    PCollection<KV<KeyT, RightT>> rightKeyed =
+        right.apply(
+            "extract-keys-right",
+            new ExtractKey<>(
+                operator.getRightKeyExtractor(), TypeAwareness.orObjects(operator.getKeyType())));
+    // apply windowing if specified
+    if (operator.getWindow().isPresent()) {
+      @SuppressWarnings("unchecked")
+      final Window<KV<KeyT, LeftT>> leftWindow = (Window) operator.getWindow().get();
+      leftKeyed = leftKeyed.apply("window-left", leftWindow);
+      @SuppressWarnings("unchecked")
+      final Window<KV<KeyT, RightT>> rightWindow = (Window) operator.getWindow().get();
+      rightKeyed = rightKeyed.apply("window-right", rightWindow);
+    }
+
     final AccumulatorProvider accumulators =
         new LazyAccumulatorProvider(AccumulatorProvider.of(left.getPipeline()));
+
     switch (operator.getType()) {
       case LEFT:
         final PCollectionView<Map<KeyT, Iterable<RightT>>> broadcastRight =
-            right.apply(View.asMultimap());
-        return left.apply(
-            ParDo.of(
-                    new BroadcastHashLeftJoinFn<>(
-                        broadcastRight,
-                        operator.getJoiner(),
-                        accumulators,
-                        operator.getName().orElse(null)))
-                .withSideInputs(broadcastRight));
+            PViews.createMultimapIfAbsent(right, rightKeyed);
+        return leftKeyed
+            .apply(
+                ParDo.of(
+                        new BroadcastHashLeftJoinFn<>(
+                            broadcastRight,
+                            operator.getJoiner(),
+                            accumulators,
+                            operator.getName().orElse(null)))
+                    .withSideInputs(broadcastRight))
+            .setTypeDescriptor(
+                operator
+                    .getOutputType()
+                    .orElseThrow(
+                        () ->
+                            new IllegalStateException("Unable to infer output type descriptor.")));
       case RIGHT:
         final PCollectionView<Map<KeyT, Iterable<LeftT>>> broadcastLeft =
-            left.apply(View.asMultimap());
-        return right.apply(
-            ParDo.of(
-                    new BroadcastHashRightJoinFn<>(
-                        broadcastLeft,
-                        operator.getJoiner(),
-                        accumulators,
-                        operator.getName().orElse(null)))
-                .withSideInputs(broadcastLeft));
+            PViews.createMultimapIfAbsent(left, leftKeyed);
+        return rightKeyed
+            .apply(
+                ParDo.of(
+                        new BroadcastHashRightJoinFn<>(
+                            broadcastLeft,
+                            operator.getJoiner(),
+                            accumulators,
+                            operator.getName().orElse(null)))
+                    .withSideInputs(broadcastLeft))
+            .setTypeDescriptor(
+                operator
+                    .getOutputType()
+                    .orElseThrow(
+                        () ->
+                            new IllegalStateException("Unable to infer output type descriptor.")));
       default:
         throw new UnsupportedOperationException(
             String.format(
