@@ -18,8 +18,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-[Pipeline I/O Table of Contents]({{site.baseurl}}/documentation/io/io-toc/)
-
 # HCatalog IO
 
 An `HCatalogIO` is a transform for reading and writing data to an HCatalog managed source.
