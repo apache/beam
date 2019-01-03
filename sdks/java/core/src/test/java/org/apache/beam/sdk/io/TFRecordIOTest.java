@@ -22,9 +22,12 @@ import static org.apache.beam.sdk.io.Compression.DEFLATE;
 import static org.apache.beam.sdk.io.Compression.GZIP;
 import static org.apache.beam.sdk.io.Compression.UNCOMPRESSED;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.isIn;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
@@ -176,8 +179,8 @@ public class TFRecordIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadInvalidLengthMask() throws Exception {
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("Mismatch of length mask");
+    expectedException.expectCause(instanceOf(IOException.class));
+    expectedException.expectCause(hasMessage(containsString("Mismatch of length mask")));
     byte[] data = BaseEncoding.base64().decode(FOO_RECORD_BASE64);
     data[9] += (byte) 1;
     runTestRead(data, FOO_RECORDS);
@@ -186,8 +189,8 @@ public class TFRecordIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadInvalidDataMask() throws Exception {
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("Mismatch of data mask");
+    expectedException.expectCause(instanceOf(IOException.class));
+    expectedException.expectCause(hasMessage(containsString("Mismatch of data mask")));
     byte[] data = BaseEncoding.base64().decode(FOO_RECORD_BASE64);
     data[16] += (byte) 1;
     runTestRead(data, FOO_RECORDS);
