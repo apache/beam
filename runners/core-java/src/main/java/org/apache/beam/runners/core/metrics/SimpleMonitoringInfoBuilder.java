@@ -77,7 +77,7 @@ public class SimpleMonitoringInfoBuilder {
     for (MonitoringInfoSpecs.Enum val : MonitoringInfoSpecs.Enum.values()) {
       // The enum iterator inserts an UNRECOGNIZED = -1 value which isn't explicitly added in
       // the proto files.
-      if (!((Enum) val).name().equals("UNRECOGNIZED")) {
+      if (!val.name().equals("UNRECOGNIZED")) {
         MonitoringInfoSpec spec =
             val.getValueDescriptor().getOptions().getExtension(BeamFnApi.monitoringInfoSpec);
         SimpleMonitoringInfoBuilder.specs.put(spec.getUrn(), spec);

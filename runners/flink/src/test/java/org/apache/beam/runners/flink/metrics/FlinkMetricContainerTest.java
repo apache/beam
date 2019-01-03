@@ -17,15 +17,18 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
 import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -34,6 +37,7 @@ import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
@@ -104,6 +108,39 @@ public class FlinkMetricContainerTest {
     gauge.set(42);
     container.updateMetrics("step");
     assertThat(flinkGauge.getValue().getValue(), is(42L));
+  }
+
+  @Test
+  public void testMonitoringInfoUpdate() {
+    FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
+    MetricsContainer step = container.getMetricsContainer("step");
+
+    SimpleCounter userCounter = new SimpleCounter();
+    when(metricGroup.counter("ns1.metric1")).thenReturn(userCounter);
+
+    SimpleCounter elemCounter = new SimpleCounter();
+    when(metricGroup.counter("beam.metric:element_count:v1")).thenReturn(elemCounter);
+
+    SimpleMonitoringInfoBuilder userCountBuilder = new SimpleMonitoringInfoBuilder();
+    userCountBuilder.setUrnForUserMetric("ns1", "metric1");
+    userCountBuilder.setInt64Value(111);
+    BeamFnApi.MonitoringInfo userCountMonitoringInfo = userCountBuilder.build();
+    assertNotNull(userCountMonitoringInfo);
+
+    SimpleMonitoringInfoBuilder elemCountBuilder = new SimpleMonitoringInfoBuilder();
+    elemCountBuilder.setUrn(ELEMENT_COUNT_URN);
+    elemCountBuilder.setInt64Value(222);
+    elemCountBuilder.setPTransformLabel("step");
+    elemCountBuilder.setPCollectionLabel("pcoll");
+    BeamFnApi.MonitoringInfo elemCountMonitoringInfo = elemCountBuilder.build();
+    assertNotNull(elemCountMonitoringInfo);
+
+    assertThat(userCounter.getCount(), is(0L));
+    assertThat(elemCounter.getCount(), is(0L));
+    container.updateMetrics(
+        "step", ImmutableList.of(userCountMonitoringInfo, elemCountMonitoringInfo));
+    assertThat(userCounter.getCount(), is(111L));
+    assertThat(elemCounter.getCount(), is(222L));
   }
 
   @Test
