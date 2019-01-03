@@ -94,28 +94,6 @@ public class TextIOIT {
     bigQueryTable = options.getBigQueryTable();
   }
 
-  private void publishGcsResults(PipelineResult result) {
-    MetricsReader metricsReader =
-        new MetricsReader(result, "org.apache.beam.sdk.extensions.gcp.storage.GcsFileSystem");
-    long numCopies = metricsReader.getCounterMetric("num_copies");
-    long copyTimeMsec = metricsReader.getCounterMetric("copy_time_msec");
-    if (numCopies < 0 || copyTimeMsec < 0) {
-      return;
-    }
-    double copiesPerSec = numCopies / (copyTimeMsec / 1e3);
-    LOG.info("GCS copies / sec: {}", copiesPerSec);
-
-    if (bigQueryDataset != null && bigQueryTable != null) {
-      Timestamp timestamp = Timestamp.now();
-      String uuid = UUID.randomUUID().toString();
-      BigQueryResultsPublisher publisher =
-          BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema());
-      publisher.publish(
-          NamedTestResult.create(uuid, timestamp.toString(), "copies_per_sec", copiesPerSec),
-          bigQueryTable);
-    }
-  }
-
   @Test
   public void writeThenReadAll() {
     TextIO.TypedWrite<String, Object> write =
@@ -150,5 +128,27 @@ public class TextIOIT {
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
     publishGcsResults(result);
+  }
+
+  private void publishGcsResults(PipelineResult result) {
+    MetricsReader metricsReader =
+        new MetricsReader(result, "org.apache.beam.sdk.extensions.gcp.storage.GcsFileSystem");
+    long numCopies = metricsReader.getCounterMetric("num_copies");
+    long copyTimeMsec = metricsReader.getCounterMetric("copy_time_msec");
+    if (numCopies < 0 || copyTimeMsec < 0) {
+      return;
+    }
+    double copiesPerSec = numCopies / (copyTimeMsec / 1e3);
+    LOG.info("GCS copies / sec: {}", copiesPerSec);
+
+    if (bigQueryDataset != null && bigQueryTable != null) {
+      Timestamp timestamp = Timestamp.now();
+      String uuid = UUID.randomUUID().toString();
+      BigQueryResultsPublisher publisher =
+          BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema());
+      publisher.publish(
+          NamedTestResult.create(uuid, timestamp.toString(), "copies_per_sec", copiesPerSec),
+          bigQueryTable);
+    }
   }
 }
