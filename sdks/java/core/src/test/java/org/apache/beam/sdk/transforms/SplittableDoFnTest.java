@@ -67,6 +67,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -642,7 +643,8 @@ public class SplittableDoFnTest implements Serializable {
     p.run();
   }
 
-  @Test
+  @Test(timeout = 15000L)
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-6354")
   @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesTestStream.class})
   public void testLateData() {
 
