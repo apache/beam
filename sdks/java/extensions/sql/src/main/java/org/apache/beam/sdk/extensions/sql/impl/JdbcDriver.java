@@ -122,6 +122,10 @@ public class JdbcDriver extends Driver {
 
   @Override
   public Connection connect(String url, Properties info) throws SQLException {
+    if (!acceptsURL(url)) {
+      return null;
+    }
+
     final BeamCalciteSchema beamCalciteSchema = (BeamCalciteSchema) info.get(BEAM_CALCITE_SCHEMA);
 
     Properties info2 = new Properties(info);
