@@ -31,5 +31,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
   // Execute shell command to test Python SDK.
   steps {
     shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh')
+    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer_py3.sh')
   }
 }
