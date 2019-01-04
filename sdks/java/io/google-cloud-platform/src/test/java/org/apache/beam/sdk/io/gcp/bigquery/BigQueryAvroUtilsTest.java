@@ -87,7 +87,8 @@ public class BigQueryAvroUtilsTest {
               .setName("associates")
               .setType("RECORD")
               .setMode("REPEATED")
-              .setFields(subFields));
+              .setFields(subFields),
+          new TableFieldSchema().setName("geoPositions").setType("GEOGRAPHY").setMode("NULLABLE"));
 
   @Test
   public void testConvertGenericRecordToTableRow() throws Exception {
@@ -153,6 +154,7 @@ public class BigQueryAvroUtilsTest {
       record.put("anniversaryDate", new Utf8("2000-01-01"));
       record.put("anniversaryDatetime", new String("2000-01-01 00:00:00.000005"));
       record.put("anniversaryTime", new Utf8("00:00:00.000005"));
+      record.put("geoPositions", new String("LINESTRING(1 2, 3 4, 5 6, 7 8)"));
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
       TableRow row =
           new TableRow()
@@ -165,7 +167,8 @@ public class BigQueryAvroUtilsTest {
               .set("sound", BaseEncoding.base64().encode(soundBytes))
               .set("anniversaryDate", "2000-01-01")
               .set("anniversaryDatetime", "2000-01-01 00:00:00.000005")
-              .set("anniversaryTime", "00:00:00.000005");
+              .set("anniversaryTime", "00:00:00.000005")
+              .set("geoPositions", "LINESTRING(1 2, 3 4, 5 6, 7 8)");
       TableRow clonedRow = convertedRow.clone();
       assertEquals(convertedRow, clonedRow);
       assertEquals(row, convertedRow);
@@ -229,6 +232,9 @@ public class BigQueryAvroUtilsTest {
     assertThat(
         avroSchema.getField("anniversaryTime").schema(),
         equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.STRING))));
+    assertThat(
+        avroSchema.getField("geoPositions").schema(),
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.STRING))));
 
     assertThat(
         avroSchema.getField("scion").schema(),
@@ -275,6 +281,7 @@ public class BigQueryAvroUtilsTest {
     @Nullable Long quantity;
     @Nullable Long birthday; // Exercises TIMESTAMP.
     @Nullable ByteBuffer birthdayMoney; // Exercises NUMERIC.
+    @Nullable String geoPositions; // Exercises GEOGRAPHY.
     @Nullable Boolean flighted;
     @Nullable ByteBuffer sound;
     @Nullable Utf8 anniversaryDate;
