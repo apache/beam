@@ -20,8 +20,8 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.PipelineOptionsSerializationUtils;
 import org.apache.beam.runners.core.construction.ReadTranslation;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
@@ -64,7 +64,7 @@ class ReadSourceTranslatorBatch<T>
     datasetSourceOptions.put(DatasetSourceBatch.DEFAULT_PARALLELISM,
         String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()));
     datasetSourceOptions.put(DatasetSourceBatch.PIPELINE_OPTIONS,
-        SerializablePipelineOptions.serializeToJson(context.getOptions()));
+        PipelineOptionsSerializationUtils.serializeToJson(context.getOptions()));
     Dataset<Row> rowDataset = sparkSession.read().format(SOURCE_PROVIDER_CLASS).options(datasetSourceOptions)
         .load();
 

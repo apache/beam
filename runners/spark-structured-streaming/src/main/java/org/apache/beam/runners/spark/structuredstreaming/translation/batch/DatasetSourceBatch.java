@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.construction.PipelineOptionsSerializationUtils;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -71,7 +71,7 @@ public class DatasetSourceBatch<T> implements DataSourceV2, ReadSupport {
     if (!options.get(PIPELINE_OPTIONS).isPresent()){
       throw new RuntimeException("Beam pipelineOptions were not set in DataSource options");
     }
-    SparkPipelineOptions sparkPipelineOptions = SerializablePipelineOptions
+    SparkPipelineOptions sparkPipelineOptions = PipelineOptionsSerializationUtils
         .deserializeFromJson(options.get(PIPELINE_OPTIONS).get()).as(SparkPipelineOptions.class);
     return new DatasetReader(numPartitions, source, sparkPipelineOptions);
   }
