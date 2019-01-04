@@ -290,7 +290,6 @@ public class S3ResourceIdTest {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4184")
   public void testResourceIdTester() {
     S3Options options = PipelineOptionsFactory.create().as(S3Options.class);
     options.setAwsRegion("us-west-1");
