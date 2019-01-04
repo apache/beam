@@ -25,6 +25,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
@@ -42,6 +43,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 
 /** A {@link Server gRPC server} factory. */
 public abstract class ServerFactory {
+
+  private static final int KEEP_ALIVE_TIME_SEC = 20;
+
   /** Create a default {@link InetSocketAddressServerFactory}. */
   public static ServerFactory createDefault() {
     return new InetSocketAddressServerFactory(UrlFactory.createDefault());
@@ -144,7 +148,8 @@ public abstract class ServerFactory {
           NettyServerBuilder.forPort(socket.getPort())
               // Set the message size to max value here. The actual size is governed by the
               // buffer size in the layers above.
-              .maxMessageSize(Integer.MAX_VALUE);
+              .maxMessageSize(Integer.MAX_VALUE)
+              .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
       services
           .stream()
           .forEach(
@@ -200,7 +205,8 @@ public abstract class ServerFactory {
               .channelType(EpollServerDomainSocketChannel.class)
               .workerEventLoopGroup(new EpollEventLoopGroup())
               .bossEventLoopGroup(new EpollEventLoopGroup())
-              .maxMessageSize(Integer.MAX_VALUE);
+              .maxMessageSize(Integer.MAX_VALUE)
+              .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
       for (BindableService service : services) {
         // Wrap the service to extract headers
         builder.addService(
@@ -249,7 +255,8 @@ public abstract class ServerFactory {
               .channelType(EpollServerSocketChannel.class)
               .workerEventLoopGroup(new EpollEventLoopGroup())
               .bossEventLoopGroup(new EpollEventLoopGroup())
-              .maxMessageSize(Integer.MAX_VALUE);
+              .maxMessageSize(Integer.MAX_VALUE)
+              .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
       for (BindableService service : services) {
         // Wrap the service to extract headers
         builder.addService(

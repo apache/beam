@@ -30,6 +30,7 @@ import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -61,7 +62,7 @@ class FnApiLogRecordHandler(logging.Handler):
     self._dropped_logs = 0
     self._log_entry_queue = queue.Queue(maxsize=self._QUEUE_SIZE)
 
-    ch = grpc.insecure_channel(log_service_descriptor.url)
+    ch = GRPCChannelFactory.insecure_channel(log_service_descriptor.url)
     # Make sure the channel is ready to avoid [BEAM-4649]
     grpc.channel_ready_future(ch).result(timeout=60)
     self._log_channel = grpc.intercept_channel(ch, WorkerIdInterceptor())
