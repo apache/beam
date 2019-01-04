@@ -40,7 +40,7 @@ import org.apache.spark.sql.SparkSession;
 class ReadSourceTranslatorBatch<T>
     implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
 
-  private String SOURCE_PROVIDER_CLASS = DatasetSourceBatch.class.getCanonicalName();
+  private String SOURCEPROVIDERCLASS = DatasetSourceBatch.class.getCanonicalName();
 
   @SuppressWarnings("unchecked")
   @Override
@@ -65,7 +65,7 @@ class ReadSourceTranslatorBatch<T>
         String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()));
     datasetSourceOptions.put(DatasetSourceBatch.PIPELINE_OPTIONS,
         PipelineOptionsSerializationUtils.serializeToJson(context.getOptions()));
-    Dataset<Row> rowDataset = sparkSession.read().format(SOURCE_PROVIDER_CLASS).options(datasetSourceOptions)
+    Dataset<Row> rowDataset = sparkSession.read().format(SOURCEPROVIDERCLASS).options(datasetSourceOptions)
         .load();
 
     //TODO pass the source and the translation context serialized as string to the DatasetSource
