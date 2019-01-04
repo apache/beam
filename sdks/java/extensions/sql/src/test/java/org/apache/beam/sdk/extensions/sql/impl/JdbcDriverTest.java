@@ -33,6 +33,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -483,5 +484,13 @@ public class JdbcDriverTest {
     assertEquals(0, statement.executeUpdate("SET runner = bogus"));
     assertEquals(0, statement.executeUpdate("RESET ALL"));
     assertTrue(statement.execute("SELECT * FROM test"));
+  }
+
+  @Test
+  public void testInternalConnect_driverManagerDifferentProtocol() throws Exception {
+    thrown.expect(SQLException.class);
+    thrown.expectMessage("No suitable driver found");
+
+    DriverManager.getConnection("jdbc:baaaaaad");
   }
 }
