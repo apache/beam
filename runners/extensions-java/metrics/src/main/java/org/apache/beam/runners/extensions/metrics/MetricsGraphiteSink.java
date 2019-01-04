@@ -30,8 +30,8 @@ import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
-import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Sink to push metrics to Graphite. Graphite requires a timestamp. So metrics are reported with the
@@ -49,7 +49,7 @@ public class MetricsGraphiteSink implements MetricsSink {
   private final int port;
   private final Charset charset;
 
-  public MetricsGraphiteSink(PipelineOptions pipelineOptions) {
+  public MetricsGraphiteSink(MetricsOptions pipelineOptions) {
     this.address = pipelineOptions.getMetricsGraphiteHost();
     this.port = pipelineOptions.getMetricsGraphitePort();
     this.charset = UTF_8;

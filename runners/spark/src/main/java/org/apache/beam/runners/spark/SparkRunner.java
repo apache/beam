@@ -45,6 +45,7 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.WatermarkAdvanci
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -237,7 +238,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     // runner-specific
     // MetricsContainerStepMap
     MetricsPusher metricsPusher =
-        new MetricsPusher(MetricsAccumulator.getInstance().value(), mOptions, result);
+        new MetricsPusher(
+            MetricsAccumulator.getInstance().value(), mOptions.as(MetricsOptions.class), result);
     metricsPusher.start();
     return result;
   }

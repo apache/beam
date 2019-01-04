@@ -18,8 +18,8 @@
 package org.apache.beam.runners.core.metrics;
 
 import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
-import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * This sink just stores in a static field the first counter (if it exists) attempted value. This is
@@ -29,7 +29,7 @@ public class TestMetricsSink implements MetricsSink {
 
   private static long counterValue;
 
-  public TestMetricsSink(PipelineOptions pipelineOptions) {}
+  public TestMetricsSink(MetricsOptions pipelineOptions) {}
 
   public static long getCounterValue() {
     return counterValue;
