@@ -122,6 +122,7 @@ type Kind string
 const (
 	Custom        Kind = "Custom" // Implicitly length-prefixed
 	Bytes         Kind = "bytes"  // Implicitly length-prefixed as part of the encoding
+	String        Kind = "string" // Implicitly length-prefixed as part of the encoding
 	VarInt        Kind = "varint"
 	WindowedValue Kind = "W"
 	KV            Kind = "KV"

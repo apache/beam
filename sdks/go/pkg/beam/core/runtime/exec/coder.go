@@ -66,6 +66,9 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 	case coder.Bytes:
 		return &bytesEncoder{}
 
+	case coder.String:
+		return &stringEncoder{}
+
 	case coder.VarInt:
 		return &varIntEncoder{}
 
@@ -92,6 +95,9 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 	switch c.Kind {
 	case coder.Bytes:
 		return &bytesDecoder{}
+
+	case coder.String:
+		return &stringDecoder{}
 
 	case coder.VarInt:
 		return &varIntDecoder{}
@@ -149,6 +155,35 @@ func (*bytesDecoder) Decode(r io.Reader) (FullValue, error) {
 		return FullValue{}, err
 	}
 	return FullValue{Elm: data}, nil
+}
+
+type stringEncoder struct{}
+
+func (*stringEncoder) Encode(val FullValue, w io.Writer) error {
+	// Encoding: size (varint) + raw data
+	data := []byte(val.Elm.(string))
+	size := len(data)
+
+	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
+		return err
+	}
+	_, err := w.Write(data)
+	return err
+}
+
+type stringDecoder struct{}
+
+func (*stringDecoder) Decode(r io.Reader) (FullValue, error) {
+	// Encoding: size (varint) + raw data
+	size, err := coder.DecodeVarInt(r)
+	if err != nil {
+		return FullValue{}, err
+	}
+	data, err := ioutilx.ReadN(r, (int)(size))
+	if err != nil {
+		return FullValue{}, err
+	}
+	return FullValue{Elm: string(data)}, nil
 }
 
 type varIntEncoder struct{}
