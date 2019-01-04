@@ -119,16 +119,17 @@ public class FlinkMetricContainer {
             BeamFnApi.Metric metric = monitoringInfo.getMetric();
             if (metric.hasCounterData()) {
               BeamFnApi.CounterData counterData = metric.getCounterData();
-              org.apache.beam.sdk.metrics.Counter counter = metricsContainer.getCounter(metricName);
               if (counterData.getValueCase() == BeamFnApi.CounterData.ValueCase.INT64_VALUE) {
+                org.apache.beam.sdk.metrics.Counter counter =
+                    metricsContainer.getCounter(metricName);
                 counter.inc(counterData.getInt64Value());
               } else {
-                throw new IllegalArgumentException("Unsupported CounterData type: " + counterData);
+                LOG.warn("Unsupported CounterData type: {}", counterData);
               }
             } else if (metric.hasDistributionData()) {
               BeamFnApi.DistributionData distributionData = metric.getDistributionData();
-              Distribution distribution = metricsContainer.getDistribution(metricName);
               if (distributionData.hasIntDistributionData()) {
+                Distribution distribution = metricsContainer.getDistribution(metricName);
                 BeamFnApi.IntDistributionData intDistributionData =
                     distributionData.getIntDistributionData();
                 distribution.update(
@@ -137,12 +138,11 @@ public class FlinkMetricContainer {
                     intDistributionData.getMin(),
                     intDistributionData.getMax());
               } else {
-                throw new IllegalArgumentException(
-                    "Unsupported DistributionData type: " + distributionData);
+                LOG.warn("Unsupported DistributionData type: {}", distributionData);
               }
             } else if (metric.hasExtremaData()) {
               BeamFnApi.ExtremaData extremaData = metric.getExtremaData();
-              throw new IllegalArgumentException("Extrema metric unsupported: " + extremaData);
+              LOG.warn("Extrema metric unsupported: {}", extremaData);
             }
           }
         });
