@@ -447,6 +447,7 @@ class BeamModulePlugin implements Plugin<Project> {
         vendored_grpc_1_13_1                        : "org.apache.beam:beam-vendor-grpc-1_13_1:0.2",
         vendored_guava_20_0                         : "org.apache.beam:beam-vendor-guava-20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
+        zstd_jni                                    : "com.github.luben:zstd-jni:1.3.7-3",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
       ],
       groovy: [

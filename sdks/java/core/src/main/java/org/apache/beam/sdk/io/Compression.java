@@ -35,6 +35,8 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 
 /** Various compression types for reading/writing files. */
 public enum Compression {
@@ -123,6 +125,24 @@ public enum Compression {
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       throw new UnsupportedOperationException("Writing ZIP files is currently unsupported");
+    }
+  },
+
+  /**
+   * ZStandard compression.
+   *
+   * <p>The {@code .zst} extension is specified in <a href=https://tools.ietf.org/html/rfc8478>RFC
+   * 8478</a>.
+   */
+  ZSTD(".zst", ".zst", ".zstd") {
+    @Override
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      return Channels.newChannel(new ZstdCompressorInputStream(Channels.newInputStream(channel)));
+    }
+
+    @Override
+    public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
+      return Channels.newChannel(new ZstdCompressorOutputStream(Channels.newOutputStream(channel)));
     }
   },
 

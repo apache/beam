@@ -65,6 +65,7 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.avro
   shadow library.java.snappy_java
+  shadow library.java.zstd_jni
   shadow library.java.joda_time
   shadow "org.tukaani:xz:1.8"
   provided library.java.junit
