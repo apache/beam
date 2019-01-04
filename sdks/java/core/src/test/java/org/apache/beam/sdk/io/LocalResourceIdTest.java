@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.not;
@@ -24,7 +25,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -33,7 +34,6 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdTester;
 import org.apache.commons.lang3.SystemUtils;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -53,7 +53,7 @@ public class LocalResourceIdTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Test
-  public void testResolveInUnix() throws Exception {
+  public void testResolveInUnix() {
     if (SystemUtils.IS_OS_WINDOWS) {
       // Skip tests
       return;
@@ -82,7 +82,7 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testResolveNormalizationInUnix() throws Exception {
+  public void testResolveNormalizationInUnix() {
     if (SystemUtils.IS_OS_WINDOWS) {
       // Skip tests
       return;
@@ -138,7 +138,7 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testResolveHandleBadInputsInUnix() throws Exception {
+  public void testResolveHandleBadInputsInUnix() {
     if (SystemUtils.IS_OS_WINDOWS) {
       // Skip tests
       return;
@@ -149,14 +149,14 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testResolveInvalidInputs() throws Exception {
+  public void testResolveInvalidInputs() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("The resolved file: [tmp/] should not end with '/'.");
     toResourceIdentifier("/root/").resolve("tmp/", StandardResolveOptions.RESOLVE_FILE);
   }
 
   @Test
-  public void testResolveInvalidNotDirectory() throws Exception {
+  public void testResolveInvalidNotDirectory() {
     ResourceId tmp =
         toResourceIdentifier("/root/").resolve("tmp", StandardResolveOptions.RESOLVE_FILE);
     thrown.expect(IllegalStateException.class);
@@ -165,7 +165,7 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testResolveInWindowsOS() throws Exception {
+  public void testResolveInWindowsOS() {
     if (!SystemUtils.IS_OS_WINDOWS) {
       // Skip tests
       return;
@@ -190,7 +190,7 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testGetCurrentDirectoryInUnix() throws Exception {
+  public void testGetCurrentDirectoryInUnix() {
     // Tests for local files without the scheme.
     assertEquals(
         toResourceIdentifier("/root/tmp/"),
@@ -202,20 +202,20 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testGetScheme() throws Exception {
+  public void testGetScheme() {
     // Tests for local files without the scheme.
     assertEquals("file", toResourceIdentifier("/root/tmp/").getScheme());
   }
 
   @Test
-  public void testEquals() throws Exception {
+  public void testEquals() {
     assertEquals(toResourceIdentifier("/root/tmp/"), toResourceIdentifier("/root/tmp/"));
 
     assertNotEquals(toResourceIdentifier("/root/tmp"), toResourceIdentifier("/root/tmp/"));
   }
 
   @Test
-  public void testIsDirectory() throws Exception {
+  public void testIsDirectory() {
     assertTrue(toResourceIdentifier("/").isDirectory());
     assertTrue(toResourceIdentifier("/root/tmp/").isDirectory());
     assertFalse(toResourceIdentifier("/root").isDirectory());
@@ -238,20 +238,19 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testGetFilename() throws Exception {
-    assertEquals(null, toResourceIdentifier("/").getFilename());
+  public void testGetFilename() {
+    assertNull(toResourceIdentifier("/").getFilename());
     assertEquals("tmp", toResourceIdentifier("/root/tmp").getFilename());
     assertEquals("tmp", toResourceIdentifier("/root/tmp/").getFilename());
     assertEquals("xyz.txt", toResourceIdentifier("/root/tmp/xyz.txt").getFilename());
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4110")
-  public void testResourceIdTester() throws Exception {
+  public void testResourceIdTester() {
     ResourceIdTester.runResourceIdBattery(toResourceIdentifier("/tmp/foo/"));
   }
 
-  private LocalResourceId toResourceIdentifier(String str) throws Exception {
+  private LocalResourceId toResourceIdentifier(String str) {
     boolean isDirectory;
     if (SystemUtils.IS_OS_WINDOWS) {
       isDirectory = str.endsWith("\\");
