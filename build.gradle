@@ -68,7 +68,7 @@ buildscript {
 
     // Plugins which require online access should not be enabled when running in offline mode.
     if (!gradle.startParameter.isOffline()) {
-      classpath "com.gradle:build-scan-plugin:1.13.1"                                                   // Enable publishing build scans
+      classpath "com.gradle:build-scan-plugin:2.1"                                                      // Enable publishing build scans
     }
   }
 }
