@@ -965,7 +965,10 @@ public class KafkaIO {
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
-    /** Sets the Kafka topic to write to. */
+    /**
+     * Sets the default Kafka topic to write to. Use {@code ProducerRecords} to set topic name per
+     * published record.
+     */
     public WriteRecords<K, V> withTopic(String topic) {
       return toBuilder().setTopic(topic).build();
     }

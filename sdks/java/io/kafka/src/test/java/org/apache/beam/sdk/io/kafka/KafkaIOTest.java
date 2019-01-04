@@ -1144,30 +1144,79 @@ public class KafkaIOTest {
     }
   }
 
+  @Test
+  public void testSinkProducerRecordsWithCustomTS() throws Exception {
+    int numElements = 1000;
+
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      final String defaultTopic = "test";
+      final Long ts = System.currentTimeMillis();
+
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(ParDo.of(new KV2ProducerRecord(defaultTopic, ts)))
+          .setCoder(ProducerRecordCoder.of(VarIntCoder.of(), VarLongCoder.of()))
+          .apply(
+              KafkaIO.<Integer, Long>writeRecords()
+                  .withBootstrapServers("none")
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      // Verify that appropriate messages are written to different Kafka topics
+      List<ProducerRecord<Integer, Long>> sent = producerWrapper.mockProducer.history();
+
+      for (int i = 0; i < numElements; i++) {
+        ProducerRecord<Integer, Long> record = sent.get(i);
+        assertEquals(defaultTopic, record.topic());
+        assertEquals(i, record.key().intValue());
+        assertEquals(i, record.value().longValue());
+        assertEquals(ts, record.timestamp());
+      }
+    }
+  }
+
   private static class KV2ProducerRecord
       extends DoFn<KV<Integer, Long>, ProducerRecord<Integer, Long>> {
     final String topic;
     final boolean isSingleTopic;
+    final Long ts;
 
     KV2ProducerRecord(String topic) {
       this(topic, true);
     }
 
+    KV2ProducerRecord(String topic, Long ts) {
+      this(topic, true, ts);
+    }
+
     KV2ProducerRecord(String topic, boolean isSingleTopic) {
+      this(topic, isSingleTopic, null);
+    }
+
+    KV2ProducerRecord(String topic, boolean isSingleTopic, Long ts) {
       this.topic = topic;
       this.isSingleTopic = isSingleTopic;
+      this.ts = ts;
     }
 
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       KV<Integer, Long> kv = ctx.element();
       if (isSingleTopic) {
-        ctx.output(new ProducerRecord<>(topic, kv.getKey(), kv.getValue()));
+        ctx.output(new ProducerRecord<>(topic, null, ts, kv.getKey(), kv.getValue()));
       } else {
         if (kv.getKey() % 2 == 0) {
-          ctx.output(new ProducerRecord<>(topic + "_2", kv.getKey(), kv.getValue()));
+          ctx.output(new ProducerRecord<>(topic + "_2", null, ts, kv.getKey(), kv.getValue()));
         } else {
-          ctx.output(new ProducerRecord<>(topic + "_1", kv.getKey(), kv.getValue()));
+          ctx.output(new ProducerRecord<>(topic + "_1", null, ts, kv.getKey(), kv.getValue()));
         }
       }
     }
