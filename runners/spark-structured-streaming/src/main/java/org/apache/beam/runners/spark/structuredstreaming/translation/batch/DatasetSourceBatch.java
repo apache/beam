@@ -133,7 +133,7 @@ public class DatasetSourceBatch<T> implements DataSourceV2, ReadSupport {
     }
   }
 
-  /** This class can be mapped to Beam {@link BoundedReader} */
+  /** This class can be mapped to Beam {@link BoundedReader}. */
   private class DatasetPartitionReader implements InputPartitionReader<InternalRow> {
 
     BoundedReader<T> reader;

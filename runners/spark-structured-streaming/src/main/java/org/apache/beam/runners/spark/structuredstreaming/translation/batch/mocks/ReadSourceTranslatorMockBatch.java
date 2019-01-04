@@ -36,7 +36,7 @@ import org.apache.spark.sql.SparkSession;
 public class ReadSourceTranslatorMockBatch<T>
     implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
 
-  private String SOURCE_PROVIDER_CLASS = DatasetSourceMockBatch.class.getCanonicalName();
+  private String SOURCEPROVIDERCLASS = DatasetSourceMockBatch.class.getCanonicalName();
 
   @SuppressWarnings("unchecked")
   @Override
@@ -44,7 +44,7 @@ public class ReadSourceTranslatorMockBatch<T>
       PTransform<PBegin, PCollection<T>> transform, TranslationContext context) {
     SparkSession sparkSession = context.getSparkSession();
 
-    Dataset<Row> rowDataset = sparkSession.read().format(SOURCE_PROVIDER_CLASS).load();
+    Dataset<Row> rowDataset = sparkSession.read().format(SOURCEPROVIDERCLASS).load();
 
     MapFunction<Row, WindowedValue> func = new MapFunction<Row, WindowedValue>() {
       @Override public WindowedValue call(Row value) throws Exception {

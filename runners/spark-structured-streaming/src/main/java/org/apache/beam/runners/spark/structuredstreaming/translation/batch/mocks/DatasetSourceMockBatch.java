@@ -62,7 +62,7 @@ public class DatasetSourceMockBatch implements DataSourceV2, ReadSupport {
     }
   }
 
-  /** This class is a mocked reader*/
+  /** This class is a mocked reader. */
   private static class DatasetPartitionReaderMock implements InputPartitionReader<InternalRow> {
 
     private ArrayList<Integer> values;
