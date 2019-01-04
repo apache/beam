@@ -43,7 +43,7 @@ class CommonJobProperties {
 
     // Discard old builds. Build records are only kept up to this number of days.
     context.logRotator {
-      daysToKeep(30)
+      daysToKeep(14)
     }
 
     // Source code management.
