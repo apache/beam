@@ -1101,7 +1101,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testRecordsSinkWithCustomTopic() throws Exception {
+  public void testSinkToMultipleTopics() throws Exception {
     // Set different output topic names
     int numElements = 1000;
 

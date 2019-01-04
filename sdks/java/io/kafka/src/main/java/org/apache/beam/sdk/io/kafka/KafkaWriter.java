@@ -56,9 +56,13 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
 
     ProducerRecord<K, V> record = ctx.element();
     Long timestampMillis =
-        spec.getPublishTimestampFunction() != null
-            ? spec.getPublishTimestampFunction().getTimestamp(record, ctx.timestamp()).getMillis()
-            : null;
+        record.timestamp() != null
+            ? record.timestamp()
+            : (spec.getPublishTimestampFunction() != null
+                ? spec.getPublishTimestampFunction()
+                    .getTimestamp(record, ctx.timestamp())
+                    .getMillis()
+                : System.currentTimeMillis());
     String topicName = record.topic() != null ? record.topic() : spec.getTopic();
 
     producer.send(
