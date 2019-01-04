@@ -88,7 +88,9 @@ if (!gradle.startParameter.isOffline()) {
 //   dot -Tsvg build/reports/visteg.dot > build_dependencies.svg
 //
 // See https://github.com/mmalohlava/gradle-visteg for further details.
-apply plugin: "cz.malohlava.visteg"
+// gradle-visteg is incompatible with Gradle 5
+// See: https://github.com/mmalohlava/gradle-visteg/issues/12
+// apply plugin: "cz.malohlava.visteg"
 
 // This plugin provides a task to determine which dependencies have updates.
 // Additionally, the plugin checks for updates to Gradle itself.
