@@ -37,6 +37,7 @@ from future.utils import with_metaclass
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -343,9 +344,10 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
                              ("grpc.max_send_message_length", -1)]
           grpc_channel = None
           if self._credentials is None:
-            grpc_channel = grpc.insecure_channel(url, options=channel_options)
+            grpc_channel = GRPCChannelFactory.insecure_channel(
+                url, options=channel_options)
           else:
-            grpc_channel = grpc.secure_channel(
+            grpc_channel = GRPCChannelFactory.secure_channel(
                 url, self._credentials, options=channel_options)
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(grpc_channel,

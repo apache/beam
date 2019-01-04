@@ -61,6 +61,7 @@ from apache_beam.runners.portability.fn_api_runner_transforms import unique_name
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import profiler
@@ -830,7 +831,8 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
   def start_worker(self):
     stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolStub(
-        grpc.insecure_channel(self._external_payload.endpoint.url))
+        GRPCChannelFactory.insecure_channel(
+            self._external_payload.endpoint.url))
     response = stub.NotifyRunnerAvailable(
         beam_fn_api_pb2.NotifyRunnerAvailableRequest(
             control_endpoint=endpoints_pb2.ApiServiceDescriptor(
