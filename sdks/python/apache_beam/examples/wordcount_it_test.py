@@ -55,7 +55,7 @@ class WordCountIT(unittest.TestCase):
 
     # Set extra options to the pipeline for test purpose
     output = '/'.join([test_pipeline.get_option('output'),
-                       str(int(time.time())),
+                       str(int(time.time() * 1000)),
                        'results'])
     arg_sleep_secs = test_pipeline.get_option('sleep_secs')
     sleep_secs = int(arg_sleep_secs) if arg_sleep_secs is not None else None
