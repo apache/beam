@@ -16,45 +16,45 @@
 package beam_test
 
 import (
-    "fmt"
-    "strconv"
-    "testing"
+	"fmt"
+	"strconv"
+	"testing"
 
-    "github.com/apache/beam/sdks/go/pkg/beam"
-    "github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-    "github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 )
 
 func TestCombine(t *testing.T) {
-    tests := []struct {
-        name      string
-        combineFn interface{}
-        in        []interface{}
-        exp       interface{}
-    }{
-        {
-            name:      "MyCombine",
-            combineFn: &MyCombine{},
-            in:        []interface{}{1, 2, 3, 4},
-            exp:       int(10),
-        },
-        {
-            name:      "MyUniversalCombine", // Test for BEAM-3580.
-            combineFn: &MyUniversalCombine{},
-            in:        []interface{}{"1", "2", "3", "4", "5"},
-            exp:       int(15),
-        },
-    }
+	tests := []struct {
+		name      string
+		combineFn interface{}
+		in        []interface{}
+		exp       interface{}
+	}{
+		{
+			name:      "MyCombine",
+			combineFn: &MyCombine{},
+			in:        []interface{}{1, 2, 3, 4},
+			exp:       int(10),
+		},
+		{
+			name:      "MyUniversalCombine", // Test for BEAM-3580.
+			combineFn: &MyUniversalCombine{},
+			in:        []interface{}{"1", "2", "3", "4", "5"},
+			exp:       int(15),
+		},
+	}
 
-    for _, test := range tests {
-        p, s, in := ptest.CreateList(test.in)
-        exp := beam.Create(s, test.exp)
-        passert.Equals(s, beam.Combine(s, test.combineFn, in), exp)
+	for _, test := range tests {
+		p, s, in := ptest.CreateList(test.in)
+		exp := beam.Create(s, test.exp)
+		passert.Equals(s, beam.Combine(s, test.combineFn, in), exp)
 
-        if err := ptest.Run(p); err != nil {
-            t.Errorf("beam.Combine(%v, %v) != %v: %v", test.name, test.in, test.exp, err)
-        }
-    }
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("beam.Combine(%v, %v) != %v: %v", test.name, test.in, test.exp, err)
+		}
+	}
 }
 
 // MyCombine represents a combine with the same Input and Output type (int), but a
@@ -65,15 +65,15 @@ func TestCombine(t *testing.T) {
 type MyCombine struct{}
 
 func (*MyCombine) AddInput(a int64, v int) int64 {
-    return a + int64(v)
+	return a + int64(v)
 }
 
 func (*MyCombine) MergeAccumulators(a, b int64) int64 {
-    return a + b
+	return a + b
 }
 
 func (*MyCombine) ExtractOutput(a int64) int {
-    return int(a)
+	return int(a)
 }
 
 // MyUniversalCombine has universal Input type beam.T, but only accepts
@@ -85,18 +85,18 @@ func (*MyCombine) ExtractOutput(a int64) int {
 type MyUniversalCombine struct{}
 
 func (c *MyUniversalCombine) AddInput(a int, v beam.T) (int, error) {
-    s, ok := v.(string)
-    if !ok {
-        return 0, fmt.Errorf("expecting input type string, got %T", v)
-    }
+	s, ok := v.(string)
+	if !ok {
+		return 0, fmt.Errorf("expecting input type string, got %T", v)
+	}
 
-    num, err := strconv.ParseInt(s, 0, 0)
-    if err != nil {
-        return 0, err
-    }
-    return c.MergeAccumulators(a, int(num)), nil
+	num, err := strconv.ParseInt(s, 0, 0)
+	if err != nil {
+		return 0, err
+	}
+	return c.MergeAccumulators(a, int(num)), nil
 }
 
 func (*MyUniversalCombine) MergeAccumulators(a, b int) int {
-    return a + b
+	return a + b
 }
