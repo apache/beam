@@ -41,18 +41,18 @@ func NewUnauthenticatedClient(ctx context.Context) (*storage.Client, error) {
 
 // Upload writes the given content to GCS. If the specified bucket does not
 // exist, it is created first. Returns the full path of the object.
-func Upload(client *storage.Client, project, bucket, object string, r io.Reader) (string, error) {
-	exists, err := BucketExists(client, bucket)
+func Upload(ctx context.Context, client *storage.Client, project, bucket, object string, r io.Reader) (string, error) {
+	exists, err := BucketExists(ctx, client, bucket)
 	if err != nil {
 		return "", err
 	}
 	if !exists {
-		if err = CreateBucket(client, project, bucket); err != nil {
+		if err = CreateBucket(ctx, client, project, bucket); err != nil {
 			return "", err
 		}
 	}
 
-	if err := WriteObject(client, bucket, object, r); err != nil {
+	if err := WriteObject(ctx, client, bucket, object, r); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("gs://%s/%s", bucket, object), nil
@@ -60,14 +60,12 @@ func Upload(client *storage.Client, project, bucket, object string, r io.Reader)
 }
 
 // CreateBucket creates a bucket in GCS.
-func CreateBucket(client *storage.Client, project, bucket string) error {
-	ctx := context.TODO()
+func CreateBucket(ctx context.Context, client *storage.Client, project, bucket string) error {
 	return client.Bucket(bucket).Create(ctx, project, nil)
 }
 
 // BucketExists returns true iff the given bucket exists.
-func BucketExists(client *storage.Client, bucket string) (bool, error) {
-	ctx := context.TODO()
+func BucketExists(ctx context.Context, client *storage.Client, bucket string) (bool, error) {
 	_, err := client.Bucket(bucket).Attrs(ctx)
 	if err == storage.ErrBucketNotExist {
 		return false, nil
@@ -77,8 +75,7 @@ func BucketExists(client *storage.Client, bucket string) (bool, error) {
 
 // WriteObject writes the given content to the specified object. If the object
 // already exist, it is overwritten.
-func WriteObject(client *storage.Client, bucket, object string, r io.Reader) error {
-	ctx := context.TODO()
+func WriteObject(ctx context.Context, client *storage.Client, bucket, object string, r io.Reader) error {
 	w := client.Bucket(bucket).Object(object).NewWriter(ctx)
 	_, err := io.Copy(w, r)
 	if err != nil {
@@ -88,8 +85,7 @@ func WriteObject(client *storage.Client, bucket, object string, r io.Reader) err
 }
 
 // ReadObject reads the content of the given object in full.
-func ReadObject(client *storage.Client, bucket, object string) ([]byte, error) {
-	ctx := context.TODO()
+func ReadObject(ctx context.Context, client *storage.Client, bucket, object string) ([]byte, error) {
 	r, err := client.Bucket(bucket).Object(object).NewReader(ctx)
 	if err != nil {
 		return nil, err

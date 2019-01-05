@@ -45,7 +45,7 @@ func ReadProxyManifest(ctx context.Context, object string) (*pb.ProxyManifest, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GCS client: %v", err)
 	}
-	content, err := gcsx.ReadObject(cl, bucket, obj)
+	content, err := gcsx.ReadObject(ctx, cl, bucket, obj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read manifest %v: %v", object, err)
 	}
@@ -88,13 +88,13 @@ func (s *RetrievalServer) GetArtifact(req *pb.GetArtifactRequest, stream pb.Arti
 
 	bucket, object := parseObject(blob)
 
-	client, err := gcsx.NewClient(stream.Context(), storage.ScopeReadOnly)
+	ctx := stream.Context()
+	client, err := gcsx.NewClient(ctx, storage.ScopeReadOnly)
 	if err != nil {
 		return fmt.Errorf("Failed to create client for %v: %v", key, err)
 	}
 
 	// Stream artifact in up to 1MB chunks.
-	ctx := context.TODO()
 	r, err := client.Bucket(bucket).Object(object).NewReader(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to read object for %v: %v", key, err)
