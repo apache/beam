@@ -209,6 +209,11 @@ func NewBytes() *Coder {
 	return &Coder{Kind: Bytes, T: typex.New(reflectx.ByteSlice)}
 }
 
+// NewString returns a new string coder using the built-in scheme.
+func NewString() *Coder {
+	return &Coder{Kind: String, T: typex.New(reflectx.String)}
+}
+
 // NewVarInt returns a new int32 coder using the built-in scheme.
 func NewVarInt() *Coder {
 	return &Coder{Kind: VarInt, T: typex.New(reflectx.Int32)}
