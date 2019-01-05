@@ -182,7 +182,7 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 		if err != nil {
 			return fmt.Errorf("couldn't establish GCS client: %v", err)
 		}
-		return gcsx.WriteObject(client, bucket, path.Join(prefix, spec), r)
+		return gcsx.WriteObject(ctx, client, bucket, path.Join(prefix, spec), r)
 	}
 }
 

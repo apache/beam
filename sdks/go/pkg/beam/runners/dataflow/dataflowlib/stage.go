@@ -51,6 +51,6 @@ func upload(ctx context.Context, project, object string, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	_, err = gcsx.Upload(client, project, bucket, obj, r)
+	_, err = gcsx.Upload(ctx, client, project, bucket, obj, r)
 	return err
 }
