@@ -43,7 +43,7 @@ public class TrafficMaxLaneFlowIT {
   private BigqueryClient bqClient;
 
   @Before
-  public void setupTestEnvironment() {
+  public void setupTestEnvironment() throws Exception {
     PipelineOptionsFactory.register(TrafficMaxLaneFlowOptions.class);
     this.options = TestPipeline.testingPipelineOptions().as(TrafficMaxLaneFlowOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
