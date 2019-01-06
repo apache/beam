@@ -19,7 +19,6 @@ package org.apache.beam.runners.direct.portable;
 
 import static java.util.Arrays.asList;
 
-import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -39,7 +38,6 @@ import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -235,28 +233,6 @@ class DirectMetrics extends MetricResults {
   private MetricsMap<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauges =
       new MetricsMap<>(unusedKey -> new DirectMetric<>(GAUGE));
 
-  @AutoValue
-  abstract static class DirectMetricResult<T> implements MetricResult<T> {
-    // need to define these here so they appear in the correct order
-    // and the generated constructor is usable and consistent
-    @Override
-    public abstract MetricName getName();
-
-    @Override
-    public abstract String getStep();
-
-    @Override
-    public abstract T getCommitted();
-
-    @Override
-    public abstract T getAttempted();
-
-    public static <T> MetricResult<T> create(
-        MetricName name, String scope, T committed, T attempted) {
-      return new AutoValue_DirectMetrics_DirectMetricResult<>(name, scope, committed, attempted);
-    }
-  }
-
   @Override
   public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
     ImmutableList.Builder<MetricResult<Long>> counterResults = ImmutableList.builder();
@@ -284,7 +260,7 @@ class DirectMetrics extends MetricResults {
       Map.Entry<MetricKey, ? extends DirectMetric<?, ResultT>> entry) {
     if (MetricFiltering.matches(filter, entry.getKey())) {
       resultsBuilder.add(
-          DirectMetricResult.create(
+          MetricResult.create(
               entry.getKey().metricName(),
               entry.getKey().stepName(),
               entry.getValue().extractCommitted(),
