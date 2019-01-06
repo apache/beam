@@ -130,9 +130,8 @@ Pipeline p = Pipeline.create(options);
 %}
 ```
 ```go
-// In order to start creating the pipeline for execution, a Pipeline object is needed.
-p := beam.NewPipeline()
-s := p.Root()
+// In order to start creating the pipeline for execution, a Pipeline object and a Scope object are needed.
+p, s := beam.NewPipelineWithRoot()
 ```
 
 ### 2.1. Configuring pipeline options {#configuring-pipeline-options}
@@ -311,7 +310,7 @@ public static void main(String[] args) {
 %}
 ```
 ```go
-lines := textio.Read(s, "protocol://path/file*.txt")
+lines := textio.Read(s, "protocol://path/to/some/inputData.txt")
 ```
 
 See the [section on I/O](#pipeline-io) to learn more about how to read from the
@@ -616,9 +615,13 @@ words = ...
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_apply
 %}```
 ```go
+// words is the input PCollection of strings
+var words beam.PCollection = ...
+
 func computeWordLengthFn(word string) int {
       return len(word)
 }
+
 wordLengths := beam.ParDo(s, computeWordLengthFn, words)
 ```
 
@@ -744,6 +747,9 @@ words = ...
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_using_flatmap
 %}```
 ```go
+// words is the input PCollection of strings
+var words beam.PCollection = ...
+
 lengths := beam.ParDo(s, func (word string) int {
       return len(word)
 }, words)
