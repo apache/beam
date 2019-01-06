@@ -225,16 +225,6 @@ class DirectMetrics extends MetricResults {
   private final MetricsMap<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauges;
 
   @AutoValue
-  abstract static class DirectMetricQueryResults implements MetricQueryResults {
-    public static MetricQueryResults create(
-        Iterable<MetricResult<Long>> counters,
-        Iterable<MetricResult<DistributionResult>> distributions,
-        Iterable<MetricResult<GaugeResult>> gauges) {
-      return new AutoValue_DirectMetrics_DirectMetricQueryResults(counters, distributions, gauges);
-    }
-  }
-
-  @AutoValue
   abstract static class DirectMetricResult<T> implements MetricResult<T> {
     // need to define these here so they appear in the correct order
     // and the generated constructor is usable and consistent
@@ -280,7 +270,7 @@ class DirectMetrics extends MetricResults {
       maybeExtractResult(filter, gaugeResults, gauge);
     }
 
-    return DirectMetricQueryResults.create(
+    return MetricQueryResults.create(
         counterResults.build(), distributionResults.build(), gaugeResults.build());
   }
 
