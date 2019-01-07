@@ -40,6 +40,7 @@ import com.google.common.collect.Sets;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.Network;
 import com.google.common.graph.NetworkBuilder;
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
@@ -56,6 +57,7 @@ import java.util.stream.StreamSupport;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
@@ -332,6 +334,23 @@ public class QueryablePipeline {
     return components;
   }
 
+  public Collection<SideInputId> getProducedSideInputs(PTransformNode node) {
+    RunnerApi.PTransform transform = components.getTransformsOrThrow(node.getId());
+
+    Map<String, String> outputs = transform.getOutputsMap();
+    final RunnerApi.ExecutableStagePayload stagePayload;
+    try {
+      stagePayload = RunnerApi.ExecutableStagePayload.parseFrom(transform.getSpec().getPayload());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    System.out.println("------ getProducedSideInputs() result size: " + stagePayload.getSideInputsCount());
+
+    Collection<SideInputId> result = Collections.emptySet();
+    return result;
+  }
+
   /**
    * Returns the {@link SideInputReference SideInputReferences} that the provided transform consumes
    * as side inputs.
@@ -351,6 +370,29 @@ public class QueryablePipeline {
                   PipelineNode.pCollection(collectionId, collection));
             })
         .collect(Collectors.toSet());
+  }
+
+  public void DebugPrint(String head) {
+    Collection<PTransformNode> nodes = this.getTransforms();
+
+    System.out.println("QueryablePipeline Debug Print LOCATION:" + head);
+    System.out.println("Print of graph hascode: " + this.hashCode());
+    System.out.println("Transform Node Count:" + nodes.size());
+    System.out.println("Transform With SideInputs");
+    for (PTransformNode node : nodes) {
+      if (this.getSideInputs(node).size() > 0) {
+        System.out.print("Node: " + node.getId() + ";");
+        System.out.println("With #sideinputs: " + this.getSideInputs(node).size());
+      }
+    }
+
+    StackTraceElement[] elements = Thread.currentThread().getStackTrace();
+    for(int i=1;i<elements.length; i++){
+      StackTraceElement s = elements[i];
+      System.out.println("\tat " + s.getClassName() + "." + s.getMethodName() + "(" + s.getFileName() + ":" + s.getLineNumber() + ")");
+    }
+
+    System.out.println("QueryablePipeline Debug Print END");
   }
 
   public Collection<UserStateReference> getUserStates(PTransformNode transform) {
@@ -395,6 +437,7 @@ public class QueryablePipeline {
   }
 
   private Set<String> getLocalSideInputNames(PTransform transform) {
+    // HRY:  And none of the transform passes this URN type check.
     if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getSideInputsMap().keySet();

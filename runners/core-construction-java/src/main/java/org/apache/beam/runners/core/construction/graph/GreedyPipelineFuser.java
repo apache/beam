@@ -57,13 +57,14 @@ import org.slf4j.LoggerFactory;
 public class GreedyPipelineFuser {
   private static final Logger LOG = LoggerFactory.getLogger(GreedyPipelineFuser.class);
 
-  private final QueryablePipeline pipeline;
+  public final QueryablePipeline pipeline;
   private final FusedPipeline fusedPipeline;
 
   private GreedyPipelineFuser(Pipeline p) {
     // Validate that the original pipeline is well-formed.
     PipelineValidator.validate(p);
     this.pipeline = QueryablePipeline.forPrimitivesIn(p.getComponents());
+    this.pipeline.DebugPrint("GreedyPipelineFuser");
     Set<PTransformNode> unfusedRootNodes = new LinkedHashSet<>();
     NavigableSet<CollectionConsumer> rootConsumers = new TreeSet<>();
     for (PTransformNode pTransformNode : pipeline.getRootTransforms()) {

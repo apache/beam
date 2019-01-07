@@ -118,6 +118,7 @@ public class ReferenceRunner {
   }
 
   private RunnerApi.Pipeline executable(RunnerApi.Pipeline original) {
+
     RunnerApi.Pipeline p = original;
     PipelineValidator.validate(p);
     p =
@@ -155,11 +156,12 @@ public class ReferenceRunner {
 
   public void execute() throws Exception {
     ExecutableGraph<PTransformNode, PCollectionNode> graph = PortableGraph.forPipeline(pipeline);
+    ((PortableGraph) graph).getGraph().DebugPrint("ReferenceRunner.execute()");
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
     EvaluationContext ctxt =
         EvaluationContext.create(Instant::new, bundleFactory, graph, getKeyedPCollections(graph));
     RootProviderRegistry rootRegistry = RootProviderRegistry.javaPortableRegistry(bundleFactory);
-    int targetParallelism = Math.max(Runtime.getRuntime().availableProcessors(), 3);
+    int targetParallelism = 1; // Math.max(Runtime.getRuntime().availableProcessors(), 1);
     ServerFactory serverFactory = createServerFactory();
     ControlClientPool controlClientPool = MapControlClientPool.create();
     ExecutorService dataExecutor = Executors.newCachedThreadPool();
