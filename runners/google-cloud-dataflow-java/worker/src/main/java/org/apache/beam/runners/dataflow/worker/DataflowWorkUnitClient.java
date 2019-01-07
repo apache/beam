@@ -103,7 +103,12 @@ class DataflowWorkUnitClient implements WorkUnitClient {
             options.getWorkerId(), CAPABILITY_REMOTE_SOURCE, PropertyNames.CUSTOM_SOURCE_FORMAT);
 
     Optional<WorkItem> workItem = getWorkItemInternal(workItemTypes, capabilities);
-    if (!workItem.isPresent() || workItem.get().getId() == null) {
+    if (!workItem.isPresent()) {
+      // Normal case, this means that the response contained no work, i.e. no work is available
+      // at this time.
+      return Optional.absent();
+    }
+    if (workItem.isPresent() && workItem.get().getId() == null) {
       logger.warn("Discarding invalid work item {}", workItem.orNull());
       return Optional.absent();
     }
