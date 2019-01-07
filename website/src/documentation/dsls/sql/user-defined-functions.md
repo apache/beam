@@ -60,10 +60,10 @@ String sql =
 // Register the UDFs used in the query by calling '.registerUdf()' with 
 // either a class which implements BeamSqlUdf or with 
 // an instance of the SerializableFunction;
-PCollection<BeamSqlRow> result =
+PCollection<Row> result =
     input.apply(
         "udfExample",
-        BeamSql
+        SqlTransform
             .query(sql)
             .registerUdf("cubic1", CubicInteger.class)
             .registerUdf("cubic2", new CubicIntegerFn())
@@ -114,10 +114,10 @@ String sql =
 // Create and apply the PTransform representing the query.
 // Register the UDAFs used in the query by calling '.registerUdaf()' by 
 // providing it an instance of the CombineFn
-PCollection<BeamSqlRow> result =
+PCollection<Row> result =
     input.apply(
         "udafExample",
-        BeamSql
+        SqlTransform
             .query(sql)
             .registerUdaf("squaresum", new SquareSum()));
 ```
