@@ -1170,7 +1170,7 @@ public class KafkaIOTest {
 
       completionThread.shutdown();
 
-      // Verify that appropriate messages are written to different Kafka topics
+      // Verify that messages are written with user-defined timestamp
       List<ProducerRecord<Integer, Long>> sent = producerWrapper.mockProducer.history();
 
       for (int i = 0; i < numElements; i++) {
