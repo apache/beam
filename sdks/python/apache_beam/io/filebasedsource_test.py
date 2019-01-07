@@ -87,6 +87,22 @@ class EOL(object):
 def write_data(
     num_lines, no_data=False, directory=None, prefix=tempfile.template,
     eol=EOL.LF):
+  """Writes test data to a temporary file.
+
+  Args:
+    num_lines (int): The number of lines to write.
+    no_data (bool): If :data:`True`, empty lines will be written, otherwise
+      each line will contain a concatenation of b'line' and the line number.
+    directory (str): The name of the directory to create the temporary file in.
+    prefix (str): The prefix to use for the temporary file.
+    eol (int): The line ending to use when writing.
+      :class:`~apache_beam.io.filebasedsource_test.EOL` exposes attributes that
+      can be used here to define the eol.
+
+  Returns:
+    Tuple[str, List[bytes]]: A tuple of the filename and a list of the written
+      data.
+  """
   all_data = []
   with tempfile.NamedTemporaryFile(
       delete=False, dir=directory, prefix=prefix) as f:
@@ -131,6 +147,17 @@ def write_prepared_pattern(data, suffixes=None):
 
 
 def write_pattern(lines_per_file, no_data=False):
+  """Writes a pattern of temporary files.
+
+  Args:
+    lines_per_file (List[int]): The number of lines to write per file.
+    no_data (bool): If :data:`True`, empty lines will be written, otherwise
+      each line will contain a concatenation of b'line' and the line number.
+
+  Returns:
+    Tuple[str, List[bytes]]: A tuple of the filename pattern and a list of the
+      written data.
+  """
   temp_dir = tempfile.mkdtemp()
 
   all_data = []
