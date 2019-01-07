@@ -17,6 +17,8 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties.Runner
+import CommonTestProperties.TriggeringContext
 
 // Class for building NEXMark jobs and suites.
 class NexmarkBuilder {
@@ -30,26 +32,6 @@ class NexmarkBuilder {
           'manageResources'        : false,
           'monitorJobs'            : true
   ]
-
-  enum Runner {
-    DATAFLOW("DataflowRunner", ":beam-runners-google-cloud-dataflow-java"),
-    SPARK("SparkRunner", ":beam-runners-spark"),
-    FLINK("FlinkRunner", ":beam-runners-flink_2.11"),
-    DIRECT("DirectRunner", ":beam-runners-direct-java")
-
-    private final String option
-    private final String dependency
-
-    Runner(String option, String dependency) {
-      this.option = option
-      this.dependency = dependency
-    }
-  }
-
-  enum TriggeringContext {
-    PR,
-    POST_COMMIT
-  }
 
   static void standardJob(context, Runner runner, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
     Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
