@@ -108,6 +108,13 @@ public class TranslationContext {
     return (Dataset<WindowedValue<T>>) dataset;
   }
 
+  public void putDatasetWildcard(PValue value, Dataset<WindowedValue<?>> dataset) {
+    if (!datasets.containsKey(value)) {
+      datasets.put(value, dataset);
+      leaves.add(dataset);
+    }
+  }
+
   public <T> void putDataset(PValue value, Dataset<WindowedValue<T>> dataset) {
     if (!datasets.containsKey(value)) {
       datasets.put(value, dataset);
@@ -128,6 +135,11 @@ public class TranslationContext {
   @SuppressWarnings("unchecked")
   public PValue getInput() {
     return Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T extends PValue> T getInput(PTransform<T, ?> transform) {
+    return (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
   }
 
   @SuppressWarnings("unchecked")
