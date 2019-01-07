@@ -288,12 +288,6 @@ task validatesRunner {
   dependsOn validatesRunnerLegacyWorkerTest
 }
 
-task validatesRunnerPortabilityApiExecutableStage {
-    group = "Verification"
-    description "Validates Dataflow PortabilityApi runner"
-    dependsOn validatesRunnerFnApiWorkerExecutableStageTest
-}
-
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
   group = "Verification"
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
