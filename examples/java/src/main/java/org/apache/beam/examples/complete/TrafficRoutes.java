@@ -403,7 +403,7 @@ public class TrafficRoutes {
   }
 
   private static String tryParseString(String[] inputItems, int index) {
-    return inputItems.length >= index ? inputItems[index] : null;
+    return inputItems.length > index ? inputItems[index] : null;
   }
 
   /** Define some small hard-wired San Diego 'routes' to track based on sensor station ID. */
