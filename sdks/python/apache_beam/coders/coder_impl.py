@@ -282,6 +282,14 @@ LIST_TYPE = 5
 TUPLE_TYPE = 6
 DICT_TYPE = 7
 SET_TYPE = 8
+ITERABLE_LIKE_TYPE = 10
+
+
+# Types that can be encoded as iterables, but are not literally
+# lists, etc. due to being lazy.  The actual type is not preserved
+# through encoding, only the elements. This is particularly useful
+# for the value list types created in GroupByKey.
+_ITERABLE_LIKE_TYPES = set()
 
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
@@ -289,6 +297,11 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
   def __init__(self, fallback_coder_impl):
     self.fallback_coder_impl = fallback_coder_impl
+    self.iterable_coder_impl = IterableCoderImpl(self)
+
+  @staticmethod
+  def register_iterable_like_type(t):
+    _ITERABLE_LIKE_TYPES.add(t)
 
   def get_estimated_size_and_observables(self, value, nested=False):
     if isinstance(value, observable.ObservableMixin):
@@ -346,6 +359,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t is bool:
       stream.write_byte(BOOL_TYPE)
       stream.write_byte(value)
+    elif t in _ITERABLE_LIKE_TYPES:
+      stream.write_byte(ITERABLE_LIKE_TYPE)
+      self.iterable_coder_impl.encode_to_stream(value, stream, nested)
     else:
       stream.write_byte(UNKNOWN_TYPE)
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
@@ -379,6 +395,8 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return v
     elif t == BOOL_TYPE:
       return not not stream.read_byte()
+    elif t == ITERABLE_LIKE_TYPE:
+      return self.iterable_coder_impl.decode_from_stream(stream, nested)
     elif t == UNKNOWN_TYPE:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
     else:
@@ -615,6 +633,30 @@ class TupleCoderImpl(AbstractComponentCoderImpl):
     return tuple(components)
 
 
+class _ConcatSequence(object):
+  def __init__(self, head, tail):
+    self._head = head
+    self._tail = tail
+
+  def __iter__(self):
+    for elem in self._head:
+      yield elem
+    for elem in self._tail:
+      yield elem
+
+  def __eq__(self, other):
+    return list(self) == list(other)
+
+  def __hash__(self):
+    raise NotImplementedError
+
+  def __reduce__(self):
+    return list, (list(self),)
+
+
+FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatSequence)
+
+
 class SequenceCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -725,28 +767,8 @@ class SequenceCoderImpl(StreamCoderImpl):
           raise ValueError(
               'Cannot read state-written iterable without state reader.')
 
-        class FullIterable(object):
-          def __init__(self, head, tail):
-            self._head = head
-            self._tail = tail
-
-          def __iter__(self):
-            for elem in self._head:
-              yield elem
-            for elem in self._tail:
-              yield elem
-
-          def __eq__(self, other):
-            return list(self) == list(other)
-
-          def __hash__(self):
-            raise NotImplementedError
-
-          def __reduce__(self):
-            return list, (list(self),)
-
         state_token = in_stream.read_all(True)
-        elements = FullIterable(
+        elements = _ConcatSequence(
             elements, self._read_state(state_token, self._elem_coder))
 
     return self._construct_from_sequence(elements)
