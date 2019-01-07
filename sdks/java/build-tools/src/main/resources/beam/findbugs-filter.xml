@@ -411,6 +411,13 @@
   </Match>
 
   <Match>
+    <!--
+  Classes in this package is auto-generated, let's disable the findbugs for it.
+  -->
+    <Package name="org.apache.beam.sdk.io.clickhouse.impl.parser"/>
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory$SimpleStageBundleFactory"/>
     <Field name="wrappedClient"/>
     <Bug pattern="URF_UNREAD_FIELD"/>
