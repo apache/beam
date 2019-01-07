@@ -142,9 +142,33 @@ public class DataflowWorkUnitClientTest {
   }
 
   @Test
-  public void testCloudServiceCallNoWorkId() throws Exception {
+  public void testCloudServiceCallNoWorkPresent() throws Exception {
     // If there's no work the service should return an empty work item.
     WorkItem workItem = new WorkItem();
+
+    when(request.execute()).thenReturn(generateMockResponse(workItem));
+
+    WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
+
+    assertEquals(Optional.absent(), client.getWorkItem());
+
+    LeaseWorkItemRequest actualRequest =
+        Transport.getJsonFactory()
+            .fromString(request.getContentAsString(), LeaseWorkItemRequest.class);
+    assertEquals(WORKER_ID, actualRequest.getWorkerId());
+    assertEquals(
+        ImmutableList.<String>of(WORKER_ID, "remote_source", "custom_source"),
+        actualRequest.getWorkerCapabilities());
+    assertEquals(
+        ImmutableList.<String>of("map_task", "seq_map_task", "remote_source_task"),
+        actualRequest.getWorkItemTypes());
+  }
+
+  @Test
+  public void testCloudServiceCallNoWorkId() throws Exception {
+    // If there's no work the service should return an empty work item.
+    WorkItem workItem = createWorkItem(PROJECT_ID, JOB_ID);
+    workItem.setId(null);
 
     when(request.execute()).thenReturn(generateMockResponse(workItem));
 
