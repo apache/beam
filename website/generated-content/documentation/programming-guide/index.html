@@ -414,7 +414,7 @@ build a <code class="highlighter-rouge">PCollection</code> from in-memory data.<
   <li><strong>Apply</strong> <code class="highlighter-rouge">PTransforms</code> to each <code class="highlighter-rouge">PCollection</code>. Transforms can change, filter,
 group, analyze, or otherwise process the elements in a <code class="highlighter-rouge">PCollection</code>. A
 transform creates a new output <code class="highlighter-rouge">PCollection</code> <em>without modifying the input
-collection</em>. A typical pipeline applies subsequent transforms to the each new
+collection</em>. A typical pipeline applies subsequent transforms to each new
 output <code class="highlighter-rouge">PCollection</code> in turn until processing is complete. However, note that
 a pipeline does not have to be a single straight line of transforms applied
 one after another: think of <code class="highlighter-rouge">PCollection</code>s as variables and <code class="highlighter-rouge">PTransform</code>s as
@@ -460,6 +460,10 @@ to the <code class="highlighter-rouge">Pipeline</code> object when you create th
 
 </code></pre>
 </div>
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="c">// In order to start creating the pipeline for execution, a Pipeline object and a Scope object are needed.</span><span class="x">
+</span><span class="n">p</span><span class="p">,</span><span class="x"> </span><span class="n">s</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">NewPipelineWithRoot</span><span class="p">()</span><span class="x">
+</span></code></pre>
+</div>
 
 <h3 id="configuring-pipeline-options">2.1. Configuring pipeline options</h3>
 
@@ -492,6 +496,10 @@ as demonstrated in the following example code:</p>
 <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
 
 </code></pre>
+</div>
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="c">// If beamx or Go flags are used, flags must be parsed first.</span><span class="x">
+</span><span class="n">flag</span><span class="o">.</span><span class="n">Parse</span><span class="p">()</span><span class="x">
+</span></code></pre>
 </div>
 
 <p>This interprets command-line arguments that follow the format:</p>
@@ -535,6 +543,12 @@ setter methods for each option, as in the following example:</p>
 
 </code></pre>
 </div>
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="k">var</span><span class="x"> </span><span class="p">(</span><span class="x">
+  </span><span class="n">input</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"input"</span><span class="p">,</span><span class="x"> </span><span class="s">""</span><span class="p">,</span><span class="x"> </span><span class="s">""</span><span class="p">)</span><span class="x">
+  </span><span class="n">output</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"output"</span><span class="p">,</span><span class="x"> </span><span class="s">""</span><span class="p">,</span><span class="x"> </span><span class="s">""</span><span class="p">)</span><span class="x">
+</span><span class="p">)</span><span class="x">
+</span></code></pre>
+</div>
 
 <p>You can also specify a description, which appears when a user passes <code class="highlighter-rouge">--help</code> as
 a command-line argument, and a default value.</p>
@@ -561,6 +575,12 @@ a command-line argument, and a default value.</p>
                         <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/output'</span><span class="p">)</span>
 
 </code></pre>
+</div>
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="k">var</span><span class="x"> </span><span class="p">(</span><span class="x">
+  </span><span class="n">input</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"input"</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://my-bucket/input"</span><span class="p">,</span><span class="x"> </span><span class="s">"File(s) to read."</span><span class="p">)</span><span class="x">
+  </span><span class="n">output</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"output"</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://my-bucket/output"</span><span class="p">,</span><span class="x"> </span><span class="s">"Output file."</span><span class="p">)</span><span class="x">
+</span><span class="p">)</span><span class="x">
+</span></code></pre>
 </div>
 
 <p class="language-java">It’s recommended that you register your interface with <code class="highlighter-rouge">PipelineOptionsFactory</code>
@@ -637,6 +657,9 @@ a <code class="highlighter-rouge">PCollection</code>:</p>
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'ReadMyFile'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s">'gs://some/inputData.txt'</span><span class="p">)</span>
 
 </code></pre>
+</div>
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="n">lines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">textio</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="s">"protocol://path/to/some/inputData.txt"</span><span class="p">)</span><span class="x">
+</span></code></pre>
 </div>
 
 <p>See the <a href="#pipeline-io">section on I/O</a> to learn more about how to read from the
@@ -952,6 +975,16 @@ following example code:</p>
 <span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ComputeWordLengthFn</span><span class="p">())</span>
 </code></pre>
 </div>
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="c">// words is the input PCollection of strings</span><span class="x">
+</span><span class="k">var</span><span class="x"> </span><span class="n">words</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">PCollection</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="o">...</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">computeWordLengthFn</span><span class="p">(</span><span class="n">word</span><span class="x"> </span><span class="kt">string</span><span class="p">)</span><span class="x"> </span><span class="kt">int</span><span class="x"> </span><span class="p">{</span><span class="x">
+      </span><span class="k">return</span><span class="x"> </span><span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="n">wordLengths</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="n">computeWordLengthFn</span><span class="p">,</span><span class="x"> </span><span class="n">words</span><span class="p">)</span><span class="x">
+</span></code></pre>
+</div>
 
 <p>In the example, our input <code class="highlighter-rouge">PCollection</code> contains <code class="highlighter-rouge">String</code> values. We apply a
 <code class="highlighter-rouge">ParDo</code> transform that specifies a function (<code class="highlighter-rouge">ComputeWordLengthFn</code>) to compute
@@ -1069,7 +1102,6 @@ that value in any way.</li>
     <span class="o">}));</span>
 </code></pre>
 </div>
-
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The input PCollection of strings.</span>
 <span class="n">words</span> <span class="o">=</span> <span class="o">...</span>
 
@@ -1077,6 +1109,14 @@ that value in any way.</li>
 <span class="c"># Save the result as the PCollection word_lengths.</span>
 <span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">word</span><span class="p">:</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)])</span>
 </code></pre>
+</div>
+<div class="language-go highlighter-rouge"><pre class="highlight"><code><span class="c">// words is the input PCollection of strings</span><span class="x">
+</span><span class="k">var</span><span class="x"> </span><span class="n">words</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">PCollection</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="o">...</span><span class="x">
+
+</span><span class="n">lengths</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="x"> </span><span class="p">(</span><span class="n">word</span><span class="x"> </span><span class="kt">string</span><span class="p">)</span><span class="x"> </span><span class="kt">int</span><span class="x"> </span><span class="p">{</span><span class="x">
+      </span><span class="k">return</span><span class="x"> </span><span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span><span class="x">
+</span><span class="p">},</span><span class="x"> </span><span class="n">words</span><span class="p">)</span><span class="x">
+</span></code></pre>
 </div>
 
 <p>If your <code class="highlighter-rouge">ParDo</code> performs a one-to-one mapping of input elements to output
@@ -1099,7 +1139,6 @@ Java 8 lambda function for additional brevity.</span></p>
              <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">String</span> <span class="n">word</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">word</span><span class="o">.</span><span class="na">length</span><span class="o">()));</span>
 </code></pre>
 </div>
-
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The input PCollection of string.</span>
 <span class="n">words</span> <span class="o">=</span> <span class="o">...</span>
 
