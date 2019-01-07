@@ -27,8 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticBoundedSource;
-import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOptions;
+import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions.ProgressShape;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -42,9 +41,9 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Unit tests for {@link SyntheticBoundedIO}. */
+/** Unit tests for {@link SyntheticBoundedSource}. */
 @RunWith(JUnit4.class)
-public class SyntheticBoundedIOTest {
+public class SyntheticBoundedSourceTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
   private SyntheticSourceOptions testSourceOptions = new SyntheticSourceOptions();
@@ -97,7 +96,7 @@ public class SyntheticBoundedIOTest {
     assertEquals(123456, sourceOptions.seed);
     assertEquals(42, sourceOptions.bundleSizeDistribution.sample(123), 0.0);
     assertEquals(10, sourceOptions.forceNumInitialBundles.intValue());
-    assertEquals(SyntheticBoundedIO.ProgressShape.LINEAR_REGRESSING, sourceOptions.progressShape);
+    assertEquals(ProgressShape.LINEAR_REGRESSING, sourceOptions.progressShape);
   }
 
   @Test
@@ -150,9 +149,7 @@ public class SyntheticBoundedIOTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
     testSourceOptions.forceNumInitialBundles = 37;
-    assertEquals(
-        37,
-        new SyntheticBoundedIO.SyntheticBoundedSource(testSourceOptions).split(42, options).size());
+    assertEquals(37, new SyntheticBoundedSource(testSourceOptions).split(42, options).size());
   }
 
   private void testSplitIntoBundlesP(long splitPointFrequency) throws Exception {
@@ -168,7 +165,7 @@ public class SyntheticBoundedIOTest {
   @Test
   public void testIncreasingProgress() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    testSourceOptions.progressShape = SyntheticBoundedIO.ProgressShape.LINEAR;
+    testSourceOptions.progressShape = ProgressShape.LINEAR;
     SyntheticBoundedSource source = new SyntheticBoundedSource(testSourceOptions);
     BoundedSource.BoundedReader<KV<byte[], byte[]>> reader = source.createReader(options);
     // Reader starts at 0.0 progress.
@@ -185,7 +182,7 @@ public class SyntheticBoundedIOTest {
   @Test
   public void testRegressingProgress() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    testSourceOptions.progressShape = SyntheticBoundedIO.ProgressShape.LINEAR_REGRESSING;
+    testSourceOptions.progressShape = ProgressShape.LINEAR_REGRESSING;
     SyntheticBoundedSource source = new SyntheticBoundedSource(testSourceOptions);
     BoundedSource.BoundedReader<KV<byte[], byte[]>> reader = source.createReader(options);
     double lastFractionConsumed = reader.getFractionConsumed();
