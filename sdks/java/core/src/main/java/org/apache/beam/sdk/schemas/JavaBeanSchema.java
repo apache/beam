@@ -18,12 +18,14 @@
 package org.apache.beam.sdk.schemas;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
@@ -47,19 +49,20 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   /** {@link FieldValueTypeSupplier} that's based on getter methods. */
   @VisibleForTesting
   public static class GetterTypeSupplier implements FieldValueTypeSupplier {
+    public static final GetterTypeSupplier INSTANCE = new GetterTypeSupplier();
+
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
-      Map<String, FieldValueTypeInformation> types =
-          ReflectUtils.getMethods(clazz)
-              .stream()
-              .filter(ReflectUtils::isGetter)
-              .map(FieldValueTypeInformation::forGetter)
-              .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
-      // Return the list ordered by the schema fields.
-      return schema
-          .getFields()
+    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+      return ReflectUtils.getMethods(clazz)
           .stream()
-          .map(f -> types.get(f.getName()))
+          .filter(ReflectUtils::isGetter)
+          .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
+          .map(FieldValueTypeInformation::forGetter)
+          .map(
+              t -> {
+                SchemaFieldName fieldName = t.getMethod().getAnnotation(SchemaFieldName.class);
+                return (fieldName != null) ? t.withName(fieldName.value()) : t;
+              })
           .collect(Collectors.toList());
     }
   }
@@ -67,50 +70,77 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   /** {@link FieldValueTypeSupplier} that's based on setter methods. */
   @VisibleForTesting
   public static class SetterTypeSupplier implements FieldValueTypeSupplier {
+    private static final SetterTypeSupplier INSTANCE = new SetterTypeSupplier();
+
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
-      Map<String, FieldValueTypeInformation> types =
-          ReflectUtils.getMethods(clazz)
-              .stream()
-              .filter(ReflectUtils::isSetter)
-              .map(FieldValueTypeInformation::forSetter)
-              .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
-      // Return the list ordered by the schema fields.
-      return schema
-          .getFields()
+    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+      return ReflectUtils.getMethods(clazz)
           .stream()
-          .map(f -> types.get(f.getName()))
+          .filter(ReflectUtils::isSetter)
+          .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
+          .map(FieldValueTypeInformation::forSetter)
           .collect(Collectors.toList());
     }
   }
 
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return JavaBeanUtils.schemaFromJavaBeanClass(typeDescriptor.getRawType());
+    Schema schema =
+        JavaBeanUtils.schemaFromJavaBeanClass(
+            typeDescriptor.getRawType(), GetterTypeSupplier.INSTANCE);
+
+    // If there are no creator methods, then validate that we have setters for every field.
+    // Otherwise, we will have not way of creating the class.
+    if (ReflectUtils.getAnnotatedCreateMethod(typeDescriptor.getRawType()) == null
+        && ReflectUtils.getAnnotatedConstructor(typeDescriptor.getRawType()) == null) {
+      JavaBeanUtils.validateJavaBean(
+          GetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema),
+          SetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema));
+    }
+    return schema;
   }
 
   @Override
   public FieldValueGetterFactory fieldValueGetterFactory() {
     return (Class<?> targetClass, Schema schema) ->
-        JavaBeanUtils.getGetters(targetClass, schema, new GetterTypeSupplier());
+        JavaBeanUtils.getGetters(targetClass, schema, GetterTypeSupplier.INSTANCE);
   }
 
   @Override
   UserTypeCreatorFactory schemaTypeCreatorFactory() {
-    return new SetterBasedCreatorFactory(new JavaBeanSetterFactory());
+    UserTypeCreatorFactory setterBasedFactory =
+        new SetterBasedCreatorFactory(new JavaBeanSetterFactory());
+
+    return (Class<?> targetClass, Schema schema) -> {
+      // If a static method is marked with @SchemaCreate, use that.
+      Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
+      if (annotated != null) {
+        return JavaBeanUtils.getStaticCreator(
+            targetClass, annotated, schema, GetterTypeSupplier.INSTANCE);
+      }
+
+      // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
+      Constructor<?> constructor = ReflectUtils.getAnnotatedConstructor(targetClass);
+      if (constructor != null) {
+        return JavaBeanUtils.getConstructorCreator(
+            targetClass, constructor, schema, GetterTypeSupplier.INSTANCE);
+      }
+
+      return setterBasedFactory.create(targetClass, schema);
+    };
   }
 
   @Override
   public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
     return (Class<?> targetClass, Schema schema) ->
-        JavaBeanUtils.getFieldTypes(targetClass, schema, new GetterTypeSupplier());
+        JavaBeanUtils.getFieldTypes(targetClass, schema, GetterTypeSupplier.INSTANCE);
   }
 
   /** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
   public static class JavaBeanSetterFactory implements FieldValueSetterFactory {
     @Override
     public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {
-      return JavaBeanUtils.getSetters(targetClass, schema, new SetterTypeSupplier());
+      return JavaBeanUtils.getSetters(targetClass, schema, SetterTypeSupplier.INSTANCE);
     }
   }
 }

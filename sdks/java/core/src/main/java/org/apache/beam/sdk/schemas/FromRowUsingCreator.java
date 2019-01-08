@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Lists;
@@ -55,8 +56,11 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   public <ValueT> ValueT fromRow(
       Row row, Class<ValueT> clazz, Factory<List<FieldValueTypeInformation>> typeFactory) {
     if (row instanceof RowWithGetters) {
-      // Efficient path: simply extract the underlying object instead of creating a new one.
-      return (ValueT) ((RowWithGetters) row).getGetterTarget();
+      Object target = ((RowWithGetters) row).getGetterTarget();
+      if (target.getClass().equals(clazz)) {
+        // Efficient path: simply extract the underlying object instead of creating a new one.
+        return (ValueT) target;
+      }
     }
 
     Object[] params = new Object[row.getFieldCount()];
@@ -68,7 +72,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
 
     for (int i = 0; i < row.getFieldCount(); ++i) {
       FieldType type = schema.getField(i).getType();
-      FieldValueTypeInformation typeInformation = typeInformations.get(i);
+      FieldValueTypeInformation typeInformation = checkNotNull(typeInformations.get(i));
       params[i] =
           fromValue(
               type,

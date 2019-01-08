@@ -27,9 +27,16 @@ import org.apache.beam.sdk.schemas.Schema;
  * the matching field name in the schema.
  */
 public interface FieldValueTypeSupplier extends Serializable {
+  /** Return all the FieldValueTypeInformations. */
+  List<FieldValueTypeInformation> get(Class<?> clazz);
+
   /**
-   * Return all the FieldValueTypeInformations. The returned list must be in the same order as
+   * Return all the FieldValueTypeInformations.
+   *
+   * <p>If the schema parameter is not null, then the returned list must be in the same order as
    * fields in the schema.
    */
-  List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema);
+  default List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+    return StaticSchemaInference.sortBySchema(get(clazz), schema);
+  }
 }

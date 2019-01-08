@@ -30,8 +30,8 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
-import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 /** Result of Query3. */
 @DefaultSchema(JavaFieldSchema.class)

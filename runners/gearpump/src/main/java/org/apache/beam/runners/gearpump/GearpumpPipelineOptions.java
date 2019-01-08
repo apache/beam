@@ -24,7 +24,6 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-
 /** Options that configure the Gearpump pipeline. */
 public interface GearpumpPipelineOptions extends PipelineOptions {
 
@@ -45,7 +44,8 @@ public interface GearpumpPipelineOptions extends PipelineOptions {
   @JsonIgnore
   Map<String, String> getSerializers();
 
-  @Description("Whether the pipeline will be run on a remote cluster. If false, it will be run on a EmbeddedCluster")
+  @Description(
+      "Whether the pipeline will be run on a remote cluster. If false, it will be run on a EmbeddedCluster")
   void setRemote(Boolean remote);
 
   @Default.Boolean(true)

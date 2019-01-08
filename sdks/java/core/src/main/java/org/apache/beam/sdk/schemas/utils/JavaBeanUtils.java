@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.schemas.utils;
 
 import com.google.common.collect.Maps;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -44,8 +45,11 @@ import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConstructorCreateInstruction;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstruction;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
@@ -53,33 +57,21 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 @Experimental(Kind.SCHEMAS)
 public class JavaBeanUtils {
   /** Create a {@link Schema} for a Java Bean class. */
-  public static Schema schemaFromJavaBeanClass(Class<?> clazz) {
-    return StaticSchemaInference.schemaFromClass(clazz, JavaBeanUtils::typeInformationFromClass);
-  }
-
-  private static List<FieldValueTypeInformation> typeInformationFromClass(Class<?> clazz) {
-    List<FieldValueTypeInformation> getterTypes =
-        ReflectUtils.getMethods(clazz)
-            .stream()
-            .filter(ReflectUtils::isGetter)
-            .map(FieldValueTypeInformation::forGetter)
-            .collect(Collectors.toList());
-
-    Map<String, FieldValueTypeInformation> setterTypes =
-        ReflectUtils.getMethods(clazz)
-            .stream()
-            .filter(ReflectUtils::isSetter)
-            .map(FieldValueTypeInformation::forSetter)
-            .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
-    validateJavaBean(getterTypes, setterTypes);
-    return getterTypes;
+  public static Schema schemaFromJavaBeanClass(
+      Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return StaticSchemaInference.schemaFromClass(clazz, fieldValueTypeSupplier);
   }
 
   // Make sure that there are matching setters and getters.
-  private static void validateJavaBean(
-      List<FieldValueTypeInformation> getters, Map<String, FieldValueTypeInformation> setters) {
+  public static void validateJavaBean(
+      List<FieldValueTypeInformation> getters, List<FieldValueTypeInformation> setters) {
+    Map<String, FieldValueTypeInformation> setterMap =
+        setters
+            .stream()
+            .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
+
     for (FieldValueTypeInformation type : getters) {
-      FieldValueTypeInformation setterType = setters.get(type.getName());
+      FieldValueTypeInformation setterType = setterMap.get(type.getName());
       if (setterType == null) {
         throw new RuntimeException(
             "JavaBean contained a getter for field "
@@ -216,6 +208,84 @@ public class JavaBeanUtils {
         .intercept(FixedValue.reference(javaTypeInformation.getName()))
         .method(ElementMatchers.named("set"))
         .intercept(new InvokeSetterInstruction(method));
+  }
+
+  // The list of constructors for a class is cached, so we only create the classes the first time
+  // getConstructor is called.
+  public static final Map<ClassWithSchema, SchemaUserTypeCreator> CACHED_CREATORS =
+      Maps.newConcurrentMap();
+
+  public static SchemaUserTypeCreator getConstructorCreator(
+      Class clazz,
+      Constructor constructor,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return CACHED_CREATORS.computeIfAbsent(
+        new ClassWithSchema(clazz, schema),
+        c -> {
+          List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
+          return createConstructorCreator(clazz, constructor, schema, types);
+        });
+  }
+
+  public static <T> SchemaUserTypeCreator createConstructorCreator(
+      Class<T> clazz,
+      Constructor<T> constructor,
+      Schema schema,
+      List<FieldValueTypeInformation> types) {
+    try {
+      DynamicType.Builder<SchemaUserTypeCreator> builder =
+          BYTE_BUDDY
+              .subclass(SchemaUserTypeCreator.class)
+              .method(ElementMatchers.named("create"))
+              .intercept(new ConstructorCreateInstruction(types, clazz, constructor));
+      return builder
+          .make()
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .getLoaded()
+          .getDeclaredConstructor()
+          .newInstance();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      throw new RuntimeException(
+          "Unable to generate a creator for class " + clazz + " with schema " + schema);
+    }
+  }
+
+  public static SchemaUserTypeCreator getStaticCreator(
+      Class clazz, Method creator, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return CACHED_CREATORS.computeIfAbsent(
+        new ClassWithSchema(clazz, schema),
+        c -> {
+          List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
+          return createStaticCreator(clazz, creator, schema, types);
+        });
+  }
+
+  public static <T> SchemaUserTypeCreator createStaticCreator(
+      Class<T> clazz, Method creator, Schema schema, List<FieldValueTypeInformation> types) {
+    try {
+      DynamicType.Builder<SchemaUserTypeCreator> builder =
+          BYTE_BUDDY
+              .subclass(SchemaUserTypeCreator.class)
+              .method(ElementMatchers.named("create"))
+              .intercept(new StaticFactoryMethodInstruction(types, clazz, creator));
+
+      return builder
+          .make()
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .getLoaded()
+          .getDeclaredConstructor()
+          .newInstance();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
+      throw new RuntimeException(
+          "Unable to generate a creator for " + clazz + " with schema " + schema);
+    }
   }
 
   // Implements a method to read a public getter out of an object.

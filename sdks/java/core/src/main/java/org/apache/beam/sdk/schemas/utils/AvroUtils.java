@@ -302,26 +302,27 @@ public class AvroUtils {
   private static final class AvroSpecificRecordFieldValueTypeSupplier
       implements FieldValueTypeSupplier {
     @Override
+    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+      throw new RuntimeException("Unexpected call.");
+    }
+
+    @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
       Map<String, String> mapping = getMapping(schema);
-      Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
+      List<FieldValueTypeInformation> types = Lists.newArrayList();
       for (Method method : ReflectUtils.getMethods(clazz)) {
         if (ReflectUtils.isGetter(method)) {
           FieldValueTypeInformation fieldValueTypeInformation =
               FieldValueTypeInformation.forGetter(method);
           String name = mapping.get(fieldValueTypeInformation.getName());
           if (name != null) {
-            types.put(name, fieldValueTypeInformation.withName(name));
+            types.add(fieldValueTypeInformation.withName(name));
           }
         }
       }
 
       // Return the list ordered by the schema fields.
-      return schema
-          .getFields()
-          .stream()
-          .map(f -> types.get(f.getName()))
-          .collect(Collectors.toList());
+      return StaticSchemaInference.sortBySchema(types, schema);
     }
 
     private Map<String, String> getMapping(Schema schema) {
@@ -340,7 +341,7 @@ public class AvroUtils {
 
   private static final class AvroPojoFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+    public List<FieldValueTypeInformation> get(Class<?> clazz) {
       Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
       for (java.lang.reflect.Field f : ReflectUtils.getFields(clazz)) {
         if (!f.isAnnotationPresent(AvroIgnore.class)) {
@@ -352,12 +353,7 @@ public class AvroUtils {
           types.put(typeInformation.getName(), typeInformation);
         }
       }
-      // Return the list ordered by the schema fields.
-      return schema
-          .getFields()
-          .stream()
-          .map(f -> types.get(f.getName()))
-          .collect(Collectors.toList());
+      return Lists.newArrayList(types.values());
     }
   }
 
@@ -386,7 +382,7 @@ public class AvroUtils {
     if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
       return AvroByteBuddyUtils.getCreator((Class<? extends SpecificRecord>) clazz, schema);
     } else {
-      return POJOUtils.getCreator(clazz, schema, new AvroPojoFieldValueTypeSupplier());
+      return POJOUtils.getSetFieldCreator(clazz, schema, new AvroPojoFieldValueTypeSupplier());
     }
   }
 
