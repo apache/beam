@@ -68,7 +68,7 @@ public class DatasetSourceBatch<T> implements DataSourceV2, ReadSupport {
     if (!options.get(DEFAULT_PARALLELISM).isPresent()){
       throw new RuntimeException("Spark default parallelism was not set in DataSource options");
     }
-    int numPartitions = Integer.valueOf(options.get(DEFAULT_PARALLELISM).get());
+    int numPartitions = Integer.parseInt(options.get(DEFAULT_PARALLELISM).get());
     checkArgument(numPartitions > 0, "Number of partitions must be greater than zero.");
 
     if (!options.get(PIPELINE_OPTIONS).isPresent()){
