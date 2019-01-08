@@ -70,7 +70,8 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
       RuntimeEnvironment.setRuntimeEnv(new RemoteRuntimeEnvironment());
     } else {
       RuntimeEnvironment.setRuntimeEnv(new EmbeddedRuntimeEnvironment());
-      config = config.withValue(Constants.APPLICATION_TOTAL_RETRIES(), ConfigValueFactory.fromAnyRef(0));
+      config =
+          config.withValue(Constants.APPLICATION_TOTAL_RETRIES(), ConfigValueFactory.fromAnyRef(0));
     }
     ClientContext clientContext = ClientContext.apply(config);
     options.setClientContext(clientContext);

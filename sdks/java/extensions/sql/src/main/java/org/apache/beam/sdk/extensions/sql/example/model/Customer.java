@@ -19,8 +19,8 @@ package org.apache.beam.sdk.extensions.sql.example.model;
 
 import java.io.Serializable;
 import java.util.Objects;
-import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 /** Describes a customer. */
 @DefaultSchema(JavaBeanSchema.class)

@@ -17,6 +17,14 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -27,9 +35,15 @@ import java.util.Map;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.NamingStrategy;
 import net.bytebuddy.NamingStrategy.SuffixingRandom.BaseNameResolver;
+import net.bytebuddy.description.method.MethodDescription.ForLoadedConstructor;
+import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
 import net.bytebuddy.implementation.bytecode.Duplication;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
@@ -37,13 +51,18 @@ import net.bytebuddy.implementation.bytecode.TypeCreation;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
 import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
+import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.matcher.ElementMatchers;
 import net.bytebuddy.utility.RandomString;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 import org.apache.commons.lang3.ArrayUtils;
@@ -593,6 +612,165 @@ class ByteBuddyUtils {
     @Override
     protected StackManipulation convertDefault(TypeDescriptor<?> type) {
       return readValue;
+    }
+  }
+
+  /**
+   * Invokes a constructor registered using SchemaCreate. As constructor parameters might not be in
+   * the same order as the schema fields, reorders the parameters as necessary before calling the
+   * constructor.
+   */
+  static class ConstructorCreateInstruction extends InvokeUserCreateInstruction {
+    private final Constructor constructor;
+
+    ConstructorCreateInstruction(
+        List<FieldValueTypeInformation> fields, Class targetClass, Constructor constructor) {
+      super(fields, targetClass, Lists.newArrayList(constructor.getParameters()));
+      this.constructor = constructor;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    protected StackManipulation beforePushingParameters() {
+      // Create the target class.
+      ForLoadedType loadedType = new ForLoadedType(targetClass);
+      return new StackManipulation.Compound(TypeCreation.of(loadedType), Duplication.SINGLE);
+    }
+
+    @Override
+    protected StackManipulation afterPushingParameters() {
+      return MethodInvocation.invoke(new ForLoadedConstructor(constructor));
+    }
+  }
+
+  /**
+   * Invokes a static factory method registered using SchemaCreate. As the method parameters might
+   * not be in the same order as the schema fields, reorders the parameters as necessary before
+   * calling the constructor.
+   */
+  static class StaticFactoryMethodInstruction extends InvokeUserCreateInstruction {
+    private final Method creator;
+
+    StaticFactoryMethodInstruction(
+        List<FieldValueTypeInformation> fields, Class targetClass, Method creator) {
+      super(fields, targetClass, Lists.newArrayList(creator.getParameters()));
+      if (!Modifier.isStatic(creator.getModifiers())) {
+        throw new IllegalArgumentException("Method " + creator + " is not static");
+      }
+      this.creator = creator;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    protected StackManipulation afterPushingParameters() {
+      return MethodInvocation.invoke(new ForLoadedMethod(creator));
+    }
+  }
+
+  static class InvokeUserCreateInstruction implements Implementation {
+    protected final List<FieldValueTypeInformation> fields;
+    protected final Class targetClass;
+    protected final List<Parameter> parameters;
+    protected final Map<Integer, Integer> fieldMapping;
+
+    protected InvokeUserCreateInstruction(
+        List<FieldValueTypeInformation> fields, Class targetClass, List<Parameter> parameters) {
+      this.fields = fields;
+      this.targetClass = targetClass;
+      this.parameters = parameters;
+
+      // Method parameters might not be in the same order as the schema fields, and the input
+      // array to SchemaUserTypeCreator.create is in schema order. Examine the parameter names
+      // and compare against field names to calculate the mapping between the two lists.
+      Map<String, Integer> fieldsByLogicalName = Maps.newHashMap();
+      Map<String, Integer> fieldsByJavaClassMember = Maps.newHashMap();
+      for (int i = 0; i < fields.size(); ++i) {
+        // Method parameters are allowed to either correspond to the schema field names or to the
+        // actual Java field or method names.
+        FieldValueTypeInformation fieldValue = checkNotNull(fields.get(i));
+        fieldsByLogicalName.put(fieldValue.getName(), i);
+        if (fieldValue.getField() != null) {
+          fieldsByJavaClassMember.put(fieldValue.getField().getName(), i);
+        } else if (fieldValue.getMethod() != null) {
+          String name = ReflectUtils.stripPrefix(fieldValue.getMethod().getName(), "set");
+          fieldsByJavaClassMember.put(name, i);
+        }
+      }
+
+      fieldMapping = Maps.newHashMap();
+      for (int i = 0; i < parameters.size(); ++i) {
+        Parameter parameter = parameters.get(i);
+        String paramName = parameter.getName();
+        Integer index = fieldsByLogicalName.get(paramName);
+        if (index == null) {
+          index = fieldsByJavaClassMember.get(paramName);
+        }
+        if (index == null) {
+          throw new RuntimeException(
+              "Creator parameter " + paramName + " Doesn't correspond to a schema field");
+        }
+        fieldMapping.put(i, index);
+      }
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        // this + method parameters.
+        int numLocals = 1 + instrumentedMethod.getParameters().size();
+
+        StackManipulation stackManipulation = beforePushingParameters();
+
+        // Push all creator parameters on the stack.
+        ConvertType convertType = new ConvertType(true);
+        for (int i = 0; i < parameters.size(); i++) {
+          Parameter parameter = parameters.get(i);
+          ForLoadedType convertedType =
+              new ForLoadedType(
+                  (Class) convertType.convert(TypeDescriptor.of(parameter.getType())));
+
+          // The instruction to read the parameter. Use the fieldMapping to reorder parameters as
+          // necessary.
+          StackManipulation readParameter =
+              new StackManipulation.Compound(
+                  MethodVariableAccess.REFERENCE.loadFrom(1),
+                  IntegerConstant.forValue(fieldMapping.get(i)),
+                  ArrayAccess.REFERENCE.load(),
+                  TypeCasting.to(convertedType));
+          stackManipulation =
+              new StackManipulation.Compound(
+                  stackManipulation,
+                  new ConvertValueForSetter(readParameter)
+                      .convert(TypeDescriptor.of(parameter.getType())));
+        }
+        stackManipulation =
+            new StackManipulation.Compound(
+                stackManipulation, afterPushingParameters(), MethodReturn.REFERENCE);
+
+        StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
+        return new Size(size.getMaximalSize(), numLocals);
+      };
+    }
+
+    protected StackManipulation beforePushingParameters() {
+      return new StackManipulation.Compound();
+    }
+
+    protected StackManipulation afterPushingParameters() {
+      return new StackManipulation.Compound();
     }
   }
 }
