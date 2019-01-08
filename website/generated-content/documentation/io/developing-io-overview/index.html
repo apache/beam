@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Contributing I/O Transforms</title>
+  <title>Overview: Developing a new I/O connector</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/io/contributing/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/io/developing-io-overview/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/io/contributing.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/io/developing-io-overview.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -153,7 +153,7 @@
 <li><span class="section-nav-list-main-title">Documentation</span></li>
 <li><a href="/documentation">Using the Documentation</a></li>
 <li><a href="/documentation/execution-model">Beam Execution Model</a></li>
-<li class="section-nav-item--collapsible">
+<li>
   <span class="section-nav-list-title">Pipeline development lifecycle</span>
 
   <ul class="section-nav-list">
@@ -162,7 +162,7 @@
     <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
   </ul>
 </li>
-<li class="section-nav-item--collapsible">
+<li>
   <span class="section-nav-list-title">Beam programming guide</span>
 
   <ul class="section-nav-list">
@@ -205,8 +205,18 @@
 
       <ul class="section-nav-list">
         <li><a href="/documentation/programming-guide/#pipeline-io">Using I/O transforms</a></li>
-        <li><a href="/documentation/io/built-in/">Built-in I/O transforms</a></li>
-        <li><a href="/documentation/io/authoring-overview/">Authoring new I/O transforms</a></li>
+        <li><a href="/documentation/io/built-in/">Built-in I/O connectors</a></li>
+
+        <li class="section-nav-item--collapsible">
+           <span class="section-nav-list-title">Developing new I/O connectors</span>
+
+          <ul class="section-nav-list">
+           <li><a href="/documentation/io/developing-io-overview/">Overview: Developing connectors</a></li>
+           <li><a href="/documentation/io/developing-io-java/">Developing connectors (Java)</a></li>
+           <li><a href="/documentation/io/developing-io-python/">Developing connectors (Python)</a></li>
+          </ul>
+        </li>
+
         <li><a href="/documentation/io/testing/">Testing I/O transforms</a></li>
       </ul>
     </li>
@@ -279,6 +289,15 @@
 
 
 
+<ul class="nav">
+  <li><a href="#sources">Sources</a>
+    <ul>
+      <li><a href="#when-to-use-source">When to use the Source interface</a></li>
+      <li><a href="#using-pardo-and-groupbykey">Using ParDo and GroupByKey</a></li>
+    </ul>
+  </li>
+  <li><a href="#sinks">Sinks</a></li>
+</ul>
 
 
       </nav>
@@ -298,19 +317,191 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<p><a href="/documentation/io/io-toc/">Pipeline I/O Table of Contents</a></p>
+<h1 id="overview-developing-a-new-io-connector">Overview: Developing a new I/O connector</h1>
 
-<h1 id="contributing-io-transforms">Contributing I/O Transforms</h1>
+<p><em>A guide for users who need to connect to a data store that isn’t supported by
+the <a href="/documentation/io/built-in/">Built-in I/O connectors</a></em></p>
+
+<p>To connect to a data store that isn’t supported by Beam’s existing I/O
+connectors, you must create a custom I/O connector. A connector usually consists
+of a source and a sink. All Beam sources and sinks are composite transforms;
+however, the implementation of your custom I/O depends on your use case. Here
+are the recommended steps to get started:</p>
+
+<ol>
+  <li>
+    <p>Read this overview and choose your implementation. You can email the
+<a href="/get-started/support">Beam dev mailing list</a> with any
+questions you might have. In addition, you can check if anyone else is
+working on the same I/O connector.</p>
+  </li>
+  <li>
+    <p>If you plan to contribute your I/O connector to the Beam community, see the
+<a href="/contribute/contribution-guide/">Apache Beam contribution guide</a>.</p>
+  </li>
+  <li>
+    <p>Read the <a href="/contribute/ptransform-style-guide/">PTransform style guide</a>
+for additional style guide recommendations.</p>
+  </li>
+</ol>
+
+<h2 id="sources">Sources</h2>
+
+<p>For <strong>bounded (batch) sources</strong>, there are currently two options for creating a
+Beam source:</p>
+
+<ol>
+  <li>
+    <p>Use <code class="highlighter-rouge">ParDo</code> and <code class="highlighter-rouge">GroupByKey</code>.</p>
+  </li>
+  <li>
+    <p>Use the <code class="highlighter-rouge">Source</code> interface and extend the <code class="highlighter-rouge">BoundedSource</code> abstract subclass.</p>
+  </li>
+</ol>
+
+<p><code class="highlighter-rouge">ParDo</code> is the recommended option, as implementing a <code class="highlighter-rouge">Source</code> can be tricky. See
+<a href="#when-to-use-source">When to use the Source interface</a> for a list of some use
+cases where you might want to use a <code class="highlighter-rouge">Source</code> (such as
+<a href="/blog/2016/05/18/splitAtFraction-method.html">dynamic work rebalancing</a>).</p>
+
+<p>(Java only) For <strong>unbounded (streaming) sources</strong>, you must use the <code class="highlighter-rouge">Source</code>
+interface and extend the <code class="highlighter-rouge">UnboundedSource</code> abstract subclass. <code class="highlighter-rouge">UnboundedSource</code>
+supports features that are useful for streaming pipelines, such as
+checkpointing.</p>
+
+<p>Splittable DoFn is a new sources framework that is under development and will
+replace the other options for developing bounded and unbounded sources. For more
+information, see the
+<a href="/roadmap/connectors-multi-sdk/">roadmap for multi-SDK connector efforts</a>.</p>
+
+<h3 id="when-to-use-source">When to use the Source interface</h3>
+
+<p>If you are not sure whether to use <code class="highlighter-rouge">Source</code>, feel free to email the <a href="/get-started/support">Beam dev
+mailing list</a> and we can discuss the
+specific pros and cons of your case.</p>
+
+<p>In some cases, implementing a <code class="highlighter-rouge">Source</code> might be necessary or result in better
+performance:</p>
 
 <ul>
-  <li>If you are planning to contribute your I/O transform to the Apache Beam community, you’ll be going through the normal Beam contribution life cycle - see the <a href="/contribute/contribution-guide/">Apache Beam Contribution Guide</a> for more details.</li>
-  <li>Talk to the community!</li>
-  <li>Make sure you’ve implemented the appropriate tests as discussed in the <a href="/documentation/io/testing/">Testing I/O Transforms</a> section.</li>
+  <li>
+    <p><strong>Unbounded sources:</strong> <code class="highlighter-rouge">ParDo</code> does not work for reading from unbounded
+sources.  <code class="highlighter-rouge">ParDo</code> does not support checkpointing or mechanisms like de-duping
+that are useful for streaming data sources.</p>
+  </li>
+  <li>
+    <p><strong>Progress and size estimation:</strong> <code class="highlighter-rouge">ParDo</code> can’t provide hints to runners about
+progress or the size of data they are reading. Without size estimation of the
+data or progress on your read, the runner doesn’t have any way to guess how
+large your read will be. Therefore, if the runner attempts to dynamically
+allocate workers, it does not have any clues as to how many workers you might
+need for your pipeline.</p>
+  </li>
+  <li>
+    <p><strong>Dynamic work rebalancing:</strong> <code class="highlighter-rouge">ParDo</code> does not support dynamic work
+rebalancing, which is used by some readers to improve the processing speed of
+jobs. Depending on your data source, dynamic work rebalancing might not be
+possible.</p>
+  </li>
+  <li>
+    <p><strong>Splitting into parts of particular size recommended by the runner:</strong> <code class="highlighter-rouge">ParDo</code>
+does not receive <code class="highlighter-rouge">desired_bundle_size</code> as a hint from runners when performing
+initial splitting.</p>
+  </li>
 </ul>
 
-<blockquote>
-  <p>Note: This guide is still in progress. There is an open issue to finish the guide: <a href="https://issues.apache.org/jira/browse/BEAM-1025">BEAM-1025</a>.</p>
-</blockquote>
+<p>For example, if you’d like to read from a new file format that contains many
+records per file, or if you’d like to read from a key-value store that supports
+read operations in sorted key order.</p>
+
+<h3 id="using-pardo-and-groupbykey">Using ParDo and GroupByKey</h3>
+
+<p>For data stores or file types where the data can be read in parallel, you can
+think of the process as a mini-pipeline. This often consists of two steps:</p>
+
+<ol>
+  <li>
+    <p>Splitting the data into parts to be read in parallel</p>
+  </li>
+  <li>
+    <p>Reading from each of those parts</p>
+  </li>
+</ol>
+
+<p>Each of those steps will be a <code class="highlighter-rouge">ParDo</code>, with a <code class="highlighter-rouge">GroupByKey</code> in between. The
+<code class="highlighter-rouge">GroupByKey</code> is an implementation detail, but for most runners <code class="highlighter-rouge">GroupByKey</code>
+allows the runner to use different numbers of workers in some situations:</p>
+
+<ul>
+  <li>
+    <p>Determining how to split up the data to be read into chunks</p>
+  </li>
+  <li>
+    <p>Reading data, which often benefits from more workers</p>
+  </li>
+</ul>
+
+<p>In addition, <code class="highlighter-rouge">GroupByKey</code> also allows dynamic work rebalancing to happen on
+runners that support the feature.</p>
+
+<p>Here are some examples of read transform implementations that use the “reading
+as a mini-pipeline” model when data can be read in parallel:</p>
+
+<ul>
+  <li><strong>Reading from a file glob</strong>: For example, reading all files in “~/data/**”.
+    <ul>
+      <li>Get File Paths <code class="highlighter-rouge">ParDo</code>: As input, take in a file glob. Produce a
+<code class="highlighter-rouge">PCollection</code> of strings, each of which is a file path.</li>
+      <li>Reading <code class="highlighter-rouge">ParDo</code>: Given the <code class="highlighter-rouge">PCollection</code> of file paths, read each one,
+producing a <code class="highlighter-rouge">PCollection</code> of records.</li>
+    </ul>
+  </li>
+  <li><strong>Reading from a NoSQL database</strong> (such as Apache HBase): These databases
+often allow reading from ranges in parallel.
+    <ul>
+      <li>Determine Key Ranges <code class="highlighter-rouge">ParDo</code>: As input, receive connection information for
+the database and the key range to read from. Produce a <code class="highlighter-rouge">PCollection</code> of key
+ranges that can be read in parallel efficiently.</li>
+      <li>Read Key Range <code class="highlighter-rouge">ParDo</code>: Given the <code class="highlighter-rouge">PCollection</code> of key ranges, read the key
+range, producing a <code class="highlighter-rouge">PCollection</code> of records.</li>
+    </ul>
+  </li>
+</ul>
+
+<p>For data stores or files where reading cannot occur in parallel, reading is a
+simple task that can be accomplished with a single <code class="highlighter-rouge">ParDo</code>+<code class="highlighter-rouge">GroupByKey</code>. For
+example:</p>
+
+<ul>
+  <li>
+    <p><strong>Reading from a database query</strong>: Traditional SQL database queries often
+can only be read in sequence. In this case, the <code class="highlighter-rouge">ParDo</code> would establish a
+connection to the database and read batches of records, producing a
+<code class="highlighter-rouge">PCollection</code> of those records.</p>
+  </li>
+  <li>
+    <p><strong>Reading from a gzip file</strong>: A gzip file must be read in order, so the read
+cannot be parallelized. In this case, the <code class="highlighter-rouge">ParDo</code> would open the file and
+read in sequence, producing a <code class="highlighter-rouge">PCollection</code> of records from the file.</p>
+  </li>
+</ul>
+
+<h2 id="sinks">Sinks</h2>
+
+<p>To create a Beam sink, we recommend that you use a <code class="highlighter-rouge">ParDo</code> that writes the
+received records to the data store. To develop more complex sinks (for example,
+to support data de-duplication when failures are retried by a runner), use
+<code class="highlighter-rouge">ParDo</code>, <code class="highlighter-rouge">GroupByKey</code>, and other available Beam transforms.</p>
+
+<p>For <strong>file-based sinks</strong>, you can use the <code class="highlighter-rouge">FileBasedSink</code> abstraction that is
+provided by both the Java and Python SDKs. See our language specific
+implementation guides for more details:</p>
+
+<ul>
+  <li><a href="/documentation/io/developing-io-java/">Developing I/O connectors for Java</a></li>
+  <li><a href="/documentation/io/developing-io-python/">Developing I/O connectors for Python</a></li>
+</ul>
+
 
       </div>
     </div>

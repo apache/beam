@@ -153,7 +153,7 @@
 <li><span class="section-nav-list-main-title">Documentation</span></li>
 <li><a href="/documentation">Using the Documentation</a></li>
 <li><a href="/documentation/execution-model">Beam Execution Model</a></li>
-<li class="section-nav-item--collapsible">
+<li>
   <span class="section-nav-list-title">Pipeline development lifecycle</span>
 
   <ul class="section-nav-list">
@@ -162,7 +162,7 @@
     <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
   </ul>
 </li>
-<li class="section-nav-item--collapsible">
+<li>
   <span class="section-nav-list-title">Beam programming guide</span>
 
   <ul class="section-nav-list">
@@ -205,8 +205,18 @@
 
       <ul class="section-nav-list">
         <li><a href="/documentation/programming-guide/#pipeline-io">Using I/O transforms</a></li>
-        <li><a href="/documentation/io/built-in/">Built-in I/O transforms</a></li>
-        <li><a href="/documentation/io/authoring-overview/">Authoring new I/O transforms</a></li>
+        <li><a href="/documentation/io/built-in/">Built-in I/O connectors</a></li>
+
+        <li class="section-nav-item--collapsible">
+           <span class="section-nav-list-title">Developing new I/O connectors</span>
+
+          <ul class="section-nav-list">
+           <li><a href="/documentation/io/developing-io-overview/">Overview: Developing connectors</a></li>
+           <li><a href="/documentation/io/developing-io-java/">Developing connectors (Java)</a></li>
+           <li><a href="/documentation/io/developing-io-python/">Developing connectors (Python)</a></li>
+          </ul>
+        </li>
+
         <li><a href="/documentation/io/testing/">Testing I/O transforms</a></li>
       </ul>
     </li>
@@ -305,8 +315,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
-<p><a href="/documentation/io/io-toc/">Pipeline I/O Table of Contents</a></p>
 
 <h1 id="hadoop-inputformat-io">Hadoop InputFormat IO</h1>
 

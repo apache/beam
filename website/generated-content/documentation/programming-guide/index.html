@@ -153,7 +153,7 @@
 <li><span class="section-nav-list-main-title">Documentation</span></li>
 <li><a href="/documentation">Using the Documentation</a></li>
 <li><a href="/documentation/execution-model">Beam Execution Model</a></li>
-<li class="section-nav-item--collapsible">
+<li>
   <span class="section-nav-list-title">Pipeline development lifecycle</span>
 
   <ul class="section-nav-list">
@@ -162,7 +162,7 @@
     <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
   </ul>
 </li>
-<li class="section-nav-item--collapsible">
+<li>
   <span class="section-nav-list-title">Beam programming guide</span>
 
   <ul class="section-nav-list">
@@ -205,8 +205,18 @@
 
       <ul class="section-nav-list">
         <li><a href="/documentation/programming-guide/#pipeline-io">Using I/O transforms</a></li>
-        <li><a href="/documentation/io/built-in/">Built-in I/O transforms</a></li>
-        <li><a href="/documentation/io/authoring-overview/">Authoring new I/O transforms</a></li>
+        <li><a href="/documentation/io/built-in/">Built-in I/O connectors</a></li>
+
+        <li class="section-nav-item--collapsible">
+           <span class="section-nav-list-title">Developing new I/O connectors</span>
+
+          <ul class="section-nav-list">
+           <li><a href="/documentation/io/developing-io-overview/">Overview: Developing connectors</a></li>
+           <li><a href="/documentation/io/developing-io-java/">Developing connectors (Java)</a></li>
+           <li><a href="/documentation/io/developing-io-python/">Developing connectors (Python)</a></li>
+          </ul>
+        </li>
+
         <li><a href="/documentation/io/testing/">Testing I/O transforms</a></li>
       </ul>
     </li>
@@ -2347,7 +2357,7 @@ want your pipeline to output its result data to an external storage system.
 Beam provides read and write transforms for a <a href="/documentation/io/built-in/">number of common data storage
 types</a>. If you want your pipeline
 to read from or write to a data storage format that isn’t supported by the
-built-in transforms, you can <a href="/documentation/io/io-toc/">implement your own read and write
+built-in transforms, you can <a href="/documentation/io/developing-io-overview/">implement your own read and write
 transforms</a>.</p>
 
 <h3 id="pipeline-io-reading-data">5.1. Reading input data</h3>

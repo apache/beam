@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<html lang="en">
+  <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apache Beam: Developing I/O connectors for Java</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/io/developing-io-java/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">Languages</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/roadmap/">Roadmap</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li>
+          <a href="/community/contact-us/">Community</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+        <li>
+          <!--
+            data-proofer-ignore disables link checking from website test automation.
+            GitHub links will not resolve until the markdown source is available on the master branch.
+            New pages would fail validation during development / PR test automation.
+          -->
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/io/developing-io-java.md" data-proofer-ignore>
+            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
+          </a>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<li><span class="section-nav-list-main-title">Documentation</span></li>
+<li><a href="/documentation">Using the Documentation</a></li>
+<li><a href="/documentation/execution-model">Beam Execution Model</a></li>
+<li>
+  <span class="section-nav-list-title">Pipeline development lifecycle</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
+    <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
+    <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Beam programming guide</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/documentation/programming-guide/">Overview</a></li>
+    <li><a href="/documentation/programming-guide/#creating-a-pipeline">Pipelines</a></li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">PCollections</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#pcollections">Creating a PCollection</a></li>
+        <li><a href="/documentation/programming-guide/#pcollection-characteristics">PCollection characteristics</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Transforms</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#applying-transforms">Applying transforms</a></li>
+        <li>
+          <span class="section-nav-list-title">Core Beam transforms</span>
+
+          <ul class="section-nav-list">
+            <li><a href="/documentation/programming-guide/#pardo">ParDo</a></li>
+            <li><a href="/documentation/programming-guide/#groupbykey">GroupByKey</a></li>
+            <li><a href="/documentation/programming-guide/#cogroupbykey">CoGroupByKey</a></li>
+            <li><a href="/documentation/programming-guide/#combine">Combine</a></li>
+            <li><a href="/documentation/programming-guide/#flatten">Flatten</a></li>
+            <li><a href="/documentation/programming-guide/#partition">Partition</a></li>
+          </ul>
+        </li>
+
+        <li><a href="/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms">Requirements for user code</a></li>
+        <li><a href="/documentation/programming-guide/#side-inputs">Side inputs</a></li>
+        <li><a href="/documentation/programming-guide/#additional-outputs">Additional outputs</a></li>
+        <li><a href="/documentation/programming-guide/#composite-transforms">Composite transforms</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Pipeline I/O</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#pipeline-io">Using I/O transforms</a></li>
+        <li><a href="/documentation/io/built-in/">Built-in I/O connectors</a></li>
+
+        <li class="section-nav-item--collapsible">
+           <span class="section-nav-list-title">Developing new I/O connectors</span>
+
+          <ul class="section-nav-list">
+           <li><a href="/documentation/io/developing-io-overview/">Overview: Developing connectors</a></li>
+           <li><a href="/documentation/io/developing-io-java/">Developing connectors (Java)</a></li>
+           <li><a href="/documentation/io/developing-io-python/">Developing connectors (Python)</a></li>
+          </ul>
+        </li>
+
+        <li><a href="/documentation/io/testing/">Testing I/O transforms</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Data encoding and type safety</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#data-encoding-and-type-safety">Data encoding basics</a></li>
+        <li><a href="/documentation/programming-guide/#specifying-coders">Specifying coders</a></li>
+        <li><a href="/documentation/programming-guide/#default-coders-and-the-coderregistry">Default coders and the CoderRegistry</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Windowing</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#windowing">Windowing basics</a></li>
+        <li><a href="/documentation/programming-guide/#provided-windowing-functions">Provided windowing functions</a></li>
+        <li><a href="/documentation/programming-guide/#setting-your-pcollections-windowing-function">Setting your PCollection’s windowing function</a></li>
+        <li><a href="/documentation/programming-guide/#watermarks-and-late-data">Watermarks and late data</a></li>
+        <li><a href="/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements">Adding timestamps to a PCollection’s elements</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Triggers</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#triggers">Trigger basics</a></li>
+        <li><a href="/documentation/programming-guide/#event-time-triggers">Event time triggers and the default trigger</a></li>
+        <li><a href="/documentation/programming-guide/#processing-time-triggers">Processing time triggers</a></li>
+        <li><a href="/documentation/programming-guide/#data-driven-triggers">Data-driven triggers</a></li>
+        <li><a href="/documentation/programming-guide/#setting-a-trigger">Setting a trigger</a></li>
+        <li><a href="/documentation/programming-guide/#composite-triggers">Composite triggers</a></li>
+      </ul>
+    </li>
+  </ul>
+</li>
+<li class="section-nav-item--collapsible">
+  <span class="section-nav-list-title">Learning Resources</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/documentation/resources/learning-resources/#getting-started">Getting Started</a></li>
+    <li><a href="/documentation/resources/learning-resources/#articles">Articles</a></li>
+    <li><a href="/documentation/resources/learning-resources/#interactive-labs">Interactive Labs</a></li>
+    <li><a href="/documentation/resources/learning-resources/#code-examples">Code Examples</a></li>
+    <li><a href="/documentation/resources/learning-resources/#api-reference">API Reference</a></li>
+    <li><a href="/documentation/resources/learning-resources/#feedback-and-suggestions">Feedback and Suggestions</a></li>
+    <li><a href="/documentation/resources/learning-resources/#how-to-contribute">How to Contribute</a></li>
+    <li><a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts</a></li>
+  </ul>
+</li>
+<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki</a></li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+
+
+<ul class="nav">
+  <li><a href="#basic-code-reqs">Basic code requirements</a></li>
+  <li><a href="#implementing-the-source-interface">Implementing the Source interface</a>
+    <ul>
+      <li><a href="#implementing-the-source-subclass">Implementing the Source subclass</a></li>
+      <li><a href="#implementing-the-reader-subclass">Implementing the Reader subclass</a></li>
+      <li><a href="#convenience-source-and-reader-base-classes">Convenience Source and Reader base classes</a></li>
+    </ul>
+  </li>
+  <li><a href="#using-filebasedsink">Using the FileBasedSink abstraction</a></li>
+  <li><a href="#ptransform-wrappers">PTransform wrappers</a></li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<h1 id="developing-io-connectors-for-java">Developing I/O connectors for Java</h1>
+
+<p>To connect to a data store that isn’t supported by Beam’s existing I/O
+connectors, you must create a custom I/O connector that usually consist of a
+source and a sink. All Beam sources and sinks are composite transforms; however,
+the implementation of your custom I/O depends on your use case. Before you
+start, read the
+<a href="/documentation/io/developing-io-overview/">new I/O connector overview</a>
+for an overview of developing a new I/O connector, the available implementation
+options, and how to choose the right option for your use case.</p>
+
+<p>This guide covers using the <code class="highlighter-rouge">Source</code> and <code class="highlighter-rouge">FileBasedSink</code> interfaces using Java.
+The Python SDK offers the same functionality, but uses a slightly different API.
+See <a href="/documentation/io/developing-io-python/">Developing I/O connectors for Python</a>
+for information specific to the Python SDK.</p>
+
+<h2 id="basic-code-reqs">Basic code requirements</h2>
+
+<p>Beam runners use the classes you provide to read and/or write data using
+multiple worker instances in parallel. As such, the code you provide for
+<code class="highlighter-rouge">Source</code> and <code class="highlighter-rouge">FileBasedSink</code> subclasses must meet some basic requirements:</p>
+
+<ol>
+  <li>
+    <p><strong>Serializability:</strong> Your <code class="highlighter-rouge">Source</code> or <code class="highlighter-rouge">FileBasedSink</code> subclass, whether
+bounded or unbounded, must be Serializable. A runner might create multiple
+instances of your <code class="highlighter-rouge">Source</code> or <code class="highlighter-rouge">FileBasedSink</code> subclass to be sent to
+multiple remote workers to facilitate reading or writing in parallel.</p>
+  </li>
+  <li>
+    <p><strong>Immutability:</strong>
+Your <code class="highlighter-rouge">Source</code> or <code class="highlighter-rouge">FileBasedSink</code> subclass must be effectively immutable.
+All private fields must be declared final, and all private variables of
+collection type must be effectively immutable. If your class has setter
+methods, those methods must return an independent copy of the object with
+the relevant field modified.</p>
+
+    <p>You should only use mutable state in your <code class="highlighter-rouge">Source</code> or <code class="highlighter-rouge">FileBasedSink</code>
+subclass if you are using lazy evaluation of expensive computations that
+you need to implement the source or sink; in that case, you must declare
+all mutable instance variables transient.</p>
+  </li>
+  <li>
+    <p><strong>Thread-Safety:</strong> Your code must be thread-safe. If you build your source
+to work with dynamic work rebalancing, it is critical that you make your
+code thread-safe. The Beam SDK provides a helper class to make this easier.
+See <a href="#bounded-dynamic">Using Your BoundedSource with dynamic work rebalancing</a>
+for more details.</p>
+  </li>
+  <li>
+    <p><strong>Testability:</strong> It is critical to exhaustively unit test all of your
+<code class="highlighter-rouge">Source</code> and <code class="highlighter-rouge">FileBasedSink</code> subclasses, especially if you build your
+classes to work with advanced features such as dynamic work rebalancing. A
+minor implementation error can lead to data corruption or data loss (such
+as skipping or duplicating records) that can be hard to detect.</p>
+
+    <p>To assist in testing <code class="highlighter-rouge">BoundedSource</code> implementations, you can use the
+SourceTestUtils class. <code class="highlighter-rouge">SourceTestUtils</code> contains utilities for automatically
+verifying some of the properties of your <code class="highlighter-rouge">BoundedSource</code> implementation. You
+can use <code class="highlighter-rouge">SourceTestUtils</code> to increase your implementation’s test coverage
+using a wide range of inputs with relatively few lines of code. For
+examples that use <code class="highlighter-rouge">SourceTestUtils</code>, see the
+<a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/io/AvroSourceTest.java">AvroSourceTest</a> and
+<a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOReadTest.java">TextIOReadTest</a>
+source code.</p>
+  </li>
+</ol>
+
+<p>In addition, see the <a href="/contribute/ptransform-style-guide/">PTransform style guide</a>
+for Beam’s transform style guidance.</p>
+
+<h2 id="implementing-the-source-interface">Implementing the Source interface</h2>
+
+<p>To create a data source for your pipeline, you must provide the format-specific
+logic that tells a runner how to read data from your input source, and how to
+split your data source into multiple parts so that multiple worker instances can
+read your data in parallel. If you’re creating a data source that reads
+unbounded data, you must provide additional logic for managing your source’s
+watermark and optional checkpointing.</p>
+
+<p>Supply the logic for your source by creating the following classes:</p>
+
+<ul>
+  <li>
+    <p>A subclass of <code class="highlighter-rouge">BoundedSource</code> if you want to read a finite (batch) data set,
+or a subclass of <code class="highlighter-rouge">UnboundedSource</code> if you want to read an infinite (streaming)
+data set. These subclasses describe the data you want to read, including the
+data’s location and parameters (such as how much data to read).</p>
+  </li>
+  <li>
+    <p>A subclass of <code class="highlighter-rouge">Source.Reader</code>. Each Source must have an associated Reader that
+captures all the state involved in reading from that <code class="highlighter-rouge">Source</code>. This can
+include things like file handles, RPC connections, and other parameters that
+depend on the specific requirements of the data format you want to read.</p>
+  </li>
+  <li>
+    <p>The <code class="highlighter-rouge">Reader</code> class hierarchy mirrors the Source hierarchy. If you’re extending
+<code class="highlighter-rouge">BoundedSource</code>, you’ll need to provide an associated <code class="highlighter-rouge">BoundedReader</code>. if you’re
+extending <code class="highlighter-rouge">UnboundedSource</code>, you’ll need to provide an associated
+<code class="highlighter-rouge">UnboundedReader</code>.</p>
+  </li>
+  <li>
+    <p>One or more user-facing wrapper composite transforms (<code class="highlighter-rouge">PTransform</code>) that
+wrap read operations. <a href="#ptransform-wrappers">PTransform wrappers</a> discusses
+why you should avoid exposing your sources.</p>
+  </li>
+</ul>
+
+<h3 id="implementing-the-source-subclass">Implementing the Source subclass</h3>
+
+<p>You must create a subclass of either <code class="highlighter-rouge">BoundedSource</code> or <code class="highlighter-rouge">UnboundedSource</code>,
+depending on whether your data is a finite batch or an infinite stream. In
+either case, your <code class="highlighter-rouge">Source</code> subclass must override the abstract methods in the
+superclass. A runner might call these methods when using your data source. For
+example, when reading from a bounded source, a runner uses these methods to
+estimate the size of your data set and to split it up for parallel reading.</p>
+
+<p>Your <code class="highlighter-rouge">Source</code> subclass should also manage basic information about your data
+source, such as the location. For example, the example <code class="highlighter-rouge">Source</code> implementation
+in Beam’s <a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/gcp/datastore/DatastoreIO.html">DatastoreIO</a>
+class takes host, datasetID, and query as arguments. The connector uses these
+values to obtain data from Cloud Datastore.</p>
+
+<h4 id="boundedsource">BoundedSource</h4>
+
+<p><code class="highlighter-rouge">BoundedSource</code> represents a finite data set from which a Beam runner may read,
+possibly in parallel. <code class="highlighter-rouge">BoundedSource</code> contains a set of abstract methods that
+the runner uses to split the data set for reading by multiple workers.</p>
+
+<p>To implement a <code class="highlighter-rouge">BoundedSource</code>, your subclass must override the following
+abstract methods:</p>
+
+<ul>
+  <li>
+    <p><code class="highlighter-rouge">split</code>: The runner uses this method to split your finite data
+into bundles of a given size.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">getEstimatedSizeBytes</code>: The runner uses this method to estimate the total
+size of your data, in bytes.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">createReader</code>: Creates the associated <code class="highlighter-rouge">BoundedReader</code> for this
+<code class="highlighter-rouge">BoundedSource</code>.</p>
+  </li>
+</ul>
+
+<p>You can see a model of how to implement <code class="highlighter-rouge">BoundedSource</code> and the required
+abstract methods in Beam’s implementations for Cloud BigTable
+(<a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.java">BigtableIO.java</a>)
+and BigQuery (<a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQuerySourceBase.java">BigQuerySourceBase.java</a>).</p>
+
+<h4 id="unboundedsource">UnboundedSource</h4>
+
+<p><code class="highlighter-rouge">UnboundedSource</code> represents an infinite data stream from which the runner may
+read, possibly in parallel. <code class="highlighter-rouge">UnboundedSource</code> contains a set of abstract methods
+that the runner uses to support streaming reads in parallel; these include
+<em>checkpointing</em> for failure recovery, <em>record IDs</em> to prevent data duplication,
+and <em>watermarking</em> for estimating data completeness in downstream parts of your
+pipeline.</p>
+
+<p>To implement an <code class="highlighter-rouge">UnboundedSource</code>, your subclass must override the following
+abstract methods:</p>
+
+<ul>
+  <li>
+    <p><code class="highlighter-rouge">split</code>: The runner uses this method to generate a list of
+<code class="highlighter-rouge">UnboundedSource</code> objects which represent the number of sub-stream instances
+from which the service should read in parallel.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">getCheckpointMarkCoder</code>: The runner uses this method to obtain the Coder for
+the checkpoints for your source (if any).</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">requiresDeduping</code>: The runner uses this method to determine whether the data
+requires explicit removal of duplicate records. If this method returns true,
+the runner will automatically insert a step to remove duplicates from your
+source’s output.  This should return true if and only if your source
+provides record IDs for each record. See <code class="highlighter-rouge">UnboundedReader.getCurrentRecordId</code>
+for when this should be done.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">createReader</code>: Creates the associated <code class="highlighter-rouge">UnboundedReader</code> for this
+<code class="highlighter-rouge">UnboundedSource</code>.</p>
+  </li>
+</ul>
+
+<h3 id="implementing-the-reader-subclass">Implementing the Reader subclass</h3>
+
+<p>You must create a subclass of either <code class="highlighter-rouge">BoundedReader</code> or <code class="highlighter-rouge">UnboundedReader</code> to be
+returned by your source subclass’s <code class="highlighter-rouge">createReader</code> method. The runner uses the
+methods in your <code class="highlighter-rouge">Reader</code> (whether bounded or unbounded) to do the actual reading
+of your dataset.</p>
+
+<p><code class="highlighter-rouge">BoundedReader</code> and <code class="highlighter-rouge">UnboundedReader</code> have similar basic interfaces, which
+you’ll need to define. In addition, there are some additional methods unique to
+<code class="highlighter-rouge">UnboundedReader</code> that you’ll need to implement for working with unbounded data,
+and an optional method you can implement if you want your <code class="highlighter-rouge">BoundedReader</code> to
+take advantage of dynamic work rebalancing. There are also minor differences in
+the semantics for the <code class="highlighter-rouge">start()</code> and <code class="highlighter-rouge">advance()</code> methods when using
+<code class="highlighter-rouge">UnboundedReader</code>.</p>
+
+<h4 id="reader-methods-common-to-both-boundedreader-and-unboundedreader">Reader methods common to both BoundedReader and UnboundedReader</h4>
+
+<p>A runner uses the following methods to read data using <code class="highlighter-rouge">BoundedReader</code> or
+<code class="highlighter-rouge">UnboundedReader</code>:</p>
+
+<ul>
+  <li>
+    <p><code class="highlighter-rouge">start</code>: Initializes the <code class="highlighter-rouge">Reader</code> and advances to the first record to be read.
+This method is called exactly once when the runner begins reading your data,
+and is a good place to put expensive operations needed for initialization.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">advance</code>: Advances the reader to the next valid record. This method must
+return false if there is no more input available. <code class="highlighter-rouge">BoundedReader</code> should stop
+reading once advance returns false, but <code class="highlighter-rouge">UnboundedReader</code> can return true in
+future calls once more data is available from your stream.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">getCurrent</code>: Returns the data record at the current position, last read by
+start or advance.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">getCurrentTimestamp</code>: Returns the timestamp for the current data record. You
+only need to override <code class="highlighter-rouge">getCurrentTimestamp</code> if your source reads data that has
+intrinsic timestamps. The runner uses this value to set the intrinsic
+timestamp for each element in the resulting output <code class="highlighter-rouge">PCollection</code>.</p>
+  </li>
+</ul>
+
+<h4 id="reader-methods-unique-to-unboundedreader">Reader methods unique to UnboundedReader</h4>
+
+<p>In addition to the basic <code class="highlighter-rouge">Reader</code> interface, <code class="highlighter-rouge">UnboundedReader</code> has some
+additional methods for managing reads from an unbounded data source:</p>
+
+<ul>
+  <li>
+    <p><code class="highlighter-rouge">getCurrentRecordId</code>: Returns a unique identifier for the current record.
+The runner uses these record IDs to filter out duplicate records. If your
+data has logical IDs present in each record, you can have this method return
+them; otherwise, you can return a hash of the record contents, using at
+least a 128-bit hash. It is incorrect to use Java’s <code class="highlighter-rouge">Object.hashCode()</code>, as
+a 32-bit hash is generally insufficient for preventing collisions, and
+<code class="highlighter-rouge">hasCode()</code> is not guaranteed to be stable across processes.</p>
+
+    <p>Implementing <code class="highlighter-rouge">getCurrentRecordId</code> is optional if your source uses a
+checkpointing scheme that uniquely identifies each record. For example, if
+your splits are files and the checkpoints are file positions up to which all
+data has been read, you do not need record IDs. However, record IDs can
+still be useful if upstream systems writing data to your source occasionally
+produce duplicate records that your source might then read.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">getWatermark</code>: Returns a watermark that your <code class="highlighter-rouge">Reader</code> provides. The watermark
+is the approximate lower bound on timestamps of future elements to be read
+by your <code class="highlighter-rouge">Reader</code>. The runner uses the watermark as an estimate of data
+completeness. Watermarks are used in windowing and triggers.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">getCheckpointMark</code>: The runner uses this method to create a checkpoint in
+your data stream. The checkpoint represents the progress of the
+<code class="highlighter-rouge">UnboundedReader</code>, which can be used for failure recovery. Different data
+streams may use different checkpointing methods; some sources might require
+received records to be acknowledged, while others might use positional
+checkpointing. You’ll need to tailor this method to the most appropriate
+checkpointing scheme. For example, you might have this method return the
+most recently acked record(s).</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">getCheckpointMark</code> is optional; you don’t need to implement it if your data
+does not have meaningful checkpoints. However, if you choose not to
+implement checkpointing in your source, you may encounter duplicate data or
+data loss in your pipeline, depending on whether your data source tries to
+re-send records in case of errors.</p>
+  </li>
+</ul>
+
+<p>You can read a bounded <code class="highlighter-rouge">PCollection</code> from an <code class="highlighter-rouge">UnboundedSource</code> by specifying
+either <code class="highlighter-rouge">.withMaxNumRecords</code> or <code class="highlighter-rouge">.withMaxReadTime</code> when you read from your
+source.  <code class="highlighter-rouge">.withMaxNumRecords</code> reads a fixed maximum number of records from your
+unbounded source, while <code class="highlighter-rouge">.withMaxReadTime</code> reads from your unbounded source for
+a fixed maximum time duration.</p>
+
+<h4 id="bounded-dynamic">Using your BoundedSource with dynamic work rebalancing</h4>
+
+<p>If your source provides bounded data, you can have your <code class="highlighter-rouge">BoundedReader</code> work
+with dynamic work rebalancing by implementing the method <code class="highlighter-rouge">splitAtFraction</code>. The
+runner may call <code class="highlighter-rouge">splitAtFraction</code> concurrently with start or advance on a given
+reader so that the remaining data in your <code class="highlighter-rouge">Source</code> can be split and
+redistributed to other workers.</p>
+
+<p>When you implement <code class="highlighter-rouge">splitAtFraction</code>, your code must produce a
+mutually-exclusive set of splits where the union of those splits matches the
+total data set.</p>
+
+<p>If you implement <code class="highlighter-rouge">splitAtFraction</code>, you must implement both <code class="highlighter-rouge">splitAtFraction</code>
+and <code class="highlighter-rouge">getFractionConsumed</code> in a thread-safe manner, or data loss is possible. You
+should also unit-test your implementation exhaustively to avoid data duplication
+or data loss.</p>
+
+<p>To ensure that your code is thread-safe, use the <code class="highlighter-rouge">RangeTracker</code> thread-safe
+helper object to manage positions in your data source when implementing
+<code class="highlighter-rouge">splitAtFraction</code> and <code class="highlighter-rouge">getFractionConsumed</code>.</p>
+
+<p>We highly recommended that you unit test your implementations of
+<code class="highlighter-rouge">splitAtFraction</code> using the <code class="highlighter-rouge">SourceTestUtils</code> class. <code class="highlighter-rouge">SourceTestUtils</code> contains
+a number of methods for testing your implementation of <code class="highlighter-rouge">splitAtFraction</code>,
+including exhaustive automatic testing.</p>
+
+<h3 id="convenience-source-and-reader-base-classes">Convenience Source and Reader base classes</h3>
+
+<p>The Beam SDK contains some convenient abstract base classes to help you create
+<code class="highlighter-rouge">Source</code> and <code class="highlighter-rouge">Reader</code> classes that work with common data storage formats, like
+files.</p>
+
+<h4 id="filebasedsource">FileBasedSource</h4>
+
+<p>If your data source uses files, you can derive your <code class="highlighter-rouge">Source</code> and <code class="highlighter-rouge">Reader</code>
+classes from the <code class="highlighter-rouge">FileBasedSource</code> and <code class="highlighter-rouge">FileBasedReader</code> abstract base classes.
+<code class="highlighter-rouge">FileBasedSource</code> is a bounded source subclass that implements code common to
+Beam sources that interact with files, including:</p>
+
+<ul>
+  <li>File pattern expansion</li>
+  <li>Sequential record reading</li>
+  <li>Split points</li>
+</ul>
+
+<h2 id="using-filebasedsink">Using the FileBasedSink abstraction</h2>
+
+<p>If your data source uses files, you can implement the <code class="highlighter-rouge">FileBasedSink</code>
+abstraction to create a file-based sink. For other sinks, use <code class="highlighter-rouge">ParDo</code>,
+<code class="highlighter-rouge">GroupByKey</code>, and other transforms offered by the Beam SDK for Java. See the
+<a href="/documentation/io/developing-io-overview/">developing I/O connectors overview</a>
+for more details.</p>
+
+<p>When using the <code class="highlighter-rouge">FileBasedSink</code> interface, you must provide the format-specific
+logic that tells the runner how to write bounded data from your pipeline’s
+<code class="highlighter-rouge">PCollection</code>s to an output sink. The runner writes bundles of data in parallel
+using multiple workers.</p>
+
+<p>Supply the logic for your file-based sink by implementing the following classes:</p>
+
+<ul>
+  <li>
+    <p>A subclass of the abstract base class <code class="highlighter-rouge">FileBasedSink</code>. <code class="highlighter-rouge">FileBasedSink</code>
+describes a location or resource that your pipeline can write to in
+parallel. To avoid exposing your sink to end-users, your <code class="highlighter-rouge">FileBasedSink</code>
+subclass should be protected or private.</p>
+  </li>
+  <li>
+    <p>A user-facing wrapper <code class="highlighter-rouge">PTransform</code> that, as part of the logic, calls
+<a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/WriteFiles.java">WriteFiles</a>
+and passes your <code class="highlighter-rouge">FileBasedSink</code> as a parameter. A user should not need to
+call <code class="highlighter-rouge">WriteFiles</code> directly.</p>
+  </li>
+</ul>
+
+<p>The <code class="highlighter-rouge">FileBasedSink</code> abstract base class implements code that is common to Beam
+sinks that interact with files, including:</p>
+
+<ul>
+  <li>Setting file headers and footers</li>
+  <li>Sequential record writing</li>
+  <li>Setting the output MIME type</li>
+</ul>
+
+<p><code class="highlighter-rouge">FileBasedSink</code> and its subclasses support writing files to any Beam-supported
+<code class="highlighter-rouge">FileSystem</code> implementations. See the following Beam-provided <code class="highlighter-rouge">FileBasedSink</code>
+implementations for examples:</p>
+
+<ul>
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextSink.java">TextSink</a> and</li>
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/AvroSink.java">AvroSink</a>.</li>
+</ul>
+
+<h2 id="ptransform-wrappers">PTransform wrappers</h2>
+
+<p>When you create a source or sink that end-users will use, avoid exposing your
+source or sink code. To avoid exposing your sources and sinks to end-users, your
+new classes should be protected or private. Then, implement a user-facing
+wrapper <code class="highlighter-rouge">PTransform</code>. By exposing your source or sink as a transform, your
+implementation is hidden and can be arbitrarily complex or simple. The greatest
+benefit of not exposing implementation details is that later on, you can add
+additional functionality without breaking the existing implementation for users.</p>
+
+<p>For example, if your users’ pipelines read from your source using
+<code class="highlighter-rouge">read</code> and you want to insert a reshard into the pipeline, all
+users would need to add the reshard themselves (using the <code class="highlighter-rouge">GroupByKey</code>
+transform). To solve this, we recommended that you expose the source as a
+composite <code class="highlighter-rouge">PTransform</code> that performs both the read operation and the reshard.</p>
+
+<p>See Beam’s <a href="/contribute/ptransform-style-guide/#exposing-a-ptransform-vs-something-else">PTransform style guide</a>
+for additional information about wrapping with a <code class="highlighter-rouge">PTransform</code>.</p>
+
+
+      </div>
+    </div>
+    <!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+-->
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>

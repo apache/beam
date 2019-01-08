@@ -566,7 +566,7 @@ and &lt;a href=&quot;https://spark.apache.org/docs/latest/api/java/org/apache/sp
    &lt;/td&gt;
    &lt;td&gt;Custom receivers
    &lt;/td&gt;
-   &lt;td&gt;&lt;a href=&quot;/documentation/io/authoring-overview/#read-transforms&quot;&gt;Read Transforms&lt;/a&gt;
+   &lt;td&gt;&lt;a href=&quot;/documentation/io/developing-io-overview/&quot;&gt;Read Transforms&lt;/a&gt;
    &lt;/td&gt;
    &lt;td&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/streaming-custom-receivers.html&quot;&gt;receiverStream&lt;/a&gt;
    &lt;/td&gt;
