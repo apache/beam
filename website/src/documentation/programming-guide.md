@@ -1756,7 +1756,7 @@ Beam provides read and write transforms for a [number of common data storage
 types]({{ site.baseurl }}/documentation/io/built-in/). If you want your pipeline
 to read from or write to a data storage format that isn't supported by the
 built-in transforms, you can [implement your own read and write
-transforms]({{site.baseurl }}/documentation/io/io-toc/).
+transforms]({{site.baseurl }}/documentation/io/developing-io-overview/).
 
 ### 5.1. Reading input data {#pipeline-io-reading-data}
 

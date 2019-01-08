@@ -115,7 +115,7 @@ and <a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/stre
    </td>
    <td>Custom receivers
    </td>
-   <td><a href="{{ site.baseurl }}/documentation/io/authoring-overview/#read-transforms">Read Transforms</a>
+   <td><a href="{{ site.baseurl }}/documentation/io/developing-io-overview/">Read Transforms</a>
    </td>
    <td><a href="https://spark.apache.org/docs/latest/streaming-custom-receivers.html">receiverStream</a>
    </td>
