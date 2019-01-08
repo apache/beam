@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.empty;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
@@ -51,6 +52,13 @@ public class PTransformTest implements Serializable {
         };
     DisplayData displayData = DisplayData.from(transform);
     assertThat(displayData.items(), empty());
+  }
+
+  @Test
+  public void testNamedCompose() {
+    PTransform<PCollection<Integer>, PCollection<Integer>> composed =
+        PTransform.compose("MyName", (PCollection<Integer> numbers) -> numbers);
+    assertEquals("MyName", composed.name);
   }
 
   @Test

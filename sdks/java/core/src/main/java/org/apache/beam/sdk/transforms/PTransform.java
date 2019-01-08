@@ -319,4 +319,16 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
       }
     };
   }
+
+  /** Like {@link #compose(SerializableFunction)}, but with a custom name. */
+  @Experimental
+  public static <InputT extends PInput, OutputT extends POutput>
+      PTransform<InputT, OutputT> compose(String name, SerializableFunction<InputT, OutputT> fn) {
+    return new PTransform<InputT, OutputT>(name) {
+      @Override
+      public OutputT expand(InputT input) {
+        return fn.apply(input);
+      }
+    };
+  }
 }
