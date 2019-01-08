@@ -38,6 +38,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -399,5 +400,50 @@ public class JdbcIOTest implements Serializable {
                     }));
 
     pipeline.run();
+  }
+  @Test
+  public void testWriteWithValueProvider() throws Exception {
+    final long rowsToAdd = 1000L;
+
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    DatabaseTestHelper.createTable(dataSource, tableName);
+    try {
+      ArrayList<KV<Integer, String>> data = new ArrayList<>();
+      for (int i = 0; i < rowsToAdd; i++) {
+        KV<Integer, String> kv = KV.of(i, "Test");
+        data.add(kv);
+      }
+      pipeline
+          .apply(Create.of(data))
+          .apply(
+              JdbcIO.<KV<Integer, String>>write()
+                  .withDataSourceConfiguration(
+                      JdbcIO.DataSourceConfiguration.create(
+                          "org.apache.derby.jdbc.ClientDriver",
+                          "jdbc:derby://localhost:" + port + "/target/beam"))
+                  .withStatement(ValueProvider.StaticValueProvider.of(
+                                    String.format("insert into %s values(?, ?)", tableName)))
+                  .withBatchSize(10L)
+                  .withPreparedStatementSetter(
+                      (element, statement) -> {
+                        statement.setInt(1, element.getKey());
+                        statement.setString(2, element.getValue());
+                      }));
+
+      pipeline.run();
+
+      try (Connection connection = dataSource.getConnection()) {
+        try (Statement statement = connection.createStatement()) {
+          try (ResultSet resultSet = statement.executeQuery("select count(*) from " + tableName)) {
+            resultSet.next();
+            int count = resultSet.getInt(1);
+
+            Assert.assertEquals(EXPECTED_ROW_COUNT, count);
+          }
+        }
+      }
+    } finally {
+      DatabaseTestHelper.deleteTable(dataSource, tableName);
+    }
   }
 }
