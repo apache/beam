@@ -39,6 +39,9 @@ import org.joda.time.Instant;
  */
 public class DatasetSourceMockBatch implements DataSourceV2, ReadSupport {
 
+  private DatasetSourceMockBatch() {
+  }
+
   @Override public DataSourceReader createReader(DataSourceOptions options) {
     return new DatasetReader();
   }
