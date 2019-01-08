@@ -367,7 +367,8 @@ has: 2
 * Learn more about the [Beam SDK for Java]({{ site.baseurl }}/documentation/sdks/java/)
   and look through the [Java SDK API reference](https://beam.apache.org/releases/javadoc).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
-* Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
+* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
+* Dive in to some of our favorite [Videos and Podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!
