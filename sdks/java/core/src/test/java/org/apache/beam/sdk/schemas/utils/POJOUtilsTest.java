@@ -238,32 +238,4 @@ public class POJOUtilsTest {
     assertArrayEquals("not equal", BYTE_ARRAY, pojo.bytes1);
     assertEquals(BYTE_BUFFER, pojo.bytes2);
   }
-
-  static class Foo {
-    private final int field1;
-    private final String field2;
-
-    public Foo(int field1, String field2) {
-      this.field1 = field1;
-      this.field2 = field2;
-    }
-
-    @Override
-    public String toString() {
-      return "Foo{" + "field1=" + field1 + ", field2='" + field2 + '\'' + '}';
-    }
-  }
-
-  private static final Unsafe UNSAFE;
-
-  static {
-    try {
-      Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
-      theUnsafe.setAccessible(true);
-      UNSAFE = (Unsafe) theUnsafe.get(null);
-      // It seems not all Unsafe implementations implement the following method.
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
 }
