@@ -27,8 +27,21 @@ apply plugin: 'ca.coglinc.javacc'
 description = "Apache Beam :: SDKs :: Java :: IO :: ClickHouse"
 ext.summary = "IO to write to ClickHouse (https://clickhouse.yandex)."
 
+// Match the output directory for generated code with the package, to be more tool-friendly
+def generatedJavaccSourceDir = "${project.buildDir}/generated/javacc"
+def generatedJavaccPackageDir =
+        "${generatedJavaccSourceDir}/org/apache/beam/sdk/io/clickhouse/impl/parser"
 compileJavacc {
+  outputDirectory = file(generatedJavaccPackageDir)
   arguments = [static: "false"]
+}
+
+// Help IntelliJ finding generated code
+idea {
+  module {
+    sourceDirs += file(generatedJavaccSourceDir)
+    generatedSourceDirs += file(generatedJavaccSourceDir)
+  }
 }
 
 def clickhouse_jdbc_version = "0.1.47"
