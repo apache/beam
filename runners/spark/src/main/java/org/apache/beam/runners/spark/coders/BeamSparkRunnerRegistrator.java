@@ -31,12 +31,13 @@ import org.apache.spark.serializer.KryoRegistrator;
 import scala.collection.mutable.WrappedArray;
 
 /**
- * <p>Custom {@link KryoRegistrator}s for Beam's Spark runner needs and registering used class in spark
- * translation for better serialization performance. This is not the default serialization mechanism.
+ * Custom {@link KryoRegistrator}s for Beam's Spark runner needs and registering used class in spark
+ * translation for better serialization performance. This is not the default serialization
+ * mechanism.
  *
  * <p>To use it you must enable the Kryo based serializer using {@code spark.serializer} with value
- * {@code org.apache.spark.serializer.KryoSerializer} and register this class via Spark
- * {@code spark.kryo.registrator} configuration.
+ * {@code org.apache.spark.serializer.KryoSerializer} and register this class via Spark {@code
+ * spark.kryo.registrator} configuration.
  */
 public class BeamSparkRunnerRegistrator implements KryoRegistrator {
 

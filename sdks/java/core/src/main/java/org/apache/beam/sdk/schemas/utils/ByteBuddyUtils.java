@@ -99,7 +99,7 @@ class ByteBuddyUtils {
 
     private final String targetPackage;
 
-    InjectPackageStrategy(Class<?> baseType) {
+    public InjectPackageStrategy(Class<?> baseType) {
       randomString = new RandomString();
       this.targetPackage = baseType.getPackage().getName();
     }
