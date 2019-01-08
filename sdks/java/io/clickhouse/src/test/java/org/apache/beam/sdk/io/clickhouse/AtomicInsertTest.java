@@ -49,15 +49,20 @@ import org.junit.runners.JUnit4;
 public class AtomicInsertTest extends BaseClickHouseTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
+  private static final int MIN_ATTEMPTS = 2;
+  private static final int MAX_ATTEMPTS = 20; // should be enough to succeed at least once
+
+  private static boolean shouldAttempt(int i, long count) {
+    return i < MIN_ATTEMPTS || (count == 0 && i < MAX_ATTEMPTS);
+  }
+
   /** With sufficient block size, ClickHouse will atomically insert all or nothing. */
   @Test
   public void testAtomicInsert() throws SQLException {
     int size = 1000000;
-    int tryLimit = 10;
-
     int done = 0;
 
-    // this statement fails with 60% chance for 1M batch size
+    // inserts to such table fail with 60% chance for 1M batch size
     executeSql(
         "CREATE TABLE test_atomic_insert ("
             + "  f0 Int64, "
@@ -72,19 +77,18 @@ public class AtomicInsertTest extends BaseClickHouseTest {
         .apply(
             ClickHouseIO.<Row>write(clickHouse.getJdbcUrl(), "test_atomic_insert")
                 .withMaxInsertBlockSize(size)
-                .withMaxCumulativeBackoff(Duration.millis(1L))
-                .withMaxRetries(tryLimit));
+                .withInitialBackoff(Duration.millis(1))
+                .withMaxRetries(2));
 
-    // give it a chance to fail
-    done += safeRun() ? 1 : 0;
-    done += safeRun() ? 1 : 0;
-    done += safeRun() ? 1 : 0;
-
-    long count = executeQueryAsLong("SELECT COUNT(*) FROM test_atomic_insert");
+    long count = 0L;
+    for (int i = 0; shouldAttempt(i, count); i++) {
+      done += safeRun() ? 1 : 0;
+      count = executeQueryAsLong("SELECT COUNT(*) FROM test_atomic_insert");
+    }
 
     // each insert is atomic, so we get exactly done * size elements
     assertEquals(((long) done) * size, count);
-    assertTrue(count > 0L); // at least one should succeed
+    assertTrue("insert didn't succeed after " + MAX_ATTEMPTS + " attempts", count > 0L);
   }
 
   /**
@@ -94,9 +98,8 @@ public class AtomicInsertTest extends BaseClickHouseTest {
   @Test
   public void testIdempotentInsert() throws SQLException {
     int size = 1000000;
-    int tryLimit = 10;
 
-    // this statement fails with 60% chance for 1M batch size
+    // inserts to such table fail with 60% chance for 1M batch size
     executeSql(
         "CREATE TABLE test_idempotent_insert ("
             + "  f0 Int64, "
@@ -107,23 +110,23 @@ public class AtomicInsertTest extends BaseClickHouseTest {
             + "ORDER BY (f0)");
 
     pipeline
+        // make sure we get one big bundle
         .apply(RangeBundle.of(size))
         .apply(
             ClickHouseIO.<Row>write(clickHouse.getJdbcUrl(), "test_idempotent_insert")
                 .withMaxInsertBlockSize(size)
-                .withMaxCumulativeBackoff(Duration.millis(1L))
-                .withMaxRetries(tryLimit));
+                .withInitialBackoff(Duration.millis(1))
+                .withMaxRetries(2));
 
-    // give it a chance to fail
-    safeRun();
-    safeRun();
-    safeRun();
-
-    long count = executeQueryAsLong("SELECT COUNT(*) FROM test_idempotent_insert");
+    long count = 0L;
+    for (int i = 0; shouldAttempt(i, count); i++) {
+      safeRun();
+      count = executeQueryAsLong("SELECT COUNT(*) FROM test_idempotent_insert");
+    }
 
     // inserts should be deduplicated, so we get exactly `size` elements
     assertEquals(size, count);
-    assertTrue(count > 0L); // at least one should succeed
+    assertTrue("insert didn't succeed after " + MAX_ATTEMPTS + " attempts", count > 0L);
   }
 
   private static class RangeBundle extends PTransform<PBegin, PCollection<Row>> {
