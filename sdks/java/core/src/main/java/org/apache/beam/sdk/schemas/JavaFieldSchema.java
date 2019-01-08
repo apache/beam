@@ -32,7 +32,6 @@ import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.POJOUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
-import org.apache.beam.sdk.schemas.utils.StaticSchemaInference;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -89,11 +88,6 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
         }
       }
       return types;
-    }
-
-    @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
-      return StaticSchemaInference.sortBySchema(get(clazz), schema);
     }
   }
 

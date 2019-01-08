@@ -31,7 +31,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -53,7 +52,6 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
-import sun.misc.Unsafe;
 
 /** Tests for the {@link POJOUtils} class. */
 public class POJOUtilsTest {

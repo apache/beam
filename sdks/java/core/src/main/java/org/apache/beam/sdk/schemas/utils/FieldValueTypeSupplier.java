@@ -36,5 +36,7 @@ public interface FieldValueTypeSupplier extends Serializable {
    * <p>If the schema parameter is not null, then the returned list must be in the same order as
    * fields in the schema.
    */
-  List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema);
+  default List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+    return StaticSchemaInference.sortBySchema(get(clazz), schema);
+  }
 }

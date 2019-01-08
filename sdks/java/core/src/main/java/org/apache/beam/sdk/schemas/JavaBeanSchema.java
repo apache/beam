@@ -29,7 +29,6 @@ import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
-import org.apache.beam.sdk.schemas.utils.StaticSchemaInference;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -66,11 +65,6 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
               })
           .collect(Collectors.toList());
     }
-
-    @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
-      return StaticSchemaInference.sortBySchema(get(clazz), schema);
-    }
   }
 
   /** {@link FieldValueTypeSupplier} that's based on setter methods. */
@@ -86,11 +80,6 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
           .map(FieldValueTypeInformation::forSetter)
           .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
-      return StaticSchemaInference.sortBySchema(get(clazz), schema);
     }
   }
 

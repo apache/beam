@@ -355,11 +355,6 @@ public class AvroUtils {
       }
       return Lists.newArrayList(types.values());
     }
-
-    @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
-      return StaticSchemaInference.sortBySchema(get(clazz), schema);
-    }
   }
 
   /** Get field types for an AVRO-generated SpecificRecord or a POJO. */

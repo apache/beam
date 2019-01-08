@@ -284,7 +284,7 @@ public class JavaBeanUtils {
         | NoSuchMethodException
         | InvocationTargetException e) {
       throw new RuntimeException(
-          "Unable to generate a creator for class " + clazz + " with schema " + schema);
+          "Unable to generate a creator for " + clazz + " with schema " + schema);
     }
   }
 
