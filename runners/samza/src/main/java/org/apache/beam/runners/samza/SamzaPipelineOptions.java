@@ -21,16 +21,25 @@ import java.util.Map;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.samza.config.ConfigFactory;
+import org.apache.samza.config.factories.PropertiesConfigFactory;
 
 /** Options which can be used to configure a Samza PipelineRunner. */
 public interface SamzaPipelineOptions extends PipelineOptions {
 
   @Description(
-      "The config for Samza using a properties file. It is *optional*. "
+      "The config file for Samza. It is *optional*. By default Samza supports properties config."
           + "Without a config file, Samza uses a default config for local execution.")
   String getConfigFilePath();
 
   void setConfigFilePath(String filePath);
+
+  @Description(
+      "The factory to read config file from config file path.")
+  @Default.Class(PropertiesConfigFactory.class)
+  Class<? extends ConfigFactory> getConfigFactory();
+
+  void setConfigFactory(Class<? extends ConfigFactory> configFactory);
 
   @Description(
       "The config override to set programmatically. It will be applied on "

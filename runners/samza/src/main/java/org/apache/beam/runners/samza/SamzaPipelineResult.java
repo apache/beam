@@ -19,14 +19,13 @@ package org.apache.beam.runners.samza;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.job.ApplicationStatus;
 import org.apache.samza.runtime.ApplicationRunner;
-import org.apache.samza.runtime.LocalApplicationRunner;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,40 +51,34 @@ public class SamzaPipelineResult implements PipelineResult {
   }
 
   @Override
-  public State cancel() throws IOException {
+  public State cancel() {
     runner.kill(app);
-
-    //TODO: runner.waitForFinish() after SAMZA-1653 done
-    return getState();
+    return waitUntilFinish();
   }
 
   @Override
-  public State waitUntilFinish(Duration duration) {
-    //TODO: SAMZA-1653
-    throw new UnsupportedOperationException(
-        "waitUntilFinish(duration) is not supported by the SamzaRunner");
+  public State waitUntilFinish(@Nullable  Duration duration) {
+    try {
+      if (duration == null) {
+        runner.waitForFinish();
+      } else {
+        runner.waitForFinish(java.time.Duration.ofMillis(duration.getMillis()));
+      }
+    } catch (Exception e) {
+      throw new Pipeline.PipelineExecutionException(e);
+    }
+
+    final StateInfo stateInfo = getStateInfo();
+    if (stateInfo.state == State.FAILED) {
+      throw stateInfo.error;
+    }
+
+    return stateInfo.state;
   }
 
   @Override
   public State waitUntilFinish() {
-    if (runner instanceof LocalApplicationRunner) {
-      try {
-        ((LocalApplicationRunner) runner).waitForFinish();
-      } catch (Exception e) {
-        throw new Pipeline.PipelineExecutionException(e);
-      }
-
-      final StateInfo stateInfo = getStateInfo();
-      if (stateInfo.state == State.FAILED) {
-        throw stateInfo.error;
-      }
-
-      return stateInfo.state;
-    } else {
-      // TODO: SAMZA-1653 support waitForFinish in remote runner too
-      throw new UnsupportedOperationException(
-          "waitUntilFinish is not supported by the SamzaRunner when running remotely");
-    }
+    return waitUntilFinish(null);
   }
 
   @Override
