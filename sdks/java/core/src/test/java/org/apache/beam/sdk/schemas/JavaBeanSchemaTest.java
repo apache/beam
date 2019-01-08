@@ -269,7 +269,6 @@ public class JavaBeanSchemaTest {
     Row row1 = createSimpleRow("string1");
     Row row2 = createSimpleRow("string2");
     Row row3 = createSimpleRow("string3");
-    ;
 
     Row row = Row.withSchema(NESTED_ARRAY_BEAN_SCHEMA).addArray(row1, row2, row3).build();
     NestedArrayBean bean = registry.getFromRowFunction(NestedArrayBean.class).apply(row);
