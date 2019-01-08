@@ -32,6 +32,7 @@ import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
+import org.apache.samza.config.ConfigFactory;
 import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.JobCoordinatorConfig;
 import org.apache.samza.config.MapConfig;
@@ -73,13 +74,6 @@ public class ConfigBuilder {
       config.put(
           "beamPipelineOptions",
           Base64Serializer.serializeUnchecked(new SerializablePipelineOptions(options)));
-      // TODO: remove after SAMZA-1531 is resolved
-      config.put(
-          ApplicationConfig.APP_RUN_ID,
-          String.valueOf(System.currentTimeMillis())
-              + "-"
-              // use the most significant bits in UUID (8 digits) to avoid collision
-              + UUID.randomUUID().toString().substring(0, 8));
 
       return new MapConfig(config);
     } catch (Exception e) {
@@ -87,16 +81,21 @@ public class ConfigBuilder {
     }
   }
 
-  private static Map<String, String> createUserConfig(SamzaPipelineOptions options) {
+  private static Map<String, String> createUserConfig(SamzaPipelineOptions options) throws Exception {
     final String configFilePath = options.getConfigFilePath();
     final Map<String, String> config = new HashMap<>();
 
     // If user provides a config file, use it as base configs.
     if (StringUtils.isNoneEmpty(configFilePath)) {
       final File configFile = new File(configFilePath);
-      checkArgument(configFile.exists(), "Config file %s does not exist", configFilePath);
-      final PropertiesConfigFactory configFactory = new PropertiesConfigFactory();
       final URI configUri = configFile.toURI();
+      final ConfigFactory configFactory = options.getConfigFactory().getDeclaredConstructor().newInstance();
+
+      // Config file must exist for default properties config
+      if (configFactory instanceof PropertiesConfigFactory) {
+        checkArgument(configFile.exists(), "Config file %s does not exist", configFilePath);
+      }
+
       config.putAll(configFactory.getConfig(configUri));
     }
 
@@ -127,6 +126,12 @@ public class ConfigBuilder {
         .put(TaskConfig.GROUPER_FACTORY(), SingleContainerGrouperFactory.class.getName())
         .put(TaskConfig.COMMIT_MS(), "-1")
         .put("processor.id", "1")
+        .put(
+            // TODO: remove after SAMZA-1531 is resolved
+            ApplicationConfig.APP_RUN_ID,
+            String.valueOf(System.currentTimeMillis()) + "-"
+            // use the most significant bits in UUID (8 digits) to avoid collision
+            + UUID.randomUUID().toString().substring(0, 8))
         .build();
   }
 
