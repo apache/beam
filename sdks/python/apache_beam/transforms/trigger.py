@@ -283,6 +283,9 @@ class DefaultTrigger(TriggerFn):
 class AfterProcessingTime(TriggerFn):
   """Fire exactly once after a specified delay from processing time.
 
+  Args:
+      delay: How long to delay a trigger. Specified in milliseconds.
+      
   AfterProcessingTime is experimental. No backwards compatibility guarantees.
   """
 
