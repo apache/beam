@@ -690,7 +690,7 @@ public class JdbcIO {
     abstract DataSourceConfiguration getDataSourceConfiguration();
 
     @Nullable
-    abstract String getStatement();
+    abstract ValueProvider<String> getStatement();
 
     abstract long getBatchSize();
 
@@ -706,7 +706,7 @@ public class JdbcIO {
     abstract static class Builder<T> {
       abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
 
-      abstract Builder<T> setStatement(String statement);
+      abstract Builder<T> setStatement(ValueProvider<String> statement);
 
       abstract Builder<T> setBatchSize(long batchSize);
 
@@ -722,6 +722,9 @@ public class JdbcIO {
     }
 
     public Write<T> withStatement(String statement) {
+      return toBuilder().setStatement(ValueProvider.StaticValueProvider.of(statement)).build();
+    }
+    public Write<T> withStatement(ValueProvider<String> statement) {
       return toBuilder().setStatement(statement).build();
     }
 
@@ -789,7 +792,7 @@ public class JdbcIO {
       public void startBundle() throws Exception {
         connection = dataSource.getConnection();
         connection.setAutoCommit(false);
-        preparedStatement = connection.prepareStatement(spec.getStatement());
+        preparedStatement = connection.prepareStatement(spec.getStatement().get());
       }
 
       @ProcessElement
@@ -835,7 +838,7 @@ public class JdbcIO {
         BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
         while (true) {
           try (PreparedStatement preparedStatement =
-              connection.prepareStatement(spec.getStatement())) {
+              connection.prepareStatement(spec.getStatement().get())) {
             try {
               // add each record in the statement batch
               for (T record : records) {
