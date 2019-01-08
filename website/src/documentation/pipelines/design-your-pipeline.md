@@ -214,7 +214,7 @@ PCollection<KV<String, CoGbkResult>> joinedCollection =
                        .and(orderTag, userOrder)
                        .apply(CoGroupByKey.<String>create());
 
-coGbkResultCollection.apply(...);
+joinedCollection.apply(...);
 ```
 
 ## What's next
