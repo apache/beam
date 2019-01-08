@@ -28,8 +28,6 @@ def mainClass = project.findProperty(mainClassProperty)
 // When running via Gradle, this property can be used to pass commandline arguments
 // to the nexmark launch
 def loadTestArgsProperty = "loadTest.args"
-def loadTestArgs = project.hasProperty(loadTestArgsProperty) ?
-        project.getProperty(loadTestArgsProperty).split() : []
 
 // When running via Gradle, this property sets the runner dependency
 def runnerProperty = "runner"
@@ -38,6 +36,16 @@ def runnerDependency = (project.hasProperty(runnerProperty)
         : ":beam-runners-direct-java")
 
 def shouldProvideSpark = ":beam-runners-spark".equals(runnerDependency)
+def isDataflowRunner = ":beam-runners-google-cloud-dataflow-java".equals(runnerDependency)
+
+if (isDataflowRunner) {
+  /*
+   * We need to rely on manually specifying these evaluationDependsOn to ensure that
+   * the following projects are evaluated before we evaluate this project. This is because
+   * we are attempting to reference a property from the project directly.
+   */
+  evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+}
 
 configurations {
   // A configuration for running the Load testlauncher directly from Gradle, which
@@ -75,8 +83,22 @@ if (shouldProvideSpark) {
 }
 
 task run(type: JavaExec) {
+  def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
+
+  if (isDataflowRunner) {
+    dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+    // Provide job with a customizable worker jar.
+    // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
+    // More context and discussions can be found in PR#6694.
+    loadTestArgs = loadTestArgs +
+            " --dataflowWorkerJar=${dataflowWorkerJar} " +
+            " --workerHarnessContainerImage="
+  }
+
   main = mainClass
   classpath = configurations.gradleRun
-  args loadTestArgs
+  args loadTestArgs.split()
 }
 
