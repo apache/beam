@@ -36,7 +36,7 @@ import org.apache.spark.sql.SparkSession;
 class ReadSourceTranslatorStreaming<T>
     implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
 
-  private String SOURCEPROVIDERCLASS = DatasetSourceStreaming.class.getCanonicalName();
+  private static String sourceProviderClass = DatasetSourceStreaming.class.getCanonicalName();
 
   @SuppressWarnings("unchecked")
   @Override
@@ -55,7 +55,7 @@ class ReadSourceTranslatorStreaming<T>
     }
     SparkSession sparkSession = context.getSparkSession();
 
-    Dataset<Row> rowDataset = sparkSession.readStream().format(SOURCEPROVIDERCLASS).load();
+    Dataset<Row> rowDataset = sparkSession.readStream().format(sourceProviderClass).load();
 
     //TODO pass the source and the translation context serialized as string to the DatasetSource
     MapFunction<Row, WindowedValue> func = new MapFunction<Row, WindowedValue>() {
