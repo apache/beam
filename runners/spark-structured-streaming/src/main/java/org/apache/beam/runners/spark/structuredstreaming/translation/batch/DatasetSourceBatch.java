@@ -38,6 +38,9 @@ import org.apache.spark.sql.sources.v2.ReadSupport;
 import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
 import org.apache.spark.sql.sources.v2.reader.InputPartition;
 import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
 /**
@@ -94,7 +97,11 @@ public class DatasetSourceBatch<T> implements DataSourceV2, ReadSupport {
 
     @Override
     public StructType readSchema() {
-      return new StructType();
+      StructField[] array = new StructField[1];
+      StructField dummyStructField = StructField
+          .apply("dummyStructField", DataTypes.NullType, true, Metadata.empty());
+      array[0] = dummyStructField;
+      return new StructType(array);
     }
 
     @Override
