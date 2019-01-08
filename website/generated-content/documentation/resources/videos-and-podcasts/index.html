@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Learn about Beam</title>
+  <title>Videos and Podcasts</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/resources/videos-and-podcasts/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/index.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/resources/videos-and-podcasts.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -280,15 +280,27 @@
 
 
 <ul class="nav">
-  <li><a href="#concepts">Concepts</a></li>
-  <li><a href="#pipeline-fundamentals">Pipeline Fundamentals</a></li>
-  <li><a href="#sdks">SDKs</a></li>
-  <li><a href="#runners">Runners</a>
+  <li><a href="#general">General</a>
     <ul>
-      <li><a href="#available-runners">Available Runners</a></li>
-      <li><a href="#choosing-a-runner">Choosing a Runner</a></li>
+      <li><a href="#fundamentals-of-stream-processing-with-apache-beam">Fundamentals of Stream Processing with Apache Beam</a></li>
+      <li><a href="#apache-beam-a-unified-model-for-batch-and-streaming-data-processing">Apache Beam: A Unified Model for Batch and Streaming Data Processing</a></li>
+      <li><a href="#fundamentals-of-stream-processing-with-apache-beam-1">Fundamentals of Stream Processing with Apache Beam</a></li>
+      <li><a href="#software-engineering-radio-podcast-episode-272-apache-beam">Software Engineering Radio Podcast Episode 272: Apache Beam</a></li>
     </ul>
   </li>
+  <li><a href="#beam--friends">Beam &amp; Friends</a>
+    <ul>
+      <li><a href="#flink-and-beam-current-state--roadmap">Flink and Beam: Current State &amp; Roadmap</a></li>
+      <li><a href="#lessons-learned-from-developing-a-stream-processing-platform-at-scale">Lessons learned from developing a stream processing platform at scale</a></li>
+    </ul>
+  </li>
+  <li><a href="#technical-details">Technical Details</a>
+    <ul>
+      <li><a href="#watermarks-time-and-progress-in-apache-beam-and-beyond">Watermarks: Time and Progress in Apache Beam and Beyond</a></li>
+      <li><a href="#triggers-in-apache-beam">Triggers in Apache Beam</a></li>
+    </ul>
+  </li>
+  <li><a href="#next-steps">Next Steps</a></li>
 </ul>
 
 
@@ -308,60 +320,117 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+<h1 id="videos-and-podcasts">Videos and Podcasts</h1>
 
-<h1 id="apache-beam-documentation">Apache Beam Documentation</h1>
+<p>This page provides links to some of our favorite videos and podcasts that will help you get started and learn more about Apache Beam.</p>
 
-<p>This section provides in-depth conceptual information and reference material for the Beam Model, SDKs, and Runners:</p>
-
-<h2 id="concepts">Concepts</h2>
-
-<p>Learn about the Beam Programming Model and the concepts common to all Beam SDKs and Runners.</p>
-
-<ul>
-  <li>The <a href="/documentation/programming-guide/">Programming Guide</a> introduces all the key Beam concepts.</li>
-  <li>Learn about Beam’s <a href="/documentation/execution-model/">execution model</a> to better understand how pipelines execute.</li>
-  <li>Visit <a href="/documentation/resources/learning-resources">Learning Resources</a> for some of our favorite articles and talks about Beam.</li>
+<ul id="markdown-toc">
+  <li><a href="#general" id="markdown-toc-general">General</a>    <ul>
+      <li><a href="#fundamentals-of-stream-processing-with-apache-beam" id="markdown-toc-fundamentals-of-stream-processing-with-apache-beam">Fundamentals of Stream Processing with Apache Beam</a></li>
+      <li><a href="#apache-beam-a-unified-model-for-batch-and-streaming-data-processing" id="markdown-toc-apache-beam-a-unified-model-for-batch-and-streaming-data-processing">Apache Beam: A Unified Model for Batch and Streaming Data Processing</a></li>
+      <li><a href="#fundamentals-of-stream-processing-with-apache-beam-1" id="markdown-toc-fundamentals-of-stream-processing-with-apache-beam-1">Fundamentals of Stream Processing with Apache Beam</a></li>
+      <li><a href="#software-engineering-radio-podcast-episode-272-apache-beam" id="markdown-toc-software-engineering-radio-podcast-episode-272-apache-beam">Software Engineering Radio Podcast Episode 272: Apache Beam</a></li>
+    </ul>
+  </li>
+  <li><a href="#beam--friends" id="markdown-toc-beam--friends">Beam &amp; Friends</a>    <ul>
+      <li><a href="#flink-and-beam-current-state--roadmap" id="markdown-toc-flink-and-beam-current-state--roadmap">Flink and Beam: Current State &amp; Roadmap</a></li>
+      <li><a href="#lessons-learned-from-developing-a-stream-processing-platform-at-scale" id="markdown-toc-lessons-learned-from-developing-a-stream-processing-platform-at-scale">Lessons learned from developing a stream processing platform at scale</a></li>
+    </ul>
+  </li>
+  <li><a href="#technical-details" id="markdown-toc-technical-details">Technical Details</a>    <ul>
+      <li><a href="#watermarks-time-and-progress-in-apache-beam-and-beyond" id="markdown-toc-watermarks-time-and-progress-in-apache-beam-and-beyond">Watermarks: Time and Progress in Apache Beam and Beyond</a></li>
+      <li><a href="#triggers-in-apache-beam" id="markdown-toc-triggers-in-apache-beam">Triggers in Apache Beam</a></li>
+    </ul>
+  </li>
+  <li><a href="#next-steps" id="markdown-toc-next-steps">Next Steps</a></li>
 </ul>
 
-<h2 id="pipeline-fundamentals">Pipeline Fundamentals</h2>
+<h2 id="general">General</h2>
+
+<p>The following resources provide general overviews and fundamentals of Apache Beam.</p>
+
+<h3 id="fundamentals-of-stream-processing-with-apache-beam">Fundamentals of Stream Processing with Apache Beam</h3>
+
+<p>Data Science Summit, Jerusalem, 2016</p>
+
+<p>Presented by Tyler Akidau, <em>Apache Beam PPMC member</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/V35MwYcXEX0" frameborder="0" allowfullscreen=""></iframe>
+<p><br /></p>
+
+<h3 id="apache-beam-a-unified-model-for-batch-and-streaming-data-processing">Apache Beam: A Unified Model for Batch and Streaming Data Processing</h3>
+
+<p>Hadoop Summit, San Jose, CA, 2016</p>
+
+<p>Presented by Davor Bonaci, <em>Apache Beam PPMC member</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/7DZ8ONmeP5A" frameborder="0" allowfullscreen=""></iframe>
+<p><br /></p>
+
+<h3 id="fundamentals-of-stream-processing-with-apache-beam-1">Fundamentals of Stream Processing with Apache Beam</h3>
+
+<p>@Scale Conference, San Jose, CA, 2016</p>
+
+<p>Presented by Dan Halperin, <em>Apache Beam PPMC member</em></p>
+
+<iframe src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&amp;show_text=0&amp;width=560" width="560" height="315" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowtransparency="true" allowfullscreen="true"></iframe>
+<p><br /></p>
+
+<h3 id="software-engineering-radio-podcast-episode-272-apache-beam">Software Engineering Radio Podcast Episode 272: Apache Beam</h3>
+
+<p>Presented by Frances Perry, <em>Apache Beam PPMC member</em></p>
+
+<p><a href="http://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank"><img src="/images/resources/se-radio-podcast.png" alt="alt text" /></a>
+<br /></p>
+
+<h2 id="beam--friends">Beam &amp; Friends</h2>
+
+<p>The following resources present Apache Beam partnerships.</p>
+
+<h3 id="flink-and-beam-current-state--roadmap">Flink and Beam: Current State &amp; Roadmap</h3>
+
+<p>Flink Forward, Berlin, 2016</p>
+
+<p>Presented by Maximilian Michels, <em>Apache Beam PPMC member</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/msdjh6KRXC8" frameborder="0" allowfullscreen=""></iframe>
+<p><br /></p>
+
+<h3 id="lessons-learned-from-developing-a-stream-processing-platform-at-scale">Lessons learned from developing a stream processing platform at scale</h3>
+
+<p>Big Things Meetup, Tel Aviv, 2016</p>
+
+<p>By Amit Sela, <em>Apache Beam PPMC member</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/fc-YigLn_gs" frameborder="0" allowfullscreen=""></iframe>
+<p><br /></p>
+
+<h2 id="technical-details">Technical Details</h2>
+
+<p>The following resources provide detailed explanations about technical concepts in Apache Beam.</p>
+
+<h3 id="watermarks-time-and-progress-in-apache-beam-and-beyond">Watermarks: Time and Progress in Apache Beam and Beyond</h3>
+
+<p>Strata+Hadoop World, New York, 2016</p>
+
+<p>Presented by Slava Chernyak, <em>Software Engineer at Google</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/TWxSLmkWPm4" frameborder="0" allowfullscreen=""></iframe>
+<p><br /></p>
+
+<h3 id="triggers-in-apache-beam">Triggers in Apache Beam</h3>
+
+<p>Strata+Hadoop World, New York, 2016</p>
+
+<p>Presented by Kenneth Knowles, <em>Apache Beam PPMC member</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/E1k0B9LN46M" frameborder="0" allowfullscreen=""></iframe>
+
+<h2 id="next-steps">Next Steps</h2>
 
 <ul>
-  <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a> by planning your pipeline’s structure, choosing transforms to apply to your data, and determining your input and output methods.</li>
-  <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a> using the classes in the Beam SDKs.</li>
-  <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a> to minimize debugging a pipeline’s remote execution.</li>
+  <li>Take a self-paced tour through our <a href="/documentation/resources/learning-resources">Learning Resources</a>.</li>
 </ul>
-
-<h2 id="sdks">SDKs</h2>
-
-<p>Find status and reference information on all of the available Beam SDKs.</p>
-
-<ul>
-  <li><a href="/documentation/sdks/java/">Java SDK</a></li>
-  <li><a href="/documentation/sdks/python/">Python SDK</a></li>
-  <li><a href="/documentation/sdks/go/">Go SDK</a></li>
-</ul>
-
-<h2 id="runners">Runners</h2>
-
-<p>A Beam Runner runs a Beam pipeline on a specific (often distributed) data processing system.</p>
-
-<h3 id="available-runners">Available Runners</h3>
-
-<ul>
-  <li><a href="/documentation/runners/direct/">DirectRunner</a>: Runs locally on your machine – great for developing, testing, and debugging.</li>
-  <li><a href="/documentation/runners/apex/">ApexRunner</a>: Runs on <a href="http://apex.apache.org">Apache Apex</a>.</li>
-  <li><a href="/documentation/runners/flink/">FlinkRunner</a>: Runs on <a href="http://flink.apache.org">Apache Flink</a>.</li>
-  <li><a href="/documentation/runners/spark/">SparkRunner</a>: Runs on <a href="http://spark.apache.org">Apache Spark</a>.</li>
-  <li><a href="/documentation/runners/dataflow/">DataflowRunner</a>: Runs on <a href="https://cloud.google.com/dataflow">Google Cloud Dataflow</a>, a fully managed service within <a href="https://cloud.google.com/">Google Cloud Platform</a>.</li>
-  <li><a href="/documentation/runners/gearpump/">GearpumpRunner</a>: Runs on <a href="http://gearpump.apache.org">Apache Gearpump (incubating)</a>.</li>
-  <li><a href="/documentation/runners/samza/">SamzaRunner</a>: Runs on <a href="http://samza.apache.org">Apache Samza</a>.</li>
-</ul>
-
-<h3 id="choosing-a-runner">Choosing a Runner</h3>
-
-<p>Beam is designed to enable pipelines to be portable across different runners. However, given every runner has different capabilities, they also have different abilities to implement the core concepts in the Beam model. The <a href="/documentation/runners/capability-matrix/">Capability Matrix</a> provides a detailed comparison of runner functionality.</p>
-
-<p>Once you have chosen which runner to use, see that runner’s page for more information about any initial runner-specific setup as well as any required or optional <code class="highlighter-rouge">PipelineOptions</code> for configuring it’s execution. You may also want to refer back to the Quickstart for <a href="/get-started/quickstart-java">Java</a>, <a href="/get-started/quickstart-py">Python</a> or <a href="/get-started/quickstart-go">Go</a> for instructions on executing the sample WordCount pipeline.</p>
 
       </div>
     </div>
