@@ -146,16 +146,19 @@ public class TSAccumToFixedWindowSeq
                     if (LOG.isDebugEnabled()) {
 
                       LOG.info(
-                          "Created Sequence for time lower {} upper {} size {}",
+                          "Created Sequence for key {}  time lower {} upper {} size {}",
+                          c.element().getKey(),
                           Timestamps.toString(lowerFixedWindowBoundary),
                           Timestamps.toString(upperFixedWindowBoundary),
                           seq.getAccumsCount());
 
+                    }
+
+                    if(LOG.isTraceEnabled()){
                       for (TSAccum a : seq.getAccumsList()) {
                         LOG.info(TSAccums.getTSAccumKeyWithPrettyTimeBoundary(a));
                       }
                     }
-
                     c.output(KV.of(c.element().getKey(), seq.build()));
                   }
                 }));

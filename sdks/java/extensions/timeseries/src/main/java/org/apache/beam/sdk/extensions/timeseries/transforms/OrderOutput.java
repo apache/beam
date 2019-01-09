@@ -21,6 +21,7 @@ package org.apache.beam.sdk.extensions.timeseries.transforms;
 import static com.google.protobuf.util.Timestamps.toMillis;
 import static org.apache.beam.sdk.extensions.timeseries.utils.TSAccums.sortByUpperBoundary;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
@@ -227,6 +228,11 @@ public class OrderOutput
       // Sort the list and then add to processedTimeSeriesList
       addElementsToOrderedProcessQueue(c, processedTimeSeriesList, newElements);
 
+      LOG.debug("Timer Fire at {} Process Que size is {} last known value key {}  ",
+          c.timestamp(),
+          processedTimeSeriesList.read().size(),
+          Optional.ofNullable(lastKnownValue.read()).orElse(TSAccum.newBuilder().build()).getKey());
+
       // Clear the elements now that they have been processed
       newElementsBag.clear();
 
@@ -239,6 +245,8 @@ public class OrderOutput
       } else {
         currentTimerValue.clear();
       }
+
+
     }
   }
 
@@ -438,18 +446,22 @@ public class OrderOutput
       return;
     }
 
-    LOG.debug(
-        "Timer firing at {} with fresh elements starting {} ending {}, Size of newElements list {} ",
-        c.timestamp(),
-        TSAccums.getTSAccumKeyWithPrettyTimeBoundary(newElements.get(0)),
-        TSAccums.getTSAccumKeyWithPrettyTimeBoundary(newElements.get(newElements.size() - 1)),
-        newElements.size());
-
-
     List<TSAccum> accumList = processedTimeSeriesList.read();
 
     if (accumList == null) {
       accumList = new ArrayList<>();
+    }
+
+    if(LOG.isDebugEnabled()) {
+      sortByUpperBoundary(newElements);
+
+      LOG.info(
+          "Timer firing at {} with fresh elements starting {} ending {}, Size of newElements list {} size processed que {} processed que exists {}",
+          c.timestamp(), TSAccums.getTSAccumKeyWithPrettyTimeBoundary(newElements.get(0)),
+          TSAccums.getTSAccumKeyWithPrettyTimeBoundary(newElements.get(newElements.size() - 1)),
+          newElements.size(),
+          accumList.size(),
+          Optional.ofNullable(processedTimeSeriesList.read()).isPresent());
     }
 
     accumList.addAll(newElements);

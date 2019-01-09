@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.timeseries.utils;
 
 import static com.google.protobuf.util.Timestamps.compare;
 
+import com.google.common.primitives.Longs;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
@@ -84,16 +86,18 @@ public class TSAccumSequences {
             .putFeature(
                 LOWER_WINDOW_BOUNDARY,
                 Feature.newBuilder()
-                    .setFloatList(
-                        FloatList.newBuilder()
-                            .addValue(Timestamps.toMillis(sequence.getLowerWindowBoundary())))
+                    .setBytesList(
+                        BytesList.newBuilder()
+                            .addValue(ByteString.copyFromUtf8(Long.toString(
+                                Timestamps.toMillis(sequence.getLowerWindowBoundary())))))
                     .build())
             .putFeature(
                 UPPER_WINDOW_BOUNDARY,
                 Feature.newBuilder()
-                    .setFloatList(
-                        FloatList.newBuilder()
-                            .addValue(Timestamps.toMillis(sequence.getUpperWindowBoundary())))
+                    .setBytesList(
+                        BytesList.newBuilder()
+                            .addValue(ByteString.copyFromUtf8(Long.toString(
+                                Timestamps.toMillis(sequence.getUpperWindowBoundary())))))
                     .build()));
 
     FeatureList.Builder count = FeatureList.newBuilder();
@@ -122,6 +126,7 @@ public class TSAccumSequences {
       first.addFeature(TSDatas.tfFeatureFromTSDataPoint(accum.getDataAccum().getFirst().getData()));
       last.addFeature(TSDatas.tfFeatureFromTSDataPoint(accum.getDataAccum().getLast().getData()));
 
+      // If the key is seen for the first time in this time domain then set otherwise set to NaN
       if (accum.hasPreviousWindowValue()) {
         countPrev.addFeature(
             TSDatas.tfFeatureFromTSDataPoint(
@@ -146,6 +151,14 @@ public class TSAccumSequences {
         lastPrev.addFeature(
             TSDatas.tfFeatureFromTSDataPoint(
                 accum.getPreviousWindowValue().getDataAccum().getLast().getData()));
+      } else{
+
+        countPrev.addFeature(getFloatNaN());
+        sumPrev.addFeature(getFloatNaN());
+        minPrev.addFeature(getFloatNaN());
+        maxPrev.addFeature(getFloatNaN());
+        firstPrev.addFeature(getFloatNaN());
+        lastPrev.addFeature(getFloatNaN());
       }
     }
 
@@ -175,6 +188,9 @@ public class TSAccumSequences {
     return sequenceExample.build();
   }
 
+  public static Feature getFloatNaN() {
+    return Feature.newBuilder().setFloatList(FloatList.newBuilder().addValue(Float.NaN).build()).build();
+  }
   public static String postFixPrevWindowKey(String str) {
     return str + "_PREV";
   }
