@@ -55,6 +55,12 @@ public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions
 
   void setBigQueryTable(String tableName);
 
+  @Description("Timeout for a load test expressed in minutes")
+  @Default.Integer(60)
+  Integer getLoadTestTimeout();
+
+  void setLoadTestTimeout(Integer timeout);
+
   static <T extends LoadTestOptions> T readFromArgs(String[] args, Class<T> optionsClass) {
     return PipelineOptionsFactory.fromArgs(args).withValidation().as(optionsClass);
   }
