@@ -24,8 +24,6 @@ import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import com.google.api.client.util.ArrayMap;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CoderException;
