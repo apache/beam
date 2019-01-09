@@ -201,6 +201,11 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --temp_location gs://<your-gcs-bucket>/tmp/
 ```
 
+{:.runner-nemo}
+```
+This runner is not yet available for the Python SDK.
+```
+
 After the pipeline completes, you can view the output files at your specified
 output path. For example, if you specify `/dir1/counts` for the `--output`
 parameter, the pipeline writes the files to `/dir1/` and names the files
