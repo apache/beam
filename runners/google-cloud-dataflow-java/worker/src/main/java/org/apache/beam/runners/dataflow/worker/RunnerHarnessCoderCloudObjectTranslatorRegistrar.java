@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.util.InstanceBuilder;
 
@@ -60,6 +61,7 @@ public class RunnerHarnessCoderCloudObjectTranslatorRegistrar
         .put("kind:fixed_big_endian_int32", atomic(BigEndianIntegerCoder.class))
         .put("kind:fixed_big_endian_int64", atomic(BigEndianLongCoder.class))
         .put("kind:var_int32", atomic(VarIntCoder.class))
+        .put("kind:varint", atomic(VarLongCoder.class))
         .put("kind:void", atomic(VoidCoder.class))
         .build();
   }
