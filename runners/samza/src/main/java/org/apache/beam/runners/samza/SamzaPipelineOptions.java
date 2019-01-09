@@ -28,14 +28,14 @@ import org.apache.samza.config.factories.PropertiesConfigFactory;
 public interface SamzaPipelineOptions extends PipelineOptions {
 
   @Description(
-      "The config file for Samza. It is *optional*. "
+      "The config file for Samza. It is *optional*. By default Samza supports properties config."
           + "Without a config file, Samza uses a default config for local execution.")
   String getConfigFilePath();
 
   void setConfigFilePath(String filePath);
 
   @Description(
-      "The factory to read config file from config file path. ")
+      "The factory to read config file from config file path.")
   @Default.Class(PropertiesConfigFactory.class)
   Class<? extends ConfigFactory> getConfigFactory();
 
