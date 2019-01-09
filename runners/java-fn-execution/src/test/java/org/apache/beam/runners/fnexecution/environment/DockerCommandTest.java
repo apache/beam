@@ -57,12 +57,14 @@ public class DockerCommandTest {
         docker.runImage(
             "debian", ImmutableList.of(), ImmutableList.of("/bin/bash", "-c", "sleep 60"));
     Stopwatch stopwatch = Stopwatch.createStarted();
+    assertThat("Container should be running.", docker.isContainerRunning(container), is(true));
     docker.killContainer(container);
     long elapsedSec = stopwatch.elapsed(TimeUnit.SECONDS);
     assertThat(
         "Container termination should complete before image self-exits",
         elapsedSec,
         is(lessThan(60L)));
+    assertThat("Container should be terminated.", docker.isContainerRunning(container), is(false));
   }
 
   @Test

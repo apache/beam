@@ -96,6 +96,26 @@ class DockerCommand {
   }
 
   /**
+   * Check if the given container state is running.
+   *
+   * @param containerId Id of the container to check
+   */
+  public boolean isContainerRunning(String containerId)
+      throws IOException, TimeoutException, InterruptedException {
+    checkArgument(!containerId.isEmpty(), "Docker containerId required");
+    // TODO: Validate args?
+    return runShortCommand(
+            ImmutableList.<String>builder()
+                .add(dockerExecutable)
+                .add("inspect")
+                .add("-f")
+                .add("{{.State.Running}}")
+                .add(containerId)
+                .build())
+        .equalsIgnoreCase("true");
+  }
+
+  /**
    * Kills a docker container by container id.
    *
    * @throws IOException if an IOException occurs or if the given container id does not exist
