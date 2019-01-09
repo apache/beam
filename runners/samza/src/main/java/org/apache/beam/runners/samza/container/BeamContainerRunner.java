@@ -17,14 +17,36 @@
  */
 package org.apache.beam.runners.samza.container;
 
+import java.time.Duration;
+import org.apache.samza.application.StreamApplication;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.ShellCommandConfig;
+import org.apache.samza.job.ApplicationStatus;
 import org.apache.samza.runtime.LocalContainerRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Runs the beam Yarn container, using the static global job model. */
 public class BeamContainerRunner extends LocalContainerRunner {
+  private static final Logger LOG = LoggerFactory.getLogger(ContainerCfgFactory.class);
 
   public BeamContainerRunner(Config config) {
     super(ContainerCfgFactory.jobModel, System.getenv(ShellCommandConfig.ENV_CONTAINER_ID()));
+  }
+
+  @Override
+  public ApplicationStatus status(StreamApplication app) {
+    return ApplicationStatus.Running;
+  }
+
+  @Override
+  public void waitForFinish() {
+    LOG.info("Container has stopped");
+  }
+
+  @Override
+  public boolean waitForFinish(Duration timeout) {
+    LOG.info("Container has stopped");
+    return true;
   }
 }
