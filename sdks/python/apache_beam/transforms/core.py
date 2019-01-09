@@ -1335,16 +1335,18 @@ class CombinePerKey(PTransformWithSideInputs):
     aggregation.
 
     Args:
-      fanout: either an int, for a constant-degree fanout, or a callable
-          mapping keys to a key-specific degree of fanout
+      fanout: either None, for no fanout, an int, for a constant-degree fanout,
+          or a callable mapping keys to a key-specific degree of fanout.
 
     Returns:
       A per-key combining PTransform with the specified fanout.
     """
     from apache_beam.transforms.combiners import curry_combine_fn
-    return _CombinePerKeyWithHotKeyFanout(
-        curry_combine_fn(self.fn, self.args, self.kwargs),
-        fanout)
+    if fanout is None:
+      return self
+    else:
+      return _CombinePerKeyWithHotKeyFanout(
+          curry_combine_fn(self.fn, self.args, self.kwargs), fanout)
 
   def display_data(self):
     return {'combine_fn':
