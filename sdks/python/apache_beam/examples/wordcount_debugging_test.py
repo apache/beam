@@ -34,14 +34,14 @@ class WordCountTest(unittest.TestCase):
 
   def create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
+      f.write(contents.encode('utf-8'))
       return f.name
 
   def get_results(self, temp_path):
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
-        match = re.search(r'([A-Za-z]+): ([0-9]+)', line)
+        match = re.search(r'([A-Za-z]+): ([0-9]+)', line.decode('utf-8'))
         if match is not None:
           results.append((match.group(1), int(match.group(2))))
     return results
