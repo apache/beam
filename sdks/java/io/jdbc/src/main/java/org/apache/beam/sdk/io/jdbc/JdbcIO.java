@@ -268,10 +268,7 @@ public class JdbcIO {
     public static DataSourceConfiguration create(String driverClassName, String url) {
       checkArgument(driverClassName != null, "driverClassName can not be null");
       checkArgument(url != null, "url can not be null");
-      return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
-          .setDriverClassName(ValueProvider.StaticValueProvider.of(driverClassName))
-          .setUrl(ValueProvider.StaticValueProvider.of(url))
-          .build();
+      return create(ValueProvider.StaticValueProvider.of(driverClassName), ValueProvider.StaticValueProvider.of(url));
     }
 
     public static DataSourceConfiguration create(
@@ -285,7 +282,7 @@ public class JdbcIO {
     }
 
     public DataSourceConfiguration withUsername(String username) {
-      return builder().setUsername(ValueProvider.StaticValueProvider.of(username)).build();
+      return withUsername(ValueProvider.StaticValueProvider.of(username));
     }
 
     public DataSourceConfiguration withUsername(ValueProvider<String> username) {
@@ -293,7 +290,7 @@ public class JdbcIO {
     }
 
     public DataSourceConfiguration withPassword(String password) {
-      return builder().setPassword(ValueProvider.StaticValueProvider.of(password)).build();
+      return withPassword(ValueProvider.StaticValueProvider.of(password));
     }
 
     public DataSourceConfiguration withPassword(ValueProvider<String> password) {
@@ -309,9 +306,7 @@ public class JdbcIO {
      */
     public DataSourceConfiguration withConnectionProperties(String connectionProperties) {
       checkArgument(connectionProperties != null, "connectionProperties can not be null");
-      return builder()
-          .setConnectionProperties(ValueProvider.StaticValueProvider.of(connectionProperties))
-          .build();
+      return withConnectionProperties(ValueProvider.StaticValueProvider.of(connectionProperties));
     }
 
     /** Same as {@link #withConnectionProperties(String)} but accepting a ValueProvider. */
@@ -690,7 +685,7 @@ public class JdbcIO {
     abstract DataSourceConfiguration getDataSourceConfiguration();
 
     @Nullable
-    abstract String getStatement();
+    abstract ValueProvider<String> getStatement();
 
     abstract long getBatchSize();
 
@@ -706,7 +701,7 @@ public class JdbcIO {
     abstract static class Builder<T> {
       abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
 
-      abstract Builder<T> setStatement(String statement);
+      abstract Builder<T> setStatement(ValueProvider<String> statement);
 
       abstract Builder<T> setBatchSize(long batchSize);
 
@@ -722,6 +717,10 @@ public class JdbcIO {
     }
 
     public Write<T> withStatement(String statement) {
+      return withStatement(ValueProvider.StaticValueProvider.of(statement));
+    }
+
+    public Write<T> withStatement(ValueProvider<String> statement) {
       return toBuilder().setStatement(statement).build();
     }
 
@@ -789,7 +788,7 @@ public class JdbcIO {
       public void startBundle() throws Exception {
         connection = dataSource.getConnection();
         connection.setAutoCommit(false);
-        preparedStatement = connection.prepareStatement(spec.getStatement());
+        preparedStatement = connection.prepareStatement(spec.getStatement().get());
       }
 
       @ProcessElement
@@ -835,7 +834,7 @@ public class JdbcIO {
         BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
         while (true) {
           try (PreparedStatement preparedStatement =
-              connection.prepareStatement(spec.getStatement())) {
+              connection.prepareStatement(spec.getStatement().get())) {
             try {
               // add each record in the statement batch
               for (T record : records) {
