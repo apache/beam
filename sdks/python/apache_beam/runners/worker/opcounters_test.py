@@ -171,7 +171,8 @@ class OperationCountersTest(unittest.TestCase):
 
   @unittest.skipIf(sys.version_info[0] == 3 and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
+                   'This test does not pass for all random seeds on Python 3.'
+                   'TODO: BEAM-6395')
   def test_should_sample(self):
     # Order of magnitude more buckets than highest constant in code under test.
     buckets = [0] * 300
