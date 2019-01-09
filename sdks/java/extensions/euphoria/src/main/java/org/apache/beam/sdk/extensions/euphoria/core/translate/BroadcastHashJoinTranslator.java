@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import java.util.Collections;
@@ -54,7 +55,8 @@ public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
    * Used to prevent multiple views to the same input PCollection. And therefore multiple broadcasts
    * of the same data.
    */
-  private Table<PCollection<?>, UnaryFunction<?, KeyT>, PCollectionView<?>> pViews =
+  @VisibleForTesting
+  final Table<PCollection<?>, UnaryFunction<?, KeyT>, PCollectionView<?>> pViews =
       HashBasedTable.create();
 
   @Override
