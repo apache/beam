@@ -92,6 +92,8 @@ public class ConfigBuilder {
       final ConfigFactory configFactory = options.getConfigFactory().getDeclaredConstructor().newInstance();
 
       // Config file must exist for default properties config
+      // TODO: add check to all non-empty files once we don't need to
+      // pass the command-line args through the containers
       if (configFactory instanceof PropertiesConfigFactory) {
         checkArgument(configFile.exists(), "Config file %s does not exist", configFilePath);
       }
