@@ -19,6 +19,7 @@ package org.apache.beam.runners.samza;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -56,9 +57,13 @@ public class SamzaPipelineResult implements PipelineResult {
   }
 
   @Override
-  public State waitUntilFinish(Duration duration) {
+  public State waitUntilFinish(@Nullable  Duration duration) {
     try {
-      runner.waitForFinish(java.time.Duration.ofMillis(duration.getMillis()));
+      if (duration == null) {
+        runner.waitForFinish();
+      } else {
+        runner.waitForFinish(java.time.Duration.ofMillis(duration.getMillis()));
+      }
     } catch (Exception e) {
       throw new Pipeline.PipelineExecutionException(e);
     }
@@ -73,18 +78,7 @@ public class SamzaPipelineResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
-    try {
-      runner.waitForFinish();
-    } catch (Exception e) {
-      throw new Pipeline.PipelineExecutionException(e);
-    }
-
-    final StateInfo stateInfo = getStateInfo();
-    if (stateInfo.state == State.FAILED) {
-      throw stateInfo.error;
-    }
-
-    return stateInfo.state;
+    return waitUntilFinish(null);
   }
 
   @Override
