@@ -254,7 +254,7 @@ class _TextSource(filebasedsource.FileBasedSource):
       # array.
       next_lf = read_buffer.data.find(b'\n', current_pos)
       if next_lf >= 0:
-        if next_lf > 0 and read_buffer.data[next_lf - 1] == b'\r':
+        if next_lf > 0 and read_buffer.data[next_lf - 1:next_lf] == b'\r':
           # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
         else:

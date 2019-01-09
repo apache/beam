@@ -36,9 +36,6 @@ import apache_beam.io.source_test_utils as source_test_utils
 from apache_beam import coders
 from apache_beam.io import ReadAllFromText
 from apache_beam.io import iobase
-from apache_beam.io.filebasedsource_test import EOL
-from apache_beam.io.filebasedsource_test import write_data
-from apache_beam.io.filebasedsource_test import write_pattern
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.textio import _TextSink as TextSink
 from apache_beam.io.textio import _TextSource as TextSource
@@ -51,6 +48,85 @@ from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import Create
+
+
+class EOL(object):
+  LF = 1
+  CRLF = 2
+  MIXED = 3
+  LF_WITH_NOTHING_AT_LAST_LINE = 4
+
+
+def write_data(
+    num_lines, no_data=False, directory=None, prefix=tempfile.template,
+    eol=EOL.LF):
+  """Writes test data to a temporary file.
+
+  Args:
+    num_lines (int): The number of lines to write.
+    no_data (bool): If :data:`True`, empty lines will be written, otherwise
+      each line will contain a concatenation of b'line' and the line number.
+    directory (str): The name of the directory to create the temporary file in.
+    prefix (str): The prefix to use for the temporary file.
+    eol (int): The line ending to use when writing.
+      :class:`~apache_beam.io.textio_test.EOL` exposes attributes that can be
+      used here to define the eol.
+
+  Returns:
+    Tuple[str, List[str]]: A tuple of the filename and a list of the
+      utf-8 decoded written data.
+  """
+  all_data = []
+  with tempfile.NamedTemporaryFile(
+      delete=False, dir=directory, prefix=prefix) as f:
+    sep_values = [b'\n', b'\r\n']
+    for i in range(num_lines):
+      data = b'' if no_data else b'line' + str(i).encode()
+      all_data.append(data)
+
+      if eol == EOL.LF:
+        sep = sep_values[0]
+      elif eol == EOL.CRLF:
+        sep = sep_values[1]
+      elif eol == EOL.MIXED:
+        sep = sep_values[i % len(sep_values)]
+      elif eol == EOL.LF_WITH_NOTHING_AT_LAST_LINE:
+        sep = b'' if i == (num_lines - 1) else sep_values[0]
+      else:
+        raise ValueError('Received unknown value %s for eol.' % eol)
+
+      f.write(data + sep)
+
+    return f.name, [line.decode('utf-8') for line in all_data]
+
+
+def write_pattern(lines_per_file, no_data=False):
+  """Writes a pattern of temporary files.
+
+  Args:
+    lines_per_file (List[int]): The number of lines to write per file.
+    no_data (bool): If :data:`True`, empty lines will be written, otherwise
+      each line will contain a concatenation of b'line' and the line number.
+
+  Returns:
+    Tuple[str, List[str]]: A tuple of the filename pattern and a list of the
+      utf-8 decoded written data.
+  """
+  temp_dir = tempfile.mkdtemp()
+
+  all_data = []
+  file_name = None
+  start_index = 0
+  for i in range(len(lines_per_file)):
+    file_name, data = write_data(lines_per_file[i], no_data=no_data,
+                                 directory=temp_dir, prefix='mytemp')
+    all_data.extend(data)
+    start_index += lines_per_file[i]
+
+  assert file_name
+  return (
+      file_name[:file_name.rfind(os.path.sep)] + os.path.sep + 'mytemp*',
+      all_data)
 
 
 class TextSourceTest(unittest.TestCase):
@@ -144,7 +220,7 @@ class TextSourceTest(unittest.TestCase):
         eol=EOL.LF_WITH_NOTHING_AT_LAST_LINE)
 
     gzip_file_name = file_name + '.gz'
-    with open(file_name) as src, gzip.open(gzip_file_name, 'wb') as dst:
+    with open(file_name, 'rb') as src, gzip.open(gzip_file_name, 'wb') as dst:
       dst.writelines(src)
 
     assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
@@ -156,22 +232,19 @@ class TextSourceTest(unittest.TestCase):
         1, eol=EOL.LF_WITH_NOTHING_AT_LAST_LINE)
 
     gzip_file_name = file_name + '.gz'
-    with open(file_name) as src, gzip.open(gzip_file_name, 'wb') as dst:
+    with open(file_name, 'rb') as src, gzip.open(gzip_file_name, 'wb') as dst:
       dst.writelines(src)
 
     assert len(expected_data) == 1
     self._run_read_test(gzip_file_name, expected_data,
                         compression=CompressionTypes.GZIP)
 
-  @unittest.skipIf(sys.version_info[0] == 3,
-                   'This test halts test suite execution on Python 3. '
-                   'TODO: BEAM-5623')
   def test_read_empty_single_file_no_eol_gzip(self):
     file_name, written_data = write_data(
         1, no_data=True, eol=EOL.LF_WITH_NOTHING_AT_LAST_LINE)
 
     gzip_file_name = file_name + '.gz'
-    with open(file_name) as src, gzip.open(gzip_file_name, 'wb') as dst:
+    with open(file_name, 'rb') as src, gzip.open(gzip_file_name, 'wb') as dst:
       dst.writelines(src)
 
     assert len(written_data) == 1
@@ -410,7 +483,7 @@ class TextSourceTest(unittest.TestCase):
         raise ValueError
 
       def decode(self, x):
-        return x * 2
+        return (x * 2).decode('utf-8')
 
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5
@@ -474,7 +547,7 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file(suffix='.bz2')
       with bz2.BZ2File(file_name, 'wb') as f:
-        f.write('\n'.join(lines))
+        f.write('\n'.join(lines).encode('utf-8'))
 
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(file_name)
@@ -487,7 +560,7 @@ class TextSourceTest(unittest.TestCase):
       file_name = tempdir.create_temp_file(suffix='.gz')
 
       with gzip.GzipFile(file_name, 'wb') as f:
-        f.write('\n'.join(lines))
+        f.write('\n'.join(lines).encode('utf-8'))
 
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(file_name)
@@ -499,7 +572,7 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file()
       with bz2.BZ2File(file_name, 'wb') as f:
-        f.write('\n'.join(lines))
+        f.write('\n'.join(lines).encode('utf-8'))
 
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(
@@ -513,10 +586,10 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file()
       with bz2.BZ2File(file_name, 'wb') as f:
-        f.write(b'\n'.join(lines))
+        f.write('\n'.join(lines).encode('utf-8'))
 
       with open(file_name, 'wb') as f:
-        f.write('corrupt')
+        f.write(b'corrupt')
 
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(
@@ -526,29 +599,25 @@ class TextSourceTest(unittest.TestCase):
       with self.assertRaises(Exception):
         pipeline.run()
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_read_bzip2_concat(self):
     with TempDir() as tempdir:
       bzip2_file_name1 = tempdir.create_temp_file()
       lines = ['a', 'b', 'c']
       with bz2.BZ2File(bzip2_file_name1, 'wb') as dst:
         data = '\n'.join(lines) + '\n'
-        dst.write(data)
+        dst.write(data.encode('utf-8'))
 
       bzip2_file_name2 = tempdir.create_temp_file()
       lines = ['p', 'q', 'r']
       with bz2.BZ2File(bzip2_file_name2, 'wb') as dst:
         data = '\n'.join(lines) + '\n'
-        dst.write(data)
+        dst.write(data.encode('utf-8'))
 
       bzip2_file_name3 = tempdir.create_temp_file()
       lines = ['x', 'y', 'z']
       with bz2.BZ2File(bzip2_file_name3, 'wb') as dst:
         data = '\n'.join(lines) + '\n'
-        dst.write(data)
+        dst.write(data.encode('utf-8'))
 
       final_bzip2_file = tempdir.create_temp_file()
       with open(bzip2_file_name1, 'rb') as src, open(
@@ -577,7 +646,7 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file()
       with gzip.GzipFile(file_name, 'wb') as f:
-        f.write('\n'.join(lines))
+        f.write('\n'.join(lines).encode('utf-8'))
 
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(
@@ -592,10 +661,10 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file()
       with gzip.GzipFile(file_name, 'wb') as f:
-        f.write(b'\n'.join(lines))
+        f.write('\n'.join(lines).encode('utf-8'))
 
       with open(file_name, 'wb') as f:
-        f.write('corrupt')
+        f.write(b'corrupt')
 
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(
@@ -613,19 +682,19 @@ class TextSourceTest(unittest.TestCase):
       lines = ['a', 'b', 'c']
       with gzip.open(gzip_file_name1, 'wb') as dst:
         data = '\n'.join(lines) + '\n'
-        dst.write(data)
+        dst.write(data.encode('utf-8'))
 
       gzip_file_name2 = tempdir.create_temp_file()
       lines = ['p', 'q', 'r']
       with gzip.open(gzip_file_name2, 'wb') as dst:
         data = '\n'.join(lines) + '\n'
-        dst.write(data)
+        dst.write(data.encode('utf-8'))
 
       gzip_file_name3 = tempdir.create_temp_file()
       lines = ['x', 'y', 'z']
       with gzip.open(gzip_file_name3, 'wb') as dst:
         data = '\n'.join(lines) + '\n'
-        dst.write(data)
+        dst.write(data.encode('utf-8'))
 
       final_gzip_file = tempdir.create_temp_file()
       with open(gzip_file_name1, 'rb') as src, \
@@ -653,7 +722,7 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file()
       with gzip.GzipFile(file_name, 'wb') as f:
-        f.write('\n'.join(lines))
+        f.write('\n'.join(lines).encode('utf-8'))
       pipeline = TestPipeline()
       pcoll = (pipeline
                | Create([file_name])
@@ -668,7 +737,7 @@ class TextSourceTest(unittest.TestCase):
       file_name = tempdir.create_temp_file()
 
       with gzip.GzipFile(file_name, 'wb') as f:
-        f.write('\n'.join(lines))
+        f.write('\n'.join(lines).encode('utf-8'))
 
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(
@@ -683,7 +752,7 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file()
       with gzip.GzipFile(file_name, 'wb') as f:
-        f.write('\n'.join(lines))
+        f.write('\n'.join(lines).encode('utf-8'))
 
       source = TextSource(file_name, 0, CompressionTypes.GZIP, True,
                           coders.StrUtf8Coder())
@@ -790,7 +859,7 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file()
       with gzip.GzipFile(file_name, 'wb') as f:
-        f.write('\n'.join(lines))
+        f.write('\n'.join(lines).encode('utf-8'))
 
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(
@@ -830,7 +899,7 @@ class TextSinkTest(unittest.TestCase):
 
   def setUp(self):
     super(TextSinkTest, self).setUp()
-    self.lines = ['Line %d' % d for d in range(100)]
+    self.lines = [b'Line %d' % d for d in range(100)]
     self.tempdir = tempfile.mkdtemp()
     self.path = self._create_temp_file()
 
@@ -852,112 +921,76 @@ class TextSinkTest(unittest.TestCase):
       sink.write_record(f, line)
     sink.close(f)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_write_text_file(self):
     sink = TextSink(self.path)
     self._write_lines(sink, self.lines)
 
-    with open(self.path, 'r') as f:
+    with open(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
   def test_write_text_file_empty(self):
     sink = TextSink(self.path)
     self._write_lines(sink, [])
 
-    with open(self.path, 'r') as f:
+    with open(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), [])
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_write_bzip2_file(self):
     sink = TextSink(
         self.path, compression_type=CompressionTypes.BZIP2)
     self._write_lines(sink, self.lines)
 
-    with bz2.BZ2File(self.path, 'r') as f:
+    with bz2.BZ2File(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_write_bzip2_file_auto(self):
     self.path = self._create_temp_file(suffix='.bz2')
     sink = TextSink(self.path)
     self._write_lines(sink, self.lines)
 
-    with bz2.BZ2File(self.path, 'r') as f:
+    with bz2.BZ2File(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_write_gzip_file(self):
     sink = TextSink(
         self.path, compression_type=CompressionTypes.GZIP)
     self._write_lines(sink, self.lines)
 
-    with gzip.GzipFile(self.path, 'r') as f:
+    with gzip.GzipFile(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_write_gzip_file_auto(self):
     self.path = self._create_temp_file(suffix='.gz')
     sink = TextSink(self.path)
     self._write_lines(sink, self.lines)
 
-    with gzip.GzipFile(self.path, 'r') as f:
+    with gzip.GzipFile(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_write_gzip_file_empty(self):
     sink = TextSink(
         self.path, compression_type=CompressionTypes.GZIP)
     self._write_lines(sink, [])
 
-    with gzip.GzipFile(self.path, 'r') as f:
+    with gzip.GzipFile(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), [])
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_write_text_file_with_header(self):
-    header = 'header1\nheader2'
+    header = b'header1\nheader2'
     sink = TextSink(self.path, header=header)
     self._write_lines(sink, self.lines)
 
-    with open(self.path, 'r') as f:
+    with open(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), header.splitlines() + self.lines)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_write_text_file_empty_with_header(self):
-    header = 'header1\nheader2'
+    header = b'header1\nheader2'
     sink = TextSink(self.path, header=header)
     self._write_lines(sink, [])
 
-    with open(self.path, 'r') as f:
+    with open(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), header.splitlines())
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_write_dataflow(self):
     pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create(self.lines)
@@ -966,7 +999,7 @@ class TextSinkTest(unittest.TestCase):
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):
-      with open(file_name, 'r') as f:
+      with open(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
 
     self.assertEqual(read_result, self.lines)
@@ -979,7 +1012,7 @@ class TextSinkTest(unittest.TestCase):
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):
-      with gzip.GzipFile(file_name, 'r') as f:
+      with gzip.GzipFile(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
 
     self.assertEqual(read_result, self.lines)
@@ -995,7 +1028,7 @@ class TextSinkTest(unittest.TestCase):
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):
-      with gzip.GzipFile(file_name, 'r') as f:
+      with gzip.GzipFile(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
 
     self.assertEqual(read_result, self.lines)
@@ -1003,7 +1036,7 @@ class TextSinkTest(unittest.TestCase):
   def test_write_dataflow_header(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Create' >> beam.core.Create(self.lines)
-    header_text = 'foo'
+    header_text = b'foo'
     pcoll | 'Write' >> WriteToText(  # pylint: disable=expression-not-assigned
         self.path + '.gz',
         shard_name_template='',
@@ -1012,7 +1045,7 @@ class TextSinkTest(unittest.TestCase):
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):
-      with gzip.GzipFile(file_name, 'r') as f:
+      with gzip.GzipFile(file_name, 'rb') as f:
         read_result.extend(f.read().splitlines())
 
     self.assertEqual(read_result, [header_text] + self.lines)
