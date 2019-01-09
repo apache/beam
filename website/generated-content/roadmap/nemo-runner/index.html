@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Apache Apex Runner</title>
+  <title>Nemo Runner Roadmap</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/runners/apex/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/roadmap/nemo-runner/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/runners/apex.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/roadmap/nemo-runner.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -150,16 +150,43 @@
  limitations under the License. See accompanying LICENSE file.
 -->
 
-<li><span class="section-nav-list-main-title">Runners</span></li>
-<li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
-<li><a href="/documentation/runners/direct/">Direct Runner</a></li>
-<li><a href="/documentation/runners/apex/">Apache Apex</a></li>
-<li><a href="/documentation/runners/flink/">Apache Flink</a></li>
-<li><a href="/documentation/runners/gearpump/">Apache Gearpump</a></li>
-<li><a href="/documentation/runners/nemo/">Apache Nemo</a></li>
-<li><a href="/documentation/runners/samza/">Apache Samza</a></li>
-<li><a href="/documentation/runners/spark/">Apache Spark</a></li>
-<li><a href="/documentation/runners/dataflow/">Google Cloud Dataflow</a></li>
+<li><span class="section-nav-list-main-title">Roadmap</span></li>
+<li><a href="/roadmap/">Roadmap Highlights</a></li>
+<li><a href="/roadmap/portability">Portability Framework</a></li>
+<li class="section-nav-item">
+  <span class="section-nav-list-title">Languages</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/roadmap/java-sdk">Java SDK</a></li>
+    <li><a href="/roadmap/go-sdk">Go SDK</a></li>
+    <li><a href="/roadmap/python-sdk">Python SDK</a></li>
+    <li><a href="/roadmap/euphoria">Euphoria API</a></li>
+    <li><a href="/roadmap/sql">SQL</a></li>
+  </ul>
+</li>
+<li class="section-nav-item">
+  <span class="section-nav-list-title">Runners</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/roadmap/apex-runner/">Apex Runner</a></li>
+    <li><a href="/roadmap/dataflow-runner/">Google Cloud Dataflow Runner</a></li>
+    <li><a href="/roadmap/flink-runner/">Flink Runner</a></li>
+    <li><a href="/roadmap/gearpump-runner/">Gearpump Runner</a></li>
+    <li><a href="/roadmap/nemo-runner/">Nemo Runner</a></li>
+    <li><a href="/roadmap/spark-runner/">Spark Runner</a></li>
+    <li><a href="/roadmap/samza-runner/">Samza Runner</a></li>
+  </ul>
+</li>
+<li class="section-nav-item">
+  <span class="section-nav-list-title">Connectors</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/roadmap/connectors-java-sdk/">Java SDK</a></li>
+    <li><a href="/roadmap/connectors-python-sdk/">Python SDK</a></li>
+    <li><a href="/roadmap/connectors-go-sdk/">Go SDK</a></li>
+    <li><a href="/roadmap/connectors-multi-sdk/">Multi-SDK Efforts</a></li>
+  </ul>
+</li>
 
           </ul>
         </nav>
@@ -180,11 +207,6 @@
 
 
 
-<ul class="nav">
-  <li><a href="#apex-runner-prerequisites">Apex Runner prerequisites</a></li>
-  <li><a href="#running-wordcount-with-apex">Running wordcount with Apex</a></li>
-  <li><a href="#montoring-progress-of-your-job">Montoring progress of your job</a></li>
-</ul>
 
 
       </nav>
@@ -203,68 +225,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="using-the-apache-apex-runner">Using the Apache Apex Runner</h1>
 
-<p>The Apex Runner executes Apache Beam pipelines using <a href="http://apex.apache.org/">Apache Apex</a> as an underlying engine. The runner has broad support for the <a href="/documentation/runners/capability-matrix/">Beam model and supports streaming and batch pipelines</a>.</p>
+<h1 id="apache-nemo-runner-roadmap">Apache Nemo Runner Roadmap</h1>
 
-<p><a href="http://apex.apache.org/">Apache Apex</a> is a stream processing platform and framework for low-latency, high-throughput and fault-tolerant analytics applications on Apache Hadoop. Apex has a unified streaming architecture and can be used for real-time and batch processing.</p>
-
-<p>The following instructions are for running Beam pipelines with Apex on a YARN cluster.
-They are not required for Apex in embedded mode (see <a href="/get-started/quickstart-java/">quickstart</a>).</p>
-
-<h2 id="apex-runner-prerequisites">Apex Runner prerequisites</h2>
-
-<p>You may set up your own Hadoop cluster. Beam does not require anything extra to launch the pipelines on YARN.
-An optional Apex installation may be useful for monitoring and troubleshooting.
-The Apex CLI can be <a href="http://apex.apache.org/docs/apex/apex_development_setup/">built</a> or
-obtained as binary build.
-For more download options see <a href="http://apex.apache.org/downloads.html">distribution information on the Apache Apex website</a>.</p>
-
-<h2 id="running-wordcount-with-apex">Running wordcount with Apex</h2>
-
-<p>Typically the build environment is separate from the target YARN cluster. In such case, it is necessary to build a fat jar that will include all dependencies. Ensure that <code class="highlighter-rouge">hadoop.version</code> in <code class="highlighter-rouge">pom.xml</code> matches the version of your YARN cluster and then build the jar file:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn package -Papex-runner
-</code></pre>
-</div>
-
-<p>Copy the resulting <code class="highlighter-rouge">target/word-count-beam-bundled-0.1.jar</code> to the cluster and submit the application using:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>java -cp word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount --inputFile=/etc/profile --output=/tmp/counts --embeddedExecution=false --configFile=beam-runners-apex.properties --runner=ApexRunner
-</code></pre>
-</div>
-
-<p>If the build environment is setup as cluster client, it is possible to run the example directly:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/etc/profile --output=/tmp/counts --runner=ApexRunner --embeddedExecution=false --configFile=beam-runners-apex.properties" -Papex-runner
-</code></pre>
-</div>
-
-<p>The application will run asynchronously. Check status with <code class="highlighter-rouge">yarn application -list -appStates ALL</code></p>
-
-<p>The configuration file is optional, it can be used to influence how Apex operators are deployed into YARN containers.
-The following example will reduce the number of required containers by collocating the operators into the same container
-and lower the heap memory per operator - suitable for execution in a single node Hadoop sandbox.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>apex.application.*.operator.*.attr.MEMORY_MB=64
-apex.stream.*.prop.locality=CONTAINER_LOCAL
-apex.application.*.operator.*.attr.TIMEOUT_WINDOW_COUNT=1200
-</code></pre>
-</div>
-
-<p>This example uses local files. To use a distributed file system (HDFS, S3 etc.),
-it is necessary to augment the build to include the respective file system provider.</p>
-
-<h2 id="montoring-progress-of-your-job">Montoring progress of your job</h2>
-
-<p>Depending on your installation, you may be able to monitor the progress of your job on the Hadoop cluster. Alternatively, you have following options:</p>
+<p>This roadmap is in progress. In the meantime, here are available resources:</p>
 
 <ul>
-  <li>YARN : Using YARN web UI generally running on 8088 on the node running resource manager.</li>
-  <li>Apex command-line interface: <a href="http://apex.apache.org/docs/apex/apex_cli/#apex-cli-commands">Using the Apex CLI to get running application information</a>.</li>
+  <li><a href="/documentation/runners/nemo">Runner documentation</a></li>
+  <li>JIRA: <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-nemo">runner-nemo</a> / <a href="https://issues.apache.org/jira/projects/NEMO/issues/filter=allopenissues">nemo-jira</a></li>
 </ul>
 
-<p>Check the output of the pipeline:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>ls /tmp/counts*
-</code></pre>
-</div>
 
       </div>
     </div>

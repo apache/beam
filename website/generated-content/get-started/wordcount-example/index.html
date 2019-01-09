@@ -268,6 +268,7 @@ limitations under the License.
           <li><a href="#apache-spark-runner" id="markdown-toc-apache-spark-runner">Apache Spark Runner</a></li>
           <li><a href="#apache-flink-runner" id="markdown-toc-apache-flink-runner">Apache Flink Runner</a></li>
           <li><a href="#apache-apex-runner" id="markdown-toc-apache-apex-runner">Apache Apex Runner</a></li>
+          <li><a href="#apache-nemo-runner" id="markdown-toc-apache-nemo-runner">Apache Nemo Runner</a></li>
         </ul>
       </li>
       <li><a href="#testing-your-pipeline-with-asserts" id="markdown-toc-testing-your-pipeline-with-asserts">Testing your pipeline with asserts</a></li>
@@ -639,6 +640,11 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
+<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>$ mvn package -Pnemo-runner &amp;&amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+</code></pre>
+</div>
+
 <p>To view the full code in Java, see
 <strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java">WordCount</a>.</strong></p>
 
@@ -675,6 +681,10 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 </div>
 
 <div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
 </code></pre>
 </div>
 
@@ -718,6 +728,10 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 </div>
 
 <div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
 </code></pre>
 </div>
 
@@ -964,6 +978,11 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
+<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>$ mvn package -Pnemo-runner &amp;&amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
+     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+</code></pre>
+</div>
+
 <p>To view the full code in Java, see
 <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java">DebuggingWordCount</a>.</p>
 
@@ -1000,6 +1019,10 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
 </div>
 
 <div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
 </code></pre>
 </div>
 
@@ -1043,6 +1066,10 @@ $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 </div>
 
 <div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
 </code></pre>
 </div>
 
@@ -1192,6 +1219,16 @@ or DEBUG significantly increases the amount of logs output.</p>
 (<a href="https://issues.apache.org/jira/browse/BEAM-2285">BEAM-2285</a>).</p>
 </blockquote>
 
+<h4 id="apache-nemo-runner">Apache Nemo Runner</h4>
+
+<p>When executing your pipeline with the <code class="highlighter-rouge">NemoRunner</code>, most log messages are printed 
+directly to your local console. You should add <code class="highlighter-rouge">Slf4j</code> to your class path to make 
+full use of the logs. In order to observe the logs on each of the driver and the 
+executor sides, you should observe the folders created by Apache REEF. For example,
+when running your pipeline through the local runtime, a folder called <code class="highlighter-rouge">REEF_LOCAL_RUNTIME</code>
+will be created on your work directory, and the logs and the metric information can
+all be found under the directory.</p>
+
 <h3 id="testing-your-pipeline-with-asserts">Testing your pipeline with asserts</h3>
 
 <p class="language-java language-py"><span class="language-java"><code class="highlighter-rouge">PAssert</code></span><span class="language-py"><code class="highlighter-rouge">assert_that</code></span>
@@ -1297,6 +1334,11 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
+<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>$ mvn package -Pnemo-runner &amp;&amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
+     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+</code></pre>
+</div>
+
 <p>To view the full code in Java, see
 <strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java">WindowedWordCount</a>.</strong></p>
 
@@ -1340,6 +1382,10 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
 </code></pre>
 </div>
 
+<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
 <p>To view the full code in Python, see
 <strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/windowed_wordcount.py">windowed_wordcount.py</a>.</strong></p>
 
@@ -1380,6 +1426,10 @@ $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 </div>
 
 <div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
+</code></pre>
+</div>
+
+<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Go SDK.
 </code></pre>
 </div>
 
@@ -1615,6 +1665,10 @@ python -m apache_beam.examples.streaming_wordcount \
 </div>
 
 <div class="runner-samza-local highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
+</code></pre>
+</div>
+
+<div class="runner-nemo highlighter-rouge"><pre class="highlight"><code>This runner is not yet available for the Python SDK.
 </code></pre>
 </div>
 

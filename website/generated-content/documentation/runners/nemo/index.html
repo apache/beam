@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Apache Apex Runner</title>
+  <title>Apache Nemo Runner</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -39,7 +39,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/runners/apex/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/runners/nemo/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -125,7 +125,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/runners/apex.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/runners/nemo.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -181,9 +181,16 @@
 
 
 <ul class="nav">
-  <li><a href="#apex-runner-prerequisites">Apex Runner prerequisites</a></li>
-  <li><a href="#running-wordcount-with-apex">Running wordcount with Apex</a></li>
-  <li><a href="#montoring-progress-of-your-job">Montoring progress of your job</a></li>
+  <li><a href="#nemo-runner-prerequisites-and-setup">Nemo Runner prerequisites and setup</a></li>
+  <li><a href="#deploying-nemo-with-your-application">Deploying Nemo with your Application</a></li>
+  <li><a href="#pipeline-options-for-the-nemo-runner">Pipeline Options for the Nemo Runner</a></li>
+  <li><a href="#additional-information-and-caveats">Additional Information and Caveats</a>
+    <ul>
+      <li><a href="#using-the-run_beamsh-script">Using the Run_beam.sh script</a></li>
+      <li><a href="#monitoring-your-job">Monitoring your job</a></li>
+      <li><a href="#streaming-execution">Streaming Execution</a></li>
+    </ul>
+  </li>
 </ul>
 
 
@@ -203,68 +210,178 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="using-the-apache-apex-runner">Using the Apache Apex Runner</h1>
+<h1 id="using-the-apache-nemo-runner">Using the Apache Nemo Runner</h1>
 
-<p>The Apex Runner executes Apache Beam pipelines using <a href="http://apex.apache.org/">Apache Apex</a> as an underlying engine. The runner has broad support for the <a href="/documentation/runners/capability-matrix/">Beam model and supports streaming and batch pipelines</a>.</p>
+<p>The Apache Nemo Runner can be used to execute Beam pipelines using <a href="http://nemo.apache.org">Apache Nemo</a>.
+The Nemo Runner can optimize Beam pipelines with the Nemo compiler through various optimization passes
+and execute them in a distributed fashion using the Nemo runtime. You can also deploy a self-contained application
+for local mode or run using resource managers like YARN or Mesos.</p>
 
-<p><a href="http://apex.apache.org/">Apache Apex</a> is a stream processing platform and framework for low-latency, high-throughput and fault-tolerant analytics applications on Apache Hadoop. Apex has a unified streaming architecture and can be used for real-time and batch processing.</p>
-
-<p>The following instructions are for running Beam pipelines with Apex on a YARN cluster.
-They are not required for Apex in embedded mode (see <a href="/get-started/quickstart-java/">quickstart</a>).</p>
-
-<h2 id="apex-runner-prerequisites">Apex Runner prerequisites</h2>
-
-<p>You may set up your own Hadoop cluster. Beam does not require anything extra to launch the pipelines on YARN.
-An optional Apex installation may be useful for monitoring and troubleshooting.
-The Apex CLI can be <a href="http://apex.apache.org/docs/apex/apex_development_setup/">built</a> or
-obtained as binary build.
-For more download options see <a href="http://apex.apache.org/downloads.html">distribution information on the Apache Apex website</a>.</p>
-
-<h2 id="running-wordcount-with-apex">Running wordcount with Apex</h2>
-
-<p>Typically the build environment is separate from the target YARN cluster. In such case, it is necessary to build a fat jar that will include all dependencies. Ensure that <code class="highlighter-rouge">hadoop.version</code> in <code class="highlighter-rouge">pom.xml</code> matches the version of your YARN cluster and then build the jar file:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn package -Papex-runner
-</code></pre>
-</div>
-
-<p>Copy the resulting <code class="highlighter-rouge">target/word-count-beam-bundled-0.1.jar</code> to the cluster and submit the application using:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>java -cp word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount --inputFile=/etc/profile --output=/tmp/counts --embeddedExecution=false --configFile=beam-runners-apex.properties --runner=ApexRunner
-</code></pre>
-</div>
-
-<p>If the build environment is setup as cluster client, it is possible to run the example directly:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/etc/profile --output=/tmp/counts --runner=ApexRunner --embeddedExecution=false --configFile=beam-runners-apex.properties" -Papex-runner
-</code></pre>
-</div>
-
-<p>The application will run asynchronously. Check status with <code class="highlighter-rouge">yarn application -list -appStates ALL</code></p>
-
-<p>The configuration file is optional, it can be used to influence how Apex operators are deployed into YARN containers.
-The following example will reduce the number of required containers by collocating the operators into the same container
-and lower the heap memory per operator - suitable for execution in a single node Hadoop sandbox.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>apex.application.*.operator.*.attr.MEMORY_MB=64
-apex.stream.*.prop.locality=CONTAINER_LOCAL
-apex.application.*.operator.*.attr.TIMEOUT_WINDOW_COUNT=1200
-</code></pre>
-</div>
-
-<p>This example uses local files. To use a distributed file system (HDFS, S3 etc.),
-it is necessary to augment the build to include the respective file system provider.</p>
-
-<h2 id="montoring-progress-of-your-job">Montoring progress of your job</h2>
-
-<p>Depending on your installation, you may be able to monitor the progress of your job on the Hadoop cluster. Alternatively, you have following options:</p>
+<p>The Nemo Runner executes Beam pipelines on top of Apache Nemo, providing:</p>
 
 <ul>
-  <li>YARN : Using YARN web UI generally running on 8088 on the node running resource manager.</li>
-  <li>Apex command-line interface: <a href="http://apex.apache.org/docs/apex/apex_cli/#apex-cli-commands">Using the Apex CLI to get running application information</a>.</li>
+  <li>Batch and streaming pipelines</li>
+  <li>Fault-tolerance</li>
+  <li>Integration with YARN and other components of the Apache Hadoop ecosystem</li>
+  <li>Support for the various optimizations provided by the Nemo optimizer</li>
 </ul>
 
-<p>Check the output of the pipeline:</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>ls /tmp/counts*
+<p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the
+supported capabilities of the Nemo Runner.</p>
+
+<h2 id="nemo-runner-prerequisites-and-setup">Nemo Runner prerequisites and setup</h2>
+
+<p>The Nemo Runner can be used simply by adding a dependency on a version of the Nemo runner newer than <code class="highlighter-rouge">0.1</code>
+to your pom.xml as follows:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>&lt;dependency&gt;
+    &lt;groupId&gt;org.apache.nemo&lt;/groupId&gt;
+    &lt;artifactId&gt;nemo-compiler-frontend-beam&lt;/artifactId&gt;
+    &lt;version&gt;${nemo.version}&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.apache.hadoop&lt;/groupId&gt;
+    &lt;artifactId&gt;hadoop-common&lt;/artifactId&gt;
+    &lt;version&gt;${hadoop.version}&lt;/version&gt;
+    &lt;exclusions&gt;
+        &lt;exclusion&gt;
+            &lt;groupId&gt;org.slf4j&lt;/groupId&gt;
+            &lt;artifactId&gt;slf4j-api&lt;/artifactId&gt;
+        &lt;/exclusion&gt;
+        &lt;exclusion&gt;
+            &lt;groupId&gt;org.slf4j&lt;/groupId&gt;
+            &lt;artifactId&gt;slf4j-log4j12&lt;/artifactId&gt;
+        &lt;/exclusion&gt;
+    &lt;/exclusions&gt;
+&lt;/dependency&gt;
 </code></pre>
 </div>
+
+<h2 id="deploying-nemo-with-your-application">Deploying Nemo with your Application</h2>
+
+<p>A self-contained application might be easier to manage and allows you to fully use the functionality that Nemo provides.
+Simply add the dependency shown above and shade the application JAR using the Maven Shade plugin:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>&lt;plugin&gt;
+  &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+  &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;
+  &lt;configuration&gt;
+    &lt;createDependencyReducedPom&gt;false&lt;/createDependencyReducedPom&gt;
+    &lt;filters&gt;
+      &lt;filter&gt;
+        &lt;artifact&gt;*:*&lt;/artifact&gt;
+        &lt;excludes&gt;
+          &lt;exclude&gt;META-INF/*.SF&lt;/exclude&gt;
+          &lt;exclude&gt;META-INF/*.DSA&lt;/exclude&gt;
+          &lt;exclude&gt;META-INF/*.RSA&lt;/exclude&gt;
+        &lt;/excludes&gt;
+      &lt;/filter&gt;
+    &lt;/filters&gt;
+  &lt;/configuration&gt;
+  &lt;executions&gt;
+    &lt;execution&gt;
+      &lt;phase&gt;package&lt;/phase&gt;
+      &lt;goals&gt;
+        &lt;goal&gt;shade&lt;/goal&gt;
+      &lt;/goals&gt;
+      &lt;configuration&gt;
+        &lt;shadedArtifactAttached&gt;true&lt;/shadedArtifactAttached&gt;
+        &lt;shadedClassifierName&gt;shaded&lt;/shadedClassifierName&gt;
+        &lt;transformers&gt;
+          &lt;transformer
+            implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/&gt;
+        &lt;/transformers&gt;
+      &lt;/configuration&gt;
+    &lt;/execution&gt;
+  &lt;/executions&gt;
+&lt;/plugin&gt;
+</code></pre>
+</div>
+
+<p>After running <code class="highlighter-rouge">mvn package</code>, run <code class="highlighter-rouge">ls target</code> and you should see the following output (in this example, your artifactId is <code class="highlighter-rouge">beam-examples</code>
+and the version is <code class="highlighter-rouge">1.0.0</code>):</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>beam-examples-1.0.0-shaded.jar
+</code></pre>
+</div>
+
+<p>With this shaded jar, you can use the <code class="highlighter-rouge">bin/run_beam.sh</code> shell script as follows:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>## MapReduce example
+./bin/run_beam.sh \
+    -job_id mr_default \
+    -user_main org.apache.nemo.examples.beam.WordCount \
+    -user_args "`pwd`/examples/resources/test_input_wordcount `pwd`/examples/resources/test_output_wordcount"
+</code></pre>
+</div>
+
+<p>To use Nemo using YARN, set the <code class="highlighter-rouge">-deploy_mode</code> flag on Nemo to <code class="highlighter-rouge">yarn</code>.</p>
+
+<p>More instructions can be seen on the README of the <a href="https://github.com/apache/incubator-nemo">Apache Nemo GitHub</a>.</p>
+
+<h2 id="pipeline-options-for-the-nemo-runner">Pipeline Options for the Nemo Runner</h2>
+
+<p>When executing your pipeline with the Nemo Runner, you should consider the following pipeline options:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Description</th>
+      <th style="text-align: right">Default Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="highlighter-rouge">runner</code></td>
+      <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
+      <td style="text-align: right">Set to <code class="highlighter-rouge">NemoRunner</code> to run using Nemo.</td>
+    </tr>
+    <tr>
+      <td><code class="highlighter-rouge">maxBundleSize</code></td>
+      <td>The maximum number of elements in a bundle.</td>
+      <td style="text-align: right">1000</td>
+    </tr>
+    <tr>
+      <td><code class="highlighter-rouge">maxBundleTimeMillis</code></td>
+      <td>The maximum time to wait before finalizing a bundle (in milliseconds).</td>
+      <td style="text-align: right">1000</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>More options are to be added to the list, to fully support the various options that Nemo supports.</p>
+
+<h2 id="additional-information-and-caveats">Additional Information and Caveats</h2>
+
+<h3 id="using-the-run_beamsh-script">Using the Run_beam.sh script</h3>
+
+<p>When submitting a Nemo application to the cluster, it is common to use the <code class="highlighter-rouge">bin/run_beam.sh</code> script that is
+provided within the Nemo installation. The script also provides a richer set of options that you can pass on to
+configure various actions of Nemo. Please refer to the
+<a href="https://github.com/apache/incubator-nemo">Apache Nemo GitHub README</a> for more information.</p>
+
+<h3 id="monitoring-your-job">Monitoring your job</h3>
+
+<p>You can monitor a running Nemo job using the Nemo WebUI. The docs are currently being updated, but more
+information can be found on the <a href="https://github.com/apache/incubator-nemo">Apache Nemo GitHub README</a>.</p>
+
+<h3 id="streaming-execution">Streaming Execution</h3>
+
+<p>Add the options <code class="highlighter-rouge">-scheduler_impl_class_name org.apache.nemo.runtime.master.scheduler.StreamingScheduler</code>
+and <code class="highlighter-rouge">-optimization_policy org.apache.nemo.compiler.optimizer.policy.StreamingPolicy</code> to set the Nemo Runner
+to streaming mode.
+Also, be sure to extend the <code class="highlighter-rouge">capacity</code> of the resources in the <code class="highlighter-rouge">resources.json</code>, for example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Reserved"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"memory_mb"</span><span class="p">:</span><span class="w"> </span><span class="mi">2048</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"capacity"</span><span class="p">:</span><span class="w"> </span><span class="mi">50000</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>Please refer to the <a href="https://github.com/apache/incubator-nemo">Apache Nemo GitHub README</a> for more information.</p>
 
       </div>
     </div>
