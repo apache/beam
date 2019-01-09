@@ -42,8 +42,12 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.PAssert.PCollectionContentsAssert.MatcherCheckerFn;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -318,7 +322,22 @@ public class PAssertTest implements Serializable {
                 Create.timestamped(
                     TimestampedValue.of(43, new Instant(250L)),
                     TimestampedValue.of(22, new Instant(-250L))))
-            .apply(Window.into(FixedWindows.of(Duration.millis(500L))));
+            .apply(Window.into(FixedWindows.of(Duration.millis(500L))))
+            // Materialize final panes to be able to check for single element ON_TIME panes,
+            // elements might be in EARLY panes otherwise.
+            .apply(WithKeys.of(0))
+            .apply(GroupByKey.create())
+            .apply(
+                ParDo.of(
+                    new DoFn<KV<Integer, Iterable<Integer>>, Integer>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext ctxt) {
+                        for (Integer integer : ctxt.element().getValue()) {
+                          ctxt.output(integer);
+                        }
+                      }
+                    }));
+
     PAssert.thatSingleton(pcollection)
         .inOnlyPane(new IntervalWindow(new Instant(0L), new Instant(500L)))
         .isEqualTo(43);
