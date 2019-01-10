@@ -77,4 +77,12 @@ public class NamedTestResult implements TestResult {
   public static Map<String, String> getSchema() {
     return schema;
   }
+
+  public String getMetric() {
+    return metric;
+  }
+
+  public double getValue() {
+    return value;
+  }
 }

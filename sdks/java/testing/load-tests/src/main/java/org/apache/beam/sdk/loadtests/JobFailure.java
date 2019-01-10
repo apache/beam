@@ -22,8 +22,10 @@ import static java.util.Optional.empty;
 import static java.util.Optional.of;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.joda.time.Duration;
 
 /** Class for detecting failures after {@link PipelineResult#waitUntilFinish(Duration)} unblocks. */
@@ -38,9 +40,10 @@ class JobFailure {
     this.requiresCancelling = requiresCancelling;
   }
 
-  static void handleFailure(final PipelineResult pipelineResult, final LoadTestResult testResult)
+  static void handleFailure(
+      final PipelineResult pipelineResult, final List<NamedTestResult> testResults)
       throws IOException {
-    Optional<JobFailure> failure = lookForFailure(pipelineResult, testResult);
+    Optional<JobFailure> failure = lookForFailure(pipelineResult, testResults);
 
     if (failure.isPresent()) {
       JobFailure jobFailure = failure.get();
@@ -54,7 +57,7 @@ class JobFailure {
   }
 
   private static Optional<JobFailure> lookForFailure(
-      PipelineResult pipelineResult, LoadTestResult testResult) {
+      PipelineResult pipelineResult, List<NamedTestResult> testResults) {
     PipelineResult.State state = pipelineResult.getState();
 
     Optional<JobFailure> stateRelatedFailure = lookForInvalidState(state);
@@ -62,12 +65,17 @@ class JobFailure {
     if (stateRelatedFailure.isPresent()) {
       return stateRelatedFailure;
     } else {
-      return lookForMetricResultFailure(testResult);
+      return lookForMetricResultFailure(testResults);
     }
   }
 
-  private static Optional<JobFailure> lookForMetricResultFailure(LoadTestResult testResult) {
-    if (testResult.getRuntime() == -1 || testResult.getTotalBytesCount() == -1) {
+  private static Optional<JobFailure> lookForMetricResultFailure(
+      List<NamedTestResult> testResults) {
+
+    boolean isTestResultInvalid =
+        testResults.stream().anyMatch(namedTestResult -> namedTestResult.getValue() == -1D);
+
+    if (isTestResultInvalid) {
       return of(new JobFailure("Invalid test results", false));
     } else {
       return empty();
