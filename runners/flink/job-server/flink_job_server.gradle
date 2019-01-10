@@ -1,3 +1,5 @@
+import org.apache.beam.gradle.BeamModulePlugin
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -106,7 +108,10 @@ runShadow {
 }
 
 def portableValidatesRunnerTask(String name, Boolean streaming) {
-  def pipelineOptions = ["--parallelism=2"]
+  def pipelineOptions = [
+      // Limit resource consumption via parallelism
+      "--parallelism=2",
+  ]
   if (streaming) {
     pipelineOptions += "--streaming"
   }
@@ -117,6 +122,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
     testClasspathConfiguration: configurations.validatesPortableRunner,
       numParallelTests: 2,
       pipelineOpts: pipelineOptions,
+      environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
       testCategories: {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
