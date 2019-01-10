@@ -248,7 +248,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // A string representing the jobServer Configuration.
     String jobServerConfig
     // Number of parallel test runs.
-    Integer parallelism = 1
+    Integer numParallelTests = 1
     // Extra options to pass to TestPipeline
     String[] pipelineOpts = []
     // Categories for tests to run.
@@ -1498,7 +1498,7 @@ class BeamModulePlugin implements Plugin<Project> {
         systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
         classpath = config.testClasspathConfiguration
         testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
-        maxParallelForks config.parallelism
+        maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
         dependsOn ':beam-sdks-java-container:docker'
       }
