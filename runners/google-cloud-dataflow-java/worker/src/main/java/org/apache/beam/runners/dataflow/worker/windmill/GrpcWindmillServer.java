@@ -718,7 +718,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     @Override
     public final void closeAfterDefaultTimeout() throws InterruptedException {
       if (!finishLatch.await(DEFAULT_STREAM_CLEAN_CLOSE_SECONDS, TimeUnit.SECONDS)) {
-        // If the stream did not close due to error in the specified ammount of time, half-close
+        // If the stream did not close due to error in the specified amount of time, half-close
         // the stream cleanly.
         close();
       }
