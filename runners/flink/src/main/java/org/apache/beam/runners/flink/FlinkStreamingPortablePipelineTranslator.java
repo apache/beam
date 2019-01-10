@@ -95,6 +95,7 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -583,9 +584,11 @@ public class FlinkStreamingPortablePipelineTranslator
     final Coder<WindowedValue<InputT>> windowedInputCoder =
         instantiateCoder(inputPCollectionId, components);
 
+    final boolean stateful =
+        stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0;
     Coder keyCoder = null;
     KeySelector<WindowedValue<InputT>, ?> keySelector = null;
-    if (stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0) {
+    if (stateful) {
       // Stateful stages are only allowed of KV input
       Coder valueCoder =
           ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder();
@@ -632,10 +635,38 @@ public class FlinkStreamingPortablePipelineTranslator
     if (transformedSideInputs.unionTagToView.isEmpty()) {
       outputStream = inputDataStream.transform(operatorName, outputTypeInformation, doFnOperator);
     } else {
-      outputStream =
-          inputDataStream
-              .connect(transformedSideInputs.unionedSideInputs.broadcast())
-              .transform(operatorName, outputTypeInformation, doFnOperator);
+      DataStream<RawUnionValue> sideInputStream =
+          transformedSideInputs.unionedSideInputs.broadcast();
+      if (stateful) {
+        // We have to manually construct the two-input transform because we're not
+        // allowed to have only one input keyed, normally. Since Flink 1.5.0 it's
+        // possible to use the Broadcast State Pattern which provides a more elegant
+        // way to process keyed main input with broadcast state, but it's not feasible
+        // here because it breaks the DoFnOperator abstraction.
+        TwoInputTransformation<WindowedValue<KV<?, InputT>>, RawUnionValue, WindowedValue<OutputT>>
+            rawFlinkTransform =
+                new TwoInputTransformation(
+                    inputDataStream.getTransformation(),
+                    sideInputStream.getTransformation(),
+                    transform.getUniqueName(),
+                    doFnOperator,
+                    outputTypeInformation,
+                    inputDataStream.getParallelism());
+
+        rawFlinkTransform.setStateKeyType(((KeyedStream) inputDataStream).getKeyType());
+        rawFlinkTransform.setStateKeySelectors(
+            ((KeyedStream) inputDataStream).getKeySelector(), null);
+
+        outputStream =
+            new SingleOutputStreamOperator(
+                inputDataStream.getExecutionEnvironment(),
+                rawFlinkTransform) {}; // we have to cheat around the ctor being protected
+      } else {
+        outputStream =
+            inputDataStream
+                .connect(sideInputStream)
+                .transform(operatorName, outputTypeInformation, doFnOperator);
+      }
     }
 
     if (mainOutputTag != null) {
