@@ -85,8 +85,6 @@ public class DatasetSourceBatch<T> implements DataSourceV2, ReadSupport {
     private int numPartitions;
     private BoundedSource<T> source;
     private SparkPipelineOptions sparkPipelineOptions;
-    private Optional<StructType> schema;
-    private String checkpointLocation;
 
     private DatasetReader(int numPartitions, BoundedSource<T> source,
         SparkPipelineOptions sparkPipelineOptions) {
