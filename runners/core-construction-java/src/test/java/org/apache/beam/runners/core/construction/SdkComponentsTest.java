@@ -79,21 +79,6 @@ public class SdkComponentsTest {
   }
 
   @Test
-  public void registerCoderEqualsNotSame() throws IOException {
-    Coder<?> coder =
-        KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
-    Coder<?> otherCoder =
-        KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
-    assertThat(coder, equalTo(otherCoder));
-    String id = components.registerCoder(coder);
-    String otherId = components.registerCoder(otherCoder);
-    assertThat(otherId, not(equalTo(id)));
-
-    components.toComponents().getCodersOrThrow(id);
-    components.toComponents().getCodersOrThrow(otherId);
-  }
-
-  @Test
   public void registerTransformNoChildren() throws IOException {
     Create.Values<Integer> create = Create.of(1, 2, 3);
     PCollection<Integer> pt = pipeline.apply(create);
