@@ -589,9 +589,9 @@ def sink_flattens(stages, pipeline_context):
       for local_in, pcoll_in in transform.inputs.items():
 
         if pcollections[pcoll_in].coder_id != output_coder_id:
-          # Flatten inputs must all be written with the same coder as is
-          # used to read them.
-          pcollections[pcoll_in].coder_id = output_coder_id
+          # Flatten requires that all its inputs be materialized with the
+          # same coder as its output.  Add stages to transcode flatten
+          # inputs that use different coders.
           transcoded_pcollection = (
               transform.unique_name + '/Transcode/' + local_in + '/out')
           yield Stage(
