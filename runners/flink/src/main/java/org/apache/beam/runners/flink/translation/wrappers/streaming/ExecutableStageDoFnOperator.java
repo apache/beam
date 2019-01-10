@@ -400,10 +400,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // may be called multiple times when an exception is thrown
     if (stageContext != null) {
       // Remove the reference to stageContext and make stageContext available for garbage collection.
-      try (@SuppressWarnings("unused")
-              AutoCloseable bundleFactoryCloser = stageBundleFactory;
-          @SuppressWarnings("unused")
-              AutoCloseable closable = stageContext) {
+      try (AutoCloseable bundleFactoryCloser = stageBundleFactory;
+           AutoCloseable closable = stageContext) {
         // DoFnOperator generates another "bundle" for the final watermark
         // https://issues.apache.org/jira/browse/BEAM-5816
         super.dispose();

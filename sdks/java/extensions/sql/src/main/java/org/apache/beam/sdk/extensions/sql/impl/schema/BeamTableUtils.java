@@ -90,6 +90,7 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
+  @SuppressWarnings("checkstyle:JavadocMethod")
   public static Object autoCastField(Schema.Field field, Object rawObj) {
     if (rawObj == null) {
       if (!field.getType().getNullable()) {

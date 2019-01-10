@@ -133,7 +133,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     Serializer<String> stringSerializer = new StringSerializer();
     Serializer<Instant> instantSerializer = new InstantSerializer();
 
-    try (@SuppressWarnings("unchecked")
+    try (
         KafkaProducer<String, Instant> kafkaProducer =
             new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
       for (Map.Entry<String, Instant> en : messages.entrySet()) {

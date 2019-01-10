@@ -39,6 +39,7 @@ import java.lang.annotation.Target;
   ElementType.TYPE
 })
 @Documented
+@SuppressWarnings("checkstyle:JavadocMethod")
 public @interface Experimental {
   Kind value() default Kind.UNSPECIFIED;
 
