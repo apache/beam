@@ -34,6 +34,17 @@ configurations {
   validatesRunner
 }
 
+configurations.all {
+  resolutionStrategy {
+    // Beam parent forces all deps to be the versions defined. In our case we have spark-core
+    // defined to v2.3.2 for "old" spark runner. So spark-core transitive dep of spark-sql v2.4.0
+    // gets forced to 2.3.2. Remove it from the forced deps and add v 2.4.0
+//    forcedModules.removeElement("org.apache.spark:spark-core_2.11:2.3.2")
+//    forcedModules.removeElement("org.apache.spark:spark-network-common_2.11:2.3.2")
+//    forcedModules.removeElement("org.apache.spark:spark-streaming_2.11:2.3.2")
+    forcedModules = []
+  }
+}
 test {
   systemProperty "spark.ui.enabled", "false"
   systemProperty "spark.ui.showConsoleProgress", "false"
@@ -45,10 +56,7 @@ test {
 }
 
 dependencies {
-  compile('org.apache.spark:spark-core_2.11:2.4.0'){
-    exclude group: 'org.json4s', module: 'json4s-jackson_2.11'
-  }
-  shadow "org.json4s:json4s-jackson_2.11:3.6.3"
+  shadow "com.fasterxml.jackson.module:jackson-module-scala_2.11:2.9.8"
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
