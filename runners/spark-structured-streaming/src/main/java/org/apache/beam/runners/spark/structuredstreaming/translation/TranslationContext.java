@@ -167,7 +167,8 @@ public class TranslationContext {
         if (options.isStreaming()) {
           dataset.writeStream().foreach(new NoOpForeachWriter<>()).start().awaitTermination();
         } else {
-          dataset.write();
+          // apply a dummy fn just to apply forech action that will trigger the pipeline run in spark
+          dataset.foreachPartition(t -> {});
         }
       }
     } catch (StreamingQueryException e) {
