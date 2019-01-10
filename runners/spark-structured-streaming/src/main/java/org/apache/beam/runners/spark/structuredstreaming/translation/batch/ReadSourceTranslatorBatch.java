@@ -18,8 +18,6 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.beam.runners.core.construction.PipelineOptionsSerializationUtils;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
@@ -59,14 +57,12 @@ class ReadSourceTranslatorBatch<T>
     SparkSession sparkSession = context.getSparkSession();
 
     String serializedSource = Base64Serializer.serializeUnchecked(source);
-    Map<String, String> datasetSourceOptions = new HashMap<>();
-    datasetSourceOptions.put(DatasetSourceBatch.BEAM_SOURCE_OPTION, serializedSource);
-    datasetSourceOptions.put(DatasetSourceBatch.DEFAULT_PARALLELISM,
-        String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()));
-    datasetSourceOptions.put(DatasetSourceBatch.PIPELINE_OPTIONS,
-        PipelineOptionsSerializationUtils.serializeToJson(context.getOptions()));
-    Dataset<Row> rowDataset = sparkSession.read().format(sourceProviderClass).options(datasetSourceOptions)
-        .load();
+    Dataset<Row> rowDataset = sparkSession.read().format(sourceProviderClass)
+        .option(DatasetSourceBatch.BEAM_SOURCE_OPTION, serializedSource)
+        .option(DatasetSourceBatch.DEFAULT_PARALLELISM,
+            String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
+        .option(DatasetSourceBatch.PIPELINE_OPTIONS,
+            PipelineOptionsSerializationUtils.serializeToJson(context.getOptions())).load();
 
     MapFunction<Row, WindowedValue> func = new MapFunction<Row, WindowedValue>() {
       @Override public WindowedValue call(Row value) throws Exception {
