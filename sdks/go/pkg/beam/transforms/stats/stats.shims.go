@@ -68,6 +68,7 @@ func init() {
 	runtime.RegisterType(reflect.TypeOf((*meanAccum)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*meanFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())
+	reflectx.RegisterStructWrapper(reflect.TypeOf((*meanFn)(nil)).Elem(), wrapMakerMeanFn)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(float32,float32) (float32))(nil)).Elem(), funcMakerFloat32Float32ГFloat32)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(float64,float64) (float64))(nil)).Elem(), funcMakerFloat64Float64ГFloat64)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int16,int16) (int16))(nil)).Elem(), funcMakerInt16Int16ГInt16)
@@ -85,6 +86,16 @@ func init() {
 	reflectx.RegisterFunc(reflect.TypeOf((*func(uint8,uint8) (uint8))(nil)).Elem(), funcMakerUint8Uint8ГUint8)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(uint,uint) (uint))(nil)).Elem(), funcMakerUintUintГUint)
 	reflectx.RegisterFunc(reflect.TypeOf((*func() (meanAccum))(nil)).Elem(), funcMakerГMeanAccum)
+}
+
+func wrapMakerMeanFn(fn interface{}) map[string]reflectx.Func {
+	dfn := fn.(*meanFn)
+	return map[string]reflectx.Func{
+		"AddInput": reflectx.MakeFunc(func(a0 meanAccum, a1 typex.T) (meanAccum) { return dfn.AddInput(a0, a1) }),
+		"CreateAccumulator": reflectx.MakeFunc(func() (meanAccum) { return dfn.CreateAccumulator() }),
+		"ExtractOutput": reflectx.MakeFunc(func(a0 meanAccum) (float64) { return dfn.ExtractOutput(a0) }),
+		"MergeAccumulators": reflectx.MakeFunc(func(a0 []meanAccum) (meanAccum) { return dfn.MergeAccumulators(a0) }),
+	}
 }
 
 type callerFloat32Float32ГFloat32 struct {
@@ -528,8 +539,6 @@ func (c *callerГMeanAccum) Call(args []interface{}) []interface{} {
 func (c *callerГMeanAccum) Call0x1() (interface{}) {
 	return c.fn()
 }
-
-
 
 
 // DO NOT MODIFY: GENERATED CODE

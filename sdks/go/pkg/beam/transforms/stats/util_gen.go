@@ -17,4 +17,9 @@
 
 package stats
 
-//go:generate starcgen --inputs=count.go,mean.go,max_switch.go,min_switch.go,sum_switch.go --identifiers=mapFn,meanFn,maxIntFn,minIntFn,sumIntFn,maxInt8Fn,minInt8Fn,sumInt8Fn,maxInt16Fn,minInt16Fn,sumInt16Fn,maxInt32Fn,minInt32Fn,sumInt32Fn,maxInt64Fn,minInt64Fn,sumInt64Fn,maxUintFn,minUintFn,sumUintFn,maxUint8Fn,minUint8Fn,sumUint8Fn,maxUint16Fn,minUint16Fn,sumUint16Fn,maxUint32Fn,minUint32Fn,sumUint32Fn,maxUint64Fn,minUint64Fn,sumUint64Fn,maxFloat32Fn,minFloat32Fn,sumFloat32Fn,maxFloat64Fn,minFloat64Fn,sumFloat64Fn
+// This file needs to be *after* all the other generated files in the stats package
+// so that their generated functions exist when this one is run.
+// `go generate` executes go:generate commands in lexical file order, top to bottom.
+
+//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate starcgen --package=stats --identifiers=mapFn,meanFn,maxIntFn,minIntFn,sumIntFn,maxInt8Fn,minInt8Fn,sumInt8Fn,maxInt16Fn,minInt16Fn,sumInt16Fn,maxInt32Fn,minInt32Fn,sumInt32Fn,maxInt64Fn,minInt64Fn,sumInt64Fn,maxUintFn,minUintFn,sumUintFn,maxUint8Fn,minUint8Fn,sumUint8Fn,maxUint16Fn,minUint16Fn,sumUint16Fn,maxUint32Fn,minUint32Fn,sumUint32Fn,maxUint64Fn,minUint64Fn,sumUint64Fn,maxFloat32Fn,minFloat32Fn,sumFloat32Fn,maxFloat64Fn,minFloat64Fn,sumFloat64Fn
