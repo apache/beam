@@ -26,6 +26,9 @@ import traceback
 import unittest
 from builtins import range
 
+from tenacity import retry
+from tenacity import stop_after_attempt
+
 import apache_beam as beam
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
@@ -565,6 +568,11 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_counter_exists(
           all_metrics_via_montoring_infos, namespace, name, step='MyStep')
 
+  # Due to somewhat non-deterministic nature of state sampling and sleep,
+  # this test is flaky when state duration is low.
+  # Since increasing state duration significantly would also slow down
+  # the test suite, we are retrying twice on failure as a mitigation.
+  @retry(reraise=True, stop=stop_after_attempt(3))
   def test_progress_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
