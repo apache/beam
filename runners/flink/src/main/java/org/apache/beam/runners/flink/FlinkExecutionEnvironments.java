@@ -338,7 +338,10 @@ public class FlinkExecutionEnvironments {
 
       final ClusterClient<?> client;
       try {
-        if (CoreOptions.LEGACY_MODE.equals(configuration.getString(CoreOptions.MODE))) {
+        // Write out the option keys and values to be compatible across different Flink versions,
+        // CoreOptions.MODE and its values CoreOptions.LEGACY_MODE and CoreOptions.NEW_MODE
+        // have been removed.
+        if ("legacy".equals(configuration.getString("mode", "new"))) {
           client = new StandaloneClusterClient(configuration);
         } else {
           client = new RestClusterClient<>(configuration, "RemoteStreamEnvironment");
