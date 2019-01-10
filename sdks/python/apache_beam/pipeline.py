@@ -544,11 +544,12 @@ class Pipeline(object):
 
   def _infer_result_type(self, transform, inputs, result_pcollection):
     # TODO(robertwb): Multi-input, multi-output inference.
-    # TODO(robertwb): Ideally we'd do intersection here.
     type_options = self._options.view_as(TypeOptions)
     if (type_options is not None and type_options.pipeline_type_check
         and isinstance(result_pcollection, pvalue.PCollection)
-        and not result_pcollection.element_type):
+        and (not result_pcollection.element_type
+             # TODO(robertwb): Ideally we'd do intersection here.
+             or result_pcollection.element_type == typehints.Any)):
       input_element_type = (
           inputs[0].element_type
           if len(inputs) == 1

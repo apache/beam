@@ -363,6 +363,12 @@ class FnApiRunnerTest(unittest.TestCase):
              | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
       assert_that(res, equal_to([('a', [1, 2]), ('b', [3])]))
 
+  # Runners may special case the Reshuffle transform urn.
+  def test_reshuffle(self):
+    with self.create_pipeline() as p:
+      assert_that(p | beam.Create([1, 2, 3]) | beam.Reshuffle(),
+                  equal_to([1, 2, 3]))
+
   def test_flatten(self):
     with self.create_pipeline() as p:
       res = (p | 'a' >> beam.Create(['a']),
