@@ -81,7 +81,8 @@ public class ConfigBuilder {
     }
   }
 
-  private static Map<String, String> createUserConfig(SamzaPipelineOptions options) throws Exception {
+  private static Map<String, String> createUserConfig(SamzaPipelineOptions options)
+      throws Exception {
     final String configFilePath = options.getConfigFilePath();
     final Map<String, String> config = new HashMap<>();
 
@@ -89,7 +90,8 @@ public class ConfigBuilder {
     if (StringUtils.isNoneEmpty(configFilePath)) {
       final File configFile = new File(configFilePath);
       final URI configUri = configFile.toURI();
-      final ConfigFactory configFactory = options.getConfigFactory().getDeclaredConstructor().newInstance();
+      final ConfigFactory configFactory =
+          options.getConfigFactory().getDeclaredConstructor().newInstance();
 
       // Config file must exist for default properties config
       // TODO: add check to all non-empty files once we don't need to
@@ -131,9 +133,10 @@ public class ConfigBuilder {
         .put(
             // TODO: remove after SAMZA-1531 is resolved
             ApplicationConfig.APP_RUN_ID,
-            String.valueOf(System.currentTimeMillis()) + "-"
-            // use the most significant bits in UUID (8 digits) to avoid collision
-            + UUID.randomUUID().toString().substring(0, 8))
+            String.valueOf(System.currentTimeMillis())
+                + "-"
+                // use the most significant bits in UUID (8 digits) to avoid collision
+                + UUID.randomUUID().toString().substring(0, 8))
         .build();
   }
 
