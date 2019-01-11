@@ -33,11 +33,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.fn.harness.MapFnRunners.ValueMapFnFactory;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -65,8 +65,8 @@ public class MapFnRunnersTest {
     ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     consumers.put("outputPC", outputConsumer::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     ValueMapFnFactory<String, String> factory = (ptId, pt) -> String::toUpperCase;
     MapFnRunners.forValueMapFnFactory(factory)
@@ -81,12 +81,12 @@ public class MapFnRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
@@ -101,8 +101,8 @@ public class MapFnRunnersTest {
     ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     consumers.put("outputPC", outputConsumer::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(
@@ -116,12 +116,12 @@ public class MapFnRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
@@ -136,8 +136,8 @@ public class MapFnRunnersTest {
     ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     consumers.put("outputPC", outputConsumer::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(
@@ -151,12 +151,12 @@ public class MapFnRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 

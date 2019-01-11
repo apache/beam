@@ -39,6 +39,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -52,7 +53,6 @@ import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -200,8 +200,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
     consumers.put(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -215,11 +215,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     mainOutputValues.clear();
 
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
@@ -249,7 +249,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             valueInGlobalWindow("combine:Y1")));
     mainOutputValues.clear();
 
-    Iterables.getOnlyElement(finishFunctions).run();
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
     assertThat(mainOutputValues, empty());
 
     assertEquals(
@@ -362,8 +362,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
     consumers.put(
         additionalPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -377,11 +377,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     mainOutputValues.clear();
 
     assertThat(
@@ -412,7 +412,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         contains(valueInGlobalWindow("X:additional"), valueInGlobalWindow("Y:additional")));
     mainOutputValues.clear();
 
-    Iterables.getOnlyElement(finishFunctions).run();
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
     assertThat(mainOutputValues, empty());
 
     // Assert that state data did not change
@@ -490,8 +490,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
     consumers.put(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -505,11 +505,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     mainOutputValues.clear();
 
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
@@ -601,8 +601,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
     consumers.put(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -616,11 +616,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     mainOutputValues.clear();
 
     // Ensure that bag user state that is initially empty or populated works.
@@ -759,8 +759,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Timer>>>) processingTimerOutputValues::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -786,11 +786,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     mainOutputValues.clear();
 
     assertThat(
@@ -862,7 +862,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             timerInGlobalWindow("B", new Instant(1900L), new Instant(10022L))));
     mainOutputValues.clear();
 
-    Iterables.getOnlyElement(finishFunctions).run();
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
     assertThat(mainOutputValues, empty());
 
     assertEquals(

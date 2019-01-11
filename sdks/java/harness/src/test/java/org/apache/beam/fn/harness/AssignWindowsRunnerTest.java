@@ -200,8 +200,8 @@ public class AssignWindowsRunnerTest implements Serializable {
             null /* coders */,
             null /* windowingStrategies */,
             receivers,
-            null /* addStartFunction */,
-            null, /* addFinishFunction */
+            null /* startFunctionRegistry */,
+            null, /* finishFunctionRegistry */
             null /* splitListener */);
 
     WindowedValue<Integer> value =
