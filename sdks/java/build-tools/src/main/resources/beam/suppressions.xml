@@ -23,7 +23,6 @@
   
   <suppress checks="JavadocMethod" files=".*Test\.java"/>
   <suppress checks="JavadocMethod" files=".*[\\\/]src[\\\/]test[\\\/].*"/>
-  <suppress checks="JavadocMethod" files=".*[\\\/]testing[\\\/].*"/>
   <suppress checks="JavadocMethod" files=".*[\\\/]examples[\\\/].*"/>
 
   <!-- suppress all checks in the generated directories -->
@@ -31,4 +30,3 @@
   <suppress checks=".*" files=".+[\\\/]generated-sources[\\\/].+\.java" />
   <suppress checks=".*" files=".+[\\\/]generated-test-sources[\\\/].+\.java" />
 </suppressions>
-
