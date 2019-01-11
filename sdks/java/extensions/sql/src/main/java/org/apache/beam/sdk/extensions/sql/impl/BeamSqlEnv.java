@@ -80,6 +80,10 @@ public class BeamSqlEnv {
     }
   }
 
+  public void addSchema(String name, TableProvider tableProvider) {
+    connection.setSchema(name, tableProvider);
+  }
+
   /** Register a UDF function which can be used in SQL expression. */
   public void registerUdf(String functionName, Class<?> clazz, String method) {
     connection.getCurrentSchemaPlus().add(functionName, UdfImpl.create(clazz, method));
