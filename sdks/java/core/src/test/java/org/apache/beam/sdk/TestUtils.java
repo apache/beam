@@ -19,18 +19,16 @@ package org.apache.beam.sdk;
 
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.values.KV;
-
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.values.KV;
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 
 /**
  * Utilities for tests.

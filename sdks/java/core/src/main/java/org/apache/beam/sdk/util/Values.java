@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.util;
 
 import java.util.Map;
-
 import javax.annotation.Nullable;
 
 /**

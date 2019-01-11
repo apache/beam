@@ -17,6 +17,11 @@
  */
 package org.apache.beam.examples.complete;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import org.apache.beam.examples.complete.AutoComplete.CompletionCandidate;
 import org.apache.beam.examples.complete.AutoComplete.ComputeTopCompletions;
 import org.apache.beam.sdk.Pipeline;
@@ -33,18 +38,11 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
 
 /**
  * Tests of AutoComplete.
@@ -101,7 +99,7 @@ public class AutoCompleteTest implements Serializable {
         KV.of("bl", parseList("blackberry:3", "blueberry:2")),
         KV.of("c", parseList("cherry:1")),
         KV.of("ch", parseList("cherry:1")));
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   @Test
@@ -119,7 +117,7 @@ public class AutoCompleteTest implements Serializable {
         KV.of("x", parseList("x:3", "xy:2")),
         KV.of("xy", parseList("xy:2", "xyz:1")),
         KV.of("xyz", parseList("xyz:1")));
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   @Test
@@ -155,7 +153,7 @@ public class AutoCompleteTest implements Serializable {
         // Window [2, 3)
         KV.of("x", parseList("xB:2")),
         KV.of("xB", parseList("xB:2")));
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   private static List<CompletionCandidate> parseList(String... entries) {
@@ -170,9 +168,9 @@ public class AutoCompleteTest implements Serializable {
   private static class ReifyTimestamps<T>
       extends PTransform<PCollection<TimestampedValue<T>>, PCollection<T>> {
     @Override
-    public PCollection<T> apply(PCollection<TimestampedValue<T>> input) {
+    public PCollection<T> expand(PCollection<TimestampedValue<T>> input) {
       return input.apply(ParDo.of(new DoFn<TimestampedValue<T>, T>() {
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) {
           c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
         }

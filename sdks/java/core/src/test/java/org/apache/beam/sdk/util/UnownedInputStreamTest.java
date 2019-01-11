@@ -20,14 +20,13 @@ package org.apache.beam.sdk.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
+import java.io.ByteArrayInputStream;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.ByteArrayInputStream;
 
 /** Unit tests for {@link UnownedInputStream}. */
 @RunWith(JUnit4.class)

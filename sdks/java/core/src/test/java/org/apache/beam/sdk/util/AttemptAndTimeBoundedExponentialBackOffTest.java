@@ -25,10 +25,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
-
 import com.google.api.client.util.BackOff;
-
+import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -37,6 +35,7 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link AttemptAndTimeBoundedExponentialBackOff}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("deprecation") // test of deprecated class
 public class AttemptAndTimeBoundedExponentialBackOffTest {
   @Rule public ExpectedException exception = ExpectedException.none();
   @Rule public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();

@@ -17,28 +17,22 @@
  */
 package org.apache.beam.sdk.testing;
 
+import com.google.common.base.MoreObjects;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.KV;
-
-import com.google.common.base.MoreObjects;
-
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
-
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-
-import javax.annotation.Nullable;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Static class for building and using {@link SerializableMatcher} instances.
@@ -517,7 +511,7 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#equalTo()}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#equalTo(Object)}.
    */
   public static <T extends Serializable> SerializableMatcher<T> equalTo(final T expected) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
@@ -529,7 +523,7 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#equalTo()}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#equalTo(Object)}.
    *
    * <p>The expected value of type {@code T} will be serialized using the provided {@link Coder}.
    * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
@@ -547,7 +541,8 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#greaterThan()}.
+   * A {@link SerializableMatcher} with identical criteria to
+   * {@link Matchers#greaterThan(Comparable)}.
    */
   public static <T extends Comparable<T> & Serializable> SerializableMatcher<T>
   greaterThan(final T target) {
@@ -560,7 +555,8 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#greaterThan()}.
+   * A {@link SerializableMatcher} with identical criteria to
+   * {@link Matchers#greaterThan(Comparable)}.
    *
    * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
    * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
@@ -578,7 +574,7 @@ class SerializableMatchers implements Serializable {
 
   /**
    * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#greaterThanOrEqualTo()}.
+   * {@link Matchers#greaterThanOrEqualTo(Comparable)}.
    */
   public static <T extends Comparable<T>> SerializableMatcher<T> greaterThanOrEqualTo(
       final T target) {
@@ -592,7 +588,7 @@ class SerializableMatchers implements Serializable {
 
   /**
    * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#greaterThanOrEqualTo()}.
+   * {@link Matchers#greaterThanOrEqualTo(Comparable)}.
    *
    * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
    * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
@@ -861,7 +857,7 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#lessThan()}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#lessThan(Comparable)}.
    */
   public static <T extends Comparable<T> & Serializable> SerializableMatcher<T> lessThan(
       final T target) {
@@ -874,7 +870,7 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#lessThan()}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#lessThan(Comparable)}.
    *
    * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
    * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
@@ -892,7 +888,7 @@ class SerializableMatchers implements Serializable {
 
   /**
    * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#lessThanOrEqualTo()}.
+   * {@link Matchers#lessThanOrEqualTo(Comparable)}.
    */
   public static <T extends Comparable<T> & Serializable> SerializableMatcher<T> lessThanOrEqualTo(
       final T target) {
@@ -906,7 +902,7 @@ class SerializableMatchers implements Serializable {
 
   /**
    * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#lessThanOrEqualTo()}.
+   * {@link Matchers#lessThanOrEqualTo(Comparable)}.
    *
    * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
    * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
@@ -1050,14 +1046,14 @@ class SerializableMatchers implements Serializable {
    * the {@link Matcher} returned by {@link SerializableSupplier#get() get()} when it is invoked
    * during matching (which may occur on another machine, such as a Dataflow worker).
    *
-   * <code>
+   * <pre>{@code
    * return fromSupplier(new SerializableSupplier<Matcher<T>>() {
    *   *     @Override
    *     public Matcher<T> get() {
    *       return new MyMatcherForT();
    *     }
    * });
-   * </code>
+   * }</pre>
    */
   public static <T> SerializableMatcher<T> fromSupplier(
       SerializableSupplier<Matcher<T>> supplier) {
@@ -1150,8 +1146,6 @@ class SerializableMatchers implements Serializable {
   private static class SerializableArrayViaCoder<T> implements SerializableSupplier<T[]> {
     /** Cached value that is not serialized. */
     @Nullable
-    @SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
-        justification = "Cached value is lazily restored on read.")
     private transient T[] value;
 
     /** The bytes of {@link #value} when encoded via {@link #coder}. */

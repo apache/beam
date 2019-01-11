@@ -20,6 +20,8 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.io.Write.Bound;
 import org.apache.beam.sdk.transforms.Count;
@@ -34,38 +36,29 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
-
-import com.google.common.annotations.VisibleForTesting;
-
 import org.joda.time.Duration;
-
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * A {@link PTransformOverrideFactory} that overrides {@link Write} {@link PTransform PTransforms}
  * with an unspecified number of shards with a write with a specified number of shards. The number
  * of shards is the log base 10 of the number of input records, with up to 2 additional shards.
  */
-class WriteWithShardingFactory implements PTransformOverrideFactory {
+class WriteWithShardingFactory<InputT>
+    implements PTransformOverrideFactory<PCollection<InputT>, PDone, Write.Bound<InputT>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
 
   @Override
-  public <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
-      PTransform<InputT, OutputT> transform) {
-    if (transform instanceof Write.Bound) {
-      Write.Bound<InputT> that = (Write.Bound<InputT>) transform;
-      if (that.getNumShards() == 0) {
-        return (PTransform<InputT, OutputT>) new DynamicallyReshardedWrite<InputT>(that);
-      }
+  public PTransform<PCollection<InputT>, PDone> override(Write.Bound<InputT> transform) {
+    if (transform.getNumShards() == 0) {
+      return new DynamicallyReshardedWrite<>(transform);
     }
     return transform;
   }
 
-  private static class DynamicallyReshardedWrite <T> extends PTransform<PCollection<T>, PDone> {
+  private static class DynamicallyReshardedWrite<T> extends PTransform<PCollection<T>, PDone> {
     private final transient Write.Bound<T> original;
 
     private DynamicallyReshardedWrite(Bound<T> original) {
@@ -73,7 +66,10 @@ class WriteWithShardingFactory implements PTransformOverrideFactory {
     }
 
     @Override
-    public PDone apply(PCollection<T> input) {
+    public PDone expand(PCollection<T> input) {
+      checkArgument(IsBounded.BOUNDED == input.isBounded(),
+          "%s can only be applied to a Bounded PCollection",
+          getClass().getSimpleName());
       PCollection<T> records = input.apply("RewindowInputs",
           Window.<T>into(new GlobalWindows()).triggering(DefaultTrigger.of())
               .withAllowedLateness(Duration.ZERO)
@@ -96,7 +92,7 @@ class WriteWithShardingFactory implements PTransformOverrideFactory {
       // without adding a new Write Transform Node, which would be overwritten the same way, leading
       // to an infinite recursion. We cannot modify the number of shards, because that is determined
       // at runtime.
-      return original.apply(resharded);
+      return original.expand(resharded);
     }
   }
 
@@ -115,7 +111,7 @@ class WriteWithShardingFactory implements PTransformOverrideFactory {
       this.randomExtraShards = extraShards;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       if (maxShards == 0) {
         maxShards = calculateShards(c.sideInput(numRecords));

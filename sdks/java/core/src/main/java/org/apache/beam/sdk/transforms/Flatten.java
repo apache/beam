@@ -105,7 +105,7 @@ public class Flatten {
     private FlattenPCollectionList() { }
 
     @Override
-    public PCollection<T> apply(PCollectionList<T> inputs) {
+    public PCollection<T> expand(PCollectionList<T> inputs) {
       WindowingStrategy<?, ?> windowingStrategy;
       IsBounded isBounded = IsBounded.BOUNDED;
       if (!inputs.getAll().isEmpty()) {
@@ -118,8 +118,7 @@ public class Flatten {
                 + windowingStrategy.getWindowFn() + ", " + other.getWindowFn());
           }
 
-          if (!windowingStrategy.getTrigger().getSpec()
-              .isCompatible(other.getTrigger().getSpec())) {
+          if (!windowingStrategy.getTrigger().isCompatible(other.getTrigger())) {
             throw new IllegalStateException(
                 "Inputs to Flatten had incompatible triggers: "
                 + windowingStrategy.getTrigger() + ", " + other.getTrigger());
@@ -164,7 +163,7 @@ public class Flatten {
       extends PTransform<PCollection<? extends Iterable<T>>, PCollection<T>> {
 
     @Override
-    public PCollection<T> apply(PCollection<? extends Iterable<T>> in) {
+    public PCollection<T> expand(PCollection<? extends Iterable<T>> in) {
       Coder<? extends Iterable<T>> inCoder = in.getCoder();
       if (!(inCoder instanceof IterableLikeCoder)) {
         throw new IllegalArgumentException(
@@ -173,13 +172,11 @@ public class Flatten {
       @SuppressWarnings("unchecked")
       Coder<T> elemCoder = ((IterableLikeCoder<T, ?>) inCoder).getElemCoder();
 
-      return in.apply("FlattenIterables", ParDo.of(
-          new DoFn<Iterable<T>, T>() {
+      return in.apply("FlattenIterables", FlatMapElements.via(
+          new SimpleFunction<Iterable<T>, Iterable<T>>() {
             @Override
-            public void processElement(ProcessContext c) {
-              for (T i : c.element()) {
-                c.output(i);
-              }
+            public Iterable<T> apply(Iterable<T> element) {
+              return element;
             }
           }))
           .setCoder(elemCoder);

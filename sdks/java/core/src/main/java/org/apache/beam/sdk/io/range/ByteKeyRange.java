@@ -24,16 +24,14 @@ import static com.google.common.base.Verify.verify;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A class representing a range of {@link ByteKey ByteKeys}.
@@ -64,9 +62,9 @@ import java.util.Objects;
  * <p>Key interpolation, fraction estimation, and range splitting are all interpreted in these
  * floating-point semantics. See the respective implementations for further details. <b>Note:</b>
  * the underlying implementations of these functions use {@link BigInteger} and {@link BigDecimal},
- * so they can be slow and should not be called in hot loops. Dataflow's dynamic work
- * rebalancing will only invoke these functions during periodic control operations, so they are not
- * called on the critical path.
+ * so they can be slow and should not be called in hot loops. Dynamic work rebalancing will only
+ * invoke these functions during periodic control operations, so they are not called on the critical
+ * path.
  *
  * @see ByteKey
  */
@@ -135,7 +133,7 @@ public final class ByteKeyRange implements Serializable {
    * Specifically, if this range is unsplittable (e.g., because the start and end keys are equal
    * up to padding by zero bytes), the list returned will only contain the start and end key.
    *
-   * @throws IllegalArgumentException if the specified number of splits is < 1
+   * @throws IllegalArgumentException if the specified number of splits is less than 1
    * @see ByteKeyRange the ByteKeyRange class Javadoc for more information about split semantics.
    */
   public List<ByteKey> split(int numSplits) {

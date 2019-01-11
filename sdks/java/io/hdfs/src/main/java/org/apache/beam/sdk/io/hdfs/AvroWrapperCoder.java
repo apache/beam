@@ -19,22 +19,20 @@ package org.apache.beam.sdk.io.hdfs;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
+import org.apache.avro.mapred.AvroWrapper;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.avro.mapred.AvroWrapper;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * A {@code AvroWrapperCoder} is a {@link Coder} for a Java class that implements {@link
@@ -66,7 +64,7 @@ public class AvroWrapperCoder<WrapperT extends AvroWrapper<DatumT>, DatumT>
   }
 
   @JsonCreator
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"})
   public static AvroWrapperCoder<?, ?> of(
       @JsonProperty("wrapperType") String wrapperType,
       @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components)

@@ -18,13 +18,11 @@
 package org.apache.beam.sdk.util;
 
 import com.google.api.client.util.Data;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
 import javax.annotation.Nullable;
 
 /**

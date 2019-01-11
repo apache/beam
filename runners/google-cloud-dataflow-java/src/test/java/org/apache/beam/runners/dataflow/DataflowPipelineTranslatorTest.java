@@ -20,9 +20,9 @@ package org.apache.beam.runners.dataflow;
 import static org.apache.beam.sdk.util.Structs.addObject;
 import static org.apache.beam.sdk.util.Structs.getDictionary;
 import static org.apache.beam.sdk.util.Structs.getString;
-
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -36,6 +36,26 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.api.services.dataflow.Dataflow;
+import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.api.services.dataflow.model.Job;
+import com.google.api.services.dataflow.model.Step;
+import com.google.api.services.dataflow.model.WorkerPool;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -47,6 +67,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -55,6 +76,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.Structs;
@@ -65,17 +87,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.api.services.dataflow.Dataflow;
-import com.google.api.services.dataflow.model.DataflowPackage;
-import com.google.api.services.dataflow.model.Job;
-import com.google.api.services.dataflow.model.Step;
-import com.google.api.services.dataflow.model.WorkerPool;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -86,15 +97,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Tests for DataflowPipelineTranslator.
@@ -159,7 +161,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
       }
     });
-    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(true);
+    when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
     when(mockGcsUtil.isGcsPatternSupported(anyString())).thenCallRealMethod();
 
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
@@ -187,27 +189,22 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 p, (DataflowRunner) p.getRunner(), Collections.<DataflowPackage>emptyList())
             .getJob();
 
-    // Note that the contents of this materialized map may be changed by the act of reading an
-    // option, which will cause the default to get materialized whereas it would otherwise be
-    // left absent. It is permissible to simply alter this test to reflect current behavior.
-    Map<String, Object> settings = new HashMap<>();
-    settings.put("appName", "DataflowPipelineTranslatorTest");
-    settings.put("project", "some-project");
-    settings.put("pathValidatorClass",
-        "org.apache.beam.runners.dataflow.util.DataflowPathValidator");
-    settings.put("runner", "org.apache.beam.runners.dataflow.DataflowRunner");
-    settings.put("jobName", "some-job-name");
-    settings.put("tempLocation", "gs://somebucket/some/path");
-    settings.put("gcpTempLocation", "gs://somebucket/some/path");
-    settings.put("stagingLocation", "gs://somebucket/some/path/staging");
-    settings.put("stableUniqueNames", "WARNING");
-    settings.put("streaming", false);
-    settings.put("numberOfWorkerHarnessThreads", 0);
-    settings.put("experiments", null);
-
     Map<String, Object> sdkPipelineOptions = job.getEnvironment().getSdkPipelineOptions();
     assertThat(sdkPipelineOptions, hasKey("options"));
-    assertEquals(settings, sdkPipelineOptions.get("options"));
+    Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
+
+    assertThat(optionsMap, hasEntry("appName", (Object) "DataflowPipelineTranslatorTest"));
+    assertThat(optionsMap, hasEntry("project", (Object) "some-project"));
+    assertThat(optionsMap,
+        hasEntry("pathValidatorClass", (Object) GcsPathValidator.class.getName()));
+    assertThat(optionsMap, hasEntry("runner", (Object) DataflowRunner.class.getName()));
+    assertThat(optionsMap, hasEntry("jobName", (Object) "some-job-name"));
+    assertThat(optionsMap, hasEntry("tempLocation", (Object) "gs://somebucket/some/path"));
+    assertThat(optionsMap,
+        hasEntry("stagingLocation", (Object) "gs://somebucket/some/path/staging"));
+    assertThat(optionsMap, hasEntry("stableUniqueNames", (Object) "WARNING"));
+    assertThat(optionsMap, hasEntry("streaming", (Object) false));
+    assertThat(optionsMap, hasEntry("numberOfWorkerHarnessThreads", (Object) 0));
   }
 
   @Test
@@ -469,6 +466,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(4, steps.size());
@@ -506,7 +504,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   /**
-   * Returns a Step for a DoFn by creating and translating a pipeline.
+   * Returns a Step for a {@link DoFn} by creating and translating a pipeline.
    */
   private static Step createPredefinedStep() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
@@ -527,11 +525,13 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(13, job.getSteps().size());
     Step step = job.getSteps().get(1);
     assertEquals(stepName, getString(step.getProperties(), PropertyNames.USER_NAME));
+    assertAllStepOutputsHaveUniqueIds(job);
     return step;
   }
 
   private static class NoOpFn extends DoFn<String, String> {
-    @Override public void processElement(ProcessContext c) throws Exception {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
       c.output(c.element());
     }
   }
@@ -548,7 +548,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     }
 
     @Override
-    public PCollection<String> apply(PCollection<String> input) {
+    public PCollection<String> expand(PCollection<String> input) {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
           WindowingStrategy.globalDefault(),
@@ -582,7 +582,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       extends PTransform<PCollection<Integer>, PCollection<Integer>> {
 
     @Override
-    public PCollection<Integer> apply(PCollection<Integer> input) {
+    public PCollection<Integer> expand(PCollection<Integer> input) {
       // Apply an operation so that this is a composite transform.
       input.apply(Count.<Integer>perElement());
 
@@ -603,7 +603,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       extends PTransform<PCollection<Integer>, PDone> {
 
     @Override
-    public PDone apply(PCollection<Integer> input) {
+    public PDone expand(PCollection<Integer> input) {
       // Apply an operation so that this is a composite transform.
       input.apply(Count.<Integer>perElement());
 
@@ -628,7 +628,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     public final TupleTag<Void> doneTag = new TupleTag<>("done");
 
     @Override
-    public PCollectionTuple apply(PCollection<Integer> input) {
+    public PCollectionTuple expand(PCollection<Integer> input) {
       PCollection<Integer> sum = input.apply(Sum.integersGlobally());
 
       // Fails here when attempting to construct a tuple with an unbound object.
@@ -641,7 +641,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  public void testMultiGraphPipelineSerialization() throws IOException {
+  public void testMultiGraphPipelineSerialization() throws Exception {
     Pipeline p = Pipeline.create(buildPipelineOptions());
 
     PCollection<Integer> input = p.begin()
@@ -654,8 +654,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         PipelineOptionsFactory.as(DataflowPipelineOptions.class));
 
     // Check that translation doesn't fail.
-    t.translate(
+    JobSpecification jobSpecification = t.translate(
         p, (DataflowRunner) p.getRunner(), Collections.<DataflowPackage>emptyList());
+    assertAllStepOutputsHaveUniqueIds(jobSpecification.getJob());
   }
 
   @Test
@@ -665,7 +666,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     PCollection<Integer> input = p.begin()
         .apply(Create.of(1, 2, 3));
 
-    thrown.expect(IllegalStateException.class);
+    thrown.expect(IllegalArgumentException.class);
     input.apply(new PartiallyBoundOutputCreator());
 
     Assert.fail("Failure expected from use of partially bound output");
@@ -696,10 +697,11 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     applyRead(pipeline, "gs://bucket/foo[0-9]/baz");
 
     // Check that translation doesn't fail.
-    t.translate(
+    JobSpecification jobSpecification = t.translate(
         pipeline,
         (DataflowRunner) pipeline.getRunner(),
         Collections.<DataflowPackage>emptyList());
+    assertAllStepOutputsHaveUniqueIds(jobSpecification.getJob());
   }
 
   private void applyRead(Pipeline pipeline, String path) {
@@ -728,6 +730,33 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         Collections.<DataflowPackage>emptyList());
   }
 
+  private static class TestValueProvider implements ValueProvider<String>, Serializable {
+    @Override
+    public boolean isAccessible() {
+      return false;
+    }
+
+    @Override
+    public String get() {
+      throw new RuntimeException("Should not be called.");
+    }
+  }
+
+  @Test
+  public void testInaccessibleProvider() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Pipeline pipeline = Pipeline.create(options);
+    DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(options);
+
+    pipeline.apply(TextIO.Read.from(new TestValueProvider()).withoutValidation());
+
+    // Check that translation does not fail.
+    t.translate(
+        pipeline,
+        (DataflowRunner) pipeline.getRunner(),
+        Collections.<DataflowPackage>emptyList());
+  }
+
   @Test
   public void testToSingletonTranslation() throws Exception {
     // A "change detector" test that makes sure the translation
@@ -748,6 +777,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(2, steps.size());
@@ -757,7 +787,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Step collectionToSingletonStep = steps.get(1);
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
-
   }
 
   @Test
@@ -780,6 +809,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(2, steps.size());
@@ -810,6 +840,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(5, steps.size());
@@ -843,6 +874,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(3, steps.size());
@@ -865,7 +897,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline pipeline = Pipeline.create(options);
 
     DoFn<Integer, Integer> fn1 = new DoFn<Integer, Integer>() {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         c.output(c.element());
       }
@@ -881,7 +913,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     };
 
     DoFn<Integer, Integer> fn2 = new DoFn<Integer, Integer>() {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         c.output(c.element());
       }
@@ -906,6 +938,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(3, steps.size());
@@ -966,5 +999,23 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertEquals(expectedFn1DisplayData, ImmutableSet.copyOf(fn1displayData));
     assertEquals(expectedFn2DisplayData, ImmutableSet.copyOf(fn2displayData));
+  }
+
+  private static void assertAllStepOutputsHaveUniqueIds(Job job)
+      throws Exception {
+    List<Long> outputIds = new ArrayList<>();
+    for (Step step : job.getSteps()) {
+      List<Map<String, Object>> outputInfoList =
+          (List<Map<String, Object>>) step.getProperties().get(PropertyNames.OUTPUT_INFO);
+      if (outputInfoList != null) {
+        for (Map<String, Object> outputInfo : outputInfoList) {
+          outputIds.add(Long.parseLong(Structs.getString(outputInfo, PropertyNames.OUTPUT_NAME)));
+        }
+      }
+    }
+    Set<Long> uniqueOutputNames = new HashSet<>(outputIds);
+    outputIds.removeAll(uniqueOutputNames);
+    assertTrue(String.format("Found duplicate output ids %s", outputIds),
+        outputIds.size() == 0);
   }
 }

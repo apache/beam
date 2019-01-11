@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * A {@link WindowFn} for use during tests that returns the input window for calls to

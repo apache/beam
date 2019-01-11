@@ -17,16 +17,14 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import com.google.common.base.Splitter;
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
-
-import com.google.common.base.Splitter;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
 
 /**
  * Factory methods for creating the {@link StateNamespace StateNamespaces}.
@@ -36,7 +34,7 @@ public class StateNamespaces {
   private enum Namespace {
     GLOBAL,
     WINDOW,
-    WINDOW_AND_TRIGGER;
+    WINDOW_AND_TRIGGER
   }
 
   public static StateNamespace global() {

@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk;
 
-import org.apache.beam.sdk.runners.AggregatorRetrievalException;
-import org.apache.beam.sdk.runners.AggregatorValues;
+import java.io.IOException;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.joda.time.Duration;
 
 /**
  * Result of {@link Pipeline#run()}.
@@ -32,6 +35,34 @@ public interface PipelineResult {
    * @return the {@link State} representing the state of this pipeline.
    */
   State getState();
+
+  /**
+   * Cancels the pipeline execution.
+   *
+   * @throws IOException if there is a problem executing the cancel request.
+   * @throws UnsupportedOperationException if the runner does not support cancellation.
+   */
+  State cancel() throws IOException;
+
+  /**
+   * Waits until the pipeline finishes and returns the final status.
+   * It times out after the given duration.
+   *
+   * @param duration The time to wait for the pipeline to finish.
+   *     Provide a value less than 1 ms for an infinite wait.
+   *
+   * @return The final state of the pipeline or null on timeout.
+   * @throws UnsupportedOperationException if the runner does not support cancellation.
+   */
+  State waitUntilFinish(Duration duration);
+
+  /**
+   * Waits until the pipeline finishes and returns the final status.
+   *
+   * @return The final state of the pipeline.
+   * @throws UnsupportedOperationException if the runner does not support cancellation.
+   */
+  State waitUntilFinish();
 
   /**
    * Retrieves the current value of the provided {@link Aggregator}.
@@ -47,7 +78,7 @@ public interface PipelineResult {
   // TODO: method to retrieve error messages.
 
   /** Named constants for common values for the job state. */
-  public enum State {
+  enum State {
 
     /** The job state could not be obtained or was not specified. */
     UNKNOWN(false, false),
@@ -74,7 +105,7 @@ public interface PipelineResult {
 
     private final boolean hasReplacement;
 
-    private State(boolean terminal, boolean hasReplacement) {
+    State(boolean terminal, boolean hasReplacement) {
       this.terminal = terminal;
       this.hasReplacement = hasReplacement;
     }
@@ -93,4 +124,12 @@ public interface PipelineResult {
       return hasReplacement;
     }
   }
+
+  /**
+   * Return the object to access metrics from the pipeline.
+   *
+   * @throws UnsupportedOperationException if the runner doesn't support retrieving metrics.
+   */
+  @Experimental(Kind.METRICS)
+  MetricResults metrics();
 }

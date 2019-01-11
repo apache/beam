@@ -18,8 +18,17 @@
 package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.auto.value.AutoValue;
+import com.google.common.collect.ComparisonChain;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -28,22 +37,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
-
-import com.google.common.base.MoreObjects;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.joda.time.Instant;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-
-import javax.annotation.Nullable;
 
 /**
  * Encapsulate interaction with time within the execution environment.
@@ -54,16 +48,30 @@ import javax.annotation.Nullable;
 public interface TimerInternals {
 
   /**
-   * Writes out a timer to be fired when the watermark reaches the given
-   * timestamp.
+   * Sets a timer to be fired when the current time in the specified time domain reaches the
+   * target timestamp.
    *
-   * <p>The combination of {@code namespace}, {@code timestamp} and {@code domain} uniquely
-   * identify a timer. Multiple timers set for the same parameters can be safely deduplicated.
+   * <p>The combination of {@code namespace} and {@code timerId} uniquely identify a timer.
+   *
+   * <p>If a timer is set and then set again before it fires, later settings should clear the prior
+   * setting.
+   *
+   * <p>It is an error to set a timer for two different time domains.
    */
-  void setTimer(TimerData timerKey);
+  void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain);
+
+  /**
+   * Sets the timer described by {@code timerData}.
+   */
+  void setTimer(TimerData timerData);
 
   /**
    * Deletes the given timer.
+   */
+  void deleteTimer(StateNamespace namespace, String timerId);
+
+  /**
+   * Deletes the timer with the ID contained in the provided {@link TimerData}.
    */
   void deleteTimer(TimerData timerKey);
 
@@ -112,16 +120,18 @@ public interface TimerInternals {
    * <li>However will never be behind the global input watermark for any following computation.
    * </ol>
    *
-   * <p> In pictures:
-   * <pre>
+   * <p>In pictures:
+   * <pre>{@code
    *  |              |       |       |       |
    *  |              |   D   |   C   |   B   |   A
    *  |              |       |       |       |
    * GIWM     <=    GOWM <= LOWM <= LIWM <= GIWM
    * (next stage)
    * -------------------------------------------------> event time
-   * </pre>
-   * where
+   * }</pre>
+   *
+   * <p>where
+   *
    * <ul>
    * <li> LOWM = local output water mark.
    * <li> GOWM = global output water mark.
@@ -146,76 +156,67 @@ public interface TimerInternals {
   /**
    * Data about a timer as represented within {@link TimerInternals}.
    */
-  public static class TimerData implements Comparable<TimerData> {
-    private final StateNamespace namespace;
-    private final Instant timestamp;
-    private final TimeDomain domain;
+  @AutoValue
+  abstract class TimerData implements Comparable<TimerData> {
 
-    private TimerData(StateNamespace namespace, Instant timestamp, TimeDomain domain) {
-      this.namespace = checkNotNull(namespace);
-      this.timestamp = checkNotNull(timestamp);
-      this.domain = checkNotNull(domain);
-    }
+    public abstract String getTimerId();
 
-    public StateNamespace getNamespace() {
-      return namespace;
-    }
+    public abstract StateNamespace getNamespace();
 
-    public Instant getTimestamp() {
-      return timestamp;
-    }
+    public abstract Instant getTimestamp();
 
-    public TimeDomain getDomain() {
-      return domain;
+    public abstract TimeDomain getDomain();
+
+    /**
+     * Construct a {@link TimerData} for the given parameters, where the timer ID is automatically
+     * generated.
+     */
+    public static TimerData of(
+        String timerId, StateNamespace namespace, Instant timestamp, TimeDomain domain) {
+      return new AutoValue_TimerInternals_TimerData(timerId, namespace, timestamp, domain);
     }
 
     /**
-     * Construct the {@code TimerKey} for the given parameters.
+     * Construct a {@link TimerData} for the given parameters, where the timer ID is
+     * deterministically generated from the {@code timestamp} and {@code domain}.
      */
     public static TimerData of(StateNamespace namespace, Instant timestamp, TimeDomain domain) {
-      return new TimerData(namespace, timestamp, domain);
+      String timerId =
+          new StringBuilder()
+              .append(domain.ordinal())
+              .append(':')
+              .append(timestamp.getMillis())
+              .toString();
+      return of(timerId, namespace, timestamp, domain);
     }
 
+    /**
+     * {@inheritDoc}.
+     *
+     * <p>The ordering of {@link TimerData} that are not in the same namespace or domain is
+     * arbitrary.
+     */
     @Override
-    public boolean equals(Object obj) {
-      if (this == obj) {
-        return true;
+    public int compareTo(TimerData that) {
+      if (this.equals(that)) {
+        return 0;
       }
-
-      if (!(obj instanceof TimerData)) {
-        return false;
+      ComparisonChain chain =
+          ComparisonChain.start()
+              .compare(this.getTimestamp(), that.getTimestamp())
+              .compare(this.getDomain(), that.getDomain());
+      if (chain.result() == 0 && !this.getNamespace().equals(that.getNamespace())) {
+        // Obtaining the stringKey may be expensive; only do so if required
+        chain = chain.compare(getNamespace().stringKey(), that.getNamespace().stringKey());
       }
-
-      TimerData that = (TimerData) obj;
-      return Objects.equals(this.domain, that.domain)
-          && this.timestamp.isEqual(that.timestamp)
-          && Objects.equals(this.namespace, that.namespace);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(domain, timestamp, namespace);
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(getClass())
-          .add("namespace", namespace)
-          .add("timestamp", timestamp)
-          .add("domain", domain)
-          .toString();
-    }
-
-    @Override
-    public int compareTo(TimerData o) {
-      return Long.compare(timestamp.getMillis(), o.getTimestamp().getMillis());
+      return chain.result();
     }
   }
 
   /**
    * A {@link Coder} for {@link TimerData}.
    */
-  public class TimerDataCoder extends StandardCoder<TimerData> {
+  class TimerDataCoder extends StandardCoder<TimerData> {
     private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
     private static final InstantCoder INSTANT_CODER = InstantCoder.of();
     private final Coder<? extends BoundedWindow> windowCoder;
@@ -241,20 +242,22 @@ public interface TimerInternals {
     public void encode(TimerData timer, OutputStream outStream, Context context)
         throws CoderException, IOException {
       Context nestedContext = context.nested();
-      STRING_CODER.encode(timer.namespace.stringKey(), outStream, nestedContext);
-      INSTANT_CODER.encode(timer.timestamp, outStream, nestedContext);
-      STRING_CODER.encode(timer.domain.name(), outStream, nestedContext);
+      STRING_CODER.encode(timer.getTimerId(), outStream, nestedContext);
+      STRING_CODER.encode(timer.getNamespace().stringKey(), outStream, nestedContext);
+      INSTANT_CODER.encode(timer.getTimestamp(), outStream, nestedContext);
+      STRING_CODER.encode(timer.getDomain().name(), outStream, nestedContext);
     }
 
     @Override
     public TimerData decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       Context nestedContext = context.nested();
+      String timerId = STRING_CODER.decode(inStream, nestedContext);
       StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream, nestedContext), windowCoder);
       Instant timestamp = INSTANT_CODER.decode(inStream, nestedContext);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream, nestedContext));
-      return TimerData.of(namespace, timestamp, domain);
+      return TimerData.of(timerId, namespace, timestamp, domain);
     }
 
     @Override

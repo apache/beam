@@ -45,6 +45,7 @@ import com.google.api.client.util.BackOff;
  *
  * <p>Implementation is not thread-safe.
  */
+@Deprecated
 public class AttemptBoundedExponentialBackOff implements BackOff {
   public static final double DEFAULT_MULTIPLIER = 1.5;
   public static final double DEFAULT_RANDOMIZATION_FACTOR = 0.5;

@@ -39,7 +39,7 @@ public abstract class FlinkPipelineTranslator extends Pipeline.PipelineVisitor.D
   }
 
   /**
-   * Utility formatting method
+   * Utility formatting method.
    * @param n number of spaces to generate
    * @return String with "|" followed by n spaces
    */

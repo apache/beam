@@ -18,59 +18,44 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.aggregators.AggAccumParam;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.common.collect.ImmutableList;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.spark.Accumulator;
-import org.apache.spark.api.java.JavaSparkContext;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-
 
 /**
  * The SparkRuntimeContext allows us to define useful features on the client side before our
  * data flow program is launched.
  */
 public class SparkRuntimeContext implements Serializable {
-  /**
-   * An accumulator that is a map from names to aggregators.
-   */
-  private final Accumulator<NamedAggregators> accum;
-
   private final String serializedPipelineOptions;
 
   /**
-   * Map fo names to dataflow aggregators.
+   * Map fo names to Beam aggregators.
    */
   private final Map<String, Aggregator<?, ?>> aggregators = new HashMap<>();
   private transient CoderRegistry coderRegistry;
 
-  SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
-    this.accum = jsc.accumulator(new NamedAggregators(), new AggAccumParam());
+  SparkRuntimeContext(Pipeline pipeline) {
     this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
   }
 
-  private static String serializePipelineOptions(PipelineOptions pipelineOptions) {
+  private String serializePipelineOptions(PipelineOptions pipelineOptions) {
     try {
       return new ObjectMapper().writeValueAsString(pipelineOptions);
     } catch (JsonProcessingException e) {
@@ -86,35 +71,6 @@ public class SparkRuntimeContext implements Serializable {
     }
   }
 
-  /**
-   * Retrieves corresponding value of an aggregator.
-   *
-   * @param aggregatorName Name of the aggregator to retrieve the value of.
-   * @param typeClass      Type class of value to be retrieved.
-   * @param <T>            Type of object to be returned.
-   * @return The value of the aggregator.
-   */
-  public <T> T getAggregatorValue(String aggregatorName, Class<T> typeClass) {
-    return accum.value().getValue(aggregatorName, typeClass);
-  }
-
-  public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator) {
-    @SuppressWarnings("unchecked")
-    Class<T> aggValueClass = (Class<T>) aggregator.getCombineFn().getOutputType().getRawType();
-    final T aggregatorValue = getAggregatorValue(aggregator.getName(), aggValueClass);
-    return new AggregatorValues<T>() {
-      @Override
-      public Collection<T> getValues() {
-        return ImmutableList.of(aggregatorValue);
-      }
-
-      @Override
-      public Map<String, T> getValuesAtSteps() {
-        throw new UnsupportedOperationException("getValuesAtSteps is not supported.");
-      }
-    };
-  }
-
   public synchronized PipelineOptions getPipelineOptions() {
     return deserializePipelineOptions(serializedPipelineOptions);
   }
@@ -122,14 +78,16 @@ public class SparkRuntimeContext implements Serializable {
   /**
    * Creates and aggregator and associates it with the specified name.
    *
+   * @param accum     Spark Accumulator.
    * @param named     Name of aggregator.
    * @param combineFn Combine function used in aggregation.
-   * @param <InputT>      Type of inputs to aggregator.
-   * @param <InterT>   Intermediate data type
-   * @param <OutputT>     Type of aggregator outputs.
+   * @param <InputT>  Type of inputs to aggregator.
+   * @param <InterT>  Intermediate data type
+   * @param <OutputT> Type of aggregator outputs.
    * @return Specified aggregator
    */
   public synchronized <InputT, InterT, OutputT> Aggregator<InputT, OutputT> createAggregator(
+      Accumulator<NamedAggregators> accum,
       String named,
       Combine.CombineFn<? super InputT, InterT, OutputT> combineFn) {
     @SuppressWarnings("unchecked")

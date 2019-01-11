@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.testing;
 
 import com.google.api.client.util.Sleeper;
-
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -29,7 +28,7 @@ import java.util.concurrent.locks.LockSupport;
  * href="https://blogs.oracle.com/dholmes/entry/inside_the_hotspot_vm_clocks">
  * article</a> goes into further detail about this issue.
  *
- * This {@link Sleeper} uses {@link System#nanoTime}
+ * <p>This {@link Sleeper} uses {@link System#nanoTime}
  * as the timing source and {@link LockSupport#parkNanos} as the wait method.
  * Note that usage of this sleeper may impact performance because
  * of the relatively more expensive methods being invoked when compared to

@@ -18,8 +18,24 @@
 package org.apache.beam.examples.complete;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
+import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
+import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.MoreObjects;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.Value;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -52,26 +68,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.base.MoreObjects;
-import com.google.datastore.v1beta3.Entity;
-import com.google.datastore.v1beta3.Key;
-import com.google.datastore.v1beta3.Value;
-import com.google.datastore.v1beta3.client.DatastoreHelper;
-
 import org.joda.time.Duration;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * An example that computes the most popular hash tags
@@ -80,26 +77,19 @@ import java.util.regex.Pattern;
  * <p>Concepts: Using the same pipeline in both streaming and batch, combiners,
  *              composite transforms.
  *
- * <p>To execute this pipeline using the Dataflow service in batch mode,
- * specify pipeline configuration:
+ * <p>To execute this pipeline in streaming mode, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=DataflowRunner
- *   --inputFile=gs://path/to/input*.txt
- * }</pre>
- *
- * <p>To execute this pipeline using the Dataflow service in streaming mode,
- * specify pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=DataflowRunner
- *   --inputFile=gs://YOUR_INPUT_DIRECTORY/*.txt
  *   --streaming
  * }</pre>
  *
- * <p>This will update the datastore every 10 seconds based on the last
+ * <p>To change the runner, specify:
+ * <pre>{@code
+ *   --runner=YOUR_SELECTED_RUNNER
+ * }
+ * </pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
+ *
+ * <p>This will update the Cloud Datastore every 10 seconds based on the last
  * 30 minutes of data received.
  */
 public class AutoComplete {
@@ -123,7 +113,7 @@ public class AutoComplete {
     }
 
     @Override
-    public PCollection<KV<String, List<CompletionCandidate>>> apply(PCollection<String> input) {
+    public PCollection<KV<String, List<CompletionCandidate>>> expand(PCollection<String> input) {
       PCollection<CompletionCandidate> candidates = input
         // First count how often each token appears.
         .apply(new Count.PerElement<String>())
@@ -131,7 +121,7 @@ public class AutoComplete {
         // Map the KV outputs of Count into our own CompletionCandiate class.
         .apply("CreateCompletionCandidates", ParDo.of(
             new DoFn<KV<String, Long>, CompletionCandidate>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 c.output(new CompletionCandidate(c.element().getKey(), c.element().getValue()));
               }
@@ -164,7 +154,7 @@ public class AutoComplete {
     }
 
     @Override
-    public PCollection<KV<String, List<CompletionCandidate>>> apply(
+    public PCollection<KV<String, List<CompletionCandidate>>> expand(
         PCollection<CompletionCandidate> input) {
       return input
         // For each completion candidate, map it to all prefixes.
@@ -210,7 +200,7 @@ public class AutoComplete {
 
     private static class FlattenTops
         extends DoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) {
         for (CompletionCandidate cc : c.element().getValue()) {
           c.output(cc);
@@ -219,7 +209,7 @@ public class AutoComplete {
     }
 
     @Override
-    public PCollectionList<KV<String, List<CompletionCandidate>>> apply(
+    public PCollectionList<KV<String, List<CompletionCandidate>>> expand(
           PCollection<CompletionCandidate> input) {
         if (minPrefix > 10) {
           // Base case, partitioning to return the output in the expected format.
@@ -273,8 +263,8 @@ public class AutoComplete {
       this.minPrefix = minPrefix;
       this.maxPrefix = maxPrefix;
     }
-    @Override
-      public void processElement(ProcessContext c) {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
       String word = c.element().value;
       for (int i = minPrefix; i <= Math.min(word.length(), maxPrefix); i++) {
         c.output(KV.of(word.substring(0, i), c.element()));
@@ -342,7 +332,7 @@ public class AutoComplete {
    * Takes as input a set of strings, and emits each #hashtag found therein.
    */
   static class ExtractHashtags extends DoFn<String, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Matcher m = Pattern.compile("#\\S+").matcher(c.element());
       while (m.find()) {
@@ -352,7 +342,7 @@ public class AutoComplete {
   }
 
   static class FormatForBigquery extends DoFn<KV<String, List<CompletionCandidate>>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       List<TableRow> completions = new ArrayList<>();
       for (CompletionCandidate cc : c.element().getValue()) {
@@ -383,19 +373,24 @@ public class AutoComplete {
 
   /**
    * Takes as input a the top candidates per prefix, and emits an entity
-   * suitable for writing to Datastore.
+   * suitable for writing to Cloud Datastore.
+   *
+   * <p>Note: We use ancestor keys for strong consistency. See the Cloud Datastore documentation on
+   * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">
+   * Structuring Data for Strong Consistency</a>
    */
   static class FormatForDatastore extends DoFn<KV<String, List<CompletionCandidate>>, Entity> {
     private String kind;
-
-    public FormatForDatastore(String kind) {
+    private String ancestorKey;
+    public FormatForDatastore(String kind, String ancestorKey) {
       this.kind = kind;
+      this.ancestorKey = ancestorKey;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
-      Key key = DatastoreHelper.makeKey(kind, c.element().getKey()).build();
+      Key key = makeKey(makeKey(kind, ancestorKey).build(), kind, c.element().getKey()).build();
 
       entityBuilder.setKey(key);
       List<Value> candidates = new ArrayList<>();
@@ -415,9 +410,9 @@ public class AutoComplete {
   /**
    * Options supported by this class.
    *
-   * <p>Inherits standard Dataflow configuration options.
+   * <p>Inherits standard Beam example configuration options.
    */
-  private static interface Options
+  private interface Options
       extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Input text file")
     @Validation.Required
@@ -429,7 +424,7 @@ public class AutoComplete {
     Boolean getRecursive();
     void setRecursive(Boolean value);
 
-    @Description("Datastore entity kind")
+    @Description("Cloud Datastore entity kind")
     @Default.String("autocomplete-demo")
     String getKind();
     void setKind(String value);
@@ -439,12 +434,17 @@ public class AutoComplete {
     Boolean getOutputToBigQuery();
     void setOutputToBigQuery(Boolean value);
 
-    @Description("Whether output to Datastore")
+    @Description("Whether output to Cloud Datastore")
     @Default.Boolean(false)
     Boolean getOutputToDatastore();
     void setOutputToDatastore(Boolean value);
 
-    @Description("Datastore output project ID, defaults to project ID")
+    @Description("Cloud Datastore ancestor key")
+    @Default.String("root")
+    String getDatastoreAncestorKey();
+    void setDatastoreAncestorKey(String value);
+
+    @Description("Cloud Datastore output project ID, defaults to project ID")
     String getOutputProject();
     void setOutputProject(String value);
   }
@@ -476,8 +476,9 @@ public class AutoComplete {
 
     if (options.getOutputToDatastore()) {
       toWrite
-      .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind())))
-      .apply(DatastoreIO.v1beta3().write().withProjectId(MoreObjects.firstNonNull(
+      .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind(),
+          options.getDatastoreAncestorKey())))
+      .apply(DatastoreIO.v1().write().withProjectId(MoreObjects.firstNonNull(
           options.getOutputProject(), options.getProject())));
     }
     if (options.getOutputToBigQuery()) {
@@ -502,7 +503,7 @@ public class AutoComplete {
     // Run the pipeline.
     PipelineResult result = p.run();
 
-    // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
+    // ExampleUtils will try to cancel the pipeline and the injector before the program exists.
     exampleUtils.waitToFinish(result);
   }
 }

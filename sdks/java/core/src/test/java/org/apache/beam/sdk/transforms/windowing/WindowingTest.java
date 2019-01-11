@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
+import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
@@ -27,7 +31,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -35,7 +38,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -45,11 +47,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
-import java.io.Serializable;
-
 /** Unit tests for bucketing. */
 @RunWith(JUnit4.class)
 public class WindowingTest implements Serializable {
@@ -58,12 +55,14 @@ public class WindowingTest implements Serializable {
 
   private static class WindowedCount extends PTransform<PCollection<String>, PCollection<String>> {
 
-    private final class FormatCountsDoFn
-        extends DoFn<KV<String, Long>, String> implements RequiresWindowAccess {
-      @Override
-          public void processElement(ProcessContext c) {
-        c.output(c.element().getKey() + ":" + c.element().getValue()
-            + ":" + c.timestamp().getMillis() + ":" + c.window());
+    private final class FormatCountsDoFn extends DoFn<KV<String, Long>, String> {
+      @ProcessElement
+      public void processElement(ProcessContext c, BoundedWindow window) {
+        c.output(
+            c.element().getKey()
+                + ":" + c.element().getValue()
+                + ":" + c.timestamp().getMillis()
+                + ":" + window);
       }
     }
     private WindowFn<? super String, ?> windowFn;
@@ -71,7 +70,7 @@ public class WindowingTest implements Serializable {
       this.windowFn = windowFn;
     }
     @Override
-    public PCollection<String> apply(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) {
       return in.apply("Window",
               Window.<String>into(windowFn)
                   .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
@@ -236,7 +235,7 @@ public class WindowingTest implements Serializable {
 
   /** A DoFn that tokenizes lines of text into individual words. */
   static class ExtractWordsWithTimestampsFn extends DoFn<String, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String[] words = c.element().split("[^a-zA-Z0-9']+");
       if (words.length == 2) {

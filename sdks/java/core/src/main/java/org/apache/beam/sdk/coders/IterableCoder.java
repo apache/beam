@@ -17,17 +17,14 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.sdk.util.Structs.addBoolean;
-
 import static com.google.common.base.Preconditions.checkArgument;
-
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
+import static org.apache.beam.sdk.util.Structs.addBoolean;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.List;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.PropertyNames;
 
 /**
  * An {@link IterableCoder} encodes any {@link Iterable} in the format

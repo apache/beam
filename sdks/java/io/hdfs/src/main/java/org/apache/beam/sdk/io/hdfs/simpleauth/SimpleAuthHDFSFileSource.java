@@ -17,25 +17,23 @@
  */
 package org.apache.beam.sdk.io.hdfs.simpleauth;
 
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.hdfs.HDFSFileSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
-
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-
-import java.util.List;
-import javax.annotation.Nullable;
 
 /**
  * Source for Hadoop/HDFS with Simple Authentication.
  *
- * Allows to set arbitrary username as HDFS user, which is used for reading from HDFS.
+ * <p>Allows to set arbitrary username as HDFS user, which is used for reading from HDFS.
  */
 public class SimpleAuthHDFSFileSource<K, V> extends HDFSFileSource<K, V> {
   private final String username;
@@ -95,10 +93,7 @@ public class SimpleAuthHDFSFileSource<K, V> extends HDFSFileSource<K, V> {
       Class<K> keyClass,
       Class<V> valueClass,
       String username) {
-    @SuppressWarnings("unchecked")
-    HDFSFileSource<K, V> source = (HDFSFileSource<K, V>)
-        new SimpleAuthHDFSFileSource(filepattern, formatClass, keyClass, valueClass, username);
-    return source;
+    return new SimpleAuthHDFSFileSource<>(filepattern, formatClass, keyClass, valueClass, username);
   }
 
   @Override

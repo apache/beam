@@ -17,21 +17,18 @@
  */
 package org.apache.beam.examples.complete;
 
+import com.google.api.services.bigquery.model.TableRow;
+import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.api.services.bigquery.model.TableRow;
-
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Arrays;
 
 /** Unit tests for {@link TopWikipediaSessions}. */
 @RunWith(JUnit4.class)
@@ -59,6 +56,6 @@ public class TopWikipediaSessionsTest {
         "user3 : [1970-02-05T00:00:00.000Z..1970-02-05T01:00:00.000Z)"
         + " : 1 : 1970-02-01T00:00:00.000Z"));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

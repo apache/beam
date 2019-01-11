@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;

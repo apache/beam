@@ -17,14 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.common.Counter;
-import org.apache.beam.sdk.util.common.Counter.AggregationKind;
-import org.apache.beam.sdk.util.common.CounterProvider;
-
 import java.io.Serializable;
 import java.util.Comparator;
+import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 /**
  * {@code PTransform}s for computing the minimum of the elements in a {@code PCollection}, or the
@@ -218,8 +214,7 @@ public class Min {
    * A {@code CombineFn} that computes the minimum of a collection of {@code Integer}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MinIntegerFn extends Combine.BinaryCombineIntegerFn
-      implements CounterProvider<Integer> {
+  public static class MinIntegerFn extends Combine.BinaryCombineIntegerFn {
 
     @Override
     public int apply(int left, int right) {
@@ -230,20 +225,13 @@ public class Min {
     public int identity() {
       return Integer.MAX_VALUE;
     }
-
-    @Override
-    public Counter<Integer> getCounter(String name) {
-      return Counter.ints(name, AggregationKind.MIN);
-    }
   }
 
   /**
    * A {@code CombineFn} that computes the minimum of a collection of {@code Long}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MinLongFn extends Combine.BinaryCombineLongFn
-      implements CounterProvider<Long> {
-
+  public static class MinLongFn extends Combine.BinaryCombineLongFn {
     @Override
     public long apply(long left, long right) {
       return left <= right ? left : right;
@@ -253,19 +241,13 @@ public class Min {
     public long identity() {
       return Long.MAX_VALUE;
     }
-
-    @Override
-    public Counter<Long> getCounter(String name) {
-      return Counter.longs(name, AggregationKind.MIN);
-    }
   }
 
   /**
    * A {@code CombineFn} that computes the minimum of a collection of {@code Double}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MinDoubleFn extends Combine.BinaryCombineDoubleFn
-      implements CounterProvider<Double> {
+  public static class MinDoubleFn extends Combine.BinaryCombineDoubleFn {
 
     @Override
     public double apply(double left, double right) {
@@ -275,11 +257,6 @@ public class Min {
     @Override
     public double identity() {
       return Double.POSITIVE_INFINITY;
-    }
-
-    @Override
-    public Counter<Double> getCounter(String name) {
-      return Counter.doubles(name, AggregationKind.MIN);
     }
   }
 }

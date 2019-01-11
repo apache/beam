@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -26,11 +28,7 @@ import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Instant;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * A {@link WindowFn} that leaves all associations between elements and windows unchanged.
@@ -47,7 +45,7 @@ import java.util.Collections;
  * <p>This {@link WindowFn} is an internal implementation detail of sdk-provided utilities, and
  * should not be used by {@link Pipeline} writers.
  */
-class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
+public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
 
   /**
    * The coder of the type of windows of the input {@link PCollection}. This is not an arbitrary

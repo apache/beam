@@ -40,13 +40,3 @@ Example how to use join-library:
 
     PCollection<KV<String, KV<String, Long>>> joinedPcollection =
       Join.innerJoin(leftPcollection, rightPcollection);
-
-Join-library can be found on maven-central:
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>join-library</artifactId>
-      <version>0.1-incubating-SNAPSHOT</version>
-    </dependency>
-
-Questions or comments: `M.Runesson [at] gmail [dot] com`

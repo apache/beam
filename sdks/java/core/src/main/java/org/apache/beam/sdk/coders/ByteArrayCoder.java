@@ -17,17 +17,14 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
-import org.apache.beam.sdk.util.StreamUtils;
-import org.apache.beam.sdk.util.VarInt;
-
-import com.google.common.io.ByteStreams;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
-
+import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
+import org.apache.beam.sdk.util.StreamUtils;
+import org.apache.beam.sdk.util.VarInt;
 
 /**
  * A {@link Coder} for {@code byte[]}.

@@ -35,11 +35,11 @@ public interface ExamplePubsubTopicAndSubscriptionOptions extends ExamplePubsubT
   /**
    * Returns a default Pub/Sub subscription based on the project and the job names.
    */
-  static class PubsubSubscriptionFactory implements DefaultValueFactory<String> {
+  class PubsubSubscriptionFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
       return "projects/" + options.as(GcpOptions.class).getProject()
-          + "/subscriptions/" + options.as(ExampleOptions.class).getNormalizedUniqueName();
+          + "/subscriptions/" + options.getJobName();
     }
   }
 }

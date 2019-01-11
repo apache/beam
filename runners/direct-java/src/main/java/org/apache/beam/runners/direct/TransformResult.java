@@ -17,31 +17,40 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.Set;
+import javax.annotation.Nullable;
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.CounterSet;
-import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
-
 import org.joda.time.Instant;
-
-import javax.annotation.Nullable;
 
 /**
  * The result of evaluating an {@link AppliedPTransform} with a {@link TransformEvaluator}.
+ *
+ * <p>Every transform evaluator has a defined input type, but {@link ParDo} has multiple outputs
+ * so there is not necesssarily a defined output type.
  */
-public interface TransformResult {
+public interface TransformResult<InputT> {
   /**
    * Returns the {@link AppliedPTransform} that produced this result.
+   *
+   * <p>This is treated as an opaque identifier so evaluators can delegate to other evaluators
+   * that may not have compatible types.
    */
   AppliedPTransform<?, ?, ?> getTransform();
 
   /**
    * Returns the {@link UncommittedBundle (uncommitted) Bundles} output by this transform. These
    * will be committed by the evaluation context as part of completing this result.
+   *
+   * <p>Note that the bundles need not have a uniform type, for example in the case of multi-output
+   * {@link ParDo}.
    */
   Iterable<? extends UncommittedBundle<?>> getOutputBundles();
 
@@ -49,18 +58,23 @@ public interface TransformResult {
    * Returns elements that were provided to the {@link TransformEvaluator} as input but were not
    * processed.
    */
-  Iterable<? extends WindowedValue<?>> getUnprocessedElements();
+  Iterable<? extends WindowedValue<InputT>> getUnprocessedElements();
 
   /**
-   * Returns the {@link CounterSet} used by this {@link PTransform}, or null if this transform did
-   * not use a {@link CounterSet}.
+   * Returns the {@link AggregatorContainer.Mutator} used by this {@link PTransform}, or null if
+   * this transform did not use an {@link AggregatorContainer.Mutator}.
    */
-  @Nullable CounterSet getCounters();
+  @Nullable AggregatorContainer.Mutator getAggregatorChanges();
+
+  /**
+   * Returns the logical metric updates.
+   */
+  MetricUpdates getLogicalMetricUpdates();
 
   /**
    * Returns the Watermark Hold for the transform at the time this result was produced.
    *
-   * If the transform does not set any watermark hold, returns
+   * <p>If the transform does not set any watermark hold, returns
    * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
    */
   Instant getWatermarkHold();
@@ -68,7 +82,7 @@ public interface TransformResult {
   /**
    * Returns the State used by the transform.
    *
-   * If this evaluation did not access state, this may return null.
+   * <p>If this evaluation did not access state, this may return null.
    */
   @Nullable
   CopyOnAccessInMemoryStateInternals<?> getState();
@@ -81,4 +95,16 @@ public interface TransformResult {
    * <p>If this evaluation did not add or remove any timers, returns an empty TimerUpdate.
    */
   TimerUpdate getTimerUpdate();
+
+  /**
+   * Returns the types of output produced by this {@link PTransform}. This may not include
+   * {@link OutputType#BUNDLE}, as empty bundles may be dropped when the transform is committed.
+   */
+  Set<OutputType> getOutputTypes();
+
+  /**
+   * Returns a new TransformResult based on this one but overwriting any existing logical metric
+   * updates with {@code metricUpdates}.
+   */
+  TransformResult<InputT> withLogicalMetricUpdates(MetricUpdates metricUpdates);
 }

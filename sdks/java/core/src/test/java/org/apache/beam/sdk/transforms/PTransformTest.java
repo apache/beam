@@ -22,7 +22,6 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -37,7 +36,7 @@ public class PTransformTest {
     PTransform<PCollection<String>, PCollection<String>> transform =
         new PTransform<PCollection<String>, PCollection<String>>() {
           @Override
-          public PCollection<String> apply(PCollection<String> begin) {
+          public PCollection<String> expand(PCollection<String> begin) {
             throw new IllegalArgumentException("Should never be applied");
           }
         };

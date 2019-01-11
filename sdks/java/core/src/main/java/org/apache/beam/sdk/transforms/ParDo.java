@@ -17,13 +17,25 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.collect.ImmutableList;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
@@ -32,19 +44,13 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypedPValue;
 
-import com.google.common.collect.ImmutableList;
-
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
-
 /**
- * {@link ParDo} is the core element-wise transform in Google Cloud
- * Dataflow, invoking a user-specified function on each of the elements of the input
- * {@link PCollection} to produce zero or more output elements, all
- * of which are collected into the output {@link PCollection}.
+ * {@link ParDo} is the core element-wise transform in Apache Beam, invoking a user-specified
+ * function on each of the elements of the input {@link PCollection} to produce zero or more output
+ * elements, all of which are collected into the output {@link PCollection}.
  *
  * <p>Elements are processed independently, and possibly in parallel across
  * distributed cloud resources.
@@ -56,9 +62,8 @@ import java.util.List;
  *
  * <p>The function to use to process each element is specified by a
  * {@link DoFn DoFn&lt;InputT, OutputT&gt;}, primarily via its
- * {@link DoFn#processElement processElement} method. The {@link DoFn} may also
- * override the default implementations of {@link DoFn#startBundle startBundle}
- * and {@link DoFn#finishBundle finishBundle}.
+ * {@link DoFn.ProcessElement ProcessElement} method. The {@link DoFn} may also
+ * provide a {@link DoFn.StartBundle StartBundle} and {@link DoFn.FinishBundle finishBundle} method.
  *
  * <p>Conceptually, when a {@link ParDo} transform is executed, the
  * elements of the input {@link PCollection} are first divided up
@@ -68,33 +73,38 @@ import java.util.List;
  *
  * <ol>
  *   <li>If required, a fresh instance of the argument {@link DoFn} is created
- *     on a worker. This may be through deserialization or other means. A
- *     {@link PipelineRunner} may reuse {@link DoFn} instances for multiple bundles.
- *     A {@link DoFn} that has terminated abnormally (by throwing an {@link Exception}
- *     will never be reused.</li>
- *   <li>The {@link DoFn DoFn's} {@link DoFn#startBundle} method is called to
- *     initialize it. If this method is not overridden, the call may be optimized
- *     away.</li>
- *   <li>The {@link DoFn DoFn's} {@link DoFn#processElement} method
+ *     on a worker, and the {@link DoFn.Setup} method is called on this instance. This may be
+ *     through deserialization or other means. A {@link PipelineRunner} may reuse {@link DoFn}
+ *     instances for multiple bundles. A {@link DoFn} that has terminated abnormally (by throwing an
+ *     {@link Exception}) will never be reused.</li>
+ *   <li>The {@link DoFn DoFn's} {@link DoFn.StartBundle} method, if provided, is called to
+ *     initialize it.</li>
+ *   <li>The {@link DoFn DoFn's} {@link DoFn.ProcessElement} method
  *     is called on each of the input elements in the bundle.</li>
- *   <li>The {@link DoFn DoFn's} {@link DoFn#finishBundle} method is called
- *     to complete its work. After {@link DoFn#finishBundle} is called, the
- *     framework will not again invoke {@link DoFn#processElement} or {@link DoFn#finishBundle}
- *     until a new call to {@link DoFn#startBundle} has occurred.
- *     If this method is not overridden, this call may be optimized away.</li>
+ *   <li>The {@link DoFn DoFn's} {@link DoFn.FinishBundle} method, if provided, is called
+ *     to complete its work. After {@link DoFn.FinishBundle} is called, the
+ *     framework will not again invoke {@link DoFn.ProcessElement} or
+ *     {@link DoFn.FinishBundle}
+ *     until a new call to {@link DoFn.StartBundle} has occurred.</li>
+ *   <li>If any of {@link DoFn.Setup}, {@link DoFn.StartBundle}, {@link DoFn.ProcessElement} or
+ *     {@link DoFn.FinishBundle} methods throw an exception, the {@link DoFn.Teardown} method, if
+ *     provided, will be called on the {@link DoFn} instance.</li>
+ *   <li>If a runner will no longer use a {@link DoFn}, the {@link DoFn.Teardown} method, if
+ *     provided, will be called on the discarded instance.</li>
  * </ol>
  *
- * Each of the calls to any of the {@link DoFn DoFn's} processing
+ * <p>Each of the calls to any of the {@link DoFn DoFn's} processing
  * methods can produce zero or more output elements. All of the
  * of output elements from all of the {@link DoFn} instances
  * are included in the output {@link PCollection}.
  *
  * <p>For example:
  *
- * <pre> {@code
+ * <pre>{@code
  * PCollection<String> lines = ...;
  * PCollection<String> words =
  *     lines.apply(ParDo.of(new DoFn<String, String>() {
+ *        {@literal @}ProcessElement
  *         public void processElement(ProcessContext c) {
  *           String line = c.element();
  *           for (String word : line.split("[^a-zA-Z']+")) {
@@ -103,12 +113,13 @@ import java.util.List;
  *         }}));
  * PCollection<Integer> wordLengths =
  *     words.apply(ParDo.of(new DoFn<String, Integer>() {
+ *        {@literal @}ProcessElement
  *         public void processElement(ProcessContext c) {
  *           String word = c.element();
  *           Integer length = word.length();
  *           c.output(length);
  *         }}));
- * } </pre>
+ * }</pre>
  *
  * <p>Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and the output {@code PCollection}
@@ -144,7 +155,7 @@ import java.util.List;
  * the {@link DoFn} operations via {@link DoFn.ProcessContext#sideInput sideInput}.
  * For example:
  *
- * <pre> {@code
+ * <pre>{@code
  * PCollection<String> words = ...;
  * PCollection<Integer> maxWordLengthCutOff = ...; // Singleton PCollection
  * final PCollectionView<Integer> maxWordLengthCutOffView =
@@ -152,6 +163,7 @@ import java.util.List;
  * PCollection<String> wordsBelowCutOff =
  *     words.apply(ParDo.withSideInputs(maxWordLengthCutOffView)
  *                      .of(new DoFn<String, String>() {
+ *        {@literal @}ProcessElement
  *         public void processElement(ProcessContext c) {
  *           String word = c.element();
  *           int lengthCutOff = c.sideInput(maxWordLengthCutOffView);
@@ -159,7 +171,7 @@ import java.util.List;
  *             c.output(word);
  *           }
  *         }}));
- * } </pre>
+ * }</pre>
  *
  * <h2>Side Outputs</h2>
  *
@@ -176,7 +188,7 @@ import java.util.List;
  * {@link DoFn.Context#output}, while an element is added to a side output
  * {@link PCollection} using {@link DoFn.Context#sideOutput}. For example:
  *
- * <pre> {@code
+ * <pre>{@code
  * PCollection<String> words = ...;
  * // Select words whose length is below a cut off,
  * // plus the lengths of words that are above the cut off.
@@ -201,6 +213,7 @@ import java.util.List;
  *             // Create a tag for the unconsumed side output.
  *             final TupleTag<String> specialWordsTag =
  *                 new TupleTag<String>(){};
+ *            {@literal @}ProcessElement
  *             public void processElement(ProcessContext c) {
  *               String word = c.element();
  *               if (word.length() <= wordLengthCutOff) {
@@ -226,14 +239,13 @@ import java.util.List;
  *     results.get(wordLengthsAboveCutOffTag);
  * PCollection<String> markedWords =
  *     results.get(markedWordsTag);
- * } </pre>
+ * }</pre>
  *
  * <h2>Properties May Be Specified In Any Order</h2>
  *
  * <p>Several properties can be specified for a {@link ParDo}
- * {@link PTransform}, including name, side inputs, side output tags,
- * and {@link DoFn} to invoke. Only the {@link DoFn} is required; the
- * name is encouraged but not required, and side inputs and side
+ * {@link PTransform}, including side inputs, side output tags,
+ * and {@link DoFn} to invoke. Only the {@link DoFn} is required; side inputs and side
  * output tags are only specified when they're needed. These
  * properties can be specified in any order, as long as they're
  * specified before the {@link ParDo} {@link PTransform} is applied.
@@ -332,9 +344,9 @@ import java.util.List;
  * variables holding final variables captured by an anonymous inner
  * class), initialized by the {@link DoFn}'s constructor (which is
  * implicit for an anonymous inner class). This state will be
- * automatically serialized and then deserialized in the {@code DoFn}
+ * automatically serialized and then deserialized in the {@link DoFn}
  * instances created for bundles. This method is good for state
- * known when the original {@code DoFn} is created in the main
+ * known when the original {@link DoFn} is created in the main
  * program, if it's not overly large. This is not suitable for any
  * state which must only be used for a single bundle, as {@link DoFn DoFn's}
  * may be used to process multiple bundles.
@@ -343,10 +355,10 @@ import java.util.List;
  * in as a side input to the {@link DoFn}. This is good if the state
  * needs to be computed by the pipeline, or if the state is very large
  * and so is best read from file(s) rather than sent as part of the
- * {@code DoFn}'s serialized state.
+ * {@link DoFn DoFn's} serialized state.
  *
- * <li>Initialize the state in each {@link DoFn} instance, in
- * {@link DoFn#startBundle}. This is good if the initialization
+ * <li>Initialize the state in each {@link DoFn} instance, in a
+ * {@link DoFn.StartBundle} method. This is good if the initialization
  * doesn't depend on any information known only by the main program or
  * computed by earlier pipeline operations, but is the same for all
  * instances of this {@link DoFn} for all program executions, say
@@ -359,7 +371,7 @@ import java.util.List;
  * <p>{@link ParDo} operations are intended to be able to run in
  * parallel across multiple worker machines. This precludes easy
  * sharing and updating mutable state across those machines. There is
- * no support in the Google Cloud Dataflow system for communicating
+ * no support in the Beam model for communicating
  * and synchronizing updates to shared state across worker machines,
  * so programs should not access any mutable static variable state in
  * their {@link DoFn}, without understanding that the Java processes
@@ -376,12 +388,11 @@ import java.util.List;
  * <p>In a distributed system, things can fail: machines can crash,
  * machines can be unable to communicate across the network, etc.
  * While individual failures are rare, the larger the job, the greater
- * the chance that something, somewhere, will fail. The Google Cloud
- * Dataflow service strives to mask such failures automatically,
- * principally by retrying failed {@link DoFn} bundle. This means
- * that a {@code DoFn} instance might process a bundle partially, then
- * crash for some reason, then be rerun (often on a different worker
- * machine) on that same bundle and on the same elements as before.
+ * the chance that something, somewhere, will fail. Beam runners may strive
+ * to mask such failures by retrying failed {@link DoFn} bundle. This means
+ * that a {@link DoFn} instance might process a bundle partially, then
+ * crash for some reason, then be rerun (often in a new JVM) on that
+ * same bundle and on the same elements as before.
  * Sometimes two or more {@link DoFn} instances will be running on the
  * same bundle simultaneously, with the system taking the results of
  * the first instance to complete successfully. Consequently, the
@@ -398,7 +409,7 @@ import java.util.List;
  *
  * <h2>Optimization</h2>
  *
- * <p>The Google Cloud Dataflow service automatically optimizes a
+ * <p>Beam runners may choose to apply optimizations to a
  * pipeline before it is executed. A key optimization, <i>fusion</i>,
  * relates to {@link ParDo} operations. If one {@link ParDo} operation produces a
  * {@link PCollection} that is then consumed as the main input of another
@@ -415,18 +426,16 @@ import java.util.List;
  * written to disk, saving all the I/O and space expense of
  * constructing it.
  *
- * <p>The Google Cloud Dataflow service applies fusion as much as
- * possible, greatly reducing the cost of executing pipelines. As a
- * result, it is essentially "free" to write {@link ParDo} operations in a
+ * <p>When Beam runners apply fusion optimization, it is essentially "free"
+ * to write {@link ParDo} operations in a
  * very modular, composable style, each {@link ParDo} operation doing one
  * clear task, and stringing together sequences of {@link ParDo} operations to
  * get the desired overall effect. Such programs can be easier to
  * understand, easier to unit-test, easier to extend and evolve, and
  * easier to reuse in new programs. The predefined library of
- * PTransforms that come with Google Cloud Dataflow makes heavy use of
- * this modular, composable style, trusting to the Google Cloud
- * Dataflow service's optimizer to "flatten out" all the compositions
- * into highly optimized stages.
+ * PTransforms that come with Beam makes heavy use of
+ * this modular, composable style, trusting to the runner to
+ * "flatten out" all the compositions into highly optimized stages.
  *
  * @see <a href="https://cloud.google.com/dataflow/model/par-do">the web
  * documentation for ParDo</a>
@@ -460,7 +469,7 @@ public class ParDo {
     *
    * <p>Side inputs are {@link PCollectionView}s, whose contents are
    * computed during pipeline execution and then made accessible to
-   * {@code DoFn} code via {@link DoFn.ProcessContext#sideInput sideInput}.
+   * {@link DoFn} code via {@link DoFn.ProcessContext#sideInput sideInput}.
    *
    * <p>See the discussion of Side Inputs above for more explanation.
    *
@@ -517,35 +526,91 @@ public class ParDo {
    * properties can be set on it first.
    */
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-    return of(fn, fn.getClass());
-  }
-
-  private static <InputT, OutputT> Bound<InputT, OutputT> of(
-          DoFn<InputT, OutputT> fn, Class<?> fnClass) {
-    return new Unbound().of(fn, fnClass);
-  }
-
-  private static <InputT, OutputT> DoFn<InputT, OutputT>
-      adapt(DoFnWithContext<InputT, OutputT> fn) {
-    return DoFnReflector.of(fn.getClass()).toDoFn(fn);
+    validate(fn);
+    return new Unbound().of(fn, displayDataForFn(fn));
   }
 
   /**
    * Creates a {@link ParDo} {@link PTransform} that will invoke the
-   * given {@link DoFnWithContext} function.
+   * given {@link OldDoFn} function.
    *
    * <p>The resulting {@link PTransform PTransform's} types have been bound, with the
    * input being a {@code PCollection<InputT>} and the output a
    * {@code PCollection<OutputT>}, inferred from the types of the argument
-   * {@code DoFn<InputT, OutputT>}. It is ready to be applied, or further
+   * {@code OldDoFn<InputT, OutputT>}. It is ready to be applied, or further
    * properties can be set on it first.
    *
-   * <p>{@link DoFnWithContext} is an experimental alternative to
-   * {@link DoFn} which simplifies accessing the window of the element.
+   * @deprecated please port your {@link OldDoFn} to a {@link DoFn}
    */
-  @Experimental
-  public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
-    return of(adapt(fn), fn.getClass());
+  @Deprecated
+  public static <InputT, OutputT> Bound<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn) {
+    return new Unbound().of(fn, displayDataForFn(fn));
+  }
+
+  private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
+    return DisplayData.item("fn", fn.getClass()).withLabel("Transform Function");
+  }
+
+  /**
+   * Perform common validations of the {@link DoFn} against the input {@link PCollection}, for
+   * example ensuring that the window type expected by the {@link DoFn} matches the window type of
+   * the {@link PCollection}.
+   */
+  private static <InputT, OutputT> void validateWindowType(
+      PCollection<? extends InputT> input, Serializable fn) {
+    // No validation for OldDoFn
+    if (!(fn instanceof DoFn)) {
+      return;
+    }
+
+    DoFnSignature signature = DoFnSignatures.getSignature((Class) fn.getClass());
+
+    TypeDescriptor<? extends BoundedWindow> actualWindowT =
+        input.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor();
+
+    validateWindowTypeForMethod(actualWindowT, signature.processElement());
+    for (OnTimerMethod method : signature.onTimerMethods().values()) {
+      validateWindowTypeForMethod(actualWindowT, method);
+    }
+  }
+
+  private static void validateWindowTypeForMethod(
+      TypeDescriptor<? extends BoundedWindow> actualWindowT,
+      MethodWithExtraParameters methodSignature) {
+    if (methodSignature.windowT() != null) {
+      checkArgument(
+          methodSignature.windowT().isSupertypeOf(actualWindowT),
+          "%s expects window type %s, which is not a supertype of actual window type %s",
+          methodSignature.targetMethod(),
+          methodSignature.windowT(),
+          actualWindowT);
+    }
+  }
+
+  /**
+   * Perform common validations of the {@link DoFn}, for example ensuring that state is used
+   * correctly and that its features can be supported.
+   */
+  private static <InputT, OutputT> void validate(DoFn<InputT, OutputT> fn) {
+    DoFnSignature signature = DoFnSignatures.getSignature((Class) fn.getClass());
+
+    // State is semantically incompatible with splitting
+    if (!signature.stateDeclarations().isEmpty() && signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format("%s is splittable and uses state, but these are not compatible",
+              fn.getClass().getName()));
+    }
+
+    // Timers are semantically incompatible with splitting
+    if (!signature.timerDeclarations().isEmpty() && signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format("%s is splittable and uses timers, but these are not compatible",
+              fn.getClass().getName()));
+    }
+  }
+
+  private static <InputT, OutputT> OldDoFn<InputT, OutputT> adapt(DoFn<InputT, OutputT> fn) {
+    return DoFnAdapters.toOldDoFn(fn);
   }
 
   /**
@@ -598,48 +663,49 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@link ParDo} transform that's like
-     * this transform but with the specified main and side output
-     * tags. Does not modify this transform. The resulting transform
-     * is still incomplete.
-     *
-     * <p>See the discussion of Side Outputs above and on
-     * {@link ParDo#withOutputTags} for more explanation.
-     */
-    public <OutputT> UnboundMulti<OutputT> withOutputTags(TupleTag<OutputT> mainOutputTag,
-                                              TupleTagList sideOutputTags) {
-      return new UnboundMulti<>(
-          name, sideInputs, mainOutputTag, sideOutputTags);
-    }
-
-    /**
      * Returns a new {@link ParDo} {@link PTransform} that's like this
-     * transform but that will invoke the given {@link DoFn}
-     * function, and that has its input and output types bound. Does
-     * not modify this transform. The resulting {@link PTransform} is
-     * sufficiently specified to be applied, but more properties can
-     * still be specified.
-     */
-    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-      return of(fn, fn.getClass());
-    }
-
-    private <InputT, OutputT> Bound<InputT, OutputT> of(
-        DoFn<InputT, OutputT> fn, Class<?> fnClass) {
-      return new Bound<>(name, sideInputs, fn, fnClass);
-    }
-
-
-    /**
-     * Returns a new {@link ParDo} {@link PTransform} that's like this
-     * transform but which will invoke the given {@link DoFnWithContext}
+     * transform but which will invoke the given {@link DoFn}
      * function, and which has its input and output types bound. Does
      * not modify this transform. The resulting {@link PTransform} is
      * sufficiently specified to be applied, but more properties can
      * still be specified.
      */
-    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
-      return of(adapt(fn), fn.getClass());
+    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+      validate(fn);
+      return of(fn, displayDataForFn(fn));
+    }
+
+    /**
+     * Returns a new multi-output {@link ParDo} transform that's like this transform but with the
+     * specified main and side output tags. Does not modify this transform. The resulting transform
+     * is still incomplete.
+     *
+     * <p>See the discussion of Side Outputs above and on {@link ParDo#withOutputTags} for more
+     * explanation.
+     */
+    public <OutputT> UnboundMulti<OutputT> withOutputTags(
+        TupleTag<OutputT> mainOutputTag, TupleTagList sideOutputTags) {
+      return new UnboundMulti<>(name, sideInputs, mainOutputTag, sideOutputTags);
+    }
+
+    /**
+     * Returns a new {@link ParDo} {@link PTransform} that's like this
+     * transform but that will invoke the given {@link OldDoFn}
+     * function, and that has its input and output types bound. Does
+     * not modify this transform. The resulting {@link PTransform} is
+     * sufficiently specified to be applied, but more properties can
+     * still be specified.
+     *
+     * @deprecated please port your {@link OldDoFn} to a {@link DoFn}
+     */
+    @Deprecated
+    public <InputT, OutputT> Bound<InputT, OutputT> of(OldDoFn<InputT, OutputT> oldFn) {
+      return of(oldFn, displayDataForFn(oldFn));
+    }
+
+    private <InputT, OutputT> Bound<InputT, OutputT> of(
+        Serializable originalFn, DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+      return new Bound<>(name, originalFn, sideInputs, fnDisplayData);
     }
   }
 
@@ -659,17 +725,18 @@ public class ParDo {
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     // Inherits name.
     private final List<PCollectionView<?>> sideInputs;
-    private final DoFn<InputT, OutputT> fn;
-    private final Class<?> fnClass;
+    private final Serializable fn;
+    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
 
-    Bound(String name,
-          List<PCollectionView<?>> sideInputs,
-          DoFn<InputT, OutputT> fn,
-          Class<?> fnClass) {
+    Bound(
+        String name,
+        Serializable fn,
+        List<PCollectionView<?>> sideInputs,
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
       super(name);
-      this.sideInputs = sideInputs;
       this.fn = SerializableUtils.clone(fn);
-      this.fnClass = fnClass;
+      this.fnDisplayData = fnDisplayData;
+      this.sideInputs = sideInputs;
     }
 
     /**
@@ -694,33 +761,41 @@ public class ParDo {
      */
     public Bound<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
-      builder.addAll(this.sideInputs);
-      builder.addAll(sideInputs);
-      return new Bound<>(name, builder.build(), fn, fnClass);
+      return new Bound<>(
+          name,
+          fn,
+          ImmutableList.<PCollectionView<?>>builder()
+              .addAll(this.sideInputs)
+              .addAll(sideInputs)
+              .build(),
+          fnDisplayData);
     }
 
     /**
-     * Returns a new multi-output {@link ParDo} {@link PTransform}
-     * that's like this {@link PTransform} but with the specified main
-     * and side output tags. Does not modify this {@link PTransform}.
+     * Returns a new multi-output {@link ParDo} {@link PTransform} that's like this {@link
+     * PTransform} but with the specified main and side output tags. Does not modify this {@link
+     * PTransform}.
      *
-     * <p>See the discussion of Side Outputs above and on
-     * {@link ParDo#withOutputTags} for more explanation.
+     * <p>See the discussion of Side Outputs above and on {@link ParDo#withOutputTags} for more
+     * explanation.
      */
-    public BoundMulti<InputT, OutputT> withOutputTags(TupleTag<OutputT> mainOutputTag,
-                                           TupleTagList sideOutputTags) {
-      return new BoundMulti<>(
-          name, sideInputs, mainOutputTag, sideOutputTags, fn, fnClass);
+    public BoundMulti<InputT, OutputT> withOutputTags(
+        TupleTag<OutputT> mainOutputTag, TupleTagList sideOutputTags) {
+      return new BoundMulti<>(name, fn, sideInputs, mainOutputTag, sideOutputTags, fnDisplayData);
     }
 
     @Override
-    public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
+    public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+      checkArgument(
+          !isSplittable(getOldFn()),
+          "%s does not support Splittable DoFn",
+          input.getPipeline().getOptions().getRunner().getName());
+      validateWindowType(input, fn);
       return PCollection.<OutputT>createPrimitiveOutputInternal(
               input.getPipeline(),
               input.getWindowingStrategy(),
               input.isBounded())
-          .setTypeDescriptorInternal(fn.getOutputTypeDescriptor());
+          .setTypeDescriptor(getOldFn().getOutputTypeDescriptor());
     }
 
     @Override
@@ -728,14 +803,14 @@ public class ParDo {
     protected Coder<OutputT> getDefaultOutputCoder(PCollection<? extends InputT> input)
         throws CannotProvideCoderException {
       return input.getPipeline().getCoderRegistry().getDefaultCoder(
-          fn.getOutputTypeDescriptor(),
-          fn.getInputTypeDescriptor(),
+          getOldFn().getOutputTypeDescriptor(),
+          getOldFn().getInputTypeDescriptor(),
           ((PCollection<InputT>) input).getCoder());
     }
 
     @Override
     protected String getKindString() {
-      Class<?> clazz = DoFnReflector.getDoFnClass(fn);
+      Class<?> clazz = DoFnAdapters.getDoFnClass(getOldFn());
       if (clazz.isAnonymousClass()) {
         return "AnonymousParDo";
       } else {
@@ -753,10 +828,47 @@ public class ParDo {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, fn, fnClass);
+      ParDo.populateDisplayData(builder, (HasDisplayData) fn, fnDisplayData);
     }
 
-    public DoFn<InputT, OutputT> getFn() {
+    /**
+     * @deprecated this method to be converted to return {@link DoFn}. If you want to receive
+     * an {@link OldDoFn} you should (temporarily) use {@link #getOldFn}.
+     */
+    @Deprecated
+    public OldDoFn<InputT, OutputT> getFn() {
+      return getOldFn();
+    }
+
+    /**
+     * @deprecated please migrate to {@link #getNewFn} until {@link #getFn} is migrated to return
+     * a {@link DoFn}.
+     */
+    @Deprecated
+    public OldDoFn<InputT, OutputT> getOldFn() {
+      if (fn instanceof OldDoFn) {
+        return (OldDoFn<InputT, OutputT>) fn;
+      } else {
+        return adapt((DoFn<InputT, OutputT>) fn);
+      }
+    }
+
+    public DoFn<InputT, OutputT> getNewFn() {
+      if (fn instanceof DoFn) {
+        return (DoFn<InputT, OutputT>) fn;
+      } else {
+        return ((OldDoFn<InputT, OutputT>) fn).toDoFn();
+      }
+    }
+
+    /**
+     * Returns the {@link OldDoFn} or {@link DoFn} used to create this transform.
+     *
+     * @deprecated for migration purposes only. There are some cases of {@link OldDoFn} that are not
+     *     fully supported by wrapping it into a {@link DoFn}, such as {@link RequiresWindowAccess}.
+     */
+    @Deprecated
+    public Object getOriginalFn() {
       return fn;
     }
 
@@ -816,41 +928,47 @@ public class ParDo {
      */
     public UnboundMulti<OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
-      builder.addAll(this.sideInputs);
-      builder.addAll(sideInputs);
       return new UnboundMulti<>(
-          name, builder.build(),
-          mainOutputTag, sideOutputTags);
-    }
-
-    /**
-     * Returns a new multi-output {@link ParDo} {@link PTransform}
-     * that's like this transform but that will invoke the given
-     * {@link DoFn} function, and that has its input type bound.
-     * Does not modify this transform. The resulting
-     * {@link PTransform} is sufficiently specified to be applied, but
-     * more properties can still be specified.
-     */
-    public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-      return of(fn, fn.getClass());
-    }
-
-    public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn, Class<?> fnClass) {
-      return new BoundMulti<>(
-              name, sideInputs, mainOutputTag, sideOutputTags, fn, fnClass);
+          name,
+          ImmutableList.<PCollectionView<?>>builder()
+              .addAll(this.sideInputs)
+              .addAll(sideInputs)
+              .build(),
+          mainOutputTag,
+          sideOutputTags);
     }
 
     /**
      * Returns a new multi-output {@link ParDo} {@link PTransform}
      * that's like this transform but which will invoke the given
-     * {@link DoFnWithContext} function, and which has its input type bound.
+     * {@link DoFn} function, and which has its input type bound.
      * Does not modify this transform. The resulting
      * {@link PTransform} is sufficiently specified to be applied, but
      * more properties can still be specified.
      */
-    public <InputT> BoundMulti<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
-      return of(adapt(fn), fn.getClass());
+    public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+      validate(fn);
+      return of(fn, displayDataForFn(fn));
+    }
+
+    /**
+     * Returns a new multi-output {@link ParDo} {@link PTransform}
+     * that's like this transform but that will invoke the given
+     * {@link OldDoFn} function, and that has its input type bound.
+     * Does not modify this transform. The resulting
+     * {@link PTransform} is sufficiently specified to be applied, but
+     * more properties can still be specified.
+     *
+     * @deprecated please port your {@link OldDoFn} to a {@link DoFn}
+     */
+    @Deprecated
+    public <InputT> BoundMulti<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn) {
+      return of(fn, displayDataForFn(fn));
+    }
+
+    private <InputT> BoundMulti<InputT, OutputT> of(
+        Serializable fn, DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+      return new BoundMulti<>(name, fn, sideInputs, mainOutputTag, sideOutputTags, fnDisplayData);
     }
   }
 
@@ -871,21 +989,22 @@ public class ParDo {
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
     private final TupleTagList sideOutputTags;
-    private final DoFn<InputT, OutputT> fn;
-    private final Class<?> fnClass;
+    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private final Serializable fn;
 
-    BoundMulti(String name,
-               List<PCollectionView<?>> sideInputs,
-               TupleTag<OutputT> mainOutputTag,
-               TupleTagList sideOutputTags,
-               DoFn<InputT, OutputT> fn,
-               Class<?> fnClass) {
+    BoundMulti(
+        String name,
+        Serializable fn,
+        List<PCollectionView<?>> sideInputs,
+        TupleTag<OutputT> mainOutputTag,
+        TupleTagList sideOutputTags,
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
       super(name);
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.sideOutputTags = sideOutputTags;
       this.fn = SerializableUtils.clone(fn);
-      this.fnClass = fnClass;
+      this.fnDisplayData = fnDisplayData;
     }
 
     /**
@@ -902,26 +1021,35 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@link ParDo} {@link PTransform}
-     * that's like this {@link PTransform} but with the specified additional side
-     * inputs. Does not modify this {@link PTransform}.
+     * Returns a new multi-output {@link ParDo} {@link PTransform} that's like this {@link
+     * PTransform} but with the specified additional side inputs. Does not modify this {@link
+     * PTransform}.
      *
-     * <p>See the discussion of Side Inputs above and on
-     * {@link ParDo#withSideInputs} for more explanation.
+     * <p>See the discussion of Side Inputs above and on {@link ParDo#withSideInputs} for more
+     * explanation.
      */
     public BoundMulti<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
-      builder.addAll(this.sideInputs);
-      builder.addAll(sideInputs);
       return new BoundMulti<>(
-          name, builder.build(),
-          mainOutputTag, sideOutputTags, fn, fnClass);
+          name,
+          fn,
+          ImmutableList.<PCollectionView<?>>builder()
+              .addAll(this.sideInputs)
+              .addAll(sideInputs)
+              .build(),
+          mainOutputTag,
+          sideOutputTags,
+          fnDisplayData);
     }
 
 
     @Override
-    public PCollectionTuple apply(PCollection<? extends InputT> input) {
+    public PCollectionTuple expand(PCollection<? extends InputT> input) {
+      checkArgument(
+          !isSplittable(getOldFn()),
+          "%s does not support Splittable DoFn",
+          input.getPipeline().getOptions().getRunner().getName());
+      validateWindowType(input, fn);
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
@@ -931,7 +1059,7 @@ public class ParDo {
       // The fn will likely be an instance of an anonymous subclass
       // such as DoFn<Integer, String> { }, thus will have a high-fidelity
       // TypeDescriptor for the output type.
-      outputs.get(mainOutputTag).setTypeDescriptorInternal(fn.getOutputTypeDescriptor());
+      outputs.get(mainOutputTag).setTypeDescriptor(getOldFn().getOutputTypeDescriptor());
 
       return outputs;
     }
@@ -950,14 +1078,14 @@ public class ParDo {
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
       return input.getPipeline().getCoderRegistry().getDefaultCoder(
           output.getTypeDescriptor(),
-          fn.getInputTypeDescriptor(),
+          getNewFn().getInputTypeDescriptor(),
           inputCoder);
       }
 
     @Override
     protected String getKindString() {
-      Class<?> clazz = DoFnReflector.getDoFnClass(fn);
-      if (fn.getClass().isAnonymousClass()) {
+      Class<?> clazz = DoFnAdapters.getDoFnClass(getOldFn());
+      if (clazz.isAnonymousClass()) {
         return "AnonymousParMultiDo";
       } else {
         return String.format("ParMultiDo(%s)", StringUtils.approximateSimpleName(clazz));
@@ -967,11 +1095,37 @@ public class ParDo {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, fn, fnClass);
+      ParDo.populateDisplayData(builder, (HasDisplayData) fn, fnDisplayData);
     }
 
-    public DoFn<InputT, OutputT> getFn() {
-      return fn;
+    /**
+     * @deprecated this method to be converted to return {@link DoFn}. If you want to receive
+     * an {@link OldDoFn} you should (temporarily) use {@link #getOldFn}.
+     */
+    @Deprecated
+    public OldDoFn<InputT, OutputT> getFn() {
+      return getOldFn();
+    }
+
+    /**
+     * @deprecated please migrate to {@link #getNewFn} until {@link #getFn} is migrated to return
+     * a {@link DoFn}.
+     */
+    @Deprecated
+    public OldDoFn<InputT, OutputT> getOldFn() {
+      if (fn instanceof OldDoFn) {
+        return (OldDoFn<InputT, OutputT>) fn;
+      } else {
+        return adapt((DoFn<InputT, OutputT>) fn);
+      }
+    }
+
+    public DoFn<InputT, OutputT> getNewFn() {
+      if (fn instanceof DoFn) {
+        return (DoFn<InputT, OutputT>) fn;
+      } else {
+        return ((OldDoFn<InputT, OutputT>) fn).toDoFn();
+      }
     }
 
     public TupleTag<OutputT> getMainOutputTag() {
@@ -988,10 +1142,20 @@ public class ParDo {
   }
 
   private static void populateDisplayData(
-      DisplayData.Builder builder, DoFn<?, ?> fn, Class<?> fnClass) {
-    builder
-        .include(fn)
-        .add(DisplayData.item("fn", fnClass)
-            .withLabel("Transform Function"));
+      DisplayData.Builder builder,
+      HasDisplayData fn,
+      DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+    builder.include("fn", fn).add(fnDisplayData);
+  }
+
+  private static boolean isSplittable(OldDoFn<?, ?> oldDoFn) {
+    DoFn<?, ?> fn = DoFnAdapters.getDoFn(oldDoFn);
+    if (fn == null) {
+      return false;
+    }
+    return DoFnSignatures
+        .getSignature(fn.getClass())
+        .processElement()
+        .isSplittable();
   }
 }

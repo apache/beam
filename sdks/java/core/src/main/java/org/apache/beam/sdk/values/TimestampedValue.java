@@ -20,22 +20,20 @@ package org.apache.beam.sdk.values;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
-import org.apache.beam.sdk.util.PropertyNames;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import org.joda.time.Instant;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.PropertyNames;
+import org.joda.time.Instant;
 
 /**
  * An immutable pair of a value and a timestamp.
@@ -46,6 +44,13 @@ import java.util.Objects;
  * @param <V> the type of the value
  */
 public class TimestampedValue<V> {
+  /**
+   * Returns a new {@link TimestampedValue} with the
+   * {@link BoundedWindow#TIMESTAMP_MIN_VALUE minimum timestamp}.
+   */
+  public static <V> TimestampedValue<V> atMinimumTimestamp(V value) {
+    return of(value, BoundedWindow.TIMESTAMP_MIN_VALUE);
+  }
 
   /**
    * Returns a new {@code TimestampedValue} with the given value and timestamp.
@@ -139,6 +144,10 @@ public class TimestampedValue<V> {
       return Arrays.<Coder<?>>asList(valueCoder);
     }
 
+    public Coder<T> getValueCoder() {
+      return valueCoder;
+    }
+
     public static <T> List<Object> getInstanceComponents(TimestampedValue<T> exampleValue) {
       return Arrays.<Object>asList(exampleValue.getValue());
     }
@@ -150,6 +159,8 @@ public class TimestampedValue<V> {
   private final Instant timestamp;
 
   protected TimestampedValue(V value, Instant timestamp) {
+    checkNotNull(timestamp, "timestamp must be non-null");
+
     this.value = value;
     this.timestamp = timestamp;
   }

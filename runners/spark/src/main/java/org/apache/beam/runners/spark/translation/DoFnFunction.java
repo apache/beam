@@ -18,71 +18,89 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.util.BroadcastHelper;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.TupleTag;
-
-import org.apache.spark.api.java.function.FlatMapFunction;
-
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.spark.Accumulator;
+import org.apache.spark.api.java.function.FlatMapFunction;
+
 
 /**
- * Dataflow's Do functions correspond to Spark's FlatMap functions.
+ * Beam's Do functions correspond to Spark's FlatMap functions.
  *
  * @param <InputT> Input element type.
  * @param <OutputT> Output element type.
  */
 public class DoFnFunction<InputT, OutputT>
-    implements FlatMapFunction<Iterator<WindowedValue<InputT>>,
-    WindowedValue<OutputT>> {
-  private final DoFn<InputT, OutputT> mFunction;
+    implements FlatMapFunction<Iterator<WindowedValue<InputT>>, WindowedValue<OutputT>> {
+  private final Accumulator<NamedAggregators> accum;
+  private final OldDoFn<InputT, OutputT> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
-  private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
+  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> mSideInputs;
+  private final WindowFn<Object, ?> windowFn;
 
   /**
-   * @param fn         DoFunction to be wrapped.
-   * @param runtime    Runtime to apply function in.
-   * @param sideInputs Side inputs used in DoFunction.
+   * @param accum             The Spark Accumulator that handles the Beam Aggregators.
+   * @param fn                DoFunction to be wrapped.
+   * @param runtime           Runtime to apply function in.
+   * @param sideInputs        Side inputs used in DoFunction.
+   * @param windowFn          Input {@link WindowFn}.
    */
-  public DoFnFunction(DoFn<InputT, OutputT> fn,
-               SparkRuntimeContext runtime,
-               Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
+  public DoFnFunction(Accumulator<NamedAggregators> accum,
+                      OldDoFn<InputT, OutputT> fn,
+                      SparkRuntimeContext runtime,
+                      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs,
+                      WindowFn<Object, ?> windowFn) {
+    this.accum = accum;
     this.mFunction = fn;
     this.mRuntimeContext = runtime;
     this.mSideInputs = sideInputs;
+    this.windowFn = windowFn;
   }
+
 
   @Override
   public Iterable<WindowedValue<OutputT>> call(Iterator<WindowedValue<InputT>> iter) throws
       Exception {
-    ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
-    ctxt.setup();
-    mFunction.startBundle(ctxt);
-    return ctxt.getOutputIterable(iter, mFunction);
+    return new ProcCtxt(mFunction, mRuntimeContext, mSideInputs, windowFn)
+        .callWithCtxt(iter);
   }
 
   private class ProcCtxt extends SparkProcessContext<InputT, OutputT, WindowedValue<OutputT>> {
 
     private final List<WindowedValue<OutputT>> outputs = new LinkedList<>();
 
-    ProcCtxt(DoFn<InputT, OutputT> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
-        BroadcastHelper<?>> sideInputs) {
-      super(fn, runtimeContext, sideInputs);
+    ProcCtxt(OldDoFn<InputT, OutputT> fn,
+             SparkRuntimeContext runtimeContext,
+             Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs,
+             WindowFn<Object, ?> windowFn) {
+      super(fn, runtimeContext, sideInputs, windowFn);
     }
 
     @Override
-    public synchronized void output(OutputT o) {
-      outputs.add(windowedValue != null ? windowedValue.withValue(o) :
-          WindowedValue.valueInGlobalWindow(o));
-    }
-
-    @Override
-    public synchronized void output(WindowedValue<OutputT> o) {
+    protected synchronized void outputWindowedValue(WindowedValue<OutputT> o) {
       outputs.add(o);
+    }
+
+    @Override
+    protected <T> void sideOutputWindowedValue(TupleTag<T> tag, WindowedValue<T> output) {
+      throw new UnsupportedOperationException(
+          "sideOutput is an unsupported operation for doFunctions, use a "
+              + "MultiDoFunction instead.");
+    }
+
+    @Override
+    public Accumulator<NamedAggregators> getAccumulator() {
+      return accum;
     }
 
     @Override

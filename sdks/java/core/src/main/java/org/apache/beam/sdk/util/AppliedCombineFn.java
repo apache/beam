@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.io.Serializable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -24,10 +26,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import com.google.common.annotations.VisibleForTesting;
-
-import java.io.Serializable;
 
 /**
  * A {@link KeyedCombineFnWithContext} with a fixed accumulator coder. This is created from a

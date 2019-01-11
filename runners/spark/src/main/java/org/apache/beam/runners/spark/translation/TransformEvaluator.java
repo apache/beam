@@ -18,9 +18,8 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.sdk.transforms.PTransform;
-
 import java.io.Serializable;
+import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * Describe a {@link PTransform} evaluator.

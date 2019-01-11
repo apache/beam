@@ -17,18 +17,16 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-
-import org.joda.time.Duration;
-import org.joda.time.Instant;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * A {@link WindowFn} that windows values into possibly overlapping fixed-size
@@ -188,8 +186,7 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
   /**
    * Ensures that later sliding windows have an output time that is past the end of earlier windows.
    *
-   * <p>
-   * If this is the earliest sliding window containing {@code inputTimestamp}, that's fine.
+   * <p>If this is the earliest sliding window containing {@code inputTimestamp}, that's fine.
    * Otherwise, we pick the earliest time that doesn't overlap with earlier windows.
    */
   @Experimental(Kind.OUTPUT_TIME)

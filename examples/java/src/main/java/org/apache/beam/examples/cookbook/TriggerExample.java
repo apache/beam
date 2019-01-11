@@ -17,6 +17,13 @@
  */
 package org.apache.beam.examples.cookbook;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -29,31 +36,21 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterEach;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * This example illustrates the basic concepts behind triggering. It shows how to use different
@@ -64,11 +61,11 @@ import java.util.concurrent.TimeUnit;
  * {@link org.apache.beam.sdk.transforms.windowing.Trigger triggers} to control when the results for
  * each window are emitted.
  *
- * <p> This example uses a portion of real traffic data from San Diego freeways. It contains
+ * <p>This example uses a portion of real traffic data from San Diego freeways. It contains
  * readings from sensor stations set up along each freeway. Each sensor reading includes a
  * calculation of the 'total flow' across all lanes in that freeway direction.
  *
- * <p> Concepts:
+ * <p>Concepts:
  * <pre>
  *   1. The default triggering behavior
  *   2. Late data with the default trigger
@@ -76,30 +73,28 @@ import java.util.concurrent.TimeUnit;
  *   4. Combining late data and speculative estimates
  * </pre>
  *
- * <p> Before running this example, it will be useful to familiarize yourself with Dataflow triggers
+ * <p>Before running this example, it will be useful to familiarize yourself with Beam triggers
  * and understand the concept of 'late data',
- * See:  <a href="https://cloud.google.com/dataflow/model/triggers">
- * https://cloud.google.com/dataflow/model/triggers </a> and
- * <a href="https://cloud.google.com/dataflow/model/windowing#Advanced">
- * https://cloud.google.com/dataflow/model/windowing#Advanced </a>
+ * See: <a href="http://beam.apache.org/use/walkthroughs/">
+ * http://beam.apache.org/use/walkthroughs/</a>
  *
- * <p> The example is configured to use the default BigQuery table from the example common package
- * (there are no defaults for a general Dataflow pipeline).
+ * <p>The example is configured to use the default BigQuery table from the example common package
+ * (there are no defaults for a general Beam pipeline).
  * You can override them by using the {@code --bigQueryDataset}, and {@code --bigQueryTable}
  * options. If the BigQuery table do not exist, the example will try to create them.
  *
- * <p> The pipeline outputs its results to a BigQuery table.
+ * <p>The pipeline outputs its results to a BigQuery table.
  * Here are some queries you can use to see interesting results:
  * Replace {@code <enter_table_name>} in the query below with the name of the BigQuery table.
  * Replace {@code <enter_window_interval>} in the query below with the window interval.
  *
- * <p> To see the results of the default trigger,
+ * <p>To see the results of the default trigger,
  * Note: When you start up your pipeline, you'll initially see results from 'late' data. Wait after
  * the window duration, until the first pane of non-late data has been emitted, to see more
  * interesting results.
  * {@code SELECT * FROM enter_table_name WHERE trigger_type = "default" ORDER BY window DESC}
  *
- * <p> To see the late data i.e. dropped by the default trigger,
+ * <p>To see the late data i.e. dropped by the default trigger,
  * {@code SELECT * FROM <enter_table_name> WHERE trigger_type = "withAllowedLateness" and
  * (timing = "LATE" or timing = "ON_TIME") and freeway = "5" ORDER BY window DESC, processing_time}
  *
@@ -108,23 +103,23 @@ import java.util.concurrent.TimeUnit;
  * (trigger_type = "withAllowedLateness" or trigger_type = "sequential") and freeway = "5" ORDER BY
  * window DESC, processing_time}
  *
- * <p> To see speculative results every minute,
+ * <p>To see speculative results every minute,
  * {@code SELECT * FROM <enter_table_name> WHERE trigger_type = "speculative" and freeway = "5"
  * ORDER BY window DESC, processing_time}
  *
- * <p> To see speculative results every five minutes after the end of the window
+ * <p>To see speculative results every five minutes after the end of the window
  * {@code SELECT * FROM <enter_table_name> WHERE trigger_type = "sequential" and timing != "EARLY"
  * and freeway = "5" ORDER BY window DESC, processing_time}
  *
- * <p> To see the first and the last pane for a freeway in a window for all the trigger types,
+ * <p>To see the first and the last pane for a freeway in a window for all the trigger types,
  * {@code SELECT * FROM <enter_table_name> WHERE (isFirst = true or isLast = true) ORDER BY window}
  *
- * <p> To reduce the number of results for each query we can add additional where clauses.
+ * <p>To reduce the number of results for each query we can add additional where clauses.
  * For examples, To see the results of the default trigger,
  * {@code SELECT * FROM <enter_table_name> WHERE trigger_type = "default" AND freeway = "5" AND
  * window = "<enter_window_interval>"}
  *
- * <p> The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
+ * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
  * and then exits.
  */
 
@@ -158,13 +153,13 @@ public class TriggerExample {
    * 5             | 60                 | 10:27:20   | 10:27:25
    * 5             | 60                 | 10:29:00   | 11:11:00
    *
-   * <p> Dataflow tracks a watermark which records up to what point in event time the data is
+   * <p>Beam tracks a watermark which records up to what point in event time the data is
    * complete. For the purposes of the example, we'll assume the watermark is approximately 15m
    * behind the current processing time. In practice, the actual value would vary over time based
    * on the systems knowledge of the current delay and contents of the backlog (data
    * that has not yet been processed).
    *
-   * <p> If the watermark is 15m behind, then the window [10:00:00, 10:30:00) (in event time) would
+   * <p>If the watermark is 15m behind, then the window [10:00:00, 10:30:00) (in event time) would
    * close at 10:44:59, when the watermark passes 10:30:00.
    */
   static class CalculateTotalFlow
@@ -176,10 +171,10 @@ public class TriggerExample {
     }
 
     @Override
-    public PCollectionList<TableRow> apply(PCollection<KV<String, Integer>> flowInfo) {
+    public PCollectionList<TableRow> expand(PCollection<KV<String, Integer>> flowInfo) {
 
       // Concept #1: The default triggering behavior
-      // By default Dataflow uses a trigger which fires when the watermark has passed the end of the
+      // By default Beam uses a trigger which fires when the watermark has passed the end of the
       // window. This would be written {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.
 
       // The system also defaults to dropping late data -- data which arrives after the watermark
@@ -337,14 +332,14 @@ public class TriggerExample {
     }
 
     @Override
-    public PCollection<TableRow> apply(PCollection<KV<String, Integer>> flowInfo) {
+    public PCollection<TableRow> expand(PCollection<KV<String, Integer>> flowInfo) {
       PCollection<KV<String, Iterable<Integer>>> flowPerFreeway = flowInfo
           .apply(GroupByKey.<String, Integer>create());
 
       PCollection<KV<String, String>> results = flowPerFreeway.apply(ParDo.of(
-          new DoFn <KV<String, Iterable<Integer>>, KV<String, String>>() {
+          new DoFn<KV<String, Iterable<Integer>>, KV<String, String>>() {
 
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               Iterable<Integer> flows = c.element().getValue();
               Integer sum = 0;
@@ -365,22 +360,21 @@ public class TriggerExample {
    * Format the results of the Total flow calculation to a TableRow, to save to BigQuery.
    * Adds the triggerType, pane information, processing time and the window timestamp.
    * */
-  static class FormatTotalFlow extends DoFn<KV<String, String>, TableRow>
-  implements  RequiresWindowAccess {
+  static class FormatTotalFlow extends DoFn<KV<String, String>, TableRow> {
     private String triggerType;
 
     public FormatTotalFlow(String triggerType) {
       this.triggerType = triggerType;
     }
-    @Override
-    public void processElement(ProcessContext c) throws Exception {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       String[] values = c.element().getValue().split(",");
       TableRow row = new TableRow()
           .set("trigger_type", triggerType)
           .set("freeway", c.element().getKey())
           .set("total_flow", Integer.parseInt(values[0]))
           .set("number_of_records", Long.parseLong(values[1]))
-          .set("window", c.window().toString())
+          .set("window", window.toString())
           .set("isFirst", c.pane().isFirst())
           .set("isLast", c.pane().isLast())
           .set("timing", c.pane().getTiming().toString())
@@ -395,7 +389,7 @@ public class TriggerExample {
    * Freeway is used as key since we are calculating the total flow for each freeway.
    */
   static class ExtractFlowInfo extends DoFn<String, KV<String, Integer>> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       String[] laneInfo = c.element().split(",");
       if (laneInfo[0].equals("timestamp")) {
@@ -424,7 +418,7 @@ public class TriggerExample {
       extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
 
     @Description("Input file to read from")
-    @Default.String("gs://dataflow-samples/traffic_sensor/"
+    @Default.String("gs://apache-beam-samples/traffic_sensor/"
         + "Freeways-5Minaa2010-01-01_to_2010-02-15.csv")
     String getInput();
     void setInput(String value);
@@ -463,7 +457,7 @@ public class TriggerExample {
 
     PipelineResult result = pipeline.run();
 
-    // dataflowUtils will try to cancel the pipeline and the injector before the program exits.
+    // ExampleUtils will try to cancel the pipeline and the injector before the program exits.
     exampleUtils.waitToFinish(result);
   }
 
@@ -477,7 +471,7 @@ public class TriggerExample {
     private static final int MIN_DELAY = 1;
     private static final int MAX_DELAY = 100;
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Instant timestamp = Instant.now();
       if (Math.random() < THRESHOLD){

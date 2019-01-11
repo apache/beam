@@ -17,24 +17,52 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.google.api.client.auth.oauth2.Credential;
-
+import com.google.auth.Credentials;
 import java.io.IOException;
-import java.security.GeneralSecurityException;
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Construct an oauth credential to be used by the SDK and the SDK workers.
  * Always returns a null Credential object.
  */
 public class NoopCredentialFactory implements CredentialFactory {
+  private static final NoopCredentialFactory INSTANCE = new NoopCredentialFactory();
+  private static final NoopCredentials NOOP_CREDENTIALS = new NoopCredentials();
+
   public static NoopCredentialFactory fromOptions(PipelineOptions options) {
-    return new NoopCredentialFactory();
+    return INSTANCE;
   }
 
   @Override
-  public Credential getCredential() throws IOException, GeneralSecurityException {
-    return null;
+  public Credentials getCredential() throws IOException {
+    return NOOP_CREDENTIALS;
+  }
+
+  private static class NoopCredentials extends Credentials {
+    @Override
+    public String getAuthenticationType() {
+      return null;
+    }
+
+    @Override
+    public Map<String, List<String>> getRequestMetadata(URI uri) throws IOException {
+      return null;
+    }
+
+    @Override
+    public boolean hasRequestMetadata() {
+      return false;
+    }
+
+    @Override
+    public boolean hasRequestMetadataOnly() {
+      return false;
+    }
+
+    @Override
+    public void refresh() throws IOException {}
   }
 }

@@ -21,39 +21,12 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.io.AvroSource.AvroReader;
-import org.apache.beam.sdk.io.AvroSource.AvroReader.Seeker;
-import org.apache.beam.sdk.io.BlockBasedSource.BlockBasedReader;
-import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.SourceTestUtils;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-
 import com.google.common.base.MoreObjects;
-
-import org.apache.avro.Schema;
-import org.apache.avro.file.CodecFactory;
-import org.apache.avro.file.DataFileConstants;
-import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.reflect.AvroDefault;
-import org.apache.avro.reflect.Nullable;
-import org.apache.avro.reflect.ReflectData;
-import org.hamcrest.Matchers;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -65,6 +38,34 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Random;
+import org.apache.avro.Schema;
+import org.apache.avro.file.CodecFactory;
+import org.apache.avro.file.DataFileConstants;
+import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.reflect.AvroDefault;
+import org.apache.avro.reflect.Nullable;
+import org.apache.avro.reflect.ReflectData;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.io.AvroSource.AvroReader;
+import org.apache.beam.sdk.io.AvroSource.AvroReader.Seeker;
+import org.apache.beam.sdk.io.BlockBasedSource.BlockBasedReader;
+import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.SourceTestUtils;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.AvroUtils;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.hamcrest.Matchers;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Tests for AvroSource.
@@ -196,14 +197,14 @@ public class AvroSourceTest {
 
     AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
     try (BoundedSource.BoundedReader<FixedRecord> reader = source.createReader(null)) {
-      assertEquals(new Double(0.0), reader.getFractionConsumed());
+      assertEquals(Double.valueOf(0.0), reader.getFractionConsumed());
     }
 
     List<? extends BoundedSource<FixedRecord>> splits =
         source.splitIntoBundles(file.length() / 3, null);
     for (BoundedSource<FixedRecord> subSource : splits) {
       try (BoundedSource.BoundedReader<FixedRecord> reader = subSource.createReader(null)) {
-        assertEquals(new Double(0.0), reader.getFractionConsumed());
+        assertEquals(Double.valueOf(0.0), reader.getFractionConsumed());
       }
     }
   }
@@ -425,6 +426,45 @@ public class AvroSourceTest {
     }
 
     assertThat(actual, containsInAnyOrder(expected.toArray()));
+  }
+
+  @Test
+  public void testSchemaStringIsInterned() throws Exception {
+    List<Bird> birds = createRandomRecords(100);
+    String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
+        AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
+    String schemaA = AvroUtils.readMetadataFromFile(filename).getSchemaString();
+    String schemaB = AvroUtils.readMetadataFromFile(filename).getSchemaString();
+    assertNotSame(schemaA, schemaB);
+
+    AvroSource<GenericRecord> sourceA = AvroSource.from(filename).withSchema(schemaA);
+    AvroSource<GenericRecord> sourceB = AvroSource.from(filename).withSchema(schemaB);
+    assertSame(sourceA.getSchema(), sourceB.getSchema());
+
+    // Ensure that deserialization still goes through interning
+    AvroSource<GenericRecord> sourceC = SerializableUtils.clone(sourceB);
+    assertSame(sourceA.getSchema(), sourceC.getSchema());
+  }
+
+  @Test
+  public void testSchemaIsInterned() throws Exception {
+    List<Bird> birds = createRandomRecords(100);
+    String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
+        AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
+    String schemaA = AvroUtils.readMetadataFromFile(filename).getSchemaString();
+    String schemaB = AvroUtils.readMetadataFromFile(filename).getSchemaString();
+    assertNotSame(schemaA, schemaB);
+
+    AvroSource<GenericRecord> sourceA = (AvroSource<GenericRecord>) AvroSource.from(filename)
+        .withSchema(schemaA).createForSubrangeOfFile(filename, 0L, 0L);
+    AvroSource<GenericRecord> sourceB = (AvroSource<GenericRecord>) AvroSource.from(filename)
+        .withSchema(schemaB).createForSubrangeOfFile(filename, 0L, 0L);
+    assertSame(sourceA.getReadSchema(), sourceA.getFileSchema());
+    assertSame(sourceA.getReadSchema(), sourceB.getReadSchema());
+    assertSame(sourceA.getReadSchema(), sourceB.getFileSchema());
+
+    // Schemas are transient and not serialized thus we don't need to worry about interning
+    // after deserialization.
   }
 
   private void assertEqualsWithGeneric(List<Bird> expected, List<GenericRecord> actual) {

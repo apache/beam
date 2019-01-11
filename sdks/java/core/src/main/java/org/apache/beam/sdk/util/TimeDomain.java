@@ -39,5 +39,5 @@ public enum TimeDomain {
    * {@code T} until all timers from earlier stages set for a time earlier than {@code T} have
    * fired.
    */
-  SYNCHRONIZED_PROCESSING_TIME;
+  SYNCHRONIZED_PROCESSING_TIME
 }

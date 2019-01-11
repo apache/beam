@@ -21,9 +21,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
-
 
 /**
  * Create an input stream from Queue.
@@ -49,7 +48,7 @@ public final class CreateStream<T> {
   /**
    * {@link PTransform} for queueing values.
    */
-  public static final class QueuedValues<T> extends PTransform<PInput, PCollection<T>> {
+  public static final class QueuedValues<T> extends PTransform<PBegin, PCollection<T>> {
 
     private final Iterable<Iterable<T>> queuedValues;
 
@@ -64,7 +63,7 @@ public final class CreateStream<T> {
     }
 
     @Override
-    public PCollection<T> apply(PInput input) {
+    public PCollection<T> expand(PBegin input) {
       // Spark streaming micro batches are bounded by default
       return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
           WindowingStrategy.globalDefault(), PCollection.IsBounded.UNBOUNDED);

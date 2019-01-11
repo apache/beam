@@ -17,6 +17,11 @@
  */
 package org.apache.beam.examples.cookbook;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
@@ -31,13 +36,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * An example that reads the public samples of weather data from BigQuery, counts the number of
  * tornadoes that occur in each month, and writes the results to BigQuery.
@@ -47,27 +45,17 @@ import java.util.List;
  * <p>Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
  *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }
- * </pre>
- * and the BigQuery table for the output, with the form
+ * <p>To execute this pipeline locally, specify the BigQuery table for the output with the form:
  * <pre>{@code
  *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  * }</pre>
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
  * }
  * </pre>
- * and the BigQuery table for the output:
- * <pre>{@code
- *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
- * }</pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations}
  * and can be overridden with {@code --input}.
@@ -82,7 +70,7 @@ public class BigQueryTornadoes {
    * in that sample, the month in which it occurred is output.
    */
   static class ExtractTornadoesFn extends DoFn<TableRow, Integer> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       if ((Boolean) row.get("tornado")) {
@@ -96,7 +84,7 @@ public class BigQueryTornadoes {
    * integer representation of month and the number of tornadoes that occurred in each month.
    */
   static class FormatCountsFn extends DoFn<KV<Integer, Long>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
           .set("month", c.element().getKey())
@@ -120,7 +108,7 @@ public class BigQueryTornadoes {
   static class CountTornadoes
       extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
     @Override
-    public PCollection<TableRow> apply(PCollection<TableRow> rows) {
+    public PCollection<TableRow> expand(PCollection<TableRow> rows) {
 
       // row... => month...
       PCollection<Integer> tornadoes = rows.apply(
@@ -143,7 +131,7 @@ public class BigQueryTornadoes {
    *
    * <p>Inherits standard configuration options.
    */
-  static interface Options extends PipelineOptions {
+  interface Options extends PipelineOptions {
     @Description("Table to read from, specified as "
         + "<project_id>:<dataset_id>.<table_id>")
     @Default.String(WEATHER_SAMPLES_TABLE)
@@ -176,6 +164,6 @@ public class BigQueryTornadoes {
         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
         .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

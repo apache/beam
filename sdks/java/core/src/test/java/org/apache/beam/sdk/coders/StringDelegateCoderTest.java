@@ -17,16 +17,14 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
-import org.apache.beam.sdk.testing.CoderProperties;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link StringDelegateCoder}. */
 @RunWith(JUnit4.class)

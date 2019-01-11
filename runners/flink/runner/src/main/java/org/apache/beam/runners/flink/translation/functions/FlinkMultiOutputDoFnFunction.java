@@ -17,32 +17,31 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import java.util.Map;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
-import java.util.Map;
-
 /**
- * Encapsulates a {@link org.apache.beam.sdk.transforms.DoFn} that uses side outputs
- * inside a Flink {@link org.apache.flink.api.common.functions.RichMapPartitionFunction}.
+ * Encapsulates a {@link OldDoFn} that can emit to multiple
+ * outputs inside a Flink {@link org.apache.flink.api.common.functions.RichMapPartitionFunction}.
  *
- * We get a mapping from {@link org.apache.beam.sdk.values.TupleTag} to output index
+ * <p>We get a mapping from {@link org.apache.beam.sdk.values.TupleTag} to output index
  * and must tag all outputs with the output number. Afterwards a filter will filter out
  * those elements that are not to be in a specific output.
  */
 public class FlinkMultiOutputDoFnFunction<InputT, OutputT>
     extends RichMapPartitionFunction<WindowedValue<InputT>, WindowedValue<RawUnionValue>> {
 
-  private final DoFn<InputT, OutputT> doFn;
+  private final OldDoFn<InputT, OutputT> doFn;
   private final SerializedPipelineOptions serializedOptions;
 
   private final Map<TupleTag<?>, Integer> outputMap;
@@ -55,7 +54,7 @@ public class FlinkMultiOutputDoFnFunction<InputT, OutputT>
   private final WindowingStrategy<?, ?> windowingStrategy;
 
   public FlinkMultiOutputDoFnFunction(
-      DoFn<InputT, OutputT> doFn,
+      OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions options,
@@ -64,7 +63,7 @@ public class FlinkMultiOutputDoFnFunction<InputT, OutputT>
     this.serializedOptions = new SerializedPipelineOptions(options);
     this.outputMap = outputMap;
 
-    this.requiresWindowAccess = doFn instanceof DoFn.RequiresWindowAccess;
+    this.requiresWindowAccess = doFn instanceof OldDoFn.RequiresWindowAccess;
     this.hasSideInputs = !sideInputs.isEmpty();
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
@@ -75,21 +74,22 @@ public class FlinkMultiOutputDoFnFunction<InputT, OutputT>
       Iterable<WindowedValue<InputT>> values,
       Collector<WindowedValue<RawUnionValue>> out) throws Exception {
 
-    FlinkProcessContext<InputT, OutputT> context = new FlinkMultiOutputProcessContext<>(
-        serializedOptions.getPipelineOptions(),
-        getRuntimeContext(),
-        doFn,
-        windowingStrategy,
-        out,
-        outputMap,
-        sideInputs);
+    FlinkMultiOutputProcessContext<InputT, OutputT> context =
+        new FlinkMultiOutputProcessContext<>(
+            serializedOptions.getPipelineOptions(),
+            getRuntimeContext(),
+            doFn,
+            windowingStrategy,
+            sideInputs, out,
+            outputMap
+        );
 
     this.doFn.startBundle(context);
 
     if (!requiresWindowAccess || hasSideInputs) {
       // we don't need to explode the windows
       for (WindowedValue<InputT> value : values) {
-        context = context.forWindowedValue(value);
+        context.setWindowedValue(value);
         doFn.processElement(context);
       }
     } else {
@@ -97,14 +97,26 @@ public class FlinkMultiOutputDoFnFunction<InputT, OutputT>
       // side inputs and window access also only works if an element
       // is in only one window
       for (WindowedValue<InputT> value : values) {
-        for (WindowedValue<InputT> explodedValue: value.explodeWindows()) {
-          context = context.forWindowedValue(value);
+        for (WindowedValue<InputT> explodedValue : value.explodeWindows()) {
+          context.setWindowedValue(value);
           doFn.processElement(context);
         }
       }
     }
 
-
+    // set the windowed value to null so that the special logic for outputting
+    // in startBundle/finishBundle kicks in
+    context.setWindowedValue(null);
     this.doFn.finishBundle(context);
+  }
+
+  @Override
+  public void open(Configuration parameters) throws Exception {
+    doFn.setup();
+  }
+
+  @Override
+  public void close() throws Exception {
+    doFn.teardown();
   }
 }

@@ -48,7 +48,7 @@ public class CombineWithContext {
 
     /**
      * Returns the value of the side input for the window corresponding to the
-     * window of the main input element.
+     * main input's window in which values are being combined.
      */
     public abstract <T> T sideInput(PCollectionView<T> view);
   }
@@ -65,7 +65,7 @@ public class CombineWithContext {
    * A combine function that has access to {@code PipelineOptions} and side inputs through
    * {@code CombineWithContext.Context}.
    *
-   * See the equivalent {@link CombineFn} for details about combine functions.
+   * <p>See the equivalent {@link CombineFn} for details about combine functions.
    */
   public abstract static class CombineFnWithContext<InputT, AccumT, OutputT>
       extends CombineFnBase.AbstractGlobalCombineFn<InputT, AccumT, OutputT>
@@ -171,8 +171,7 @@ public class CombineWithContext {
 
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
-          super.populateDisplayData(builder);
-          CombineFnWithContext.this.populateDisplayData(builder);
+          builder.delegate(CombineFnWithContext.this);
         }
       };
     }
@@ -182,7 +181,7 @@ public class CombineWithContext {
    * A keyed combine function that has access to {@code PipelineOptions} and side inputs through
    * {@code CombineWithContext.Context}.
    *
-   * See the equivalent {@link KeyedCombineFn} for details about keyed combine functions.
+   * <p>See the equivalent {@link KeyedCombineFn} for details about keyed combine functions.
    */
   public abstract static class KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>
       extends CombineFnBase.AbstractPerKeyCombineFn<K, InputT, AccumT, OutputT>

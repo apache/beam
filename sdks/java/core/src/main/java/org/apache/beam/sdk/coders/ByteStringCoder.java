@@ -17,16 +17,13 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.util.VarInt;
-
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.io.ByteStreams;
 import com.google.protobuf.ByteString;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.util.VarInt;
 
 /**
  * A {@link Coder} for {@link ByteString} objects based on their encoded Protocol Buffer form.

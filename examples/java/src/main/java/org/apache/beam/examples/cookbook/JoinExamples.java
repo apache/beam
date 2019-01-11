@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.cookbook;
 
+import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -33,8 +34,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 
-import com.google.api.services.bigquery.model.TableRow;
-
 /**
  * This example shows how to do a join on two collections.
  * It uses a sample of the GDELT 'world event' data (http://goo.gl/OB6oin), joining the event
@@ -42,27 +41,17 @@ import com.google.api.services.bigquery.model.TableRow;
  *
  * <p>Concepts: Join operation; multiple input sources.
  *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }
- * </pre>
- * and a local output file or output prefix on GCS:
+ * <p>To execute this pipeline locally, specify a local output file or output prefix on GCS:
  * <pre>{@code
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  * }</pre>
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
  * }
  * </pre>
- * and an output prefix on GCS:
- * <pre>{@code
- *   --output=gs://YOUR_OUTPUT_PREFIX
- * }</pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  */
 public class JoinExamples {
 
@@ -100,7 +89,7 @@ public class JoinExamples {
     PCollection<KV<String, String>> finalResultCollection =
       kvpCollection.apply("Process", ParDo.of(
         new DoFn<KV<String, CoGbkResult>, KV<String, String>>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             KV<String, CoGbkResult> e = c.element();
             String countryCode = e.getKey();
@@ -117,7 +106,7 @@ public class JoinExamples {
     // write to GCS
     PCollection<String> formattedResults = finalResultCollection
         .apply("Format", ParDo.of(new DoFn<KV<String, String>, String>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             String outputstring = "Country code: " + c.element().getKey()
                 + ", " + c.element().getValue();
@@ -132,7 +121,7 @@ public class JoinExamples {
    * code of the event, and the value a string encoding event information.
    */
   static class ExtractEventDataFn extends DoFn<TableRow, KV<String, String>> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
       String countryCode = (String) row.get("ActionGeo_CountryCode");
@@ -150,7 +139,7 @@ public class JoinExamples {
    * code, and the value the country name.
    */
   static class ExtractCountryInfoFn extends DoFn<TableRow, KV<String, String>> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
       String countryCode = (String) row.get("FIPSCC");
@@ -165,7 +154,7 @@ public class JoinExamples {
    *
    * <p>Inherits standard configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  private interface Options extends PipelineOptions {
     @Description("Path of the file to write to")
     @Validation.Required
     String getOutput();
@@ -181,7 +170,7 @@ public class JoinExamples {
     PCollection<TableRow> countryCodes = p.apply(BigQueryIO.Read.from(COUNTRY_CODES));
     PCollection<String> formattedResults = joinEvents(eventsTable, countryCodes);
     formattedResults.apply(TextIO.Write.to(options.getOutput()));
-    p.run();
+    p.run().waitUntilFinish();
   }
 
 }

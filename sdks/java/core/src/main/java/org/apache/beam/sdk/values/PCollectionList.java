@@ -17,19 +17,17 @@
  */
 package org.apache.beam.sdk.values;
 
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.Partition;
-
 import com.google.common.collect.ImmutableList;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Partition;
 
 /**
  * A {@link PCollectionList PCollectionList&lt;T&gt;} is an immutable list of homogeneously
@@ -128,7 +126,7 @@ public class PCollectionList<T> implements PInput, POutput {
    * this {@link PCollectionList} plus the given {@link PCollection PCollections} appended to the
    * end, in order.
    *
-   * <p>All the {@link PCollections} in the resulting {@link PCollectionList} must be
+   * <p>All the {@link PCollection PCollections} in the resulting {@link PCollectionList} must be
    * part of the same {@link Pipeline}.
    */
   public PCollectionList<T> and(Iterable<PCollection<T>> pcs) {

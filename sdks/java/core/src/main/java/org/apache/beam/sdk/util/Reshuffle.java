@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Duration;
 
 /**
@@ -51,7 +50,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
   }
 
   @Override
-  public PCollection<KV<K, V>> apply(PCollection<KV<K, V>> input) {
+  public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
     WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
     // If the input has already had its windows merged, then the GBK that performed the merge
     // will have set originalStrategy.getWindowFn() to InvalidWindows, causing the GBK contained
@@ -71,7 +70,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
         .setWindowingStrategyInternal(originalStrategy)
         .apply("ExpandIterable", ParDo.of(
             new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 K key = c.element().getKey();
                 for (V value : c.element().getValue()) {

@@ -24,7 +24,7 @@ package org.apache.beam.runners.spark.io.hadoop;
  * that they produce shard names that adhere to the template in
  * {@link HadoopIO.Write}.
  *
- * Some common shard names are defined in
+ * <p>Some common shard names are defined in
  * {@link org.apache.beam.sdk.io.ShardNameTemplate}.
  */
 public interface ShardNameTemplateAware {

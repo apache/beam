@@ -18,10 +18,9 @@
 
 package org.apache.beam.runners.spark.io.hadoop;
 
-import org.apache.hadoop.fs.Path;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.hadoop.fs.Path;
 
 /**
  * Shard name builder.

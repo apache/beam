@@ -20,8 +20,6 @@ package org.apache.beam.sdk.util;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 /**
  * {@link ByteArrayOutputStream} special cased to treat writes of a single byte-array specially.
  * When calling {@link #toByteArray()} after writing only one {@code byte[]} using
@@ -61,11 +59,9 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
    * Write {@code b} to the stream and take the ownership of {@code b}.
    * If the stream is empty, {@code b} itself will be used as the content of the stream and
    * no content copy will be involved.
-   * <p><i>Note: After passing any byte array to this method, it must not be modified again.</i>
    *
-   * @throws IOException
+   * <p><i>Note: After passing any byte array to this method, it must not be modified again.</i>
    */
-  @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "Takes ownership of input buffer")
   public void writeAndOwn(byte[] b) throws IOException {
     if (b.length == 0) {
       return;
@@ -95,7 +91,6 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
   }
 
   @Override
-  @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "Returns internal buffer by design")
   public byte[] toByteArray() {
     // Note: count == buf.length is not a correct criteria to "return buf;", because the internal
     // buf may be reused after reset().

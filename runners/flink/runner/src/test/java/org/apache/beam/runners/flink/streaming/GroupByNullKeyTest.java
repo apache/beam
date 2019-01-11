@@ -17,28 +17,28 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
+import com.google.common.base.Joiner;
+import java.io.Serializable;
+import java.util.Arrays;
 import org.apache.beam.runners.flink.FlinkTestPipeline;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.base.Joiner;
-
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-import java.io.Serializable;
-import java.util.Arrays;
-
+/**
+ * Test for GroupByNullKey.
+ */
 public class GroupByNullKeyTest extends StreamingProgramTestBase implements Serializable {
 
 
@@ -61,7 +61,10 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
     compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
   }
 
-  public static class ExtractUserAndTimestamp extends DoFn<KV<Integer, String>, String> {
+  /**
+   * DoFn extracting user and timestamp.
+   */
+  public static class ExtractUserAndTimestamp extends OldDoFn<KV<Integer, String>, String> {
     private static final long serialVersionUID = 0;
 
     @Override
@@ -97,7 +100,7 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
               .withAllowedLateness(Duration.ZERO)
               .discardingFiredPanes())
 
-          .apply(ParDo.of(new DoFn<String, KV<Void, String>>() {
+          .apply(ParDo.of(new OldDoFn<String, KV<Void, String>>() {
             @Override
             public void processElement(ProcessContext c) throws Exception {
               String elem = c.element();
@@ -105,7 +108,7 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
             }
           }))
           .apply(GroupByKey.<Void, String>create())
-          .apply(ParDo.of(new DoFn<KV<Void, Iterable<String>>, String>() {
+          .apply(ParDo.of(new OldDoFn<KV<Void, Iterable<String>>, String>() {
             @Override
             public void processElement(ProcessContext c) throws Exception {
               KV<Void, Iterable<String>> elem = c.element();

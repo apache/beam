@@ -19,12 +19,11 @@ package org.apache.beam.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.Arrays;
+import java.util.Collections;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Arrays;
-import java.util.Collections;
 
 /**
  * Tests for {@link CoderFactories}.

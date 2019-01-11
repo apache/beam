@@ -42,7 +42,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
   </module>
 
   <module name="RegexpSingleline">
-    <property name="format" value="[ \t]+$"/>
+    <property name="format" value="\s+$"/>
     <property name="message" value="Trailing whitespace"/>
     <property name="severity" value="error"/>
   </module>
@@ -53,11 +53,19 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <property name="severity" value="error"/>
   </module>
 
+  <!-- Prevent *Tests.java as tools may not pick them up -->
+  <module name="RegexpOnFilename">
+    <property name="fileNamePattern" value=".*Tests\.java$" />
+  </module>
+
   <!-- Allow use of comment to suppress javadocstyle -->
   <module name="SuppressionCommentFilter">
     <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
     <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
     <property name="checkFormat" value="$1"/>
+  </module>
+  <module name="SuppressionFilter">
+    <property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml" />
   </module>
 
   <!-- Check that every module has a package-info.java -->
@@ -86,11 +94,10 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     <module name="ImportOrder">
       <!-- Checks for out of order import statements. -->
-
       <property name="severity" value="error"/>
-      <property name="groups" value="org.apache.beam,com.google,android,com,io,Jama,junit,net,org,sun,java,javax"/>
       <!-- This ensures that static imports go first. -->
       <property name="option" value="top"/>
+      <property name="sortStaticImportsAlphabetically" value="true"/>
       <property name="tokens" value="STATIC_IMPORT, IMPORT"/>
       <message key="import.ordering"
                value="Import {0} appears after other imports that it should precede"/>
@@ -101,7 +108,30 @@ page at http://checkstyle.sourceforge.net/config.html -->
     </module>
 
     <module name="IllegalImport">
-      <property name="illegalPkgs" value="com.google.api.client.repackaged, com.google.api.client.util.util.ByteStreams, com.google.api.client.util.Charsets, com.google.api.client.util.Collections2, com.google.api.client.util.Joiner, com.google.api.client.util.Lists, com.google.api.client.util.Maps, com.google.api.client.util.Objects, com.google.api.client.util.Preconditions, com.google.api.client.util.Sets, com.google.api.client.util.Strings, com.google.api.client.util.Throwables, io.netty.util.internal"/>
+      <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+    </module>
+
+    <module name="RedundantModifier">
+      <!-- Checks for redundant modifiers on various symbol definitions.
+        See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier
+      -->
+      <property name="tokens" value="METHOD_DEF, VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
+    </module>
+
+    <!--
+        IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
+        code and some useful code. So we need to fall back to Regexp.
+    -->
+    <module name="RegexpSinglelineJava">
+      <property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>
+    </module>
+
+    <!--
+         Require static importing from Preconditions.
+    -->
+    <module name="RegexpSinglelineJava">
+      <property name="format" value="^import com.google.common.base.Preconditions;$"/>
+      <property name="message" value="Static import functions from Guava Preconditions"/>
     </module>
 
     <module name="UnusedImports">
@@ -129,6 +159,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="allowThrowsTagsForSubclasses" value="true"/>
       <property name="allowUndeclaredRTE" value="true"/>
     </module>
+
+    <!-- Check that paragraph tags are used correctly in Javadoc. -->
+    <module name="JavadocParagraph"/>
 
     <module name="JavadocType">
       <property name="scope" value="protected"/>
@@ -254,7 +287,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     <module name="LineLength">
       <!-- Checks if a line is too long. -->
-      <property name="max" value="${com.puppycrawl.tools.checkstyle.checks.sizes.LineLength.max}" default="100"/>
+      <property name="max" value="100"/>
       <property name="severity" value="error"/>
 
       <!--
@@ -264,8 +297,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
       -->
 
       <property name="ignorePattern"
-          value="${com.puppycrawl.tools.checkstyle.checks.sizes.LineLength.ignorePattern}"
-          default="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>
+          value="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>
     </module>
 
     <module name="LeftCurly">
@@ -316,6 +348,11 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="severity" value="error"/>
     </module>
 
+    <!-- Checks for over-complicated boolean expressions. -->
+    <module name="SimplifyBooleanExpression"/>
+
+    <!-- Detects empty statements (standalone ";" semicolon). -->
+    <module name="EmptyStatement"/>
 
     <!--
 
@@ -388,6 +425,12 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="tokens" value="BAND, BOR, BSR, BXOR, DIV, EQUAL,
         GE, GT, LAND, LE, LITERAL_INSTANCEOF, LOR, LT, MINUS, MOD,
         NOT_EQUAL, PLUS, QUESTION, SL, SR, STAR "/>
+    </module>
+
+    <module name="OperatorWrap">
+      <!-- Checks that assignment operators are at the end of the line. -->
+      <property name="option" value="eol"/>
+      <property name="tokens" value="ASSIGN"/>
     </module>
 
     <module name="ParenPad">

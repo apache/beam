@@ -18,15 +18,11 @@
 package org.apache.beam.runners.dataflow.options;
 
 import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.Level.WARN;
-
 import static org.junit.Assert.assertEquals;
 
-import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
-
-import com.google.common.collect.ImmutableMap;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.google.common.collect.ImmutableMap;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

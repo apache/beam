@@ -17,22 +17,11 @@
  */
 package org.apache.beam.sdk.options;
 
-import org.apache.beam.sdk.util.CredentialFactory;
-import org.apache.beam.sdk.util.GcpCredentialFactory;
-import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
-
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.auth.Credentials;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -41,33 +30,23 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.CredentialFactory;
+import org.apache.beam.sdk.util.GcpCredentialFactory;
+import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.PathValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Options used to configure Google Cloud Platform project and credentials.
+ * Options used to configure Google Cloud Platform specific options such as the project
+ * and credentials.
  *
- * <p>These options configure which of the following three different mechanisms for obtaining a
- * credential are used:
- * <ol>
- *   <li>
- *     It can fetch the
- *     <a href="https://developers.google.com/accounts/docs/application-default-credentials">
- *     application default credentials</a>.
- *   </li>
- *   <li>
- *     The user can specify a client secrets file and go through the OAuth2
- *     webflow. The credential will then be cached in the user's home
- *     directory for reuse.
- *   </li>
- *   <li>
- *     The user can specify a file containing a service account private key along
- *     with the service account name.
- *   </li>
- * </ol>
- *
- * <p>The default mechanism is to use the
+ * <p>These options defer to the
  * <a href="https://developers.google.com/accounts/docs/application-default-credentials">
- * application default credentials</a>. The other options can be
- * used by setting the corresponding properties.
+ * application default credentials</a> for authentication. See the
+ * <a href="https://github.com/google/google-auth-library-java">Google Auth Library</a> for
+ * alternative mechanisms for creating credentials.
  */
 @Description("Options used to configure Google Cloud Platform project and credentials.")
 public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
@@ -79,79 +58,6 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   @Default.InstanceFactory(DefaultProjectFactory.class)
   String getProject();
   void setProject(String value);
-
-  /**
-   * This option controls which file to use when attempting to create the credentials using the
-   * service account method.
-   *
-   * <p>This option if specified, needs be combined with the
-   * {@link GcpOptions#getServiceAccountName() serviceAccountName}.
-   */
-  @JsonIgnore
-  @Description("Controls which file to use when attempting to create the credentials "
-      + "using the service account method. This option if specified, needs to be combined with "
-      + "the serviceAccountName option.")
-  String getServiceAccountKeyfile();
-  void setServiceAccountKeyfile(String value);
-
-  /**
-   * This option controls which service account to use when attempting to create the credentials
-   * using the service account method.
-   *
-   * <p>This option if specified, needs be combined with the
-   * {@link GcpOptions#getServiceAccountKeyfile() serviceAccountKeyfile}.
-   */
-  @JsonIgnore
-  @Description("Controls which service account to use when attempting to create the credentials "
-      + "using the service account method. This option if specified, needs to be combined with "
-      + "the serviceAccountKeyfile option.")
-  String getServiceAccountName();
-  void setServiceAccountName(String value);
-
-  /**
-   * This option controls which file to use when attempting to create the credentials
-   * using the OAuth 2 webflow. After the OAuth2 webflow, the credentials will be stored
-   * within credentialDir.
-   */
-  @JsonIgnore
-  @Description("This option controls which file to use when attempting to create the credentials "
-      + "using the OAuth 2 webflow. After the OAuth2 webflow, the credentials will be stored "
-      + "within credentialDir.")
-  String getSecretsFile();
-  void setSecretsFile(String value);
-
-  /**
-   * This option controls which credential store to use when creating the credentials
-   * using the OAuth 2 webflow.
-   */
-  @Description("This option controls which credential store to use when creating the credentials "
-      + "using the OAuth 2 webflow.")
-  @Default.String("cloud_dataflow")
-  String getCredentialId();
-  void setCredentialId(String value);
-
-  /**
-   * Directory for storing dataflow credentials after execution of the OAuth 2 webflow. Defaults
-   * to using the $HOME/.store/data-flow directory.
-   */
-  @Description("Directory for storing dataflow credentials after execution of the OAuth 2 webflow. "
-      + "Defaults to using the $HOME/.store/data-flow directory.")
-  @Default.InstanceFactory(CredentialDirFactory.class)
-  String getCredentialDir();
-  void setCredentialDir(String value);
-
-  /**
-   * Returns the default credential directory of ${user.home}/.store/data-flow.
-   */
-  public static class CredentialDirFactory implements DefaultValueFactory<String> {
-    @Override
-    public String create(PipelineOptions options) {
-      File home = new File(System.getProperty("user.home"));
-      File store = new File(home, ".store");
-      File dataflow = new File(store, "data-flow");
-      return dataflow.getPath();
-    }
-  }
 
   /**
    * The class of the credential factory that should be created and used to create
@@ -176,15 +82,14 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       + "If no credential has been set explicitly, the default is to use the instance factory "
       + "that constructs a credential based upon the currently set credentialFactoryClass.")
   @Default.InstanceFactory(GcpUserCredentialsFactory.class)
-  @Hidden
-  Credential getGcpCredential();
-  void setGcpCredential(Credential value);
+  Credentials getGcpCredential();
+  void setGcpCredential(Credentials value);
 
   /**
    * Attempts to infer the default project based upon the environment this application
    * is executing within. Currently this only supports getting the default project from gcloud.
    */
-  public static class DefaultProjectFactory implements DefaultValueFactory<String> {
+  class DefaultProjectFactory implements DefaultValueFactory<String> {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultProjectFactory.class);
 
     @Override
@@ -254,9 +159,9 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * Attempts to load the GCP credentials. See
    * {@link CredentialFactory#getCredential()} for more details.
    */
-  public static class GcpUserCredentialsFactory implements DefaultValueFactory<Credential> {
+  class GcpUserCredentialsFactory implements DefaultValueFactory<Credentials> {
     @Override
-    public Credential create(PipelineOptions options) {
+    public Credentials create(PipelineOptions options) {
       GcpOptions gcpOptions = options.as(GcpOptions.class);
       try {
         CredentialFactory factory = InstanceBuilder.ofType(CredentialFactory.class)
@@ -272,48 +177,28 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   }
 
   /**
-   * The token server URL to use for OAuth 2 authentication. Normally, the default is sufficient,
-   * but some specialized use cases may want to override this value.
-   */
-  @Description("The token server URL to use for OAuth 2 authentication. Normally, the default "
-      + "is sufficient, but some specialized use cases may want to override this value.")
-  @Default.String(GoogleOAuthConstants.TOKEN_SERVER_URL)
-  @Hidden
-  String getTokenServerUrl();
-  void setTokenServerUrl(String value);
-
-  /**
-   * The authorization server URL to use for OAuth 2 authentication. Normally, the default is
-   * sufficient, but some specialized use cases may want to override this value.
-   */
-  @Description("The authorization server URL to use for OAuth 2 authentication. Normally, the "
-      + "default is sufficient, but some specialized use cases may want to override this value.")
-  @Default.String(GoogleOAuthConstants.AUTHORIZATION_SERVER_URL)
-  @Hidden
-  String getAuthorizationServerEncodedUrl();
-  void setAuthorizationServerEncodedUrl(String value);
-
-  /**
    * A GCS path for storing temporary files in GCP.
    *
    * <p>Its default to {@link PipelineOptions#getTempLocation}.
    */
   @Description("A GCS path for storing temporary files in GCP.")
   @Default.InstanceFactory(GcpTempLocationFactory.class)
-  String getGcpTempLocation();
+  @Nullable String getGcpTempLocation();
   void setGcpTempLocation(String value);
 
   /**
    * Returns {@link PipelineOptions#getTempLocation} as the default GCP temp location.
    */
-  public static class GcpTempLocationFactory implements DefaultValueFactory<String> {
+  class GcpTempLocationFactory implements DefaultValueFactory<String> {
 
     @Override
+    @Nullable
     public String create(PipelineOptions options) {
       String tempLocation = options.getTempLocation();
       if (!Strings.isNullOrEmpty(tempLocation)) {
         try {
-          GcsPath.fromUri(tempLocation);
+          PathValidator validator = options.as(GcsOptions.class).getPathValidator();
+          validator.validateOutputFilePrefixSupported(tempLocation);
         } catch (Exception e) {
           // Ignore the temp location because it is not a valid 'gs://' path.
           return null;

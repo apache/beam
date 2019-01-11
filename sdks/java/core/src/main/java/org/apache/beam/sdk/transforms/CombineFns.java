@@ -19,6 +19,20 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -37,27 +51,6 @@ import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.TupleTag;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 /**
  * Static utility methods that create combine function instances.
  */
@@ -70,7 +63,7 @@ public class CombineFns {
    * <p>The same {@link TupleTag} cannot be used in a composition multiple times.
    *
    * <p>Example:
-   * <pre>{ @code
+   * <pre>{@code
    * PCollection<KV<K, Integer>> latencies = ...;
    *
    * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
@@ -78,7 +71,7 @@ public class CombineFns {
    *
    * SimpleFunction<Integer, Integer> identityFn =
    *     new SimpleFunction<Integer, Integer>() {
-   *       @Override
+   *      {@literal @}Override
    *       public Integer apply(Integer input) {
    *           return input;
    *       }};
@@ -91,7 +84,7 @@ public class CombineFns {
    * PCollection<T> finalResultCollection = maxAndMean
    *     .apply(ParDo.of(
    *         new DoFn<KV<K, CoCombineResult>, T>() {
-   *           @Override
+   *          {@literal @}ProcessElement
    *           public void processElement(ProcessContext c) throws Exception {
    *             KV<K, CoCombineResult> e = c.element();
    *             Integer maxLatency = e.getValue().get(maxLatencyTag);
@@ -100,7 +93,7 @@ public class CombineFns {
    *             c.output(...some T...);
    *           }
    *         }));
-   * } </pre>
+   * }</pre>
    */
   public static ComposeKeyedCombineFnBuilder composeKeyed() {
     return new ComposeKeyedCombineFnBuilder();
@@ -113,7 +106,7 @@ public class CombineFns {
    * <p>The same {@link TupleTag} cannot be used in a composition multiple times.
    *
    * <p>Example:
-   * <pre>{ @code
+   * <pre>{@code
    * PCollection<Integer> globalLatencies = ...;
    *
    * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
@@ -121,7 +114,7 @@ public class CombineFns {
    *
    * SimpleFunction<Integer, Integer> identityFn =
    *     new SimpleFunction<Integer, Integer>() {
-   *       @Override
+   *       {@literal @}Override
    *       public Integer apply(Integer input) {
    *           return input;
    *       }};
@@ -134,7 +127,7 @@ public class CombineFns {
    * PCollection<T> finalResultCollection = maxAndMean
    *     .apply(ParDo.of(
    *         new DoFn<CoCombineResult, T>() {
-   *           @Override
+   *          {@literal @}ProcessElement
    *           public void processElement(ProcessContext c) throws Exception {
    *             CoCombineResult e = c.element();
    *             Integer maxLatency = e.get(maxLatencyTag);
@@ -143,7 +136,7 @@ public class CombineFns {
    *             c.output(...some T...);
    *           }
    *         }));
-   * } </pre>
+   * }</pre>
    */
   public static ComposeCombineFnBuilder compose() {
     return new ComposeCombineFnBuilder();
@@ -261,7 +254,7 @@ public class CombineFns {
   public static class CoCombineResult implements Serializable {
 
     private enum NullValue {
-      INSTANCE;
+      INSTANCE
     }
 
     private final Map<TupleTag<?>, Object> valuesMap;
@@ -503,8 +496,8 @@ public class CombineFns {
       this.extractInputFns = castedExtractInputFns;
 
       @SuppressWarnings({"rawtypes", "unchecked"})
-      List<CombineFnWithContext<Object, Object, Object>> castedCombineFnWithContexts
-          = (List) combineFnWithContexts;
+      List<CombineFnWithContext<Object, Object, Object>> castedCombineFnWithContexts =
+          (List) combineFnWithContexts;
       this.combineFnWithContexts = castedCombineFnWithContexts;
 
       this.outputTags = outputTags;
@@ -1047,35 +1040,12 @@ public class CombineFns {
    */
   private static void populateDisplayData(
       DisplayData.Builder builder, List<? extends HasDisplayData> combineFns) {
-
-    // NB: ArrayListMultimap necessary to maintain ordering of combineFns of the same type.
-    Multimap<Class<?>, HasDisplayData> combineFnMap = ArrayListMultimap.create();
-
     for (int i = 0; i < combineFns.size(); i++) {
       HasDisplayData combineFn = combineFns.get(i);
-      builder.add(DisplayData.item("combineFn" + (i + 1), combineFn.getClass())
+      String token = "combineFn" + (i + 1);
+      builder.add(DisplayData.item(token, combineFn.getClass())
         .withLabel("Combine Function"));
-      combineFnMap.put(combineFn.getClass(), combineFn);
-    }
-
-    for (Map.Entry<Class<?>, Collection<HasDisplayData>> combineFnEntries :
-        combineFnMap.asMap().entrySet()) {
-
-      Collection<HasDisplayData> classCombineFns = combineFnEntries.getValue();
-      if (classCombineFns.size() == 1) {
-        // Only one combineFn of this type, include it directly.
-        builder.include(Iterables.getOnlyElement(classCombineFns));
-
-      } else {
-        // Multiple combineFns of same type, add a namespace suffix so display data is
-        // unique and ordered.
-        String baseNamespace = combineFnEntries.getKey().getName();
-        for (int i = 0; i < combineFns.size(); i++) {
-          HasDisplayData combineFn = combineFns.get(i);
-          String namespace = String.format("%s#%d", baseNamespace, i + 1);
-          builder.include(combineFn, namespace);
-        }
-      }
+      builder.include(token, combineFn);
     }
   }
 }

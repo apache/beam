@@ -18,20 +18,19 @@
 package org.apache.beam.runners.flink.translation;
 
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.TransformTreeNode;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
-
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate the user-provided
- * {@link org.apache.beam.sdk.values.PCollection}-based job into a
+ * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate
+ * the user-provided {@link org.apache.beam.sdk.values.PCollection}-based job into a
  * {@link org.apache.flink.streaming.api.datastream.DataStream} one.
- * */
+ *
+ */
 public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkStreamingPipelineTranslator.class);
@@ -50,49 +49,57 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   // --------------------------------------------------------------------------------------------
 
   @Override
-  public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+  public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
     LOG.info(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
+    this.depth++;
 
     PTransform<?, ?> transform = node.getTransform();
     if (transform != null) {
-      StreamTransformTranslator<?> translator = FlinkStreamingTransformTranslators.getTranslator(transform);
-      if (translator != null) {
+      StreamTransformTranslator<?> translator =
+          FlinkStreamingTransformTranslators.getTranslator(transform);
+
+      if (translator != null && applyCanTranslate(transform, node, translator)) {
         applyStreamingTransform(transform, node, translator);
         LOG.info(genSpaces(this.depth) + "translated-" + formatNodeName(node));
         return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
       }
     }
-    this.depth++;
     return CompositeBehavior.ENTER_TRANSFORM;
   }
 
   @Override
-  public void leaveCompositeTransform(TransformTreeNode node) {
+  public void leaveCompositeTransform(TransformHierarchy.Node node) {
     this.depth--;
     LOG.info(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
   }
 
   @Override
-  public void visitPrimitiveTransform(TransformTreeNode node) {
+  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
     LOG.info(genSpaces(this.depth) + "visitPrimitiveTransform- " + formatNodeName(node));
     // get the transformation corresponding to hte node we are
     // currently visiting and translate it into its Flink alternative.
 
     PTransform<?, ?> transform = node.getTransform();
-    StreamTransformTranslator<?> translator = FlinkStreamingTransformTranslators.getTranslator(transform);
-    if (translator == null) {
+    StreamTransformTranslator<?> translator =
+        FlinkStreamingTransformTranslators.getTranslator(transform);
+
+    if (translator == null || !applyCanTranslate(transform, node, translator)) {
       LOG.info(node.getTransform().getClass().toString());
-      throw new UnsupportedOperationException("The transform " + transform + " is currently not supported.");
+      throw new UnsupportedOperationException(
+          "The transform " + transform + " is currently not supported.");
     }
     applyStreamingTransform(transform, node, translator);
   }
 
   @Override
-  public void visitValue(PValue value, TransformTreeNode producer) {
+  public void visitValue(PValue value, TransformHierarchy.Node producer) {
     // do nothing here
   }
 
-  private <T extends PTransform<?, ?>> void applyStreamingTransform(PTransform<?, ?> transform, TransformTreeNode node, StreamTransformTranslator<?> translator) {
+  private <T extends PTransform<?, ?>> void applyStreamingTransform(
+      PTransform<?, ?> transform,
+      TransformHierarchy.Node node,
+      StreamTransformTranslator<?> translator) {
 
     @SuppressWarnings("unchecked")
     T typedTransform = (T) transform;
@@ -101,9 +108,24 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
 
     // create the applied PTransform on the streamingContext
-    streamingContext.setCurrentTransform(AppliedPTransform.of(
-        node.getFullName(), node.getInput(), node.getOutput(), (PTransform) transform));
+    streamingContext.setCurrentTransform(node.toAppliedPTransform());
     typedTranslator.translateNode(typedTransform, streamingContext);
+  }
+
+  private <T extends PTransform<?, ?>> boolean applyCanTranslate(
+      PTransform<?, ?> transform,
+      TransformHierarchy.Node node,
+      StreamTransformTranslator<?> translator) {
+
+    @SuppressWarnings("unchecked")
+    T typedTransform = (T) transform;
+
+    @SuppressWarnings("unchecked")
+    StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
+
+    streamingContext.setCurrentTransform(node.toAppliedPTransform());
+
+    return typedTranslator.canTranslate(typedTransform, streamingContext);
   }
 
   /**
@@ -111,11 +133,22 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
    * This interface is for <b>streaming</b> jobs. For examples of such translators see
    * {@link FlinkStreamingTransformTranslators}.
    */
-  public interface StreamTransformTranslator<Type extends PTransform> {
-    void translateNode(Type transform, FlinkStreamingTranslationContext context);
+  abstract static class StreamTransformTranslator<T extends PTransform> {
+
+    /**
+     * Translate the given transform.
+     */
+    abstract void translateNode(T transform, FlinkStreamingTranslationContext context);
+
+    /**
+     * Returns true iff this translator can translate the given transform.
+     */
+    boolean canTranslate(T transform, FlinkStreamingTranslationContext context) {
+      return true;
+    }
   }
 
-  private static String formatNodeName(TransformTreeNode node) {
+  private static String formatNodeName(TransformHierarchy.Node node) {
     return node.toString().split("@")[1] + node.getTransform();
   }
 }

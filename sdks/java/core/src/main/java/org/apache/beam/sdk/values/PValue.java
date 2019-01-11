@@ -28,12 +28,12 @@ public interface PValue extends POutput, PInput {
   /**
    * Returns the name of this {@link PValue}.
    */
-  public String getName();
+  String getName();
 
   /**
    * Returns the {@link AppliedPTransform} that this {@link PValue} is an output of.
    *
    * <p>For internal use only.
    */
-  public AppliedPTransform<?, ?, ?> getProducingTransformInternal();
+  AppliedPTransform<?, ?, ?> getProducingTransformInternal();
 }

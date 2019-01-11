@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
@@ -24,8 +25,6 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-
-import java.io.Serializable;
 
 /**
  * {@code Partition} takes a {@code PCollection<T>} and a
@@ -79,7 +78,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
      * @return index of the selected partition (in the range
      * {@code [0..numPartitions-1]})
      */
-    public int partitionFor(T elem, int numPartitions);
+    int partitionFor(T elem, int numPartitions);
   }
 
   /**
@@ -101,7 +100,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
   /////////////////////////////////////////////////////////////////////////////
 
   @Override
-  public PCollectionList<T> apply(PCollection<T> in) {
+  public PCollectionList<T> expand(PCollection<T> in) {
     final TupleTagList outputTags = partitionDoFn.getOutputTags();
 
     PCollectionTuple outputs = in.apply(
@@ -125,7 +124,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.include(partitionDoFn);
+    builder.include("partitionFn", partitionDoFn);
   }
 
   private final transient PartitionDoFn<T> partitionDoFn;
@@ -163,7 +162,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
       return outputTags;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       X input = c.element();
       int partition = partitionFn.partitionFor(input, numPartitions);

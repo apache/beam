@@ -24,7 +24,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Test;

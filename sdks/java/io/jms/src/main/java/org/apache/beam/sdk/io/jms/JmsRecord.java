@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
 
+import javax.annotation.Nullable;
 import javax.jms.Destination;
 
 /**
@@ -32,7 +33,7 @@ public class JmsRecord implements Serializable {
   private final String jmsMessageID;
   private final long jmsTimestamp;
   private final String jmsCorrelationID;
-  private final Destination jmsReplyTo;
+  @Nullable private final Destination jmsReplyTo;
   private final Destination jmsDestination;
   private final int jmsDeliveryMode;
   private final boolean jmsRedelivered;
@@ -46,7 +47,7 @@ public class JmsRecord implements Serializable {
       String jmsMessageID,
       long jmsTimestamp,
       String jmsCorrelationID,
-      Destination jmsReplyTo,
+      @Nullable Destination jmsReplyTo,
       Destination jmsDestination,
       int jmsDeliveryMode,
       boolean jmsRedelivered,
@@ -81,7 +82,7 @@ public class JmsRecord implements Serializable {
     return jmsCorrelationID;
   }
 
-  public Destination getJmsReplyTo() {
+  public @Nullable Destination getJmsReplyTo() {
     return jmsReplyTo;
   }
 

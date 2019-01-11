@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow;
 
 import java.util.Objects;
-
 import javax.annotation.Nullable;
 
 /**

@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import javax.annotation.Nullable;
 
 /**
  * The interface to objects that provide side inputs. Particular implementations

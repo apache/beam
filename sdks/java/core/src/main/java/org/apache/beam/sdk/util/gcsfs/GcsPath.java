@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.services.storage.model.StorageObject;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -35,7 +34,6 @@ import java.nio.file.WatchService;
 import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -263,7 +261,12 @@ public class GcsPath implements Path {
 
   @Override
   public GcsPath getFileName() {
-    throw new UnsupportedOperationException();
+    int nameCount = getNameCount();
+    if (nameCount < 2) {
+      throw new UnsupportedOperationException(
+          "Can't get filename from root path in the bucket: " + this);
+    }
+    return getName(nameCount - 1);
   }
 
   /**
@@ -438,7 +441,11 @@ public class GcsPath implements Path {
 
   @Override
   public Path resolveSibling(String other) {
-    throw new UnsupportedOperationException();
+    if (getNameCount() < 2) {
+      throw new UnsupportedOperationException("Can't resolve the sibling of a root path: " + this);
+    }
+    GcsPath parent = getParent();
+    return (parent == null) ? fromUri(other) : parent.resolve(other);
   }
 
   @Override

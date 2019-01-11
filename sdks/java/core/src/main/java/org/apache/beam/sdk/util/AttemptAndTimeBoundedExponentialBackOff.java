@@ -21,10 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.NanoClock;
-
 import java.util.concurrent.TimeUnit;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Extension of {@link AttemptBoundedExponentialBackOff} that bounds the total time that the backoff
@@ -36,6 +33,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  *
  * <p>Implementation is not thread-safe.
  */
+@Deprecated
 public class AttemptAndTimeBoundedExponentialBackOff extends AttemptBoundedExponentialBackOff {
   private long endTimeMillis;
   private long maximumTotalWaitTimeMillis;
@@ -50,7 +48,7 @@ public class AttemptAndTimeBoundedExponentialBackOff extends AttemptBoundedExpon
    * the number of attempts and the time bound for the BackOff are reset, but an alternative
    * ResetPolicy may be set to only reset one of these two.
    */
-  public static enum ResetPolicy {
+  public enum ResetPolicy {
     ALL,
     ATTEMPTS,
     TIMER
@@ -131,8 +129,6 @@ public class AttemptAndTimeBoundedExponentialBackOff extends AttemptBoundedExpon
   }
 
   @Override
-  @SuppressFBWarnings(value = "UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR",
-      justification = "Explicitly handled in implementation.")
   public void reset() {
     // reset() is called in the constructor of the parent class before resetPolicy and nanoClock are
     // set.  In this case, we call the parent class's reset() method and return.

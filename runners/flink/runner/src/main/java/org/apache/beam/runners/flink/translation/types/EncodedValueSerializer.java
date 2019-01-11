@@ -17,97 +17,97 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
+import java.io.IOException;
+
 import org.apache.beam.sdk.coders.Coder;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.IOException;
-
 /**
  * {@link TypeSerializer} for values that were encoded using a {@link Coder}.
  */
 public final class EncodedValueSerializer extends TypeSerializer<byte[]> {
 
-	private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-	private static final byte[] EMPTY = new byte[0];
+  private static final byte[] EMPTY = new byte[0];
 
-	@Override
-	public boolean isImmutableType() {
-		return true;
-	}
+  @Override
+  public boolean isImmutableType() {
+    return true;
+  }
 
-	@Override
-	public byte[] createInstance() {
-		return EMPTY;
-	}
+  @Override
+  public byte[] createInstance() {
+    return EMPTY;
+  }
 
-	@Override
-	public byte[] copy(byte[] from) {
-		return from;
-	}
-	
-	@Override
-	public byte[] copy(byte[] from, byte[] reuse) {
-		return copy(from);
-	}
+  @Override
+  public byte[] copy(byte[] from) {
+    return from;
+  }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+  @Override
+  public byte[] copy(byte[] from, byte[] reuse) {
+    return copy(from);
+  }
+
+  @Override
+  public int getLength() {
+    return -1;
+  }
 
 
-	@Override
-	public void serialize(byte[] record, DataOutputView target) throws IOException {
-		if (record == null) {
-			throw new IllegalArgumentException("The record must not be null.");
-		}
-		
-		final int len = record.length;
-		target.writeInt(len);
-		target.write(record);
-	}
+  @Override
+  public void serialize(byte[] record, DataOutputView target) throws IOException {
+    if (record == null) {
+      throw new IllegalArgumentException("The record must not be null.");
+    }
 
-	@Override
-	public byte[] deserialize(DataInputView source) throws IOException {
-		final int len = source.readInt();
-		byte[] result = new byte[len];
-		source.readFully(result);
-		return result;
-	}
-	
-	@Override
-	public byte[] deserialize(byte[] reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+    final int len = record.length;
+    target.writeInt(len);
+    target.write(record);
+  }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		final int len = source.readInt();
-		target.writeInt(len);
-		target.write(source, len);
-	}
+  @Override
+  public byte[] deserialize(DataInputView source) throws IOException {
+    final int len = source.readInt();
+    byte[] result = new byte[len];
+    source.readFully(result);
+    return result;
+  }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof EncodedValueSerializer;
-	}
+  @Override
+  public byte[] deserialize(byte[] reuse, DataInputView source) throws IOException {
+    return deserialize(source);
+  }
 
-	@Override
-	public int hashCode() {
-		return this.getClass().hashCode();
-	}
+  @Override
+  public void copy(DataInputView source, DataOutputView target) throws IOException {
+    final int len = source.readInt();
+    target.writeInt(len);
+    target.write(source, len);
+  }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof EncodedValueSerializer;
-	}
+  @Override
+  public boolean canEqual(Object obj) {
+    return obj instanceof EncodedValueSerializer;
+  }
 
-	@Override
-	public TypeSerializer<byte[]> duplicate() {
-		return this;
-	}
+  @Override
+  public int hashCode() {
+    return this.getClass().hashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    return obj instanceof EncodedValueSerializer;
+  }
+
+  @Override
+  public TypeSerializer<byte[]> duplicate() {
+    return this;
+  }
 }

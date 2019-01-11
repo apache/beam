@@ -30,5 +30,5 @@ public interface CoderProvider {
    *
    * @throws CannotProvideCoderException if no coder can be provided
    */
-  public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException;
+  <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException;
 }

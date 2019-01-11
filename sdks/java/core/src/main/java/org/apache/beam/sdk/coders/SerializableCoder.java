@@ -17,12 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.values.TypeDescriptor;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -30,6 +26,8 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
 import java.io.Serializable;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} for Java classes that implement {@link Serializable}.

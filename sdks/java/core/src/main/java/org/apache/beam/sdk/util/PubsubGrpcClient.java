@@ -20,10 +20,7 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.options.GcpOptions;
-import org.apache.beam.sdk.options.PubsubOptions;
-
-import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.Credentials;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -50,7 +47,6 @@ import com.google.pubsub.v1.SubscriberGrpc;
 import com.google.pubsub.v1.SubscriberGrpc.SubscriberBlockingStub;
 import com.google.pubsub.v1.Subscription;
 import com.google.pubsub.v1.Topic;
-
 import io.grpc.Channel;
 import io.grpc.ClientInterceptors;
 import io.grpc.ManagedChannel;
@@ -58,16 +54,15 @@ import io.grpc.auth.ClientAuthInterceptor;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
-
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.options.PubsubOptions;
 
 /**
  * A helper class for talking to Pubsub via grpc.
@@ -78,10 +73,6 @@ import javax.annotation.Nullable;
 public class PubsubGrpcClient extends PubsubClient {
   private static final String PUBSUB_ADDRESS = "pubsub.googleapis.com";
   private static final int PUBSUB_PORT = 443;
-  // Will be needed when credentials are correctly constructed and scoped.
-  @SuppressWarnings("unused")
-  private static final List<String> PUBSUB_SCOPES =
-      Collections.singletonList("https://www.googleapis.com/auth/pubsub");
   private static final int LIST_BATCH_SIZE = 1000;
 
   private static final int DEFAULT_TIMEOUT_S = 15;
@@ -96,17 +87,12 @@ public class PubsubGrpcClient extends PubsubClient {
           .negotiationType(NegotiationType.TLS)
           .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
           .build();
-      // TODO: GcpOptions needs to support building com.google.auth.oauth2.Credentials from the
-      // various command line options. It currently only supports the older
-      // com.google.api.client.auth.oauth2.Credentials.
-      GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+
       return new PubsubGrpcClient(timestampLabel,
                                   idLabel,
                                   DEFAULT_TIMEOUT_S,
                                   channel,
-                                  credentials,
-                                  null /* publisher stub */,
-                                  null /* subscriber stub */);
+                                  options.getGcpCredential());
     }
 
     @Override
@@ -134,7 +120,7 @@ public class PubsubGrpcClient extends PubsubClient {
   /**
    * Credentials determined from options and environment.
    */
-  private final GoogleCredentials credentials;
+  private final Credentials credentials;
 
   /**
    * Label to use for custom timestamps, or {@literal null} if should use Pubsub publish time
@@ -163,16 +149,12 @@ public class PubsubGrpcClient extends PubsubClient {
       @Nullable String idLabel,
       int timeoutSec,
       ManagedChannel publisherChannel,
-      GoogleCredentials credentials,
-      PublisherGrpc.PublisherBlockingStub cachedPublisherStub,
-      SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub) {
+      Credentials credentials) {
     this.timestampLabel = timestampLabel;
     this.idLabel = idLabel;
     this.timeoutSec = timeoutSec;
     this.publisherChannel = publisherChannel;
     this.credentials = credentials;
-    this.cachedPublisherStub = cachedPublisherStub;
-    this.cachedSubscriberStub = cachedSubscriberStub;
   }
 
   /**
@@ -193,13 +175,11 @@ public class PubsubGrpcClient extends PubsubClient {
     this.publisherChannel = null;
     // Gracefully shutdown the channel.
     publisherChannel.shutdown();
-    if (timeoutSec > 0) {
-      try {
-        publisherChannel.awaitTermination(timeoutSec, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        // Ignore.
-        Thread.currentThread().interrupt();
-      }
+    try {
+      publisherChannel.awaitTermination(timeoutSec, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      // Ignore.
+      Thread.currentThread().interrupt();
     }
   }
 
@@ -220,11 +200,7 @@ public class PubsubGrpcClient extends PubsubClient {
     if (cachedPublisherStub == null) {
       cachedPublisherStub = PublisherGrpc.newBlockingStub(newChannel());
     }
-    if (timeoutSec > 0) {
-      return cachedPublisherStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
-    } else {
-      return cachedPublisherStub;
-    }
+    return cachedPublisherStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
   }
 
   /**
@@ -234,11 +210,7 @@ public class PubsubGrpcClient extends PubsubClient {
     if (cachedSubscriberStub == null) {
       cachedSubscriberStub = SubscriberGrpc.newBlockingStub(newChannel());
     }
-    if (timeoutSec > 0) {
-      return cachedSubscriberStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
-    } else {
-      return cachedSubscriberStub;
-    }
+    return cachedSubscriberStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
   }
 
   @Override

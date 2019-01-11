@@ -25,7 +25,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}.
  */
 public class MapElements<InputT, OutputT>
-extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
+extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
 
   /**
    * For a {@code SerializableFunction<InputT, OutputT>} {@code fn} and output type descriptor,
@@ -44,8 +44,16 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    * descriptor need not be provided.
    */
   public static <InputT, OutputT> MissingOutputTypeDescriptor<InputT, OutputT>
-  via(SerializableFunction<InputT, OutputT> fn) {
-    return new MissingOutputTypeDescriptor<>(fn);
+  via(SerializableFunction<? super InputT, OutputT> fn) {
+
+    // TypeDescriptor interacts poorly with the wildcards needed to correctly express
+    // covariance and contravariance in Java, so instead we cast it to an invariant
+    // function here.
+    @SuppressWarnings("unchecked") // safe covariant cast
+        SerializableFunction<InputT, OutputT> simplerFn =
+        (SerializableFunction<InputT, OutputT>) fn;
+
+    return new MissingOutputTypeDescriptor<>(simplerFn);
   }
 
   /**
@@ -67,9 +75,9 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    *     }));
    * }</pre>
    */
-  public static <InputT, OutputT> MapElements<InputT, OutputT>
-  via(final SimpleFunction<InputT, OutputT> fn) {
-    return new MapElements<>(fn, fn.getOutputTypeDescriptor());
+  public static <InputT, OutputT> MapElements<InputT, OutputT> via(
+      final SimpleFunction<InputT, OutputT> fn) {
+    return new MapElements<>(fn, fn.getClass());
   }
 
   /**
@@ -85,42 +93,56 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
       this.fn = fn;
     }
 
-    public MapElements<InputT, OutputT> withOutputType(TypeDescriptor<OutputT> outputType) {
-      return new MapElements<>(fn, outputType);
+    public MapElements<InputT, OutputT> withOutputType(final TypeDescriptor<OutputT> outputType) {
+      return new MapElements<>(
+          SimpleFunction.fromSerializableFunctionWithOutputType(fn, outputType), fn.getClass());
     }
+
   }
 
   ///////////////////////////////////////////////////////////////////
 
-  private final SerializableFunction<InputT, OutputT> fn;
-  private final transient TypeDescriptor<OutputT> outputType;
+  private final SimpleFunction<InputT, OutputT> fn;
+  private final DisplayData.ItemSpec<?> fnClassDisplayData;
 
-  private MapElements(
-      SerializableFunction<InputT, OutputT> fn,
-      TypeDescriptor<OutputT> outputType) {
+  private MapElements(SimpleFunction<InputT, OutputT> fn, Class<?> fnClass) {
     this.fn = fn;
-    this.outputType = outputType;
+    this.fnClassDisplayData = DisplayData.item("mapFn", fnClass).withLabel("Map Function");
   }
 
   @Override
-  public PCollection<OutputT> apply(PCollection<InputT> input) {
-    return input.apply("Map", ParDo.of(new DoFn<InputT, OutputT>() {
-      @Override
-      public void processElement(ProcessContext c) {
-        c.output(fn.apply(c.element()));
-      }
+  public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+    return input.apply(
+        "Map",
+        ParDo.of(
+            new DoFn<InputT, OutputT>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                c.output(fn.apply(c.element()));
+              }
 
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        MapElements.this.populateDisplayData(builder);
-      }
-    })).setTypeDescriptorInternal(outputType);
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.delegate(MapElements.this);
+              }
+
+              @Override
+              public TypeDescriptor<InputT> getInputTypeDescriptor() {
+                return fn.getInputTypeDescriptor();
+              }
+
+              @Override
+              public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+                return fn.getOutputTypeDescriptor();
+              }
+            }));
   }
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.add(DisplayData.item("mapFn", fn.getClass())
-      .withLabel("Map Function"));
+    builder
+        .include("mapFn", fn)
+        .add(fnClassDisplayData);
   }
 }

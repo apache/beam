@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.coders.DelegateCoder.CodingFunction;
-import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
+import org.apache.beam.sdk.coders.DelegateCoder.CodingFunction;
+import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 
 /**
  * A {@link Coder} that wraps a {@code Coder<String>}

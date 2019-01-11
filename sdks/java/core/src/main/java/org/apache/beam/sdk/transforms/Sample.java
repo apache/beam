@@ -19,6 +19,9 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -30,10 +33,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
 
 /**
  * {@code PTransform}s for taking samples of the elements in a
@@ -144,7 +143,7 @@ public class Sample {
     }
 
     @Override
-    public PCollection<T> apply(PCollection<T> in) {
+    public PCollection<T> expand(PCollection<T> in) {
       PCollectionView<Iterable<T>> iterableView = in.apply(View.<T>asIterable());
       return
           in.getPipeline()
@@ -175,7 +174,7 @@ public class Sample {
       this.iterableView = iterableView;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       for (T i : c.sideInput(iterableView)) {
         if (limit-- <= 0) {

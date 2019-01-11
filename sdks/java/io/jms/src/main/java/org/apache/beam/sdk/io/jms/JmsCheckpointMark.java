@@ -17,17 +17,14 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import java.util.ArrayList;
+import java.util.List;
+import javax.jms.Message;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-
 import org.joda.time.Instant;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.jms.Message;
 
 /**
  * Checkpoint for an unbounded JmsIO.Read. Consists of

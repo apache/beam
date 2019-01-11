@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -27,15 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.state.StateTag.StateBinder;
-
 import org.joda.time.Instant;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-
-import javax.annotation.Nullable;
 
 /**
  * In-memory implementation of {@link StateInternals}. Used in {@code BatchModeExecutionContext}
@@ -59,7 +56,11 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     return key;
   }
 
-  interface InMemoryState<T extends InMemoryState<T>> {
+  /**
+   * Interface common to all in-memory state cells. Includes ability to see whether a cell has been
+   * cleared and the ability to create a clone of the contents.
+   */
+  public interface InMemoryState<T extends InMemoryState<T>> {
     boolean isCleared();
     T copy();
   }
@@ -97,11 +98,11 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
   /**
    * A {@link StateBinder} that returns In Memory {@link State} objects.
    */
-  static class InMemoryStateBinder<K> implements StateBinder<K> {
+  public static class InMemoryStateBinder<K> implements StateBinder<K> {
     private final K key;
     private final StateContext<?> c;
 
-    InMemoryStateBinder(K key, StateContext<?> c) {
+    public InMemoryStateBinder(K key, StateContext<?> c) {
       this.key = key;
       this.c = c;
     }
@@ -153,7 +154,11 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  static final class InMemoryValue<T> implements ValueState<T>, InMemoryState<InMemoryValue<T>> {
+  /**
+   * An {@link InMemoryState} implementation of {@link ValueState}.
+   */
+  public static final class InMemoryValue<T>
+      implements ValueState<T>, InMemoryState<InMemoryValue<T>> {
     private boolean isCleared = true;
     private T value = null;
 
@@ -197,7 +202,10 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  static final class InMemoryWatermarkHold<W extends BoundedWindow>
+  /**
+   * An {@link InMemoryState} implementation of {@link WatermarkHoldState}.
+   */
+  public static final class InMemoryWatermarkHold<W extends BoundedWindow>
       implements WatermarkHoldState<W>, InMemoryState<InMemoryWatermarkHold<W>> {
 
     private final OutputTimeFn<? super W> outputTimeFn;
@@ -270,7 +278,10 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  static final class InMemoryCombiningValue<K, InputT, AccumT, OutputT>
+  /**
+   * An {@link InMemoryState} implementation of {@link AccumulatorCombiningState}.
+   */
+  public static final class InMemoryCombiningValue<K, InputT, AccumT, OutputT>
       implements AccumulatorCombiningState<InputT, AccumT, OutputT>,
           InMemoryState<InMemoryCombiningValue<K, InputT, AccumT, OutputT>> {
     private final K key;
@@ -278,7 +289,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     private final KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
     private AccumT accum;
 
-    InMemoryCombiningValue(
+    public InMemoryCombiningValue(
         K key, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
       this.key = key;
       this.combineFn = combineFn;
@@ -356,7 +367,10 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  static final class InMemoryBag<T> implements BagState<T>, InMemoryState<InMemoryBag<T>> {
+  /**
+   * An {@link InMemoryState} implementation of {@link BagState}.
+   */
+  public static final class InMemoryBag<T> implements BagState<T>, InMemoryState<InMemoryBag<T>> {
     private List<T> contents = new ArrayList<>();
 
     @Override

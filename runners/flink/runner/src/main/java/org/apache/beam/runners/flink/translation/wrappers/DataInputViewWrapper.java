@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers;
 
-import org.apache.flink.core.memory.DataInputView;
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import org.apache.flink.core.memory.DataInputView;
 
 /**
  * Wrapper for {@link DataInputView}. We need this because Flink reads data using a

@@ -19,6 +19,20 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -32,30 +46,12 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-
 import org.joda.time.Instant;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-
-import javax.annotation.Nullable;
 
 /**
  * {@code Create<T>} takes a collection of elements of type {@code T}
@@ -222,7 +218,7 @@ public class Create<T> {
   /**
    * A {@code PTransform} that creates a {@code PCollection} from a set of in-memory objects.
    */
-  public static class Values<T> extends PTransform<PInput, PCollection<T>> {
+  public static class Values<T> extends PTransform<PBegin, PCollection<T>> {
     /**
      * Returns a {@link Create.Values} PTransform like this one that uses the given
      * {@code Coder<T>} to decode each of the objects into a
@@ -244,7 +240,7 @@ public class Create<T> {
     }
 
     @Override
-    public PCollection<T> apply(PInput input) {
+    public PCollection<T> expand(PBegin input) {
       try {
         Coder<T> coder = getDefaultOutputCoder(input);
         try {
@@ -261,7 +257,7 @@ public class Create<T> {
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder(PInput input) throws CannotProvideCoderException {
+    public Coder<T> getDefaultOutputCoder(PBegin input) throws CannotProvideCoderException {
       if (coder.isPresent()) {
         return coder.get();
       } else {
@@ -425,7 +421,7 @@ public class Create<T> {
    * A {@code PTransform} that creates a {@code PCollection} whose elements have
    * associated timestamps.
    */
-  public static class TimestampedValues<T> extends PTransform<PInput, PCollection<T>>{
+  public static class TimestampedValues<T> extends PTransform<PBegin, PCollection<T>>{
     /**
      * Returns a {@link Create.TimestampedValues} PTransform like this one that uses the given
      * {@code Coder<T>} to decode each of the objects into a
@@ -444,7 +440,7 @@ public class Create<T> {
     }
 
     @Override
-    public PCollection<T> apply(PInput input) {
+    public PCollection<T> expand(PBegin input) {
       try {
         Iterable<T> rawElements =
             Iterables.transform(
@@ -487,7 +483,7 @@ public class Create<T> {
     }
 
     private static class ConvertTimestamps<T> extends DoFn<TimestampedValue<T>, T> {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) {
         c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
       }

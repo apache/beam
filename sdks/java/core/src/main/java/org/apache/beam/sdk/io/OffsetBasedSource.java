@@ -19,18 +19,16 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.io.range.OffsetRangeTracker;
-import org.apache.beam.sdk.io.range.RangeTracker;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.apache.beam.sdk.io.range.OffsetRangeTracker;
+import org.apache.beam.sdk.io.range.RangeTracker;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link BoundedSource} that uses offsets to define starting and ending positions.
@@ -148,8 +146,8 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
         this.endOffset >= 0,
         "End offset has value %s, must be non-negative", this.endOffset);
     checkArgument(
-        this.startOffset < this.endOffset,
-        "Start offset %s must be before end offset %s",
+        this.startOffset <= this.endOffset,
+        "Start offset %s may not be larger than end offset %s",
         this.startOffset, this.endOffset);
     checkArgument(
         this.minBundleSize >= 0,
@@ -250,7 +248,9 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
      * Returns the <i>starting</i> offset of the {@link Source.Reader#getCurrent current record},
      * which has been read by the last successful {@link Source.Reader#start} or
      * {@link Source.Reader#advance} call.
+     *
      * <p>If no such call has been made yet, the return value is unspecified.
+     *
      * <p>See {@link RangeTracker} for description of offset semantics.
      */
     protected abstract long getCurrentOffset() throws NoSuchElementException;

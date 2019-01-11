@@ -18,7 +18,6 @@
 package org.apache.beam.runners.spark.util;
 
 import com.google.common.primitives.UnsignedBytes;
-
 import java.io.Serializable;
 import java.util.Arrays;
 

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TimeZone;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -30,23 +33,18 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
-
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TimeZone;
-
 /**
  * This class is the second in a series of four pipelines that tell a story in a 'gaming'
  * domain, following {@link UserScore}. In addition to the concepts introduced in {@link UserScore},
  * new concepts include: windowing and element timestamps; use of {@code Filter.by()}.
  *
- * <p> This pipeline processes data collected from gaming events in batch, building on {@link
+ * <p>This pipeline processes data collected from gaming events in batch, building on {@link
  * UserScore} but using fixed windows. It calculates the sum of scores per team, for each window,
  * optionally allowing specification of two timestamps before and after which data is filtered out.
  * This allows a model where late data collected after the intended analysis window can be included,
@@ -55,7 +53,7 @@ import java.util.TimeZone;
  * {@link UserScore} pipeline. However, our batch processing is high-latency, in that we don't get
  * results from plays at the beginning of the batch's time period until the batch is processed.
  *
- * <p> To execute this pipeline using the Dataflow service, specify the pipeline configuration
+ * <p>To execute this pipeline using the Dataflow service, specify the pipeline configuration
  * like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
@@ -66,13 +64,13 @@ import java.util.TimeZone;
  * </pre>
  * where the BigQuery dataset you specify must already exist.
  *
- * <p> Optionally include {@code --input} to specify the batch input file path.
+ * <p>Optionally include {@code --input} to specify the batch input file path.
  * To indicate a time after which the data should be filtered out, include the
  * {@code --stopMin} arg. E.g., {@code --stopMin=2015-10-18-23-59} indicates that any data
  * timestamped after 23:59 PST on 2015-10-18 should not be included in the analysis.
  * To indicate a time before which data should be filtered out, include the {@code --startMin} arg.
  * If you're using the default input specified in {@link UserScore},
- * "gs://dataflow-samples/game/gaming_data*.csv", then
+ * "gs://apache-beam-samples/game/gaming_data*.csv", then
  * {@code --startMin=2015-11-16-16-10 --stopMin=2015-11-17-16-10} are good values.
  */
 public class HourlyTeamScore extends UserScore {
@@ -88,7 +86,7 @@ public class HourlyTeamScore extends UserScore {
   /**
    * Options supported by {@link HourlyTeamScore}.
    */
-  static interface Options extends UserScore.Options {
+  interface Options extends UserScore.Options {
 
     @Description("Numeric value of fixed window duration, in minutes")
     @Default.Integer(60)
@@ -109,12 +107,10 @@ public class HourlyTeamScore extends UserScore {
     String getStopMin();
     void setStopMin(String value);
 
-    @Override
     @Description("The BigQuery table name. Should not already exist.")
     @Default.String("hourly_team_score")
-    String getTableName();
-    @Override
-    void setTableName(String value);
+    String getHourlyTeamScoreTableName();
+    void setHourlyTeamScoreTableName(String value);
   }
 
   /**
@@ -126,18 +122,22 @@ public class HourlyTeamScore extends UserScore {
       configureWindowedTableWrite() {
     Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfig =
         new HashMap<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>();
-    tableConfig.put("team",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
-            c -> c.element().getKey()));
-    tableConfig.put("total_score",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("INTEGER",
-            c -> c.element().getValue()));
-    tableConfig.put("window_start",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
-          c -> {
-            IntervalWindow w = (IntervalWindow) c.window();
-            return fmt.print(w.start());
-          }));
+    tableConfig.put(
+        "team",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING", (c, w) -> c.element().getKey()));
+    tableConfig.put(
+        "total_score",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "INTEGER", (c, w) -> c.element().getValue()));
+    tableConfig.put(
+        "window_start",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING",
+            (c, w) -> {
+              IntervalWindow window = (IntervalWindow) w;
+              return fmt.print(window.start());
+            }));
     return tableConfig;
   }
 
@@ -185,11 +185,11 @@ public class HourlyTeamScore extends UserScore {
       // Extract and sum teamname/score pairs from the event data.
       .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
       .apply("WriteTeamScoreSums",
-        new WriteWindowedToBigQuery<KV<String, Integer>>(options.getTableName(),
+        new WriteWindowedToBigQuery<KV<String, Integer>>(options.getHourlyTeamScoreTableName(),
             configureWindowedTableWrite()));
 
 
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_HTSMain]
 

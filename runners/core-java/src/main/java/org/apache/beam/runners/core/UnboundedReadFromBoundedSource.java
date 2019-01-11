@@ -17,10 +17,25 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -36,32 +51,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TimestampedValue;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-
-import javax.annotation.Nullable;
 
 /**
  * {@link PTransform} that converts a {@link BoundedSource} as an {@link UnboundedSource}.
@@ -79,7 +74,7 @@ import javax.annotation.Nullable;
  * <p>This transform is intended to be used by a runner during pipeline translation to convert
  * a Read.Bounded into a Read.Unbounded.
  */
-public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PCollection<T>> {
+public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PCollection<T>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);
 
@@ -93,7 +88,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
   }
 
   @Override
-  public PCollection<T> apply(PInput input) {
+  public PCollection<T> expand(PBegin input) {
     return input.getPipeline().apply(
         Read.from(new BoundedToUnboundedSourceAdapter<>(source)));
   }
@@ -113,7 +108,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
     // We explicitly do not register base-class data, instead we use the delegate inner source.
     builder
         .add(DisplayData.item("source", source.getClass()))
-        .include(source);
+        .include("source", source);
   }
 
   /**
@@ -144,8 +139,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
               boundedSource);
           return ImmutableList.of(this);
         }
-        List<? extends BoundedSource<T>> splits
-            = boundedSource.splitIntoBundles(desiredBundleSize, options);
+        List<? extends BoundedSource<T>> splits =
+            boundedSource.splitIntoBundles(desiredBundleSize, options);
         if (splits == null) {
           LOG.warn("BoundedSource cannot split {}, skips the initial splits.", boundedSource);
           return ImmutableList.of(this);
@@ -474,7 +469,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       }
 
       private boolean advance() throws IOException {
-        if (reader == null && !closed) {
+        checkArgument(!closed, "advance() call on closed %s", getClass().getName());
+        if (reader == null) {
           reader = residualSource.createReader(options);
           return reader.start();
         } else {

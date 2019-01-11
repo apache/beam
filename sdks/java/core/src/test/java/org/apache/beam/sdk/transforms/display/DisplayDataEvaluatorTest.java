@@ -18,11 +18,12 @@
 package org.apache.beam.sdk.transforms.display;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import java.io.Serializable;
+import java.util.Set;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -30,13 +31,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.Set;
 
 /**
  * Unit tests for {@link DisplayDataEvaluator}.
@@ -49,9 +46,9 @@ public class DisplayDataEvaluatorTest implements Serializable {
     PTransform<? super PCollection<String>, ? super POutput> myTransform =
         new PTransform<PCollection<String>, POutput> () {
           @Override
-          public PCollection<String> apply(PCollection<String> input) {
+          public PCollection<String> expand(PCollection<String> input) {
             return input.apply(ParDo.of(new DoFn<String, String>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) throws Exception {
                 c.output(c.element());
               }
@@ -80,7 +77,7 @@ public class DisplayDataEvaluatorTest implements Serializable {
   public void testPrimitiveTransform() {
     PTransform<? super PCollection<Integer>, ? super PCollection<Integer>> myTransform = ParDo.of(
         new DoFn<Integer, Integer>() {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {}
 
       @Override

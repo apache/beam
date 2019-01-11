@@ -24,7 +24,6 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PDone;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -59,24 +58,24 @@ public class StringUtilsTest {
   /**
    * Inner class for simple name test.
    */
-  private class EmbeddedDoFn {
+  private class EmbeddedOldDoFn {
 
-    private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
+    private class DeeperEmbeddedOldDoFn extends EmbeddedOldDoFn {}
 
-    private EmbeddedDoFn getEmbedded() {
-      return new DeeperEmbeddedDoFn();
+    private EmbeddedOldDoFn getEmbedded() {
+      return new DeeperEmbeddedOldDoFn();
     }
   }
 
   private class EmbeddedPTransform extends PTransform<PBegin, PDone> {
     @Override
-    public PDone apply(PBegin begin) {
+    public PDone expand(PBegin begin) {
       throw new IllegalArgumentException("Should never be applied");
     }
 
     private class Bound extends PTransform<PBegin, PDone> {
       @Override
-      public PDone apply(PBegin begin) {
+      public PDone expand(PBegin begin) {
         throw new IllegalArgumentException("Should never be applied");
       }
     }
@@ -93,22 +92,22 @@ public class StringUtilsTest {
   @Test
   public void testSimpleName() {
     assertEquals("Embedded",
-        StringUtils.approximateSimpleName(EmbeddedDoFn.class));
+        StringUtils.approximateSimpleName(EmbeddedOldDoFn.class));
   }
 
   @Test
   public void testAnonSimpleName() throws Exception {
     thrown.expect(IllegalArgumentException.class);
 
-    EmbeddedDoFn anon = new EmbeddedDoFn(){};
+    EmbeddedOldDoFn anon = new EmbeddedOldDoFn(){};
 
     StringUtils.approximateSimpleName(anon.getClass());
   }
 
   @Test
   public void testNestedSimpleName() {
-    EmbeddedDoFn fn = new EmbeddedDoFn();
-    EmbeddedDoFn inner = fn.getEmbedded();
+    EmbeddedOldDoFn fn = new EmbeddedOldDoFn();
+    EmbeddedOldDoFn inner = fn.getEmbedded();
 
     assertEquals("DeeperEmbedded", StringUtils.approximateSimpleName(inner.getClass()));
   }
@@ -130,7 +129,7 @@ public class StringUtilsTest {
     AnonymousClass anonymousClassObj = new AnonymousClass() {
       class NamedInnerClass extends PTransform<PBegin, PDone> {
         @Override
-        public PDone apply(PBegin begin) {
+        public PDone expand(PBegin begin) {
           throw new IllegalArgumentException("Should never be applied");
         }
       }

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.runners;
 
 import com.google.auto.service.AutoService;
-
 import java.util.ServiceLoader;
 
 /**
@@ -38,5 +37,5 @@ public interface PipelineRunnerRegistrar {
   /**
    * Get the set of {@link PipelineRunner PipelineRunners} to register.
    */
-  public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners();
+  Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners();
 }

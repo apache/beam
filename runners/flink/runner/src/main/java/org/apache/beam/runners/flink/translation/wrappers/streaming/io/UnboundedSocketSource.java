@@ -19,31 +19,29 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
-
-import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * An example unbounded Beam source that reads input from a socket. This is used mainly for testing and debugging.
+ * An example unbounded Beam source that reads input from a socket.
+ * This is used mainly for testing and debugging.
  * */
-public class UnboundedSocketSource<C extends UnboundedSource.CheckpointMark> extends UnboundedSource<String, C> {
+public class UnboundedSocketSource<CheckpointMarkT extends UnboundedSource.CheckpointMark>
+    extends UnboundedSource<String, CheckpointMarkT> {
 
   private static final Coder<String> DEFAULT_SOCKET_CODER = StringUtf8Coder.of();
 
@@ -63,7 +61,11 @@ public class UnboundedSocketSource<C extends UnboundedSource.CheckpointMark> ext
     this(hostname, port, delimiter, maxNumRetries, DEFAULT_CONNECTION_RETRY_SLEEP);
   }
 
-  public UnboundedSocketSource(String hostname, int port, char delimiter, long maxNumRetries, long delayBetweenRetries) {
+  public UnboundedSocketSource(String hostname,
+                               int port,
+                               char delimiter,
+                               long maxNumRetries,
+                               long delayBetweenRetries) {
     this.hostname = hostname;
     this.port = port;
     this.delimiter = delimiter;
@@ -92,12 +94,15 @@ public class UnboundedSocketSource<C extends UnboundedSource.CheckpointMark> ext
   }
 
   @Override
-  public List<? extends UnboundedSource<String, C>> generateInitialSplits(int desiredNumSplits, PipelineOptions options) throws Exception {
-    return Collections.<UnboundedSource<String, C>>singletonList(this);
+  public List<? extends UnboundedSource<String, CheckpointMarkT>> generateInitialSplits(
+      int desiredNumSplits,
+      PipelineOptions options) throws Exception {
+    return Collections.<UnboundedSource<String, CheckpointMarkT>>singletonList(this);
   }
 
   @Override
-  public UnboundedReader<String> createReader(PipelineOptions options, @Nullable C checkpointMark) {
+  public UnboundedReader<String> createReader(PipelineOptions options,
+                                              @Nullable CheckpointMarkT checkpointMark) {
     return new UnboundedSocketReader(this);
   }
 
@@ -112,7 +117,8 @@ public class UnboundedSocketSource<C extends UnboundedSource.CheckpointMark> ext
   @Override
   public void validate() {
     checkArgument(port > 0 && port < 65536, "port is out of range");
-    checkArgument(maxNumRetries >= -1, "maxNumRetries must be zero or larger (num retries), or -1 (infinite retries)");
+    checkArgument(maxNumRetries >= -1, "maxNumRetries must be zero or larger (num retries), "
+        + "or -1 (infinite retries)");
     checkArgument(delayBetweenRetries >= 0, "delayBetweenRetries must be zero or positive");
   }
 
@@ -121,9 +127,11 @@ public class UnboundedSocketSource<C extends UnboundedSource.CheckpointMark> ext
     return DEFAULT_SOCKET_CODER;
   }
 
-  public static class UnboundedSocketReader extends UnboundedSource.UnboundedReader<String> implements Serializable {
+  /**
+   * Unbounded socket reader.
+   */
+  public static class UnboundedSocketReader extends UnboundedSource.UnboundedReader<String> {
 
-    private static final long serialVersionUID = 7526472295622776147L;
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSocketReader.class);
 
     private final UnboundedSocketSource source;
@@ -141,7 +149,8 @@ public class UnboundedSocketSource<C extends UnboundedSource.CheckpointMark> ext
 
     private void openConnection() throws IOException {
       this.socket = new Socket();
-      this.socket.connect(new InetSocketAddress(this.source.getHostname(), this.source.getPort()), CONNECTION_TIMEOUT_TIME);
+      this.socket.connect(new InetSocketAddress(this.source.getHostname(), this.source.getPort()),
+          CONNECTION_TIMEOUT_TIME);
       this.reader = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
       this.isRunning = true;
     }
@@ -152,11 +161,14 @@ public class UnboundedSocketSource<C extends UnboundedSource.CheckpointMark> ext
       while (!isRunning) {
         try {
           openConnection();
-          LOG.info("Connected to server socket " + this.source.getHostname() + ':' + this.source.getPort());
+          LOG.info("Connected to server socket " + this.source.getHostname() + ':'
+              + this.source.getPort());
 
           return advance();
         } catch (IOException e) {
-          LOG.info("Lost connection to server socket " + this.source.getHostname() + ':' + this.source.getPort() + ". Retrying in " + this.source.getDelayBetweenRetries() + " msecs...");
+          LOG.info("Lost connection to server socket " + this.source.getHostname() + ':'
+              + this.source.getPort() + ". Retrying in "
+              + this.source.getDelayBetweenRetries() + " msecs...");
 
           if (this.source.getMaxNumRetries() == -1 || attempt++ < this.source.getMaxNumRetries()) {
             try {
@@ -170,7 +182,8 @@ public class UnboundedSocketSource<C extends UnboundedSource.CheckpointMark> ext
           }
         }
       }
-      LOG.error("Unable to connect to host " + this.source.getHostname() + " : " + this.source.getPort());
+      LOG.error("Unable to connect to host " + this.source.getHostname()
+          + " : " + this.source.getPort());
       return false;
     }
 
@@ -214,7 +227,8 @@ public class UnboundedSocketSource<C extends UnboundedSource.CheckpointMark> ext
       this.reader.close();
       this.socket.close();
       this.isRunning = false;
-      LOG.info("Closed connection to server socket at " + this.source.getHostname() + ":" + this.source.getPort() + ".");
+      LOG.info("Closed connection to server socket at " + this.source.getHostname() + ":"
+          + this.source.getPort() + ".");
     }
 
     @Override

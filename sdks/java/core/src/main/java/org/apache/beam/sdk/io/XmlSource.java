@@ -19,14 +19,6 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.JAXBCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-
-import org.codehaus.stax2.XMLInputFactory2;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -39,7 +31,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
-
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
@@ -51,12 +42,19 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.JAXBCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.PCollection;
+import org.codehaus.stax2.XMLInputFactory2;
 
 // CHECKSTYLE.OFF: JavadocStyle
 /**
  * A source that can be used to read XML files. This source reads one or more
- * XML files and creates a {@code PCollection} of a given type. An Dataflow read transform can be
- * created by passing an {@code XmlSource} object to {@code Read.from()}. Please note the
+ * XML files and creates a {@link PCollection} of a given type. A {@link Read} transform can be
+ * created by passing an {@link XmlSource} object to {@link Read#from}. Please note the
  * example given below.
  *
  * <p>The XML file must be of the following form, where {@code root} and {@code record} are XML
@@ -85,7 +83,7 @@ import javax.xml.stream.XMLStreamReader;
  * the source will generate a {@code PCollection} of the given JAXB annotated Java type.
  * Optionally users may provide a minimum size of a bundle that should be created for the source.
  *
- * <p>The following example shows how to read from {@link XmlSource} in a Dataflow pipeline:
+ * <p>The following example shows how to read from {@link XmlSource} in a Beam pipeline:
  *
  * <pre>
  * {@code
@@ -107,13 +105,13 @@ import javax.xml.stream.XMLStreamReader;
  *       such as org.codehaus.woodstox:woodstox-core-asl</li>
  * </ol>
  *
- * <p>These dependencies have been declared as optional in Maven sdk/pom.xml file of
- * Google Cloud Dataflow.
+ * <p>These dependencies have been declared as optional in the sdks/java/core/pom.xml file of
+ * Apache Beam.
  *
- * <p><h3>Permissions</h3>
+ * <h3>Permissions</h3>
  * Permission requirements depend on the
  * {@link org.apache.beam.sdk.runners.PipelineRunner PipelineRunner} that is
- * used to execute the Dataflow job. Please refer to the documentation of corresponding
+ * used to execute the Beam pipeline. Please refer to the documentation of corresponding
  * {@link PipelineRunner PipelineRunners} for more details.
  *
  * @param <T> Type of the objects that represent the records of the XML file. The

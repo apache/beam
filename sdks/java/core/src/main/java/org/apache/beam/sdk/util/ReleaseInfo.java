@@ -19,13 +19,11 @@ package org.apache.beam.sdk.util;
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utilities for working with release information.
@@ -42,7 +40,7 @@ public final class ReleaseInfo extends GenericJson {
   }
 
   /**
-   * Returns an instance of DataflowReleaseInfo.
+   * Returns an instance of {@link ReleaseInfo}.
    */
   public static ReleaseInfo getReleaseInfo() {
     return LazyInit.INSTANCE;
@@ -66,20 +64,16 @@ public final class ReleaseInfo extends GenericJson {
 
     try (InputStream in = ReleaseInfo.class.getResourceAsStream(PROPERTIES_PATH)) {
       if (in == null) {
-        LOG.warn("Dataflow properties resource not found: {}", resourcePath);
+        LOG.warn("Beam properties resource not found: {}", resourcePath);
         return;
       }
 
       properties.load(in);
     } catch (IOException e) {
-      LOG.warn("Error loading Dataflow properties resource: ", e);
+      LOG.warn("Error loading Beam properties resource: ", e);
     }
 
     for (String name : properties.stringPropertyNames()) {
-      if (name.equals("name")) {
-        // We don't allow the properties to override the SDK name.
-        continue;
-      }
       put(name, properties.getProperty(name));
     }
   }

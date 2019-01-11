@@ -47,7 +47,7 @@ public final class ConsoleIO {
 
     /**
      * {@link PTransform} writing {@link PCollection} on the console.
-     * @param <T>
+     * @param <T> the type of the elements in the {@link PCollection}
      */
     public static class Unbound<T> extends PTransform<PCollection<T>, PDone> {
 
@@ -62,7 +62,7 @@ public final class ConsoleIO {
       }
 
       @Override
-      public PDone apply(PCollection<T> input) {
+      public PDone expand(PCollection<T> input) {
         return PDone.in(input.getPipeline());
       }
     }

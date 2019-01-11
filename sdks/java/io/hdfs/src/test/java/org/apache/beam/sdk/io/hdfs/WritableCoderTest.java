@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.hdfs;
 
 import org.apache.beam.sdk.testing.CoderProperties;
-
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.junit.Test;

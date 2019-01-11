@@ -17,10 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers;
 
-import org.apache.flink.core.memory.DataOutputView;
-
 import java.io.IOException;
 import java.io.OutputStream;
+import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * Wrapper for {@link org.apache.flink.core.memory.DataOutputView}. We need this because
@@ -29,7 +28,7 @@ import java.io.OutputStream;
  * {@link java.io.OutputStream}.
  */
 public class DataOutputViewWrapper extends OutputStream {
-  
+
   private DataOutputView outputView;
 
   public DataOutputViewWrapper(DataOutputView outputView) {

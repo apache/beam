@@ -17,85 +17,78 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.SettableFuture;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-
-import java.io.IOException;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentMap;
-
-import javax.annotation.Nullable;
 
 /**
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
  * for the {@link Bounded Read.Bounded} primitive {@link PTransform}.
  */
 final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
-  /*
-   * An evaluator for a Source is stateful, to ensure data is not read multiple times.
-   * Evaluators are cached here to ensure that the reader is not restarted if the evaluator is
-   * retriggered.
+  /**
+   * The required minimum size of a source to dynamically split. Produced {@link TransformEvaluator
+   * TransformEvaluators} will attempt to dynamically split all sources larger than the minimum
+   * dynamic split size.
    */
-  private final ConcurrentMap<AppliedPTransform<?, ?, ?>, Queue<? extends BoundedReadEvaluator<?>>>
-      sourceEvaluators = new ConcurrentHashMap<>();
+  private static final long REQUIRED_DYNAMIC_SPLIT_ORIGINAL_SIZE = 0;
+  private final EvaluationContext evaluationContext;
+  @VisibleForTesting final ExecutorService executor = Executors.newCachedThreadPool();
+
+  private final long minimumDynamicSplitSize;
+
+  BoundedReadEvaluatorFactory(EvaluationContext evaluationContext) {
+    this(evaluationContext, REQUIRED_DYNAMIC_SPLIT_ORIGINAL_SIZE);
+  }
+
+  @VisibleForTesting
+  BoundedReadEvaluatorFactory(EvaluationContext evaluationContext, long minimumDynamicSplitSize) {
+    this.evaluationContext = evaluationContext;
+    this.minimumDynamicSplitSize = minimumDynamicSplitSize;
+  }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
   @Nullable
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      @Nullable CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext)
-      throws IOException {
-    return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws IOException {
+    return createEvaluator((AppliedPTransform) application);
   }
 
-  private <OutputT> TransformEvaluator<?> getTransformEvaluator(
-      final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-      final EvaluationContext evaluationContext) {
-    return getTransformEvaluatorQueue(transform, evaluationContext).poll();
+  private <OutputT> TransformEvaluator<?> createEvaluator(
+      final AppliedPTransform<?, PCollection<OutputT>, ?> transform) {
+    return new BoundedReadEvaluator<>(
+        transform, evaluationContext, minimumDynamicSplitSize, executor);
   }
 
-  /**
-   * Get the queue of {@link TransformEvaluator TransformEvaluators} that produce elements for the
-   * provided application of {@link Bounded Read.Bounded}, initializing it if required.
-   *
-   * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
-   * already done so.
-   */
-  @SuppressWarnings("unchecked")
-  private <OutputT> Queue<BoundedReadEvaluator<OutputT>> getTransformEvaluatorQueue(
-      final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-      final EvaluationContext evaluationContext) {
-    // Key by the application and the context the evaluation is occurring in (which call to
-    // Pipeline#run).
-    Queue<BoundedReadEvaluator<OutputT>> evaluatorQueue =
-        (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(transform);
-    if (evaluatorQueue == null) {
-      evaluatorQueue = new ConcurrentLinkedQueue<>();
-      if (sourceEvaluators.putIfAbsent(transform, evaluatorQueue) == null) {
-        // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
-        // factory for this transform
-        BoundedSource<OutputT> source = transform.getTransform().getSource();
-        BoundedReadEvaluator<OutputT> evaluator =
-            new BoundedReadEvaluator<OutputT>(transform, evaluationContext, source);
-        evaluatorQueue.offer(evaluator);
-      } else {
-        // otherwise return the existing Queue that arrived before us
-        evaluatorQueue = (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(transform);
-      }
-    }
-    return evaluatorQueue;
+  @Override
+  public void cleanup() {
+    executor.shutdown();
   }
 
   /**
@@ -107,44 +100,131 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    * each evaluator should only be called once per evaluation of the pipeline. Otherwise, the source
    * may produce duplicate elements.
    */
-  private static class BoundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
-    private final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform;
+  private static class BoundedReadEvaluator<OutputT>
+      implements TransformEvaluator<BoundedSourceShard<OutputT>> {
+    private final AppliedPTransform<?, PCollection<OutputT>, ?> transform;
     private final EvaluationContext evaluationContext;
-    /**
-     * The source being read from by this {@link BoundedReadEvaluator}. This may not be the same
-     * as the source derived from {@link #transform} due to splitting.
-     */
-    private BoundedSource<OutputT> source;
+    private Builder resultBuilder;
+
+    private final long minimumDynamicSplitSize;
+    private final ExecutorService produceSplitExecutor;
 
     public BoundedReadEvaluator(
-        AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
+        AppliedPTransform<?, PCollection<OutputT>, ?> transform,
         EvaluationContext evaluationContext,
-        BoundedSource<OutputT> source) {
+        long minimumDynamicSplitSize,
+        ExecutorService executor) {
       this.transform = transform;
       this.evaluationContext = evaluationContext;
-      this.source = source;
+      resultBuilder = StepTransformResult.withoutHold(transform);
+      this.minimumDynamicSplitSize = minimumDynamicSplitSize;
+      this.produceSplitExecutor = executor;
     }
 
     @Override
-    public void processElement(WindowedValue<Object> element) {}
-
-    @Override
-    public TransformResult finishBundle() throws IOException {
+    public void processElement(WindowedValue<BoundedSourceShard<OutputT>> element)
+        throws Exception {
+      BoundedSource<OutputT> source = element.getValue().getSource();
       try (final BoundedReader<OutputT> reader =
-              source.createReader(evaluationContext.getPipelineOptions())) {
+          source.createReader(evaluationContext.getPipelineOptions())) {
         boolean contentsRemaining = reader.start();
-        UncommittedBundle<OutputT> output =
-            evaluationContext.createRootBundle(transform.getOutput());
+        Future<BoundedSource<OutputT>> residualFuture = startDynamicSplitThread(source, reader);
+        UncommittedBundle<OutputT> output = evaluationContext.createBundle(transform.getOutput());
         while (contentsRemaining) {
           output.add(
               WindowedValue.timestampedValueInGlobalWindow(
                   reader.getCurrent(), reader.getCurrentTimestamp()));
           contentsRemaining = reader.advance();
         }
-        return StepTransformResult.withHold(transform, BoundedWindow.TIMESTAMP_MAX_VALUE)
-            .addOutput(output)
-            .build();
+        resultBuilder.addOutput(output);
+        try {
+          BoundedSource<OutputT> residual = residualFuture.get();
+          if (residual != null) {
+            resultBuilder.addUnprocessedElements(
+                element.withValue(BoundedSourceShard.of(residual)));
+          }
+        } catch (ExecutionException exex) {
+          // Un-and-rewrap the exception thrown by attempting to split
+          throw UserCodeException.wrap(exex.getCause());
+        }
       }
+    }
+
+    private Future<BoundedSource<OutputT>> startDynamicSplitThread(
+        BoundedSource<OutputT> source, BoundedReader<OutputT> reader) throws Exception {
+      if (source.getEstimatedSizeBytes(evaluationContext.getPipelineOptions())
+          > minimumDynamicSplitSize) {
+        return produceSplitExecutor.submit(new GenerateSplitAtHalfwayPoint<>(reader));
+      } else {
+        SettableFuture<BoundedSource<OutputT>> emptyFuture = SettableFuture.create();
+        emptyFuture.set(null);
+        return emptyFuture;
+      }
+    }
+
+    @Override
+    public TransformResult<BoundedSourceShard<OutputT>> finishBundle()  {
+      return resultBuilder.build();
+    }
+  }
+
+  @AutoValue
+  abstract static class BoundedSourceShard<T> {
+    static <T> BoundedSourceShard<T> of(BoundedSource<T> source) {
+      return new AutoValue_BoundedReadEvaluatorFactory_BoundedSourceShard<>(source);
+    }
+
+    abstract BoundedSource<T> getSource();
+  }
+
+  static class InputProvider<T>
+      implements RootInputProvider<T, BoundedSourceShard<T>, PBegin, Read.Bounded<T>> {
+    private final EvaluationContext evaluationContext;
+
+    InputProvider(EvaluationContext evaluationContext) {
+      this.evaluationContext = evaluationContext;
+    }
+
+    @Override
+    public Collection<CommittedBundle<BoundedSourceShard<T>>> getInitialInputs(
+        AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform, int targetParallelism)
+        throws Exception {
+      BoundedSource<T> source = transform.getTransform().getSource();
+      PipelineOptions options = evaluationContext.getPipelineOptions();
+      long estimatedBytes = source.getEstimatedSizeBytes(options);
+      long bytesPerBundle = estimatedBytes / targetParallelism;
+      List<? extends BoundedSource<T>> bundles =
+          source.splitIntoBundles(bytesPerBundle, options);
+      ImmutableList.Builder<CommittedBundle<BoundedSourceShard<T>>> shards =
+          ImmutableList.builder();
+      for (BoundedSource<T> bundle : bundles) {
+        CommittedBundle<BoundedSourceShard<T>> inputShard =
+            evaluationContext
+                .<BoundedSourceShard<T>>createRootBundle()
+                .add(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(bundle)))
+                .commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
+        shards.add(inputShard);
+      }
+      return shards.build();
+    }
+  }
+
+  private static class GenerateSplitAtHalfwayPoint<T> implements Callable<BoundedSource<T>> {
+    private final BoundedReader<T> reader;
+
+    private GenerateSplitAtHalfwayPoint(BoundedReader<T> reader) {
+      this.reader = reader;
+    }
+
+    @Override
+    public BoundedSource<T> call() throws Exception {
+      // Splits at halfway of the remaining work.
+      Double currentlyConsumed = reader.getFractionConsumed();
+      if (currentlyConsumed == null || currentlyConsumed == 1.0) {
+        return null;
+      }
+      double halfwayBetweenCurrentAndCompletion = 0.5 + (currentlyConsumed / 2);
+      return reader.splitAtFraction(halfwayBetweenCurrentAndCompletion);
     }
   }
 }

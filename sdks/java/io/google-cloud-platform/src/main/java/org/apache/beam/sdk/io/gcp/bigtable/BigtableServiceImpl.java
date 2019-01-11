@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
-import org.apache.beam.sdk.values.KV;
-
 import com.google.bigtable.admin.v2.GetTableRequest;
 import com.google.bigtable.v2.MutateRowRequest;
 import com.google.bigtable.v2.MutateRowResponse;
@@ -40,16 +37,15 @@ import com.google.common.base.MoreObjects;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
-
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.values.KV;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of {@link BigtableService} that actually communicates with the Cloud Bigtable
@@ -63,6 +59,11 @@ class BigtableServiceImpl implements BigtableService {
   }
 
   private final BigtableOptions options;
+
+  @Override
+  public BigtableOptions getBigtableOptions() {
+    return options;
+  }
 
   @Override
   public BigtableWriterImpl openForWriting(String tableId) throws IOException {
@@ -184,6 +185,14 @@ class BigtableServiceImpl implements BigtableService {
       bulkMutation = session.createBulkMutation(tableName, executor);
 
       partialBuilder = MutateRowRequest.newBuilder().setTableName(tableName.toString());
+    }
+
+    @Override
+    public void flush() throws IOException {
+      if (bulkMutation != null) {
+        bulkMutation.flush();
+        executor.flush();
+      }
     }
 
     @Override

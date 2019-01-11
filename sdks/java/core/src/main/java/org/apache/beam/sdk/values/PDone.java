@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 
-import java.util.Collection;
-import java.util.Collections;
-
 /**
  * {@link PDone} is the output of a {@link PTransform} that has a trivial result,
- * such as a {@link Write}.
+ * such as a {@link org.apache.beam.sdk.io.Write}.
  */
 public class PDone extends POutputValueBase {
 

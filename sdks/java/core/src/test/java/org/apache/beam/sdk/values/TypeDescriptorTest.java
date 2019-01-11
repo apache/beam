@@ -20,17 +20,15 @@ package org.apache.beam.sdk.values;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.reflect.TypeToken;
-
+import java.lang.reflect.Method;
+import java.lang.reflect.TypeVariable;
+import java.util.List;
+import java.util.Set;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.lang.reflect.Method;
-import java.lang.reflect.TypeVariable;
-import java.util.List;
-import java.util.Set;
 
 /**
  * Tests for TypeDescriptor.
@@ -195,5 +193,17 @@ public class TypeDescriptorTest {
     assertEquals(
         new TypeToken<List<Set<String>>>() {}.getType(),
         rememberer.descriptorByInstance.getType());
+  }
+
+  @Test
+  public void testWhere() throws Exception {
+    useWhereMethodToDefineTypeParam(new TypeDescriptor<String>() {});
+  }
+
+  private <T> void useWhereMethodToDefineTypeParam(TypeDescriptor<T> parameterType) {
+    TypeDescriptor<Set<T>> typeDescriptor = new TypeDescriptor<Set<T>>() {}.where(
+        new TypeParameter<T>() {}, parameterType);
+    assertEquals(new TypeToken<Set<String>>() {}.getType(),
+        typeDescriptor.getType());
   }
 }

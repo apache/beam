@@ -23,6 +23,13 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 
+import com.google.common.collect.ImmutableSet;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CollectionCoder;
@@ -31,6 +38,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -41,9 +49,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import com.google.common.collect.ImmutableSet;
-
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -53,13 +58,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
-
 /**
  * Tests for Flatten.
  */
@@ -68,6 +66,7 @@ public class FlattenTest implements Serializable {
 
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
+
 
   private static class ClassWithoutCoder { }
 
@@ -99,7 +98,7 @@ public class FlattenTest implements Serializable {
     PCollection<String> output =
         makePCollectionListOfStrings(p, inputs)
         .apply(Flatten.<String>pCollections())
-        .apply(ParDo.of(new IdentityFn<String>(){}));
+        .apply(ParDo.of(new IdentityFn<String>()));
 
     PAssert.that(output).containsInAnyOrder(flattenLists(inputs));
     p.run();
@@ -120,6 +119,40 @@ public class FlattenTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
+  public void testFlattenInputMultipleCopies() {
+    Pipeline p = TestPipeline.create();
+
+    int count = 5;
+    PCollection<Long> longs = p.apply("mkLines", CountingInput.upTo(count));
+    PCollection<Long> biggerLongs =
+        p.apply("mkOtherLines", CountingInput.upTo(count))
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<Long, Long>() {
+                      @Override
+                      public Long apply(Long input) {
+                        return input + 10L;
+                      }
+                    }));
+
+    PCollection<Long> flattened =
+        PCollectionList.of(longs).and(longs).and(biggerLongs).apply(Flatten.<Long>pCollections());
+
+    List<Long> expectedLongs = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      // The duplicated input
+      expectedLongs.add((long) i);
+      expectedLongs.add((long) i);
+      // The bigger longs
+      expectedLongs.add(i + 10L);
+    }
+    PAssert.that(flattened).containsInAnyOrder(expectedLongs);
+
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
   public void testEmptyFlattenAsSideInput() {
     Pipeline p = TestPipeline.create();
 
@@ -131,7 +164,7 @@ public class FlattenTest implements Serializable {
     PCollection<String> output = p
         .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
         .apply(ParDo.withSideInputs(view).of(new DoFn<Void, String>() {
-                  @Override
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (String side : c.sideInput(view)) {
                       c.output(side);
@@ -152,7 +185,7 @@ public class FlattenTest implements Serializable {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
         .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of())
-        .apply(ParDo.of(new IdentityFn<String>(){}));
+        .apply(ParDo.of(new IdentityFn<String>()));
 
     PAssert.that(output).empty();
     p.run();
@@ -340,7 +373,7 @@ public class FlattenTest implements Serializable {
   /////////////////////////////////////////////////////////////////////////////
 
   private static class IdentityFn<T> extends DoFn<T, T> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element());
     }

@@ -17,16 +17,10 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
-import org.apache.beam.sdk.util.StreamUtils;
-import org.apache.beam.sdk.util.VarInt;
-
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Utf8;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -35,6 +29,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.nio.charset.StandardCharsets;
+import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
+import org.apache.beam.sdk.util.StreamUtils;
+import org.apache.beam.sdk.util.VarInt;
 
 /**
  * A {@link Coder} that encodes {@link String Strings} in UTF-8 encoding.

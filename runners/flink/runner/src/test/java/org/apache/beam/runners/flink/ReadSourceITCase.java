@@ -17,19 +17,16 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.google.common.base.Joiner;
+import java.io.File;
+import java.net.URI;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.base.Joiner;
-
 import org.apache.flink.test.util.JavaProgramTestBase;
-
-import java.io.File;
-import java.net.URI;
 
 /**
  * Reads from a bounded source in batch execution.
@@ -73,7 +70,7 @@ public class ReadSourceITCase extends JavaProgramTestBase {
     PCollection<String> result = p
         .apply(CountingInput.upTo(10))
         .apply(ParDo.of(new DoFn<Long, String>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
             c.output(c.element().toString());
           }

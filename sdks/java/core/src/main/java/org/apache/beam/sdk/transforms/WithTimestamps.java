@@ -24,7 +24,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -99,10 +98,9 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
   }
 
   @Override
-  public PCollection<T> apply(PCollection<T> input) {
-    return input
-        .apply("AddTimestamps", ParDo.of(new AddTimestampsDoFn<T>(fn, allowedTimestampSkew)))
-        .setTypeDescriptorInternal(input.getTypeDescriptor());
+  public PCollection<T> expand(PCollection<T> input) {
+    return input.apply(
+        "AddTimestamps", ParDo.of(new AddTimestampsDoFn<T>(fn, allowedTimestampSkew)));
   }
 
   private static class AddTimestampsDoFn<T> extends DoFn<T, T> {
@@ -114,7 +112,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
       this.allowedTimestampSkew = allowedTimestampSkew;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Instant timestamp = fn.apply(c.element());
       checkNotNull(

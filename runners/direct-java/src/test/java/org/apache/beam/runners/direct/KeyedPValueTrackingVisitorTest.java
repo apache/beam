@@ -21,6 +21,9 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableSet;
+import java.util.Collections;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -35,18 +38,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.collect.ImmutableSet;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Collections;
-import java.util.Set;
 
 /**
  * Tests for {@link KeyedPValueTrackingVisitor}.
@@ -166,7 +163,7 @@ public class KeyedPValueTrackingVisitorTest {
 
   private static class PrimitiveKeyer<K> extends PTransform<PCollection<K>, PCollection<K>> {
     @Override
-    public PCollection<K> apply(PCollection<K> input) {
+    public PCollection<K> expand(PCollection<K> input) {
       return PCollection.<K>createPrimitiveOutputInternal(
               input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
           .setCoder(input.getCoder());
@@ -175,14 +172,14 @@ public class KeyedPValueTrackingVisitorTest {
 
   private static class CompositeKeyer<K> extends PTransform<PCollection<K>, PCollection<K>> {
     @Override
-    public PCollection<K> apply(PCollection<K> input) {
+    public PCollection<K> expand(PCollection<K> input) {
       return input.apply(new PrimitiveKeyer<K>()).apply(ParDo.of(new IdentityFn<K>()));
     }
   }
 
   private static class IdentityFn<K> extends DoFn<K, K> {
-    @Override
-    public void processElement(DoFn<K, K>.ProcessContext c) throws Exception {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
       c.output(c.element());
     }
   }

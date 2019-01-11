@@ -17,20 +17,20 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.testing.CoderProperties;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.hamcrest.CoreMatchers;
+import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Test case for {@link StandardCoder}.
@@ -173,5 +173,26 @@ public class StandardCoderTest {
         CoderProperties.structuralValueConsistentWithEquals(inconsistentCoder, value1, value2);
       }
     }
+  }
+
+  /**
+   * Test for verifying {@link StandardCoder#toString()}.
+   */
+  @Test
+  public void testToString() {
+    Assert.assertThat(new ObjectIdentityBooleanCoder().toString(),
+        CoreMatchers.equalTo("StandardCoderTest$ObjectIdentityBooleanCoder"));
+
+    ObjectIdentityBooleanCoder coderWithArgs = new ObjectIdentityBooleanCoder() {
+      @Override
+      public List<? extends Coder<?>> getCoderArguments() {
+        return ImmutableList.<Coder<?>>builder()
+            .add(BigDecimalCoder.of(), BigIntegerCoder.of())
+            .build();
+      }
+    };
+
+    Assert.assertThat(coderWithArgs.toString(),
+        CoreMatchers.equalTo("StandardCoderTest$1(BigDecimalCoder,BigIntegerCoder)"));
   }
 }

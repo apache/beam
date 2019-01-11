@@ -17,32 +17,29 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.CombineFnBase;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.PerKeyCombineFnRunner;
-import org.apache.beam.sdk.util.PerKeyCombineFnRunners;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollectionView;
-
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
-import org.apache.flink.api.common.functions.RichGroupCombineFunction;
-import org.apache.flink.util.Collector;
-import org.joda.time.Instant;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Map;
+import org.apache.beam.runners.core.PerKeyCombineFnRunners;
+import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.CombineFnBase;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.PerKeyCombineFnRunner;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.flink.api.common.functions.RichGroupCombineFunction;
+import org.apache.flink.util.Collector;
+import org.joda.time.Instant;
 
 /**
  * This is is the first step for executing a {@link org.apache.beam.sdk.transforms.Combine.PerKey}
@@ -58,7 +55,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
 
   protected final CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, ?> combineFn;
 
-  protected final DoFn<KV<K, InputT>, KV<K, AccumT>> doFn;
+  protected final OldDoFn<KV<K, InputT>, KV<K, AccumT>> doFn;
 
   protected final WindowingStrategy<?, W> windowingStrategy;
 
@@ -77,8 +74,8 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
     this.sideInputs = sideInputs;
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
 
-    // dummy DoFn because we need one for ProcessContext
-    this.doFn = new DoFn<KV<K, InputT>, KV<K, AccumT>>() {
+    // dummy OldDoFn because we need one for ProcessContext
+    this.doFn = new OldDoFn<KV<K, InputT>, KV<K, AccumT>>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
 
@@ -91,14 +88,14 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
       Iterable<WindowedValue<KV<K, InputT>>> elements,
       Collector<WindowedValue<KV<K, AccumT>>> out) throws Exception {
 
-    FlinkProcessContext<KV<K, InputT>, KV<K, AccumT>> processContext =
-        new FlinkProcessContext<>(
+    FlinkSingleOutputProcessContext<KV<K, InputT>, KV<K, AccumT>> processContext =
+        new FlinkSingleOutputProcessContext<>(
             serializedOptions.getPipelineOptions(),
             getRuntimeContext(),
             doFn,
             windowingStrategy,
-            out,
-            sideInputs);
+            sideInputs, out
+        );
 
     PerKeyCombineFnRunner<K, InputT, AccumT, ?> combineFnRunner =
         PerKeyCombineFnRunners.create(combineFn);
@@ -135,7 +132,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
     K key = currentValue.getValue().getKey();
     BoundedWindow currentWindow = Iterables.getFirst(currentValue.getWindows(), null);
     InputT firstValue = currentValue.getValue().getValue();
-    processContext = processContext.forWindowedValue(currentValue);
+    processContext.setWindowedValue(currentValue);
     AccumT accumulator = combineFnRunner.createAccumulator(key, processContext);
     accumulator = combineFnRunner.addInput(key, accumulator, firstValue, processContext);
 
@@ -150,7 +147,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
       if (nextWindow.equals(currentWindow)) {
         // continue accumulating
         InputT value = nextValue.getValue().getValue();
-        processContext = processContext.forWindowedValue(nextValue);
+        processContext.setWindowedValue(nextValue);
         accumulator = combineFnRunner.addInput(key, accumulator, value, processContext);
 
         windowTimestamp = outputTimeFn.combine(
@@ -168,7 +165,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
 
         currentWindow = nextWindow;
         InputT value = nextValue.getValue().getValue();
-        processContext = processContext.forWindowedValue(nextValue);
+        processContext.setWindowedValue(nextValue);
         accumulator = combineFnRunner.createAccumulator(key, processContext);
         accumulator = combineFnRunner.addInput(key, accumulator, value, processContext);
         windowTimestamp = outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow);

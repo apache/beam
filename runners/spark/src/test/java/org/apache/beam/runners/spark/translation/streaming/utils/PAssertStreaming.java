@@ -18,38 +18,36 @@
 package org.apache.beam.runners.spark.translation.streaming.utils;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.spark.EvaluationResult;
+import java.io.Serializable;
+import org.apache.beam.runners.spark.SparkPipelineResult;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
-
+import org.joda.time.Duration;
 import org.junit.Assert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 
 /**
  * Since PAssert doesn't propagate assert exceptions, use Aggregators to assert streaming
  * success/failure counters.
  */
 public final class PAssertStreaming implements Serializable {
-
-  /**
-   * Copied aggregator names from {@link org.apache.beam.sdk.testing.PAssert}.
-   */
-  static final String SUCCESS_COUNTER = "PAssertSuccess";
-  static final String FAILURE_COUNTER = "PAssertFailure";
+  private static final Logger LOG = LoggerFactory.getLogger(PAssertStreaming.class);
 
   private PAssertStreaming() {
-  }
-
-  public static void assertNoFailures(EvaluationResult res) {
-    int failures = res.getAggregatorValue(FAILURE_COUNTER, Integer.class);
-    Assert.assertEquals("Found " + failures + " failures, see the log for details", 0, failures);
   }
 
   /**
@@ -57,21 +55,65 @@ public final class PAssertStreaming implements Serializable {
    * Note that it is oblivious to windowing, so the assertion will apply indiscriminately to all
    * windows.
    */
-  public static <T> void assertContents(PCollection<T> actual, final T[] expected) {
+  public static <T> SparkPipelineResult runAndAssertContents(Pipeline p,
+                                                          PCollection<T> actual,
+                                                          T[] expected,
+                                                          Duration timeout,
+                                                          boolean stopGracefully) {
     // Because PAssert does not support non-global windowing, but all our data is in one window,
     // we set up the assertion directly.
     actual
         .apply(WithKeys.<String, T>of("dummy"))
         .apply(GroupByKey.<String, T>create())
         .apply(Values.<Iterable<T>>create())
-        .apply(
-            MapElements.via(
-                new SimpleFunction<Iterable<T>, Void>() {
-                  @Override
-                  public Void apply(Iterable<T> input) {
-                    assertThat(input, containsInAnyOrder(expected));
-                    return null;
-                  }
-                }));
+        .apply(ParDo.of(new AssertDoFn<>(expected)));
+
+    // run the pipeline.
+    SparkPipelineResult res = (SparkPipelineResult) p.run();
+    res.waitUntilFinish(timeout);
+    // validate assertion succeeded (at least once).
+    int success = res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+    Assert.assertThat("Success aggregator should be greater than zero.", success, not(0));
+    // validate assertion didn't fail.
+    int failure = res.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+    Assert.assertThat("Failure aggregator should be zero.", failure, is(0));
+
+    LOG.info("PAssertStreaming had {} successful assertion and {} failed.", success, failure);
+    return res;
+  }
+
+  /**
+   * Default to stop gracefully so that tests will finish processing even if slower for reasons
+   * such as a slow runtime environment.
+   */
+  public static <T> SparkPipelineResult runAndAssertContents(Pipeline p,
+                                                          PCollection<T> actual,
+                                                          T[] expected,
+                                                          Duration timeout) {
+    return runAndAssertContents(p, actual, expected, timeout, true);
+  }
+
+  private static class AssertDoFn<T> extends OldDoFn<Iterable<T>, Void> {
+    private final Aggregator<Integer, Integer> success =
+        createAggregator(PAssert.SUCCESS_COUNTER, new Sum.SumIntegerFn());
+    private final Aggregator<Integer, Integer> failure =
+        createAggregator(PAssert.FAILURE_COUNTER, new Sum.SumIntegerFn());
+    private final T[] expected;
+
+    AssertDoFn(T[] expected) {
+      this.expected = expected;
+    }
+
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
+      try {
+        assertThat(c.element(), containsInAnyOrder(expected));
+        success.addValue(1);
+      } catch (Throwable t) {
+        failure.addValue(1);
+        LOG.error("PAssert failed expectations.", t);
+        // don't throw t because it will fail this bundle and the failure count will be lost.
+      }
+    }
   }
 }

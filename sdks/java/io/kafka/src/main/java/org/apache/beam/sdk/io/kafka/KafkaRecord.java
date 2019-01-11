@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import org.apache.beam.sdk.values.KV;
-
 import java.io.Serializable;
 import java.util.Arrays;
+import org.apache.beam.sdk.values.KV;
 
 /**
  * KafkaRecord contains key and value of the record as well as metadata for the record (topic name,

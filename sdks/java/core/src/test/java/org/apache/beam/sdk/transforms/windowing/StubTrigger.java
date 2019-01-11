@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import com.google.common.collect.Lists;
-
-import org.joda.time.Instant;
-
 import java.util.List;
+import org.joda.time.Instant;
 
 /**
  * No-op {@link OnceTrigger} implementation for testing.
@@ -41,23 +39,6 @@ abstract class StubTrigger extends Trigger.OnceTrigger {
 
   protected StubTrigger() {
     super(Lists.<Trigger>newArrayList());
-  }
-
-  @Override
-  protected void onOnlyFiring(TriggerContext context) throws Exception {
-  }
-
-  @Override
-  public void onElement(OnElementContext c) throws Exception {
-  }
-
-  @Override
-  public void onMerge(OnMergeContext c) throws Exception {
-  }
-
-  @Override
-  public boolean shouldFire(TriggerContext context) throws Exception {
-    return false;
   }
 
   @Override

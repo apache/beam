@@ -21,6 +21,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -30,15 +33,10 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
 
 /** Unit tests for {@link PCollectionTuple}. */
 @RunWith(JUnit4.class)
@@ -76,7 +74,7 @@ public final class PCollectionTupleTest implements Serializable {
 
     PCollectionTuple outputs = mainInput.apply(ParDo
         .of(new DoFn<Integer, Integer>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             c.sideOutput(sideOutputTag, c.element());
           }})

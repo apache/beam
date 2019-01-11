@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;

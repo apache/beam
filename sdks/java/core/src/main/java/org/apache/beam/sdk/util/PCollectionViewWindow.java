@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.util.Objects;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import java.util.Objects;
 
 /**
  * A pair of a {@link PCollectionView} and a {@link BoundedWindow}, which can

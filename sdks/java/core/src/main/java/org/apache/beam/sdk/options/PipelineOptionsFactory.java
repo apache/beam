@@ -20,24 +20,21 @@ package org.apache.beam.sdk.options;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.options.Validation.Required;
-import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.StringUtils;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.ListMultimap;
@@ -49,14 +46,6 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.SortedSetMultimap;
 import com.google.common.collect.TreeBasedTable;
 import com.google.common.collect.TreeMultimap;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
@@ -66,7 +55,9 @@ import java.io.PrintStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -82,8 +73,15 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
-
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.options.Validation.Required;
+import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Constructs a {@link PipelineOptions} or any derived interface that is composable to any other
@@ -449,6 +447,7 @@ public class PipelineOptionsFactory {
   private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class[0];
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final ClassLoader CLASS_LOADER;
+
   private static final Map<String, Class<? extends PipelineRunner<?>>> SUPPORTED_PIPELINE_RUNNERS;
 
   /** Classes that are used as the boundary in the stack trace to find the callers class name. */
@@ -482,23 +481,6 @@ public class PipelineOptionsFactory {
   /** The width at which options should be output. */
   private static final int TERMINAL_WIDTH = 80;
 
-  /**
-   * Finds the appropriate {@code ClassLoader} to be used by the
-   * {@link ServiceLoader#load} call, which by default would use the context
-   * {@code ClassLoader}, which can be null. The fallback is as follows: context
-   * ClassLoader, class ClassLoader and finaly the system ClassLoader.
-   */
-  static ClassLoader findClassLoader() {
-    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-    if (classLoader == null) {
-      classLoader = PipelineOptionsFactory.class.getClassLoader();
-    }
-    if (classLoader == null) {
-      classLoader = ClassLoader.getSystemClassLoader();
-    }
-    return classLoader;
-  }
-
   static {
     try {
       IGNORED_METHODS = ImmutableSet.<Method>builder()
@@ -515,18 +497,22 @@ public class PipelineOptionsFactory {
       throw new ExceptionInInitializerError(e);
     }
 
-    CLASS_LOADER = findClassLoader();
+    CLASS_LOADER = ReflectHelpers.findClassLoader();
 
-    // Store the list of all available pipeline runners.
-    ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
-            ImmutableMap.builder();
     Set<PipelineRunnerRegistrar> pipelineRunnerRegistrars =
-        Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
+        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
     pipelineRunnerRegistrars.addAll(
         Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class, CLASS_LOADER)));
+    // Store the list of all available pipeline runners.
+    ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
+        ImmutableMap.builder();
     for (PipelineRunnerRegistrar registrar : pipelineRunnerRegistrars) {
       for (Class<? extends PipelineRunner<?>> klass : registrar.getPipelineRunners()) {
-        builder.put(klass.getSimpleName(), klass);
+        String runnerName = klass.getSimpleName().toLowerCase();
+        builder.put(runnerName, klass);
+        if (runnerName.endsWith("runner")) {
+          builder.put(runnerName.substring(0, runnerName.length() - "Runner".length()), klass);
+        }
       }
     }
     SUPPORTED_PIPELINE_RUNNERS = builder.build();
@@ -576,7 +562,7 @@ public class PipelineOptionsFactory {
   private static void initializeRegistry() {
     register(PipelineOptions.class);
     Set<PipelineOptionsRegistrar> pipelineOptionsRegistrars =
-        Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
+        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
     pipelineOptionsRegistrars.addAll(
         Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class, CLASS_LOADER)));
     for (PipelineOptionsRegistrar registrar : pipelineOptionsRegistrars) {
@@ -848,13 +834,8 @@ public class PipelineOptionsFactory {
    * resolved.
    */
   private static List<PropertyDescriptor> getPropertyDescriptors(
-      Class<? extends PipelineOptions> beanClass)
+    Set<Method> methods, Class<? extends PipelineOptions> beanClass)
       throws IntrospectionException {
-    // The sorting is important to make this method stable.
-    SortedSet<Method> methods = Sets.newTreeSet(MethodComparator.INSTANCE);
-    methods.addAll(
-        Collections2.filter(Arrays.asList(beanClass.getMethods()), NOT_SYNTHETIC_PREDICATE));
-
     SortedMap<String, Method> propertyNamesToGetters = new TreeMap<>();
     for (Map.Entry<String, Method> entry :
         PipelineOptionsReflector.getPropertyNamesToGetters(methods).entries()) {
@@ -863,6 +844,7 @@ public class PipelineOptionsFactory {
 
     List<PropertyDescriptor> descriptors = Lists.newArrayList();
     List<TypeMismatch> mismatches = new ArrayList<>();
+    Set<String> usedDescriptors = Sets.newHashSet();
     /*
      * Add all the getter/setter pairs to the list of descriptors removing the getter once
      * it has been paired up.
@@ -879,9 +861,9 @@ public class PipelineOptionsFactory {
 
       // Validate that the getter and setter property types are the same.
       if (getterMethod != null) {
-        Class<?> getterPropertyType = getterMethod.getReturnType();
-        Class<?> setterPropertyType = method.getParameterTypes()[0];
-        if (getterPropertyType != setterPropertyType) {
+        Type getterPropertyType = getterMethod.getGenericReturnType();
+        Type setterPropertyType = method.getGenericParameterTypes()[0];
+        if (!getterPropertyType.equals(setterPropertyType)) {
           TypeMismatch mismatch = new TypeMismatch();
           mismatch.propertyName = propertyName;
           mismatch.getterPropertyType = getterPropertyType;
@@ -890,9 +872,14 @@ public class PipelineOptionsFactory {
           continue;
         }
       }
-
-      descriptors.add(new PropertyDescriptor(
-          propertyName, getterMethod, method));
+      // Properties can appear multiple times with subclasses, and we don't
+      // want to add a bad entry if we have already added a good one (with both
+      // getter and setter).
+      if (!usedDescriptors.contains(propertyName)) {
+        descriptors.add(new PropertyDescriptor(
+            propertyName, getterMethod, method));
+        usedDescriptors.add(propertyName);
+      }
     }
     throwForTypeMismatches(mismatches);
 
@@ -906,8 +893,8 @@ public class PipelineOptionsFactory {
 
   private static class TypeMismatch {
     private String propertyName;
-    private Class<?> getterPropertyType;
-    private Class<?> setterPropertyType;
+    private Type getterPropertyType;
+    private Type setterPropertyType;
   }
 
   private static void throwForTypeMismatches(List<TypeMismatch> mismatches) {
@@ -917,17 +904,17 @@ public class PipelineOptionsFactory {
           "Type mismatch between getter and setter methods for property [%s]. "
           + "Getter is of type [%s] whereas setter is of type [%s].",
           mismatch.propertyName,
-          mismatch.getterPropertyType.getName(),
-          mismatch.setterPropertyType.getName()));
+          mismatch.getterPropertyType,
+          mismatch.setterPropertyType));
     } else if (mismatches.size() > 1) {
       StringBuilder builder = new StringBuilder(
-          String.format("Type mismatches between getters and setters detected:"));
+          "Type mismatches between getters and setters detected:");
       for (TypeMismatch mismatch : mismatches) {
         builder.append(String.format(
             "%n  - Property [%s]: Getter is of type [%s] whereas setter is of type [%s].",
             mismatch.propertyName,
-            mismatch.getterPropertyType.getName(),
-            mismatch.setterPropertyType.getName()));
+            mismatch.getterPropertyType.toString(),
+            mismatch.setterPropertyType.toString()));
       }
       throw new IllegalArgumentException(builder.toString());
     }
@@ -954,7 +941,7 @@ public class PipelineOptionsFactory {
   /**
    * Validates that a given class conforms to the following properties:
    * <ul>
-   *   <li>Any property with the same name must have the same return type for all derived
+   *   <li>Any method with the same name must have the same return type for all derived
    *       interfaces of {@link PipelineOptions}.
    *   <li>Every bean property of any interface derived from {@link PipelineOptions} must have a
    *       getter and setter method.
@@ -975,26 +962,37 @@ public class PipelineOptionsFactory {
   private static List<PropertyDescriptor> validateClass(Class<? extends PipelineOptions> iface,
       Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces,
       Class<? extends PipelineOptions> klass) throws IntrospectionException {
-    Set<Method> methods = Sets.newHashSet(IGNORED_METHODS);
-    // Ignore synthetic methods
-    for (Method method : klass.getMethods()) {
-      if (Modifier.isStatic(method.getModifiers()) || method.isSynthetic()) {
-        methods.add(method);
-      }
-    }
-    // Ignore standard infrastructure methods on the generated class.
-    try {
-      methods.add(klass.getMethod("equals", Object.class));
-      methods.add(klass.getMethod("hashCode"));
-      methods.add(klass.getMethod("toString"));
-      methods.add(klass.getMethod("as", Class.class));
-      methods.add(klass.getMethod("cloneAs", Class.class));
-      methods.add(klass.getMethod("populateDisplayData", DisplayData.Builder.class));
-    } catch (NoSuchMethodException | SecurityException e) {
-      throw new RuntimeException(e);
-    }
-
     // Verify that there are no methods with the same name with two different return types.
+    validateReturnType(iface);
+
+    SortedSet<Method> allInterfaceMethods = FluentIterable
+        .from(ReflectHelpers.getClosureOfMethodsOnInterfaces(
+            validatedPipelineOptionsInterfaces))
+        .append(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
+        .filter(NOT_SYNTHETIC_PREDICATE)
+        .toSortedSet(MethodComparator.INSTANCE);
+
+    List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods, iface);
+
+    // Verify that all method annotations are valid.
+    validateMethodAnnotations(allInterfaceMethods, descriptors);
+
+    // Verify that each property has a matching read and write method.
+    validateGettersSetters(iface, descriptors);
+
+    // Verify all methods are bean methods or known methods.
+    validateMethodsAreEitherBeanMethodOrKnownMethod(iface, klass, descriptors);
+
+    return descriptors;
+  }
+
+  /**
+   * Validates that any method with the same name must have the same return type for all derived
+   * interfaces of {@link PipelineOptions}.
+   *
+   * @param iface The interface to validate.
+   */
+  private static void validateReturnType(Class<? extends PipelineOptions> iface) {
     Iterable<Method> interfaceMethods = FluentIterable
         .from(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
         .filter(NOT_SYNTHETIC_PREDICATE)
@@ -1019,78 +1017,169 @@ public class PipelineOptionsFactory {
       }
     }
     throwForMultipleDefinitions(iface, multipleDefinitions);
+  }
 
-    // Verify that there is no getter with a mixed @JsonIgnore annotation and verify
-    // that no setter has @JsonIgnore.
-    Iterable<Method> allInterfaceMethods =
-        FluentIterable.from(
-                ReflectHelpers.getClosureOfMethodsOnInterfaces(
-                    validatedPipelineOptionsInterfaces))
-            .append(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
-            .filter(NOT_SYNTHETIC_PREDICATE)
-            .toSortedSet(MethodComparator.INSTANCE);
+  /**
+   * Validates that a given class conforms to the following properties:
+   * <ul>
+   *   <li>Only getters may be annotated with {@link JsonIgnore @JsonIgnore}.
+   *   <li>If any getter is annotated with {@link JsonIgnore @JsonIgnore}, then all getters for
+   *       this property must be annotated with {@link JsonIgnore @JsonIgnore}.
+   * </ul>
+   *
+   * @param allInterfaceMethods All interface methods that derive from {@link PipelineOptions}.
+   * @param descriptors The list of {@link PropertyDescriptor}s representing all valid bean
+   * properties of {@code iface}.
+   */
+  private static void validateMethodAnnotations(
+      SortedSet<Method> allInterfaceMethods,
+      List<PropertyDescriptor> descriptors) {
     SortedSetMultimap<Method, Method> methodNameToAllMethodMap =
         TreeMultimap.create(MethodNameComparator.INSTANCE, MethodComparator.INSTANCE);
     for (Method method : allInterfaceMethods) {
       methodNameToAllMethodMap.put(method, method);
     }
 
-    List<PropertyDescriptor> descriptors = getPropertyDescriptors(klass);
+    // Verify that there is no getter with a mixed @JsonIgnore annotation.
+    validateGettersHaveConsistentAnnotation(
+        methodNameToAllMethodMap, descriptors, AnnotationPredicates.JSON_IGNORE);
 
-    List<InconsistentlyIgnoredGetters> incompletelyIgnoredGetters = new ArrayList<>();
-    List<IgnoredSetter> ignoredSetters = new ArrayList<>();
+    // Verify that there is no getter with a mixed @Default annotation.
+    validateGettersHaveConsistentAnnotation(
+        methodNameToAllMethodMap, descriptors, AnnotationPredicates.DEFAULT_VALUE);
 
-    for (PropertyDescriptor descriptor : descriptors) {
+    // Verify that no setter has @JsonIgnore.
+    validateSettersDoNotHaveAnnotation(
+        methodNameToAllMethodMap, descriptors, AnnotationPredicates.JSON_IGNORE);
+
+    // Verify that no setter has @Default.
+    validateSettersDoNotHaveAnnotation(
+        methodNameToAllMethodMap, descriptors, AnnotationPredicates.DEFAULT_VALUE);
+  }
+
+  /**
+   * Validates that getters don't have mixed annotation.
+   */
+  private static void validateGettersHaveConsistentAnnotation(
+      SortedSetMultimap<Method, Method> methodNameToAllMethodMap,
+      List<PropertyDescriptor> descriptors,
+      final AnnotationPredicates annotationPredicates) {
+    List<InconsistentlyAnnotatedGetters> inconsistentlyAnnotatedGetters = new ArrayList<>();
+    for (final PropertyDescriptor descriptor : descriptors) {
       if (descriptor.getReadMethod() == null
-          || descriptor.getWriteMethod() == null
-          || IGNORED_METHODS.contains(descriptor.getReadMethod())
-          || IGNORED_METHODS.contains(descriptor.getWriteMethod())) {
+          || IGNORED_METHODS.contains(descriptor.getReadMethod())) {
         continue;
       }
+
       SortedSet<Method> getters = methodNameToAllMethodMap.get(descriptor.getReadMethod());
-      SortedSet<Method> gettersWithJsonIgnore = Sets.filter(getters, JsonIgnorePredicate.INSTANCE);
+      SortedSet<Method> gettersWithTheAnnotation =
+          Sets.filter(getters, annotationPredicates.forMethod);
+      Set<Annotation> distinctAnnotations = Sets.newLinkedHashSet(FluentIterable
+          .from(gettersWithTheAnnotation)
+          .transformAndConcat(new Function<Method, Iterable<? extends Annotation>>() {
+            @Nonnull
+            @Override
+            public Iterable<? extends Annotation> apply(@Nonnull Method method) {
+              return FluentIterable.of(method.getAnnotations());
+            }
+          })
+          .filter(annotationPredicates.forAnnotation));
+
+
+      if (distinctAnnotations.size() > 1) {
+        throw new IllegalArgumentException(String.format(
+            "Property [%s] is marked with contradictory annotations. Found [%s].",
+            descriptor.getName(),
+            FluentIterable.from(gettersWithTheAnnotation)
+                .transformAndConcat(new Function<Method, Iterable<String>>() {
+                  @Nonnull
+                  @Override
+                  public Iterable<String> apply(final @Nonnull Method method) {
+                    return FluentIterable.of(method.getAnnotations())
+                        .filter(annotationPredicates.forAnnotation)
+                        .transform(new Function<Annotation, String>() {
+                          @Nonnull
+                          @Override
+                          public String apply(@Nonnull Annotation annotation) {
+                            return String.format(
+                                "[%s on %s]",
+                                ReflectHelpers.ANNOTATION_FORMATTER.apply(annotation),
+                                ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(method));
+                          }
+                        });
+
+                  }
+                })
+                .join(Joiner.on(", "))));
+      }
 
       Iterable<String> getterClassNames = FluentIterable.from(getters)
           .transform(MethodToDeclaringClassFunction.INSTANCE)
           .transform(ReflectHelpers.CLASS_NAME);
-      Iterable<String> gettersWithJsonIgnoreClassNames = FluentIterable.from(gettersWithJsonIgnore)
+      Iterable<String> gettersWithTheAnnotationClassNames =
+          FluentIterable.from(gettersWithTheAnnotation)
           .transform(MethodToDeclaringClassFunction.INSTANCE)
           .transform(ReflectHelpers.CLASS_NAME);
 
-      if (!(gettersWithJsonIgnore.isEmpty() || getters.size() == gettersWithJsonIgnore.size())) {
-        InconsistentlyIgnoredGetters err = new InconsistentlyIgnoredGetters();
+      if (!(gettersWithTheAnnotation.isEmpty()
+            || getters.size() == gettersWithTheAnnotation.size())) {
+        InconsistentlyAnnotatedGetters err = new InconsistentlyAnnotatedGetters();
         err.descriptor = descriptor;
         err.getterClassNames = getterClassNames;
-        err.gettersWithJsonIgnoreClassNames = gettersWithJsonIgnoreClassNames;
-        incompletelyIgnoredGetters.add(err);
-      }
-      if (!incompletelyIgnoredGetters.isEmpty()) {
-        continue;
-      }
-
-      SortedSet<Method> settersWithJsonIgnore =
-          Sets.filter(methodNameToAllMethodMap.get(descriptor.getWriteMethod()),
-              JsonIgnorePredicate.INSTANCE);
-
-      Iterable<String> settersWithJsonIgnoreClassNames = FluentIterable.from(settersWithJsonIgnore)
-              .transform(MethodToDeclaringClassFunction.INSTANCE)
-              .transform(ReflectHelpers.CLASS_NAME);
-
-      if (!settersWithJsonIgnore.isEmpty()) {
-        IgnoredSetter ignored = new IgnoredSetter();
-        ignored.descriptor = descriptor;
-        ignored.settersWithJsonIgnoreClassNames = settersWithJsonIgnoreClassNames;
-        ignoredSetters.add(ignored);
+        err.gettersWithTheAnnotationClassNames = gettersWithTheAnnotationClassNames;
+        inconsistentlyAnnotatedGetters.add(err);
       }
     }
-    throwForGettersWithInconsistentJsonIgnore(incompletelyIgnoredGetters);
-    throwForSettersWithJsonIgnore(ignoredSetters);
+    throwForGettersWithInconsistentAnnotation(
+        inconsistentlyAnnotatedGetters, annotationPredicates.annotationClass);
+  }
 
+  /**
+   * Validates that setters don't have the given annotation.
+   */
+  private static void validateSettersDoNotHaveAnnotation(
+      SortedSetMultimap<Method, Method> methodNameToAllMethodMap,
+      List<PropertyDescriptor> descriptors,
+      AnnotationPredicates annotationPredicates) {
+    List<AnnotatedSetter> annotatedSetters = new ArrayList<>();
+    for (PropertyDescriptor descriptor : descriptors) {
+      if (descriptor.getWriteMethod() == null
+          || IGNORED_METHODS.contains(descriptor.getWriteMethod())) {
+        continue;
+      }
+      SortedSet<Method> settersWithTheAnnotation = Sets.filter(
+          methodNameToAllMethodMap.get(descriptor.getWriteMethod()),
+          annotationPredicates.forMethod);
+
+      Iterable<String> settersWithTheAnnotationClassNames =
+          FluentIterable.from(settersWithTheAnnotation)
+          .transform(MethodToDeclaringClassFunction.INSTANCE)
+          .transform(ReflectHelpers.CLASS_NAME);
+
+      if (!settersWithTheAnnotation.isEmpty()) {
+        AnnotatedSetter annotated = new AnnotatedSetter();
+        annotated.descriptor = descriptor;
+        annotated.settersWithTheAnnotationClassNames = settersWithTheAnnotationClassNames;
+        annotatedSetters.add(annotated);
+      }
+    }
+    throwForSettersWithTheAnnotation(annotatedSetters, annotationPredicates.annotationClass);
+  }
+
+  /**
+   * Validates that every bean property of the given interface must have both a getter and setter.
+   *
+   * @param iface The interface to validate.
+   * @param descriptors The list of {@link PropertyDescriptor}s representing all valid bean
+   * properties of {@code iface}.
+   */
+  private static void validateGettersSetters(
+      Class<? extends PipelineOptions> iface,
+      List<PropertyDescriptor> descriptors) {
     List<MissingBeanMethod> missingBeanMethods = new ArrayList<>();
-    // Verify that each property has a matching read and write method.
     for (PropertyDescriptor propertyDescriptor : descriptors) {
       if (!(IGNORED_METHODS.contains(propertyDescriptor.getWriteMethod())
-        || propertyDescriptor.getReadMethod() != null)) {
+          || propertyDescriptor.getReadMethod() != null)) {
         MissingBeanMethod method = new MissingBeanMethod();
         method.property = propertyDescriptor;
         method.methodType = "getter";
@@ -1098,30 +1187,70 @@ public class PipelineOptionsFactory {
         continue;
       }
       if (!(IGNORED_METHODS.contains(propertyDescriptor.getReadMethod())
-              || propertyDescriptor.getWriteMethod() != null)) {
+          || propertyDescriptor.getWriteMethod() != null)) {
         MissingBeanMethod method = new MissingBeanMethod();
         method.property = propertyDescriptor;
         method.methodType = "setter";
         missingBeanMethods.add(method);
         continue;
       }
-      methods.add(propertyDescriptor.getReadMethod());
-      methods.add(propertyDescriptor.getWriteMethod());
     }
     throwForMissingBeanMethod(iface, missingBeanMethods);
+  }
+
+  /**
+   * Validates that every non-static or synthetic method is either a known method such as
+   * {@link PipelineOptions#as} or a bean property.
+   *
+   * @param iface The interface to validate.
+   * @param klass The proxy class representing the interface.
+   */
+  private static void validateMethodsAreEitherBeanMethodOrKnownMethod(
+      Class<? extends PipelineOptions> iface,
+      Class<? extends PipelineOptions> klass,
+      List<PropertyDescriptor> descriptors) {
+    Set<Method> knownMethods = Sets.newHashSet(IGNORED_METHODS);
+    // Ignore synthetic methods
+    for (Method method : klass.getMethods()) {
+      if (Modifier.isStatic(method.getModifiers()) || method.isSynthetic()) {
+        knownMethods.add(method);
+      }
+    }
+    // Ignore methods on the base PipelineOptions interface.
+    try {
+      knownMethods.add(iface.getMethod("as", Class.class));
+      knownMethods.add(iface.getMethod("outputRuntimeOptions"));
+      knownMethods.add(iface.getMethod("populateDisplayData", DisplayData.Builder.class));
+    } catch (NoSuchMethodException | SecurityException e) {
+      throw new RuntimeException(e);
+    }
+    for (PropertyDescriptor descriptor : descriptors) {
+      knownMethods.add(descriptor.getReadMethod());
+      knownMethods.add(descriptor.getWriteMethod());
+    }
+    final Set<String> knownMethodsNames = Sets.newHashSet();
+    for (Method method : knownMethods) {
+      knownMethodsNames.add(method.getName());
+    }
 
     // Verify that no additional methods are on an interface that aren't a bean property.
+    // Because methods can have multiple declarations, we do a name-based comparison
+    // here to prevent false positives.
     SortedSet<Method> unknownMethods = new TreeSet<>(MethodComparator.INSTANCE);
     unknownMethods.addAll(
         Sets.filter(
-            Sets.difference(Sets.newHashSet(klass.getMethods()), methods),
-            NOT_SYNTHETIC_PREDICATE));
+            Sets.difference(Sets.newHashSet(iface.getMethods()), knownMethods),
+            Predicates.and(NOT_SYNTHETIC_PREDICATE,
+                new Predicate<Method>() {
+                  @Override
+                  public boolean apply(@Nonnull Method input) {
+                    return !knownMethodsNames.contains(input.getName());
+                  }
+                })));
     checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
         iface.getName());
-
-    return descriptors;
   }
 
   private static class MultipleDefinitions {
@@ -1150,53 +1279,62 @@ public class PipelineOptionsFactory {
     }
   }
 
-  private static class InconsistentlyIgnoredGetters {
+  private static class InconsistentlyAnnotatedGetters {
     PropertyDescriptor descriptor;
     Iterable<String> getterClassNames;
-    Iterable<String> gettersWithJsonIgnoreClassNames;
+    Iterable<String> gettersWithTheAnnotationClassNames;
   }
 
-  private static void throwForGettersWithInconsistentJsonIgnore(
-      List<InconsistentlyIgnoredGetters> getters) {
+  private static void throwForGettersWithInconsistentAnnotation(
+      List<InconsistentlyAnnotatedGetters> getters,
+      Class<? extends Annotation> annotationClass) {
     if (getters.size() == 1) {
-      InconsistentlyIgnoredGetters getter = getters.get(0);
+      InconsistentlyAnnotatedGetters getter = getters.get(0);
       throw new IllegalArgumentException(String.format(
-          "Expected getter for property [%s] to be marked with @JsonIgnore on all %s, "
+          "Expected getter for property [%s] to be marked with @%s on all %s, "
           + "found only on %s",
-          getter.descriptor.getName(), getter.getterClassNames,
-          getter.gettersWithJsonIgnoreClassNames));
+          getter.descriptor.getName(),
+          annotationClass.getSimpleName(),
+          getter.getterClassNames,
+          getter.gettersWithTheAnnotationClassNames));
     } else if (getters.size() > 1) {
-      StringBuilder errorBuilder =
-          new StringBuilder("Property getters are inconsistently marked with @JsonIgnore:");
-      for (InconsistentlyIgnoredGetters getter : getters) {
+      StringBuilder errorBuilder = new StringBuilder(String.format(
+          "Property getters are inconsistently marked with @%s:", annotationClass.getSimpleName()));
+      for (InconsistentlyAnnotatedGetters getter : getters) {
         errorBuilder.append(
             String.format("%n  - Expected for property [%s] to be marked on all %s, "
                 + "found only on %s",
                 getter.descriptor.getName(), getter.getterClassNames,
-                getter.gettersWithJsonIgnoreClassNames));
+                getter.gettersWithTheAnnotationClassNames));
       }
       throw new IllegalArgumentException(errorBuilder.toString());
     }
   }
 
-  private static class IgnoredSetter {
+  private static class AnnotatedSetter {
     PropertyDescriptor descriptor;
-    Iterable<String> settersWithJsonIgnoreClassNames;
+    Iterable<String> settersWithTheAnnotationClassNames;
   }
 
-  private static void throwForSettersWithJsonIgnore(List<IgnoredSetter> setters) {
+  private static void throwForSettersWithTheAnnotation(
+      List<AnnotatedSetter> setters,
+      Class<? extends Annotation> annotationClass) {
     if (setters.size() == 1) {
-      IgnoredSetter setter = setters.get(0);
-      throw new IllegalArgumentException(
-          String.format("Expected setter for property [%s] to not be marked with @JsonIgnore on %s",
-              setter.descriptor.getName(), setter.settersWithJsonIgnoreClassNames));
+      AnnotatedSetter setter = setters.get(0);
+      throw new IllegalArgumentException(String.format(
+          "Expected setter for property [%s] to not be marked with @%s on %s",
+          setter.descriptor.getName(),
+          annotationClass.getSimpleName(),
+          setter.settersWithTheAnnotationClassNames));
     } else if (setters.size() > 1) {
-      StringBuilder builder = new StringBuilder("Found setters marked with @JsonIgnore:");
-      for (IgnoredSetter setter : setters) {
-        builder.append(
-            String.format("%n  - Setter for property [%s] should not be marked with @JsonIgnore "
-                + "on %s",
-                setter.descriptor.getName(), setter.settersWithJsonIgnoreClassNames));
+      StringBuilder builder = new StringBuilder(
+          String.format("Found setters marked with @%s:", annotationClass.getSimpleName()));
+      for (AnnotatedSetter setter : setters) {
+        builder.append(String.format(
+            "%n  - Setter for property [%s] should not be marked with @%s on %s",
+            setter.descriptor.getName(),
+            annotationClass.getSimpleName(),
+            setter.settersWithTheAnnotationClassNames));
       }
       throw new IllegalArgumentException(builder.toString());
     }
@@ -1233,15 +1371,6 @@ public class PipelineOptionsFactory {
     @Override
     public int compare(Class<?> o1, Class<?> o2) {
       return o1.getName().compareTo(o2.getName());
-    }
-  }
-
-  /** A {@link Comparator} that uses the object's classes canonical name to compare them. */
-  private static class ObjectsClassComparator implements Comparator<Object> {
-    static final ObjectsClassComparator INSTANCE = new ObjectsClassComparator();
-    @Override
-    public int compare(Object o1, Object o2) {
-      return o1.getClass().getCanonicalName().compareTo(o2.getClass().getCanonicalName());
     }
   }
 
@@ -1282,14 +1411,61 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * A {@link Predicate} that returns true if the method is annotated with
-   * {@link JsonIgnore @JsonIgnore}.
+   * A {@link Predicate} that returns true if the method is annotated with {@code annotationClass}.
    */
-  static class JsonIgnorePredicate implements Predicate<Method> {
-    static final JsonIgnorePredicate INSTANCE = new JsonIgnorePredicate();
-    @Override
-    public boolean apply(Method input) {
-      return input.isAnnotationPresent(JsonIgnore.class);
+  static class AnnotationPredicates {
+    static final AnnotationPredicates JSON_IGNORE = new AnnotationPredicates(
+        JsonIgnore.class,
+        new Predicate<Annotation>() {
+          @Override
+          public boolean apply(@Nonnull Annotation input) {
+            return JsonIgnore.class.equals(input.annotationType());
+          }
+        },
+        new Predicate<Method>() {
+          @Override
+          public boolean apply(@Nonnull Method input) {
+            return input.isAnnotationPresent(JsonIgnore.class);
+          }});
+
+    private static final Set<Class<?>> DEFAULT_ANNOTATION_CLASSES = Sets.newHashSet(
+        FluentIterable.of(Default.class.getDeclaredClasses())
+        .filter(new Predicate<Class<?>>() {
+          @Override
+          public boolean apply(@Nonnull Class<?> klass) {
+            return klass.isAnnotation();
+          }}));
+
+    static final AnnotationPredicates DEFAULT_VALUE = new AnnotationPredicates(
+        Default.class,
+        new Predicate<Annotation>() {
+          @Override
+          public boolean apply(@Nonnull Annotation input) {
+            return DEFAULT_ANNOTATION_CLASSES.contains(input.annotationType());
+          }
+        },
+        new Predicate<Method> () {
+          @Override
+          public boolean apply(@Nonnull Method input) {
+            for (Annotation annotation : input.getAnnotations()) {
+              if (DEFAULT_ANNOTATION_CLASSES.contains(annotation.annotationType())) {
+                return true;
+              }
+            }
+            return false;
+          }});
+
+    final Class<? extends Annotation> annotationClass;
+    final Predicate<Annotation> forAnnotation;
+    final Predicate<Method> forMethod;
+
+    AnnotationPredicates(
+        Class<? extends Annotation> annotationClass,
+        Predicate<Annotation> forAnnotation,
+        Predicate<Method> forMethod) {
+      this.annotationClass = annotationClass;
+      this.forAnnotation = forAnnotation;
+      this.forMethod = forMethod;
     }
   }
 
@@ -1407,36 +1583,40 @@ public class PipelineOptionsFactory {
                       klass, entry.getKey(), closestMatches));
           }
         }
-
         Method method = propertyNamesToGetters.get(entry.getKey());
-        // Only allow empty argument values for String, String Array, and Collection.
+        // Only allow empty argument values for String, String Array, and Collection<String>.
         Class<?> returnType = method.getReturnType();
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
         if ("runner".equals(entry.getKey())) {
           String runner = Iterables.getOnlyElement(entry.getValue());
-          if (SUPPORTED_PIPELINE_RUNNERS.containsKey(runner)) {
-            convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
+          if (SUPPORTED_PIPELINE_RUNNERS.containsKey(runner.toLowerCase())) {
+            convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner.toLowerCase()));
           } else {
             try {
               Class<?> runnerClass = Class.forName(runner);
-              checkArgument(
-                  PipelineRunner.class.isAssignableFrom(runnerClass),
-                  "Class '%s' does not implement PipelineRunner. Supported pipeline runners %s",
-                  runner,
-                  Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
+              if (!(PipelineRunner.class.isAssignableFrom(runnerClass))) {
+                throw new IllegalArgumentException(
+                    String.format(
+                        "Class '%s' does not implement PipelineRunner. "
+                            + "Supported pipeline runners %s",
+                        runner, getSupportedRunners()));
+              }
               convertedOptions.put("runner", runnerClass);
             } catch (ClassNotFoundException e) {
               String msg =
                   String.format(
                       "Unknown 'runner' specified '%s', supported pipeline runners %s",
-                      runner,
-                      Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
-                throw new IllegalArgumentException(msg, e);
+                      runner, getSupportedRunners());
+              throw new IllegalArgumentException(msg, e);
             }
           }
         } else if ((returnType.isArray() && (SIMPLE_TYPES.contains(returnType.getComponentType())
-                || returnType.getComponentType().isEnum()))
-            || Collection.class.isAssignableFrom(returnType)) {
+                   || returnType.getComponentType().isEnum()))
+                   || Collection.class.isAssignableFrom(returnType)
+                   || (returnType.equals(ValueProvider.class)
+                       && MAPPER.getTypeFactory().constructType(
+                         ((ParameterizedType) method.getGenericReturnType())
+                         .getActualTypeArguments()[0]).isCollectionLikeType())) {
           // Split any strings with ","
           List<String> values = FluentIterable.from(entry.getValue())
               .transformAndConcat(new Function<String, Iterable<String>>() {
@@ -1446,25 +1626,31 @@ public class PipelineOptionsFactory {
                 }
           }).toList();
 
-          if (returnType.isArray() && !returnType.getComponentType().equals(String.class)) {
+          if (returnType.isArray() && !returnType.getComponentType().equals(String.class)
+              || Collection.class.isAssignableFrom(returnType)
+              || returnType.equals(ValueProvider.class)) {
             for (String value : values) {
               checkArgument(!value.isEmpty(),
-                  "Empty argument value is only allowed for String, String Array, and Collection,"
-                  + " but received: " + returnType);
+                  "Empty argument value is only allowed for String, String Array, "
+                            + "and Collections of Strings, but received: %s",
+                            method.getGenericReturnType());
             }
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
-        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
+        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()
+                   || returnType.equals(ValueProvider.class)) {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
-              "Empty argument value is only allowed for String, String Array, and Collection,"
-               + " but received: " + returnType);
+               "Empty argument value is only allowed for String, String Array, "
+                        + "and Collections of Strings, but received: %s",
+                        method.getGenericReturnType());
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(value, type));
         } else {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
-              "Empty argument value is only allowed for String, String Array, and Collection,"
-               + " but received: " + returnType);
+                "Empty argument value is only allowed for String, String Array, "
+                        + "and Collections of Strings, but received: %s",
+                        method.getGenericReturnType());
           try {
             convertedOptions.put(entry.getKey(), MAPPER.readValue(value, type));
           } catch (IOException e) {
@@ -1481,5 +1667,14 @@ public class PipelineOptionsFactory {
       }
     }
     return convertedOptions;
+  }
+
+  @VisibleForTesting
+  static Set<String> getSupportedRunners() {
+    ImmutableSortedSet.Builder<String> supportedRunners = ImmutableSortedSet.naturalOrder();
+    for (Class<? extends PipelineRunner<?>> runner : SUPPORTED_PIPELINE_RUNNERS.values()) {
+      supportedRunners.add(runner.getSimpleName());
+    }
+    return supportedRunners.build();
   }
 }

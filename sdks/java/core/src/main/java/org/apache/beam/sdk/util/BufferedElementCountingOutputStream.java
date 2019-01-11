@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.coders.Coder.Context;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.sdk.coders.Coder.Context;
 
 /**
  * Provides an efficient encoding for {@link Iterable}s containing small values by
@@ -51,7 +49,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * </pre>
  *
  * <p>To read this stream:
- * <pre><code>
+ * <pre>{@code
  * InputStream is = ...
  * long count;
  * do {
@@ -60,7 +58,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  *     // read an element from is
  *   }
  * } while(count > 0);
- * </code></pre>
+ * }</pre>
  *
  * <p>The counts are encoded as variable length longs. See {@link VarInt#encode(long, OutputStream)}
  * for more details. The end of the iterable is detected by reading a count of 0.

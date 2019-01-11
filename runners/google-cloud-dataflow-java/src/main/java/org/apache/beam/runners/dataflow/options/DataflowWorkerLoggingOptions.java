@@ -19,15 +19,13 @@ package org.apache.beam.runners.dataflow.options;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Options that are used to control logging configuration on the Dataflow worker.
@@ -37,7 +35,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   /**
    * The set of log levels that can be used on the Dataflow worker.
    */
-  public enum Level {
+  enum Level {
     /** Special level used to turn off logging. */
     OFF,
 
@@ -135,7 +133,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    * corresponding name. Note that by specifying multiple overrides, the exact name followed by the
    * closest parent takes precedence.
    */
-  public static class WorkerLogLevelOverrides extends HashMap<String, Level> {
+  class WorkerLogLevelOverrides extends HashMap<String, Level> {
     /**
      * Overrides the default log level for the passed in class.
      *

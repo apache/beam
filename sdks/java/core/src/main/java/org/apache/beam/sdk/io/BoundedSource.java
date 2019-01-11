@@ -17,19 +17,16 @@
  */
 package org.apache.beam.sdk.io;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.range.OffsetRangeTracker;
 import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-
 import org.joda.time.Instant;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.NoSuchElementException;
-
-import javax.annotation.Nullable;
 
 /**
  * A {@link Source} that reads a finite amount of input and, because of that, supports
@@ -52,9 +49,6 @@ import javax.annotation.Nullable;
  *     </ul>
  *     </li>
  * </ul>
- *
- * <p>To use this class for supporting your custom input type, derive your class
- * class from it, and override the abstract methods. For an example, see {@link DatastoreIO}.
  *
  * @param <T> Type of records read by the source.
  */
@@ -88,11 +82,13 @@ public abstract class BoundedSource<T> extends Source<T> {
    * operations, such as progress estimation and dynamic work rebalancing.
    *
    * <h3>Boundedness</h3>
-   * <p>Once {@link #start} or {@link #advance} has returned false, neither will be called
+   *
+   *  <p>Once {@link #start} or {@link #advance} has returned false, neither will be called
    * again on this object.
    *
    * <h3>Thread safety</h3>
-   * All methods will be run from the same thread except {@link #splitAtFraction},
+   *
+   * <p>All methods will be run from the same thread except {@link #splitAtFraction},
    * {@link #getFractionConsumed}, {@link #getCurrentSource}, {@link #getSplitPointsConsumed()},
    * and {@link #getSplitPointsRemaining()}, all of which can be called concurrently
    * from a different thread. There will not be multiple concurrent calls to
@@ -109,7 +105,8 @@ public abstract class BoundedSource<T> extends Source<T> {
    * {@link #getCurrentSource} which do not change between {@link #splitAtFraction} calls.
    *
    * <h3>Implementing {@link #splitAtFraction}</h3>
-   * In the course of dynamic work rebalancing, the method {@link #splitAtFraction}
+   *
+   * <p>In the course of dynamic work rebalancing, the method {@link #splitAtFraction}
    * may be called concurrently with {@link #advance} or {@link #start}. It is critical that
    * their interaction is implemented in a thread-safe way, otherwise data loss is possible.
    *
@@ -135,7 +132,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <p>By default, returns null to indicate that this cannot be estimated.
      *
-     * <h5>Thread safety</h5>
+     * <h3>Thread safety</h3>
      * If {@link #splitAtFraction} is implemented, this method can be called concurrently to other
      * methods (including itself), and it is therefore critical for it to be implemented
      * in a thread-safe way.
@@ -264,14 +261,17 @@ public abstract class BoundedSource<T> extends Source<T> {
      * (including items already read).
      *
      * <h3>Usage</h3>
+     *
      * <p>Reader subclasses can use this method for convenience to access unchanging properties of
      * the source being read. Alternatively, they can cache these properties in the constructor.
+     *
      * <p>The framework will call this method in the course of dynamic work rebalancing, e.g. after
      * a successful {@link BoundedSource.BoundedReader#splitAtFraction} call.
      *
      * <h3>Mutability and thread safety</h3>
-     * Remember that {@link Source} objects must always be immutable. However, the return value of
-     * this function may be affected by dynamic work rebalancing, happening asynchronously via
+     *
+     * <p>Remember that {@link Source} objects must always be immutable. However, the return value
+     * of this function may be affected by dynamic work rebalancing, happening asynchronously via
      * {@link BoundedSource.BoundedReader#splitAtFraction}, meaning it can return a different
      * {@link Source} object. However, the returned object itself will still itself be immutable.
      * Callers must take care not to rely on properties of the returned source that may be
@@ -279,7 +279,8 @@ public abstract class BoundedSource<T> extends Source<T> {
      * reading a file).
      *
      * <h3>Implementation</h3>
-     * For convenience, subclasses should usually return the most concrete subclass of
+     *
+     * <p>For convenience, subclasses should usually return the most concrete subclass of
      * {@link Source} possible.
      * In practice, the implementation of this method should nearly always be one of the following:
      * <ul>
@@ -341,7 +342,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <p>Returns a {@code BoundedSource} representing the remainder.
      *
-     * <h5>Detailed description</h5>
+     * <h3>Detailed description</h3>
      * Assuming the following sequence of calls:
      * <pre>{@code
      *   BoundedSource<T> initial = reader.getCurrentSource();
@@ -367,11 +368,11 @@ public abstract class BoundedSource<T> extends Source<T> {
      * corresponding to the given fraction. In this case, the method MUST have no effect
      * (the reader must behave as if the method hadn't been called at all).
      *
-     * <h5>Statefulness</h5>
+     * <h3>Statefulness</h3>
      * Since this method (if successful) affects the reader's source, in subsequent invocations
      * "fraction" should be interpreted relative to the new current source.
      *
-     * <h5>Thread safety and blocking</h5>
+     * <h3>Thread safety and blocking</h3>
      * This method will be called concurrently to other methods (however there will not be multiple
      * concurrent invocations of this method itself), and it is critical for it to be implemented
      * in a thread-safe way (otherwise data loss is possible).

@@ -17,20 +17,6 @@
  */
 package org.apache.beam.examples.common;
 
-import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
-import org.apache.beam.runners.dataflow.DataflowPipelineJob;
-import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.util.MonitoringUtil;
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.options.BigQueryOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PubsubOptions;
-import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
-import org.apache.beam.sdk.util.Transport;
-
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.util.BackOff;
@@ -44,25 +30,30 @@ import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.model.Subscription;
 import com.google.api.services.pubsub.model.Topic;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Uninterruptibles;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PubsubOptions;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Transport;
+import org.joda.time.Duration;
 
 /**
  * The utility class that sets up and tears down external resources,
  * and cancels the streaming pipelines once the program terminates.
  *
- * <p>It is used to run Beam examples, such as TrafficMaxLaneFlow and TrafficRoutes.
+ * <p>It is used to run Beam examples.
  */
 public class ExampleUtils {
 
@@ -71,8 +62,7 @@ public class ExampleUtils {
   private final PipelineOptions options;
   private Bigquery bigQueryClient = null;
   private Pubsub pubsubClient = null;
-  private Dataflow dataflowClient = null;
-  private Set<DataflowPipelineJob> jobsToCancel = Sets.newHashSet();
+  private Set<PipelineResult> pipelinesToCancel = Sets.newHashSet();
   private List<String> pendingMessages = Lists.newArrayList();
 
   /**
@@ -80,7 +70,6 @@ public class ExampleUtils {
    */
   public ExampleUtils(PipelineOptions options) {
     this.options = options;
-    setupRunner();
   }
 
   /**
@@ -91,7 +80,9 @@ public class ExampleUtils {
    */
   public void setup() throws IOException {
     Sleeper sleeper = Sleeper.DEFAULT;
-    BackOff backOff = new AttemptBoundedExponentialBackOff(3, 200);
+    BackOff backOff =
+        FluentBackoff.DEFAULT
+            .withMaxRetries(3).withInitialBackoff(Duration.millis(200)).backoff();
     Throwable lastException = null;
     try {
       do {
@@ -281,71 +272,45 @@ public class ExampleUtils {
   }
 
   /**
-   * Do some runner setup: check that the DirectRunner is not used in conjunction with
-   * streaming, and if streaming is specified, use the DataflowRunner.
-   */
-  private void setupRunner() {
-    Class<? extends PipelineRunner<?>> runner = options.getRunner();
-    if (options.as(StreamingOptions.class).isStreaming()
-        && runner.equals(BlockingDataflowRunner.class)) {
-      // In order to cancel the pipelines automatically,
-      // {@literal DataflowRunner} is forced to be used.
-      options.setRunner(DataflowRunner.class);
-    }
-  }
-
-  /**
-   * If {@literal DataflowRunner} or {@literal BlockingDataflowRunner} is used,
-   * waits for the pipeline to finish and cancels it (and the injector) before the program exists.
+   * Waits for the pipeline to finish and cancels it before the program exists.
    */
   public void waitToFinish(PipelineResult result) {
-    if (result instanceof DataflowPipelineJob) {
-      final DataflowPipelineJob job = (DataflowPipelineJob) result;
-      jobsToCancel.add(job);
-      if (!options.as(ExampleOptions.class).getKeepJobsRunning()) {
-        addShutdownHook(jobsToCancel);
-      }
-      try {
-        job.waitToFinish(-1, TimeUnit.SECONDS, new MonitoringUtil.LoggingHandler());
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to wait for job to finish: " + job.getJobId());
-      }
-    } else {
-      // Do nothing if the given PipelineResult doesn't support waitToFinish(),
+    pipelinesToCancel.add(result);
+    if (!options.as(ExampleOptions.class).getKeepJobsRunning()) {
+      addShutdownHook(pipelinesToCancel);
+    }
+    try {
+      result.waitUntilFinish();
+    } catch (UnsupportedOperationException e) {
+      // Do nothing if the given PipelineResult doesn't support waitUntilFinish(),
       // such as EvaluationResults returned by DirectRunner.
       tearDown();
       printPendingMessages();
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to wait the pipeline until finish: " + result);
     }
   }
 
-  private void addShutdownHook(final Collection<DataflowPipelineJob> jobs) {
-    if (dataflowClient == null) {
-      dataflowClient = options.as(DataflowPipelineOptions.class).getDataflowClient();
-    }
-
+  private void addShutdownHook(final Collection<PipelineResult> pipelineResults) {
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
       public void run() {
         tearDown();
         printPendingMessages();
-        for (DataflowPipelineJob job : jobs) {
-          System.out.println("Canceling example pipeline: " + job.getJobId());
+        for (PipelineResult pipelineResult : pipelineResults) {
           try {
-            job.cancel();
+            pipelineResult.cancel();
           } catch (IOException e) {
-            System.out.println("Failed to cancel the job,"
-                + " please go to the Developers Console to cancel it manually");
-            System.out.println(
-                MonitoringUtil.getJobMonitoringPageURL(job.getProjectId(), job.getJobId()));
+            System.out.println("Failed to cancel the job.");
+            System.out.println(e.getMessage());
           }
         }
 
-        for (DataflowPipelineJob job : jobs) {
+        for (PipelineResult pipelineResult : pipelineResults) {
           boolean cancellationVerified = false;
           for (int retryAttempts = 6; retryAttempts > 0; retryAttempts--) {
-            if (job.getState().isTerminal()) {
+            if (pipelineResult.getState().isTerminal()) {
               cancellationVerified = true;
-              System.out.println("Canceled example pipeline: " + job.getJobId());
               break;
             } else {
               System.out.println(
@@ -354,10 +319,7 @@ public class ExampleUtils {
             Uninterruptibles.sleepUninterruptibly(10, TimeUnit.SECONDS);
           }
           if (!cancellationVerified) {
-            System.out.println("Failed to verify the cancellation for job: " + job.getJobId());
-            System.out.println("Please go to the Developers Console to verify manually:");
-            System.out.println(
-                MonitoringUtil.getJobMonitoringPageURL(job.getProjectId(), job.getJobId()));
+            System.out.println("Failed to verify the cancellation for job: " + pipelineResult);
           }
         }
       }

@@ -60,13 +60,12 @@ public class KvSwap<K, V> extends PTransform<PCollection<KV<K, V>>,
   private KvSwap() { }
 
   @Override
-  public PCollection<KV<V, K>> apply(PCollection<KV<K, V>> in) {
+  public PCollection<KV<V, K>> expand(PCollection<KV<K, V>> in) {
     return
-        in.apply("KvSwap", ParDo.of(new DoFn<KV<K, V>, KV<V, K>>() {
+        in.apply("KvSwap", MapElements.via(new SimpleFunction<KV<K, V>, KV<V, K>>() {
           @Override
-          public void processElement(ProcessContext c) {
-            KV<K, V> e = c.element();
-            c.output(KV.of(e.getValue(), e.getKey()));
+          public KV<V, K> apply(KV<K, V> kv) {
+            return KV.of(kv.getValue(), kv.getKey());
           }
         }));
   }

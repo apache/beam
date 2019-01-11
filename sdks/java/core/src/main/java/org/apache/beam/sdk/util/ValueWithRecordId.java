@@ -19,22 +19,19 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StandardCoder;
-import org.apache.beam.sdk.transforms.DoFn;
-
-import com.google.common.base.MoreObjects;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
+import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * Immutable struct containing a value as well as a unique id identifying the value.
@@ -141,7 +138,7 @@ public class ValueWithRecordId<ValueT> {
 
   /** {@link DoFn} to turn a {@code ValueWithRecordId<T>} back to the value {@code T}. */
   public static class StripIdsDoFn<T> extends DoFn<ValueWithRecordId<T>, T> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().getValue());
     }

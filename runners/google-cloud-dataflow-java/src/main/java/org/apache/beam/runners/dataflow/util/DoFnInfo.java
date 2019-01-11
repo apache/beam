@@ -17,42 +17,89 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.values.PCollectionView;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.io.Serializable;
+import java.util.Map;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * Wrapper class holding the necessary information to serialize a DoFn.
+ * Wrapper class holding the necessary information to serialize a {@link OldDoFn}
+ * or {@link DoFn}.
  *
- * @param <InputT> the type of the (main) input elements of the DoFn
- * @param <OutputT> the type of the (main) output elements of the DoFn
+ * @param <InputT> the type of the (main) input elements of the {@link OldDoFn}
+ * @param <OutputT> the type of the (main) output elements of the {@link OldDoFn}
  */
 public class DoFnInfo<InputT, OutputT> implements Serializable {
-  private final DoFn<InputT, OutputT> doFn;
+  private final Serializable doFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Iterable<PCollectionView<?>> sideInputViews;
   private final Coder<InputT> inputCoder;
+  private final long mainOutput;
+  private final Map<Long, TupleTag<?>> outputMap;
 
-  public DoFnInfo(DoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy) {
-    this.doFn = doFn;
-    this.windowingStrategy = windowingStrategy;
-    this.sideInputViews = null;
-    this.inputCoder = null;
+  /**
+   * Creates a {@link DoFnInfo} for the given {@link Serializable} object, which is expected to be a
+   * {@link DoFn} or {@link OldDoFn} or other context-appropriate UDF blob.
+   */
+  public static <InputT, OutputT> DoFnInfo<InputT, OutputT> forFn(
+      Serializable doFn,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder<InputT> inputCoder,
+      long mainOutput,
+      Map<Long, TupleTag<?>> outputMap) {
+    return new DoFnInfo(doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
   }
 
-  public DoFnInfo(DoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy,
-                  Iterable<PCollectionView<?>> sideInputViews, Coder<InputT> inputCoder) {
+  private DoFnInfo(
+      Serializable doFn,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder<InputT> inputCoder,
+      long mainOutput,
+      Map<Long, TupleTag<?>> outputMap) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = sideInputViews;
     this.inputCoder = inputCoder;
+    this.mainOutput = mainOutput;
+    this.outputMap = outputMap;
   }
 
-  public DoFn<InputT, OutputT> getDoFn() {
+  /**
+   * @deprecated use {@link #forFn}.
+   */
+  @Deprecated
+  public DoFnInfo(
+      OldDoFn doFn,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder<InputT> inputCoder,
+      long mainOutput,
+      Map<Long, TupleTag<?>> outputMap) {
+    this((Serializable) doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
+  }
+
+  /** Returns the embedded serialized function. It may be a {@code DoFn} or {@code OldDoFn}. */
+  public Serializable getFn() {
     return doFn;
+  }
+
+  /** @deprecated use {@link #getFn()} */
+  @Deprecated
+  public OldDoFn getDoFn() {
+    checkState(
+        doFn instanceof OldDoFn,
+        "Deprecated %s.getDoFn() called when the payload was actually a new %s",
+        DoFnInfo.class.getSimpleName(),
+        DoFn.class.getSimpleName());
+    return (OldDoFn) doFn;
   }
 
   public WindowingStrategy<?, ?> getWindowingStrategy() {
@@ -65,5 +112,13 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
 
   public Coder<InputT> getInputCoder() {
     return inputCoder;
+  }
+
+  public long getMainOutput() {
+    return mainOutput;
+  }
+
+  public Map<Long, TupleTag<?>> getOutputMap() {
+    return outputMap;
   }
 }

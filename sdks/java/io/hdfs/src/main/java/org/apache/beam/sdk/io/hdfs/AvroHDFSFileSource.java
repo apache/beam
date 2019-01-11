@@ -17,6 +17,16 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.avro.Schema;
+import org.apache.avro.mapred.AvroKey;
+import org.apache.avro.mapreduce.AvroJob;
+import org.apache.avro.mapreduce.AvroKeyInputFormat;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -24,22 +34,9 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
-
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
-import org.apache.avro.Schema;
-import org.apache.avro.mapred.AvroKey;
-import org.apache.avro.mapreduce.AvroJob;
-import org.apache.avro.mapreduce.AvroKeyInputFormat;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-
-import java.io.IOException;
-import java.util.List;
-import javax.annotation.Nullable;
 
 /**
  * A {@code BoundedSource} for reading Avro files resident in a Hadoop filesystem.
@@ -128,7 +125,7 @@ public class AvroHDFSFileSource<T> extends HDFSFileSource<AvroKey<T>, NullWritab
 
       // clone the record to work around identical element issue due to object reuse
       Coder<T> avroCoder = ((AvroHDFSFileSource<T>) this.getCurrentSource()).avroCoder;
-      key = new AvroKey(CoderUtils.clone(avroCoder, key.datum()));
+      key = new AvroKey<>(CoderUtils.clone(avroCoder, key.datum()));
 
       return KV.of(key, value);
     }

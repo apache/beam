@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.options;
 
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
-
 import java.beans.Introspector;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * Utilities to reflect over {@link PipelineOptions}.

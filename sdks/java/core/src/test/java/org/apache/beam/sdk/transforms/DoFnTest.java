@@ -23,13 +23,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -37,23 +37,28 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.io.Serializable;
-
-/**
- * Tests for DoFn.
- */
+/** Tests for {@link DoFn}. */
 @RunWith(JUnit4.class)
 public class DoFnTest implements Serializable {
-
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
+
+  private class NoOpDoFn extends DoFn<Void, Void> {
+
+    /**
+     * @param c context
+     */
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+    }
+  }
 
   @Test
   public void testCreateAggregatorWithCombinerSucceeds() {
     String name = "testAggregator";
     Sum.SumLongFn combiner = new Sum.SumLongFn();
 
-    DoFn<Void, Void> doFn = new NoOpDoFn<>();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     Aggregator<Long, Long> aggregator = doFn.createAggregator(name, combiner);
 
@@ -66,7 +71,7 @@ public class DoFnTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("name cannot be null");
 
-    DoFn<Void, Void> doFn = new NoOpDoFn<>();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     doFn.createAggregator(null, new Sum.SumLongFn());
   }
@@ -78,7 +83,7 @@ public class DoFnTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("combiner cannot be null");
 
-    DoFn<Void, Void> doFn = new NoOpDoFn<>();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     doFn.createAggregator("testAggregator", combiner);
   }
@@ -90,7 +95,7 @@ public class DoFnTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("combiner cannot be null");
 
-    DoFn<Void, Void> doFn = new NoOpDoFn<>();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     doFn.createAggregator("testAggregator", combiner);
   }
@@ -100,7 +105,7 @@ public class DoFnTest implements Serializable {
     String name = "testAggregator";
     CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
 
-    DoFn<Void, Void> doFn = new NoOpDoFn<>();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     doFn.createAggregator(name, combiner);
 
@@ -118,9 +123,10 @@ public class DoFnTest implements Serializable {
     String nameTwo = "aggregatorPrime";
     CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
 
-    DoFn<Void, Void> doFn = new NoOpDoFn<>();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     Aggregator<Double, Double> aggregatorOne =
+
         doFn.createAggregator(nameOne, combiner);
     Aggregator<Double, Double> aggregatorTwo =
         doFn.createAggregator(nameTwo, combiner);
@@ -129,16 +135,24 @@ public class DoFnTest implements Serializable {
   }
 
   @Test
+  public void testDefaultPopulateDisplayDataImplementation() {
+    DoFn<String, String> fn = new DoFn<String, String>() {
+    };
+    DisplayData displayData = DisplayData.from(fn);
+    assertThat(displayData.items(), empty());
+  }
+
+  @Test
   @Category(NeedsRunner.class)
   public void testCreateAggregatorInStartBundleThrows() {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
-      @Override
-      public void startBundle(DoFn<String, String>.Context c) throws Exception {
+      @StartBundle
+      public void startBundle(Context c) {
         createAggregator("anyAggregate", new MaxIntegerFn());
       }
 
-      @Override
-      public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {}
+      @ProcessElement
+      public void processElement(ProcessContext c) {}
     });
 
     thrown.expect(PipelineExecutionException.class);
@@ -151,8 +165,8 @@ public class DoFnTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testCreateAggregatorInProcessElementThrows() {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
-      @Override
-      public void processElement(ProcessContext c) throws Exception {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
         createAggregator("anyAggregate", new MaxIntegerFn());
       }
     });
@@ -167,13 +181,13 @@ public class DoFnTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testCreateAggregatorInFinishBundleThrows() {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
-      @Override
-      public void finishBundle(DoFn<String, String>.Context c) throws Exception {
+      @FinishBundle
+      public void finishBundle(Context c) {
         createAggregator("anyAggregate", new MaxIntegerFn());
       }
 
-      @Override
-      public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {}
+      @ProcessElement
+      public void processElement(ProcessContext c) {}
     });
 
     thrown.expect(PipelineExecutionException.class);
@@ -191,17 +205,5 @@ public class DoFnTest implements Serializable {
      .apply(ParDo.of(fn));
 
     return pipeline;
-  }
-
-  @Test
-  public void testPopulateDisplayDataDefaultBehavior() {
-    DoFn<String, String> usesDefault =
-        new DoFn<String, String>() {
-          @Override
-          public void processElement(ProcessContext c) throws Exception {}
-        };
-
-    DisplayData data = DisplayData.from(usesDefault);
-    assertThat(data.items(), empty());
   }
 }

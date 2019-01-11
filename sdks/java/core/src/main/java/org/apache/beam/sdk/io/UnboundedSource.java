@@ -17,17 +17,14 @@
  */
 package org.apache.beam.sdk.io;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.options.PipelineOptions;
-
-import org.joda.time.Instant;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.joda.time.Instant;
 
 /**
  * A {@link Source} that reads an unbounded amount of input and, because of that, supports

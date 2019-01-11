@@ -17,14 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.testing;
 
-import org.apache.beam.runners.dataflow.options.BlockingDataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
 /**
  * A set of options used to configure the {@link TestPipeline}.
  */
-public interface TestDataflowPipelineOptions extends TestPipelineOptions,
-       BlockingDataflowPipelineOptions {
-
+public interface TestDataflowPipelineOptions extends TestPipelineOptions, DataflowPipelineOptions {
 }

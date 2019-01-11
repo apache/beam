@@ -35,11 +35,11 @@ public interface ExamplePubsubTopicOptions extends GcpOptions {
   /**
    * Returns a default Pub/Sub topic based on the project and the job names.
    */
-  static class PubsubTopicFactory implements DefaultValueFactory<String> {
+  class PubsubTopicFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
       return "projects/" + options.as(GcpOptions.class).getProject()
-          + "/topics/" + options.as(ExampleOptions.class).getNormalizedUniqueName();
+          + "/topics/" + options.getJobName();
     }
   }
 }

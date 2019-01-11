@@ -18,23 +18,19 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.io.Sink;
-import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.io.Write;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.io.Sink;
+import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 /**
  * A wrapper translating Flink sinks implementing the {@link SinkFunction} interface, into
@@ -66,7 +62,8 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
       }
 
       @Override
-      public void finalize(Iterable<Object> writerResults, PipelineOptions options) throws Exception {
+      public void finalize(Iterable<Object> writerResults, PipelineOptions options)
+          throws Exception {
 
       }
 
@@ -74,12 +71,14 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
       public Coder<Object> getWriterResultCoder() {
         return new Coder<Object>() {
           @Override
-          public void encode(Object value, OutputStream outStream, Context context) throws CoderException, IOException {
+          public void encode(Object value, OutputStream outStream, Context context)
+              throws CoderException, IOException {
 
           }
 
           @Override
-          public Object decode(InputStream inStream, Context context) throws CoderException, IOException {
+          public Object decode(InputStream inStream, Context context)
+              throws CoderException, IOException {
             return null;
           }
 
@@ -114,7 +113,9 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
           }
 
           @Override
-          public void registerByteSizeObserver(Object value, ElementByteSizeObserver observer, Context context) throws Exception {
+          public void registerByteSizeObserver(Object value,
+                                               ElementByteSizeObserver observer,
+                                               Context context) throws Exception {
 
           }
 

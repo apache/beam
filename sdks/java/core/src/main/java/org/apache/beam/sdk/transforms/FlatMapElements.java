@@ -17,17 +17,18 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.lang.reflect.ParameterizedType;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import java.lang.reflect.ParameterizedType;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /**
  * {@code PTransform}s for mapping a simple function that returns iterables over the elements of a
  * {@link PCollection} and merging the results.
  */
 public class FlatMapElements<InputT, OutputT>
-extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
+extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   /**
    * For a {@code SerializableFunction<InputT, ? extends Iterable<OutputT>>} {@code fn},
    * returns a {@link PTransform} that applies {@code fn} to every element of the input
@@ -45,8 +46,16 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    * descriptor need not be provided.
    */
   public static <InputT, OutputT> MissingOutputTypeDescriptor<InputT, OutputT>
-  via(SerializableFunction<InputT, ? extends Iterable<OutputT>> fn) {
-    return new MissingOutputTypeDescriptor<>(fn);
+  via(SerializableFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
+
+    // TypeDescriptor interacts poorly with the wildcards needed to correctly express
+    // covariance and contravariance in Java, so instead we cast it to an invariant
+    // function here.
+    @SuppressWarnings("unchecked") // safe covariant cast
+    SerializableFunction<InputT, Iterable<OutputT>> simplerFn =
+        (SerializableFunction<InputT, Iterable<OutputT>>) fn;
+
+    return new MissingOutputTypeDescriptor<>(simplerFn);
   }
 
   /**
@@ -72,16 +81,15 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    * <p>To use a Java 8 lambda, see {@link #via(SerializableFunction)}.
    */
   public static <InputT, OutputT> FlatMapElements<InputT, OutputT>
-  via(SimpleFunction<InputT, ? extends Iterable<OutputT>> fn) {
+  via(SimpleFunction<? super InputT, ? extends Iterable<OutputT>> fn) {
+    // TypeDescriptor interacts poorly with the wildcards needed to correctly express
+    // covariance and contravariance in Java, so instead we cast it to an invariant
+    // function here.
+    @SuppressWarnings("unchecked") // safe covariant cast
+    SimpleFunction<InputT, Iterable<OutputT>> simplerFn =
+        (SimpleFunction<InputT, Iterable<OutputT>>) fn;
 
-    @SuppressWarnings({"rawtypes", "unchecked"}) // safe by static typing
-    TypeDescriptor<Iterable<?>> iterableType = (TypeDescriptor) fn.getOutputTypeDescriptor();
-
-    @SuppressWarnings("unchecked") // safe by correctness of getIterableElementType
-    TypeDescriptor<OutputT> outputType =
-        (TypeDescriptor<OutputT>) getIterableElementType(iterableType);
-
-    return new FlatMapElements<>(fn, outputType);
+    return new FlatMapElements<>(simplerFn, fn.getClass());
   }
 
   /**
@@ -91,18 +99,82 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    */
   public static final class MissingOutputTypeDescriptor<InputT, OutputT> {
 
-    private final SerializableFunction<InputT, ? extends Iterable<OutputT>> fn;
+    private final SerializableFunction<InputT, Iterable<OutputT>> fn;
 
     private MissingOutputTypeDescriptor(
-        SerializableFunction<InputT, ? extends Iterable<OutputT>> fn) {
+        SerializableFunction<InputT, Iterable<OutputT>> fn) {
       this.fn = fn;
     }
 
     public FlatMapElements<InputT, OutputT> withOutputType(TypeDescriptor<OutputT> outputType) {
-      return new FlatMapElements<>(fn, outputType);
+      TypeDescriptor<Iterable<OutputT>> iterableOutputType = TypeDescriptors.iterables(outputType);
+
+      return new FlatMapElements<>(
+          SimpleFunction.fromSerializableFunctionWithOutputType(fn,
+              iterableOutputType),
+              fn.getClass());
     }
   }
 
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  private final SimpleFunction<InputT, ? extends Iterable<OutputT>> fn;
+  private final DisplayData.ItemSpec<?> fnClassDisplayData;
+
+  private FlatMapElements(
+      SimpleFunction<InputT, ? extends Iterable<OutputT>> fn,
+      Class<?> fnClass) {
+    this.fn = fn;
+    this.fnClassDisplayData = DisplayData.item("flatMapFn", fnClass).withLabel("FlatMap Function");
+  }
+
+  @Override
+  public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+    return input.apply(
+        "FlatMap",
+        ParDo.of(
+            new DoFn<InputT, OutputT>() {
+              private static final long serialVersionUID = 0L;
+
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                for (OutputT element : fn.apply(c.element())) {
+                  c.output(element);
+                }
+              }
+
+              @Override
+              public TypeDescriptor<InputT> getInputTypeDescriptor() {
+                return fn.getInputTypeDescriptor();
+              }
+
+              @Override
+              public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+                @SuppressWarnings({"rawtypes", "unchecked"}) // safe by static typing
+                TypeDescriptor<Iterable<?>> iterableType =
+                    (TypeDescriptor) fn.getOutputTypeDescriptor();
+
+                @SuppressWarnings("unchecked") // safe by correctness of getIterableElementType
+                TypeDescriptor<OutputT> outputType =
+                    (TypeDescriptor<OutputT>) getIterableElementType(iterableType);
+
+                return outputType;
+              }
+            }));
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    builder
+        .include("flatMapFn", fn)
+        .add(fnClassDisplayData);
+  }
+
+  /**
+   * Does a best-effort job of getting the best {@link TypeDescriptor} for the type of the
+   * elements contained in the iterable described by the given {@link TypeDescriptor}.
+   */
   private static TypeDescriptor<?> getIterableElementType(
       TypeDescriptor<Iterable<?>> iterableTypeDescriptor) {
 
@@ -117,30 +189,5 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
     ParameterizedType iterableType =
         (ParameterizedType) iterableTypeDescriptor.getSupertype(Iterable.class).getType();
     return TypeDescriptor.of(iterableType.getActualTypeArguments()[0]);
-  }
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
-  private final SerializableFunction<InputT, ? extends Iterable<OutputT>> fn;
-  private final transient TypeDescriptor<OutputT> outputType;
-
-  private FlatMapElements(
-      SerializableFunction<InputT, ? extends Iterable<OutputT>> fn,
-      TypeDescriptor<OutputT> outputType) {
-    this.fn = fn;
-    this.outputType = outputType;
-  }
-
-  @Override
-  public PCollection<OutputT> apply(PCollection<InputT> input) {
-    return input.apply("Map", ParDo.of(new DoFn<InputT, OutputT>() {
-      private static final long serialVersionUID = 0L;
-      @Override
-      public void processElement(ProcessContext c) {
-        for (OutputT element : fn.apply(c.element())) {
-          c.output(element);
-        }
-      }
-    })).setTypeDescriptorInternal(outputType);
   }
 }

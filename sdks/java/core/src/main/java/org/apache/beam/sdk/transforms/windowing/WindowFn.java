@@ -17,16 +17,15 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import java.io.Serializable;
+import java.util.Collection;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
-
-import java.io.Serializable;
-import java.util.Collection;
 
 /**
  * The argument to the {@link Window} transform used to assign elements into
@@ -130,7 +129,7 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    *
    * <p>Authors of custom {@code WindowFn}s should override this.
    */
-  public abstract W getSideInputWindow(final BoundedWindow window);
+  public abstract W getSideInputWindow(BoundedWindow window);
 
   /**
    * Returns the output timestamp to use for data depending on the given
@@ -158,6 +157,17 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    */
   public boolean isNonMerging() {
     return false;
+  }
+
+  /**
+   * Returns a {@link TypeDescriptor} capturing what is known statically about the window type of
+   * this {@link WindowFn} instance's most-derived class.
+   *
+   * <p>In the normal case of a concrete {@link WindowFn} subclass with no generic type parameters
+   * of its own (including anonymous inner classes), this will be a complete non-generic type.
+   */
+  public TypeDescriptor<W> getWindowTypeDescriptor() {
+    return new TypeDescriptor<W>(this) {};
   }
 
   /**

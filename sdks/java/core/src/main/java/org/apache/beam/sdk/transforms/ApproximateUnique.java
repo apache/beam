@@ -17,6 +17,16 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import com.google.common.hash.Hashing;
+import com.google.common.hash.HashingOutputStream;
+import com.google.common.io.ByteStreams;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.PriorityQueue;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
@@ -27,19 +37,6 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.hash.Hashing;
-import com.google.common.hash.HashingOutputStream;
-import com.google.common.io.ByteStreams;
-
-import org.apache.avro.reflect.Nullable;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.PriorityQueue;
 
 /**
  * {@code PTransform}s for estimating the number of distinct elements
@@ -207,7 +204,7 @@ public class ApproximateUnique {
     }
 
     @Override
-    public PCollection<Long> apply(PCollection<T> input) {
+    public PCollection<Long> expand(PCollection<T> input) {
       Coder<T> coder = input.getCoder();
       return input.apply(
           Combine.globally(
@@ -274,7 +271,7 @@ public class ApproximateUnique {
     }
 
     @Override
-    public PCollection<KV<K, Long>> apply(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, Long>> expand(PCollection<KV<K, V>> input) {
       Coder<KV<K, V>> inputCoder = input.getCoder();
       if (!(inputCoder instanceof KvCoder)) {
         throw new IllegalStateException(

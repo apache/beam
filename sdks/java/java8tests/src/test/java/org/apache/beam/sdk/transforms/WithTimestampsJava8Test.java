@@ -17,19 +17,17 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
 
 /**
  * Java 8 tests for {@link WithTimestamps}.
@@ -48,8 +46,8 @@ public class WithTimestampsJava8Test implements Serializable {
 
     PCollection<KV<String, Instant>> timestampedVals =
         timestamped.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
-          @Override
-          public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
+          @ProcessElement
+          public void processElement(ProcessContext c)
               throws Exception {
             c.output(KV.of(c.element(), c.timestamp()));
           }
