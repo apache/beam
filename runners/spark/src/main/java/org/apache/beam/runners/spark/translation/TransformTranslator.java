@@ -241,8 +241,7 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<OutputT>> outRdd;
 
         Optional<Iterable<WindowedValue<AccumT>>> maybeAccumulated =
-            GroupCombineFunctions.combineGlobally(
-                inRdd, sparkCombineFn, iCoder, aCoder, windowingStrategy);
+            GroupCombineFunctions.combineGlobally(inRdd, sparkCombineFn, aCoder, windowingStrategy);
 
         if (maybeAccumulated.isPresent()) {
           Iterable<WindowedValue<OutputT>> output =
@@ -313,12 +312,7 @@ public final class TransformTranslator {
 
         JavaPairRDD<K, Iterable<WindowedValue<KV<K, AccumT>>>> accumulatePerKey =
             GroupCombineFunctions.combinePerKey(
-                inRdd,
-                sparkCombineFn,
-                inputCoder.getKeyCoder(),
-                inputCoder.getValueCoder(),
-                vaCoder,
-                windowingStrategy);
+                inRdd, sparkCombineFn, inputCoder.getKeyCoder(), vaCoder, windowingStrategy);
 
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             accumulatePerKey
