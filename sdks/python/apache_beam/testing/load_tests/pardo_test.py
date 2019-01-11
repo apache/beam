@@ -89,9 +89,6 @@ try:
 except ImportError:
   bq = None
 
-COUNTER_LABEL = "total_bytes_count"
-RUNTIME_LABEL = 'runtime'
-
 
 @unittest.skipIf(bq is None, 'BigQuery for storing metrics not installed')
 class ParDoTest(unittest.TestCase):
@@ -119,31 +116,30 @@ class ParDoTest(unittest.TestCase):
     self.iterations = self.pipeline.get_option('number_of_counter_operations')
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
 
+    self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
     metrics_project_id = self.pipeline.get_option('project')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')
     metrics_dataset = self.pipeline.get_option('metrics_dataset')
-    self.metrics_monitor = None
-    if metrics_project_id and self.metrics_namespace is not None:
-      measured_values = [
-          {'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'},
-          {'name': COUNTER_LABEL, 'type': 'INTEGER', 'mode': 'REQUIRED'}
-      ]
+    check = metrics_project_id and self.metrics_namespace and metrics_dataset \
+            is not None
+    if not self.metrics_monitor:
+      logging.info('Metrics will not be collected')
+    elif check:
       self.metrics_monitor = MetricsMonitor(
-          project_name=metrics_project_id,
-          table=self.metrics_namespace,
-          dataset=metrics_dataset,
-          schema_map=measured_values
+        project_name=metrics_project_id,
+        table=self.metrics_namespace,
+        dataset=metrics_dataset,
       )
     else:
-      logging.error('One or more of parameters for collecting metrics '
-                    'are empty. Metrics will not be collected')
+      raise ValueError('One or more of parameters for collecting metrics '
+                       'are empty.')
 
   def testParDo(self):
 
     class _GetElement(beam.DoFn):
       from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
 
-      @count_bytes(COUNTER_LABEL)
+      @count_bytes
       def process(self, element, namespace, is_returning):
         if is_returning:
           yield element

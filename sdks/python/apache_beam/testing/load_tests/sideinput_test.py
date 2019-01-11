@@ -91,8 +91,6 @@ load_test_enabled = False
 if os.environ.get('LOAD_TEST_ENABLED') == 'true':
   load_test_enabled = True
 
-RUNTIME_LABEL = 'runtime'
-
 
 @unittest.skipIf(not load_test_enabled, 'Enabled only for phase triggering.')
 class SideInputTest(unittest.TestCase):
@@ -145,14 +143,10 @@ class SideInputTest(unittest.TestCase):
     check = metrics_project_id and self.metrics_namespace and metrics_dataset \
             is not None
     if check:
-      measured_values = [
-          {'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'},
-      ]
       self.metrics_monitor = MetricsMonitor(
           project_name=metrics_project_id,
           table=self.metrics_namespace,
           dataset=metrics_dataset,
-          schema_map=measured_values
       )
     else:
       logging.error('One or more of parameters for collecting metrics '

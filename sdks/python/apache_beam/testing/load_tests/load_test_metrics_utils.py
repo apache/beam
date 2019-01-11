@@ -17,12 +17,23 @@
 
 """
 Utility functions used for integrating Metrics API into load tests pipelines.
+
+Metrics are send to BigQuery in following format:
+test_id | submit_timestamp | metric_type | value
+
+The 'test_id' is common for all metrics for one run.
+Currently it is possible to have following metrics types:
+* runtime
+* total_bytes_count
+
+
 """
 
 from __future__ import absolute_import
 
 import logging
 import time
+import uuid
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
@@ -36,49 +47,80 @@ except ImportError:
   SchemaField = None
   NotFound = None
 
-RUNTIME_LABEL = 'runtime'
-SUBMIT_TIMESTAMP_LABEL = 'submit_timestamp'
+RUNTIME_METRIC = 'runtime'
+COUNTER_LABEL = "total_bytes_count"
+
+ID_LABEL = 'test_id'
+SUBMIT_TIMESTAMP_LABEL = 'timestamp'
+METRICS_TYPE_LABEL = 'metric'
+VALUE_LABEL = 'value'
+
+SCHEMA = [
+  {'name': ID_LABEL,
+   'type': 'STRING',
+   'mode': 'REQUIRED'
+   },
+  {'name': SUBMIT_TIMESTAMP_LABEL,
+   'type': 'TIMESTAMP',
+   'mode': 'REQUIRED'
+   },
+  {'name': METRICS_TYPE_LABEL,
+   'type': 'STRING',
+   'mode': 'REQUIRED'
+   },
+  {'name': VALUE_LABEL,
+   'type': 'FLOAT',
+   'mode': 'REQUIRED'
+   }
+]
 
 
-def _get_schema_field(schema_field):
+
+def get_schema_field(schema_field):
   return SchemaField(
       name=schema_field['name'],
       field_type=schema_field['type'],
       mode=schema_field['mode'])
 
 
+def get_element_by_schema(schema_name, insert_list):
+  for element in insert_list:
+    if element['label'] == schema_name:
+      return element['value']
+
+
 class BigQueryClient(object):
-  def __init__(self, project_name, table, dataset, schema_map):
+  def __init__(self, project_name, table, dataset):
     self._namespace = table
 
     self._bq_client = bigquery.Client(project=project_name)
 
-    schema = self._parse_schema(schema_map)
-    self._schema_names = self._get_schema_names(schema)
-    schema = self._prepare_schema(schema)
+    self._schema_names = self._get_schema_names()
+    schema = self._prepare_schema()
 
     self._get_or_create_table(schema, dataset)
 
-  def match_and_save(self, result_list):
-    rows_tuple = tuple(self._match_inserts_by_schema(result_list))
-    self._insert_data(rows_tuple)
+  def match_and_save(self, results_lists):
+    list_of_tuples = []
+    for x in results_lists:
+      list_of_tuples += [self._match_inserts_by_schema(x)]
+    self._insert_data(list_of_tuples)
 
   def _match_inserts_by_schema(self, insert_list):
+    result_tuple = ()
     for name in self._schema_names:
-      yield self._get_element_by_schema(name, insert_list)
+      result_tuple += (get_element_by_schema(name, insert_list),)
+    return result_tuple
 
-  def _get_element_by_schema(self, schema_name, insert_list):
-    for metric in insert_list:
-      if metric['label'] == schema_name:
-        return metric['value']
-    return None
-
-  def _insert_data(self, rows_tuple):
-    errors = self._bq_client.insert_rows(self._bq_table, rows=[rows_tuple])
-    if len(errors) > 0:
-      for err in errors:
-        logging.error(err['message'])
-        raise ValueError('Unable save rows in BigQuery.')
+  def _insert_data(self, list_of_tuples):
+    outputs = self._bq_client.insert_rows(self._bq_table, rows=list_of_tuples)
+    if len(outputs) > 0:
+      for output in outputs:
+        errors = output['errors']
+        for err in errors:
+          logging.error(err['message'])
+          raise ValueError(
+              'Unable save rows in BigQuery: {}'.format(err['message']))
 
   def _get_dataset(self, dataset_name):
     bq_dataset_ref = self._bq_client.dataset(dataset_name)
@@ -88,7 +130,7 @@ class BigQueryClient(object):
       raise ValueError(
           'Dataset {} does not exist in your project. '
           'You have to create table first.'
-          .format(dataset_name))
+            .format(dataset_name))
     return bq_dataset
 
   def _get_or_create_table(self, bq_schemas, dataset):
@@ -104,25 +146,23 @@ class BigQueryClient(object):
       table = bigquery.Table(table_ref, schema=bq_schemas)
       self._bq_table = self._bq_client.create_table(table)
 
-  def _parse_schema(self, schema_map):
-    return [{'name': SUBMIT_TIMESTAMP_LABEL,
-             'type': 'TIMESTAMP',
-             'mode': 'REQUIRED'}] + schema_map
+  def _prepare_schema(self):
+    return [get_schema_field(row) for row in SCHEMA]
 
-  def _prepare_schema(self, schemas):
-    return [_get_schema_field(schema) for schema in schemas]
-
-  def _get_schema_names(self, schemas):
-    return [schema['name'] for schema in schemas]
+  def _get_schema_names(self):
+    return [schema['name'] for schema in SCHEMA]
 
 
 class MetricsMonitor(object):
-  def __init__(self, project_name, table, dataset, schema_map):
+  def __init__(self, project_name, table, dataset):
     if project_name is not None:
-      self.bq = BigQueryClient(project_name, table, dataset, schema_map)
+      self.bq = BigQueryClient(project_name, table, dataset)
 
   def send_metrics(self, result):
     metrics = result.metrics().query()
+    timestamp = {'label': SUBMIT_TIMESTAMP_LABEL, 'value': time.time()}
+    test_id = {'label': ID_LABEL, 'value': uuid.uuid4().hex}
+
     counters = metrics['counters']
     counters_list = []
     if len(counters) > 0:
@@ -133,9 +173,13 @@ class MetricsMonitor(object):
     if len(distributions) > 0:
       dist_list = self._prepare_runtime_metrics(distributions)
 
-    timestamp = {'label': SUBMIT_TIMESTAMP_LABEL, 'value': time.time()}
+    metrics_list = [test_id] + [timestamp]
+    insert_list = []
+    values = [dist_list] + [counters_list]
+    for value in values:
+      if value:
+        insert_list.append(metrics_list + value)
 
-    insert_list = [timestamp] + dist_list + counters_list
     self.bq.match_and_save(insert_list)
 
   def _prepare_counter_metrics(self, counters):
@@ -145,8 +189,9 @@ class MetricsMonitor(object):
     for counter in counters:
       counter_commited = counter.committed
       counter_label = str(counter.key.metric.name)
-      counters_list.append(
-          {'label': counter_label, 'value': counter_commited})
+      counters_list.extend([
+          {'label': VALUE_LABEL, 'value': counter_commited},
+          {'label': METRICS_TYPE_LABEL, 'value': counter_label}])
 
     return counters_list
 
@@ -165,13 +210,14 @@ class MetricsMonitor(object):
     runtime_in_s = max_value - min_value
     logging.info("Runtime: %s", runtime_in_s)
     runtime_in_s = float(runtime_in_s)
-    return [{'label': RUNTIME_LABEL, 'value': runtime_in_s}]
+    return [{'label': VALUE_LABEL, 'value': runtime_in_s},
+            {'label': METRICS_TYPE_LABEL, 'value': RUNTIME_METRIC}]
 
 
 class MeasureTime(beam.DoFn):
   def __init__(self, namespace):
     self.namespace = namespace
-    self.runtime = Metrics.distribution(self.namespace, RUNTIME_LABEL)
+    self.runtime = Metrics.distribution(self.namespace, RUNTIME_METRIC)
 
   def start_bundle(self):
     self.runtime.update(time.time())
@@ -183,15 +229,13 @@ class MeasureTime(beam.DoFn):
     yield element
 
 
-def count_bytes(counter_name):
-  def layer(f):
-    def repl(*args):
-      namespace = args[2]
-      counter = Metrics.counter(namespace, counter_name)
-      element = args[1]
-      _, value = element
-      for i in range(len(value)):
-        counter.inc(i)
-      return f(*args)
-    return repl
-  return layer
+def count_bytes(f):
+  def repl(*args):
+    namespace = args[2]
+    counter = Metrics.counter(namespace, COUNTER_LABEL)
+    element = args[1]
+    _, value = element
+    for i in range(len(value)):
+      counter.inc(i)
+    return f(*args)
+  return repl
