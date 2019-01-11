@@ -181,7 +181,7 @@ Data processing is tricky, full of corner cases, and difficult to debug, because
 * To unit test `DoFn`s, `CombineFn`s, and `BoundedSource`s, consider using `DoFnTester`, `CombineFnTester`, and `SourceTestUtils` respectively which can exercise the code in non-trivial ways to flesh out potential bugs.
 * For transforms that work over unbounded collections, test their behavior in the presence of late or out-of-order data using `TestStream`.
 * Tests must pass 100% of the time, including in hostile, CPU- or network-constrained environments (continuous integration servers). Never put timing-dependent code (e.g. sleeps) into tests. Experience shows that no reasonable amount of sleeping is enough - code can be suspended for more than several seconds.
-* For detailed instructions on test code organization, see the [Beam Testing Guide]({{ site.baseurl }}/contribute/testing/).
+* For detailed instructions on test code organization, see the [Beam Testing Guide](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide).
 
 #### Testing transform construction and validation
 
