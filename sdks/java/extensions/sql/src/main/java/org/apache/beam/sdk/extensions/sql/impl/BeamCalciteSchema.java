@@ -19,11 +19,11 @@ package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.schema.Function;
@@ -34,12 +34,12 @@ import org.apache.calcite.schema.Schemas;
 
 /** Adapter from {@link TableProvider} to {@link Schema}. */
 public class BeamCalciteSchema implements Schema {
-  private final TableProvider tableProvider;
-  private final Map<String, String> pipelineOptions;
+  private JdbcConnection connection;
+  private TableProvider tableProvider;
 
-  public BeamCalciteSchema(TableProvider tableProvider) {
+  BeamCalciteSchema(JdbcConnection jdbcConnection, TableProvider tableProvider) {
+    this.connection = jdbcConnection;
     this.tableProvider = tableProvider;
-    this.pipelineOptions = Maps.newHashMap();
   }
 
   public TableProvider getTableProvider() {
@@ -47,7 +47,23 @@ public class BeamCalciteSchema implements Schema {
   }
 
   public Map<String, String> getPipelineOptions() {
-    return pipelineOptions;
+    return connection.getPipelineOptionsMap();
+  }
+
+  public void setPipelineOption(String key, String value) {
+    Map<String, String> options = new HashMap<>(connection.getPipelineOptionsMap());
+    options.put(key, value);
+    connection.setPipelineOptionsMap(options);
+  }
+
+  public void removePipelineOption(String key) {
+    Map<String, String> options = new HashMap<>(connection.getPipelineOptionsMap());
+    options.remove(key);
+    connection.setPipelineOptionsMap(options);
+  }
+
+  public void removeAllPipelineOptions() {
+    connection.setPipelineOptionsMap(Collections.emptyMap());
   }
 
   @Override
