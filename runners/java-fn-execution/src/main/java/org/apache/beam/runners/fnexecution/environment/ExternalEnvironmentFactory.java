@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc;
@@ -33,6 +34,7 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,10 +105,13 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
             .build();
 
     LOG.debug("Requesting worker ID {}", workerId);
+    ManagedChannel channel =
+        ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint());
     BeamFnApi.NotifyRunnerAvailableResponse notifyRunnerAvailableResponse =
-        BeamFnExternalWorkerPoolGrpc.newBlockingStub(
-                ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint()))
+        BeamFnExternalWorkerPoolGrpc.newBlockingStub(channel)
             .notifyRunnerAvailable(notifyRunnerAvailableRequest);
+    channel.shutdownNow();
+    channel.awaitTermination(1, TimeUnit.SECONDS);
     if (!notifyRunnerAvailableResponse.getError().isEmpty()) {
       throw new RuntimeException(notifyRunnerAvailableResponse.getError());
     }
