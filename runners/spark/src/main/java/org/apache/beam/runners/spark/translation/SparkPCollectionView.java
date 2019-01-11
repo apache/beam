@@ -90,7 +90,7 @@ public class SparkPCollectionView implements Serializable {
     SideInputBroadcast helper = SideInputBroadcast.create(tuple2._1, tuple2._2);
     String pCollectionName =
         view.getPCollection() != null ? view.getPCollection().getName() : "UNKNOWN";
-    LOG.info(
+    LOG.debug(
         "Broadcasting [size={}B] view {} from pCollection {}",
         helper.getBroadcastSizeEstimate(),
         view,

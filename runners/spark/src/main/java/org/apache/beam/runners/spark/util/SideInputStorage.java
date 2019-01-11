@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.spark.util;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
 
 /**
  * Cache deserialized side inputs for executor so every task doesn't need to deserialize them again.
@@ -31,10 +31,10 @@ import org.apache.beam.sdk.values.PCollectionView;
 class SideInputStorage {
 
   /** JVM deserialized side input cache. */
-  private static final Cache<Key<?>, ?> materializedSideInputs =
+  private static final Cache<Key<?>, Value<?>> materializedSideInputs =
       CacheBuilder.newBuilder().expireAfterAccess(5, TimeUnit.MINUTES).build();
 
-  static Cache<Key<?>, ?> getMaterializedSideInputs() {
+  static Cache<Key<?>, Value<?>> getMaterializedSideInputs() {
     return materializedSideInputs;
   }
 
@@ -82,6 +82,23 @@ class SideInputStorage {
           + "], window="
           + window
           + '}';
+    }
+  }
+
+  /**
+   * Null value is not allowed in guava's Cache and is valid in SideInput so we use wrapper for
+   * cache value.
+   */
+  public static class Value<T> {
+
+    T value;
+
+    Value(T value) {
+      this.value = value;
+    }
+
+    public T getValue() {
+      return value;
     }
   }
 }
