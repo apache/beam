@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.apache.beam.sdk.coders.Coder;
-
-import org.joda.time.Instant;
-
 import java.util.Collection;
 import java.util.Collections;
+import org.apache.beam.sdk.coders.Coder;
+import org.joda.time.Instant;
 
 /**
  * Default {@link WindowFn} that assigns all data to the same window.

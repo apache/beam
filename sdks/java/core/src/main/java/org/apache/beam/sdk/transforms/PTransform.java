@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -26,10 +29,6 @@ import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TypedPValue;
-
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 
 /**
  * A {@code PTransform<InputT, OutputT>} is an operation that takes an
@@ -126,11 +125,11 @@ import java.io.Serializable;
  * before the enclosing Pipeline is run.
  *
  * <p>A small number of PTransforms are implemented natively by the
- * Google Cloud Dataflow SDK; such PTransforms simply return an
+ * Apache Beam SDK; such PTransforms simply return an
  * output value as their apply implementation.
  * The majority of PTransforms are
  * implemented as composites of other PTransforms.  Such a PTransform
- * subclass typically just implements {@link #apply}, computing its
+ * subclass typically just implements {@link #expand}, computing its
  * Output value from its {@code InputT} value.  User programs are encouraged to
  * use this mechanism to modularize their own code.  Such composite
  * abstractions get their own name, and navigating through the
@@ -147,7 +146,7 @@ import java.io.Serializable;
  * implementing {@code Serializable}.
  *
  * <p>{@code PTransform} is marked {@code Serializable} solely
- * because it is common for an anonymous {@code DoFn},
+ * because it is common for an anonymous {@link DoFn},
  * instance to be created within an
  * {@code apply()} method of a composite {@code PTransform}.
  *
@@ -182,7 +181,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * a new unbound output and register evaluators (via backend-specific
    * registration methods).
    */
-  public abstract OutputT apply(InputT input);
+  public abstract OutputT expand(InputT input);
 
   /**
    * Called before invoking apply (which may be intercepted by the runner) to
@@ -276,9 +275,9 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * Returns the default {@code Coder} to use for the output of this
    * single-output {@code PTransform} when applied to the given input.
    *
-   * @throws CannotProvideCoderException if none can be inferred.
-   *
    * <p>By default, always throws.
+   *
+   * @throws CannotProvideCoderException if none can be inferred.
    */
   protected Coder<?> getDefaultOutputCoder(@SuppressWarnings("unused") InputT input)
       throws CannotProvideCoderException {
@@ -289,9 +288,9 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * Returns the default {@code Coder} to use for the given output of
    * this single-output {@code PTransform} when applied to the given input.
    *
-   * @throws CannotProvideCoderException if none can be inferred.
-   *
    * <p>By default, always throws.
+   *
+   * @throws CannotProvideCoderException if none can be inferred.
    */
   public <T> Coder<T> getDefaultOutputCoder(
       InputT input, @SuppressWarnings("unused") TypedPValue<T> output)

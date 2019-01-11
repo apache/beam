@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.util;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -25,13 +27,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.options.GcsOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
-
+import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpRequest;
@@ -55,19 +54,13 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.common.collect.ImmutableList;
-
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
-
+import com.google.common.collect.Lists;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.file.AccessDeniedException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -76,6 +69,16 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 /** Test case for {@link GcsUtil}. */
 @RunWith(JUnit4.class)
@@ -305,7 +308,7 @@ public class GcsUtilTest {
     GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/accessdeniedfile");
     GoogleJsonResponseException expectedException =
         googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
-            "Waves hand mysteriously", "These aren't the buckets your looking for");
+            "Waves hand mysteriously", "These aren't the buckets you're looking for");
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get(pattern.getBucket(), pattern.getObject())).thenReturn(
@@ -318,7 +321,7 @@ public class GcsUtilTest {
   }
 
   @Test
-  public void testGetSizeBytes() throws Exception {
+  public void testFileSizeNonBatch() throws Exception {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
@@ -331,19 +334,19 @@ public class GcsUtilTest {
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket", "testobject")).thenReturn(mockStorageGet);
     when(mockStorageGet.execute()).thenReturn(
-        new StorageObject().setSize(BigInteger.valueOf(1000)));
+            new StorageObject().setSize(BigInteger.valueOf(1000)));
 
     assertEquals(1000, gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject")));
   }
 
   @Test
-  public void testGetSizeBytesWhenFileNotFound() throws Exception {
+  public void testFileSizeWhenFileNotFoundNonBatch() throws Exception {
     MockLowLevelHttpResponse notFoundResponse = new MockLowLevelHttpResponse();
     notFoundResponse.setContent("");
     notFoundResponse.setStatusCode(HttpStatusCodes.STATUS_CODE_NOT_FOUND);
 
     MockHttpTransport mockTransport =
-        new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
+            new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
 
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
@@ -355,7 +358,7 @@ public class GcsUtilTest {
   }
 
   @Test
-  public void testRetryFileSize() throws IOException {
+  public void testRetryFileSizeNonBatch() throws IOException {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
@@ -365,22 +368,104 @@ public class GcsUtilTest {
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Get mockStorageGet = Mockito.mock(Storage.Objects.Get.class);
 
-    BackOff mockBackOff = new AttemptBoundedExponentialBackOff(3, 200);
+    BackOff mockBackOff = FluentBackoff.DEFAULT.withMaxRetries(2).backoff();
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket", "testobject")).thenReturn(mockStorageGet);
     when(mockStorageGet.execute())
-        .thenThrow(new SocketTimeoutException("SocketException"))
-        .thenThrow(new SocketTimeoutException("SocketException"))
-        .thenReturn(new StorageObject().setSize(BigInteger.valueOf(1000)));
+            .thenThrow(new SocketTimeoutException("SocketException"))
+            .thenThrow(new SocketTimeoutException("SocketException"))
+            .thenReturn(new StorageObject().setSize(BigInteger.valueOf(1000)));
 
     assertEquals(1000, gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject"),
-        mockBackOff, new FastNanoClockAndSleeper()));
-    assertEquals(mockBackOff.nextBackOffMillis(), BackOff.STOP);
+            mockBackOff, new FastNanoClockAndSleeper()));
+    assertEquals(BackOff.STOP, mockBackOff.nextBackOffMillis());
   }
 
   @Test
-  public void testBucketExists() throws IOException {
+  public void testGetSizeBytesWhenFileNotFoundBatch() throws Exception {
+    JsonFactory jsonFactory = new JacksonFactory();
+
+    String contentBoundary = "batch_foobarbaz";
+
+    GenericJson error = new GenericJson()
+        .set("error", new GenericJson().set("code", 404));
+    error.setFactory(jsonFactory);
+
+    String content = contentBoundary + "\n"
+        + "Content-Type: application/http\n"
+        + "\n"
+        + "HTTP/1.1 404 Not Found\n"
+        + "Content-Length: 105\n"
+        + "\n"
+        + error.toString();
+    thrown.expect(FileNotFoundException.class);
+    MockLowLevelHttpResponse notFoundResponse = new MockLowLevelHttpResponse()
+        .setContentType("multipart/mixed; boundary=" + contentBoundary)
+        .setContent(content)
+        .setStatusCode(HttpStatusCodes.STATUS_CODE_OK);
+
+    MockHttpTransport mockTransport =
+        new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
+
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    gcsUtil.setStorageClient(new Storage(mockTransport, Transport.getJsonFactory(), null));
+    gcsUtil.fileSizes(ImmutableList.of(GcsPath.fromComponents("testbucket", "testobject")));
+  }
+
+  @Test
+  public void testCreateBucket() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Buckets.Insert mockStorageInsert = Mockito.mock(Storage.Buckets.Insert.class);
+
+    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+
+    when(mockStorage.buckets()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.insert(
+           any(String.class), any(Bucket.class))).thenReturn(mockStorageInsert);
+    when(mockStorageInsert.execute())
+        .thenThrow(new SocketTimeoutException("SocketException"))
+        .thenReturn(new Bucket());
+
+    gcsUtil.createBucket("a", new Bucket(), mockBackOff, new FastNanoClockAndSleeper());
+  }
+
+  @Test
+  public void testCreateBucketAccessErrors() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
+    Storage.Buckets.Insert mockStorageInsert = Mockito.mock(Storage.Buckets.Insert.class);
+
+    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+    GoogleJsonResponseException expectedException =
+        googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
+            "Waves hand mysteriously", "These aren't the buckets you're looking for");
+
+    when(mockStorage.buckets()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.insert(
+           any(String.class), any(Bucket.class))).thenReturn(mockStorageInsert);
+    when(mockStorageInsert.execute())
+        .thenThrow(expectedException);
+
+    thrown.expect(AccessDeniedException.class);
+
+    gcsUtil.createBucket("a", new Bucket(), mockBackOff, new FastNanoClockAndSleeper());
+  }
+
+  @Test
+  public void testBucketAccessible() throws IOException {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
@@ -390,7 +475,7 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = new AttemptBoundedExponentialBackOff(3, 200);
+    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
@@ -398,7 +483,7 @@ public class GcsUtilTest {
         .thenThrow(new SocketTimeoutException("SocketException"))
         .thenReturn(new Bucket());
 
-    assertTrue(gcsUtil.bucketExists(GcsPath.fromComponents("testbucket", "testobject"),
+    assertTrue(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject"),
         mockBackOff, new FastNanoClockAndSleeper()));
   }
 
@@ -413,17 +498,17 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = new AttemptBoundedExponentialBackOff(3, 200);
+    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
     GoogleJsonResponseException expectedException =
         googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
-            "Waves hand mysteriously", "These aren't the buckets your looking for");
+            "Waves hand mysteriously", "These aren't the buckets you're looking for");
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
     when(mockStorageGet.execute())
         .thenThrow(expectedException);
 
-    assertFalse(gcsUtil.bucketExists(GcsPath.fromComponents("testbucket", "testobject"),
+    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject"),
         mockBackOff, new FastNanoClockAndSleeper()));
   }
 
@@ -438,7 +523,7 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = new AttemptBoundedExponentialBackOff(3, 200);
+    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
@@ -446,8 +531,56 @@ public class GcsUtilTest {
         .thenThrow(googleJsonResponseException(HttpStatusCodes.STATUS_CODE_NOT_FOUND,
             "It don't exist", "Nothing here to see"));
 
-    assertFalse(gcsUtil.bucketExists(GcsPath.fromComponents("testbucket", "testobject"),
+    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject"),
         mockBackOff, new FastNanoClockAndSleeper()));
+  }
+
+  @Test
+  public void testGetBucket() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
+    Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
+
+    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+
+    when(mockStorage.buckets()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
+    when(mockStorageGet.execute())
+        .thenThrow(new SocketTimeoutException("SocketException"))
+        .thenReturn(new Bucket());
+
+    assertNotNull(gcsUtil.getBucket(GcsPath.fromComponents("testbucket", "testobject"),
+        mockBackOff, new FastNanoClockAndSleeper()));
+  }
+
+  @Test
+  public void testGetBucketNotExists() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
+    Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
+
+    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+
+    when(mockStorage.buckets()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
+    when(mockStorageGet.execute())
+        .thenThrow(googleJsonResponseException(HttpStatusCodes.STATUS_CODE_NOT_FOUND,
+            "It don't exist", "Nothing here to see"));
+
+    thrown.expect(FileNotFoundException.class);
+    thrown.expectMessage("It don't exist");
+    gcsUtil.getBucket(GcsPath.fromComponents("testbucket", "testobject"),
+                      mockBackOff, new FastNanoClockAndSleeper());
   }
 
   @Test
@@ -489,5 +622,105 @@ public class GcsUtilTest {
     request.setThrowExceptionOnExecuteError(false);
     HttpResponse response = request.execute();
     return GoogleJsonResponseException.from(jsonFactory, response);
+  }
+
+  private static List<String> makeStrings(String s, int n) {
+    ImmutableList.Builder<String> ret = ImmutableList.builder();
+    for (int i = 0; i < n; ++i) {
+      ret.add(String.format("gs://bucket/%s%d", s, i));
+    }
+    return ret.build();
+  }
+
+  private static List<GcsPath> makeGcsPaths(String s, int n) {
+    ImmutableList.Builder<GcsPath> ret = ImmutableList.builder();
+    for (int i = 0; i < n; ++i) {
+      ret.add(GcsPath.fromUri(String.format("gs://bucket/%s%d", s, i)));
+    }
+    return ret.build();
+  }
+
+  private static int sumBatchSizes(List<BatchRequest> batches) {
+    int ret = 0;
+    for (BatchRequest b : batches) {
+      ret += b.size();
+      assertThat(b.size(), greaterThan(0));
+    }
+    return ret;
+  }
+
+  @Test
+  public void testMakeCopyBatches() throws IOException {
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    // Small number of files fits in 1 batch
+    List<BatchRequest> batches = gcsUtil.makeCopyBatches(makeStrings("s", 3), makeStrings("d", 3));
+    assertThat(batches.size(), equalTo(1));
+    assertThat(sumBatchSizes(batches), equalTo(3));
+
+    // 1 batch of files fits in 1 batch
+    batches = gcsUtil.makeCopyBatches(makeStrings("s", 100), makeStrings("d", 100));
+    assertThat(batches.size(), equalTo(1));
+    assertThat(sumBatchSizes(batches), equalTo(100));
+
+    // A little more than 5 batches of files fits in 6 batches
+    batches = gcsUtil.makeCopyBatches(makeStrings("s", 501), makeStrings("d", 501));
+    assertThat(batches.size(), equalTo(6));
+    assertThat(sumBatchSizes(batches), equalTo(501));
+  }
+
+  @Test
+  public void testInvalidCopyBatches() throws IOException {
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Number of source files 3");
+
+    gcsUtil.makeCopyBatches(makeStrings("s", 3), makeStrings("d", 1));
+  }
+
+  @Test
+  public void testMakeRemoveBatches() throws IOException {
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    // Small number of files fits in 1 batch
+    List<BatchRequest> batches = gcsUtil.makeRemoveBatches(makeStrings("s", 3));
+    assertThat(batches.size(), equalTo(1));
+    assertThat(sumBatchSizes(batches), equalTo(3));
+
+    // 1 batch of files fits in 1 batch
+    batches = gcsUtil.makeRemoveBatches(makeStrings("s", 100));
+    assertThat(batches.size(), equalTo(1));
+    assertThat(sumBatchSizes(batches), equalTo(100));
+
+    // A little more than 5 batches of files fits in 6 batches
+    batches = gcsUtil.makeRemoveBatches(makeStrings("s", 501));
+    assertThat(batches.size(), equalTo(6));
+    assertThat(sumBatchSizes(batches), equalTo(501));
+  }
+
+  @Test
+  public void testMakeGetBatches() throws IOException {
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    // Small number of files fits in 1 batch
+    List<long[]> results = Lists.newArrayList();
+    List<BatchRequest> batches = gcsUtil.makeGetBatches(makeGcsPaths("s", 3), results);
+    assertThat(batches.size(), equalTo(1));
+    assertThat(sumBatchSizes(batches), equalTo(3));
+    assertEquals(3, results.size());
+
+    // 1 batch of files fits in 1 batch
+    results = Lists.newArrayList();
+    batches = gcsUtil.makeGetBatches(makeGcsPaths("s", 100), results);
+    assertThat(batches.size(), equalTo(1));
+    assertThat(sumBatchSizes(batches), equalTo(100));
+    assertEquals(100, results.size());
+
+    // A little more than 5 batches of files fits in 6 batches
+    results = Lists.newArrayList();
+    batches = gcsUtil.makeGetBatches(makeGcsPaths("s", 501), results);
+    assertThat(batches.size(), equalTo(6));
+    assertThat(sumBatchSizes(batches), equalTo(501));
+    assertEquals(501, results.size());
   }
 }

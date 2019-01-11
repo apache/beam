@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -30,9 +32,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * A {@link PTransform} that performs a {@link CoGroupByKey} on a tuple
  * of tables.  A {@link CoGroupByKey} groups results from all
@@ -44,7 +43,7 @@ import java.util.List;
  * <p>Example of performing a {@link CoGroupByKey} followed by a
  * {@link ParDo} that consumes
  * the results:
- * <pre> {@code
+ * <pre>{@code
  * PCollection<KV<K, V1>> pt1 = ...;
  * PCollection<KV<K, V2>> pt2 = ...;
  *
@@ -58,7 +57,7 @@ import java.util.List;
  * PCollection<T> finalResultCollection =
  *   coGbkResultCollection.apply(ParDo.of(
  *     new DoFn<KV<K, CoGbkResult>, T>() {
- *       @Override
+ *       {@literal @}ProcessElement
  *       public void processElement(ProcessContext c) {
  *         KV<K, CoGbkResult> e = c.element();
  *         Iterable<V1> pt1Vals = e.getValue().getAll(t1);
@@ -67,7 +66,7 @@ import java.util.List;
  *         c.output(...some T...);
  *       }
  *     }));
- * } </pre>
+ * }</pre>
  *
  * @param <K> the type of the keys in the input and output
  * {@code PCollection}s
@@ -88,7 +87,7 @@ public class CoGroupByKey<K> extends
   private CoGroupByKey() { }
 
   @Override
-  public PCollection<KV<K, CoGbkResult>> apply(
+  public PCollection<KV<K, CoGbkResult>> expand(
       KeyedPCollectionTuple<K> input) {
     if (input.isEmpty()) {
       throw new IllegalArgumentException(
@@ -180,7 +179,7 @@ public class CoGroupByKey<K> extends
       this.index = index;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       KV<K, ?> e = c.element();
       c.output(KV.of(e.getKey(), new RawUnionValue(index, e.getValue())));
@@ -193,7 +192,7 @@ public class CoGroupByKey<K> extends
     */
   private static class ConstructCoGbkResultFn<K>
     extends DoFn<KV<K, Iterable<RawUnionValue>>,
-                 KV<K, CoGbkResult>> {
+                     KV<K, CoGbkResult>> {
 
     private final CoGbkResultSchema schema;
 
@@ -201,7 +200,7 @@ public class CoGroupByKey<K> extends
       this.schema = schema;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       KV<K, Iterable<RawUnionValue>> e = c.element();
       c.output(KV.of(e.getKey(), new CoGbkResult(schema, e.getValue())));

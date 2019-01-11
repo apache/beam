@@ -17,6 +17,11 @@
  */
 package org.apache.beam.examples.complete;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.io.IOException;
+import java.util.ArrayList;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -31,22 +36,15 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-
-import java.io.IOException;
-import java.util.ArrayList;
-
 /**
- * A streaming Dataflow Example using BigQuery output.
+ * A streaming Beam Example using BigQuery output.
  *
  * <p>This pipeline example reads lines of the input text file, splits each line
  * into individual words, capitalizes those words, and writes the output to
  * a BigQuery table.
  *
  * <p>The example is configured to use the default BigQuery table from the example common package
- * (there are no defaults for a general Dataflow pipeline).
+ * (there are no defaults for a general Beam pipeline).
  * You can override them by using the {@literal --bigQueryDataset}, and {@literal --bigQueryTable}
  * options. If the BigQuery table do not exist, the example will try to create them.
  *
@@ -55,9 +53,9 @@ import java.util.ArrayList;
  */
 public class StreamingWordExtract {
 
-  /** A DoFn that tokenizes lines of text into individual words. */
+  /** A {@link DoFn} that tokenizes lines of text into individual words. */
   static class ExtractWords extends DoFn<String, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String[] words = c.element().split("[^a-zA-Z']+");
       for (String word : words) {
@@ -68,9 +66,9 @@ public class StreamingWordExtract {
     }
   }
 
-  /** A DoFn that uppercases a word. */
+  /** A {@link DoFn} that uppercases a word. */
   static class Uppercase extends DoFn<String, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().toUpperCase());
     }
@@ -83,7 +81,7 @@ public class StreamingWordExtract {
     /**
      * In this example, put the whole string into single BigQuery field.
      */
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new TableRow().set("string_field", c.element()));
     }
@@ -106,7 +104,7 @@ public class StreamingWordExtract {
   private interface StreamingWordExtractOptions
       extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Path of the file to read from")
-    @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
+    @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
     String getInputFile();
     void setInputFile(String value);
   }
@@ -143,7 +141,7 @@ public class StreamingWordExtract {
 
     PipelineResult result = pipeline.run();
 
-    // dataflowUtils will try to cancel the pipeline before the program exists.
+    // ExampleUtils will try to cancel the pipeline before the program exists.
     exampleUtils.waitToFinish(result);
   }
 }

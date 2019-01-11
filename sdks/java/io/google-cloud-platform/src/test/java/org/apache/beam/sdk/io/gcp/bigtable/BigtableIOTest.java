@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Verify.verifyNotNull;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
@@ -25,29 +28,15 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Verify.verifyNotNull;
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
-
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
-import org.apache.beam.sdk.io.range.ByteKey;
-import org.apache.beam.sdk.io.range.ByteKeyRange;
-import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -60,23 +49,17 @@ import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
+import com.google.cloud.bigtable.config.CredentialOptions;
+import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
-
-import org.hamcrest.Matchers;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -86,10 +69,37 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.io.range.ByteKey;
+import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.util.TestCredential;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.hamcrest.Matchers;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Unit tests for {@link BigtableIO}.
@@ -105,6 +115,13 @@ public class BigtableIOTest {
    * otherwise.
    */
   private static FakeBigtableService service;
+  private static SerializableFunction<PipelineOptions, BigtableService> serviceFactory =
+      new SerializableFunction<PipelineOptions, BigtableService>() {
+        @Override
+        public BigtableService apply(PipelineOptions input) {
+          return service;
+        }
+  };
   private static final BigtableOptions BIGTABLE_OPTIONS =
       new BigtableOptions.Builder()
           .setProjectId("project")
@@ -197,6 +214,50 @@ public class BigtableIOTest {
     return KV.of(ByteString.copyFromUtf8(key), mutations);
   }
 
+  /** Tests that credentials are used from PipelineOptions if not supplied by BigtableOptions. */
+  @Test
+  public void testUsePipelineOptionsCredentialsIfNotSpecifiedInBigtableOptions() throws Exception {
+    BigtableOptions options = BIGTABLE_OPTIONS.toBuilder()
+        .setCredentialOptions(CredentialOptions.defaultCredentials())
+        .build();
+    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
+    pipelineOptions.setGcpCredential(new TestCredential());
+    BigtableService readService = BigtableIO.read()
+        .withBigtableOptions(options)
+        .withTableId("TEST-TABLE")
+        .getBigtableService(pipelineOptions);
+    BigtableService writeService = BigtableIO.write()
+        .withBigtableOptions(options)
+        .withTableId("TEST-TABLE")
+        .getBigtableService(pipelineOptions);
+    assertEquals(CredentialType.SuppliedCredentials,
+        readService.getBigtableOptions().getCredentialOptions().getCredentialType());
+    assertEquals(CredentialType.SuppliedCredentials,
+        writeService.getBigtableOptions().getCredentialOptions().getCredentialType());
+  }
+
+  /** Tests that credentials are not used from PipelineOptions if supplied by BigtableOptions. */
+  @Test
+  public void testDontUsePipelineOptionsCredentialsIfSpecifiedInBigtableOptions() throws Exception {
+    BigtableOptions options = BIGTABLE_OPTIONS.toBuilder()
+        .setCredentialOptions(CredentialOptions.nullCredential())
+        .build();
+    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
+    pipelineOptions.setGcpCredential(new TestCredential());
+    BigtableService readService = BigtableIO.read()
+        .withBigtableOptions(options)
+        .withTableId("TEST-TABLE")
+        .getBigtableService(pipelineOptions);
+    BigtableService writeService = BigtableIO.write()
+        .withBigtableOptions(options)
+        .withTableId("TEST-TABLE")
+        .getBigtableService(pipelineOptions);
+    assertEquals(CredentialType.None,
+        readService.getBigtableOptions().getCredentialOptions().getCredentialType());
+    assertEquals(CredentialType.None,
+        writeService.getBigtableOptions().getCredentialOptions().getCredentialType());
+  }
+
   /** Tests that when reading from a non-existent table, the read fails. */
   @Test
   public void testReadingFailsTableDoesNotExist() throws Exception {
@@ -220,13 +281,10 @@ public class BigtableIOTest {
   public void testReadingEmptyTable() throws Exception {
     final String table = "TEST-EMPTY-TABLE";
     service.createTable(table);
+    service.setupSampleRowKeys(table, 1, 1L);
 
-    TestPipeline p = TestPipeline.create();
-    PCollection<Row> rows = p.apply(defaultRead.withTableId(table));
-    PAssert.that(rows).empty();
-
-    p.run();
-    logged.verifyInfo(String.format("Closing reader after reading 0 records."));
+    runReadTest(defaultRead.withTableId(table), new ArrayList<Row>());
+    logged.verifyInfo("Closing reader after reading 0 records.");
   }
 
   /** Tests reading all rows from a table. */
@@ -236,12 +294,9 @@ public class BigtableIOTest {
     final int numRows = 1001;
     List<Row> testRows = makeTableData(table, numRows);
 
-    TestPipeline p = TestPipeline.create();
-    PCollection<Row> rows = p.apply(defaultRead.withTableId(table));
-    PAssert.that(rows).containsInAnyOrder(testRows);
-
-    p.run();
-    logged.verifyInfo(String.format("Closing reader after reading %d records.", numRows));
+    service.setupSampleRowKeys(table, 3, 1000L);
+    runReadTest(defaultRead.withTableId(table), testRows);
+    logged.verifyInfo(String.format("Closing reader after reading %d records.", numRows / 3));
   }
 
   /** A {@link Predicate} that a {@link Row Row's} key matches the given regex. */
@@ -257,6 +312,69 @@ public class BigtableIOTest {
       verifyNotNull(input, "input");
       return input.toStringUtf8().matches(regex);
     }
+  }
+
+  private static List<Row> filterToRange(List<Row> rows, final ByteKeyRange range) {
+    return Lists.newArrayList(Iterables.filter(
+        rows,
+        new Predicate<Row>() {
+          @Override
+          public boolean apply(@Nullable Row input) {
+            verifyNotNull(input, "input");
+            return range.containsKey(ByteKey.of(input.getKey()));
+          }
+        }));
+  }
+
+  private static void runReadTest(BigtableIO.Read read, List<Row> expected) {
+    TestPipeline p = TestPipeline.create();
+    PCollection<Row> rows = p.apply(read);
+    PAssert.that(rows).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  /**
+   * Tests reading all rows using key ranges. Tests a prefix [), a suffix (], and a restricted
+   * range [] and that some properties hold across them.
+   */
+  @Test
+  public void testReadingWithKeyRange() throws Exception {
+    final String table = "TEST-KEY-RANGE-TABLE";
+    final int numRows = 1001;
+    List<Row> testRows = makeTableData(table, numRows);
+    ByteKey startKey = ByteKey.copyFrom("key000000100".getBytes());
+    ByteKey endKey = ByteKey.copyFrom("key000000300".getBytes());
+
+    service.setupSampleRowKeys(table, numRows / 10, "key000000100".length());
+    // Test prefix: [beginning, startKey).
+    final ByteKeyRange prefixRange = ByteKeyRange.ALL_KEYS.withEndKey(startKey);
+    List<Row> prefixRows = filterToRange(testRows, prefixRange);
+    runReadTest(defaultRead.withTableId(table).withKeyRange(prefixRange), prefixRows);
+
+    // Test suffix: [startKey, end).
+    final ByteKeyRange suffixRange = ByteKeyRange.ALL_KEYS.withStartKey(startKey);
+    List<Row> suffixRows = filterToRange(testRows, suffixRange);
+    runReadTest(defaultRead.withTableId(table).withKeyRange(suffixRange), suffixRows);
+
+    // Test restricted range: [startKey, endKey).
+    final ByteKeyRange middleRange = ByteKeyRange.of(startKey, endKey);
+    List<Row> middleRows = filterToRange(testRows, middleRange);
+    runReadTest(defaultRead.withTableId(table).withKeyRange(middleRange), middleRows);
+
+    //////// Size and content sanity checks //////////
+
+    // Prefix, suffix, middle should be non-trivial (non-zero,non-all).
+    assertThat(prefixRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
+    assertThat(suffixRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
+    assertThat(middleRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
+
+    // Prefix + suffix should be exactly all rows.
+    List<Row> union = Lists.newArrayList(prefixRows);
+    union.addAll(suffixRows);
+    assertThat("prefix + suffix = total", union, containsInAnyOrder(testRows.toArray(new Row[]{})));
+
+    // Suffix should contain the middle.
+    assertThat(suffixRows, hasItems(middleRows.toArray(new Row[]{})));
   }
 
   /** Tests reading all rows using a filter. */
@@ -280,12 +398,10 @@ public class BigtableIOTest {
 
     RowFilter filter =
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(regex)).build();
+    service.setupSampleRowKeys(table, 5, 10L);
 
-    TestPipeline p = TestPipeline.create();
-    PCollection<Row> rows = p.apply(defaultRead.withTableId(table).withRowFilter(filter));
-    PAssert.that(rows).containsInAnyOrder(filteredRows);
-
-    p.run();
+    runReadTest(
+        defaultRead.withTableId(table).withRowFilter(filter), Lists.newArrayList(filteredRows));
   }
 
   /**
@@ -301,7 +417,7 @@ public class BigtableIOTest {
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
     BigtableSource source =
-        new BigtableSource(service, table, null, service.getTableRange(table), null);
+        new BigtableSource(serviceFactory, table, null, service.getTableRange(table), null);
     assertSplitAtFractionExhaustive(source, null);
   }
 
@@ -318,7 +434,7 @@ public class BigtableIOTest {
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
     BigtableSource source =
-        new BigtableSource(service, table, null, service.getTableRange(table), null);
+        new BigtableSource(serviceFactory, table, null, service.getTableRange(table), null);
     // With 0 items read, all split requests will fail.
     assertSplitAtFractionFails(source, 0, 0.1, null /* options */);
     assertSplitAtFractionFails(source, 0, 1.0, null /* options */);
@@ -348,7 +464,11 @@ public class BigtableIOTest {
 
     // Generate source and split it.
     BigtableSource source =
-        new BigtableSource(service, table, null /*filter*/, ByteKeyRange.ALL_KEYS, null /*size*/);
+        new BigtableSource(serviceFactory,
+            table,
+            null /*filter*/,
+            ByteKeyRange.ALL_KEYS,
+            null /*size*/);
     List<BigtableSource> splits =
         source.splitIntoBundles(numRows * bytesPerRow / numSamples, null /* options */);
 
@@ -372,7 +492,11 @@ public class BigtableIOTest {
 
     // Generate source and split it.
     BigtableSource source =
-        new BigtableSource(service, table, null /*filter*/, ByteKeyRange.ALL_KEYS, null /*size*/);
+        new BigtableSource(serviceFactory,
+        table,
+        null /*filter*/,
+        ByteKeyRange.ALL_KEYS,
+        null /*size*/);
     List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
@@ -397,7 +521,7 @@ public class BigtableIOTest {
     RowFilter filter =
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(".*17.*")).build();
     BigtableSource source =
-        new BigtableSource(service, table, filter, ByteKeyRange.ALL_KEYS, null /*size*/);
+        new BigtableSource(serviceFactory, table, filter, ByteKeyRange.ALL_KEYS, null /*size*/);
     List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
@@ -411,10 +535,12 @@ public class BigtableIOTest {
         .setRowKeyRegexFilter(ByteString.copyFromUtf8("foo.*"))
         .build();
 
+    ByteKeyRange keyRange = ByteKeyRange.ALL_KEYS.withEndKey(ByteKey.of(0xab, 0xcd));
     BigtableIO.Read read = BigtableIO.read()
         .withBigtableOptions(BIGTABLE_OPTIONS)
         .withTableId("fooTable")
-        .withRowFilter(rowFilter);
+        .withRowFilter(rowFilter)
+        .withKeyRange(keyRange);
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -422,10 +548,36 @@ public class BigtableIOTest {
         hasKey("tableId"),
         hasLabel("Table ID"),
         hasValue("fooTable"))));
+
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
+
+    assertThat(displayData, hasDisplayItem("keyRange", keyRange.toString()));
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
     assertThat(displayData, hasDisplayItem("bigtableOptions"));
+  }
+
+  @Test
+  public void testReadingPrimitiveDisplayData() throws IOException, InterruptedException {
+    final String table = "fooTable";
+    service.createTable(table);
+
+    RowFilter rowFilter = RowFilter.newBuilder()
+        .setRowKeyRegexFilter(ByteString.copyFromUtf8("foo.*"))
+        .build();
+
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    BigtableIO.Read read = BigtableIO.read()
+        .withBigtableOptions(BIGTABLE_OPTIONS)
+        .withTableId(table)
+        .withRowFilter(rowFilter)
+        .withBigtableService(service);
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
+    assertThat("BigtableIO.Read should include the table id in its primitive display data",
+        displayData, Matchers.hasItem(hasDisplayItem("tableId")));
+    assertThat("BigtableIO.Read should include the row filter, if it exists, in its primitive "
+        + "display data", displayData, Matchers.hasItem(hasDisplayItem("rowFilter")));
   }
 
   /** Tests that a record gets written to the service and messages are logged. */
@@ -503,7 +655,7 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
 
     BigtableSource source =
-        new BigtableSource(service, table, null, ByteKeyRange.ALL_KEYS, null);
+        new BigtableSource(serviceFactory, table, null, ByteKeyRange.ALL_KEYS, null);
 
     BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
 
@@ -625,6 +777,11 @@ public class BigtableIOTest {
     private final Map<String, SortedMap<ByteString, ByteString>> tables = new HashMap<>();
     private final Map<String, List<SampleRowKeysResponse>> sampleRowKeys = new HashMap<>();
 
+    @Override
+    public BigtableOptions getBigtableOptions() {
+      return null;
+    }
+
     @Nullable
     public SortedMap<ByteString, ByteString> getTable(String tableId) {
       return tables.get(tableId);
@@ -662,7 +819,7 @@ public class BigtableIOTest {
     @Override
     public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) {
       List<SampleRowKeysResponse> samples = sampleRowKeys.get(source.getTableId());
-      checkArgument(samples != null, "No samples found for table %s", source.getTableId());
+      checkNotNull(samples, "No samples found for table %s", source.getTableId());
       return samples;
     }
 
@@ -800,6 +957,9 @@ public class BigtableIOTest {
       }
       return Futures.immediateFuture(MutateRowResponse.getDefaultInstance());
     }
+
+    @Override
+    public void flush() {}
 
     @Override
     public void close() {}

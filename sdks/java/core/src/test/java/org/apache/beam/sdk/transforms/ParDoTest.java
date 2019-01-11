@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -35,40 +35,10 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.testing.NeedsRunner;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
-import org.apache.beam.sdk.transforms.ParDo.Bound;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
-import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
-
-import org.joda.time.Duration;
-import org.joda.time.Instant;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -77,6 +47,56 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
+import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.transforms.DoFn.OnTimer;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.ParDo.Bound;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.Timer;
+import org.apache.beam.sdk.util.TimerSpec;
+import org.apache.beam.sdk.util.TimerSpecs;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.util.state.StateSpecs;
+import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.joda.time.MutableDateTime;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Tests for ParDo.
@@ -89,17 +109,23 @@ public class ParDoTest implements Serializable {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
-  private static class PrintingDoFn extends DoFn<String, String> implements RequiresWindowAccess {
-    @Override
-    public void processElement(ProcessContext c) {
+  private static class PrintingDoFn extends DoFn<String, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
       c.output(c.element() + ":" + c.timestamp().getMillis()
-          + ":" + c.window().maxTimestamp().getMillis());
+          + ":" + window.maxTimestamp().getMillis());
     }
+  }
+  static class TestNoOutputDoFn extends DoFn<Integer, String> {
+    @ProcessElement
+    public void processElement(DoFn<Integer, String>.ProcessContext c) throws Exception {}
   }
 
   static class TestDoFn extends DoFn<Integer, String> {
-    enum State { UNSTARTED, STARTED, PROCESSING, FINISHED }
-    State state = State.UNSTARTED;
+    enum State {NOT_SET_UP, UNSTARTED, STARTED, PROCESSING, FINISHED}
+
+
+    State state = State.NOT_SET_UP;
 
     final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
     final List<TupleTag<String>> sideOutputTupleTags = new ArrayList<>();
@@ -113,78 +139,17 @@ public class ParDoTest implements Serializable {
       this.sideOutputTupleTags.addAll(sideOutputTupleTags);
     }
 
-    @Override
-    public void startBundle(Context c) {
-      // The Fn can be reused, but only if FinishBundle has been called.
-      assertThat(state, anyOf(equalTo(State.UNSTARTED), equalTo(State.FINISHED)));
-      state = State.STARTED;
-      outputToAll(c, "started");
-    }
-
-    @Override
-    public void processElement(ProcessContext c) {
-      assertThat(state,
-                 anyOf(equalTo(State.STARTED), equalTo(State.PROCESSING)));
-      state = State.PROCESSING;
-      outputToAllWithSideInputs(c, "processing: " + c.element());
-    }
-
-    @Override
-    public void finishBundle(Context c) {
-      assertThat(state,
-                 anyOf(equalTo(State.STARTED), equalTo(State.PROCESSING)));
-      state = State.FINISHED;
-      outputToAll(c, "finished");
-    }
-
-    private void outputToAll(Context c, String value) {
-      c.output(value);
-      for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
-        c.sideOutput(sideOutputTupleTag,
-                     sideOutputTupleTag.getId() + ": " + value);
-      }
-    }
-
-    private void outputToAllWithSideInputs(ProcessContext c, String value) {
-      if (!sideInputViews.isEmpty()) {
-        List<Integer> sideInputValues = new ArrayList<>();
-        for (PCollectionView<Integer> sideInputView : sideInputViews) {
-          sideInputValues.add(c.sideInput(sideInputView));
-        }
-        value += ": " + sideInputValues;
-      }
-      c.output(value);
-      for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
-        c.sideOutput(sideOutputTupleTag,
-                     sideOutputTupleTag.getId() + ": " + value);
-      }
-    }
-  }
-
-  static class TestNoOutputDoFn extends DoFn<Integer, String> {
-    @Override
-    public void processElement(DoFn<Integer, String>.ProcessContext c) throws Exception {}
-  }
-
-  static class TestDoFnWithContext extends DoFnWithContext<Integer, String> {
-    enum State { UNSTARTED, STARTED, PROCESSING, FINISHED }
-    State state = State.UNSTARTED;
-
-    final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
-    final List<TupleTag<String>> sideOutputTupleTags = new ArrayList<>();
-
-    public TestDoFnWithContext() {
-    }
-
-    public TestDoFnWithContext(List<PCollectionView<Integer>> sideInputViews,
-                    List<TupleTag<String>> sideOutputTupleTags) {
-      this.sideInputViews.addAll(sideInputViews);
-      this.sideOutputTupleTags.addAll(sideOutputTupleTags);
+    @Setup
+    public void prepare() {
+      assertEquals(State.NOT_SET_UP, state);
+      state = State.UNSTARTED;
     }
 
     @StartBundle
     public void startBundle(Context c) {
-      assertEquals(State.UNSTARTED, state);
+      assertThat(state,
+          anyOf(equalTo(State.UNSTARTED), equalTo(State.FINISHED)));
+
       state = State.STARTED;
       outputToAll(c, "started");
     }
@@ -230,44 +195,44 @@ public class ParDoTest implements Serializable {
   }
 
   static class TestStartBatchErrorDoFn extends DoFn<Integer, String> {
-    @Override
+    @StartBundle
     public void startBundle(Context c) {
       throw new RuntimeException("test error in initialize");
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       // This has to be here.
     }
   }
 
   static class TestProcessElementErrorDoFn extends DoFn<Integer, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       throw new RuntimeException("test error in process");
     }
   }
 
   static class TestFinishBatchErrorDoFn extends DoFn<Integer, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       // This has to be here.
     }
 
-    @Override
+    @FinishBundle
     public void finishBundle(Context c) {
       throw new RuntimeException("test error in finalize");
     }
   }
 
   private static class StrangelyNamedDoer extends DoFn<Integer, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
     }
   }
 
   static class TestOutputTimestampDoFn extends DoFn<Integer, Integer> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Integer value = c.element();
       c.outputWithTimestamp(value, new Instant(value.longValue()));
@@ -288,7 +253,7 @@ public class ParDoTest implements Serializable {
     public Duration getAllowedTimestampSkew() {
       return allowedTimestampSkew;
     }
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Instant timestamp = c.timestamp();
       checkNotNull(timestamp);
@@ -298,7 +263,7 @@ public class ParDoTest implements Serializable {
   }
 
   static class TestFormatTimestampDoFn extends DoFn<Integer, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       checkNotNull(c.timestamp());
       c.output("processing: " + c.element() + ", timestamp: " + c.timestamp().getMillis());
@@ -312,7 +277,7 @@ public class ParDoTest implements Serializable {
     private static final TupleTag<Integer> BY3 = new TupleTag<Integer>("by3"){};
 
     @Override
-    public PCollectionTuple apply(PCollection<Integer> input) {
+    public PCollectionTuple expand(PCollection<Integer> input) {
       PCollection<Integer> by2 = input.apply("Filter2s", ParDo.of(new FilterFn(2)));
       PCollection<Integer> by3 = input.apply("Filter3s", ParDo.of(new FilterFn(3)));
       return PCollectionTuple.of(BY2, by2).and(BY3, by3);
@@ -325,7 +290,7 @@ public class ParDoTest implements Serializable {
         this.divisor = divisor;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         if (c.element() % divisor == 0) {
           c.output(c.element());
@@ -360,7 +325,7 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.of(new TestDoFnWithContext()));
+        .apply(ParDo.of(new TestDoFn()));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
@@ -528,7 +493,7 @@ public class ParDoTest implements Serializable {
         .apply(Create.of(inputs))
         .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
             .of(new DoFn<Integer, Void>(){
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.sideOutput(sideOutputTag, c.element());
                 }}));
@@ -570,7 +535,7 @@ public class ParDoTest implements Serializable {
     // Success for a total of 1000 outputs.
     input
         .apply("Success1000", ParDo.of(new DoFn<Integer, String>() {
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) {
               TupleTag<String> specialSideTag = new TupleTag<String>(){};
               c.sideOutput(specialSideTag, "side");
@@ -586,7 +551,7 @@ public class ParDoTest implements Serializable {
     // Failure for a total of 1001 outputs.
     input
         .apply("Failure1001", ParDo.of(new DoFn<Integer, String>() {
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) {
               for (int i = 0; i < 1000; i++) {
                 c.sideOutput(new TupleTag<String>(){}, "side");
@@ -761,6 +726,49 @@ public class ParDoTest implements Serializable {
     pipeline.run();
   }
 
+  private static class FnWithSideInputs extends DoFn<String, String> {
+    private final PCollectionView<Integer> view;
+
+    private FnWithSideInputs(PCollectionView<Integer> view) {
+      this.view = view;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(c.element() + ":" + c.sideInput(view));
+    }
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testSideInputsWithMultipleWindows() {
+    // Tests that the runner can safely run a DoFn that uses side inputs
+    // on an input where the element is in multiple windows. The complication is
+    // that side inputs are per-window, so the runner has to make sure
+    // to process each window individually.
+    Pipeline p = TestPipeline.create();
+
+    MutableDateTime mutableNow = Instant.now().toMutableDateTime();
+    mutableNow.setMillisOfSecond(0);
+    Instant now = mutableNow.toInstant();
+
+    SlidingWindows windowFn =
+        SlidingWindows.of(Duration.standardSeconds(5)).every(Duration.standardSeconds(1));
+    PCollectionView<Integer> view = p.apply(Create.of(1)).apply(View.<Integer>asSingleton());
+    PCollection<String> res =
+        p.apply(Create.timestamped(TimestampedValue.of("a", now)))
+            .apply(Window.<String>into(windowFn))
+            .apply(ParDo.of(new FnWithSideInputs(view)).withSideInputs(view));
+
+    for (int i = 0; i < 4; ++i) {
+      Instant base = now.minus(Duration.standardSeconds(i));
+      IntervalWindow window = new IntervalWindow(base, base.plus(Duration.standardSeconds(5)));
+      PAssert.that(res).inWindow(window).containsInAnyOrder("a:1");
+    }
+
+    p.run();
+  }
+
   @Test
   @Category(NeedsRunner.class)
   public void testParDoWithErrorInStartBatch() {
@@ -807,39 +815,37 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testParDoGetName() {
+  public void testParDoOutputNameBasedOnDoFnWithTrimmedSuffix() {
     Pipeline p = TestPipeline.create();
+    PCollection<String> output = p.apply(Create.of(1)).apply(ParDo.of(new TestDoFn()));
+    assertThat(output.getName(), containsString("ParDo(Test)"));
+  }
 
-    PCollection<Integer> input =
-        p.apply(Create.of(Arrays.asList(3, -42, 666)))
-        .setName("MyInput");
+  @Test
+  public void testParDoOutputNameBasedOnLabel() {
+    Pipeline p = TestPipeline.create();
+    PCollection<String> output =
+        p.apply(Create.of(1)).apply("MyParDo", ParDo.of(new TestDoFn()));
+    assertThat(output.getName(), containsString("MyParDo"));
+  }
 
-    {
-      PCollection<String> output1 = input.apply(ParDo.of(new TestDoFn()));
-      assertEquals("ParDo(Test).out", output1.getName());
-    }
+  @Test
+  public void testParDoOutputNameBasedDoFnWithoutMatchingSuffix() {
+    Pipeline p = TestPipeline.create();
+    PCollection<String> output = p.apply(Create.of(1)).apply(ParDo.of(new StrangelyNamedDoer()));
+    assertThat(output.getName(), containsString("ParDo(StrangelyNamedDoer)"));
+  }
 
-    {
-      PCollection<String> output2 = input.apply("MyParDo", ParDo.of(new TestDoFn()));
-      assertEquals("MyParDo.out", output2.getName());
-    }
+  @Test
+  public void testParDoTransformNameBasedDoFnWithTrimmedSuffix() {
+    assertThat(ParDo.of(new PrintingDoFn()).getName(), containsString("ParDo(Printing)"));
+  }
 
-    {
-      PCollection<String> output4 = input.apply("TestDoFn", ParDo.of(new TestDoFn()));
-      assertEquals("TestDoFn.out", output4.getName());
-    }
-
-    {
-      PCollection<String> output5 = input.apply(ParDo.of(new StrangelyNamedDoer()));
-      assertEquals("ParDo(StrangelyNamedDoer).out",
-          output5.getName());
-    }
-
-    assertEquals("ParDo(Printing)", ParDo.of(new PrintingDoFn()).getName());
-
-    assertEquals(
-        "ParMultiDo(SideOutputDummy)",
-        ParDo.of(new SideOutputDummyFn(null)).withOutputTags(null, null).getName());
+  @Test
+  public void testParDoMultiNameBasedDoFnWithTrimmerSuffix() {
+    assertThat(
+        ParDo.of(new SideOutputDummyFn(null)).withOutputTags(null, null).getName(),
+        containsString("ParMultiDo(SideOutputDummy)"));
   }
 
   @Test
@@ -882,7 +888,7 @@ public class ParDoTest implements Serializable {
         .apply(Create.of(inputs))
         .apply("CustomTransform", new PTransform<PCollection<Integer>, PCollection<String>>() {
             @Override
-            public PCollection<String> apply(PCollection<Integer> input) {
+            public PCollection<String> expand(PCollection<Integer> input) {
               return input.apply(ParDo.of(new TestDoFn()));
             }
           });
@@ -921,7 +927,7 @@ public class ParDoTest implements Serializable {
   public void testJsonEscaping() {
     // Declare an arbitrary function and make sure we can serialize it
     DoFn<Integer, Integer> doFn = new DoFn<Integer, Integer>() {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) {
         c.output(c.element() + 1);
       }
@@ -978,7 +984,8 @@ public class ParDoTest implements Serializable {
     public SideOutputDummyFn(TupleTag<TestDummy> sideTag) {
       this.sideTag = sideTag;
     }
-    @Override
+
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(1);
       c.sideOutput(sideTag, new TestDummy());
@@ -990,7 +997,7 @@ public class ParDoTest implements Serializable {
     public MainOutputDummyFn(TupleTag<Integer> sideTag) {
       this.sideTag = sideTag;
     }
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new TestDummy());
       c.sideOutput(sideTag, 1);
@@ -1168,7 +1175,8 @@ public class ParDoTest implements Serializable {
             .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
             .of(
                 new DoFn<TestDummy, TestDummy>() {
-                  @Override public void processElement(ProcessContext context) {
+                  @ProcessElement
+                  public void processElement(ProcessContext context) {
                     TestDummy element = context.element();
                     context.output(element);
                     context.sideOutput(sideOutputTag, element);
@@ -1182,7 +1190,8 @@ public class ParDoTest implements Serializable {
     tuple.get(mainOutputTag)
         .setCoder(TestDummyCoder.of())
         .apply("Output1", ParDo.of(new DoFn<TestDummy, Integer>() {
-          @Override public void processElement(ProcessContext context) {
+          @ProcessElement
+          public void processElement(ProcessContext context) {
             context.output(1);
           }
         }));
@@ -1229,7 +1238,7 @@ public class ParDoTest implements Serializable {
         input
         .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)).of(
             new DoFn<Integer, Integer>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 c.sideOutputWithTimestamp(
                     sideOutputTag, c.element(), new Instant(c.element().longValue()));
@@ -1346,29 +1355,33 @@ public class ParDoTest implements Serializable {
   public void testWindowingInStartAndFinishBundle() {
     Pipeline pipeline = TestPipeline.create();
 
-    PCollection<String> output = pipeline
-        .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
-        .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
-        .apply(ParDo.of(new DoFn<String, String>() {
-                  @Override
-                  public void startBundle(Context c) {
-                    c.outputWithTimestamp("start", new Instant(2));
-                    System.out.println("Start: 2");
-                  }
+    PCollection<String> output =
+        pipeline
+            .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
+            .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
+            .apply(
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @StartBundle
+                      public void startBundle(Context c) {
+                        c.outputWithTimestamp("start", new Instant(2));
+                        System.out.println("Start: 2");
+                      }
 
-                  @Override
-                  public void processElement(ProcessContext c) {
-                    c.output(c.element());
-                    System.out.println("Process: " + c.element() + ":" + c.timestamp().getMillis());
-                  }
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        c.output(c.element());
+                        System.out.println(
+                            "Process: " + c.element() + ":" + c.timestamp().getMillis());
+                      }
 
-                  @Override
-                  public void finishBundle(Context c) {
-                    c.outputWithTimestamp("finish", new Instant(3));
-                    System.out.println("Finish: 3");
-                  }
-                }))
-        .apply(ParDo.of(new PrintingDoFn()));
+                      @FinishBundle
+                      public void finishBundle(Context c) {
+                        c.outputWithTimestamp("finish", new Instant(3));
+                        System.out.println("Finish: 3");
+                      }
+                    }))
+            .apply(ParDo.of(new PrintingDoFn()));
 
     PAssert.that(output).satisfies(new Checker());
 
@@ -1383,13 +1396,15 @@ public class ParDoTest implements Serializable {
     pipeline
         .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
         .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
-        .apply(ParDo.of(new DoFn<String, String>() {
-                  @Override
+        .apply(
+            ParDo.of(
+                new DoFn<String, String>() {
+                  @StartBundle
                   public void startBundle(Context c) {
                     c.output("start");
                   }
 
-                  @Override
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(c.element());
                   }
@@ -1401,7 +1416,7 @@ public class ParDoTest implements Serializable {
   @Test
   public void testDoFnDisplayData() {
     DoFn<String, String> fn = new DoFn<String, String>() {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) {
       }
 
@@ -1419,12 +1434,12 @@ public class ParDoTest implements Serializable {
         hasType(DisplayData.Type.JAVA_CLASS),
         DisplayDataMatchers.hasValue(fn.getClass().getName()))));
 
-    assertThat(displayData, includesDisplayDataFrom(fn));
+    assertThat(displayData, includesDisplayDataFor("fn", fn));
   }
 
   @Test
   public void testDoFnWithContextDisplayData() {
-    DoFnWithContext<String, String> fn = new DoFnWithContext<String, String>() {
+    DoFn<String, String> fn = new DoFn<String, String>() {
       @ProcessElement
       public void proccessElement(ProcessContext c) {}
 
@@ -1437,13 +1452,222 @@ public class ParDoTest implements Serializable {
     Bound<String, String> parDo = ParDo.of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);
-    assertThat(displayData, includesDisplayDataFrom(fn));
+    assertThat(displayData, includesDisplayDataFor("fn", fn));
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
   }
 
   @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testValueStateSimple() {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<Integer>> intState =
+              StateSpecs.value(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+            Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+            c.output(currentValue);
+            state.write(currentValue + 1);
+          }
+        };
+
+    Pipeline p = TestPipeline.create();
+    PCollection<Integer> output =
+        p.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+            .apply(ParDo.of(fn));
+
+    PAssert.that(output).containsInAnyOrder(0, 1, 2);
+    p.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testValueStateSideOutput() {
+    final String stateId = "foo";
+
+    final TupleTag<Integer> evenTag = new TupleTag<Integer>() {};
+    final TupleTag<Integer> oddTag = new TupleTag<Integer>() {};
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<Integer>> intState =
+              StateSpecs.value(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+            Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+            if (currentValue % 2 == 0) {
+              c.output(currentValue);
+            } else {
+              c.sideOutput(oddTag, currentValue);
+            }
+            state.write(currentValue + 1);
+          }
+        };
+
+    Pipeline p = TestPipeline.create();
+    PCollectionTuple output =
+        p.apply(
+                Create.of(
+                    KV.of("hello", 42),
+                    KV.of("hello", 97),
+                    KV.of("hello", 84),
+                    KV.of("goodbye", 33),
+                    KV.of("hello", 859),
+                    KV.of("goodbye", 83945)))
+            .apply(ParDo.of(fn).withOutputTags(evenTag, TupleTagList.of(oddTag)));
+
+    PCollection<Integer> evens = output.get(evenTag);
+    PCollection<Integer> odds = output.get(oddTag);
+
+    // There are 0 and 2 from "hello" and just 0 from "goodbye"
+    PAssert.that(evens).containsInAnyOrder(0, 2, 0);
+
+    // There are 1 and 3 from "hello" and just "1" from "goodbye"
+    PAssert.that(odds).containsInAnyOrder(1, 3, 1);
+    p.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testBagState() {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, List<Integer>> fn =
+        new DoFn<KV<String, Integer>, List<Integer>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, BagState<Integer>> bufferState =
+              StateSpecs.bag(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) BagState<Integer> state) {
+            Iterable<Integer> currentValue = state.read();
+            state.add(c.element().getValue());
+            if (Iterables.size(state.read()) >= 4) {
+              List<Integer> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted);
+              c.output(sorted);
+            }
+          }
+        };
+
+    Pipeline p = TestPipeline.create();
+    PCollection<List<Integer>> output =
+        p.apply(
+                Create.of(
+                    KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 84), KV.of("hello", 12)))
+            .apply(ParDo.of(fn));
+
+    PAssert.that(output).containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97));
+    p.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testBagStateSideInput() {
+    Pipeline p = TestPipeline.create();
+
+    final PCollectionView<List<Integer>> listView =
+        p.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.<Integer>asList());
+
+    final String stateId = "foo";
+    DoFn<KV<String, Integer>, List<Integer>> fn =
+        new DoFn<KV<String, Integer>, List<Integer>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, BagState<Integer>> bufferState =
+              StateSpecs.bag(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) BagState<Integer> state) {
+            Iterable<Integer> currentValue = state.read();
+            state.add(c.element().getValue());
+            if (Iterables.size(state.read()) >= 4) {
+              List<Integer> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted);
+              c.output(sorted);
+
+              List<Integer> sideSorted = Lists.newArrayList(c.sideInput(listView));
+              Collections.sort(sideSorted);
+              c.output(sideSorted);
+            }
+          }
+        };
+
+    PCollection<List<Integer>> output =
+        p.apply(
+                "Create main input",
+                Create.of(
+                    KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 84), KV.of("hello", 12)))
+            .apply(ParDo.of(fn).withSideInputs(listView));
+
+    PAssert.that(output).containsInAnyOrder(
+        Lists.newArrayList(12, 42, 84, 97),
+        Lists.newArrayList(0, 1, 2));
+    p.run();
+  }
+
+  /**
+   * Tests that an event time timer fires and results in supplementary output.
+   *
+   * <p>This test relies on two properties:
+   *
+   * <ol>
+   * <li>A timer that is set on time should always get a chance to fire. For this to be true, timers
+   *     per-key-and-window must be delivered in order so the timer is not wiped out until the
+   *     window is expired by the runner.
+   * <li>A {@link Create} transform sends its elements on time, and later advances the watermark to
+   *     infinity
+   * </ol>
+   *
+   * <p>Note that {@link TestStream} is not applicable because it requires very special runner hooks
+   * and is only supported by the direct runner.
+   */
+  @Test
+  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  public void testSimpleEventTimeTimer() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.setForNowPlus(Duration.standardSeconds(1));
+            context.output(3);
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(42);
+          }
+        };
+
+    Pipeline p = TestPipeline.create();
+
+    PCollection<Integer> output = p.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(3, 42);
+    p.run();
+  }
+
+  @Test
   public void testWithOutputTagsDisplayData() {
-    DoFnWithContext<String, String> fn = new DoFnWithContext<String, String>() {
+    DoFn<String, String> fn = new DoFn<String, String>() {
       @ProcessElement
       public void proccessElement(ProcessContext c) {}
 
@@ -1453,12 +1677,112 @@ public class ParDoTest implements Serializable {
       }
     };
 
-    ParDo.BoundMulti parDo = ParDo
-            .withOutputTags(new TupleTag(), TupleTagList.empty())
+    ParDo.BoundMulti<String, String> parDo = ParDo
+            .withOutputTags(new TupleTag<String>(), TupleTagList.empty())
             .of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);
-    assertThat(displayData, includesDisplayDataFrom(fn));
+    assertThat(displayData, includesDisplayDataFor("fn", fn));
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
+  }
+
+  private abstract static class SomeTracker implements RestrictionTracker<Object> {}
+  private static class TestSplittableDoFn extends DoFn<Integer, String> {
+    @ProcessElement
+    public void processElement(ProcessContext context, SomeTracker tracker) {}
+
+    @GetInitialRestriction
+    public Object getInitialRestriction(Integer element) {
+      return null;
+    }
+
+    @NewTracker
+    public SomeTracker newTracker(Object restriction) {
+      return null;
+    }
+  }
+
+  @Test
+  public void testRejectsWrongWindowType() {
+    Pipeline p = TestPipeline.create();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(GlobalWindow.class.getSimpleName());
+    thrown.expectMessage(IntervalWindow.class.getSimpleName());
+    thrown.expectMessage("window type");
+    thrown.expectMessage("not a supertype");
+
+    p.apply(Create.of(1, 2, 3))
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, Integer>() {
+                  @ProcessElement
+                  public void process(ProcessContext c, IntervalWindow w) {}
+                }));
+  }
+
+  /**
+   * Tests that it is OK to use different window types in the parameter lists to different
+   * {@link DoFn} functions, as long as they are all subtypes of the actual window type
+   * of the input.
+   *
+   * <p>Today, the only method other than {@link ProcessElement @ProcessElement} that can accept
+   * extended parameters is {@link OnTimer @OnTimer}, which is rejected before it reaches window
+   * type validation. Rather than delay validation, this test is temporarily disabled.
+   */
+  @Ignore("ParDo rejects this on account of it using timers")
+  @Test
+  public void testMultipleWindowSubtypesOK() {
+    final String timerId = "gobbledegook";
+
+    Pipeline p = TestPipeline.create();
+
+    p.apply(Create.of(1, 2, 3))
+        .apply(Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, Integer>() {
+                  @TimerId(timerId)
+                  private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                  @ProcessElement
+                  public void process(ProcessContext c, IntervalWindow w) {}
+
+                  @OnTimer(timerId)
+                  public void onTimer(BoundedWindow w) {}
+                }));
+
+    // If it doesn't crash, we made it!
+  }
+
+  @Test
+  public void testRejectsSplittableDoFnByDefault() {
+    // ParDo with a splittable DoFn must be overridden by the runner.
+    // Without an override, applying it directly must fail.
+    Pipeline p = TestPipeline.create();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(p.getRunner().getClass().getName());
+    thrown.expectMessage("does not support Splittable DoFn");
+
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(new TestSplittableDoFn()));
+  }
+
+  @Test
+  public void testMultiRejectsSplittableDoFnByDefault() {
+    // ParDo with a splittable DoFn must be overridden by the runner.
+    // Without an override, applying it directly must fail.
+    Pipeline p = TestPipeline.create();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(p.getRunner().getClass().getName());
+    thrown.expectMessage("does not support Splittable DoFn");
+
+    p.apply(Create.of(1, 2, 3))
+        .apply(
+            ParDo.of(new TestSplittableDoFn())
+                .withOutputTags(
+                    new TupleTag<String>("main") {},
+                    TupleTagList.of(new TupleTag<String>("side1") {})));
   }
 }

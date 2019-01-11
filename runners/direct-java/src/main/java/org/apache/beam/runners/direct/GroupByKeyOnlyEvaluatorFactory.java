@@ -17,10 +17,18 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 
-import static com.google.common.base.Preconditions.checkState;
-
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
+import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
@@ -30,46 +38,43 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly;
-import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
-import org.apache.beam.sdk.util.KeyedWorkItem;
-import org.apache.beam.sdk.util.KeyedWorkItems;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
  * {@link GroupByKeyOnly} {@link PTransform}.
  */
 class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
+  private final EvaluationContext evaluationContext;
+
+  GroupByKeyOnlyEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
+  }
+
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) {
+      CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<InputT> evaluator =
         createEvaluator(
-            (AppliedPTransform) application, (CommittedBundle) inputBundle, evaluationContext);
+            (AppliedPTransform) application, (CommittedBundle) inputBundle);
     return evaluator;
   }
 
-  private <K, V> TransformEvaluator<KV<K, WindowedValue<V>>> createEvaluator(
+  @Override
+  public void cleanup() {}
+
+  private <K, V> TransformEvaluator<KV<K, V>> createEvaluator(
       final AppliedPTransform<
-          PCollection<KV<K, WindowedValue<V>>>,
+          PCollection<KV<K, V>>,
           PCollection<KeyedWorkItem<K, V>>,
           DirectGroupByKeyOnly<K, V>>
           application,
-      final CommittedBundle<KV<K, WindowedValue<V>>> inputBundle,
-      final EvaluationContext evaluationContext) {
-    return new GroupByKeyOnlyEvaluator<>(evaluationContext, inputBundle, application);
+      final CommittedBundle<KV<K, V>> inputBundle) {
+    return new GroupByKeyOnlyEvaluator<>(evaluationContext, application);
   }
 
   /**
@@ -79,12 +84,11 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
    * @see GroupByKeyViaGroupByKeyOnly
    */
   private static class GroupByKeyOnlyEvaluator<K, V>
-      implements TransformEvaluator<KV<K, WindowedValue<V>>> {
+      implements TransformEvaluator<KV<K, V>> {
     private final EvaluationContext evaluationContext;
 
-    private final CommittedBundle<KV<K, WindowedValue<V>>> inputBundle;
     private final AppliedPTransform<
-            PCollection<KV<K, WindowedValue<V>>>,
+            PCollection<KV<K, V>>,
             PCollection<KeyedWorkItem<K, V>>,
             DirectGroupByKeyOnly<K, V>> application;
     private final Coder<K> keyCoder;
@@ -92,19 +96,17 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
 
     public GroupByKeyOnlyEvaluator(
         EvaluationContext evaluationContext,
-        CommittedBundle<KV<K, WindowedValue<V>>> inputBundle,
         AppliedPTransform<
-                PCollection<KV<K, WindowedValue<V>>>,
-                PCollection<KeyedWorkItem<K, V>>,
+            PCollection<KV<K, V>>,
+            PCollection<KeyedWorkItem<K, V>>,
             DirectGroupByKeyOnly<K, V>> application) {
       this.evaluationContext = evaluationContext;
-      this.inputBundle = inputBundle;
       this.application = application;
       this.keyCoder = getKeyCoder(application.getInput().getCoder());
       this.groupingMap = new HashMap<>();
     }
 
-    private Coder<K> getKeyCoder(Coder<KV<K, WindowedValue<V>>> coder) {
+    private Coder<K> getKeyCoder(Coder<KV<K, V>> coder) {
       checkState(
           coder instanceof KvCoder,
           "%s requires a coder of class %s."
@@ -113,13 +115,13 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
           getClass().getSimpleName(),
           KvCoder.class.getSimpleName());
       @SuppressWarnings("unchecked")
-      Coder<K> keyCoder = ((KvCoder<K, WindowedValue<V>>) coder).getKeyCoder();
+      Coder<K> keyCoder = ((KvCoder<K, V>) coder).getKeyCoder();
       return keyCoder;
     }
 
     @Override
-    public void processElement(WindowedValue<KV<K, WindowedValue<V>>> element) {
-      KV<K, WindowedValue<V>> kv = element.getValue();
+    public void processElement(WindowedValue<KV<K, V>> element) {
+      KV<K, V> kv = element.getValue();
       K key = kv.getKey();
       byte[] encodedKey;
       try {
@@ -134,24 +136,23 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
       GroupingKey<K> groupingKey = new GroupingKey<>(key, encodedKey);
       List<WindowedValue<V>> values = groupingMap.get(groupingKey);
       if (values == null) {
-        values = new ArrayList<WindowedValue<V>>();
+        values = new ArrayList<>();
         groupingMap.put(groupingKey, values);
       }
-      values.add(kv.getValue());
+      values.add(element.withValue(kv.getValue()));
     }
 
     @Override
-    public TransformResult finishBundle() {
+    public TransformResult<KV<K, V>> finishBundle() {
       Builder resultBuilder = StepTransformResult.withoutHold(application);
       for (Map.Entry<GroupingKey<K>, List<WindowedValue<V>>> groupedEntry :
           groupingMap.entrySet()) {
         K key = groupedEntry.getKey().key;
         KeyedWorkItem<K, V> groupedKv =
             KeyedWorkItems.elementsWorkItem(key, groupedEntry.getValue());
-        UncommittedBundle<KeyedWorkItem<K, V>> bundle = evaluationContext.createKeyedBundle(
-            inputBundle,
-            StructuralKey.of(key, keyCoder),
-            application.getOutput());
+        UncommittedBundle<KeyedWorkItem<K, V>> bundle =
+            evaluationContext.createKeyedBundle(
+                StructuralKey.of(key, keyCoder), application.getOutput());
         bundle.add(WindowedValue.valueInGlobalWindow(groupedKv));
         resultBuilder.addOutput(bundle);
       }

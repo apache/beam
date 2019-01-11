@@ -17,16 +17,14 @@
  */
 package org.apache.beam.sdk.io;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.Coder;
-
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.joda.time.Instant;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.NoSuchElementException;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.joda.time.Instant;
 
 /**
  * Base class for defining input formats and creating a {@code Source} for reading the input.

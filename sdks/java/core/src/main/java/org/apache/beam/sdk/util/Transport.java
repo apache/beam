@@ -17,26 +17,27 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.options.BigQueryOptions;
-import org.apache.beam.sdk.options.GcsOptions;
-import org.apache.beam.sdk.options.PubsubOptions;
-
-import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.storage.Storage;
+import com.google.auth.Credentials;
+import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.collect.ImmutableList;
-
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.GeneralSecurityException;
+import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.options.CloudResourceManagerOptions;
+import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.PubsubOptions;
 
 /**
  * Helpers for cloud communication.
@@ -123,6 +124,25 @@ public class Transport {
   }
 
   /**
+   * Returns a CloudResourceManager client builder using the specified
+   * {@link CloudResourceManagerOptions}.
+   */
+  public static CloudResourceManager.Builder
+      newCloudResourceManagerClient(CloudResourceManagerOptions options) {
+    Credentials credentials = options.getGcpCredential();
+    if (credentials == null) {
+      NullCredentialInitializer.throwNullCredentialException();
+    }
+    return new CloudResourceManager.Builder(getTransport(), getJsonFactory(),
+        chainHttpRequestInitializer(
+            credentials,
+            // Do not log 404. It clutters the output and is possibly even required by the caller.
+            new RetryHttpRequestInitializer(ImmutableList.of(404))))
+        .setApplicationName(options.getAppName())
+        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
+  }
+
+  /**
    * Returns a Cloud Storage client builder using the specified {@link GcsOptions}.
    */
   public static Storage.Builder
@@ -146,11 +166,14 @@ public class Transport {
   }
 
   private static HttpRequestInitializer chainHttpRequestInitializer(
-      Credential credential, HttpRequestInitializer httpRequestInitializer) {
+      Credentials credential, HttpRequestInitializer httpRequestInitializer) {
     if (credential == null) {
-      return httpRequestInitializer;
+      return new ChainingHttpRequestInitializer(
+          new NullCredentialInitializer(), httpRequestInitializer);
     } else {
-      return new ChainingHttpRequestInitializer(credential, httpRequestInitializer);
+      return new ChainingHttpRequestInitializer(
+          new HttpCredentialsAdapter(credential),
+          httpRequestInitializer);
     }
   }
 }

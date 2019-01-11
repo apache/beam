@@ -22,27 +22,23 @@ import static org.apache.beam.sdk.testing.SerializableMatchers.anything;
 import static org.apache.beam.sdk.testing.SerializableMatchers.containsInAnyOrder;
 import static org.apache.beam.sdk.testing.SerializableMatchers.kvWithKey;
 import static org.apache.beam.sdk.testing.SerializableMatchers.not;
-
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.ImmutableList;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
-
-import com.google.common.collect.ImmutableList;
-
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
 
 /**
  * Test case for {@link SerializableMatchers}.

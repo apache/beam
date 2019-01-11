@@ -23,6 +23,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.TestUtils;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -33,20 +40,10 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Tests for the ApproximateUnique aggregator transform.
@@ -217,13 +214,13 @@ public class ApproximateUniqueTest implements Serializable {
     PCollection<Long> approximate = input.apply(ApproximateUnique.<String>globally(sampleSize));
     final PCollectionView<Long> exact =
         input
-            .apply(RemoveDuplicates.<String>create())
+            .apply(Distinct.<String>create())
             .apply(Count.<String>globally())
             .apply(View.<Long>asSingleton());
 
     PCollection<KV<Long, Long>> approximateAndExact = approximate
         .apply(ParDo.of(new DoFn<Long, KV<Long, Long>>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 c.output(KV.of(c.element(), c.sideInput(exact)));
               }

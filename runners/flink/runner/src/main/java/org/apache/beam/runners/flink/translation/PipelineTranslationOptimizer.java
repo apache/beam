@@ -19,7 +19,7 @@ package org.apache.beam.runners.flink.translation;
 
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
@@ -52,15 +52,15 @@ public class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
   }
 
   @Override
-  public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+  public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
     return CompositeBehavior.ENTER_TRANSFORM;
   }
 
   @Override
-  public void leaveCompositeTransform(TransformTreeNode node) {}
+  public void leaveCompositeTransform(TransformHierarchy.Node node) {}
 
   @Override
-  public void visitPrimitiveTransform(TransformTreeNode node) {
+  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
     Class<? extends PTransform> transformClass = node.getTransform().getClass();
     if (transformClass == Read.Unbounded.class) {
       LOG.info("Found {}. Switching to streaming execution.", transformClass);
@@ -69,5 +69,5 @@ public class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
   }
 
   @Override
-  public void visitValue(PValue value, TransformTreeNode producer) {}
+  public void visitValue(PValue value, TransformHierarchy.Node producer) {}
 }

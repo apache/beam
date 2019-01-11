@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 
 /**
  * A callback for completing a bundle of input.
@@ -27,10 +28,17 @@ interface CompletionCallback {
    * Handle a successful result, returning the committed outputs of the result.
    */
   CommittedResult handleResult(
-      CommittedBundle<?> inputBundle, TransformResult result);
+      CommittedBundle<?> inputBundle, TransformResult<?> result);
 
   /**
-   * Handle a result that terminated abnormally due to the provided {@link Throwable}.
+   * Handle an input bundle that did not require processing.
+   *
+   * <p>This occurs when a Source has no splits that can currently produce outputs.
    */
-  void handleThrowable(CommittedBundle<?> inputBundle, Throwable t);
+  void handleEmpty(AppliedPTransform<?, ?, ?> transform);
+
+  /**
+   * Handle a result that terminated abnormally due to the provided {@link Exception}.
+   */
+  void handleException(CommittedBundle<?> inputBundle, Exception t);
 }

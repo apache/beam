@@ -20,9 +20,9 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.transforms.Combine;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.transforms.Combine;
 
 /**
  * Keep track of the minimum/maximum/sum of a set of timestamped long values.

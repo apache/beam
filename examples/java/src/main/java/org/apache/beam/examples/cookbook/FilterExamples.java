@@ -17,6 +17,12 @@
  */
 package org.apache.beam.examples.cookbook;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Logger;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
@@ -31,14 +37,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.logging.Logger;
 
 /**
  * This is an example that demonstrates several approaches to filtering, and use of the Mean
@@ -56,12 +54,7 @@ import java.util.logging.Logger;
  * <p>Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
  *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }
- * </pre>
- * and the BigQuery table for the output:
+ * <p>To execute this pipeline locally, specify the BigQuery table for the output:
  * <pre>{@code
  *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  *   [--monthFilter=<month_number>]
@@ -69,20 +62,12 @@ import java.util.logging.Logger;
  * </pre>
  * where optional parameter {@code --monthFilter} is set to a number 1-12.
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
  * }
  * </pre>
- * and the BigQuery table for the output:
- * <pre>{@code
- *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
- *   [--monthFilter=<month_number>]
- * }
- * </pre>
- * where optional parameter {@code --monthFilter} is set to a number 1-12.
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations}
  * and can be overridden with {@code --input}.
@@ -99,7 +84,7 @@ public class FilterExamples {
    * is interested in-- the mean_temp and year, month, and day-- as a bigquery table row.
    */
   static class ProjectionFn extends DoFn<TableRow, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       // Grab year, month, day, mean_temp from the row
@@ -128,7 +113,7 @@ public class FilterExamples {
       this.monthFilter = monthFilter;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       Integer month;
@@ -144,7 +129,7 @@ public class FilterExamples {
    * reading for that row ('mean_temp').
    */
   static class ExtractTempFn extends DoFn<TableRow, Double> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       Double meanTemp = Double.parseDouble(row.get("mean_temp").toString());
@@ -168,7 +153,7 @@ public class FilterExamples {
 
 
     @Override
-    public PCollection<TableRow> apply(PCollection<TableRow> rows) {
+    public PCollection<TableRow> expand(PCollection<TableRow> rows) {
 
       // Extract the mean_temp from each row.
       PCollection<Double> meanTemps = rows.apply(
@@ -192,7 +177,7 @@ public class FilterExamples {
           .apply("ParseAndFilter", ParDo
               .withSideInputs(globalMeanTemp)
               .of(new DoFn<TableRow, TableRow>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   Double meanTemp = Double.parseDouble(c.element().get("mean_temp").toString());
                   Double gTemp = c.sideInput(globalMeanTemp);
@@ -212,7 +197,7 @@ public class FilterExamples {
    *
    * <p>Inherits standard configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  private interface Options extends PipelineOptions {
     @Description("Table to read from, specified as "
         + "<project_id>:<dataset_id>.<table_id>")
     @Default.String(WEATHER_SAMPLES_TABLE)
@@ -262,6 +247,6 @@ public class FilterExamples {
         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
         .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

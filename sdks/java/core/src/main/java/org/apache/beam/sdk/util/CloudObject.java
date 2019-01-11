@@ -22,9 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
-
 import java.util.Map;
-
 import javax.annotation.Nullable;
 
 /**

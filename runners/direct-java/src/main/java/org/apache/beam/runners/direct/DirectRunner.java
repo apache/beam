@@ -17,56 +17,59 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import javax.annotation.Nullable;
+import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
+import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
 import org.apache.beam.runners.direct.ViewEvaluatorFactory.ViewOverrideFactory;
+import org.apache.beam.sdk.AggregatorRetrievalException;
+import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.AggregatorPipelineExtractor;
-import org.apache.beam.sdk.runners.AggregatorRetrievalException;
-import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
-import org.apache.beam.sdk.util.MapAggregatorValues;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.Counter;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-
+import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 /**
  * An In-Memory implementation of the Dataflow Programming Model. Supports Unbounded
  * {@link PCollection PCollections}.
  */
-@Experimental
-public class DirectRunner
-    extends PipelineRunner<DirectPipelineResult> {
+public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   /**
    * The default set of transform overrides to use in the {@link DirectRunner}.
    *
@@ -77,9 +80,15 @@ public class DirectRunner
   private static Map<Class<? extends PTransform>, PTransformOverrideFactory>
       defaultTransformOverrides =
           ImmutableMap.<Class<? extends PTransform>, PTransformOverrideFactory>builder()
-              .put(GroupByKey.class, new DirectGroupByKeyOverrideFactory())
               .put(CreatePCollectionView.class, new ViewOverrideFactory())
+              .put(GroupByKey.class, new DirectGroupByKeyOverrideFactory())
+              .put(TestStream.class, new DirectTestStreamFactory())
               .put(Write.Bound.class, new WriteWithShardingFactory())
+              .put(ParDo.Bound.class, new ParDoSingleViaMultiOverrideFactory())
+              .put(ParDo.BoundMulti.class, new ParDoMultiOverrideFactory())
+              .put(
+                  SplittableParDo.GBKIntoKeyedWorkItems.class,
+                  new DirectGBKIntoKeyedWorkItemsOverrideFactory())
               .build();
 
   /**
@@ -89,12 +98,12 @@ public class DirectRunner
    *
    * @param <T> the type of elements that can be added to this bundle
    */
-  public static interface UncommittedBundle<T> {
+  interface UncommittedBundle<T> {
     /**
      * Returns the PCollection that the elements of this {@link UncommittedBundle} belong to.
      */
+    @Nullable
     PCollection<T> getPCollection();
-
 
     /**
      * Outputs an element to this bundle.
@@ -121,10 +130,11 @@ public class DirectRunner
    * a part of at a later point.
    * @param <T> the type of elements contained within this bundle
    */
-  public static interface CommittedBundle<T> {
+  interface CommittedBundle<T> {
     /**
      * Returns the PCollection that the elements of this bundle belong to.
      */
+    @Nullable
     PCollection<T> getPCollection();
 
     /**
@@ -138,6 +148,11 @@ public class DirectRunner
      * {@link CommittedBundle}.
      */
     Iterable<WindowedValue<T>> getElements();
+
+    /**
+     * Returns the minimum timestamp among all of the elements of this {@link CommittedBundle}.
+     */
+    Instant getMinTimestamp();
 
     /**
      * Returns the processing time output watermark at the time the producing {@link PTransform}
@@ -154,11 +169,10 @@ public class DirectRunner
      * Return a new {@link CommittedBundle} that is like this one, except calls to
      * {@link #getElements()} will return the provided elements. This bundle is unchanged.
      *
-     * <p>
-     * The value of the {@link #getSynchronizedProcessingOutputWatermark() synchronized processing
-     * output watermark} of the returned {@link CommittedBundle} is equal to the value returned from
-     * the current bundle. This is used to ensure a {@link PTransform} that could not complete
-     * processing on input elements properly holds the synchronized processing time to the
+     * <p>The value of the {@link #getSynchronizedProcessingOutputWatermark() synchronized
+     * processing output watermark} of the returned {@link CommittedBundle} is equal to the value
+     * returned from the current bundle. This is used to ensure a {@link PTransform} that could not
+     * complete processing on input elements properly holds the synchronized processing time to the
      * appropriate value.
      */
     CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements);
@@ -167,15 +181,81 @@ public class DirectRunner
   /**
    * A {@link PCollectionViewWriter} is responsible for writing contents of a {@link PCollection} to
    * a storage mechanism that can be read from while constructing a {@link PCollectionView}.
+   *
    * @param <ElemT> the type of elements the input {@link PCollection} contains.
    * @param <ViewT> the type of the PCollectionView this writer writes to.
    */
-  public static interface PCollectionViewWriter<ElemT, ViewT> {
+  interface PCollectionViewWriter<ElemT, ViewT> {
     void add(Iterable<WindowedValue<ElemT>> values);
+  }
+
+  /** The set of {@link PTransform PTransforms} that execute a UDF. Useful for some enforcements. */
+  private static final Set<Class<? extends PTransform>> CONTAINS_UDF =
+      ImmutableSet.of(
+          Read.Bounded.class, Read.Unbounded.class, ParDo.Bound.class, ParDo.BoundMulti.class);
+
+  enum Enforcement {
+    ENCODABILITY {
+      @Override
+      public boolean appliesTo(PCollection<?> collection, DirectGraph graph) {
+        return true;
+      }
+    },
+    IMMUTABILITY {
+      @Override
+      public boolean appliesTo(PCollection<?> collection, DirectGraph graph) {
+        return CONTAINS_UDF.contains(graph.getProducer(collection).getTransform().getClass());
+      }
+    };
+
+    public abstract boolean appliesTo(PCollection<?> collection, DirectGraph graph);
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Utilities for creating enforcements
+    public static Set<Enforcement> enabled(DirectOptions options) {
+      EnumSet<Enforcement> enabled = EnumSet.noneOf(Enforcement.class);
+      if (options.isEnforceEncodability()) {
+        enabled.add(ENCODABILITY);
+      }
+      if (options.isEnforceImmutability()) {
+        enabled.add(IMMUTABILITY);
+      }
+      return Collections.unmodifiableSet(enabled);
+    }
+
+    public static BundleFactory bundleFactoryFor(Set<Enforcement> enforcements, DirectGraph graph) {
+      BundleFactory bundleFactory =
+          enforcements.contains(Enforcement.ENCODABILITY)
+              ? CloningBundleFactory.create()
+              : ImmutableListBundleFactory.create();
+      if (enforcements.contains(Enforcement.IMMUTABILITY)) {
+        bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory, graph);
+      }
+      return bundleFactory;
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
+        defaultModelEnforcements(Set<Enforcement> enabledEnforcements) {
+      ImmutableMap.Builder<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
+          enforcements = ImmutableMap.builder();
+      ImmutableList.Builder<ModelEnforcementFactory> enabledParDoEnforcements =
+          ImmutableList.builder();
+      if (enabledEnforcements.contains(Enforcement.IMMUTABILITY)) {
+        enabledParDoEnforcements.add(ImmutabilityEnforcementFactory.create());
+      }
+      Collection<ModelEnforcementFactory> parDoEnforcements = enabledParDoEnforcements.build();
+      enforcements.put(ParDo.Bound.class, parDoEnforcements);
+      enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
+      return enforcements.build();
+    }
+
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   private final DirectOptions options;
+  private final Set<Enforcement> enabledEnforcements;
+  private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
 
   public static DirectRunner fromOptions(PipelineOptions options) {
     return new DirectRunner(options.as(DirectOptions.class));
@@ -183,6 +263,7 @@ public class DirectRunner
 
   private DirectRunner(DirectOptions options) {
     this.options = options;
+    this.enabledEnforcements = Enforcement.enabled(options);
   }
 
   /**
@@ -192,14 +273,23 @@ public class DirectRunner
     return options;
   }
 
+  Supplier<Clock> getClockSupplier() {
+    return clockSupplier;
+  }
+
+  void setClockSupplier(Supplier<Clock> supplier) {
+    this.clockSupplier = supplier;
+  }
+
   @Override
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
     PTransformOverrideFactory overrideFactory = defaultTransformOverrides.get(transform.getClass());
     if (overrideFactory != null) {
       PTransform<InputT, OutputT> customTransform = overrideFactory.override(transform);
-
-      return super.apply(customTransform, input);
+      if (customTransform != transform) {
+        return Pipeline.applyTransform(transform.getName(), input, customTransform);
+      }
     }
     // If there is no override, or we should not apply the override, apply the original transform
     return super.apply(transform, input);
@@ -207,49 +297,48 @@ public class DirectRunner
 
   @Override
   public DirectPipelineResult run(Pipeline pipeline) {
-    ConsumerTrackingPipelineVisitor consumerTrackingVisitor = new ConsumerTrackingPipelineVisitor();
-    pipeline.traverseTopologically(consumerTrackingVisitor);
-    for (PValue unfinalized : consumerTrackingVisitor.getUnfinalizedPValues()) {
-      unfinalized.finishSpecifying();
-    }
+    MetricsEnvironment.setMetricsSupported(true);
+    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
+    pipeline.traverseTopologically(graphVisitor);
+    graphVisitor.finishSpecifyingRemainder();
+
     @SuppressWarnings("rawtypes")
     KeyedPValueTrackingVisitor keyedPValueVisitor =
         KeyedPValueTrackingVisitor.create(
-            ImmutableSet.<Class<? extends PTransform>>of(
-                GroupByKey.class, DirectGroupByKeyOnly.class));
+            ImmutableSet.of(
+                SplittableParDo.GBKIntoKeyedWorkItems.class,
+                DirectGroupByKeyOnly.class,
+                DirectGroupAlsoByWindow.class));
     pipeline.traverseTopologically(keyedPValueVisitor);
 
     DisplayDataValidator.validatePipeline(pipeline);
 
+    DirectGraph graph = graphVisitor.getGraph();
     EvaluationContext context =
         EvaluationContext.create(
             getPipelineOptions(),
-            createBundleFactory(getPipelineOptions()),
-            consumerTrackingVisitor.getRootTransforms(),
-            consumerTrackingVisitor.getValueToConsumers(),
-            consumerTrackingVisitor.getStepNames(),
-            consumerTrackingVisitor.getViews());
+            clockSupplier.get(),
+            Enforcement.bundleFactoryFor(enabledEnforcements, graph),
+            graph);
 
-    // independent executor service for each run
-    ExecutorService executorService =
-        context.getPipelineOptions().getExecutorServiceFactory().create();
+    RootProviderRegistry rootInputProvider = RootProviderRegistry.defaultRegistry(context);
+    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
-            executorService,
-            consumerTrackingVisitor.getValueToConsumers(),
+            options.getTargetParallelism(), graph,
             keyedPValueVisitor.getKeyedPValues(),
-            TransformEvaluatorRegistry.defaultRegistry(),
-            defaultModelEnforcements(options),
+            rootInputProvider,
+            registry,
+            Enforcement.defaultModelEnforcements(enabledEnforcements),
             context);
-    executor.start(consumerTrackingVisitor.getRootTransforms());
+    executor.start(graph.getRootTransforms());
 
     Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
-        new AggregatorPipelineExtractor(pipeline).getAggregatorSteps();
-    DirectPipelineResult result =
-        new DirectPipelineResult(executor, context, aggregatorSteps);
+        pipeline.getAggregatorSteps();
+    DirectPipelineResult result = new DirectPipelineResult(executor, context, aggregatorSteps);
     if (options.isBlockOnRun()) {
       try {
-        result.awaitCompletion();
+        result.waitUntilFinish();
       } catch (UserCodeException userException) {
         throw new PipelineExecutionException(userException.getCause());
       } catch (Throwable t) {
@@ -262,37 +351,10 @@ public class DirectRunner
     return result;
   }
 
-  private Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
-      defaultModelEnforcements(DirectOptions options) {
-    ImmutableMap.Builder<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
-        enforcements = ImmutableMap.builder();
-    Collection<ModelEnforcementFactory> parDoEnforcements = createParDoEnforcements(options);
-    enforcements.put(ParDo.Bound.class, parDoEnforcements);
-    enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
-    return enforcements.build();
-  }
-
-  private Collection<ModelEnforcementFactory> createParDoEnforcements(
-      DirectOptions options) {
-    ImmutableList.Builder<ModelEnforcementFactory> enforcements = ImmutableList.builder();
-    if (options.isTestImmutability()) {
-      enforcements.add(ImmutabilityEnforcementFactory.create());
-    }
-    return enforcements.build();
-  }
-
-  private BundleFactory createBundleFactory(DirectOptions pipelineOptions) {
-    BundleFactory bundleFactory = ImmutableListBundleFactory.create();
-    if (pipelineOptions.isTestImmutability()) {
-      bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
-    }
-    return bundleFactory;
-  }
-
   /**
    * The result of running a {@link Pipeline} with the {@link DirectRunner}.
    *
-   * Throws {@link UnsupportedOperationException} for all methods.
+   * <p>Throws {@link UnsupportedOperationException} for all methods.
    */
   public static class DirectPipelineResult implements PipelineResult {
     private final PipelineExecutor executor;
@@ -319,21 +381,36 @@ public class DirectRunner
     @Override
     public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
         throws AggregatorRetrievalException {
-      CounterSet counters = evaluationContext.getCounters();
+      AggregatorContainer aggregators = evaluationContext.getAggregatorContainer();
       Collection<PTransform<?, ?>> steps = aggregatorSteps.get(aggregator);
-      Map<String, T> stepValues = new HashMap<>();
+      final Map<String, T> stepValues = new HashMap<>();
       for (AppliedPTransform<?, ?, ?> transform : evaluationContext.getSteps()) {
         if (steps.contains(transform.getTransform())) {
-          String stepName =
-              String.format(
-                  "user-%s-%s", evaluationContext.getStepName(transform), aggregator.getName());
-          Counter<T> counter = (Counter<T>) counters.getExistingCounter(stepName);
-          if (counter != null) {
-            stepValues.put(transform.getFullName(), counter.getAggregate());
+          T aggregate = aggregators.getAggregate(
+              evaluationContext.getStepName(transform), aggregator.getName());
+          if (aggregate != null) {
+            stepValues.put(transform.getFullName(), aggregate);
           }
         }
       }
-      return new MapAggregatorValues<>(stepValues);
+      return new AggregatorValues<T>() {
+        @Override
+        public Map<String, T> getValuesAtSteps() {
+          return stepValues;
+        }
+
+        @Override
+        public String toString() {
+          return MoreObjects.toStringHelper(this)
+              .add("stepValues", stepValues)
+              .toString();
+        }
+      };
+    }
+
+    @Override
+    public MetricResults metrics() {
+      return evaluationContext.getMetrics();
     }
 
     /**
@@ -349,22 +426,47 @@ public class DirectRunner
      * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
      * this method will never return.
      *
-     * See also {@link PipelineExecutor#awaitCompletion()}.
+     * <p>See also {@link PipelineExecutor#awaitCompletion()}.
      */
-    public State awaitCompletion() throws Throwable {
+    @Override
+    public State waitUntilFinish() {
       if (!state.isTerminal()) {
         try {
           executor.awaitCompletion();
           state = State.DONE;
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw e;
-        } catch (Throwable t) {
-          state = State.FAILED;
-          throw t;
+        } catch (Exception e) {
+          if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+          }
+          if (e instanceof RuntimeException) {
+            throw (RuntimeException) e;
+          }
+          throw new RuntimeException(e);
         }
       }
       return state;
+    }
+
+    @Override
+    public State cancel() throws IOException {
+      throw new UnsupportedOperationException("DirectPipelineResult does not support cancel.");
+    }
+
+    @Override
+    public State waitUntilFinish(Duration duration) {
+      throw new UnsupportedOperationException(
+          "DirectPipelineResult does not support waitUntilFinish with a Duration parameter. See"
+              + " BEAM-596.");
+    }
+  }
+
+  /**
+   * A {@link Supplier} that creates a {@link NanosOffsetClock}.
+   */
+  private static class NanosOffsetClockSupplier implements Supplier<Clock> {
+    @Override
+    public Clock get() {
+      return NanosOffsetClock.create();
     }
   }
 }

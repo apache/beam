@@ -36,5 +36,5 @@ public interface Reiterator<T> extends Iterator<T> {
    * true for the corresponding elements of each if the original source is
    * logically immutable.
    */
-  public Reiterator<T> copy();
+  Reiterator<T> copy();
 }

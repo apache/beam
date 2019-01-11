@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.values.TupleTag;
-
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A {@code PTuple} is an immutable tuple of

@@ -28,7 +28,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -46,7 +45,7 @@ public class TypedPValueTest {
 
   private static class IdentityDoFn extends DoFn<Integer, Integer> {
     private static final long serialVersionUID = 0;
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(c.element());
     }
@@ -131,7 +130,7 @@ public class TypedPValueTest {
 
   private static class EmptyClassDoFn extends DoFn<Integer, EmptyClass> {
     private static final long serialVersionUID = 0;
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(new EmptyClass());
     }

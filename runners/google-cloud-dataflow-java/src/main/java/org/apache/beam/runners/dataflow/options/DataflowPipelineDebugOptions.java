@@ -17,7 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import org.apache.beam.runners.dataflow.util.DataflowPathValidator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.api.services.dataflow.Dataflow;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.GcsStager;
 import org.apache.beam.runners.dataflow.util.Stager;
@@ -28,14 +31,6 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.PathValidator;
-
-import com.google.api.services.dataflow.Dataflow;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * Internal. Options used to control execution of the Dataflow SDK for
@@ -101,31 +96,6 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setDataflowJobFile(String value);
 
   /**
-   * The class of the validator that should be created and used to validate paths.
-   * If pathValidator has not been set explicitly, an instance of this class will be
-   * constructed and used as the path validator.
-   */
-  @Description("The class of the validator that should be created and used to validate paths. "
-      + "If pathValidator has not been set explicitly, an instance of this class will be "
-      + "constructed and used as the path validator.")
-  @Default.Class(DataflowPathValidator.class)
-  Class<? extends PathValidator> getPathValidatorClass();
-  void setPathValidatorClass(Class<? extends PathValidator> validatorClass);
-
-  /**
-   * The path validator instance that should be used to validate paths.
-   * If no path validator has been set explicitly, the default is to use the instance factory that
-   * constructs a path validator based upon the currently set pathValidatorClass.
-   */
-  @JsonIgnore
-  @Description("The path validator instance that should be used to validate paths. "
-      + "If no path validator has been set explicitly, the default is to use the instance factory "
-      + "that constructs a path validator based upon the currently set pathValidatorClass.")
-  @Default.InstanceFactory(PathValidatorFactory.class)
-  PathValidator getPathValidator();
-  void setPathValidator(PathValidator validator);
-
-  /**
    * The class responsible for staging resources to be accessible by workers
    * during job execution. If stager has not been set explicitly, an instance of this class
    * will be created and used as the resource stager.
@@ -162,7 +132,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setDataflowClient(Dataflow value);
 
   /** Returns the default Dataflow client built from the passed in PipelineOptions. */
-  public static class DataflowClientFactory implements DefaultValueFactory<Dataflow> {
+  class DataflowClientFactory implements DefaultValueFactory<Dataflow> {
     @Override
     public Dataflow create(PipelineOptions options) {
         return DataflowTransport.newDataflowClient(
@@ -216,8 +186,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
    * thrashing or out of memory. The location of the heap file will either be echoed back
    * to the user, or the user will be given the opportunity to download the heap file.
    *
-   * <p>
-   * CAUTION: Heap dumps can of comparable size to the default boot disk. Consider increasing
+   * <p>CAUTION: Heap dumps can of comparable size to the default boot disk. Consider increasing
    * the boot disk size before setting this flag to true.
    */
   @Description("If {@literal true}, save a heap dump before killing a thread or process "
@@ -226,26 +195,10 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setDumpHeapOnOOM(boolean dumpHeapBeforeExit);
 
   /**
-   * Creates a {@link PathValidator} object using the class specified in
-   * {@link #getPathValidatorClass()}.
-   */
-  public static class PathValidatorFactory implements DefaultValueFactory<PathValidator> {
-      @Override
-      public PathValidator create(PipelineOptions options) {
-      DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
-      return InstanceBuilder.ofType(PathValidator.class)
-          .fromClass(debugOptions.getPathValidatorClass())
-          .fromFactoryMethod("fromOptions")
-          .withArg(PipelineOptions.class, options)
-          .build();
-    }
-  }
-
-  /**
    * Creates a {@link Stager} object using the class specified in
    * {@link #getStagerClass()}.
    */
-  public static class StagerFactory implements DefaultValueFactory<Stager> {
+  class StagerFactory implements DefaultValueFactory<Stager> {
       @Override
       public Stager create(PipelineOptions options) {
       DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);

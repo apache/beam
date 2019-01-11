@@ -20,7 +20,6 @@ package org.apache.beam.sdk.coders;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -49,8 +48,8 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
    * A {@link DelegateCoder.CodingFunction CodingFunction&lt;InputT, OutputT&gt;} is a serializable
    * function from {@code InputT} to {@code OutputT} that may throw any {@link Exception}.
    */
-  public static interface CodingFunction<InputT, OutputT> extends Serializable {
-     public abstract OutputT apply(InputT input) throws Exception;
+  public interface CodingFunction<InputT, OutputT> extends Serializable {
+     OutputT apply(InputT input) throws Exception;
   }
 
   public static <T, IntermediateT> DelegateCoder<T, IntermediateT> of(Coder<IntermediateT> coder,

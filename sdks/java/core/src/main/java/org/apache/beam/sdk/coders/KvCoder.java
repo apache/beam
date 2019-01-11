@@ -17,23 +17,20 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.sdk.util.Structs.addBoolean;
-
 import static com.google.common.base.Preconditions.checkArgument;
-
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.sdk.values.KV;
+import static org.apache.beam.sdk.util.Structs.addBoolean;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.KV;
 
 /**
  * A {@code KvCoder} encodes {@link KV}s.

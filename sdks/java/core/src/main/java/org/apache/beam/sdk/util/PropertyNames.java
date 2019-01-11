@@ -30,6 +30,7 @@ public class PropertyNames {
   public static final String BIGQUERY_TABLE = "table";
   public static final String BIGQUERY_QUERY = "bigquery_query";
   public static final String BIGQUERY_FLATTEN_RESULTS = "bigquery_flatten_results";
+  public static final String BIGQUERY_USE_LEGACY_SQL = "bigquery_use_legacy_sql";
   public static final String BIGQUERY_WRITE_DISPOSITION = "write_disposition";
   public static final String BIGQUERY_EXPORT_FORMAT = "bigquery_export_format";
   public static final String BIGQUERY_EXPORT_SCHEMA = "bigquery_export_schema";
@@ -83,8 +84,10 @@ public class PropertyNames {
   public static final String PHASE = "phase";
   public static final String PUBSUB_ID_LABEL = "pubsub_id_label";
   public static final String PUBSUB_SUBSCRIPTION = "pubsub_subscription";
+  public static final String PUBSUB_SUBSCRIPTION_OVERRIDE = "pubsub_subscription_runtime_override";
   public static final String PUBSUB_TIMESTAMP_LABEL = "pubsub_timestamp_label";
   public static final String PUBSUB_TOPIC = "pubsub_topic";
+  public static final String PUBSUB_TOPIC_OVERRIDE = "pubsub_topic_runtime_override";
   public static final String SCALAR_FIELD_NAME = "value";
   public static final String SERIALIZED_FN = "serialized_fn";
   public static final String SHARD_NAME_TEMPLATE = "shard_template";

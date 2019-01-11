@@ -19,14 +19,11 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.annotations.Experimental;
-
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
-
-import org.joda.time.Instant;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.joda.time.Instant;
 
 /**
  * <b><i>(Experimental)</i></b> Static utility methods and provided implementations for

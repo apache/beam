@@ -19,14 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.CountingInput;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.KV;
-
 import com.google.bigtable.admin.v2.ColumnFamily;
 import com.google.bigtable.admin.v2.CreateTableRequest;
 import com.google.bigtable.admin.v2.DeleteTableRequest;
@@ -38,26 +30,34 @@ import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.config.BigtableOptions.Builder;
+import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableAdminClient;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
-
-import org.hamcrest.Matchers;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
+import org.hamcrest.Matchers;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * End-to-end tests of BigtableWrite.
@@ -86,14 +86,21 @@ public class BigtableWriteIT implements Serializable {
     retryOptionsBuilder.setStreamingBatchSize(
         retryOptionsBuilder.build().getStreamingBufferSize() / 2);
 
-    BigtableOptions.Builder bigtableOptionsBuilder = new BigtableOptions.Builder()
-        .setProjectId(options.getProjectId())
-        .setInstanceId(options.getInstanceId())
-        .setUserAgent("apache-beam-test")
-        .setRetryOptions(retryOptionsBuilder.build());
-    bigtableOptions = bigtableOptionsBuilder.build();
+    bigtableOptions =
+        new Builder()
+            .setProjectId(options.getProjectId())
+            .setInstanceId(options.getInstanceId())
+            .setUserAgent("apache-beam-test")
+            .setRetryOptions(retryOptionsBuilder.build())
+            .build();
 
-    session = new BigtableSession(bigtableOptions);
+    session =
+        new BigtableSession(
+            bigtableOptions
+                .toBuilder()
+                .setCredentialOptions(
+                    CredentialOptions.credential(options.as(GcpOptions.class).getGcpCredential()))
+                .build());
     tableAdminClient = session.getTableAdminClient();
   }
 
@@ -109,7 +116,7 @@ public class BigtableWriteIT implements Serializable {
     Pipeline p = Pipeline.create(options);
     p.apply(CountingInput.upTo(numRows))
         .apply(ParDo.of(new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             int index = c.element().intValue();
 

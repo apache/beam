@@ -28,5 +28,5 @@ import java.io.Serializable;
  */
 public interface SerializableFunction<InputT, OutputT> extends Serializable {
   /** Returns the result of invoking this function on the given input. */
-  public OutputT apply(InputT input);
+  OutputT apply(InputT input);
 }

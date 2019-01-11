@@ -18,18 +18,8 @@
 package org.apache.beam.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
-import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.SerializableUtils;
 
 import com.google.common.collect.ImmutableList;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -37,10 +27,14 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
 import javax.xml.bind.annotation.XmlRootElement;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link JAXBCoder}. */
 @RunWith(JUnit4.class)
@@ -123,7 +117,7 @@ public class JAXBCoderTest {
   @Test
   public void testEncodeDecodeMultithreaded() throws Throwable {
     final JAXBCoder<TestType> coder = JAXBCoder.of(TestType.class);
-    int numThreads = 1000;
+    int numThreads = 100;
 
     final CountDownLatch ready = new CountDownLatch(numThreads);
     final CountDownLatch start = new CountDownLatch(1);
@@ -159,11 +153,10 @@ public class JAXBCoderTest {
     ready.await();
     start.countDown();
 
-    if (!done.await(10L, TimeUnit.SECONDS)) {
-      fail("Should be able to clone " + numThreads + " elements in 10 seconds");
-    }
-    if (thrown.get() != null) {
-      throw thrown.get();
+    done.await();
+    Throwable actuallyThrown = thrown.get();
+    if (actuallyThrown != null) {
+      throw actuallyThrown;
     }
   }
 

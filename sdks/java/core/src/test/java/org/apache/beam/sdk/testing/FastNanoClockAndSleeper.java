@@ -19,7 +19,6 @@ package org.apache.beam.sdk.testing;
 
 import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
-
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 

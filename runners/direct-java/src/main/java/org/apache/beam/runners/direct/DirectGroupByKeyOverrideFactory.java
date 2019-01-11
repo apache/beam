@@ -19,23 +19,16 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 
-/**
- * A {@link PTransformOverrideFactory} for {@link GroupByKey} PTransforms.
- */
-final class DirectGroupByKeyOverrideFactory
-    implements PTransformOverrideFactory {
+/** A {@link PTransformOverrideFactory} for {@link GroupByKey} PTransforms. */
+final class DirectGroupByKeyOverrideFactory<K, V>
+    implements PTransformOverrideFactory<
+        PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupByKey<K, V>> {
   @Override
-  public <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
-      PTransform<InputT, OutputT> transform) {
-    if (transform instanceof GroupByKey) {
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      PTransform<InputT, OutputT> override =
-          (PTransform) new DirectGroupByKey((GroupByKey) transform);
-      return override;
-    }
-    return transform;
+  public PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> override(
+      GroupByKey<K, V> transform) {
+    return new DirectGroupByKey<>(transform);
   }
 }

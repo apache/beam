@@ -19,14 +19,12 @@ package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.util.PropertyNames;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.util.PropertyNames;
 
 /**
  * A {@link SetCoder} encodes any {@link Set} using the format of {@link IterableLikeCoder}. The

@@ -20,6 +20,16 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.hash.Hashing;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -30,6 +40,7 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PubsubOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -52,21 +63,7 @@ import org.apache.beam.sdk.util.PubsubClient.TopicPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.hash.Hashing;
-
 import org.joda.time.Duration;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
-
-import javax.annotation.Nullable;
 
 /**
  * A PTransform which streams messages to Pubsub.
@@ -168,7 +165,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       this.recordIdMethod = recordIdMethod;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       elementCounter.addValue(1L);
       byte[] elementBytes = CoderUtils.encodeToByteArray(elementCoder, c.element());
@@ -209,7 +206,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   private static class WriterFn
       extends DoFn<KV<Integer, Iterable<OutgoingMessage>>, Void> {
     private final PubsubClientFactory pubsubFactory;
-    private final TopicPath topic;
+    private final ValueProvider<TopicPath> topic;
     private final String timestampLabel;
     private final String idLabel;
     private final int publishBatchSize;
@@ -229,8 +226,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
         createAggregator("bytes", new Sum.SumLongFn());
 
     WriterFn(
-        PubsubClientFactory pubsubFactory, TopicPath topic, String timestampLabel,
-        String idLabel, int publishBatchSize, int publishBatchBytes) {
+        PubsubClientFactory pubsubFactory, ValueProvider<TopicPath> topic,
+        String timestampLabel, String idLabel, int publishBatchSize, int publishBatchBytes) {
       this.pubsubFactory = pubsubFactory;
       this.topic = topic;
       this.timestampLabel = timestampLabel;
@@ -245,7 +242,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
      */
     private void publishBatch(List<OutgoingMessage> messages, int bytes)
         throws IOException {
-      int n = pubsubClient.publish(topic, messages);
+      int n = pubsubClient.publish(topic.get(), messages);
       checkState(n == messages.size(), "Attempted to publish %s messages but %s were successful",
                  messages.size(), n);
       batchCounter.addValue(1L);
@@ -253,14 +250,14 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       byteCounter.addValue((long) bytes);
     }
 
-    @Override
+    @StartBundle
     public void startBundle(Context c) throws Exception {
       checkState(pubsubClient == null, "startBundle invoked without prior finishBundle");
       pubsubClient = pubsubFactory.newClient(timestampLabel, idLabel,
                                              c.getPipelineOptions().as(PubsubOptions.class));
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       List<OutgoingMessage> pubsubMessages = new ArrayList<>(publishBatchSize);
       int bytes = 0;
@@ -285,7 +282,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       }
     }
 
-    @Override
+    @FinishBundle
     public void finishBundle(Context c) throws Exception {
       pubsubClient.close();
       pubsubClient = null;
@@ -294,7 +291,11 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("topic", topic.getPath()));
+        String topicString =
+            topic == null ? null
+            : topic.isAccessible() ? topic.get().getPath()
+            : topic.toString();
+      builder.add(DisplayData.item("topic", topicString));
       builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
       builder.addIfNotNull(DisplayData.item("timestampLabel", timestampLabel));
       builder.addIfNotNull(DisplayData.item("idLabel", idLabel));
@@ -313,7 +314,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * Pubsub topic to publish to.
    */
-  private final TopicPath topic;
+  private final ValueProvider<TopicPath> topic;
 
   /**
    * Coder for elements. It is the responsibility of the underlying Pubsub transport to
@@ -367,7 +368,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   @VisibleForTesting
   PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
-      TopicPath topic,
+      ValueProvider<TopicPath> topic,
       Coder<T> elementCoder,
       String timestampLabel,
       String idLabel,
@@ -390,7 +391,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
 
   public PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
-      TopicPath topic,
+      ValueProvider<TopicPath> topic,
       Coder<T> elementCoder,
       String timestampLabel,
       String idLabel,
@@ -401,6 +402,10 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   public TopicPath getTopic() {
+    return topic.get();
+  }
+
+  public ValueProvider<TopicPath> getTopicProvider() {
     return topic;
   }
 
@@ -419,7 +424,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   @Override
-  public PDone apply(PCollection<T> input) {
+  public PDone expand(PCollection<T> input) {
     input.apply("PubsubUnboundedSink.Window", Window.<T>into(new GlobalWindows())
         .triggering(
             Repeatedly.forever(

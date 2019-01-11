@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -27,7 +28,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -66,8 +66,8 @@ public class ForwardingPTransformTest {
     PCollection<Integer> collection = mock(PCollection.class);
     @SuppressWarnings("unchecked")
     PCollection<String> output = mock(PCollection.class);
-    when(delegate.apply(collection)).thenReturn(output);
-    PCollection<String> result = forwarding.apply(collection);
+    when(delegate.expand(collection)).thenReturn(output);
+    PCollection<String> result = forwarding.expand(collection);
     assertThat(result, equalTo(output));
   }
 
@@ -103,10 +103,10 @@ public class ForwardingPTransformTest {
 
   @Test
   public void populateDisplayDataDelegates() {
-    DisplayData.Builder builder = mock(DisplayData.Builder.class);
-    doThrow(RuntimeException.class).when(delegate).populateDisplayData(builder);
+    doThrow(RuntimeException.class)
+        .when(delegate).populateDisplayData(any(DisplayData.Builder.class));
 
     thrown.expect(RuntimeException.class);
-    forwarding.populateDisplayData(builder);
+    DisplayData.from(forwarding);
   }
 }

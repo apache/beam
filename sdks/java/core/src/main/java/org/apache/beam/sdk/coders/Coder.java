@@ -19,15 +19,9 @@ package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -35,8 +29,11 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
  * A {@link Coder Coder&lt;T&gt;} defines how to encode and decode values of type {@code T} into
@@ -66,7 +63,7 @@ import javax.annotation.Nullable;
  */
 public interface Coder<T> extends Serializable {
   /** The context in which encoding or decoding is being done. */
-  public static class Context {
+  class Context {
     /**
      * The outer context: the value being encoded or decoded takes
      * up the remainder of the record/stream contents.
@@ -125,7 +122,7 @@ public interface Coder<T> extends Serializable {
    * for some reason
    * @throws CoderException if the value could not be encoded for some reason
    */
-  public void encode(T value, OutputStream outStream, Context context)
+  void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException;
 
   /**
@@ -136,7 +133,7 @@ public interface Coder<T> extends Serializable {
    * for some reason
    * @throws CoderException if the value could not be decoded for some reason
    */
-  public T decode(InputStream inStream, Context context)
+  T decode(InputStream inStream, Context context)
       throws CoderException, IOException;
 
   /**
@@ -145,12 +142,12 @@ public interface Coder<T> extends Serializable {
    * returns {@code null} if this cannot be done or this is not a
    * parameterized type.
    */
-  public List<? extends Coder<?>> getCoderArguments();
+  List<? extends Coder<?>> getCoderArguments();
 
   /**
    * Returns the {@link CloudObject} that represents this {@code Coder}.
    */
-  public CloudObject asCloudObject();
+  CloudObject asCloudObject();
 
   /**
    * Throw {@link NonDeterministicException} if the coding is not deterministic.
@@ -168,7 +165,7 @@ public interface Coder<T> extends Serializable {
    *
    * @throws Coder.NonDeterministicException if this coder is not deterministic.
    */
-  public void verifyDeterministic() throws Coder.NonDeterministicException;
+  void verifyDeterministic() throws Coder.NonDeterministicException;
 
   /**
    * Returns {@code true} if this {@link Coder} is injective with respect to {@link Objects#equals}.
@@ -180,7 +177,7 @@ public interface Coder<T> extends Serializable {
    * whenever {@code equals()} compares object identity, rather than performing a
    * semantic/structural comparison.
    */
-  public boolean consistentWithEquals();
+  boolean consistentWithEquals();
 
   /**
    * Returns an object with an {@code Object.equals()} method that represents structural equality
@@ -200,7 +197,7 @@ public interface Coder<T> extends Serializable {
    *
    * <p>See also {@link #consistentWithEquals()}.
    */
-  public Object structuralValue(T value) throws Exception;
+  Object structuralValue(T value) throws Exception;
 
   /**
    * Returns whether {@link #registerByteSizeObserver} cheap enough to
@@ -212,7 +209,7 @@ public interface Coder<T> extends Serializable {
    * {@link org.apache.beam.sdk.runners.PipelineRunner}
    * implementations.
    */
-  public boolean isRegisterByteSizeObserverCheap(T value, Context context);
+  boolean isRegisterByteSizeObserverCheap(T value, Context context);
 
   /**
    * Notifies the {@code ElementByteSizeObserver} about the byte size
@@ -222,7 +219,7 @@ public interface Coder<T> extends Serializable {
    * {@link org.apache.beam.sdk.runners.PipelineRunner}
    * implementations.
    */
-  public void registerByteSizeObserver(
+  void registerByteSizeObserver(
       T value, ElementByteSizeObserver observer, Context context)
       throws Exception;
 
@@ -237,12 +234,12 @@ public interface Coder<T> extends Serializable {
    *
    * <p>If the format is changed in a backwards-compatible way (the Coder can still accept data from
    * the prior format), such as by adding optional fields to a Protocol Buffer or Avro definition,
-   * and you want Dataflow to understand that the new coder is compatible with the prior coder,
+   * and you want a Beam runner to understand that the new coder is compatible with the prior coder,
    * this value must remain unchanged. It is then the responsibility of {@link #decode} to correctly
    * read data from the prior format.
    */
   @Experimental(Kind.CODER_ENCODING_ID)
-  public String getEncodingId();
+  String getEncodingId();
 
   /**
    * A collection of encodings supported by {@link #decode} in addition to the encoding
@@ -254,13 +251,13 @@ public interface Coder<T> extends Serializable {
    * @see #getEncodingId()
    */
   @Experimental(Kind.CODER_ENCODING_ID)
-  public Collection<String> getAllowedEncodings();
+  Collection<String> getAllowedEncodings();
 
   /**
    * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is
    * not deterministic, including details of why the encoding is not deterministic.
    */
-  public static class NonDeterministicException extends Throwable {
+  class NonDeterministicException extends Exception {
     private Coder<?> coder;
     private List<String> reasons;
 

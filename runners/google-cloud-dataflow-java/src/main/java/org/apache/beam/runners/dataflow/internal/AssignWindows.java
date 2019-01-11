@@ -30,14 +30,14 @@ import org.apache.beam.sdk.values.PCollection;
  * A primitive {@link PTransform} that implements the {@link Window#into(WindowFn)}
  * {@link PTransform}.
  *
- * For an application of {@link Window#into(WindowFn)} that changes the {@link WindowFn}, applies
+ * <p>For an application of {@link Window#into(WindowFn)} that changes the {@link WindowFn}, applies
  * a primitive {@link PTransform} in the Dataflow service.
  *
- * For an application of {@link Window#into(WindowFn)} that does not change the {@link WindowFn},
+ * <p>For an application of {@link Window#into(WindowFn)} that does not change the {@link WindowFn},
  * applies an identity {@link ParDo} and sets the windowing strategy of the output
  * {@link PCollection}.
  *
- * For internal use only.
+ * <p>For internal use only.
  *
  * @param <T> the type of input element
  */
@@ -53,7 +53,7 @@ public class AssignWindows<T> extends PTransform<PCollection<T>, PCollection<T>>
   }
 
   @Override
-  public PCollection<T> apply(PCollection<T> input) {
+  public PCollection<T> expand(PCollection<T> input) {
     WindowingStrategy<?, ?> outputStrategy =
         transform.getOutputStrategyInternal(input.getWindowingStrategy());
     if (transform.getWindowFn() != null) {
@@ -64,8 +64,8 @@ public class AssignWindows<T> extends PTransform<PCollection<T>, PCollection<T>>
       // If the windowFn didn't change, we just run a pass-through transform and then set the
       // new windowing strategy.
       return input.apply("Identity", ParDo.of(new DoFn<T, T>() {
-        @Override
-        public void processElement(DoFn<T, T>.ProcessContext c) throws Exception {
+        @ProcessElement
+        public void processElement(ProcessContext c) throws Exception {
           c.output(c.element());
         }
       })).setWindowingStrategyInternal(outputStrategy);

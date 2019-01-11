@@ -29,24 +29,15 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.dataflow.internal.DataflowAggregatorTransforms;
-import org.apache.beam.runners.dataflow.util.MonitoringUtil;
-import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.runners.AggregatorRetrievalException;
-import org.apache.beam.sdk.runners.AggregatorValues;
-import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
-
+import com.google.api.client.util.NanoClock;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.Dataflow.Projects.Jobs.Get;
 import com.google.api.services.dataflow.Dataflow.Projects.Jobs.GetMetrics;
@@ -58,7 +49,28 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSetMultimap;
-
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.net.SocketTimeoutException;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.dataflow.internal.DataflowAggregatorTransforms;
+import org.apache.beam.runners.dataflow.testing.TestDataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.util.MonitoringUtil;
+import org.apache.beam.sdk.AggregatorRetrievalException;
+import org.apache.beam.sdk.AggregatorValues;
+import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,11 +80,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.net.SocketTimeoutException;
-import java.util.concurrent.TimeUnit;
-
 /**
  * Tests for DataflowPipelineJob.
  */
@@ -80,6 +87,7 @@ import java.util.concurrent.TimeUnit;
 public class DataflowPipelineJobTest {
   private static final String PROJECT_ID = "someProject";
   private static final String JOB_ID = "1234";
+  private static final String REPLACEMENT_JOB_ID = "replacementJobId";
 
   @Mock
   private Dataflow mockWorkflowClient;
@@ -93,12 +101,21 @@ public class DataflowPipelineJobTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
+  @Rule
+  public ExpectedLogs expectedLogs = ExpectedLogs.none(DataflowPipelineJob.class);
+
+  private TestDataflowPipelineOptions options;
+
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
 
     when(mockWorkflowClient.projects()).thenReturn(mockProjects);
     when(mockProjects.jobs()).thenReturn(mockJobs);
+
+    options = PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
+    options.setDataflowClient(mockWorkflowClient);
+    options.setProject(PROJECT_ID);
   }
 
   /**
@@ -106,22 +123,21 @@ public class DataflowPipelineJobTest {
    * AttemptBoundedExponentialBackOff given the number of retries and
    * an initial polling interval.
    *
-   * @param pollingIntervalMillis The initial polling interval given.
-   * @param attempts The number of attempts made
+   * @param pollingInterval The initial polling interval given.
+   * @param retries The number of retries made
    * @param timeSleptMillis The amount of time slept by the clock. This is checked
    * against the valid interval.
    */
-  void checkValidInterval(long pollingIntervalMillis, int attempts, long timeSleptMillis) {
+  private void checkValidInterval(Duration pollingInterval, int retries, long timeSleptMillis) {
     long highSum = 0;
     long lowSum = 0;
-    for (int i = 1; i < attempts; i++) {
+    for (int i = 0; i < retries; i++) {
       double currentInterval =
-          pollingIntervalMillis
-          * Math.pow(AttemptBoundedExponentialBackOff.DEFAULT_MULTIPLIER, i - 1);
-      double offset =
-          AttemptBoundedExponentialBackOff.DEFAULT_RANDOMIZATION_FACTOR * currentInterval;
-      highSum += Math.round(currentInterval + offset);
-      lowSum += Math.round(currentInterval - offset);
+          pollingInterval.getMillis()
+          * Math.pow(DataflowPipelineJob.DEFAULT_BACKOFF_EXPONENT, i);
+      double randomOffset = 0.5 * currentInterval;
+      highSum += Math.round(currentInterval + randomOffset);
+      lowSum += Math.round(currentInterval - randomOffset);
     }
     assertThat(timeSleptMillis, allOf(greaterThanOrEqualTo(lowSum), lessThanOrEqualTo(highSum)));
   }
@@ -141,14 +157,16 @@ public class DataflowPipelineJobTest {
     Messages.List listRequest = mock(Dataflow.Projects.Jobs.Messages.List.class);
     when(mockJobs.messages()).thenReturn(mockMessages);
     when(mockMessages.list(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(listRequest);
+    when(listRequest.setPageToken(eq((String) null))).thenReturn(listRequest);
     when(listRequest.execute()).thenThrow(SocketTimeoutException.class);
     DataflowAggregatorTransforms dataflowAggregatorTransforms =
         mock(DataflowAggregatorTransforms.class);
 
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, mockWorkflowClient, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
 
-    State state = job.waitToFinish(5, TimeUnit.MINUTES, jobHandler, fastClock, fastClock);
+    State state = job.waitUntilFinish(
+        Duration.standardMinutes(5), jobHandler, fastClock, fastClock);
     assertEquals(null, state);
   }
 
@@ -157,16 +175,19 @@ public class DataflowPipelineJobTest {
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_" + state.name());
+    if (state == State.UPDATED) {
+      statusResponse.setReplacedByJobId(REPLACEMENT_JOB_ID);
+    }
 
     when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
     DataflowAggregatorTransforms dataflowAggregatorTransforms =
         mock(DataflowAggregatorTransforms.class);
 
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, mockWorkflowClient, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
 
-    return job.waitToFinish(1, TimeUnit.MINUTES, null, fastClock, fastClock);
+    return job.waitUntilFinish(Duration.standardMinutes(1), null, fastClock, fastClock);
   }
 
   /**
@@ -176,6 +197,7 @@ public class DataflowPipelineJobTest {
   @Test
   public void testWaitToFinishDone() throws Exception {
     assertEquals(State.DONE, mockWaitToFinishInState(State.DONE));
+    expectedLogs.verifyInfo(String.format("Job %s finished with status DONE.", JOB_ID));
   }
 
   /**
@@ -185,24 +207,39 @@ public class DataflowPipelineJobTest {
   @Test
   public void testWaitToFinishFailed() throws Exception {
     assertEquals(State.FAILED, mockWaitToFinishInState(State.FAILED));
+    expectedLogs.verifyInfo(String.format("Job %s failed with status FAILED.", JOB_ID));
   }
 
   /**
-   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#FAILED FAILED}
-   * state is terminal.
+   * Tests that the {@link DataflowPipelineJob} understands that the
+   * {@link State#CANCELLED CANCELLED} state is terminal.
    */
   @Test
   public void testWaitToFinishCancelled() throws Exception {
     assertEquals(State.CANCELLED, mockWaitToFinishInState(State.CANCELLED));
+    expectedLogs.verifyInfo(String.format("Job %s finished with status CANCELLED", JOB_ID));
   }
 
   /**
-   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#FAILED FAILED}
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#UPDATED UPDATED}
    * state is terminal.
    */
   @Test
   public void testWaitToFinishUpdated() throws Exception {
     assertEquals(State.UPDATED, mockWaitToFinishInState(State.UPDATED));
+    expectedLogs.verifyInfo(String.format(
+        "Job %s has been updated and is running as the new job with id %s.",
+        JOB_ID, REPLACEMENT_JOB_ID));
+  }
+
+  /**
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#UNKNOWN UNKNOWN}
+   * state is terminal.
+   */
+  @Test
+  public void testWaitToFinishUnknown() throws Exception {
+    assertEquals(null, mockWaitToFinishInState(State.UNKNOWN));
+    expectedLogs.verifyWarn("No terminal state was returned. State value UNKNOWN");
   }
 
   @Test
@@ -214,15 +251,15 @@ public class DataflowPipelineJobTest {
     DataflowAggregatorTransforms dataflowAggregatorTransforms =
         mock(DataflowAggregatorTransforms.class);
 
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, mockWorkflowClient, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
 
     long startTime = fastClock.nanoTime();
-    State state = job.waitToFinish(5, TimeUnit.MINUTES, null, fastClock, fastClock);
+    State state = job.waitUntilFinish(Duration.standardMinutes(5), null, fastClock, fastClock);
     assertEquals(null, state);
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
     checkValidInterval(DataflowPipelineJob.MESSAGES_POLLING_INTERVAL,
-        DataflowPipelineJob.MESSAGES_POLLING_ATTEMPTS, timeDiff);
+        DataflowPipelineJob.MESSAGES_POLLING_RETRIES, timeDiff);
   }
 
   @Test
@@ -234,14 +271,38 @@ public class DataflowPipelineJobTest {
     DataflowAggregatorTransforms dataflowAggregatorTransforms =
         mock(DataflowAggregatorTransforms.class);
 
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, mockWorkflowClient, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
     long startTime = fastClock.nanoTime();
-    State state = job.waitToFinish(4, TimeUnit.MILLISECONDS, null, fastClock, fastClock);
+    State state = job.waitUntilFinish(Duration.millis(4), null, fastClock, fastClock);
     assertEquals(null, state);
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
-    // Should only sleep for the 4 ms remaining.
-    assertEquals(timeDiff, 4L);
+    // Should only have slept for the 4 ms allowed.
+    assertEquals(4L, timeDiff);
+  }
+
+  @Test
+  public void testCumulativeTimeOverflow() throws Exception {
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_RUNNING");
+    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    DataflowAggregatorTransforms dataflowAggregatorTransforms =
+        mock(DataflowAggregatorTransforms.class);
+
+    FastNanoClockAndFuzzySleeper clock = new FastNanoClockAndFuzzySleeper();
+
+    DataflowPipelineJob job = new DataflowPipelineJob(
+        JOB_ID, options, dataflowAggregatorTransforms);
+    long startTime = clock.nanoTime();
+    State state = job.waitUntilFinish(Duration.millis(4), null, clock, clock);
+    assertEquals(null, state);
+    long timeDiff = TimeUnit.NANOSECONDS.toMillis(clock.nanoTime() - startTime);
+    // Should only have slept for the 4 ms allowed.
+    assertThat(timeDiff, lessThanOrEqualTo(4L));
   }
 
   @Test
@@ -258,11 +319,11 @@ public class DataflowPipelineJobTest {
         mock(DataflowAggregatorTransforms.class);
 
     DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, mockWorkflowClient, dataflowAggregatorTransforms);
+        JOB_ID, options, dataflowAggregatorTransforms);
 
     assertEquals(
         State.RUNNING,
-        job.getStateWithRetries(DataflowPipelineJob.STATUS_POLLING_ATTEMPTS, fastClock));
+        job.getStateWithRetries(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff(), fastClock));
   }
 
   @Test
@@ -274,16 +335,16 @@ public class DataflowPipelineJobTest {
     DataflowAggregatorTransforms dataflowAggregatorTransforms =
         mock(DataflowAggregatorTransforms.class);
 
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, mockWorkflowClient, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
 
     long startTime = fastClock.nanoTime();
     assertEquals(
         State.UNKNOWN,
-        job.getStateWithRetries(DataflowPipelineJob.STATUS_POLLING_ATTEMPTS, fastClock));
+        job.getStateWithRetries(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff(), fastClock));
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
     checkValidInterval(DataflowPipelineJob.STATUS_POLLING_INTERVAL,
-        DataflowPipelineJob.STATUS_POLLING_ATTEMPTS, timeDiff);
+        DataflowPipelineJob.STATUS_POLLING_RETRIES, timeDiff);
   }
 
   @Test
@@ -314,7 +375,7 @@ public class DataflowPipelineJobTest {
     modelJob.setCurrentState(State.RUNNING.toString());
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, mockWorkflowClient, aggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     AggregatorValues<?> values = job.getAggregatorValues(aggregator);
 
@@ -349,7 +410,7 @@ public class DataflowPipelineJobTest {
     modelJob.setCurrentState(State.RUNNING.toString());
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, mockWorkflowClient, aggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     AggregatorValues<?> values = job.getAggregatorValues(aggregator);
 
@@ -394,8 +455,7 @@ public class DataflowPipelineJobTest {
     when(getState.execute()).thenReturn(modelJob);
     modelJob.setCurrentState(State.RUNNING.toString());
 
-    DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, mockWorkflowClient, aggregatorTransforms);
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     AggregatorValues<Long> values = job.getAggregatorValues(aggregator);
 
@@ -462,8 +522,7 @@ public class DataflowPipelineJobTest {
     when(getState.execute()).thenReturn(modelJob);
     modelJob.setCurrentState(State.RUNNING.toString());
 
-    DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, mockWorkflowClient, aggregatorTransforms);
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     AggregatorValues<Long> values = job.getAggregatorValues(aggregator);
 
@@ -512,7 +571,7 @@ public class DataflowPipelineJobTest {
     modelJob.setCurrentState(State.RUNNING.toString());
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, mockWorkflowClient, aggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     AggregatorValues<Long> values = job.getAggregatorValues(aggregator);
 
@@ -530,7 +589,7 @@ public class DataflowPipelineJobTest {
         ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, mockWorkflowClient, aggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("not used in this pipeline");
@@ -565,8 +624,7 @@ public class DataflowPipelineJobTest {
     when(getState.execute()).thenReturn(modelJob);
     modelJob.setCurrentState(State.RUNNING.toString());
 
-    DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, mockWorkflowClient, aggregatorTransforms);
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     thrown.expect(AggregatorRetrievalException.class);
     thrown.expectCause(is(cause));
@@ -604,5 +662,94 @@ public class DataflowPipelineJobTest {
   private AppliedPTransform<?, ?, ?> appliedPTransform(
       String fullName, PTransform<PInput, POutput> transform) {
     return AppliedPTransform.of(fullName, mock(PInput.class), mock(POutput.class), transform);
+  }
+
+
+  private static class FastNanoClockAndFuzzySleeper implements NanoClock, Sleeper {
+    private long fastNanoTime;
+
+    public FastNanoClockAndFuzzySleeper() {
+      fastNanoTime = NanoClock.SYSTEM.nanoTime();
+    }
+
+    @Override
+    public long nanoTime() {
+      return fastNanoTime;
+    }
+
+    @Override
+    public void sleep(long millis) throws InterruptedException {
+      fastNanoTime += millis * 1000000L + ThreadLocalRandom.current().nextInt(500000);
+    }
+  }
+
+  @Test
+  public void testCancelUnterminatedJobThatSucceeds() throws IOException {
+    Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
+    when(mockJobs.update(anyString(), anyString(), any(Job.class))).thenReturn(update);
+    when(update.execute()).thenReturn(new Job());
+
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
+
+    assertEquals(State.CANCELLED, job.cancel());
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    verify(mockJobs).update(eq(PROJECT_ID), eq(JOB_ID), eq(content));
+    verifyNoMoreInteractions(mockJobs);
+  }
+
+  @Test
+  public void testCancelUnterminatedJobThatFails() throws IOException {
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_RUNNING");
+    when(mockJobs.get(anyString(), anyString())).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
+    when(mockJobs.update(anyString(), anyString(), any(Job.class))).thenReturn(update);
+    when(update.execute()).thenThrow(new IOException());
+
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage("Failed to cancel the job, "
+        + "please go to the Developers Console to cancel it manually:");
+    job.cancel();
+
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    verify(mockJobs).update(eq(PROJECT_ID), eq(JOB_ID), eq(content));
+    verify(mockJobs).get(eq(PROJECT_ID), eq(JOB_ID));
+  }
+
+  @Test
+  public void testCancelTerminatedJob() throws IOException {
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_FAILED");
+    when(mockJobs.get(anyString(), anyString())).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
+    when(mockJobs.update(anyString(), anyString(), any(Job.class))).thenReturn(update);
+    when(update.execute()).thenThrow(new IOException());
+
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
+
+    assertEquals(State.FAILED, job.cancel());
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    verify(mockJobs).update(eq(PROJECT_ID), eq(JOB_ID), eq(content));
+    verify(mockJobs).get(eq(PROJECT_ID), eq(JOB_ID));
+    verifyNoMoreInteractions(mockJobs);
   }
 }

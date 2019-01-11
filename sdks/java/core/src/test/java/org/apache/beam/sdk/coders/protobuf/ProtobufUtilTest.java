@@ -20,11 +20,8 @@ package org.apache.beam.sdk.coders.protobuf;
 import static org.apache.beam.sdk.coders.protobuf.ProtobufUtil.checkProto2Syntax;
 import static org.apache.beam.sdk.coders.protobuf.ProtobufUtil.getRecursiveDescriptorsForClass;
 import static org.apache.beam.sdk.coders.protobuf.ProtobufUtil.verifyDeterministic;
-
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
-
-import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
@@ -39,15 +36,14 @@ import com.google.protobuf.Descriptors.GenericDescriptor;
 import com.google.protobuf.Duration;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.Message;
-
+import java.util.HashSet;
+import java.util.Set;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * Tests for {@link ProtobufUtil}.

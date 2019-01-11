@@ -25,7 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.IOChannelUtils;
-
+import org.apache.beam.sdk.util.NoopPathValidator;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -53,7 +53,13 @@ public class DataflowPipelineOptionsTest {
     System.getProperties().remove("user.name");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("TestApplication");
-    assertEquals("testapplication--1208190706", options.getJobName());
+    String[] nameComponents = options.getJobName().split("-");
+    assertEquals(4, nameComponents.length);
+    assertEquals("testapplication", nameComponents[0]);
+    assertEquals("", nameComponents[1]);
+    assertEquals("1208190706", nameComponents[2]);
+    // Verify the last component is a hex integer (unsigned).
+    Long.parseLong(nameComponents[3], 16);
     assertTrue(options.getJobName().length() <= 40);
   }
 
@@ -63,9 +69,13 @@ public class DataflowPipelineOptionsTest {
     System.getProperties().put("user.name", "abcdeabcdeabcdeabcdeabcdeabcde");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("1234567890123456789012345678901234567890");
-    assertEquals(
-        "a234567890123456789012345678901234567890-abcdeabcdeabcdeabcdeabcdeabcde-1208190706",
-        options.getJobName());
+    String[] nameComponents = options.getJobName().split("-");
+    assertEquals(4, nameComponents.length);
+    assertEquals("a234567890123456789012345678901234567890", nameComponents[0]);
+    assertEquals("abcdeabcdeabcdeabcdeabcdeabcde", nameComponents[1]);
+    assertEquals("1208190706", nameComponents[2]);
+    // Verify the last component is a hex integer (unsigned).
+    Long.parseLong(nameComponents[3], 16);
   }
 
   @Test
@@ -74,7 +84,13 @@ public class DataflowPipelineOptionsTest {
     System.getProperties().put("user.name", "abcde");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("1234567890123456789012345678901234567890");
-    assertEquals("a234567890123456789012345678901234567890-abcde-1208190706", options.getJobName());
+    String[] nameComponents = options.getJobName().split("-");
+    assertEquals(4, nameComponents.length);
+    assertEquals("a234567890123456789012345678901234567890", nameComponents[0]);
+    assertEquals("abcde", nameComponents[1]);
+    assertEquals("1208190706", nameComponents[2]);
+    // Verify the last component is a hex integer (unsigned).
+    Long.parseLong(nameComponents[3], 16);
   }
 
   @Test
@@ -83,7 +99,13 @@ public class DataflowPipelineOptionsTest {
     System.getProperties().put("user.name", "abcdeabcdeabcdeabcdeabcdeabcde");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("1234567890");
-    assertEquals("a234567890-abcdeabcdeabcdeabcdeabcdeabcde-1208190706", options.getJobName());
+    String[] nameComponents = options.getJobName().split("-");
+    assertEquals(4, nameComponents.length);
+    assertEquals("a234567890", nameComponents[0]);
+    assertEquals("abcdeabcdeabcdeabcdeabcdeabcde", nameComponents[1]);
+    assertEquals("1208190706", nameComponents[2]);
+    // Verify the last component is a hex integer (unsigned).
+    Long.parseLong(nameComponents[3], 16);
   }
 
   @Test
@@ -92,13 +114,19 @@ public class DataflowPipelineOptionsTest {
     System.getProperties().put("user.name", "ði ıntəˈnæʃənəl ");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("fəˈnɛtık əsoʊsiˈeıʃn");
-    assertEquals("f00n0t0k00so0si0e00n-0i00nt00n000n0l0-1208190706", options.getJobName());
+    String[] nameComponents = options.getJobName().split("-");
+    assertEquals(4, nameComponents.length);
+    assertEquals("f00n0t0k00so0si0e00n", nameComponents[0]);
+    assertEquals("0i00nt00n000n0l0", nameComponents[1]);
+    assertEquals("1208190706", nameComponents[2]);
+    // Verify the last component is a hex integer (unsigned).
+    Long.parseLong(nameComponents[3], 16);
   }
 
   @Test
   public void testStagingLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    IOChannelUtils.registerStandardIOFactories(options);
+    IOChannelUtils.registerIOFactoriesAllowOverride(options);
     options.setTempLocation("file://temp_location");
     options.setStagingLocation("gs://staging_location");
     assertTrue(isNullOrEmpty(options.getGcpTempLocation()));
@@ -108,7 +136,8 @@ public class DataflowPipelineOptionsTest {
   @Test
   public void testDefaultToTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    IOChannelUtils.registerStandardIOFactories(options);
+    IOChannelUtils.registerIOFactoriesAllowOverride(options);
+    options.setPathValidatorClass(NoopPathValidator.class);
     options.setTempLocation("gs://temp_location");
     assertEquals("gs://temp_location", options.getGcpTempLocation());
     assertEquals("gs://temp_location/staging", options.getStagingLocation());
@@ -117,7 +146,8 @@ public class DataflowPipelineOptionsTest {
   @Test
   public void testDefaultToGcpTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    IOChannelUtils.registerStandardIOFactories(options);
+    IOChannelUtils.registerIOFactoriesAllowOverride(options);
+    options.setPathValidatorClass(NoopPathValidator.class);
     options.setTempLocation("gs://temp_location");
     options.setGcpTempLocation("gs://gcp_temp_location");
     assertEquals("gs://gcp_temp_location/staging", options.getStagingLocation());

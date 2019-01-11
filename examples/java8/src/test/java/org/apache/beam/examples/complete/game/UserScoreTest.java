@@ -17,6 +17,9 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.examples.complete.game.UserScore.ExtractAndSumScore;
 import org.apache.beam.examples.complete.game.UserScore.GameActionInfo;
 import org.apache.beam.examples.complete.game.UserScore.ParseEventFn;
@@ -32,16 +35,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Tests of UserScore.
@@ -83,7 +81,7 @@ public class UserScoreTest implements Serializable {
       KV.of("AndroidGreenKookaburra", 23),
       KV.of("BisqueBilby", 14));
 
-  /** Test the ParseEventFn DoFn. */
+  /** Test the {@link ParseEventFn} {@link DoFn}. */
   @Test
   public void testParseEventFn() throws Exception {
     DoFnTester<String, GameActionInfo> parseEventFn =
@@ -112,7 +110,7 @@ public class UserScoreTest implements Serializable {
     // Check the user score sums.
     PAssert.that(output).containsInAnyOrder(USER_SUMS);
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   /** Tests ExtractAndSumScore("team"). */
@@ -131,7 +129,7 @@ public class UserScoreTest implements Serializable {
     // Check the team score sums.
     PAssert.that(output).containsInAnyOrder(TEAM_SUMS);
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   /** Test that bad input data is dropped appropriately. */
@@ -151,6 +149,6 @@ public class UserScoreTest implements Serializable {
 
     PAssert.that(extract).empty();
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

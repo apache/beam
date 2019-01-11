@@ -19,41 +19,47 @@
 package org.apache.beam.sdk.io;
 
 import static junit.framework.TestCase.assertFalse;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubCheckpoint;
-import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubReader;
-import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubSource;
-import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.PubsubClient;
-import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
-import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
-import org.apache.beam.sdk.util.PubsubTestClient;
-import org.apache.beam.sdk.util.PubsubTestClient.PubsubTestClientFactory;
-
 import com.google.api.client.util.Clock;
 import com.google.common.collect.ImmutableList;
-
-import org.joda.time.Instant;
-import org.junit.After;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubCheckpoint;
+import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubReader;
+import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubSource;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.PubsubClient;
+import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
+import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
+import org.apache.beam.sdk.util.PubsubClient.TopicPath;
+import org.apache.beam.sdk.util.PubsubTestClient;
+import org.apache.beam.sdk.util.PubsubTestClient.PubsubTestClientFactory;
+import org.joda.time.Instant;
+import org.junit.After;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Test PubsubUnboundedSource.
@@ -86,8 +92,9 @@ public class PubsubUnboundedSourceTest {
     };
     factory = PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
     PubsubUnboundedSource<String> source =
-        new PubsubUnboundedSource<>(clock, factory, null, null, SUBSCRIPTION, StringUtf8Coder.of(),
-                                    TIMESTAMP_LABEL, ID_LABEL);
+        new PubsubUnboundedSource<>(
+            clock, factory, null, null, StaticValueProvider.of(SUBSCRIPTION),
+            StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL);
     primSource = new PubsubSource<>(source);
   }
 
@@ -318,5 +325,76 @@ public class PubsubUnboundedSourceTest {
     // We saw each message exactly once.
     assertTrue(dataToMessageNum.isEmpty());
     reader.close();
+  }
+
+  @Test
+  public void noSubscriptionSplitIntoBundlesGeneratesSubscription() throws Exception {
+    TopicPath topicPath = PubsubClient.topicPathFromName("my_project", "my_topic");
+    factory = PubsubTestClient.createFactoryForCreateSubscription();
+    PubsubUnboundedSource<String> source =
+        new PubsubUnboundedSource<>(
+            factory,
+            StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
+            StaticValueProvider.of(topicPath),
+            null,
+            StringUtf8Coder.of(),
+            null,
+            null);
+    assertThat(source.getSubscription(), nullValue());
+
+    TestPipeline.create().apply(source);
+    assertThat(source.getSubscription(), nullValue());
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<PubsubSource<String>> splits =
+        (new PubsubSource<>(source)).generateInitialSplits(3, options);
+    // We have at least one returned split
+    assertThat(splits, hasSize(greaterThan(0)));
+    for (PubsubSource<String> split : splits) {
+      // Each split is equal
+      assertThat(split, equalTo(splits.get(0)));
+    }
+
+    assertThat(splits.get(0).subscriptionPath, not(nullValue()));
+  }
+
+  @Test
+  public void noSubscriptionNoSplitGeneratesSubscription() throws Exception {
+    TopicPath topicPath = PubsubClient.topicPathFromName("my_project", "my_topic");
+    factory = PubsubTestClient.createFactoryForCreateSubscription();
+    PubsubUnboundedSource<String> source =
+        new PubsubUnboundedSource<>(
+            factory,
+            StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
+            StaticValueProvider.of(topicPath),
+            null,
+            StringUtf8Coder.of(),
+            null,
+            null);
+    assertThat(source.getSubscription(), nullValue());
+
+    TestPipeline.create().apply(source);
+    assertThat(source.getSubscription(), nullValue());
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    PubsubSource<String> actualSource = new PubsubSource<>(source);
+    PubsubReader<String> reader = actualSource.createReader(options, null);
+    SubscriptionPath createdSubscription = reader.subscription;
+    assertThat(createdSubscription, not(nullValue()));
+
+    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    assertThat(checkpoint.subscriptionPath, equalTo(createdSubscription.getPath()));
+
+    checkpoint.finalizeCheckpoint();
+    PubsubCheckpoint<String> deserCheckpoint =
+        CoderUtils.clone(actualSource.getCheckpointMarkCoder(), checkpoint);
+    assertThat(checkpoint.subscriptionPath, not(nullValue()));
+    assertThat(checkpoint.subscriptionPath, equalTo(deserCheckpoint.subscriptionPath));
+
+    PubsubReader<String> readerFromOriginal = actualSource.createReader(options, checkpoint);
+    PubsubReader<String> readerFromDeser = actualSource.createReader(options, deserCheckpoint);
+
+    assertThat(readerFromOriginal.subscription, equalTo(createdSubscription));
+    assertThat(readerFromDeser.subscription, equalTo(createdSubscription));
   }
 }

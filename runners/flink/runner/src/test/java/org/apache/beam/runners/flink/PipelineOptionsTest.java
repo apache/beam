@@ -21,33 +21,40 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Collections;
+import java.util.HashMap;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkAbstractParDoWrapper;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.apache.commons.lang.SerializationUtils;
-import org.apache.flink.util.Collector;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 /**
- * Tests the serialization and deserialization of PipelineOptions.
+ * Tests for serialization and deserialization of {@link PipelineOptions} in {@link DoFnOperator}.
  */
 public class PipelineOptionsTest {
 
+  /**
+   * Pipeline options.
+   */
   public interface MyOptions extends FlinkPipelineOptions {
     @Description("Bla bla bla")
     @Default.String("Hello")
@@ -58,7 +65,7 @@ public class PipelineOptionsTest {
   private static MyOptions options;
   private static SerializedPipelineOptions serializedOptions;
 
-  private final static String[] args = new String[]{"--testOption=nothing"};
+  private static final String[] args = new String[]{"--testOption=nothing"};
 
   @BeforeClass
   public static void beforeTest() {
@@ -74,7 +81,9 @@ public class PipelineOptionsTest {
 
   @Test
   public void testCaching() {
-    PipelineOptions deserializedOptions = serializedOptions.getPipelineOptions().as(PipelineOptions.class);
+    PipelineOptions deserializedOptions =
+        serializedOptions.getPipelineOptions().as(PipelineOptions.class);
+
     assertNotNull(deserializedOptions);
     assertTrue(deserializedOptions == serializedOptions.getPipelineOptions());
     assertTrue(deserializedOptions == serializedOptions.getPipelineOptions());
@@ -87,34 +96,62 @@ public class PipelineOptionsTest {
   }
 
   @Test(expected = Exception.class)
-  public void ParDoBaseClassPipelineOptionsNullTest() {
-    new TestParDoWrapper(null, WindowingStrategy.globalDefault(), new TestDoFn());
+  public void parDoBaseClassPipelineOptionsNullTest() {
+    DoFnOperator<Object, Object, Object> doFnOperator = new DoFnOperator<>(
+        new TestDoFn(),
+        TypeInformation.of(new TypeHint<WindowedValue<Object>>() {}),
+        new TupleTag<>("main-output"),
+        Collections.<TupleTag<?>>emptyList(),
+        new DoFnOperator.DefaultOutputManagerFactory<>(),
+        WindowingStrategy.globalDefault(),
+        new HashMap<Integer, PCollectionView<?>>(),
+        Collections.<PCollectionView<?>>emptyList(),
+        null);
+
   }
 
   /**
-   * Tests that PipelineOptions are present after serialization
+   * Tests that PipelineOptions are present after serialization.
    */
   @Test
-  public void ParDoBaseClassPipelineOptionsSerializationTest() throws Exception {
-    TestParDoWrapper wrapper =
-        new TestParDoWrapper(options, WindowingStrategy.globalDefault(), new TestDoFn());
+  public void parDoBaseClassPipelineOptionsSerializationTest() throws Exception {
 
-    final byte[] serialized = SerializationUtils.serialize(wrapper);
-    TestParDoWrapper deserialize = (TestParDoWrapper) SerializationUtils.deserialize(serialized);
+    DoFnOperator<Object, Object, Object> doFnOperator = new DoFnOperator<>(
+        new TestDoFn(),
+        TypeInformation.of(new TypeHint<WindowedValue<Object>>() {}),
+        new TupleTag<>("main-output"),
+        Collections.<TupleTag<?>>emptyList(),
+        new DoFnOperator.DefaultOutputManagerFactory<>(),
+        WindowingStrategy.globalDefault(),
+        new HashMap<Integer, PCollectionView<?>>(),
+        Collections.<PCollectionView<?>>emptyList(),
+        options);
+
+    final byte[] serialized = SerializationUtils.serialize(doFnOperator);
+
+    @SuppressWarnings("unchecked")
+    DoFnOperator<Object, Object, Object> deserialized =
+        (DoFnOperator<Object, Object, Object>) SerializationUtils.deserialize(serialized);
+
+    OneInputStreamOperatorTestHarness<WindowedValue<Object>, Object> testHarness =
+        new OneInputStreamOperatorTestHarness<>(deserialized, new ExecutionConfig());
+
+    testHarness.open();
 
     // execute once to access options
-    deserialize.flatMap(
+    testHarness.processElement(new StreamRecord<>(
         WindowedValue.of(
             new Object(),
             Instant.now(),
             GlobalWindow.INSTANCE,
-            PaneInfo.NO_FIRING),
-        Mockito.mock(Collector.class));
+            PaneInfo.NO_FIRING)));
+
+    testHarness.close();
 
   }
 
 
-  private static class TestDoFn extends DoFn<Object, Object> {
+  private static class TestDoFn extends OldDoFn<Object, Object> {
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
@@ -124,35 +161,4 @@ public class PipelineOptionsTest {
           c.getPipelineOptions().as(MyOptions.class).getTestOption());
     }
   }
-
-  private static class TestParDoWrapper extends FlinkAbstractParDoWrapper {
-    public TestParDoWrapper(PipelineOptions options, WindowingStrategy windowingStrategy, DoFn doFn) {
-      super(options, windowingStrategy, doFn);
-    }
-
-
-    @Override
-    public WindowingInternals windowingInternalsHelper(
-        WindowedValue inElement,
-        Collector outCollector) {
-      return null;
-    }
-
-    @Override
-    public void sideOutputWithTimestampHelper(
-        WindowedValue inElement,
-        Object output,
-        Instant timestamp,
-        Collector outCollector,
-        TupleTag tag) {}
-
-    @Override
-    public void outputWithTimestampHelper(
-        WindowedValue inElement,
-        Object output,
-        Instant timestamp,
-        Collector outCollector) {}
-  }
-
-
 }

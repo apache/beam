@@ -20,6 +20,9 @@ package org.apache.beam.runners.direct;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
@@ -31,17 +34,12 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for {@link WatermarkCallbackExecutor}.
@@ -57,8 +55,10 @@ public class WatermarkCallbackExecutorTest {
   public void setup() {
     TestPipeline p = TestPipeline.create();
     PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
-    create = created.getProducingTransformInternal();
-    sum = created.apply(Sum.integersGlobally()).getProducingTransformInternal();
+    PCollection<Integer> summed = created.apply(Sum.integersGlobally());
+    DirectGraph graph = DirectGraphs.getGraph(p);
+    create = graph.getProducer(created);
+    sum = graph.getProducer(summed);
   }
 
   @Test

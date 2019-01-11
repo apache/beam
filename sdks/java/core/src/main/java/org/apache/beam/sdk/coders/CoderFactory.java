@@ -32,7 +32,7 @@ public interface CoderFactory {
    * values of a particular type, given the Coders for each of
    * the type's generic parameter types.
    */
-  public Coder<?> create(List<? extends Coder<?>> componentCoders);
+  Coder<?> create(List<? extends Coder<?>> componentCoders);
 
   /**
    * Returns a list of objects contained in {@code value}, one per
@@ -40,5 +40,5 @@ public interface CoderFactory {
    * The list of returned objects should be the same size as the
    * list of coders required by {@link #create}.
    */
-  public List<Object> getInstanceComponents(Object value);
+  List<Object> getInstanceComponents(Object value);
 }

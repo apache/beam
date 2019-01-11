@@ -20,18 +20,15 @@ package org.apache.beam.sdk.values;
 import static org.apache.beam.sdk.util.Structs.addBoolean;
 import static org.apache.beam.sdk.util.Structs.addString;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.Multiset;
+import java.io.Serializable;
+import java.util.Random;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
-
-import com.google.common.collect.HashMultiset;
-import com.google.common.collect.Multiset;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.io.Serializable;
-import java.util.Random;
 
 /**
  * A {@link TupleTag} is a typed tag to use as the key of a
@@ -39,7 +36,7 @@ import java.util.Random;
  * Its generic type parameter allows tracking
  * the static type of things stored in tuples.
  *
- * <p>To aid in assigning default {@link Coder Coders} for results of
+ * <p>To aid in assigning default {@link org.apache.beam.sdk.coders.Coder Coders} for results of
  * side outputs of {@link ParDo}, an output
  * {@link TupleTag} should be instantiated with an extra {@code {}} so
  * it is an instance of an anonymous subclass without generic type

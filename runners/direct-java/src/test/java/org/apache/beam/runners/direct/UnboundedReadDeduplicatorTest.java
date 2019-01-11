@@ -19,20 +19,19 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
-
-import org.apache.beam.runners.direct.UnboundedReadDeduplicator.CachedIdDeduplicator;
-import org.apache.beam.runners.direct.UnboundedReadDeduplicator.NeverDeduplicator;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.runners.direct.UnboundedReadDeduplicator.CachedIdDeduplicator;
+import org.apache.beam.runners.direct.UnboundedReadDeduplicator.NeverDeduplicator;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Tests for {@link UnboundedReadDeduplicator}.
@@ -62,18 +61,18 @@ public class UnboundedReadDeduplicatorTest {
     byte[] id = new byte[] {-1, 2, 4, 22};
     UnboundedReadDeduplicator dedupper = CachedIdDeduplicator.create();
     final CountDownLatch startSignal = new CountDownLatch(1);
-    int numThreads = 1000;
+    int numThreads = 50;
     final CountDownLatch readyLatch = new CountDownLatch(numThreads);
     final CountDownLatch finishLine = new CountDownLatch(numThreads);
 
     ExecutorService executor = Executors.newCachedThreadPool();
     AtomicInteger successCount = new AtomicInteger();
-    AtomicInteger failureCount = new AtomicInteger();
+    AtomicInteger noOutputCount = new AtomicInteger();
     for (int i = 0; i < numThreads; i++) {
       executor.submit(new TryOutputIdRunnable(dedupper,
           id,
           successCount,
-          failureCount,
+          noOutputCount,
           readyLatch,
           startSignal,
           finishLine));
@@ -84,8 +83,10 @@ public class UnboundedReadDeduplicatorTest {
     finishLine.await(10L, TimeUnit.SECONDS);
     executor.shutdownNow();
 
+    // The first thread to run will succeed, and no others will
     assertThat(successCount.get(), equalTo(1));
-    assertThat(failureCount.get(), equalTo(numThreads - 1));
+    // The threads may not all complete; all of the threads that do not succeed must not output
+    assertThat(noOutputCount.get(), lessThan(numThreads));
   }
 
   private static class TryOutputIdRunnable implements Runnable {

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static org.hamcrest.Matchers.isA;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -26,7 +27,6 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -35,8 +35,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
 
 /**
  * Tests for {@link WithTimestamps}.
@@ -66,7 +64,7 @@ public class WithTimestampsTest implements Serializable {
 
     PCollection<KV<String, Instant>> timestampedVals =
         timestamped.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
-          @Override
+          @ProcessElement
           public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
               throws Exception {
             c.output(KV.of(c.element(), c.timestamp()));
@@ -151,7 +149,7 @@ public class WithTimestampsTest implements Serializable {
 
     PCollection<KV<String, Instant>> timestampedVals =
         timestampedWithSkew.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
-          @Override
+          @ProcessElement
           public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
               throws Exception {
             c.output(KV.of(c.element(), c.timestamp()));

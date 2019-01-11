@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-
-import java.util.Map;
 
 /**
  * Interface for accessing persistent state while windows are merging.

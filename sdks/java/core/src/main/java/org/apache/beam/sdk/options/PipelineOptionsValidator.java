@@ -20,17 +20,15 @@ package org.apache.beam.sdk.options;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.options.Validation.Required;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
-
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.SortedSetMultimap;
 import com.google.common.collect.TreeMultimap;
-
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Collection;
+import org.apache.beam.sdk.options.Validation.Required;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * Validates that the {@link PipelineOptions} conforms to all the {@link Validation} criteria.

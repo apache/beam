@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
-import org.junit.rules.ExternalResource;
-import org.junit.rules.TestRule;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import org.junit.rules.ExternalResource;
+import org.junit.rules.TestRule;
 
 /**
  * Saves and restores the current system properties for tests.

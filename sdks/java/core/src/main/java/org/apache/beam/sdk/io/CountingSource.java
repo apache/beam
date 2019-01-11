@@ -20,6 +20,10 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.util.List;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -29,15 +33,8 @@ import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.collect.ImmutableList;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.NoSuchElementException;
 
 /**
  * A source that produces longs. When used as a {@link BoundedSource}, {@link CountingSource}
@@ -81,8 +78,23 @@ public class CountingSource {
    */
   @Deprecated
   public static BoundedSource<Long> upTo(long numElements) {
-    checkArgument(numElements > 0, "numElements (%s) must be greater than 0", numElements);
+    checkArgument(numElements >= 0,
+        "numElements (%s) must be greater than or equal to 0",
+        numElements);
     return new BoundedCountingSource(0, numElements);
+  }
+
+  /**
+   * Creates a {@link BoundedSource} that will produce elements
+   * starting from {@code startIndex} (inclusive) to {@code endIndex} (exclusive).
+   * If {@code startIndex == endIndex}, then no elements will be produced.
+   */
+  static BoundedSource<Long> createSourceForSubrange(long startIndex, long endIndex) {
+    checkArgument(endIndex >= startIndex,
+        "endIndex (%s) must be greater than or equal to startIndex (%s)",
+        endIndex, startIndex);
+
+    return new BoundedCountingSource(startIndex, endIndex);
   }
 
   /**

@@ -20,140 +20,76 @@ package org.apache.beam.runners.spark.translation;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.runners.spark.EvaluationResult;
-import org.apache.beam.runners.spark.coders.CoderHelpers;
+import com.google.common.collect.Iterables;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.runners.AggregatorRetrievalException;
-import org.apache.beam.sdk.runners.AggregatorValues;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
-
-import org.apache.spark.api.java.JavaRDDLike;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
 /**
- * Evaluation context allows us to define how pipeline instructions.
+ * The EvaluationContext allows us to define pipeline instructions and translate between
+ * {@code PObject<T>}s or {@code PCollection<T>}s and Ts or DStreams/RDDs of Ts.
  */
-public class EvaluationContext implements EvaluationResult {
+public class EvaluationContext {
   private final JavaSparkContext jsc;
-  private final Pipeline pipeline;
+  private JavaStreamingContext jssc;
   private final SparkRuntimeContext runtime;
-  private final Map<PValue, RDDHolder<?>> pcollections = new LinkedHashMap<>();
-  private final Set<RDDHolder<?>> leafRdds = new LinkedHashSet<>();
-  private final Set<PValue> multireads = new LinkedHashSet<>();
+  private final Pipeline pipeline;
+  private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
+  private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
+  private final Set<Dataset> leaves = new LinkedHashSet<>();
+  private final Set<PValue> multiReads = new LinkedHashSet<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private final Map<PValue, Iterable<? extends WindowedValue<?>>> pview = new LinkedHashMap<>();
-  protected AppliedPTransform<?, ?, ?> currentTransform;
+  private AppliedPTransform<?, ?, ?> currentTransform;
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
     this.pipeline = pipeline;
-    this.runtime = new SparkRuntimeContext(jsc, pipeline);
+    this.runtime = new SparkRuntimeContext(pipeline);
   }
 
-  /**
-   * Holds an RDD or values for deferred conversion to an RDD if needed. PCollections are
-   * sometimes created from a collection of objects (using RDD parallelize) and then
-   * only used to create View objects; in which case they do not need to be
-   * converted to bytes since they are not transferred across the network until they are
-   * broadcast.
-   */
-  private class RDDHolder<T> {
-
-    private Iterable<WindowedValue<T>> windowedValues;
-    private Coder<T> coder;
-    private JavaRDDLike<WindowedValue<T>, ?> rdd;
-
-    RDDHolder(Iterable<T> values, Coder<T> coder) {
-      this.windowedValues =
-          Iterables.transform(values, WindowingHelpers.<T>windowValueFunction());
-      this.coder = coder;
-    }
-
-    RDDHolder(JavaRDDLike<WindowedValue<T>, ?> rdd) {
-      this.rdd = rdd;
-    }
-
-    JavaRDDLike<WindowedValue<T>, ?> getRDD() {
-      if (rdd == null) {
-        WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
-            WindowedValue.getValueOnlyCoder(coder);
-        rdd = jsc.parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
-            .map(CoderHelpers.fromByteFunction(windowCoder));
-      }
-      return rdd;
-    }
-
-    Iterable<WindowedValue<T>> getValues(PCollection<T> pcollection) {
-      if (windowedValues == null) {
-        WindowFn<?, ?> windowFn =
-                pcollection.getWindowingStrategy().getWindowFn();
-        Coder<? extends BoundedWindow> windowCoder = windowFn.windowCoder();
-        final WindowedValue.WindowedValueCoder<T> windowedValueCoder;
-            if (windowFn instanceof GlobalWindows) {
-              windowedValueCoder =
-                  WindowedValue.ValueOnlyWindowedValueCoder.of(pcollection.getCoder());
-            } else {
-              windowedValueCoder =
-                  WindowedValue.FullWindowedValueCoder.of(pcollection.getCoder(), windowCoder);
-            }
-        JavaRDDLike<byte[], ?> bytesRDD =
-            rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
-        List<byte[]> clientBytes = bytesRDD.collect();
-        windowedValues = Iterables.transform(clientBytes,
-            new Function<byte[], WindowedValue<T>>() {
-          @Override
-          public WindowedValue<T> apply(byte[] bytes) {
-            return CoderHelpers.fromByteArray(bytes, windowedValueCoder);
-          }
-        });
-      }
-      return windowedValues;
-    }
+  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, JavaStreamingContext jssc) {
+    this(jsc, pipeline);
+    this.jssc = jssc;
   }
 
-  protected JavaSparkContext getSparkContext() {
+  public JavaSparkContext getSparkContext() {
     return jsc;
   }
 
-  protected Pipeline getPipeline() {
+  public JavaStreamingContext getStreamingContext() {
+    return jssc;
+  }
+
+  public Pipeline getPipeline() {
     return pipeline;
   }
 
-  protected SparkRuntimeContext getRuntimeContext() {
+  public SparkRuntimeContext getRuntimeContext() {
     return runtime;
   }
 
-  protected void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
+  public void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
     this.currentTransform = transform;
   }
 
-  protected AppliedPTransform<?, ?, ?> getCurrentTransform() {
-    return currentTransform;
-  }
-
-  protected <T extends PInput> T getInput(PTransform<T, ?> transform) {
+  public <T extends PInput> T getInput(PTransform<T, ?> transform) {
     checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
         "can only be called with current transform");
     @SuppressWarnings("unchecked")
@@ -161,7 +97,7 @@ public class EvaluationContext implements EvaluationResult {
     return input;
   }
 
-  protected <T extends POutput> T getOutput(PTransform<?, T> transform) {
+  public <T extends POutput> T getOutput(PTransform<?, T> transform) {
     checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
         "can only be called with current transform");
     @SuppressWarnings("unchecked")
@@ -169,81 +105,81 @@ public class EvaluationContext implements EvaluationResult {
     return output;
   }
 
-  protected  <T> void setOutputRDD(PTransform<?, ?> transform,
-      JavaRDDLike<WindowedValue<T>, ?> rdd) {
-    setRDD((PValue) getOutput(transform), rdd);
+  public void putDataset(PTransform<?, ?> transform, Dataset dataset) {
+    putDataset((PValue) getOutput(transform), dataset);
   }
 
-  protected  <T> void setOutputRDDFromValues(PTransform<?, ?> transform, Iterable<T> values,
-      Coder<T> coder) {
-    pcollections.put((PValue) getOutput(transform), new RDDHolder<>(values, coder));
-  }
-
-  void setPView(PValue view, Iterable<? extends WindowedValue<?>> value) {
-    pview.put(view, value);
-  }
-
-  protected boolean hasOutputRDD(PTransform<? extends PInput, ?> transform) {
-    PValue pvalue = (PValue) getOutput(transform);
-    return pcollections.containsKey(pvalue);
-  }
-
-  protected JavaRDDLike<?, ?> getRDD(PValue pvalue) {
-    RDDHolder<?> rddHolder = pcollections.get(pvalue);
-    JavaRDDLike<?, ?> rdd = rddHolder.getRDD();
-    leafRdds.remove(rddHolder);
-    if (multireads.contains(pvalue)) {
-      // Ensure the RDD is marked as cached
-      rdd.rdd().cache();
-    } else {
-      multireads.add(pvalue);
-    }
-    return rdd;
-  }
-
-  protected <T> void setRDD(PValue pvalue, JavaRDDLike<WindowedValue<T>, ?> rdd) {
+  public void putDataset(PValue pvalue, Dataset dataset) {
     try {
-      rdd.rdd().setName(pvalue.getName());
+      dataset.setName(pvalue.getName());
     } catch (IllegalStateException e) {
       // name not set, ignore
     }
-    RDDHolder<T> rddHolder = new RDDHolder<>(rdd);
-    pcollections.put(pvalue, rddHolder);
-    leafRdds.add(rddHolder);
+    datasets.put(pvalue, dataset);
+    leaves.add(dataset);
   }
 
-  JavaRDDLike<?, ?> getInputRDD(PTransform<? extends PInput, ?> transform) {
-    return getRDD((PValue) getInput(transform));
+  <T> void putBoundedDatasetFromValues(PTransform<?, ?> transform, Iterable<T> values,
+                                       Coder<T> coder) {
+    datasets.put((PValue) getOutput(transform), new BoundedDataset<>(values, jsc, coder));
   }
 
+  public <T> void putUnboundedDatasetFromQueue(
+      PTransform<?, ?> transform, Iterable<Iterable<T>> values, Coder<T> coder) {
+    datasets.put((PValue) getOutput(transform), new UnboundedDataset<>(values, jssc, coder));
+  }
+
+  void putPView(PValue view, Iterable<? extends WindowedValue<?>> value) {
+    pview.put(view, value);
+  }
+
+  public Dataset borrowDataset(PTransform<?, ?> transform) {
+    return borrowDataset((PValue) getInput(transform));
+  }
+
+  public Dataset borrowDataset(PValue pvalue) {
+    Dataset dataset = datasets.get(pvalue);
+    leaves.remove(dataset);
+    if (multiReads.contains(pvalue)) {
+      // Ensure the RDD is marked as cached
+      dataset.cache(storageLevel());
+    } else {
+      multiReads.add(pvalue);
+    }
+    return dataset;
+  }
 
   <T> Iterable<? extends WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
     return pview.get(view);
   }
 
   /**
-   * Computes the outputs for all RDDs that are leaves in the DAG and do not have any
-   * actions (like saving to a file) registered on them (i.e. they are performed for side
-   * effects).
+   * Computes the outputs for all RDDs that are leaves in the DAG and do not have any actions (like
+   * saving to a file) registered on them (i.e. they are performed for side effects).
    */
   public void computeOutputs() {
-    for (RDDHolder<?> rddHolder : leafRdds) {
-      JavaRDDLike<?, ?> rdd = rddHolder.getRDD();
-      rdd.rdd().cache(); // cache so that any subsequent get() is cheap
-      rdd.count(); // force the RDD to be computed
+    for (Dataset dataset : leaves) {
+      // cache so that any subsequent get() is cheap.
+      dataset.cache(storageLevel());
+      dataset.action(); // force computation.
     }
   }
 
-  @Override
+  /**
+   * Retrieve an object of Type T associated with the PValue passed in.
+   *
+   * @param value PValue to retrieve associated data for.
+   * @param <T>  Type of object to return.
+   * @return Native object.
+   */
+  @SuppressWarnings("unchecked")
   public <T> T get(PValue value) {
     if (pobjects.containsKey(value)) {
-      @SuppressWarnings("unchecked")
       T result = (T) pobjects.get(value);
       return result;
     }
     if (pcollections.containsKey(value)) {
-      JavaRDDLike<?, ?> rdd = pcollections.get(value).getRDD();
-      @SuppressWarnings("unchecked")
+      JavaRDD<?> rdd = ((BoundedDataset) pcollections.get(value)).getRDD();
       T res = (T) Iterables.getOnlyElement(rdd.collect());
       pobjects.put(value, res);
       return res;
@@ -251,39 +187,27 @@ public class EvaluationContext implements EvaluationResult {
     throw new IllegalStateException("Cannot resolve un-known PObject: " + value);
   }
 
-  @Override
-  public <T> T getAggregatorValue(String named, Class<T> resultType) {
-    return runtime.getAggregatorValue(named, resultType);
-  }
-
-  @Override
-  public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
-      throws AggregatorRetrievalException {
-    return runtime.getAggregatorValues(aggregator);
-  }
-
-  @Override
+  /**
+   * Retrieves an iterable of results associated with the PCollection passed in.
+   *
+   * @param pcollection Collection we wish to translate.
+   * @param <T>         Type of elements contained in collection.
+   * @return Natively types result associated with collection.
+   */
   public <T> Iterable<T> get(PCollection<T> pcollection) {
     @SuppressWarnings("unchecked")
-    RDDHolder<T> rddHolder = (RDDHolder<T>) pcollections.get(pcollection);
-    Iterable<WindowedValue<T>> windowedValues = rddHolder.getValues(pcollection);
+    BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
+    Iterable<WindowedValue<T>> windowedValues = boundedDataset.getValues(pcollection);
     return Iterables.transform(windowedValues, WindowingHelpers.<T>unwindowValueFunction());
   }
 
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
     @SuppressWarnings("unchecked")
-    RDDHolder<T> rddHolder = (RDDHolder<T>) pcollections.get(pcollection);
-    return rddHolder.getValues(pcollection);
+    BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
+    return boundedDataset.getValues(pcollection);
   }
 
-  @Override
-  public void close() {
-    SparkContextFactory.stopSparkContext(jsc);
-  }
-
-  /** The runner is blocking. */
-  @Override
-  public State getState() {
-    return State.DONE;
+  private String storageLevel() {
+    return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
   }
 }

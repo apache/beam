@@ -19,15 +19,13 @@ package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.values.TypeDescriptor;
-
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Static utility methods for working with {@link CoderProvider CoderProviders}.

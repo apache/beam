@@ -17,6 +17,12 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UTFDataFormatException;
+import java.util.Iterator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -25,13 +31,6 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UTFDataFormatException;
-import java.util.Iterator;
 
 
 /**
@@ -104,13 +103,13 @@ public class Count {
     public PerElement() { }
 
     @Override
-    public PCollection<KV<T, Long>> apply(PCollection<T> input) {
+    public PCollection<KV<T, Long>> expand(PCollection<T> input) {
       return
           input
-          .apply("Init", ParDo.of(new DoFn<T, KV<T, Void>>() {
+          .apply("Init", MapElements.via(new SimpleFunction<T, KV<T, Void>>() {
             @Override
-            public void processElement(ProcessContext c) {
-              c.output(KV.of(c.element(), (Void) null));
+            public KV<T, Void> apply(T element) {
+              return KV.of(element, (Void) null);
             }
           }))
           .apply(Count.<T, Void>perKey());

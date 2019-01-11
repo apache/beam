@@ -17,26 +17,25 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import org.apache.beam.runners.spark.EvaluationResult;
-import org.apache.beam.runners.spark.SparkRunner;
-import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Test Flatten (union) implementation for streaming.
@@ -53,32 +52,52 @@ public class FlattenStreamingTest {
           Collections.<Iterable<String>>singletonList(Arrays.asList(WORDS_ARRAY_2));
   private static final String[] EXPECTED_UNION = {
           "one", "two", "three", "four", "five", "six", "seven", "eight"};
-  private static final long TEST_TIMEOUT_MSEC = 1000L;
+
+  @Rule
+  public TemporaryFolder checkpointParentDir = new TemporaryFolder();
+
+  @Rule
+  public SparkTestPipelineOptionsForStreaming commonOptions =
+      new SparkTestPipelineOptionsForStreaming();
 
   @Test
-  public void testRun() throws Exception {
-    SparkStreamingPipelineOptions options =
-        PipelineOptionsFactory.as(SparkStreamingPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
+  public void testFlattenUnbounded() throws Exception {
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
     options.setStreaming(true);
-    options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
-    Pipeline p = Pipeline.create(options);
 
+    Pipeline p = Pipeline.create(options);
     PCollection<String> w1 =
-            p.apply(CreateStream.fromQueue(WORDS_QUEUE_1)).setCoder(StringUtf8Coder.of());
+        p.apply(CreateStream.fromQueue(WORDS_QUEUE_1)).setCoder(StringUtf8Coder.of());
     PCollection<String> windowedW1 =
-            w1.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+        w1.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
     PCollection<String> w2 =
-            p.apply(CreateStream.fromQueue(WORDS_QUEUE_2)).setCoder(StringUtf8Coder.of());
+        p.apply(CreateStream.fromQueue(WORDS_QUEUE_2)).setCoder(StringUtf8Coder.of());
     PCollection<String> windowedW2 =
-            w2.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+        w2.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
     PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);
     PCollection<String> union = list.apply(Flatten.<String>pCollections());
 
-    PAssertStreaming.assertContents(union, EXPECTED_UNION);
+    PAssertStreaming.runAndAssertContents(p, union, EXPECTED_UNION, Duration.standardSeconds(1L));
+  }
 
-    EvaluationResult res = SparkRunner.create(options).run(p);
-    res.close();
+  @Test
+  public void testFlattenBoundedUnbounded() throws Exception {
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
+    options.setStreaming(true);
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<String> w1 =
+        p.apply(CreateStream.fromQueue(WORDS_QUEUE_1)).setCoder(StringUtf8Coder.of());
+    PCollection<String> windowedW1 =
+        w1.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+    PCollection<String> w2 =
+        p.apply(Create.of(WORDS_ARRAY_2)).setCoder(StringUtf8Coder.of());
+    PCollection<String> windowedW2 =
+        w2.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+    PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);
+    PCollection<String> union = list.apply(Flatten.<String>pCollections());
+
+    PAssertStreaming.runAndAssertContents(p, union, EXPECTED_UNION, Duration.standardSeconds(1L));
   }
 
 }

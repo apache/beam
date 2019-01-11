@@ -17,15 +17,13 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.util.VarInt;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
+import org.apache.beam.sdk.util.VarInt;
 
 /**
  * A {@link Coder} that encodes {@link Long Longs} using between 1 and 10 bytes. Negative

@@ -25,15 +25,6 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.common.io.LineReader;
-
-import org.hamcrest.Matchers;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.Reader;
@@ -42,13 +33,20 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
+import org.hamcrest.Matchers;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link FileIOChannelFactory}. */
 @RunWith(JUnit4.class)
 public class FileIOChannelFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
-  private FileIOChannelFactory factory = new FileIOChannelFactory();
+  private FileIOChannelFactory factory = FileIOChannelFactory.fromOptions(null);
 
   private void testCreate(Path path) throws Exception {
     String expected = "my test string";
@@ -203,6 +201,14 @@ public class FileIOChannelFactoryTest {
     // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
     assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a") + "*"),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchWithoutParentDirectory() throws Exception {
+    String pattern = factory.resolve(
+        factory.resolve(temporaryFolder.getRoot().getPath(), "non_existing_dir"),
+        "*");
+    assertTrue(factory.match(pattern).isEmpty());
   }
 
   @Test

@@ -17,6 +17,14 @@
  */
 package org.apache.beam.examples.complete;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -39,24 +47,13 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-
-import org.apache.avro.reflect.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * A Dataflow Example that runs in both batch and streaming modes with traffic sensor data.
+ * A Beam Example that runs in both batch and streaming modes with traffic sensor data.
  * You can configure the running mode by setting {@literal --streaming} to true or false.
  *
  * <p>Concepts: The batch and streaming runners, sliding windows,
@@ -69,7 +66,7 @@ import java.util.List;
  * <p>The pipeline reads traffic sensor data from {@literal --inputFile}.
  *
  * <p>The example is configured to use the default BigQuery table from the example common package
- * (there are no defaults for a general Dataflow pipeline).
+ * (there are no defaults for a general Beam pipeline).
  * You can override them by using the {@literal --bigQueryDataset}, and {@literal --bigQueryTable}
  * options. If the BigQuery table do not exist, the example will try to create them.
  *
@@ -149,7 +146,7 @@ public class TrafficMaxLaneFlow {
     private static final DateTimeFormatter dateTimeFormat =
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
 
-    @Override
+    @ProcessElement
     public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
       String[] items = c.element().split(",");
       if (items.length > 0) {
@@ -172,7 +169,7 @@ public class TrafficMaxLaneFlow {
    */
   static class ExtractFlowInfoFn extends DoFn<String, KV<String, LaneInfo>> {
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String[] items = c.element().split(",");
       if (items.length < 48) {
@@ -227,7 +224,7 @@ public class TrafficMaxLaneFlow {
    * Add the timestamp from the window context.
    */
   static class FormatMaxesFn extends DoFn<KV<String, LaneInfo>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
 
       LaneInfo laneInfo = c.element().getValue();
@@ -270,7 +267,7 @@ public class TrafficMaxLaneFlow {
   static class MaxLaneFlow
       extends PTransform<PCollection<KV<String, LaneInfo>>, PCollection<TableRow>> {
     @Override
-    public PCollection<TableRow> apply(PCollection<KV<String, LaneInfo>> flowInfo) {
+    public PCollection<TableRow> expand(PCollection<KV<String, LaneInfo>> flowInfo) {
       // stationId, LaneInfo => stationId + max lane flow info
       PCollection<KV<String, LaneInfo>> flowMaxes =
           flowInfo.apply(Combine.<String, LaneInfo>perKey(
@@ -292,7 +289,7 @@ public class TrafficMaxLaneFlow {
     }
 
     @Override
-    public PCollection<String> apply(PBegin begin) {
+    public PCollection<String> expand(PBegin begin) {
       return begin
           .apply(TextIO.Read.from(inputFile))
           .apply(ParDo.of(new ExtractTimestamps()));
@@ -306,7 +303,7 @@ public class TrafficMaxLaneFlow {
     */
   private interface TrafficMaxLaneFlowOptions extends ExampleOptions, ExampleBigQueryTableOptions {
     @Description("Path of the file to read from")
-    @Default.String("gs://dataflow-samples/traffic_sensor/"
+    @Default.String("gs://apache-beam-samples/traffic_sensor/"
         + "Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv")
     String getInputFile();
     void setInputFile(String value);
@@ -332,7 +329,7 @@ public class TrafficMaxLaneFlow {
         .withValidation()
         .as(TrafficMaxLaneFlowOptions.class);
     options.setBigQuerySchema(FormatMaxesFn.getSchema());
-    // Using DataflowExampleUtils to set up required resources.
+    // Using ExampleUtils to set up required resources.
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
 
@@ -357,7 +354,7 @@ public class TrafficMaxLaneFlow {
     // Run the pipeline.
     PipelineResult result = pipeline.run();
 
-    // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
+    // ExampleUtils will try to cancel the pipeline and the injector before the program exists.
     exampleUtils.waitToFinish(result);
   }
 

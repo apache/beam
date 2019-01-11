@@ -20,15 +20,13 @@ package org.apache.beam.sdk.coders;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
+import java.util.Map;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Map;
 
 /**
  * Tests for {@link CoderFactories}.

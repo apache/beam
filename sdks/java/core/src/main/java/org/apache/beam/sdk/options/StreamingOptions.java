@@ -21,7 +21,7 @@ package org.apache.beam.sdk.options;
  * Options used to configure streaming.
  */
 public interface StreamingOptions extends
-    ApplicationNameOptions, GcpOptions, PipelineOptions {
+    ApplicationNameOptions, PipelineOptions {
   /**
    * Set to true if running a streaming pipeline.
    */

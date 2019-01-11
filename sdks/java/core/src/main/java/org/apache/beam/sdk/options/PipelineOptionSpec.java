@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
-import com.google.auto.value.AutoValue;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
+import com.google.auto.value.AutoValue;
 import java.lang.reflect.Method;
 
 /**

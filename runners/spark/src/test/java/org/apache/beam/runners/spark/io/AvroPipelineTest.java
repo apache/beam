@@ -20,17 +20,12 @@ package org.apache.beam.runners.spark.io;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.beam.runners.spark.EvaluationResult;
-import org.apache.beam.runners.spark.SparkRunner;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.AvroIO;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.values.PCollection;
-
 import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
-
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
@@ -38,15 +33,14 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.AvroIO;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.List;
 
 /**
  * Avro pipeline test.
@@ -58,6 +52,9 @@ public class AvroPipelineTest {
 
   @Rule
   public final TemporaryFolder tmpDir = new TemporaryFolder();
+
+  @Rule
+  public final SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
 
   @Before
   public void setUp() throws IOException {
@@ -75,14 +72,11 @@ public class AvroPipelineTest {
     savedRecord.put("siblingnames", Lists.newArrayList("Jimmy", "Jane"));
     populateGenericFile(Lists.newArrayList(savedRecord), schema);
 
-    PipelineOptions options = PipelineOptionsFactory.create();
-    options.setRunner(SparkRunner.class);
-    Pipeline p = Pipeline.create(options);
+    Pipeline p = Pipeline.create(pipelineOptions.getOptions());
     PCollection<GenericRecord> input = p.apply(
         AvroIO.Read.from(inputFile.getAbsolutePath()).withSchema(schema));
     input.apply(AvroIO.Write.to(outputDir.getAbsolutePath()).withSchema(schema));
-    EvaluationResult res = SparkRunner.create().run(p);
-    res.close();
+    p.run().waitUntilFinish();
 
     List<GenericRecord> records = readGenericFile();
     assertEquals(Lists.newArrayList(savedRecord), records);

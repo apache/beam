@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples;
 
+import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -27,8 +28,6 @@ import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptors;
-
-import java.util.Arrays;
 
 /**
  * An example that counts words in Shakespeare, using Java 8 language features.
@@ -56,7 +55,7 @@ public class MinimalWordCountJava8 {
 
     Pipeline p = Pipeline.create(options);
 
-    p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/*"))
+    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
      .apply(FlatMapElements.via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+")))
          .withOutputType(TypeDescriptors.strings()))
      .apply(Filter.by((String word) -> !word.isEmpty()))
@@ -68,6 +67,6 @@ public class MinimalWordCountJava8 {
      // CHANGE 3/3: The Google Cloud Storage path is required for outputting the results to.
      .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

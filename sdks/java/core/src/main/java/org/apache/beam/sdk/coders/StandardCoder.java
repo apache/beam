@@ -17,26 +17,23 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.util.Structs.addList;
 import static org.apache.beam.sdk.util.Structs.addString;
 import static org.apache.beam.sdk.util.Structs.addStringList;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
-
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
  * An abstract base class to implement a {@link Coder} that defines equality, hashing, and printing
@@ -102,23 +99,25 @@ public abstract class StandardCoder<T> implements Coder<T> {
 
   @Override
   public String toString() {
+    StringBuilder builder = new StringBuilder();
     String s = getClass().getName();
-    s = s.substring(s.lastIndexOf('.') + 1);
+    builder.append(s.substring(s.lastIndexOf('.') + 1));
+
     List<? extends Coder<?>> componentCoders = getComponents();
     if (!componentCoders.isEmpty()) {
-      s += "(";
+      builder.append('(');
       boolean first = true;
       for (Coder<?> componentCoder : componentCoders) {
         if (first) {
           first = false;
         } else {
-          s += ", ";
+          builder.append(',');
         }
-        s += componentCoder.toString();
+        builder.append(componentCoder.toString());
       }
-      s += ")";
+      builder.append(')');
     }
-    return s;
+    return builder.toString();
   }
 
   @Override

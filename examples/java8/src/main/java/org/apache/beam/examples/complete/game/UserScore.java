@@ -17,6 +17,9 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -36,13 +39,8 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
-
-import org.apache.avro.reflect.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * This class is the first in a series of four pipelines that tell a story in a 'gaming' domain.
@@ -50,15 +48,15 @@ import java.util.Map;
  * BigQuery; using standalone DoFns; use of the sum by key transform; examples of
  * Java 8 lambda syntax.
  *
- * <p> In this gaming scenario, many users play, as members of different teams, over the course of a
+ * <p>In this gaming scenario, many users play, as members of different teams, over the course of a
  * day, and their actions are logged for processing.  Some of the logged game events may be late-
  * arriving, if users play on mobile devices and go transiently offline for a period.
  *
- * <p> This pipeline does batch processing of data collected from gaming events. It calculates the
+ * <p>This pipeline does batch processing of data collected from gaming events. It calculates the
  * sum of scores per user, over an entire batch of gaming data (collected, say, for each day). The
  * batch processing will not include any late data that arrives after the day's cutoff point.
  *
- * <p> To execute this pipeline using the Dataflow service and static example input data, specify
+ * <p>To execute this pipeline using the Dataflow service and static example input data, specify
  * the pipeline configuration like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
@@ -69,8 +67,8 @@ import java.util.Map;
  * </pre>
  * where the BigQuery dataset you specify must already exist.
  *
- * <p> Optionally include the --input argument to specify a batch input file.
- * See the --input default value for example batch data file, or use {@link injector.Injector} to
+ * <p>Optionally include the --input argument to specify a batch input file.
+ * See the --input default value for example batch data file, or use {@code injector.Injector} to
  * generate your own batch data.
   */
 public class UserScore {
@@ -130,7 +128,7 @@ public class UserScore {
     private final Aggregator<Long, Long> numParseErrors =
         createAggregator("ParseErrors", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String[] components = c.element().split(",");
       try {
@@ -162,7 +160,7 @@ public class UserScore {
     }
 
     @Override
-    public PCollection<KV<String, Integer>> apply(
+    public PCollection<KV<String, Integer>> expand(
         PCollection<GameActionInfo> gameInfo) {
 
       return gameInfo
@@ -179,12 +177,12 @@ public class UserScore {
   /**
    * Options supported by {@link UserScore}.
    */
-  public static interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions {
 
     @Description("Path to the data file(s) containing game data.")
     // The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
     // day's worth (roughly) of data.
-    @Default.String("gs://dataflow-samples/game/gaming_data*.csv")
+    @Default.String("gs://apache-beam-samples/game/gaming_data*.csv")
     String getInput();
     void setInput(String value);
 
@@ -195,8 +193,8 @@ public class UserScore {
 
     @Description("The BigQuery table name. Should not already exist.")
     @Default.String("user_score")
-    String getTableName();
-    void setTableName(String value);
+    String getUserScoreTableName();
+    void setUserScoreTableName(String value);
   }
 
   /**
@@ -204,13 +202,17 @@ public class UserScore {
    * is passed to the {@link WriteToBigQuery} constructor to write user score sums.
    */
   protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
-    configureBigQueryWrite() {
+      configureBigQueryWrite() {
     Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
         new HashMap<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>();
-    tableConfigure.put("user",
-        new WriteToBigQuery.FieldInfo<KV<String, Integer>>("STRING", c -> c.element().getKey()));
-    tableConfigure.put("total_score",
-        new WriteToBigQuery.FieldInfo<KV<String, Integer>>("INTEGER", c -> c.element().getValue()));
+    tableConfigure.put(
+        "user",
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING", (c, w) -> c.element().getKey()));
+    tableConfigure.put(
+        "total_score",
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
+            "INTEGER", (c, w) -> c.element().getValue()));
     return tableConfigure;
   }
 
@@ -230,11 +232,11 @@ public class UserScore {
       // Extract and sum username/score pairs from the event data.
       .apply("ExtractUserScore", new ExtractAndSumScore("user"))
       .apply("WriteUserScoreSums",
-          new WriteToBigQuery<KV<String, Integer>>(options.getTableName(),
+          new WriteToBigQuery<KV<String, Integer>>(options.getUserScoreTableName(),
                                                    configureBigQueryWrite()));
 
     // Run the batch pipeline.
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_USMain]
 

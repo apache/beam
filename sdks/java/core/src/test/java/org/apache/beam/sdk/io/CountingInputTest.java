@@ -28,16 +28,15 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.RemoveDuplicates;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -50,21 +49,21 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CountingInputTest {
-  public static void addCountingAsserts(PCollection<Long> input, long numElements) {
+  public static void addCountingAsserts(PCollection<Long> input, long start, long end) {
     // Count == numElements
     PAssert.thatSingleton(input.apply("Count", Count.<Long>globally()))
-        .isEqualTo(numElements);
+        .isEqualTo(end - start);
     // Unique count == numElements
     PAssert.thatSingleton(
             input
-                .apply(RemoveDuplicates.<Long>create())
+                .apply(Distinct.<Long>create())
                 .apply("UniqueCount", Count.<Long>globally()))
-        .isEqualTo(numElements);
-    // Min == 0
-    PAssert.thatSingleton(input.apply("Min", Min.<Long>globally())).isEqualTo(0L);
-    // Max == numElements-1
+        .isEqualTo(end - start);
+    // Min == start
+    PAssert.thatSingleton(input.apply("Min", Min.<Long>globally())).isEqualTo(start);
+    // Max == end-1
     PAssert.thatSingleton(input.apply("Max", Max.<Long>globally()))
-        .isEqualTo(numElements - 1);
+        .isEqualTo(end - 1);
   }
 
   @Test
@@ -74,7 +73,40 @@ public class CountingInputTest {
     long numElements = 1000;
     PCollection<Long> input = p.apply(CountingInput.upTo(numElements));
 
-    addCountingAsserts(input, numElements);
+    addCountingAsserts(input, 0, numElements);
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testEmptyBoundedInput() {
+    Pipeline p = TestPipeline.create();
+    PCollection<Long> input = p.apply(CountingInput.upTo(0));
+
+    PAssert.that(input).empty();
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testEmptyBoundedInputSubrange() {
+    Pipeline p = TestPipeline.create();
+    PCollection<Long> input = p.apply(CountingInput.forSubrange(42, 42));
+
+    PAssert.that(input).empty();
+    p.run();
+  }
+
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBoundedInputSubrange() {
+    Pipeline p = TestPipeline.create();
+    long start = 10;
+    long end = 1000;
+    PCollection<Long> input = p.apply(CountingInput.forSubrange(start, end));
+
+    addCountingAsserts(input, start, end);
     p.run();
   }
 
@@ -86,6 +118,14 @@ public class CountingInputTest {
   }
 
   @Test
+  public void testBoundedDisplayDataSubrange() {
+    PTransform<?, ?> input = CountingInput.forSubrange(12, 1234);
+    DisplayData displayData = DisplayData.from(input);
+    assertThat(displayData, hasDisplayItem("startAt", 12));
+    assertThat(displayData, hasDisplayItem("upTo", 1234));
+  }
+
+  @Test
   @Category(RunnableOnService.class)
   public void testUnboundedInput() {
     Pipeline p = TestPipeline.create();
@@ -93,7 +133,7 @@ public class CountingInputTest {
 
     PCollection<Long> input = p.apply(CountingInput.unbounded().withMaxNumRecords(numElements));
 
-    addCountingAsserts(input, numElements);
+    addCountingAsserts(input, 0, numElements);
     p.run();
   }
 
@@ -111,7 +151,7 @@ public class CountingInputTest {
                 .withRate(elemsPerPeriod, periodLength)
                 .withMaxNumRecords(numElements));
 
-    addCountingAsserts(input, numElements);
+    addCountingAsserts(input, 0, numElements);
     long expectedRuntimeMillis = (periodLength.getMillis() * numElements) / elemsPerPeriod;
     Instant startTime = Instant.now();
     p.run();
@@ -120,7 +160,7 @@ public class CountingInputTest {
   }
 
   private static class ElementValueDiff extends DoFn<Long, Long> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(c.element() - c.timestamp().getMillis());
     }
@@ -137,12 +177,12 @@ public class CountingInputTest {
             CountingInput.unbounded()
                 .withTimestampFn(new ValueAsTimestampFn())
                 .withMaxNumRecords(numElements));
-    addCountingAsserts(input, numElements);
+    addCountingAsserts(input, 0, numElements);
 
     PCollection<Long> diffs =
         input
             .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
-            .apply("RemoveDuplicateTimestamps", RemoveDuplicates.<Long>create());
+            .apply("DistinctTimestamps", Distinct.<Long>create());
     // This assert also confirms that diffs only has one unique value.
     PAssert.thatSingleton(diffs).isEqualTo(0L);
 

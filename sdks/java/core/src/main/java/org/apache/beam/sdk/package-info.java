@@ -20,7 +20,7 @@
  * streaming parallel data processing
  * {@link org.apache.beam.sdk.Pipeline}s.
  *
- * <p>To use the Google Cloud Dataflow SDK, you build a
+ * <p>To use the Apache Beam SDK, you build a
  * {@link org.apache.beam.sdk.Pipeline}, which manages a graph of
  * {@link org.apache.beam.sdk.transforms.PTransform}s
  * and the {@link org.apache.beam.sdk.values.PCollection}s that

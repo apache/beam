@@ -20,17 +20,8 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
-
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
@@ -42,8 +33,13 @@ import java.util.NoSuchElementException;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 /**
  * A Source that reads from compressed files. A {@code CompressedSources} wraps a delegate
@@ -75,12 +71,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
    */
-  public static interface DecompressingChannelFactory extends Serializable {
+  public interface DecompressingChannelFactory extends Serializable {
     /**
      * Given a channel, create a channel that decompresses the content read from the channel.
-     * @throws IOException
      */
-    public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
+    ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
         throws IOException;
   }
 
@@ -88,11 +83,10 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * Factory interface for creating channels that decompress the content of an underlying channel,
    * based on both the channel and the file name.
    */
-  private static interface FileNameBasedDecompressingChannelFactory
+  private interface FileNameBasedDecompressingChannelFactory
       extends DecompressingChannelFactory {
     /**
      * Given a channel, create a channel that decompresses the content read from the channel.
-     * @throws IOException
      */
     ReadableByteChannel createDecompressingChannel(String fileName, ReadableByteChannel channel)
         throws IOException;
@@ -305,7 +299,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    */
   private CompressedSource(
       FileBasedSource<T> sourceDelegate, DecompressingChannelFactory channelFactory) {
-    super(sourceDelegate.getFileOrPatternSpec(), Long.MAX_VALUE);
+    super(sourceDelegate.getFileOrPatternSpecProvider(), Long.MAX_VALUE);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
   }
@@ -318,11 +312,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       DecompressingChannelFactory channelFactory, String filePatternOrSpec, long minBundleSize,
       long startOffset, long endOffset) {
     super(filePatternOrSpec, minBundleSize, startOffset, endOffset);
-    checkArgument(
-        startOffset == 0,
-        "CompressedSources must start reading at offset 0. Requested offset: " + startOffset);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
+    checkArgument(
+        isSplittable() || startOffset == 0,
+        "CompressedSources must start reading at offset 0. Requested offset: " + startOffset);
   }
 
   /**
@@ -343,7 +337,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   @Override
   protected FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
     return new CompressedSource<>(sourceDelegate.createForSubrangeOfFile(fileName, start, end),
-        channelFactory, fileName, Long.MAX_VALUE, start, end);
+        channelFactory, fileName, sourceDelegate.getMinBundleSize(), start, end);
   }
 
   /**
@@ -352,7 +346,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * from the requested file name that the file is not compressed.
    */
   @Override
-  protected final boolean isSplittable() throws Exception {
+  protected final boolean isSplittable() {
     if (channelFactory instanceof FileNameBasedDecompressingChannelFactory) {
       FileNameBasedDecompressingChannelFactory fileNameBasedChannelFactory =
           (FileNameBasedDecompressingChannelFactory) channelFactory;
@@ -394,7 +388,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     // We explicitly do not register base-class data, instead we use the delegate inner source.
     builder
-        .include(sourceDelegate)
+        .include("source", sourceDelegate)
         .add(DisplayData.item("source", sourceDelegate.getClass())
           .withLabel("Read Source"));
 
@@ -430,7 +424,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
     private final FileBasedReader<T> readerDelegate;
     private final CompressedSource<T> source;
-    private final boolean splittable;
     private final Object progressLock = new Object();
     @GuardedBy("progressLock")
     private int numRecordsRead;
@@ -443,13 +436,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     public CompressedReader(CompressedSource<T> source, FileBasedReader<T> readerDelegate) {
       super(source);
       this.source = source;
-      boolean splittable;
-      try {
-        splittable = source.isSplittable();
-      } catch (Exception e) {
-        throw new RuntimeException("Unable to tell whether source " + source + " is splittable", e);
-      }
-      this.splittable = splittable;
       this.readerDelegate = readerDelegate;
     }
 
@@ -463,27 +449,19 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
     @Override
     public boolean allowsDynamicSplitting() {
-      return splittable;
+      return false;
     }
 
     @Override
     public final long getSplitPointsConsumed() {
-      if (splittable) {
-        return readerDelegate.getSplitPointsConsumed();
-      } else {
-        synchronized (progressLock) {
-          return (isDone() && numRecordsRead > 0) ? 1 : 0;
-        }
+      synchronized (progressLock) {
+        return (isDone() && numRecordsRead > 0) ? 1 : 0;
       }
     }
 
     @Override
     public final long getSplitPointsRemaining() {
-      if (splittable) {
-        return readerDelegate.getSplitPointsRemaining();
-      } else {
-        return isDone() ? 0 : 1;
-      }
+      return isDone() ? 0 : 1;
     }
 
     /**
@@ -491,18 +469,14 @@ public class CompressedSource<T> extends FileBasedSource<T> {
      */
     @Override
     protected final boolean isAtSplitPoint() {
-      if (splittable) {
-        return readerDelegate.isAtSplitPoint();
-      } else {
-        // We have to return true for the first record, but not for the state before reading it,
-        // and not for the state after reading any other record. Hence == rather than >= or <=.
-        // This is required because FileBasedReader is intended for readers that can read a range
-        // of offsets in a file and where the range can be split in parts. CompressedReader,
-        // however, is a degenerate case because it cannot be split, but it has to satisfy the
-        // semantics of offsets and split points anyway.
-        synchronized (progressLock) {
-          return numRecordsRead == 1;
-        }
+      // We have to return true for the first record, but not for the state before reading it,
+      // and not for the state after reading any other record. Hence == rather than >= or <=.
+      // This is required because FileBasedReader is intended for readers that can read a range
+      // of offsets in a file and where the range can be split in parts. CompressedReader,
+      // however, is a degenerate case because it cannot be split, but it has to satisfy the
+      // semantics of offsets and split points anyway.
+      synchronized (progressLock) {
+        return numRecordsRead == 1;
       }
     }
 
@@ -546,14 +520,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
      */
     @Override
     protected final void startReading(ReadableByteChannel channel) throws IOException {
-      if (splittable) {
-        // No-op. We will always delegate to the inner reader, so this.channel and this.progressLock
-        // will never be used.
-      } else {
-        synchronized (progressLock) {
-          this.channel = new CountingChannel(channel, getCurrentSource().getStartOffset());
-          channel = this.channel;
-        }
+      synchronized (progressLock) {
+        this.channel = new CountingChannel(channel, getCurrentSource().getStartOffset());
+        channel = this.channel;
       }
 
       if (source.getChannelFactory() instanceof FileNameBasedDecompressingChannelFactory) {
@@ -582,30 +551,21 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       return true;
     }
 
-    // Splittable: simply delegates to the inner reader.
-    //
     // Unsplittable: returns the offset in the input stream that has been read by the input.
     // these positions are likely to be coarse-grained (in the event of buffering) and
     // over-estimates (because they reflect the number of bytes read to produce an element, not its
     // start) but both of these provide better data than e.g., reporting the start of the file.
     @Override
     protected final long getCurrentOffset() throws NoSuchElementException {
-      if (splittable) {
-        return readerDelegate.getCurrentOffset();
-      } else {
-        synchronized (progressLock) {
-          if (numRecordsRead <= 1) {
-            // Since the first record is at a split point, it should start at the beginning of the
-            // file. This avoids the bad case where the decompressor read the entire file, which
-            // would cause the file to be treated as empty when returning channel.getCount() as it
-            // is outside the valid range.
-            return 0;
-          }
-          if (channel == null) {
-            throw new NoSuchElementException();
-          }
-          return channel.getCount();
+      synchronized (progressLock) {
+        if (numRecordsRead <= 1) {
+          // Since the first record is at a split point, it should start at the beginning of the
+          // file. This avoids the bad case where the decompressor read the entire file, which
+          // would cause the file to be treated as empty when returning channel.getCount() as it
+          // is outside the valid range.
+          return 0;
         }
+        return channel.getCount();
       }
     }
   }

@@ -17,13 +17,15 @@
  */
 package org.apache.beam.runners.flink;
 
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.runners.AggregatorRetrievalException;
-import org.apache.beam.sdk.runners.AggregatorValues;
-import org.apache.beam.sdk.transforms.Aggregator;
-
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.AggregatorRetrievalException;
+import org.apache.beam.sdk.AggregatorValues;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.joda.time.Duration;
 
 /**
  * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This
@@ -31,26 +33,26 @@ import java.util.Map;
  * {@link org.apache.beam.sdk.transforms.Aggregator}s.
  */
 public class FlinkRunnerResult implements PipelineResult {
-  
+
   private final Map<String, Object> aggregators;
-  
+
   private final long runtime;
-  
-  public FlinkRunnerResult(Map<String, Object> aggregators, long runtime) {
-    this.aggregators = (aggregators == null || aggregators.isEmpty()) ?
-        Collections.<String, Object>emptyMap() :
-        Collections.unmodifiableMap(aggregators);
-    
+
+  FlinkRunnerResult(Map<String, Object> aggregators, long runtime) {
+    this.aggregators = (aggregators == null || aggregators.isEmpty())
+        ? Collections.<String, Object>emptyMap()
+        : Collections.unmodifiableMap(aggregators);
     this.runtime = runtime;
   }
 
   @Override
   public State getState() {
-    return null;
+    return State.DONE;
   }
 
   @Override
-  public <T> AggregatorValues<T> getAggregatorValues(final Aggregator<?, T> aggregator) throws AggregatorRetrievalException {
+  public <T> AggregatorValues<T> getAggregatorValues(final Aggregator<?, T> aggregator)
+      throws AggregatorRetrievalException {
     // TODO provide a list of all accumulator step values
     Object value = aggregators.get(aggregator.getName());
     if (value != null) {
@@ -68,9 +70,29 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public String toString() {
-    return "FlinkRunnerResult{" +
-        "aggregators=" + aggregators +
-        ", runtime=" + runtime +
-        '}';
+    return "FlinkRunnerResult{"
+        + "aggregators=" + aggregators
+        + ", runtime=" + runtime
+        + '}';
+  }
+
+  @Override
+  public State cancel() throws IOException {
+    throw new UnsupportedOperationException("FlinkRunnerResult does not support cancel.");
+  }
+
+  @Override
+  public State waitUntilFinish() {
+    return State.DONE;
+  }
+
+  @Override
+  public State waitUntilFinish(Duration duration) {
+    return State.DONE;
+  }
+
+  @Override
+  public MetricResults metrics() {
+    throw new UnsupportedOperationException("The FlinkRunner does not currently support metrics.");
   }
 }

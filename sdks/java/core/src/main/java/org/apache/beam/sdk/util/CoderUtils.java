@@ -19,15 +19,6 @@ package org.apache.beam.sdk.util;
 
 import static org.apache.beam.sdk.util.Structs.addList;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.api.client.util.Base64;
-import com.google.common.base.Throwables;
-
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
@@ -38,7 +29,8 @@ import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.type.TypeFactory;
-
+import com.google.api.client.util.Base64;
+import com.google.common.base.Throwables;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -47,6 +39,11 @@ import java.io.OutputStream;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.TypeVariable;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Utilities for working with Coders.
@@ -64,8 +61,8 @@ public final class CoderUtils {
    */
   public static final String KIND_STREAM = "kind:stream";
 
-  private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>> threadLocalOutputStream
-      = new ThreadLocal<>();
+  private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>>
+      threadLocalOutputStream = new ThreadLocal<>();
 
   /**
    * If true, a call to {@code encodeToByteArray} is already on the call stack.

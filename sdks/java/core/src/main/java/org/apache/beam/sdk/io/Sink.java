@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.io;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
-
-import java.io.Serializable;
 
 /**
  * A {@code Sink} represents a resource that can be written to using the {@link Write} transform.
@@ -72,6 +71,7 @@ import java.io.Serializable;
  * </ul>
  *
  * <h2>WriteOperation</h2>
+ *
  * <p>{@link WriteOperation#initialize} and {@link WriteOperation#finalize} are conceptually called
  * once: at the beginning and end of a Write transform. However, implementors must ensure that these
  * methods are idempotent, as they may be called multiple times on different machines in the case of
@@ -92,6 +92,7 @@ import java.io.Serializable;
  * these mutations will not be visible in finalize).
  *
  * <h2>Bundle Ids:</h2>
+ *
  * <p>In order to ensure fault-tolerance, a bundle may be executed multiple times (e.g., in the
  * event of failure/retry or for redundancy). However, exactly one of these executions will have its
  * result passed to the WriteOperation's finalize method. Each call to {@link Writer#open} is passed
@@ -111,6 +112,7 @@ import java.io.Serializable;
  * of output file names that it can then merge or rename using some bundle naming scheme.
  *
  * <h2>Writer Results:</h2>
+ *
  * <p>{@link WriteOperation}s and {@link Writer}s must agree on a writer result type that will be
  * returned by a Writer after it writes a bundle. This type can be a client-defined object or an
  * existing type; {@link WriteOperation#getWriterResultCoder} should return a {@link Coder} for the
@@ -151,7 +153,7 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
    * parallel write to a sink as well as how to create a {@link Sink.Writer} object that can write
    * a bundle to the sink.
    *
-   * <p>Since operations in Dataflow may be run multiple times for redundancy or fault-tolerance,
+   * <p>Since operations in Beam may be run multiple times for redundancy or fault-tolerance,
    * the initialization and finalization defined by a WriteOperation <b>must be idempotent</b>.
    *
    * <p>{@code WriteOperation}s may be mutable; a {@code WriteOperation} is serialized after the
@@ -212,9 +214,7 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
     /**
      * Returns a coder for the writer result type.
      */
-    public Coder<WriteT> getWriterResultCoder() {
-      return null;
-    }
+    public abstract Coder<WriteT> getWriterResultCoder();
   }
 
   /**

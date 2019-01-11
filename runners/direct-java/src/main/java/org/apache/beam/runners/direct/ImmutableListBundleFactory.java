@@ -19,40 +19,41 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
-import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
-
 import org.joda.time.Instant;
 
 /**
  * A factory that produces bundles that perform no additional validation.
  */
 class ImmutableListBundleFactory implements BundleFactory {
+  private static final ImmutableListBundleFactory FACTORY = new ImmutableListBundleFactory();
+
   public static ImmutableListBundleFactory create() {
-    return new ImmutableListBundleFactory();
+    return FACTORY;
   }
 
   private ImmutableListBundleFactory() {}
 
   @Override
-  public <T> UncommittedBundle<T> createRootBundle(PCollection<T> output) {
-    return UncommittedImmutableListBundle.create(output, StructuralKey.of(null, VoidCoder.of()));
+  public <T> UncommittedBundle<T> createRootBundle() {
+    return UncommittedImmutableListBundle.create(null, StructuralKey.empty());
   }
 
   @Override
-  public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output) {
-    return UncommittedImmutableListBundle.create(output, input.getKey());
+  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
+    return UncommittedImmutableListBundle.create(output, StructuralKey.empty());
   }
 
   @Override
   public <K, T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output) {
+      StructuralKey<K> key, PCollection<T> output) {
     return UncommittedImmutableListBundle.create(output, key);
   }
 
@@ -64,6 +65,7 @@ class ImmutableListBundleFactory implements BundleFactory {
     private final StructuralKey<?> key;
     private boolean committed = false;
     private ImmutableList.Builder<WindowedValue<T>> elements;
+    private Instant minSoFar = BoundedWindow.TIMESTAMP_MAX_VALUE;
 
     /**
      * Create a new {@link UncommittedImmutableListBundle} for the specified {@link PCollection}.
@@ -93,6 +95,9 @@ class ImmutableListBundleFactory implements BundleFactory {
           element,
           pcollection);
       elements.add(element);
+      if (element.getTimestamp().isBefore(minSoFar)) {
+        minSoFar = element.getTimestamp();
+      }
       return this;
     }
 
@@ -101,63 +106,51 @@ class ImmutableListBundleFactory implements BundleFactory {
       checkState(!committed, "Can't commit already committed bundle %s", this);
       committed = true;
       final Iterable<WindowedValue<T>> committedElements = elements.build();
-      return new CommittedImmutableListBundle<>(
-          pcollection, key, committedElements, synchronizedCompletionTime);
+      return CommittedImmutableListBundle.create(
+          pcollection, key, committedElements, minSoFar, synchronizedCompletionTime);
     }
   }
 
-  private static class CommittedImmutableListBundle<T> implements CommittedBundle<T> {
-    public CommittedImmutableListBundle(
-        PCollection<T> pcollection,
+  @AutoValue
+  abstract static class CommittedImmutableListBundle<T> implements CommittedBundle<T> {
+    public static <T> CommittedImmutableListBundle<T> create(
+        @Nullable PCollection<T> pcollection,
         StructuralKey<?> key,
         Iterable<WindowedValue<T>> committedElements,
+        Instant minElementTimestamp,
         Instant synchronizedCompletionTime) {
-      this.pcollection = pcollection;
-      this.key = key;
-      this.committedElements = committedElements;
-      this.synchronizedCompletionTime = synchronizedCompletionTime;
-    }
-
-    private final PCollection<T> pcollection;
-    /** The structural value key of the Bundle, as specified by the coder that created it. */
-    private final StructuralKey<?> key;
-    private final Iterable<WindowedValue<T>> committedElements;
-    private final Instant synchronizedCompletionTime;
-
-    @Override
-    public StructuralKey<?> getKey() {
-      return key;
-    }
-
-    @Override
-    public Iterable<WindowedValue<T>> getElements() {
-      return committedElements;
-    }
-
-    @Override
-    public PCollection<T> getPCollection() {
-      return pcollection;
-    }
-
-    @Override
-    public Instant getSynchronizedProcessingOutputWatermark() {
-      return synchronizedCompletionTime;
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .omitNullValues()
-          .add("pcollection", pcollection)
-          .add("key", key)
-          .add("elements", committedElements)
-          .toString();
+      return new AutoValue_ImmutableListBundleFactory_CommittedImmutableListBundle<>(
+          pcollection, key, committedElements, minElementTimestamp, synchronizedCompletionTime);
     }
 
     @Override
     public CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements) {
-      return new CommittedImmutableListBundle<>(
-          pcollection, key, ImmutableList.copyOf(elements), synchronizedCompletionTime);
+      return create(
+          getPCollection(),
+          getKey(),
+          ImmutableList.copyOf(elements),
+          minTimestamp(elements),
+          getSynchronizedProcessingOutputWatermark());
     }
+
+    @Override
+    public int hashCode() {
+      return System.identityHashCode(this);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return this == obj;
+    }
+  }
+
+  private static Instant minTimestamp(Iterable<? extends WindowedValue<?>> elements) {
+    Instant minTs = BoundedWindow.TIMESTAMP_MAX_VALUE;
+    for (WindowedValue<?> element : elements) {
+      if (element.getTimestamp().isBefore(minTs)) {
+        minTs = element.getTimestamp();
+      }
+    }
+    return minTs;
   }
 }

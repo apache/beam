@@ -17,14 +17,12 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
-
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
-
-import java.util.Collection;
 
 /**
  * Flink {@link FlatMapFunction} for implementing

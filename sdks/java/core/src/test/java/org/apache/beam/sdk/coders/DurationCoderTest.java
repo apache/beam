@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.common.collect.Lists;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
-
-import com.google.common.collect.Lists;
-
 import org.joda.time.Duration;
 import org.joda.time.ReadableDuration;
 import org.junit.Rule;
@@ -29,9 +29,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Arrays;
-import java.util.List;
 
 /** Unit tests for {@link DurationCoder}. */
 @RunWith(JUnit4.class)

@@ -24,8 +24,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.DoFn.DelegatingAggregator;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,7 +34,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /**
- * Tests for DoFn.DelegatingAggregator.
+ * Tests for {@link DelegatingAggregator}.
  */
 @RunWith(JUnit4.class)
 public class DoFnDelegatingAggregatorTest {
@@ -54,7 +52,7 @@ public class DoFnDelegatingAggregatorTest {
 
   @Test
   public void testAddValueWithoutDelegateThrowsException() {
-    DoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     String name = "agg";
     CombineFn<Double, ?, Double> combiner = mockCombineFn(Double.class);
@@ -74,7 +72,7 @@ public class DoFnDelegatingAggregatorTest {
     String name = "agg";
     CombineFn<Long, ?, Long> combiner = mockCombineFn(Long.class);
 
-    DoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     DelegatingAggregator<Long, Long> aggregator =
         (DelegatingAggregator<Long, Long>) doFn.createAggregator(name, combiner);
@@ -91,7 +89,7 @@ public class DoFnDelegatingAggregatorTest {
     String name = "agg";
     CombineFn<Double, ?, Double> combiner = mockCombineFn(Double.class);
 
-    DoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     DelegatingAggregator<Double, Double> aggregator =
         (DelegatingAggregator<Double, Double>) doFn.createAggregator(name, combiner);
@@ -114,7 +112,7 @@ public class DoFnDelegatingAggregatorTest {
     String name = "agg";
     CombineFn<Double, ?, Double> combiner = mockCombineFn(Double.class);
 
-    DoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     DelegatingAggregator<Double, Double> aggregator =
         (DelegatingAggregator<Double, Double>) doFn.createAggregator(name, combiner);
@@ -127,7 +125,7 @@ public class DoFnDelegatingAggregatorTest {
     String name = "agg";
     CombineFn<Double, ?, Double> combiner = mockCombineFn(Double.class);
 
-    DoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     DelegatingAggregator<Double, Double> aggregator =
         (DelegatingAggregator<Double, Double>) doFn.createAggregator(name, combiner);

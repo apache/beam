@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,7 +33,7 @@ public class GcsIOChannelFactoryTest {
 
   @Before
   public void setUp() {
-    factory = new GcsIOChannelFactory(PipelineOptionsFactory.as(GcsOptions.class));
+    factory = GcsIOChannelFactory.fromOptions(PipelineOptionsFactory.as(GcsOptions.class));
   }
 
   @Test

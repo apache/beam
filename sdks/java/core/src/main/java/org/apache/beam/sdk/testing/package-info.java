@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 /**
- * Defines utilities for unit testing Dataflow pipelines. The tests for the {@code PTransform}s and
- * examples included the Dataflow SDK provide examples of using these utilities.
+ * Defines utilities for unit testing Apache Beam pipelines. The tests for the {@code PTransform}s
+ * and examples included in the Apache Beam SDK provide examples of using these utilities.
  */
 package org.apache.beam.sdk.testing;

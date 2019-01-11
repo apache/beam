@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.util.common.Counter;
-import org.apache.beam.sdk.util.common.Counter.AggregationKind;
-import org.apache.beam.sdk.util.common.CounterProvider;
-
 /**
  * {@code PTransform}s for computing the sum of the elements in a
  * {@code PCollection}, or the sum of the values associated with
@@ -123,8 +119,7 @@ public class Sum {
    * {@code Iterable} of {@code Integer}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumIntegerFn
-      extends Combine.BinaryCombineIntegerFn implements CounterProvider<Integer> {
+  public static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
     @Override
     public int apply(int a, int b) {
       return a + b;
@@ -134,11 +129,6 @@ public class Sum {
     public int identity() {
       return 0;
     }
-
-    @Override
-    public Counter<Integer> getCounter(String name) {
-      return Counter.ints(name, AggregationKind.SUM);
-    }
   }
 
   /**
@@ -147,7 +137,7 @@ public class Sum {
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class SumLongFn
-      extends Combine.BinaryCombineLongFn implements CounterProvider<Long> {
+      extends Combine.BinaryCombineLongFn {
     @Override
     public long apply(long a, long b) {
       return a + b;
@@ -157,11 +147,6 @@ public class Sum {
     public long identity() {
       return 0;
     }
-
-    @Override
-    public Counter<Long> getCounter(String name) {
-      return Counter.longs(name, AggregationKind.SUM);
-    }
   }
 
   /**
@@ -169,8 +154,7 @@ public class Sum {
    * {@code Iterable} of {@code Double}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumDoubleFn
-      extends Combine.BinaryCombineDoubleFn implements CounterProvider<Double> {
+  public static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
     @Override
     public double apply(double a, double b) {
       return a + b;
@@ -179,11 +163,6 @@ public class Sum {
     @Override
     public double identity() {
       return 0;
-    }
-
-    @Override
-    public Counter<Double> getCounter(String name) {
-      return Counter.doubles(name, AggregationKind.SUM);
     }
   }
 }

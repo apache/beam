@@ -45,12 +45,12 @@ import java.lang.annotation.Target;
     ElementType.TYPE})
 @Documented
 public @interface Experimental {
-  public Kind value() default Kind.UNSPECIFIED;
+  Kind value() default Kind.UNSPECIFIED;
 
   /**
    * An enumeration of various kinds of experimental APIs.
    */
-  public enum Kind {
+  enum Kind {
     /** Generic group of experimental APIs. This is the default value. */
     UNSPECIFIED,
 
@@ -76,6 +76,15 @@ public @interface Experimental {
     TIMERS,
 
     /** Experimental APIs related to customizing the output time for computed values. */
-    OUTPUT_TIME
+    OUTPUT_TIME,
+
+    /**
+     * <a href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
+     * Do not use: API is unstable and runner support is incomplete.
+     */
+    SPLITTABLE_DO_FN,
+
+    /** Metrics-related experimental APIs. */
+    METRICS
   }
 }

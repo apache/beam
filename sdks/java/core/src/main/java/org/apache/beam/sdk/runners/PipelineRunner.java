@@ -48,7 +48,7 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
     checkNotNull(options);
 
     // (Re-)register standard IO factories. Clobbers any prior credentials.
-    IOChannelUtils.registerStandardIOFactories(gcsOptions);
+    IOChannelUtils.registerIOFactoriesAllowOverride(gcsOptions);
 
     @SuppressWarnings("unchecked")
     PipelineRunner<? extends PipelineResult> result =
@@ -73,6 +73,6 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
    */
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
-    return transform.apply(input);
+    return transform.expand(input);
   }
 }

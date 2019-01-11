@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.io.IOException;
+import java.util.Collection;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.TupleTag;
-
-import java.io.IOException;
-import java.util.Collection;
 
 /**
  * Context for the current execution. This is guaranteed to exist during processing,

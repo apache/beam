@@ -19,13 +19,11 @@ package org.apache.beam.runners.dataflow.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.services.dataflow.model.DataflowPackage;
+import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.google.api.services.dataflow.model.DataflowPackage;
-
-import java.util.List;
 
 /**
  * Utility class for staging files to GCS.

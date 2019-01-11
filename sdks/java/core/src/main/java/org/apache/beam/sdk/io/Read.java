@@ -19,18 +19,16 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PInput;
-
 import org.joda.time.Duration;
-
-import javax.annotation.Nullable;
 
 /**
  * A {@link PTransform} for reading from a {@link Source}.
@@ -89,7 +87,7 @@ public class Read {
   /**
    * {@link PTransform} that reads from a {@link BoundedSource}.
    */
-  public static class Bounded<T> extends PTransform<PInput, PCollection<T>> {
+  public static class Bounded<T> extends PTransform<PBegin, PCollection<T>> {
     private final BoundedSource<T> source;
 
     private Bounded(@Nullable String name, BoundedSource<T> source) {
@@ -103,7 +101,7 @@ public class Read {
     }
 
     @Override
-    public final PCollection<T> apply(PInput input) {
+    public final PCollection<T> expand(PBegin input) {
       source.validate();
 
       return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
@@ -129,14 +127,14 @@ public class Read {
       builder
           .add(DisplayData.item("source", source.getClass())
             .withLabel("Read Source"))
-          .include(source);
+          .include("source", source);
     }
   }
 
   /**
    * {@link PTransform} that reads from a {@link UnboundedSource}.
    */
-  public static class Unbounded<T> extends PTransform<PInput, PCollection<T>> {
+  public static class Unbounded<T> extends PTransform<PBegin, PCollection<T>> {
     private final UnboundedSource<T, ?> source;
 
     private Unbounded(@Nullable String name, UnboundedSource<T, ?> source) {
@@ -171,7 +169,7 @@ public class Read {
     }
 
     @Override
-    public final PCollection<T> apply(PInput input) {
+    public final PCollection<T> expand(PBegin input) {
       source.validate();
 
       return PCollection.<T>createPrimitiveOutputInternal(
@@ -196,7 +194,7 @@ public class Read {
       builder
           .add(DisplayData.item("source", source.getClass())
             .withLabel("Read Source"))
-          .include(source);
+          .include("source", source);
     }
   }
 }

@@ -80,7 +80,7 @@ public class CannotProvideCoderException extends Exception {
   /**
    * Indicates the reason that {@link Coder} inference failed.
    */
-  public static enum ReasonCode {
+  public enum ReasonCode {
     /**
      * The reason a coder could not be provided is unknown or does have an established
      * {@link ReasonCode}.

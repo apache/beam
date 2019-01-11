@@ -20,6 +20,12 @@ package org.apache.beam.sdk.coders;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -32,20 +38,12 @@ import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.Serializer;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
 
 /**
  * Tests SerializableCoder.
@@ -83,14 +81,14 @@ public class SerializableCoderTest implements Serializable {
   }
 
   static class StringToRecord extends DoFn<String, MyRecord> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new MyRecord(c.element()));
     }
   }
 
   static class RecordToString extends DoFn<MyRecord, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().value);
     }

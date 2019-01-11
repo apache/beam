@@ -17,165 +17,134 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
+import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.CounterSet;
-import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
-
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
-
 import org.joda.time.Instant;
-
-import java.util.Collection;
-
-import javax.annotation.Nullable;
 
 /**
  * An immutable {@link TransformResult}.
  */
-public class StepTransformResult implements TransformResult {
-  private final AppliedPTransform<?, ?, ?> transform;
-  private final Iterable<? extends UncommittedBundle<?>> bundles;
-  private final Iterable<? extends WindowedValue<?>> unprocessedElements;
-  @Nullable private final CopyOnAccessInMemoryStateInternals<?> state;
-  private final TimerUpdate timerUpdate;
-  @Nullable private final CounterSet counters;
-  private final Instant watermarkHold;
+@AutoValue
+public abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
 
-  private StepTransformResult(
-      AppliedPTransform<?, ?, ?> transform,
-      Iterable<? extends UncommittedBundle<?>> outputBundles,
-      Iterable<? extends WindowedValue<?>> unprocessedElements,
-      CopyOnAccessInMemoryStateInternals<?> state,
-      TimerUpdate timerUpdate,
-      CounterSet counters,
-      Instant watermarkHold) {
-    this.transform = checkNotNull(transform);
-    this.bundles = checkNotNull(outputBundles);
-    this.unprocessedElements = checkNotNull(unprocessedElements);
-    this.state = state;
-    this.timerUpdate = checkNotNull(timerUpdate);
-    this.counters = counters;
-    this.watermarkHold = checkNotNull(watermarkHold);
-  }
-
-  @Override
-  public Iterable<? extends UncommittedBundle<?>> getOutputBundles() {
-    return bundles;
-  }
-
-  @Override
-  public Iterable<? extends WindowedValue<?>> getUnprocessedElements() {
-    return unprocessedElements;
-  }
-
-  @Override
-  public CounterSet getCounters() {
-    return counters;
-  }
-
-  @Override
-  public AppliedPTransform<?, ?, ?> getTransform() {
-    return transform;
-  }
-
-  @Override
-  public Instant getWatermarkHold() {
-    return watermarkHold;
-  }
-
-  @Nullable
-  @Override
-  public CopyOnAccessInMemoryStateInternals<?> getState() {
-    return state;
-  }
-
-  @Override
-  public TimerUpdate getTimerUpdate() {
-    return timerUpdate;
-  }
-
-  public static Builder withHold(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
+  public static <InputT> Builder<InputT> withHold(
+      AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
   }
 
-  public static Builder withoutHold(AppliedPTransform<?, ?, ?> transform) {
+  public static <InputT> Builder<InputT> withoutHold(
+      AppliedPTransform<?, ?, ?> transform) {
     return new Builder(transform, BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
   @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(StepTransformResult.class)
-        .add("transform", transform)
-        .toString();
+  public TransformResult<InputT> withLogicalMetricUpdates(MetricUpdates metricUpdates) {
+    return new AutoValue_StepTransformResult(
+        getTransform(),
+        getOutputBundles(),
+        getUnprocessedElements(),
+        getAggregatorChanges(),
+        metricUpdates,
+        getWatermarkHold(),
+        getState(),
+        getTimerUpdate(),
+        getOutputTypes());
   }
 
   /**
    * A builder for creating instances of {@link StepTransformResult}.
    */
-  public static class Builder {
+  public static class Builder<InputT> {
     private final AppliedPTransform<?, ?, ?> transform;
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
-    private final ImmutableList.Builder<WindowedValue<?>> unprocessedElementsBuilder;
+    private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElementsBuilder;
+    private MetricUpdates metricUpdates;
     private CopyOnAccessInMemoryStateInternals<?> state;
     private TimerUpdate timerUpdate;
-    private CounterSet counters;
+    private AggregatorContainer.Mutator aggregatorChanges;
+    private final Set<OutputType> producedOutputs;
     private final Instant watermarkHold;
 
     private Builder(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
       this.transform = transform;
       this.watermarkHold = watermarkHold;
       this.bundlesBuilder = ImmutableList.builder();
+      this.producedOutputs = EnumSet.noneOf(OutputType.class);
       this.unprocessedElementsBuilder = ImmutableList.builder();
       this.timerUpdate = TimerUpdate.builder(null).build();
+      this.metricUpdates = MetricUpdates.EMPTY;
     }
 
-    public StepTransformResult build() {
-      return new StepTransformResult(
+    public StepTransformResult<InputT> build() {
+      return new AutoValue_StepTransformResult<>(
           transform,
           bundlesBuilder.build(),
           unprocessedElementsBuilder.build(),
+          aggregatorChanges,
+          metricUpdates,
+          watermarkHold,
           state,
           timerUpdate,
-          counters,
-          watermarkHold);
+          producedOutputs);
     }
 
-    public Builder withCounters(CounterSet counters) {
-      this.counters = counters;
+    public Builder<InputT> withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
+      this.aggregatorChanges = aggregatorChanges;
       return this;
     }
 
-    public Builder withState(CopyOnAccessInMemoryStateInternals<?> state) {
+    public Builder<InputT> withMetricUpdates(MetricUpdates metricUpdates) {
+      this.metricUpdates = metricUpdates;
+      return this;
+    }
+
+    public Builder<InputT> withState(CopyOnAccessInMemoryStateInternals<?> state) {
       this.state = state;
       return this;
     }
 
-    public Builder withTimerUpdate(TimerUpdate timerUpdate) {
+    public Builder<InputT> withTimerUpdate(TimerUpdate timerUpdate) {
       this.timerUpdate = timerUpdate;
       return this;
     }
 
-    public Builder addUnprocessedElements(Iterable<? extends WindowedValue<?>> unprocessed) {
+    public Builder<InputT> addUnprocessedElements(WindowedValue<InputT>... unprocessed) {
+      unprocessedElementsBuilder.addAll(Arrays.asList(unprocessed));
+      return this;
+    }
+
+    public Builder<InputT> addUnprocessedElements(
+        Iterable<? extends WindowedValue<InputT>> unprocessed) {
       unprocessedElementsBuilder.addAll(unprocessed);
       return this;
     }
 
-    public Builder addOutput(
+    public Builder<InputT> addOutput(
         UncommittedBundle<?> outputBundle, UncommittedBundle<?>... outputBundles) {
       bundlesBuilder.add(outputBundle);
       bundlesBuilder.add(outputBundles);
       return this;
     }
 
-    public Builder addOutput(Collection<UncommittedBundle<?>> outputBundles) {
+    public Builder<InputT> addOutput(
+        Collection<UncommittedBundle<?>> outputBundles) {
       bundlesBuilder.addAll(outputBundles);
+      return this;
+    }
+
+    public Builder<InputT> withAdditionalOutput(OutputType producedAdditionalOutput) {
+      producedOutputs.add(producedAdditionalOutput);
       return this;
     }
   }

@@ -17,16 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import com.google.bigtable.v2.Row;
+import com.google.cloud.bigtable.config.BigtableOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.bigtable.v2.Row;
-import com.google.cloud.bigtable.config.BigtableOptions;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

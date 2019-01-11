@@ -20,14 +20,12 @@ package org.apache.beam.sdk.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.transforms.PTransform;
-
 import com.google.common.base.Joiner;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * Utilities for working with JSON and other human-readable string formats.
@@ -98,7 +96,7 @@ public class StringUtils {
   }
 
   private static final String[] STANDARD_NAME_SUFFIXES =
-      new String[]{"DoFn", "Fn"};
+      new String[]{"OldDoFn", "DoFn", "Fn"};
 
   /**
    * Pattern to match a non-anonymous inner class.
@@ -121,8 +119,8 @@ public class StringUtils {
    *
    * <p>Examples:
    * <ul>
-   *   <li>{@code some.package.Word.SummaryDoFn} -> "Summary"
-   *   <li>{@code another.package.PairingFn} -> "Pairing"
+   *   <li>{@code some.package.Word.SummaryDoFn} becomes "Summary"
+   *   <li>{@code another.package.PairingFn} becomes "Pairing"
    * </ul>
    *
    * @throws IllegalArgumentException if the class is anonymous
@@ -145,8 +143,8 @@ public class StringUtils {
    *
    * <p>Examples:
    * <ul>
-   *   <li>{@code some.package.Word.Summary} -> "Word.Summary"
-   *   <li>{@code another.package.Pairing.Bound} -> "Pairing"
+   *   <li>{@code some.package.Word.Summary} becomes "Word.Summary"
+   *   <li>{@code another.package.Pairing.Bound} becomes "Pairing"
    * </ul>
    */
   public static String approximatePTransformName(Class<?> clazz) {

@@ -21,20 +21,19 @@ import static org.apache.beam.sdk.util.Structs.addBoolean;
 import static org.apache.beam.sdk.util.Structs.addDictionary;
 import static org.apache.beam.sdk.util.Structs.addLong;
 
+import com.google.api.services.dataflow.model.SourceMetadata;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TransformTranslator;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TranslationContext;
 import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.PValue;
-
-import com.google.api.services.dataflow.model.SourceMetadata;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Translator for the {@code Read} {@code PTransform} for the Dataflow back-end.
@@ -52,10 +51,13 @@ public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
       // TODO: Move this validation out of translation once IOChannelUtils is portable
       // and can be reconstructed on the worker.
       if (source instanceof FileBasedSource) {
-        String filePatternOrSpec = ((FileBasedSource<?>) source).getFileOrPatternSpec();
-        context.getPipelineOptions()
-               .getPathValidator()
-               .validateInputFilePatternSupported(filePatternOrSpec);
+        ValueProvider<String> filePatternOrSpec =
+            ((FileBasedSource<?>) source).getFileOrPatternSpecProvider();
+        if (filePatternOrSpec.isAccessible()) {
+          context.getPipelineOptions()
+              .getPathValidator()
+              .validateInputFilePatternSupported(filePatternOrSpec.get());
+        }
       }
 
       context.addStep(transform, "ParallelRead");
@@ -64,7 +66,7 @@ public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
           PropertyNames.SOURCE_STEP_INPUT,
           cloudSourceToDictionary(
               CustomSources.serializeToCloudSource(source, context.getPipelineOptions())));
-      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+      context.addValueOnlyOutput(context.getOutput(transform));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

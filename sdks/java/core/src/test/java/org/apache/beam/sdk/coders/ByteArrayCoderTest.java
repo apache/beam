@@ -21,20 +21,17 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.common.CounterTestUtils;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Unit tests for {@link ByteArrayCoder}.
@@ -59,10 +56,10 @@ public class ByteArrayCoderTest {
 
   @Test
   public void testRegisterByteSizeObserver() throws Exception {
-    CounterTestUtils.testByteCount(ByteArrayCoder.of(), Coder.Context.OUTER,
+    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.OUTER,
                                    new byte[][]{{ 0xa, 0xb, 0xc }});
 
-    CounterTestUtils.testByteCount(ByteArrayCoder.of(), Coder.Context.NESTED,
+    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.NESTED,
                                    new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
   }
 

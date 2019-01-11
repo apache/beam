@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.base.MoreObjects;
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
@@ -27,15 +31,8 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-
-import com.google.common.base.MoreObjects;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.Objects;
 
 /**
  * A {@code WindowingStrategy} describes the windowing behavior for a specific collection of values.
@@ -53,7 +50,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    */
   public enum AccumulationMode {
     DISCARDING_FIRED_PANES,
-    ACCUMULATING_FIRED_PANES;
+    ACCUMULATING_FIRED_PANES
   }
 
   private static final Duration DEFAULT_ALLOWED_LATENESS = Duration.ZERO;
@@ -61,7 +58,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   private final WindowFn<T, W> windowFn;
   private final OutputTimeFn<? super W> outputTimeFn;
-  private final ExecutableTrigger trigger;
+  private final Trigger trigger;
   private final AccumulationMode mode;
   private final Duration allowedLateness;
   private final ClosingBehavior closingBehavior;
@@ -72,7 +69,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   private WindowingStrategy(
       WindowFn<T, W> windowFn,
-      ExecutableTrigger trigger, boolean triggerSpecified,
+      Trigger trigger, boolean triggerSpecified,
       AccumulationMode mode, boolean modeSpecified,
       Duration allowedLateness, boolean allowedLatenessSpecified,
       OutputTimeFn<? super W> outputTimeFn, boolean outputTimeFnSpecified,
@@ -99,7 +96,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(
       WindowFn<T, W> windowFn) {
     return new WindowingStrategy<>(windowFn,
-        ExecutableTrigger.create(DefaultTrigger.<W>of()), false,
+        DefaultTrigger.of(), false,
         AccumulationMode.DISCARDING_FIRED_PANES, false,
         DEFAULT_ALLOWED_LATENESS, false,
         OutputTimeFns.outputAtEndOfWindow(), false,
@@ -110,7 +107,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return windowFn;
   }
 
-  public ExecutableTrigger getTrigger() {
+  public Trigger getTrigger() {
     return trigger;
   }
 
@@ -153,7 +150,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public WindowingStrategy<T, W> withTrigger(Trigger trigger) {
     return new WindowingStrategy<T, W>(
         windowFn,
-        ExecutableTrigger.create(trigger), true,
+        trigger, true,
         mode, modeSpecified,
         allowedLateness, allowedLatenessSpecified,
         outputTimeFn, outputTimeFnSpecified,
@@ -278,8 +275,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    *
    * <ul>
    *   <li>The {@link WindowFn#getOutputTime} allows adjustments such as that whereby
-   *       {@link SlidingWindows#getOutputTime} moves elements later in time to avoid holding up
-   *       progress downstream.</li>
+   *       {@link org.apache.beam.sdk.transforms.windowing.SlidingWindows#getOutputTime}
+   *       moves elements later in time to avoid holding up progress downstream.</li>
    *   <li>Then, when multiple elements are buffered for output, the output timestamp of the
    *       result is calculated using {@link OutputTimeFn#combine}.</li>
    *   <li>In the case of a merging {@link WindowFn}, the output timestamp when windows merge

@@ -17,13 +17,17 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.sdk.WindowMatchers.isSingleWindowedValue;
-import static org.apache.beam.sdk.WindowMatchers.isWindowedValue;
-
+import static org.apache.beam.runners.core.WindowMatchers.isSingleWindowedValue;
+import static org.apache.beam.runners.core.WindowMatchers.isWindowedValue;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
@@ -44,11 +48,6 @@ import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -58,9 +57,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * Tests for {@link WindowEvaluatorFactory}.
@@ -107,7 +103,7 @@ public class WindowEvaluatorFactoryTest {
     input = p.apply(Create.of(1L, 2L, 3L));
 
     bundleFactory = ImmutableListBundleFactory.create();
-    factory = new WindowEvaluatorFactory();
+    factory = new WindowEvaluatorFactory(evaluationContext);
   }
 
   @Test
@@ -122,7 +118,7 @@ public class WindowEvaluatorFactoryTest {
 
     UncommittedBundle<Long> outputBundle = createOutputBundle(triggering, inputBundle);
 
-    TransformResult result = runEvaluator(triggering, inputBundle, transform);
+    TransformResult<Long> result = runEvaluator(triggering, inputBundle, transform);
 
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()),
@@ -147,7 +143,7 @@ public class WindowEvaluatorFactoryTest {
     BoundedWindow firstSecondWindow = new IntervalWindow(EPOCH, EPOCH.plus(windowDuration));
     BoundedWindow thirdWindow = new IntervalWindow(EPOCH.minus(windowDuration), EPOCH);
 
-    TransformResult result = runEvaluator(windowed, inputBundle, transform);
+    TransformResult<Long> result = runEvaluator(windowed, inputBundle, transform);
 
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()),
@@ -182,7 +178,7 @@ public class WindowEvaluatorFactoryTest {
     CommittedBundle<Long> inputBundle = createInputBundle();
     UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
 
-    TransformResult result = runEvaluator(windowed, inputBundle, transform);
+    TransformResult<Long> result = runEvaluator(windowed, inputBundle, transform);
 
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()),
@@ -239,7 +235,7 @@ public class WindowEvaluatorFactoryTest {
     CommittedBundle<Long> inputBundle = createInputBundle();
     UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
 
-    TransformResult result = runEvaluator(windowed, inputBundle, transform);
+    TransformResult<Long> result = runEvaluator(windowed, inputBundle, transform);
 
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()),
@@ -290,7 +286,7 @@ public class WindowEvaluatorFactoryTest {
   private CommittedBundle<Long> createInputBundle() {
     CommittedBundle<Long> inputBundle =
         bundleFactory
-            .createRootBundle(input)
+            .createBundle(input)
             .add(valueInGlobalWindow)
             .add(valueInGlobalAndTwoIntervalWindows)
             .add(valueInIntervalWindow)
@@ -300,26 +296,24 @@ public class WindowEvaluatorFactoryTest {
 
   private UncommittedBundle<Long> createOutputBundle(
       PCollection<Long> output, CommittedBundle<Long> inputBundle) {
-    UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(inputBundle, output);
-    when(evaluationContext.createBundle(inputBundle, output)).thenReturn(outputBundle);
+    UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(output);
+    when(evaluationContext.createBundle(output)).thenReturn(outputBundle);
     return outputBundle;
   }
 
-  private TransformResult runEvaluator(
+  private TransformResult<Long> runEvaluator(
       PCollection<Long> windowed,
       CommittedBundle<Long> inputBundle,
       Window.Bound<Long> windowTransform /* Required while Window.Bound is a composite */)
       throws Exception {
     TransformEvaluator<Long> evaluator =
         factory.forApplication(
-            AppliedPTransform.of("Window", input, windowed, windowTransform),
-            inputBundle,
-            evaluationContext);
+            AppliedPTransform.of("Window", input, windowed, windowTransform), inputBundle);
 
     evaluator.processElement(valueInGlobalWindow);
     evaluator.processElement(valueInGlobalAndTwoIntervalWindows);
     evaluator.processElement(valueInIntervalWindow);
-    TransformResult result = evaluator.finishBundle();
+    TransformResult<Long> result = evaluator.finishBundle();
     return result;
   }
 

@@ -19,21 +19,19 @@ package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * {@link PTransform PTransforms} which take an {@link Iterable} of {@link WindowedValue
- * WindowedValues} and outputs an {@link Iterable} of all values in the specified pane, dropping the
- * {@link WindowedValue} metadata.
+ * {@link PTransform PTransforms} which take an {@link Iterable} of {@link ValueInSingleWindow
+ * ValueInSingleWindows} and outputs an {@link Iterable} of all values in the specified pane,
+ * dropping the {@link ValueInSingleWindow} metadata.
  *
  * <p>Although all of the method signatures return SimpleFunction, users should ensure to set the
  * coder of any output {@link PCollection}, as appropriate {@link TypeDescriptor TypeDescriptors}
@@ -43,32 +41,36 @@ final class PaneExtractors {
   private PaneExtractors() {
   }
 
-  static <T> SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> onlyPane() {
+  static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> onlyPane() {
     return new ExtractOnlyPane<>();
   }
 
-  static <T> SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> onTimePane() {
+  static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> onTimePane() {
     return new ExtractOnTimePane<>();
   }
 
-  static <T> SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> finalPane() {
+  static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> finalPane() {
     return new ExtractFinalPane<>();
   }
 
-  static <T> SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> nonLatePanes() {
+  static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> nonLatePanes() {
     return new ExtractNonLatePanes<>();
   }
 
-  static <T> SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> allPanes() {
+  static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> earlyPanes() {
+    return new ExtractEarlyPanes<>();
+  }
+
+  static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> allPanes() {
     return new ExtractAllPanes<>();
   }
 
   private static class ExtractOnlyPane<T>
-      extends SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> {
+      extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
     @Override
-    public Iterable<T> apply(Iterable<WindowedValue<T>> input) {
+    public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
-      for (WindowedValue<T> value : input) {
+      for (ValueInSingleWindow<T> value : input) {
         checkState(value.getPane().isFirst() && value.getPane().isLast(),
             "Expected elements to be produced by a trigger that fires at most once, but got"
                 + "a value in a pane that is %s. Actual Pane Info: %s",
@@ -82,11 +84,11 @@ final class PaneExtractors {
 
 
   private static class ExtractOnTimePane<T>
-      extends SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> {
+      extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
     @Override
-    public Iterable<T> apply(Iterable<WindowedValue<T>> input) {
+    public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
-      for (WindowedValue<T> value : input) {
+      for (ValueInSingleWindow<T> value : input) {
         if (value.getPane().getTiming().equals(Timing.ON_TIME)) {
           outputs.add(value.getValue());
         }
@@ -97,11 +99,11 @@ final class PaneExtractors {
 
 
   private static class ExtractFinalPane<T>
-      extends SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> {
+      extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
     @Override
-    public Iterable<T> apply(Iterable<WindowedValue<T>> input) {
+    public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
-      for (WindowedValue<T> value : input) {
+      for (ValueInSingleWindow<T> value : input) {
         if (value.getPane().isLast()) {
           outputs.add(value.getValue());
         }
@@ -112,11 +114,11 @@ final class PaneExtractors {
 
 
   private static class ExtractAllPanes<T>
-      extends SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> {
+      extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
     @Override
-    public Iterable<T> apply(Iterable<WindowedValue<T>> input) {
+    public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
-      for (WindowedValue<T> value : input) {
+      for (ValueInSingleWindow<T> value : input) {
         outputs.add(value.getValue());
       }
       return outputs;
@@ -125,12 +127,26 @@ final class PaneExtractors {
 
 
   private static class ExtractNonLatePanes<T>
-      extends SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> {
+      extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
     @Override
-    public Iterable<T> apply(Iterable<WindowedValue<T>> input) {
+    public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
-      for (WindowedValue<T> value : input) {
+      for (ValueInSingleWindow<T> value : input) {
         if (value.getPane().getTiming() != PaneInfo.Timing.LATE) {
+          outputs.add(value.getValue());
+        }
+      }
+      return outputs;
+    }
+  }
+
+  private static class ExtractEarlyPanes<T>
+      extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
+    @Override
+    public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
+      List<T> outputs = new ArrayList<>();
+      for (ValueInSingleWindow<T> value : input) {
+        if (value.getPane().getTiming() == PaneInfo.Timing.EARLY) {
           outputs.add(value.getValue());
         }
       }

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.collect.Iterables;
+import java.util.Collection;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -28,43 +31,41 @@ import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.collect.Iterables;
-
 import org.joda.time.Instant;
-
-import java.util.Collection;
-
-import javax.annotation.Nullable;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
  * {@link Bound Window.Bound} primitive {@link PTransform}.
  */
 class WindowEvaluatorFactory implements TransformEvaluatorFactory {
+  private final EvaluationContext evaluationContext;
+
+  WindowEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
+  }
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      @Nullable CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext)
+      @Nullable CommittedBundle<?> inputBundle
+ )
       throws Exception {
-    return createTransformEvaluator(
-        (AppliedPTransform) application, inputBundle, evaluationContext);
+    return createTransformEvaluator((AppliedPTransform) application);
   }
 
   private <InputT> TransformEvaluator<InputT> createTransformEvaluator(
-      AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>> transform,
-      CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) {
+      AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>> transform) {
     WindowFn<? super InputT, ?> fn = transform.getTransform().getWindowFn();
     UncommittedBundle<InputT> outputBundle =
-        evaluationContext.createBundle(inputBundle, transform.getOutput());
+        evaluationContext.createBundle(transform.getOutput());
     if (fn == null) {
       return PassthroughTransformEvaluator.create(transform, outputBundle);
     }
     return new WindowIntoEvaluator<>(transform, fn, outputBundle);
   }
+
+  @Override
+  public void cleanup() {}
 
   private static class WindowIntoEvaluator<InputT> implements TransformEvaluator<InputT> {
     private final AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>>
@@ -102,8 +103,10 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public TransformResult finishBundle() throws Exception {
-      return StepTransformResult.withoutHold(transform).addOutput(outputBundle).build();
+    public TransformResult<InputT> finishBundle() throws Exception {
+      return StepTransformResult.<InputT>withoutHold(transform)
+          .addOutput(outputBundle)
+          .build();
     }
   }
 

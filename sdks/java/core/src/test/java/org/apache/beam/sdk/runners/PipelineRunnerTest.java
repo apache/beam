@@ -27,7 +27,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.TestCredential;
-
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

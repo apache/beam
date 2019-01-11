@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -40,6 +41,11 @@ public interface TestPipelineOptions extends PipelineOptions {
   @Default.InstanceFactory(AlwaysPassMatcherFactory.class)
   SerializableMatcher<PipelineResult> getOnSuccessMatcher();
   void setOnSuccessMatcher(SerializableMatcher<PipelineResult> value);
+
+  @Default.Long(10 * 60)
+  @Nullable
+  Long getTestTimeoutSeconds();
+  void setTestTimeoutSeconds(Long value);
 
   /**
    * Factory for {@link PipelineResult} matchers which always pass.

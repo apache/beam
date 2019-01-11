@@ -17,6 +17,11 @@
  */
 package org.apache.beam.examples.cookbook;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
@@ -34,13 +39,6 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * An example that reads the public 'Shakespeare' data, and for each word in
  * the dataset that is over a given length, generates a string containing the
@@ -54,27 +52,17 @@ import java.util.List;
  * <p>Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
  *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }
- * </pre>
- * and the BigQuery table for the output:
+ * <p>To execute this pipeline locally, specify the BigQuery table for the output:
  * <pre>{@code
  *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  * }</pre>
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://<STAGING DIRECTORY>
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
  * }
  * </pre>
- * and the BigQuery table for the output:
- * <pre>{@code
- *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
- * }</pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>The BigQuery input table defaults to {@code publicdata:samples.shakespeare} and can
  * be overridden with {@code --input}.
@@ -94,7 +82,7 @@ public class CombinePerKeyExamples {
     private final Aggregator<Long, Long> smallerWords =
         createAggregator("smallerWords", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       String playName = (String) row.get("corpus");
@@ -115,7 +103,7 @@ public class CombinePerKeyExamples {
    * containing a word with a string listing the plays in which it appeared.
    */
   static class FormatShakespeareOutputFn extends DoFn<KV<String, String>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
           .set("word", c.element().getKey())
@@ -137,7 +125,7 @@ public class CombinePerKeyExamples {
   static class PlaysForWord
       extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
     @Override
-    public PCollection<TableRow> apply(PCollection<TableRow> rows) {
+    public PCollection<TableRow> expand(PCollection<TableRow> rows) {
 
       // row... => <word, play_name> ...
       PCollection<KV<String, String>> words = rows.apply(
@@ -185,7 +173,7 @@ public class CombinePerKeyExamples {
    *
    * <p>Inherits standard configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  private interface Options extends PipelineOptions {
     @Description("Table to read from, specified as "
         + "<project_id>:<dataset_id>.<table_id>")
     @Default.String(SHAKESPEARE_TABLE)
@@ -220,6 +208,6 @@ public class CombinePerKeyExamples {
         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
         .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

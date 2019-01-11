@@ -17,15 +17,13 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
+import java.io.IOException;
+import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
-
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
-
-import java.io.IOException;
-import java.util.Arrays;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for Beam values that have

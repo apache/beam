@@ -24,5 +24,5 @@ package org.apache.beam.sdk.util.common;
  */
 public interface Reiterable<T> extends Iterable<T> {
   @Override
-  public Reiterator<T> iterator();
+  Reiterator<T> iterator();
 }

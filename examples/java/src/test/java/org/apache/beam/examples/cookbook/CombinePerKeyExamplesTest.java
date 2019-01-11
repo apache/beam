@@ -17,20 +17,17 @@
  */
 package org.apache.beam.examples.cookbook;
 
+import com.google.api.services.bigquery.model.TableRow;
+import java.util.List;
 import org.apache.beam.examples.cookbook.CombinePerKeyExamples.ExtractLargeWordsFn;
 import org.apache.beam.examples.cookbook.CombinePerKeyExamples.FormatShakespeareOutputFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.KV;
-
-import com.google.api.services.bigquery.model.TableRow;
-
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.List;
 
 /** Unit tests for {@link CombinePerKeyExamples}. */
 @RunWith(JUnit4.class)

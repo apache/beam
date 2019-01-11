@@ -20,15 +20,8 @@ package org.apache.beam.sdk.coders;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-import org.apache.beam.sdk.testing.CoderProperties;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -38,6 +31,10 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link DelegateCoder}. */
 @RunWith(JUnit4.class)

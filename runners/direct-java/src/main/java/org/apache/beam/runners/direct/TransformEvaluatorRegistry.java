@@ -17,41 +17,55 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
+import com.google.common.collect.ImmutableMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-
-import com.google.common.collect.ImmutableMap;
-
-import java.util.Map;
-
-import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link TransformEvaluatorFactory} that delegates to primitive {@link TransformEvaluatorFactory}
  * implementations based on the type of {@link PTransform} of the application.
  */
 class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
-  public static TransformEvaluatorRegistry defaultRegistry() {
-    @SuppressWarnings("rawtypes")
+  private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
+  public static TransformEvaluatorRegistry defaultRegistry(EvaluationContext ctxt) {
+    @SuppressWarnings({"rawtypes"})
     ImmutableMap<Class<? extends PTransform>, TransformEvaluatorFactory> primitives =
         ImmutableMap.<Class<? extends PTransform>, TransformEvaluatorFactory>builder()
-            .put(Read.Bounded.class, new BoundedReadEvaluatorFactory())
-            .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory())
-            .put(ParDo.Bound.class, new ParDoSingleEvaluatorFactory())
-            .put(ParDo.BoundMulti.class, new ParDoMultiEvaluatorFactory())
-            .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory())
-            .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory())
-            .put(Window.Bound.class, new WindowEvaluatorFactory())
+            .put(Read.Bounded.class, new BoundedReadEvaluatorFactory(ctxt))
+            .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory(ctxt))
+            .put(ParDo.BoundMulti.class, new ParDoEvaluatorFactory<>(ctxt))
+            .put(StatefulParDo.class, new StatefulParDoEvaluatorFactory<>(ctxt))
+            .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory(ctxt))
+            .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory(ctxt))
+            .put(Window.Bound.class, new WindowEvaluatorFactory(ctxt))
             // Runner-specific primitives used in expansion of GroupByKey
-            .put(DirectGroupByKeyOnly.class, new GroupByKeyOnlyEvaluatorFactory())
-            .put(DirectGroupAlsoByWindow.class, new GroupAlsoByWindowEvaluatorFactory())
+            .put(DirectGroupByKeyOnly.class, new GroupByKeyOnlyEvaluatorFactory(ctxt))
+            .put(DirectGroupAlsoByWindow.class, new GroupAlsoByWindowEvaluatorFactory(ctxt))
+            .put(
+                TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream.class,
+                new TestStreamEvaluatorFactory(ctxt))
+            // Runner-specific primitive used in expansion of SplittableParDo
+            .put(
+                SplittableParDo.ProcessElements.class,
+                new SplittableProcessElementsEvaluatorFactory<>(ctxt))
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }
@@ -61,6 +75,8 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   @SuppressWarnings("rawtypes")
   private final Map<Class<? extends PTransform>, TransformEvaluatorFactory> factories;
 
+  private final AtomicBoolean finished = new AtomicBoolean(false);
+
   private TransformEvaluatorRegistry(
       @SuppressWarnings("rawtypes")
       Map<Class<? extends PTransform>, TransformEvaluatorFactory> factories) {
@@ -69,11 +85,42 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      @Nullable CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext)
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
       throws Exception {
-    TransformEvaluatorFactory factory = factories.get(application.getTransform().getClass());
-    return factory.forApplication(application, inputBundle, evaluationContext);
+    checkState(
+        !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
+    Class<? extends PTransform> transformClass = application.getTransform().getClass();
+    TransformEvaluatorFactory factory =
+        checkNotNull(
+            factories.get(transformClass), "No evaluator for PTransform type %s", transformClass);
+    return factory.forApplication(application, inputBundle);
+  }
+
+  @Override
+  public void cleanup() throws Exception {
+    Collection<Exception> thrownInCleanup = new ArrayList<>();
+    for (TransformEvaluatorFactory factory : factories.values()) {
+      try {
+        factory.cleanup();
+      } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        thrownInCleanup.add(e);
+      }
+    }
+    finished.set(true);
+    if (!thrownInCleanup.isEmpty()) {
+      LOG.error("Exceptions {} thrown while cleaning up evaluators", thrownInCleanup);
+      Exception toThrow = null;
+      for (Exception e : thrownInCleanup) {
+        if (toThrow == null) {
+          toThrow = e;
+        } else {
+          toThrow.addSuppressed(e);
+        }
+      }
+      throw toThrow;
+    }
   }
 }

@@ -6,6 +6,10 @@
 target/
 bin/
 
+# Ignore generated archetypes
+sdks/java/maven-archetypes/examples/src/main/resources/archetype-resources/src/
+sdks/java/maven-archetypes/examples-java8/src/main/resources/archetype-resources/src/
+
 # Ignore IntelliJ files.
 .idea/
 *.iml
@@ -17,15 +21,23 @@ bin/
 .project
 .factorypath
 .checkstyle
+.fbExcludeFilterFile
+.apt_generated/
 .settings/
 
 # The build process generates the dependency-reduced POM, but it shouldn't be
 # committed.
 dependency-reduced-pom.xml
 
+# Hotspot VM leaves this log in a non-target directory when java crashes
+hs_err_pid*.log
+
 # Ignore files that end with '~', since they are most likely auto-save files
 # produced by a text editor.
 *~
+
+# Ignore MacOSX files.
+.DS_Store
 
 # NOTE: if you modify this file, you probably need to modify the file set that
 # is an input to 'maven-assembly-plugin' that generates source distribution.

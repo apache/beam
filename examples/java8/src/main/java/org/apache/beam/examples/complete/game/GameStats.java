@@ -17,6 +17,9 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TimeZone;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
@@ -28,7 +31,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -36,6 +38,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
@@ -45,7 +48,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptors;
-
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -54,31 +56,27 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TimeZone;
-
 /**
  * This class is the fourth in a series of four pipelines that tell a story in a 'gaming'
  * domain, following {@link UserScore}, {@link HourlyTeamScore}, and {@link LeaderBoard}.
  * New concepts: session windows and finding session duration; use of both
  * singleton and non-singleton side inputs.
  *
- * <p> This pipeline builds on the {@link LeaderBoard} functionality, and adds some "business
+ * <p>This pipeline builds on the {@link LeaderBoard} functionality, and adds some "business
  * intelligence" analysis: abuse detection and usage patterns. The pipeline derives the Mean user
  * score sum for a window, and uses that information to identify likely spammers/robots. (The robots
  * have a higher click rate than the human users). The 'robot' users are then filtered out when
  * calculating the team scores.
  *
- * <p> Additionally, user sessions are tracked: that is, we find bursts of user activity using
+ * <p>Additionally, user sessions are tracked: that is, we find bursts of user activity using
  * session windows. Then, the mean session duration information is recorded in the context of
  * subsequent fixed windowing. (This could be used to tell us what games are giving us greater
  * user retention).
  *
- * <p> Run {@code org.apache.beam.examples.complete.game.injector.Injector} to generate
+ * <p>Run {@code org.apache.beam.examples.complete.game.injector.Injector} to generate
  * pubsub data for this pipeline. The {@code Injector} documentation provides more detail.
  *
- * <p> To execute this pipeline using the Dataflow service, specify the pipeline configuration
+ * <p>To execute this pipeline using the Dataflow service, specify the pipeline configuration
  * like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
@@ -102,7 +100,8 @@ public class GameStats extends LeaderBoard {
   /**
    * Filter out all but those users with a high clickrate, which we will consider as 'spammy' uesrs.
    * We do this by finding the mean total score per user, then using that information as a side
-   * input to filter out all but those user scores that are > (mean * SCORE_WEIGHT)
+   * input to filter out all but those user scores that are larger than
+   * {@code (mean * SCORE_WEIGHT)}.
    */
   // [START DocInclude_AbuseDetect]
   public static class CalculateSpammyUsers
@@ -111,7 +110,7 @@ public class GameStats extends LeaderBoard {
     private static final double SCORE_WEIGHT = 2.5;
 
     @Override
-    public PCollection<KV<String, Integer>> apply(PCollection<KV<String, Integer>> userScores) {
+    public PCollection<KV<String, Integer>> expand(PCollection<KV<String, Integer>> userScores) {
 
       // Get the sum of scores for each user.
       PCollection<KV<String, Integer>> sumScores = userScores
@@ -129,7 +128,7 @@ public class GameStats extends LeaderBoard {
               .of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
                 private final Aggregator<Long, Long> numSpammerUsers =
                   createAggregator("SpammerUsers", new Sum.SumLongFn());
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   Integer score = c.element().getValue();
                   Double gmc = c.sideInput(globalMeanScore);
@@ -149,12 +148,10 @@ public class GameStats extends LeaderBoard {
   /**
    * Calculate and output an element's session duration.
    */
-  private static class UserSessionInfoFn extends DoFn<KV<String, Integer>, Integer>
-      implements RequiresWindowAccess {
-
-    @Override
-    public void processElement(ProcessContext c) {
-      IntervalWindow w = (IntervalWindow) c.window();
+  private static class UserSessionInfoFn extends DoFn<KV<String, Integer>, Integer> {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
+      IntervalWindow w = (IntervalWindow) window;
       int duration = new Duration(
           w.start(), w.end()).toPeriod().toStandardMinutes().getMinutes();
       c.output(duration);
@@ -165,7 +162,7 @@ public class GameStats extends LeaderBoard {
   /**
    * Options supported by {@link GameStats}.
    */
-  static interface Options extends LeaderBoard.Options {
+  interface Options extends LeaderBoard.Options {
     @Description("Numeric value of fixed window duration for user analysis, in minutes")
     @Default.Integer(60)
     Integer getFixedWindowDuration();
@@ -184,8 +181,8 @@ public class GameStats extends LeaderBoard {
 
     @Description("Prefix used for the BigQuery table names")
     @Default.String("game_stats")
-    String getTablePrefix();
-    void setTablePrefix(String value);
+    String getGameStatsTablePrefix();
+    void setGameStatsTablePrefix(String value);
   }
 
 
@@ -197,21 +194,26 @@ public class GameStats extends LeaderBoard {
       configureWindowedWrite() {
     Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
         new HashMap<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>();
-    tableConfigure.put("team",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
-            c -> c.element().getKey()));
-    tableConfigure.put("total_score",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("INTEGER",
-            c -> c.element().getValue()));
-    tableConfigure.put("window_start",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
-          c -> {
-            IntervalWindow w = (IntervalWindow) c.window();
-            return fmt.print(w.start());
-          }));
-    tableConfigure.put("processing_time",
+    tableConfigure.put(
+        "team",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
-            "STRING", c -> fmt.print(Instant.now())));
+            "STRING", (c, w) -> c.element().getKey()));
+    tableConfigure.put(
+        "total_score",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "INTEGER", (c, w) -> c.element().getValue()));
+    tableConfigure.put(
+        "window_start",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING",
+            (c, w) -> {
+              IntervalWindow window = (IntervalWindow) w;
+              return fmt.print(window.start());
+            }));
+    tableConfigure.put(
+        "processing_time",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING", (c, w) -> fmt.print(Instant.now())));
     return tableConfigure;
   }
 
@@ -224,14 +226,17 @@ public class GameStats extends LeaderBoard {
 
     Map<String, WriteWindowedToBigQuery.FieldInfo<Double>> tableConfigure =
         new HashMap<String, WriteWindowedToBigQuery.FieldInfo<Double>>();
-    tableConfigure.put("window_start",
-        new WriteWindowedToBigQuery.FieldInfo<Double>("STRING",
-          c -> {
-            IntervalWindow w = (IntervalWindow) c.window();
-            return fmt.print(w.start());
-          }));
-    tableConfigure.put("mean_duration",
-        new WriteWindowedToBigQuery.FieldInfo<Double>("FLOAT", c -> c.element()));
+    tableConfigure.put(
+        "window_start",
+        new WriteWindowedToBigQuery.FieldInfo<Double>(
+            "STRING",
+            (c, w) -> {
+              IntervalWindow window = (IntervalWindow) w;
+              return fmt.print(window.start());
+            }));
+    tableConfigure.put(
+        "mean_duration",
+        new WriteWindowedToBigQuery.FieldInfo<Double>("FLOAT", (c, w) -> c.element()));
     return tableConfigure;
   }
 
@@ -282,7 +287,7 @@ public class GameStats extends LeaderBoard {
       .apply("FilterOutSpammers", ParDo
               .withSideInputs(spammersView)
               .of(new DoFn<GameActionInfo, GameActionInfo>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   // If the user is not in the spammers Map, output the data element.
                   if (c.sideInput(spammersView).get(c.element().getUser().trim()) == null) {
@@ -296,7 +301,7 @@ public class GameStats extends LeaderBoard {
       // Write the result to BigQuery
       .apply("WriteTeamSums",
           new WriteWindowedToBigQuery<KV<String, Integer>>(
-              options.getTablePrefix() + "_team", configureWindowedWrite()));
+              options.getGameStatsTablePrefix() + "_team", configureWindowedWrite()));
 
 
     // [START DocInclude_SessionCalc]
@@ -323,7 +328,7 @@ public class GameStats extends LeaderBoard {
       // Write this info to a BigQuery table.
       .apply("WriteAvgSessionLength",
              new WriteWindowedToBigQuery<Double>(
-                options.getTablePrefix() + "_sessions", configureSessionWindowWrite()));
+                options.getGameStatsTablePrefix() + "_sessions", configureSessionWindowWrite()));
     // [END DocInclude_Rewindow]
 
 

@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionE
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
-
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -29,6 +28,20 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableList;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Random;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -43,9 +56,6 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.collect.ImmutableList;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -53,20 +63,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
-
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SeekableByteChannel;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Random;
 
 /**
  * Tests code common to all file-based sources.
@@ -466,7 +462,7 @@ public class FileBasedSourceTest {
                 new File(parent, "file1").getPath(),
                 new File(parent, "file2").getPath(),
                 new File(parent, "file3").getPath()));
-    IOChannelUtils.setIOFactory("mocked", mockIOFactory);
+    IOChannelUtils.setIOFactoryInternal("mocked", mockIOFactory, true /* override */);
 
     List<String> data2 = createStringDataset(3, 50);
     createFileWithData("file2", data2);
@@ -919,5 +915,19 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 1, 0, file.length(), null);
     assertSplitAtFractionExhaustive(source, options);
+  }
+
+  @Test
+  public void testToStringFile() throws Exception {
+    String path = "/tmp/foo";
+    TestFileBasedSource source = new TestFileBasedSource(path, 1, 0, 10, null);
+    assertEquals(String.format("%s range [0, 10)", path), source.toString());
+  }
+
+  @Test
+  public void testToStringPattern() throws Exception {
+    String path = "/tmp/foo/*";
+    TestFileBasedSource source = new TestFileBasedSource(path, 1, 0, 10, null);
+    assertEquals(String.format("%s range [0, 10)", path), source.toString());
   }
 }

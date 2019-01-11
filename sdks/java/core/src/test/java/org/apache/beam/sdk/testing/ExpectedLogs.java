@@ -19,12 +19,6 @@ package org.apache.beam.sdk.testing;
 
 import static org.junit.Assert.fail;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
-import org.junit.rules.ExternalResource;
-import org.junit.rules.TestRule;
-
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.logging.Formatter;
@@ -33,8 +27,12 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-
 import javax.annotation.concurrent.ThreadSafe;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
+import org.junit.rules.ExternalResource;
+import org.junit.rules.TestRule;
 
 /**
  * This {@link TestRule} enables the ability to capture JUL logging events during test execution and
@@ -270,6 +268,7 @@ public class ExpectedLogs extends ExternalResource {
   protected void after() {
     log.removeHandler(logSaver);
     log.setLevel(previousLevel);
+    logSaver.reset();
   }
 
   private final Logger log;
@@ -287,11 +286,7 @@ public class ExpectedLogs extends ExternalResource {
    */
   @ThreadSafe
   private static class LogSaver extends Handler {
-    Collection<LogRecord> logRecords = new ConcurrentLinkedDeque<>();
-
-    public Collection<LogRecord> getLogs() {
-      return logRecords;
-    }
+    private final Collection<LogRecord> logRecords = new ConcurrentLinkedDeque<>();
 
     @Override
     public void publish(LogRecord record) {
@@ -303,5 +298,13 @@ public class ExpectedLogs extends ExternalResource {
 
     @Override
     public void close() throws SecurityException {}
+
+    private Collection<LogRecord> getLogs() {
+      return logRecords;
+    }
+
+    private void reset() {
+      logRecords.clear();
+    }
   }
 }

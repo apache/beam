@@ -20,23 +20,24 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Verify.verify;
+import static com.google.common.base.Verify.verifyNotNull;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-
+import com.google.common.io.BaseEncoding;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
-import java.util.List;
-
-import javax.annotation.Nullable;
 
 /**
  * A set of utilities for working with Avro files.
@@ -46,6 +47,19 @@ import javax.annotation.Nullable;
  */
 class BigQueryAvroUtils {
 
+  public static final ImmutableMap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
+      ImmutableMap.<String, Type>builder()
+          .put("STRING", Type.STRING)
+          .put("BYTES", Type.BYTES)
+          .put("INTEGER", Type.LONG)
+          .put("FLOAT", Type.DOUBLE)
+          .put("BOOLEAN", Type.BOOLEAN)
+          .put("TIMESTAMP", Type.LONG)
+          .put("RECORD", Type.RECORD)
+          .put("DATE", Type.STRING)
+          .put("DATETIME", Type.STRING)
+          .put("TIME", Type.STRING)
+          .build();
   /**
    * Formats BigQuery seconds-since-epoch into String matching JSON export. Thread-safe and
    * immutable.
@@ -83,7 +97,7 @@ class BigQueryAvroUtils {
   /**
    * Utility function to convert from an Avro {@link GenericRecord} to a BigQuery {@link TableRow}.
    *
-   * See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">
+   * <p>See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">
    * "Avro format"</a> for more information.
    */
   static TableRow convertGenericRecordToTableRow(GenericRecord record, TableSchema schema) {
@@ -153,19 +167,11 @@ class BigQueryAvroUtils {
     // REQUIRED fields are represented as the corresponding Avro types. For example, a BigQuery
     // INTEGER type maps to an Avro LONG type.
     checkNotNull(v, "REQUIRED field %s should not be null", fieldSchema.getName());
-    ImmutableMap<String, Type> fieldMap =
-        ImmutableMap.<String, Type>builder()
-            .put("STRING", Type.STRING)
-            .put("INTEGER", Type.LONG)
-            .put("FLOAT", Type.DOUBLE)
-            .put("BOOLEAN", Type.BOOLEAN)
-            .put("TIMESTAMP", Type.LONG)
-            .put("RECORD", Type.RECORD)
-            .build();
     // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the type field
     // is required, so it may not be null.
     String bqType = fieldSchema.getType();
-    Type expectedAvroType = fieldMap.get(bqType);
+    Type expectedAvroType = BIG_QUERY_TO_AVRO_TYPES.get(bqType);
+    verifyNotNull(expectedAvroType, "Unsupported BigQuery type: %s", bqType);
     verify(
         avroType == expectedAvroType,
         "Expected Avro schema type %s, not %s, for BigQuery %s field %s",
@@ -175,6 +181,9 @@ class BigQueryAvroUtils {
         fieldSchema.getName());
     switch (fieldSchema.getType()) {
       case "STRING":
+      case "DATE":
+      case "DATETIME":
+      case "TIME":
         // Avro will use a CharSequence to represent String objects, but it may not always use
         // java.lang.String; for example, it may prefer org.apache.avro.util.Utf8.
         verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
@@ -198,6 +207,12 @@ class BigQueryAvroUtils {
       case "RECORD":
         verify(v instanceof GenericRecord, "Expected GenericRecord, got %s", v.getClass());
         return convertGenericRecordToTableRow((GenericRecord) v, fieldSchema.getFields());
+      case "BYTES":
+        verify(v instanceof ByteBuffer, "Expected ByteBuffer, got %s", v.getClass());
+        ByteBuffer byteBuffer = (ByteBuffer) v;
+        byte[] bytes = new byte[byteBuffer.limit()];
+        byteBuffer.get(bytes);
+        return BaseEncoding.base64().encode(bytes);
       default:
         throw new UnsupportedOperationException(
             String.format(
@@ -232,5 +247,44 @@ class BigQueryAvroUtils {
       return convertRequiredField(firstType, fieldSchema, v);
     }
     return convertRequiredField(unionTypes.get(1).getType(), fieldSchema, v);
+  }
+
+  static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas) {
+    List<Field> avroFields = new ArrayList<>();
+    for (TableFieldSchema bigQueryField : fieldSchemas) {
+      avroFields.add(convertField(bigQueryField));
+    }
+    return Schema.createRecord(
+        schemaName,
+        "org.apache.beam.sdk.io.gcp.bigquery",
+        "Translated Avro Schema for " + schemaName,
+        false,
+        avroFields);
+  }
+
+  private static Field convertField(TableFieldSchema bigQueryField) {
+    Type avroType = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
+    Schema elementSchema;
+    if (avroType == Type.RECORD) {
+      elementSchema = toGenericAvroSchema(bigQueryField.getName(), bigQueryField.getFields());
+    } else {
+      elementSchema = Schema.create(avroType);
+    }
+    Schema fieldSchema;
+    if (bigQueryField.getMode() == null || bigQueryField.getMode().equals("NULLABLE")) {
+      fieldSchema = Schema.createUnion(Schema.create(Type.NULL), elementSchema);
+    } else if (bigQueryField.getMode().equals("REQUIRED")) {
+      fieldSchema = elementSchema;
+    } else if (bigQueryField.getMode().equals("REPEATED")) {
+      fieldSchema = Schema.createArray(elementSchema);
+    } else {
+      throw new IllegalArgumentException(
+          String.format("Unknown BigQuery Field Mode: %s", bigQueryField.getMode()));
+    }
+    return new Field(
+        bigQueryField.getName(),
+        fieldSchema,
+        bigQueryField.getDescription(),
+        (Object) null /* Cast to avoid deprecated JsonNode constructor. */);
   }
 }

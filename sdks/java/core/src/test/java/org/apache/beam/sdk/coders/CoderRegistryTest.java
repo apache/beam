@@ -21,6 +21,20 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 
+import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
+import com.google.common.collect.ImmutableList;
+import com.google.protobuf.Duration;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.lang.reflect.Type;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderRegistry.IncompatibleCoderException;
 import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
@@ -35,29 +49,12 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
-import com.google.common.collect.ImmutableList;
-import com.google.protobuf.Duration;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.lang.reflect.Type;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Tests for CoderRegistry.
@@ -367,13 +364,13 @@ public class CoderRegistryTest {
   extends PTransform<PCollection<String>, PCollection<KV<String, MySerializableGeneric<String>>>> {
 
     private class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<String>>> {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) { }
     }
 
     @Override
     public PCollection<KV<String, MySerializableGeneric<String>>>
-    apply(PCollection<String> input) {
+    expand(PCollection<String> input) {
       return input.apply(ParDo.of(new OutputDoFn()));
     }
   }
@@ -398,6 +395,7 @@ public class CoderRegistryTest {
   private static class TestGenericClass<TestGenericT> { }
 
   @Test
+  @SuppressWarnings("rawtypes")
   public void testSerializableTypeVariableDefaultCoder() throws Exception {
     CoderRegistry registry = new CoderRegistry();
 
@@ -431,13 +429,13 @@ public class CoderRegistryTest {
       PCollection<KV<String, MySerializableGeneric<T>>>> {
 
     private class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<T>>> {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) { }
     }
 
     @Override
     public PCollection<KV<String, MySerializableGeneric<T>>>
-    apply(PCollection<String> input) {
+    expand(PCollection<String> input) {
       return input.apply(ParDo.of(new OutputDoFn()));
     }
   }

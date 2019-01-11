@@ -17,19 +17,17 @@
  */
 package org.apache.beam.sdk.values;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-
-import com.google.common.collect.ImmutableMap;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * A {@link PCollectionTuple} is an immutable tuple of
@@ -221,7 +219,7 @@ public class PCollectionTuple implements PInput, POutput {
       TypeDescriptor<Object> token = (TypeDescriptor<Object>) outputTag.getTypeDescriptor();
       PCollection<Object> outputCollection = PCollection
           .createPrimitiveOutputInternal(pipeline, windowingStrategy, isBounded)
-          .setTypeDescriptorInternal(token);
+          .setTypeDescriptor(token);
 
       pcollectionMap.put(outputTag, outputCollection);
     }

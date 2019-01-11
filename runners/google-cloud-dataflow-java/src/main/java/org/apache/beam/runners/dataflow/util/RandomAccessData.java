@@ -20,26 +20,22 @@ package org.apache.beam.runners.dataflow.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.util.VarInt;
-
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.MoreObjects;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.UnsignedBytes;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Comparator;
-
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.util.VarInt;
 
 /**
  * An elastic-sized byte array which allows you to manipulate it as a stream, or access
@@ -48,8 +44,8 @@ import javax.annotation.concurrent.NotThreadSafe;
  * also provides random access to bytes stored within. This wrapper allows users to finely
  * control the number of byte copies that occur.
  *
- * Anything stored within the in-memory buffer from offset {@link #size()} is considered temporary
- * unused storage.
+ * <p>Anything stored within the in-memory buffer from offset {@link #size()} is considered
+ * temporary unused storage.
  */
 @NotThreadSafe
 public class RandomAccessData {
@@ -58,7 +54,7 @@ public class RandomAccessData {
    * This follows the same encoding scheme as {@link ByteArrayCoder}.
    * This coder is deterministic and consistent with equals.
    *
-   * This coder does not support encoding positive infinity.
+   * <p>This coder does not support encoding positive infinity.
    */
   public static class RandomAccessDataCoder extends AtomicCoder<RandomAccessData> {
     private static final RandomAccessDataCoder INSTANCE = new RandomAccessDataCoder();
@@ -125,7 +121,7 @@ public class RandomAccessData {
    * A {@link Comparator} that compares two byte arrays lexicographically. It compares
    * values as a list of unsigned bytes. The first pair of values that follow any common prefix,
    * or when one array is a prefix of the other, treats the shorter array as the lesser.
-   * For example, [] < [0x01] < [0x01, 0x7F] < [0x01, 0x80] < [0x02] < POSITIVE INFINITY.
+   * For example, {@code [] < [0x01] < [0x01, 0x7F] < [0x01, 0x80] < [0x02] < POSITIVE INFINITY}.
    *
    * <p>Note that a token type of positive infinity is supported and is greater than
    * all other {@link RandomAccessData}.
@@ -196,7 +192,7 @@ public class RandomAccessData {
    * is strictly greater than this. Note that if this is empty or is all 0xFF then
    * a token value of positive infinity is returned.
    *
-   * The {@link UnsignedLexicographicalComparator} supports comparing {@link RandomAccessData}
+   * <p>The {@link UnsignedLexicographicalComparator} supports comparing {@link RandomAccessData}
    * with support for positive infinitiy.
    */
   public RandomAccessData increment() throws IOException {

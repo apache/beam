@@ -17,15 +17,12 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers;
 
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
-import org.apache.flink.api.common.accumulators.Accumulator;
-
 import java.io.Serializable;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.flink.api.common.accumulators.Accumulator;
 
 /**
  * Wrapper that wraps a {@link org.apache.beam.sdk.transforms.Combine.CombineFn}
@@ -83,6 +80,13 @@ public class SerializableFnAggregatorWrapper<InputT, OutputT>
 
   @Override
   public Accumulator<InputT, Serializable> clone() {
+    try {
+      super.clone();
+    } catch (CloneNotSupportedException e) {
+      // Flink Accumulators cannot throw CloneNotSupportedException, work around that.
+      throw new RuntimeException(e);
+    }
+
     // copy it by merging
     OutputT resultCopy = combiner.apply(Lists.newArrayList((InputT) aa));
     SerializableFnAggregatorWrapper<InputT, OutputT> result = new

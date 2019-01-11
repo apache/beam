@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.util.CoderUtils;
-
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
+import org.apache.beam.sdk.util.CoderUtils;
 
 /**
  * A command-line utility for printing the base-64 encodings of test values, for generating exact

@@ -17,25 +17,23 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import org.apache.beam.sdk.options.BigQueryOptions;
-
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.options.BigQueryOptions;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
 interface BigQueryServices extends Serializable {
@@ -59,7 +57,8 @@ interface BigQueryServices extends Serializable {
    * Returns a real, mock, or fake {@link BigQueryJsonReader} to query tables.
    */
   BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten);
+      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
+      @Nullable Boolean useLegacySql);
 
   /**
    * An interface for the Cloud BigQuery load service.
@@ -83,6 +82,12 @@ interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
 
     /**
+     * Start a BigQuery copy job.
+     */
+    void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
+        throws IOException, InterruptedException;
+
+    /**
      * Waits for the job is Done, and returns the job.
      *
      * <p>Returns null if the {@code maxAttempts} retries reached.
@@ -93,8 +98,15 @@ interface BigQueryServices extends Serializable {
     /**
      * Dry runs the query in the given project.
      */
-    JobStatistics dryRunQuery(String projectId, String query)
+    JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig)
         throws InterruptedException, IOException;
+
+    /**
+     * Gets the specified {@link Job} by the given {@link JobReference}.
+     *
+     * <p>Returns null if the job is not found.
+     */
+    Job getJob(JobReference jobRef) throws IOException, InterruptedException;
   }
 
   /**
@@ -129,7 +141,8 @@ interface BigQueryServices extends Serializable {
     /**
      * Create a {@link Dataset} with the given {@code location} and {@code description}.
      */
-    void createDataset(String projectId, String datasetId, String location, String description)
+    void createDataset(
+        String projectId, String datasetId, @Nullable String location, @Nullable String description)
         throws IOException, InterruptedException;
 
     /**
@@ -143,7 +156,7 @@ interface BigQueryServices extends Serializable {
     /**
      * Inserts {@link TableRow TableRows} with the specified insertIds if not null.
      *
-     * Returns the total bytes count of {@link TableRow TableRows}.
+     * <p>Returns the total bytes count of {@link TableRow TableRows}.
      */
     long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
         throws IOException, InterruptedException;

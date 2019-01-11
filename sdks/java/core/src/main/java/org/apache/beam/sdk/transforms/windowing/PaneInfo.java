@@ -20,6 +20,12 @@ package org.apache.beam.sdk.transforms.windowing;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableMap;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -27,19 +33,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.util.VarInt;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableMap;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Objects;
-
 /**
  * Provides information about the pane an element belongs to. Every pane is implicitly associated
  * with a window. Panes are observable only via the
- * {@link org.apache.beam.sdk.transforms.DoFn.ProcessContext#pane} method of the context
- * passed to a {@link DoFn#processElement} overridden method.
+ * {@link DoFn.ProcessContext#pane} method of the context
+ * passed to a {@link DoFn.ProcessElement} method.
  *
  * <p>Note: This does not uniquely identify a pane, and should not be used for comparisons.
  */
@@ -74,8 +72,8 @@ public final class PaneInfo {
    * definitions:
    * <ol>
    * <li>We'll call a pipeline 'simple' if it does not use
-   * {@link org.apache.beam.sdk.transforms.DoFn.Context#outputWithTimestamp} in
-   * any {@code DoFn}, and it uses the same
+   * {@link DoFn.Context#outputWithTimestamp} in
+   * any {@link DoFn}, and it uses the same
    * {@link org.apache.beam.sdk.transforms.windowing.Window.Bound#withAllowedLateness}
    * argument value on all windows (or uses the default of {@link org.joda.time.Duration#ZERO}).
    * <li>We'll call an element 'locally late', from the point of view of a computation on a
@@ -96,7 +94,7 @@ public final class PaneInfo {
    * And a {@code LATE} pane cannot contain locally on-time elements.
    * </ol>
    *
-   * However, note that:
+   * <p>However, note that:
    * <ol>
    * <li> An {@code ON_TIME} pane may contain locally late elements. It may even contain only
    * locally late elements. Provided a locally late element finds its way into an {@code ON_TIME}
@@ -126,7 +124,7 @@ public final class PaneInfo {
      * This element was not produced in a triggered pane and its relation to input and
      * output watermarks is unknown.
      */
-    UNKNOWN;
+    UNKNOWN
 
     // NOTE: Do not add fields or re-order them. The ordinal is used as part of
     // the encoding.
@@ -258,7 +256,7 @@ public final class PaneInfo {
   /**
    * The zero-based index of this trigger firing among non-speculative panes.
    *
-   * <p> This will return 0 for the first non-{@link Timing#EARLY} timer firing, 1 for the next one,
+   * <p>This will return 0 for the first non-{@link Timing#EARLY} timer firing, 1 for the next one,
    * etc.
    *
    * <p>Always -1 for speculative data.
@@ -311,7 +309,7 @@ public final class PaneInfo {
    * A Coder for encoding PaneInfo instances.
    */
   public static class PaneInfoCoder extends AtomicCoder<PaneInfo> {
-    private static enum Encoding {
+    private enum Encoding {
       FIRST,
       ONE_INDEX,
       TWO_INDICES;

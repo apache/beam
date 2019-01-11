@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.2.0-incubating-SNAPSHOT</version>
+    <version>0.4.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -45,6 +45,19 @@
       </resource>
     </resources>
 
+    <pluginManagement>
+      <plugins>
+        <!-- BEAM-925 -->
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>findbugs-maven-plugin</artifactId>
+          <configuration>
+            <skip>true</skip>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -60,13 +73,21 @@
             <beamUseDummyRunner>true</beamUseDummyRunner>
           </systemPropertyVariables>
         </configuration>
-      </plugin>
-
-      <!-- Run CheckStyle pass on transforms, as they are release in
-           source form. -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>runnable-on-service-tests</id>
+            <configuration>
+              <excludedGroups>
+                org.apache.beam.sdk.testing.UsesStatefulParDo,
+                org.apache.beam.sdk.testing.UsesTimersInParDo,
+                org.apache.beam.sdk.testing.UsesSplittableParDo
+              </excludedGroups>
+              <excludes>
+                <exclude>org.apache.beam.sdk.transforms.FlattenTest</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
 
       <plugin>
@@ -74,87 +95,10 @@
         <artifactId>maven-jar-plugin</artifactId>
       </plugin>
 
-      <!-- Source plugin for generating source and test-source JARs. -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <configuration>
-          <windowtitle>Google Cloud Dataflow Java Runner ${project.version}</windowtitle>
-          <doctitle>Google Cloud Dataflow Runner for Java, version ${project.version}</doctitle>
-
-          <subpackages>org.apache.beam.runners.dataflow</subpackages>
-          <additionalparam>-exclude org.apache.beam.sdk.runners.dataflow.internal:org.apache.beam.sdk.runners.dataflow.testing:org.apache.beam.sdk.runners.dataflow.util ${dataflow.javadoc_opts}</additionalparam>
-          <use>false</use>
-          <quiet>true</quiet>
-          <bottom><![CDATA[<br>]]></bottom>
-
-          <offlineLinks>
-            <offlineLink>
-              <url>https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.20.0/</url>
-              <location>${basedir}/../../sdks/java/javadoc/apiclient-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://avro.apache.org/docs/${avro.version}/api/java/</url>
-              <location>${basedir}/../../sdks/java/javadoc/avro-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/</url>
-              <location>${basedir}/../../sdks/java/javadoc/bq-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://cloud.google.com/datastore/docs/apis/javadoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/datastore-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://docs.guava-libraries.googlecode.com/git-history/release19/javadoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/guava-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://hamcrest.org/JavaHamcrest/javadoc/1.3/</url>
-              <location>${basedir}/../../sdks/java/javadoc/hamcrest-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.7/</url>
-              <location>${basedir}/../../sdks/java/javadoc/jackson-annotations-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://fasterxml.github.io/jackson-databind/javadoc/2.7/</url>
-              <location>${basedir}/../../sdks/java/javadoc/jackson-databind-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://www.joda.org/joda-time/apidocs</url>
-              <location>${basedir}/../../sdks/java/javadoc/joda-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://junit.sourceforge.net/javadoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/junit-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.20.0/</url>
-              <location>${basedir}/../../sdks/java/javadoc/oauth-docs</location>
-            </offlineLink>
-          </offlineLinks>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <phase>package</phase>
-          </execution>
-        </executions>
-      </plugin>
-
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
-          <!-- In the first phase, we pick dependencies and relocate them. -->
           <execution>
             <id>bundle-and-repackage</id>
             <phase>package</phase>
@@ -185,6 +129,10 @@
                      the second relocation. -->
                 <relocation>
                   <pattern>com.google.common</pattern>
+                  <excludes>
+                    <!-- com.google.common is too generic, need to exclude guava-testlib -->
+                    <exclude>com.google.common.**.testing.*</exclude>
+                  </excludes>
                   <shadedPattern>org.apache.beam.sdk.repackaged.com.google.common</shadedPattern>
                 </relocation>
                 <relocation>
@@ -203,36 +151,6 @@
                   </excludes>
                 </relocation>
               </relocations>
-            </configuration>
-          </execution>
-
-          <!-- In the second phase, we pick remaining dependencies and bundle
-               them without repackaging. -->
-          <execution>
-            <id>bundle-rest-without-repackaging</id>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <shadeTestJar>true</shadeTestJar>
-              <finalName>${project.artifactId}-bundled-${project.version}</finalName>
-              <artifactSet>
-                <excludes>
-                  <exclude>com.google.cloud.bigtable:bigtable-client-core</exclude>
-                  <exclude>com.google.guava:guava</exclude>
-                </excludes>
-              </artifactSet>
-              <filters>
-                <filter>
-                  <artifact>*:*</artifact>
-                  <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                  </excludes>
-                </filter>
-              </filters>
             </configuration>
           </execution>
         </executions>
@@ -255,11 +173,6 @@
     <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.oauth-client</groupId>
-      <artifactId>google-oauth-client</artifactId>
     </dependency>
 
     <dependency>
@@ -289,6 +202,16 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.auth</groupId>
+      <artifactId>google-auth-library-credentials</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.auth</groupId>
+      <artifactId>google-auth-library-oauth2-http</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util</artifactId>
     </dependency>
@@ -299,6 +222,8 @@
     </dependency>
 
     <dependency>
+      <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
+           excluding com.google.common.**.testing.* -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava-testlib</artifactId>
       <scope>test</scope>
@@ -315,8 +240,14 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-lite</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.code.findbugs</groupId>
-      <artifactId>annotations</artifactId>
+      <artifactId>jsr305</artifactId>
     </dependency>
 
     <dependency>
@@ -380,7 +311,7 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
-      <type>test-jar</type>
+      <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
 
@@ -392,7 +323,7 @@
 
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
-      <artifactId>datastore-v1beta3-protos</artifactId>
+      <artifactId>datastore-v1-protos</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-
-import org.joda.time.Duration;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.joda.time.Duration;
 
 /**
  * A {@link WindowFn} windowing values into sessions separated by {@link #gapDuration}-long

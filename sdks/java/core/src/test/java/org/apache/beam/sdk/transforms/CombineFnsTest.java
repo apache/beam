@@ -18,10 +18,16 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
-
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -43,9 +49,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.common.collect.ImmutableList;
-
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,13 +56,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Unit tests for {@link CombineFns}.
@@ -302,9 +298,8 @@ public class  CombineFnsTest {
     assertThat(displayData, hasDisplayItem("combineFn1", combineFn1.getClass()));
     assertThat(displayData, hasDisplayItem("combineFn2", combineFn2.getClass()));
 
-    String nsBase = DisplayDataCombineFn.class.getName();
-    assertThat(displayData, includesDisplayDataFrom(combineFn1, nsBase + "#1"));
-    assertThat(displayData, includesDisplayDataFrom(combineFn2, nsBase + "#2"));
+    assertThat(displayData, includesDisplayDataFor("combineFn1", combineFn1));
+    assertThat(displayData, includesDisplayDataFor("combineFn2", combineFn2));
   }
 
   private static class DisplayDataCombineFn extends Combine.CombineFn<String, String, String> {
@@ -461,7 +456,7 @@ public class  CombineFnsTest {
   }
 
   private static class ExtractResultDoFn
-      extends DoFn<KV<String, CoCombineResult>, KV<String, KV<Integer, String>>>{
+      extends DoFn<KV<String, CoCombineResult>, KV<String, KV<Integer, String>>> {
 
     private final TupleTag<Integer> maxIntTag;
     private final TupleTag<UserString> concatStringTag;
@@ -471,7 +466,7 @@ public class  CombineFnsTest {
       this.concatStringTag = concatStringTag;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       UserString userString = c.element().getValue().get(concatStringTag);
       KV<Integer, String> value = KV.of(

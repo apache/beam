@@ -23,15 +23,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.UUID;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Rule;
@@ -40,11 +42,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
 
 /** Tests for {@link TestPipeline}. */
 @RunWith(JUnit4.class)
@@ -127,8 +124,8 @@ public class TestPipelineTest {
   @Test
   public void testMatcherSerializationDeserialization() {
     TestPipelineOptions opts = PipelineOptionsFactory.as(TestPipelineOptions.class);
-    SerializableMatcher m1 = new TestMatcher();
-    SerializableMatcher m2 = new TestMatcher();
+    SerializableMatcher<PipelineResult> m1 = new TestMatcher();
+    SerializableMatcher<PipelineResult> m2 = new TestMatcher();
 
     opts.setOnCreateMatcher(m1);
     opts.setOnSuccessMatcher(m2);

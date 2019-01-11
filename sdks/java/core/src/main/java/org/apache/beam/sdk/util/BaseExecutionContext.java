@@ -17,16 +17,15 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.state.StateInternals;
-import org.apache.beam.sdk.values.TupleTag;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Base class for implementations of {@link ExecutionContext}.
@@ -38,12 +37,12 @@ import java.util.Map;
  * <p>BaseExecutionContext is generic to allow implementing subclasses to return a concrete subclass
  * of {@link StepContext} from {@link #getOrCreateStepContext(String, String)} and
  * {@link #getAllStepContexts()} without forcing each subclass to override the method, e.g.
- * <pre>
- * @Override
+ * <pre>{@code
+ * {@literal @}Override
  * StreamingModeExecutionContext.StepContext getOrCreateStepContext(...) {
  *   return (StreamingModeExecutionContext.StepContext) super.getOrCreateStepContext(...);
  * }
- * </pre>
+ * }</pre>
  *
  * <p>When a subclass of {@code BaseExecutionContext} has been downcast, the return types of
  * {@link #createStepContext(String, String)},
@@ -107,7 +106,7 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link org.apache.beam.sdk.transforms.DoFn.Context#output}
+   * {@code DoFn.Context#output}
    * is called.
    */
   @Override
@@ -115,7 +114,7 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link org.apache.beam.sdk.transforms.DoFn.Context#sideOutput}
+   * {@code DoFn.Context#sideOutput}
    * is called.
    */
   @Override

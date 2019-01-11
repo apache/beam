@@ -18,14 +18,20 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import org.apache.beam.runners.spark.SparkContextOptions;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.coders.BeamSparkRunnerRegistrator;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.serializer.KryoSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The Spark context factory.
  */
 public final class SparkContextFactory {
+  private static final Logger LOG = LoggerFactory.getLogger(SparkContextFactory.class);
 
   /**
    * If the property {@code beam.spark.test.reuseSparkContext} is set to
@@ -40,33 +46,53 @@ public final class SparkContextFactory {
   private SparkContextFactory() {
   }
 
-  public static synchronized JavaSparkContext getSparkContext(String master, String appName) {
-    if (Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)) {
-      if (sparkContext == null) {
-        sparkContext = createSparkContext(master, appName);
-        sparkMaster = master;
-      } else if (!master.equals(sparkMaster)) {
+  public static synchronized JavaSparkContext getSparkContext(SparkPipelineOptions options) {
+    SparkContextOptions contextOptions = options.as(SparkContextOptions.class);
+    // reuse should be ignored if the context is provided.
+    if (Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)
+        && !contextOptions.getUsesProvidedSparkContext()) {
+      // if the context is null or stopped for some reason, re-create it.
+      if (sparkContext == null || sparkContext.sc().isStopped()) {
+        sparkContext = createSparkContext(contextOptions);
+        sparkMaster = options.getSparkMaster();
+      } else if (!options.getSparkMaster().equals(sparkMaster)) {
         throw new IllegalArgumentException(String.format("Cannot reuse spark context "
-                + "with different spark master URL. Existing: %s, requested: %s.",
-            sparkMaster, master));
+            + "with different spark master URL. Existing: %s, requested: %s.",
+                sparkMaster, options.getSparkMaster()));
       }
       return sparkContext;
     } else {
-      return createSparkContext(master, appName);
+      return createSparkContext(contextOptions);
     }
   }
 
-  static synchronized void stopSparkContext(JavaSparkContext context) {
+  public static synchronized void stopSparkContext(JavaSparkContext context) {
     if (!Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)) {
       context.stop();
     }
   }
 
-  private static JavaSparkContext createSparkContext(String master, String appName) {
-    SparkConf conf = new SparkConf();
-    conf.setMaster(master);
-    conf.setAppName(appName);
-    conf.set("spark.serializer", KryoSerializer.class.getCanonicalName());
-    return new JavaSparkContext(conf);
+  private static JavaSparkContext createSparkContext(SparkContextOptions contextOptions) {
+    if (contextOptions.getUsesProvidedSparkContext()) {
+      LOG.info("Using a provided Spark Context");
+      JavaSparkContext jsc = contextOptions.getProvidedSparkContext();
+      if (jsc == null || jsc.sc().isStopped()){
+        LOG.error("The provided Spark context " + jsc + " was not created or was stopped");
+        throw new RuntimeException("The provided Spark context was not created or was stopped");
+      }
+      return jsc;
+    } else {
+      LOG.info("Creating a brand new Spark Context.");
+      SparkConf conf = new SparkConf();
+      if (!conf.contains("spark.master")) {
+        // set master if not set.
+        conf.setMaster(contextOptions.getSparkMaster());
+      }
+      conf.setAppName(contextOptions.getAppName());
+      // register immutable collections serializers because the SDK uses them.
+      conf.set("spark.kryo.registrator", BeamSparkRunnerRegistrator.class.getName());
+      conf.set("spark.serializer", KryoSerializer.class.getName());
+      return new JavaSparkContext(conf);
+    }
   }
 }

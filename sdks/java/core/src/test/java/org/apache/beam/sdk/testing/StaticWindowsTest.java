@@ -19,13 +19,11 @@ package org.apache.beam.sdk.testing;
 
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-
-import com.google.common.collect.ImmutableList;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
