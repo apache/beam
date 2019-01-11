@@ -159,7 +159,7 @@ public class TranslationContext {
   //  Pipeline methods
   // --------------------------------------------------------------------------------------------
 
-  public void startPipeline() {
+  public void startPipeline(boolean testMode) {
     try {
       // to start a pipeline we need a DatastreamWriter to start
       for (Dataset<?> dataset : leaves) {
@@ -167,8 +167,13 @@ public class TranslationContext {
         if (options.isStreaming()) {
           dataset.writeStream().foreach(new NoOpForeachWriter<>()).start().awaitTermination();
         } else {
-          // apply a dummy fn just to apply forech action that will trigger the pipeline run in spark
-          dataset.foreachPartition(t -> {});
+          if (testMode){
+            dataset.show();
+          } else {
+            // apply a dummy fn just to apply forech action that will trigger the pipeline run in spark
+            dataset.foreachPartition(t -> {
+            });
+          }
         }
       }
     } catch (StreamingQueryException e) {
