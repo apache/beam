@@ -36,9 +36,9 @@ import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -128,8 +128,8 @@ public class BoundedSourceRunnerTest {
     ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
     consumers.put(
         "outputPC", (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
@@ -157,13 +157,13 @@ public class BoundedSourceRunnerTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
     // This is testing a deprecated way of running sources and should be removed
     // once all source definitions are instead propagated along the input edge.
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     assertThat(
         outputValues,
         contains(valueInGlobalWindow(0L), valueInGlobalWindow(1L), valueInGlobalWindow(2L)));
@@ -175,7 +175,7 @@ public class BoundedSourceRunnerTest {
         .accept(valueInGlobalWindow(CountingSource.upTo(2)));
     assertThat(outputValues, contains(valueInGlobalWindow(0L), valueInGlobalWindow(1L)));
 
-    assertThat(finishFunctions, Matchers.empty());
+    assertThat(finishFunctionRegistry.getFunctions(), Matchers.empty());
   }
 
   @Test

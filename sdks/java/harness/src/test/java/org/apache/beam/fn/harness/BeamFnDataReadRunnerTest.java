@@ -46,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -58,7 +59,6 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -130,8 +130,8 @@ public class BeamFnDataReadRunnerTest {
     String localOutputId = "outputPC";
     consumers.put(
         localOutputId, (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     RunnerApi.PTransform pTransform =
         RemoteGrpcPortRead.readFromPort(PORT_SPEC, localOutputId).toPTransform();
@@ -150,15 +150,15 @@ public class BeamFnDataReadRunnerTest {
             COMPONENTS.getCodersMap(),
             COMPONENTS.getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
     verifyZeroInteractions(mockBeamFnDataClient);
 
     InboundDataClient completionFuture = CompletableFutureInboundDataClient.create();
     when(mockBeamFnDataClient.receive(any(), any(), any(), any())).thenReturn(completionFuture);
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
@@ -179,7 +179,7 @@ public class BeamFnDataReadRunnerTest {
     assertThat(consumers.keySet(), containsInAnyOrder(localOutputId));
 
     completionFuture.complete();
-    Iterables.getOnlyElement(finishFunctions).run();
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
 
     verifyNoMoreInteractions(mockBeamFnDataClient);
   }

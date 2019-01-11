@@ -25,11 +25,11 @@ import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
@@ -42,7 +42,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -126,8 +125,8 @@ public class CombineRunners {
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-        Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
         BundleSplitListener splitListener)
         throws IOException {
       // Get objects needed to create the runner.
@@ -166,6 +165,7 @@ public class CombineRunners {
               pCollectionIdsToConsumers.get(
                   Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
 
+      // TODO make the receiver aware of its transform context as well.
       // Create the runner.
       PrecombineRunner<KeyT, InputT, AccumT> runner =
           new PrecombineRunner<>(
@@ -176,12 +176,12 @@ public class CombineRunners {
               accumCoder);
 
       // Register the appropriate handlers.
-      addStartFunction.accept(runner::startBundle);
+      startFunctionRegistry.register(pTransformId, runner::startBundle);
       pCollectionIdsToConsumers.put(
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
           (FnDataReceiver)
               (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement);
-      addFinishFunction.accept(runner::finishBundle);
+      finishFunctionRegistry.register(pTransformId, runner::finishBundle);
 
       return runner;
     }

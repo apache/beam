@@ -28,11 +28,10 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.List;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -41,7 +40,6 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -130,8 +128,8 @@ public class CombineRunnersTest {
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     // Create runner.
     new CombineRunners.PrecombineFactory<>()
@@ -146,11 +144,11 @@ public class CombineRunnersTest {
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null);
 
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
@@ -164,7 +162,7 @@ public class CombineRunnersTest {
     input.accept(valueInGlobalWindow(KV.of("B", "2")));
     input.accept(valueInGlobalWindow(KV.of("C", "3")));
 
-    Iterables.getOnlyElement(finishFunctions).run();
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
 
     // Check that all values for "A" were converted to accumulators regardless of how they were
     // combined by the Precombine optimization.
@@ -197,8 +195,8 @@ public class CombineRunnersTest {
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
@@ -213,12 +211,12 @@ public class CombineRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
@@ -252,8 +250,8 @@ public class CombineRunnersTest {
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
@@ -268,12 +266,12 @@ public class CombineRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
@@ -307,8 +305,8 @@ public class CombineRunnersTest {
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)
@@ -323,12 +321,12 @@ public class CombineRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
