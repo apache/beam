@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /** Supports translation between a Beam transform, and Spark's operations on Datasets. */
-public interface TransformTranslator<TransformT extends PTransform> {
+public interface TransformTranslator<TransformT extends PTransform> extends Serializable {
 
   /** Base class for translators of {@link PTransform}. */
   void translateTransform(TransformT transform, TranslationContext context);
