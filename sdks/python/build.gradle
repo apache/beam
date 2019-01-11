@@ -326,7 +326,7 @@ class CompatibilityMatrixConfig {
   SDK_WORKER_TYPE workerType = SDK_WORKER_TYPE.DOCKER
 
   enum SDK_WORKER_TYPE {
-    DOCKER, PROCESS
+    DOCKER, PROCESS, LOOPBACK
   }
 }
 
@@ -341,7 +341,7 @@ def flinkCompatibilityMatrix = {
     dependsOn ':beam-runners-flink_2.11-job-server:shadowJar'
     if (workerType.toLowerCase() == 'docker')
       dependsOn ':beam-sdks-python-container:docker'
-    else
+    else if (workerType.toLowerCase() == 'process')
       dependsOn 'createProcessWorker'
     doLast {
       exec {
@@ -362,8 +362,13 @@ task flinkCompatibilityMatrixProcess() {
   dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
 }
 
+task flinkCompatibilityMatrixLoopback() {
+  dependsOn flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
+  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
+}
+
 task flinkValidatesRunner() {
-  dependsOn 'flinkCompatibilityMatrixDocker'
+  dependsOn 'flinkCompatibilityMatrixLoopback'
 }
 
 task postCommit() {
