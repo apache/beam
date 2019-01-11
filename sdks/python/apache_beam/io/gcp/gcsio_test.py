@@ -20,6 +20,7 @@ from __future__ import division
 
 import datetime
 import errno
+import io
 import logging
 import os
 import random
@@ -28,6 +29,7 @@ import time
 import unittest
 from builtins import object
 from builtins import range
+from email.message import Message
 
 import httplib2
 import mock
@@ -718,6 +720,23 @@ class TestGCSIO(unittest.TestCase):
       self.assertEqual(
           set(self.gcs.list_prefix(file_pattern).items()),
           set(expected_file_names))
+
+  def test_mime_binary_encoding(self):
+    # This test verifies that the MIME email_generator library works properly
+    # and does not corrupt '\r\n' during uploads (the patch to apitools in
+    # Python 3 is applied in io/gcp/__init__.py).
+    from apitools.base.py.transfer import email_generator
+    if sys.version_info[0] == 3:
+      generator_cls = email_generator.BytesGenerator
+    else:
+      generator_cls = email_generator.Generator
+    output_buffer = io.BytesIO()
+    generator = generator_cls(output_buffer)
+    test_msg = 'a\nb\r\nc\n\r\n\n\nd'
+    message = Message()
+    message.set_payload(test_msg)
+    generator._handle_text(message)
+    self.assertEqual(test_msg.encode('ascii'), output_buffer.getvalue())
 
 
 if __name__ == '__main__':
