@@ -47,6 +47,8 @@ def testsConfigurations = [
                 prTriggerPhrase   : 'Run GroupByKey Small Java Load Test Dataflow',
                 runner            : CommonTestProperties.Runner.DATAFLOW,
                 jobProperties     : [
+                        project             : 'apache-beam-testing',
+                        tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publishToBigQuery   : true,
                         bigQueryDataset     : 'load_test_PRs',
                         bigQueryTable       : 'dataflow_gbk_small',
@@ -69,6 +71,6 @@ for (testConfiguration in testsConfigurations) {
     ) {
         description(testConfiguration.jobDescription)
         commonJobProperties.setTopLevelMainJobProperties(delegate)
-        loadTestsBuilder.buildTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
+        loadTestsBuilder.loadTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
     }
 }
