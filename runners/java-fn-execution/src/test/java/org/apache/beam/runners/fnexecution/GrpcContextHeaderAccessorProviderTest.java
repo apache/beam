@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution;
 
-import com.google.common.collect.ImmutableList;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -34,6 +33,7 @@ import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;

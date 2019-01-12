@@ -18,13 +18,13 @@
 package org.apache.beam.sdk.io.aws.sqs;
 
 import com.amazonaws.services.sqs.model.Message;
-import com.google.common.base.Objects;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 class SqsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 

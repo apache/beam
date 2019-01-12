@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import com.google.common.collect.Iterables;
 import java.io.Closeable;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
@@ -30,6 +29,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

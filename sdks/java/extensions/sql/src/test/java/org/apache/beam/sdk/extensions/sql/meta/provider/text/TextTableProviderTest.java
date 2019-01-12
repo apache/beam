@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Charsets;
 import java.io.File;
 import java.nio.file.Files;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;

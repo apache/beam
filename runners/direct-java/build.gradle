@@ -58,7 +58,7 @@ configurations {
 }
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   dependOnProjects.each {
     compile project(path: it, configuration: "shadow")

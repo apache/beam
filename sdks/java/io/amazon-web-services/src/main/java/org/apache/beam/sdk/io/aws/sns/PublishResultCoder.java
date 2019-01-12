@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.aws.sns;
 
 import com.amazonaws.services.sns.model.PublishResult;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -27,6 +26,7 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /** Custom Coder for handling publish result. */
 public class PublishResultCoder extends Coder<PublishResult> implements Serializable {

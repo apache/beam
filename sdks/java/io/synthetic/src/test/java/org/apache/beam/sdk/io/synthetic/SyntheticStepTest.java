@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.synthetic;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableList;
 import java.nio.ByteBuffer;
 import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.commons.math3.distribution.ConstantRealDistribution;
 import org.junit.Rule;
 import org.junit.Test;

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Samza override for {@link View} (side input) transforms. */
 class SamzaPublishViewTransformOverride<ElemT, ViewT>

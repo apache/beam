@@ -18,10 +18,10 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Ordering;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
 
 /**
  * Execution states are uniquely identified by the step name, the state name, and for states
