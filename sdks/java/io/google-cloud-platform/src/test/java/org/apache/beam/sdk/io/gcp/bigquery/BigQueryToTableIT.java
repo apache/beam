@@ -62,8 +62,7 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class BigQueryToTableIT {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryToTableIT.class);
-  private static final String PROJECT =
-      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+  private static String project;
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryToTableIT");
 
@@ -128,7 +127,7 @@ public class BigQueryToTableIT {
     options.setQuery(
         String.format(
             "SELECT bytes, date, time FROM [%s:%s.%s]",
-            PROJECT, BIG_QUERY_DATASET_ID, BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_NAME));
+            project, BIG_QUERY_DATASET_ID, BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_NAME));
     options.setOutput(outputTable);
     options.setOutputSchema(BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_SCHEMA);
     return options;
@@ -147,7 +146,7 @@ public class BigQueryToTableIT {
     LOG.info("Starting verifyLegacyQueryRes in outputTable {}", outputTable);
     List<String> legacyQueryExpectedRes = ImmutableList.of("apple", "orange");
     QueryResponse response =
-        BQ_CLIENT.queryWithRetries(String.format("SELECT fruit from [%s];", outputTable), PROJECT);
+        BQ_CLIENT.queryWithRetries(String.format("SELECT fruit from [%s];", outputTable), project);
     LOG.info("Finished to query result table {}", outputTable);
     List<String> tableResult =
         response
@@ -169,7 +168,7 @@ public class BigQueryToTableIT {
             "xyw=,2011-01-01,23:59:59.999999");
     QueryResponse response =
         BQ_CLIENT.queryWithRetries(
-            String.format("SELECT bytes, date, time FROM [%s];", outputTable), PROJECT);
+            String.format("SELECT bytes, date, time FROM [%s];", outputTable), project);
     LOG.info("Finished to query result table {}", outputTable);
     List<String> tableResult =
         response
@@ -235,13 +234,13 @@ public class BigQueryToTableIT {
   @BeforeClass
   public static void setupTestEnvironment() throws Exception {
     PipelineOptionsFactory.register(BigQueryToTableOptions.class);
-
+		project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     // Create one BQ dataset for all test cases.
-    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID);
 
     // Create table and insert data for new type query test cases.
     BQ_CLIENT.createNewTable(
-        PROJECT,
+				project,
         BIG_QUERY_DATASET_ID,
         new Table()
             .setSchema(BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_SCHEMA)
@@ -249,9 +248,9 @@ public class BigQueryToTableIT {
                 new TableReference()
                     .setTableId(BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_NAME)
                     .setDatasetId(BIG_QUERY_DATASET_ID)
-                    .setProjectId(PROJECT)));
+                    .setProjectId(project)));
     BQ_CLIENT.insertDataToTable(
-        PROJECT,
+        project,
         BIG_QUERY_DATASET_ID,
         BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_NAME,
         BigQueryToTableIT.NEW_TYPES_QUERY_TABLE_DATA);
@@ -260,13 +259,13 @@ public class BigQueryToTableIT {
   @AfterClass
   public static void cleanup() {
     LOG.info("Start to clean up tables and datasets.");
-    BQ_CLIENT.deleteDataset(PROJECT, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.deleteDataset(project, BIG_QUERY_DATASET_ID);
   }
 
   @Test
   public void testLegacyQueryWithoutReshuffle() throws Exception {
     final String outputTable =
-        PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + "testLegacyQueryWithoutReshuffle";
+				project + ":" + BIG_QUERY_DATASET_ID + "." + "testLegacyQueryWithoutReshuffle";
 
     this.runBigQueryToTablePipeline(setupLegacyQueryTest(outputTable));
 
@@ -276,7 +275,7 @@ public class BigQueryToTableIT {
   @Test
   public void testNewTypesQueryWithoutReshuffle() throws Exception {
     final String outputTable =
-        PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + "testNewTypesQueryWithoutReshuffle";
+				project + ":" + BIG_QUERY_DATASET_ID + "." + "testNewTypesQueryWithoutReshuffle";
 
     this.runBigQueryToTablePipeline(setupNewTypesQueryTest(outputTable));
 
@@ -286,7 +285,7 @@ public class BigQueryToTableIT {
   @Test
   public void testNewTypesQueryWithReshuffle() throws Exception {
     final String outputTable =
-        PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + "testNewTypesQueryWithReshuffle";
+				project + ":" + BIG_QUERY_DATASET_ID + "." + "testNewTypesQueryWithReshuffle";
     BigQueryToTableOptions options = setupNewTypesQueryTest(outputTable);
     options.setReshuffle(true);
 
@@ -298,7 +297,7 @@ public class BigQueryToTableIT {
   @Test
   public void testStandardQueryWithoutCustom() throws Exception {
     final String outputTable =
-        PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + "testStandardQueryWithoutCustom";
+				project + ":" + BIG_QUERY_DATASET_ID + "." + "testStandardQueryWithoutCustom";
 
     this.runBigQueryToTablePipeline(setupStandardQueryTest(outputTable));
 
@@ -309,7 +308,7 @@ public class BigQueryToTableIT {
   @Category(DataflowPortabilityApiUnsupported.class)
   public void testNewTypesQueryWithoutReshuffleWithCustom() throws Exception {
     final String outputTable =
-        PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + "testNewTypesQueryWithoutReshuffleWithCustom";
+				project + ":" + BIG_QUERY_DATASET_ID + "." + "testNewTypesQueryWithoutReshuffleWithCustom";
     BigQueryToTableOptions options = this.setupNewTypesQueryTest(outputTable);
     options.setExperiments(
         ImmutableList.of("enable_custom_bigquery_sink", "enable_custom_bigquery_source"));
@@ -323,7 +322,7 @@ public class BigQueryToTableIT {
   @Category(DataflowPortabilityApiUnsupported.class)
   public void testLegacyQueryWithoutReshuffleWithCustom() throws Exception {
     final String outputTable =
-        PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + "testLegacyQueryWithoutReshuffleWithCustom";
+        project + ":" + BIG_QUERY_DATASET_ID + "." + "testLegacyQueryWithoutReshuffleWithCustom";
     BigQueryToTableOptions options = this.setupLegacyQueryTest(outputTable);
     options.setExperiments(
         ImmutableList.of("enable_custom_bigquery_sink", "enable_custom_bigquery_source"));
@@ -337,7 +336,7 @@ public class BigQueryToTableIT {
   @Category(DataflowPortabilityApiUnsupported.class)
   public void testStandardQueryWithoutReshuffleWithCustom() throws Exception {
     final String outputTable =
-        PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + "testStandardQueryWithoutReshuffleWithCustom";
+        project + ":" + BIG_QUERY_DATASET_ID + "." + "testStandardQueryWithoutReshuffleWithCustom";
     BigQueryToTableOptions options = this.setupStandardQueryTest(outputTable);
     options.setExperiments(
         ImmutableList.of("enable_custom_bigquery_sink", "enable_custom_bigquery_source"));
