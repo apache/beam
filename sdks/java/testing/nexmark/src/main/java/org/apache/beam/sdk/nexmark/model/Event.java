@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark.model;
 
-import com.google.common.base.Objects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 
 /**
  * An event in the auction system, either a (new) {@link Person}, a (new) {@link Auction}, or a

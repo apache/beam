@@ -20,10 +20,10 @@ package org.apache.beam;
 import static org.apache.beam.sdk.util.ApiSurface.containsOnlyPackages;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.util.Set;
 import org.apache.beam.sdk.util.ApiSurface;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

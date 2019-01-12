@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.docs;
 
 import static java.util.Arrays.asList;
 
-import com.google.common.base.Splitter;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -70,6 +69,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Before;

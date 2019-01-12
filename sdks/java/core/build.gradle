@@ -53,7 +53,7 @@ test {
 dependencies {
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   compile library.java.protobuf_java
   compile library.java.byte_buddy
   compile library.java.commons_compress

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.apex.examples;
 
-import com.google.common.collect.Sets;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.HashSet;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Test;

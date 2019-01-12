@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.runners.dataflow.worker.GroupAlsoByWindowParDoFnFactory.MergingCombineFn;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;

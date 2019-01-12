@@ -19,9 +19,9 @@ package org.apache.beam.runners.dataflow.worker.counters;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.state;
 
-import static com.google.common.base.Throwables.getStackTraceAsString;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getStackTraceAsString;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;

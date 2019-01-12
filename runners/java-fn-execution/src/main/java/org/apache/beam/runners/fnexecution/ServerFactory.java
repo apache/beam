@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.net.HostAndPort;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -39,6 +38,7 @@ import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.EpollServerDom
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.EpollServerSocketChannel;
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.unix.DomainSocketAddress;
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.util.internal.ThreadLocalRandom;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 
 /** A {@link Server gRPC server} factory. */
 public abstract class ServerFactory {

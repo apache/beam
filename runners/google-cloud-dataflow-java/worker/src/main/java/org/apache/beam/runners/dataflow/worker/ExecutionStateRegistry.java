@@ -17,10 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Predicates.notNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates.notNull;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.collect.FluentIterable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import javax.annotation.Nullable;
@@ -28,6 +27,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
 
 /** Manages the instances of {@link ExecutionState} */
 public abstract class ExecutionStateRegistry {

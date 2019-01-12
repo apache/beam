@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 class StreamRecordStripper {

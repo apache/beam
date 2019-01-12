@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.gearpump.translators.functions;
 
-import com.google.common.collect.Iterables;
 import io.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Gearpump {@link FlatMapFunction} wrapper over Beam {@link DoFn}. */
 @SuppressWarnings("unchecked")

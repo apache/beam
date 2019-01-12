@@ -34,8 +34,7 @@ public interface SamzaPipelineOptions extends PipelineOptions {
 
   void setConfigFilePath(String filePath);
 
-  @Description(
-      "The factory to read config file from config file path.")
+  @Description("The factory to read config file from config file path.")
   @Default.Class(PropertiesConfigFactory.class)
   Class<? extends ConfigFactory> getConfigFactory();
 
