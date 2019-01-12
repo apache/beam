@@ -36,9 +36,9 @@ class StateSamplerTest(unittest.TestCase):
 
   # Due to somewhat non-deterministic nature of state sampling and sleep,
   # this test is flaky when state duraiton is low.
-  # Since increasing state duration significantly would als slow down
-  # the test suite, we are retrying once on failure as a mitigation.
-  @retry(reraise=True, stop=stop_after_attempt(2))
+  # Since increasing state duration significantly would also slow down
+  # the test suite, we are retrying twice on failure as a mitigation.
+  @retry(reraise=True, stop=stop_after_attempt(3))
   def test_basic_sampler(self):
     # Set up state sampler.
     counter_factory = CounterFactory()
