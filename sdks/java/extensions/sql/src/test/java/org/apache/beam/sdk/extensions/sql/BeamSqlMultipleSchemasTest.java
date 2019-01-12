@@ -123,6 +123,70 @@ public class BeamSqlMultipleSchemasTest {
   }
 
   @Test
+  public void testSetDefaultUnqualifiedSchema() {
+    PCollection<Row> inputMain =
+        pipeline.apply("mainInput", create(row(1, "pcollection_1"), row(2, "pcollection_2")));
+
+    PCollection<Row> inputExtra =
+        pipeline.apply("extraInput", create(row(1, "_extra_table_1"), row(2, "_extra_table_2")));
+
+    TableProvider extraInputProvider = extraTableProvider("extraTable", inputExtra);
+
+    PCollection<Row> result =
+        inputMain.apply(
+            SqlTransform.query("SELECT f_int, f_string FROM extraTable")
+                .withDefaultTableProvider("extraSchema", extraInputProvider));
+
+    PAssert.that(result).containsInAnyOrder(row(1, "_extra_table_1"), row(2, "_extra_table_2"));
+    pipeline.run();
+  }
+
+  @Test
+  public void testSetDefaultUnqualifiedSchemaAndJoin() {
+    PCollection<Row> inputMain =
+        pipeline.apply("mainInput", create(row(1, "pcollection_1"), row(2, "pcollection_2")));
+
+    PCollection<Row> inputExtra =
+        pipeline.apply("extraInput", create(row(1, "_extra_table_1"), row(2, "_extra_table_2")));
+
+    TableProvider extraInputProvider = extraTableProvider("extraTable", inputExtra);
+
+    PCollection<Row> result =
+        inputMain.apply(
+            SqlTransform.query(
+                    "SELECT extra.f_int, main.f_string || extra.f_string AS f_string \n"
+                        + "FROM extraTable AS extra \n"
+                        + "   INNER JOIN \n"
+                        + " beam.PCOLLECTION AS main \n"
+                        + "   ON main.f_int = extra.f_int")
+                .withDefaultTableProvider("extraSchema", extraInputProvider));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            row(1, "pcollection_1_extra_table_1"), row(2, "pcollection_2_extra_table_2"));
+    pipeline.run();
+  }
+
+  @Test
+  public void testSetDefaultQualifiedSchema() {
+    PCollection<Row> inputMain =
+        pipeline.apply("mainInput", create(row(1, "pcollection_1"), row(2, "pcollection_2")));
+
+    PCollection<Row> inputExtra =
+        pipeline.apply("extraInput", create(row(1, "_extra_table_1"), row(2, "_extra_table_2")));
+
+    TableProvider extraInputProvider = extraTableProvider("extraTable", inputExtra);
+
+    PCollection<Row> result =
+        inputMain.apply(
+            SqlTransform.query("SELECT f_int, f_string FROM extraSchema.extraTable")
+                .withDefaultTableProvider("extraSchema", extraInputProvider));
+
+    PAssert.that(result).containsInAnyOrder(row(1, "_extra_table_1"), row(2, "_extra_table_2"));
+    pipeline.run();
+  }
+
+  @Test
   public void testJoinWithExtraSchema() {
     PCollection<Row> inputMain =
         pipeline.apply("mainInput", create(row(1, "pcollection_1"), row(2, "pcollection_2")));

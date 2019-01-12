@@ -54,9 +54,13 @@ import org.slf4j.LoggerFactory;
 class BeamQueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(BeamQueryPlanner.class);
 
-  private final FrameworkConfig config;
+  private JdbcConnection connection;
 
   BeamQueryPlanner(JdbcConnection connection) {
+    this.connection = connection;
+  }
+
+  public FrameworkConfig config() {
     final CalciteConnectionConfig config = connection.config();
     final SqlParser.ConfigBuilder parserConfig =
         SqlParser.configBuilder()
@@ -85,17 +89,16 @@ class BeamQueryPlanner {
     final SqlOperatorTable opTab0 =
         connection.config().fun(SqlOperatorTable.class, SqlStdOperatorTable.instance());
 
-    this.config =
-        Frameworks.newConfigBuilder()
-            .parserConfig(parserConfig.build())
-            .defaultSchema(defaultSchema)
-            .traitDefs(traitDefs)
-            .context(Contexts.of(connection.config()))
-            .ruleSets(BeamRuleSets.getRuleSets())
-            .costFactory(null)
-            .typeSystem(connection.getTypeFactory().getTypeSystem())
-            .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
-            .build();
+    return Frameworks.newConfigBuilder()
+        .parserConfig(parserConfig.build())
+        .defaultSchema(defaultSchema)
+        .traitDefs(traitDefs)
+        .context(Contexts.of(connection.config()))
+        .ruleSets(BeamRuleSets.getRuleSets())
+        .costFactory(null)
+        .typeSystem(connection.getTypeFactory().getTypeSystem())
+        .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
+        .build();
   }
 
   /** Parse input SQL query, and return a {@link SqlNode} as grammar tree. */
@@ -141,6 +144,6 @@ class BeamQueryPlanner {
   }
 
   private Planner getPlanner() {
-    return Frameworks.getPlanner(config);
+    return Frameworks.getPlanner(config());
   }
 }

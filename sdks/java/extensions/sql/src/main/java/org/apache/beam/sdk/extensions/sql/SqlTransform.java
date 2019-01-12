@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -90,10 +91,15 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract Map<String, TableProvider> tableProviderMap();
 
+  abstract @Nullable String defaultTableProvider();
+
   @Override
   public PCollection<Row> expand(PInput input) {
     BeamSqlEnv sqlEnv = BeamSqlEnv.readOnly(PCOLLECTION_NAME, toTableMap(input));
     tableProviderMap().forEach(sqlEnv::addSchema);
+    if (defaultTableProvider() != null) {
+      sqlEnv.setCurrentSchema(defaultTableProvider());
+    }
 
     // TODO: validate duplicate functions.
     sqlEnv.loadBeamBuiltinFunctions();
@@ -170,6 +176,10 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     return toBuilder().setTableProviderMap(ImmutableMap.copyOf(map)).build();
   }
 
+  public SqlTransform withDefaultTableProvider(String name, TableProvider tableProvider) {
+    return withTableProvider(name, tableProvider).toBuilder().setDefaultTableProvider(name).build();
+  }
+
   public SqlTransform withAutoUdfUdafLoad(boolean autoUdfUdafLoad) {
     return toBuilder().setAutoUdfUdafLoad(autoUdfUdafLoad).build();
   }
@@ -228,6 +238,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     abstract Builder setAutoUdfUdafLoad(boolean autoUdfUdafLoad);
 
     abstract Builder setTableProviderMap(Map<String, TableProvider> tableProviderMap);
+
+    abstract Builder setDefaultTableProvider(@Nullable String defaultTableProvider);
 
     abstract SqlTransform build();
   }
