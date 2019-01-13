@@ -133,10 +133,11 @@ REQUIRED_PACKAGES = [
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
+    'numpy>=1.14.3,<2',
     'pandas>=0.23.4,<0.24',
     'parameterized>=0.6.0,<0.7.0',
-    'numpy>=1.14.3,<2',
     'pyhamcrest>=1.9,<2.0',
+    'tenacity>=5.0.2,<6.0',
     ]
 
 GCP_REQUIREMENTS = [
