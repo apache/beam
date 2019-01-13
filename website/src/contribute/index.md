@@ -114,7 +114,7 @@ To contribute code, you need
 
    For a given module, use:
 
-       $ ./gradlew sdks/java/io/cassandra tasks
+       $ ./gradlew -p sdks/java/io/cassandra tasks
 
     For an exhaustive list of tasks, use:
 
