@@ -35,7 +35,7 @@ from apache_beam.utils.counters import CounterName
 class StateSamplerTest(unittest.TestCase):
 
   # Due to somewhat non-deterministic nature of state sampling and sleep,
-  # this test is flaky when state duraiton is low.
+  # this test is flaky when state duration is low.
   # Since increasing state duration significantly would also slow down
   # the test suite, we are retrying twice on failure as a mitigation.
   @retry(reraise=True, stop=stop_after_attempt(3))
