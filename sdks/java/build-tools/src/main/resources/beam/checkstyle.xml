@@ -26,6 +26,11 @@ page at http://checkstyle.sourceforge.net/config.html -->
 <module name="Checker">
   <property name="severity" value="error"/>
 
+  <!-- Allows inline SuppressWarnings annotation, by using for example
+      "@SuppressWarnings("checkstyle:JavadocMethod")".
+  -->
+  <module name="SuppressWarningsFilter" />
+
   <module name="RegexpSingleline">
     <property name="format" value="Throwables.propagate\("/>
     <property name="message" value="Throwables.propagate is deprecated"/>
@@ -108,12 +113,28 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     -->
 
+    <!-- Required to work in pair with SuppressWarningsFilter-->
+    <module name="SuppressWarningsHolder" />
+
     <!-- Checks for Javadoc comments.                     -->
     <!-- See http://checkstyle.sf.net/config_javadoc.html -->
     <module name="JavadocMethod">
       <property name="scope" value="protected"/>
       <property name="severity" value="error"/>
       <property name="allowMissingJavadoc" value="true"/>
+      <property name="allowMissingParamTags" value="true"/>
+      <property name="allowMissingReturnTag" value="true"/>
+      <property name="allowMissingThrowsTags" value="true"/>
+      <property name="allowThrowsTagsForSubclasses" value="true"/>
+      <property name="allowUndeclaredRTE" value="true"/>
+    </module>
+
+    <module name="JavadocMethod">
+      <property name="scope" value="public"/>
+      <property name="severity" value="warning"/>
+      <property name="minLineCount" value="30"/>
+      <property name="allowMissingJavadoc" value="false"/>
+      <property name="allowMissingPropertyJavadoc" value="true"/>
       <property name="allowMissingParamTags" value="true"/>
       <property name="allowMissingReturnTag" value="true"/>
       <property name="allowMissingThrowsTags" value="true"/>
