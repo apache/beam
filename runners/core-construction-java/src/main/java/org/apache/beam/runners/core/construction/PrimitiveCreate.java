@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import com.google.common.collect.Iterables;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -31,6 +30,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** An implementation of {@link Create} that returns a primitive {@link PCollection}. */
 public class PrimitiveCreate<T> extends PTransform<PBegin, PCollection<T>> {

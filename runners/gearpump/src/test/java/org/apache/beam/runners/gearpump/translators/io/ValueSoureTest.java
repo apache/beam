@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.gearpump.translators.io;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 import io.gearpump.cluster.ClusterConfig;
@@ -35,6 +33,8 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.junit.Assert;
 import org.junit.Test;
 

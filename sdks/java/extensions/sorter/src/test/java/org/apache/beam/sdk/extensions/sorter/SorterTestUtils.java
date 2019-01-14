@@ -23,9 +23,9 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.primitives.UnsignedBytes;
 import java.util.Random;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
 import org.junit.rules.ExpectedException;
 
 /** A set of basic tests for {@link Sorter}s. */

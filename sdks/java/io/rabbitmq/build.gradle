@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: RabbitMQ"
 ext.summary = "IO to read and write to a RabbitMQ broker."
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow "com.rabbitmq:amqp-client:4.6.0"

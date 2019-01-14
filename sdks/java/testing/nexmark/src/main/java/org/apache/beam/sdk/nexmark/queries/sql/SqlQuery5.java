@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark.queries.sql;
 
-import com.google.common.base.Joiner;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.AuctionCount;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 
 /**
  * Query 5, 'Hot Items'. Which auctions have seen the most bids in the last hour (updated every

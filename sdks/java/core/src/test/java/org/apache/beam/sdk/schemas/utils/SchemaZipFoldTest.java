@@ -21,13 +21,13 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Joiner;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.junit.Test;
 
 /** Tests for {@link SchemaZipFold} with examples. */

@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /**
  * Provides converters from {@link BigDecimal} to other numeric types based on the input {@link

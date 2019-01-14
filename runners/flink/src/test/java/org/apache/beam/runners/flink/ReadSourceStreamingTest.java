@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.base.Joiner;
 import java.io.File;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.junit.After;
 import org.junit.Before;

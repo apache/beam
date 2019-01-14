@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators;
 
-import com.google.common.collect.Maps;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 final class NanosecondTimer implements Timer, Snapshotable<Map<Duration, Long>> {
 

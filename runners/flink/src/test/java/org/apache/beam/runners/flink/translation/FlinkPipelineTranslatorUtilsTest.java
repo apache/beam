@@ -20,12 +20,12 @@ package org.apache.beam.runners.flink.translation;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 /**

@@ -19,8 +19,6 @@ package org.apache.beam.sdk.schemas;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
@@ -39,6 +37,8 @@ import org.apache.beam.sdk.schemas.utils.AvroUtils.FixedBytesField;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
