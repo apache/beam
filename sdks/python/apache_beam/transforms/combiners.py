@@ -522,15 +522,35 @@ class Sample(object):
   """Combiners for sampling n elements without replacement."""
   # pylint: disable=no-self-argument
 
-  @staticmethod
-  @ptransform.ptransform_fn
-  def FixedSizeGlobally(pcoll, n):
-    return pcoll | core.CombineGlobally(SampleCombineFn(n))
+  class FixedSizeGlobally(ptransform.PTransform):
+    """Sample n elements from the input PCollection without replacement."""
 
-  @staticmethod
-  @ptransform.ptransform_fn
-  def FixedSizePerKey(pcoll, n):
-    return pcoll | core.CombinePerKey(SampleCombineFn(n))
+    def __init__(self, n):
+      self._n = n
+
+    def expand(self, pcoll):
+      return pcoll | core.CombineGlobally(SampleCombineFn(self._n))
+
+    def display_data(self):
+      return {'n': self._n}
+
+    def default_label(self):
+      return 'FixedSizeGlobally(%d)' % self._n
+
+  class FixedSizePerKey(ptransform.PTransform):
+    """Sample n elements associated with each key without replacement."""
+
+    def __init__(self, n):
+      self._n = n
+
+    def expand(self, pcoll):
+      return pcoll | core.CombinePerKey(SampleCombineFn(self._n))
+
+    def display_data(self):
+      return {'n': self._n}
+
+    def default_label(self):
+      return 'FixedSizePerKey(%d)' % self._n
 
 
 @with_input_types(T)
