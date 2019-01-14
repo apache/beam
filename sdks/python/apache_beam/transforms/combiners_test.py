@@ -177,26 +177,16 @@ class CombineTest(unittest.TestCase):
     individual_test_per_key_dd(combine.Largest(5))
 
   def test_combine_sample_display_data(self):
-    def individual_test_per_key_dd(sampleFn, args, kwargs):
-      trs = [sampleFn(*args, **kwargs)]
+    def individual_test_per_key_dd(sampleFn, n):
+      trs = [sampleFn(n)]
       for transform in trs:
         dd = DisplayData.create_from(transform)
-        expected_items = [
-            DisplayDataItemMatcher('fn', transform._fn.__name__)]
-        if args:
-          expected_items.append(
-              DisplayDataItemMatcher('args', str(args)))
-        if kwargs:
-          expected_items.append(
-              DisplayDataItemMatcher('kwargs', str(kwargs)))
-        hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+        hc.assert_that(
+            dd.items,
+            hc.contains_inanyorder(DisplayDataItemMatcher('n', transform._n)))
 
-    individual_test_per_key_dd(combine.Sample.FixedSizePerKey,
-                               args=(5,),
-                               kwargs={})
-    individual_test_per_key_dd(combine.Sample.FixedSizeGlobally,
-                               args=(8,),
-                               kwargs={'arg':  9})
+    individual_test_per_key_dd(combine.Sample.FixedSizePerKey, 5)
+    individual_test_per_key_dd(combine.Sample.FixedSizeGlobally, 5)
 
   def test_combine_globally_display_data(self):
     transform = beam.CombineGlobally(combine.Smallest(5))
