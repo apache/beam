@@ -235,6 +235,9 @@ public class FlinkExecutionEnvironments {
             .getCheckpointConfig()
             .setMinPauseBetweenCheckpoints(minPauseBetweenCheckpoints);
       }
+
+      boolean failOnCheckpointingErrors = options.getFailOnCheckpointingErrors();
+      flinkStreamEnv.getCheckpointConfig().setFailOnCheckpointingErrors(failOnCheckpointingErrors);
     } else {
       // https://issues.apache.org/jira/browse/FLINK-2491
       // Checkpointing is disabled, we can allow shutting down sources when they're done
