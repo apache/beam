@@ -56,7 +56,8 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
                 BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL),
                 new ExternalEnvironmentFactory.Provider(),
                 Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
-                new EmbeddedEnvironmentFactory.Provider()));
+                new EmbeddedEnvironmentFactory.Provider(
+                    PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions()))));
     return new FlinkDefaultExecutableStageContext(jobBundleFactory);
   }
 
