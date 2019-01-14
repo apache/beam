@@ -93,7 +93,7 @@ public class BeamMinusRelTest extends BaseRelTest {
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
                     Schema.FieldType.DECIMAL, "price")
-                .addRows(4L, 4, new BigDecimal(4.0))
+                .addRows(1L, 1, new BigDecimal(1.0), 4L, 4, new BigDecimal(4.0))
                 .getRows());
 
     pipeline.run();
@@ -110,7 +110,7 @@ public class BeamMinusRelTest extends BaseRelTest {
             + "FROM ORDER_DETAILS2 ";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).satisfies(new CheckSize(2));
+    PAssert.that(rows).satisfies(new CheckSize(3));
 
     PAssert.that(rows)
         .containsInAnyOrder(
@@ -118,7 +118,16 @@ public class BeamMinusRelTest extends BaseRelTest {
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
                     Schema.FieldType.DECIMAL, "price")
-                .addRows(4L, 4, new BigDecimal(4.0), 4L, 4, new BigDecimal(4.0))
+                .addRows(
+                    1L,
+                    1,
+                    new BigDecimal(1.0),
+                    4L,
+                    4,
+                    new BigDecimal(4.0),
+                    4L,
+                    4,
+                    new BigDecimal(4.0))
                 .getRows());
 
     pipeline.run();
