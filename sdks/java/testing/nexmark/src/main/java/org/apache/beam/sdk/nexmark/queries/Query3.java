@@ -247,7 +247,7 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
         }
         // Remember this person for any future auctions.
         personState.write(newPerson);
-        //set a time out to clear this state
+        // set a time out to clear this state
         Instant firingTime =
             new Instant(newPerson.dateTime).plus(Duration.standardSeconds(maxAuctionsWaitingTime));
         timer.set(firingTime);

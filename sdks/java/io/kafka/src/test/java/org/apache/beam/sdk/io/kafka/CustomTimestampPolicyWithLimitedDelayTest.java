@@ -42,8 +42,7 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
   private static List<Long> getTimestampsForRecords(
       TimestampPolicy<String, String> policy, Instant now, List<Long> timestampOffsets) {
 
-    return timestampOffsets
-        .stream()
+    return timestampOffsets.stream()
         .map(
             ts -> {
               Instant result =

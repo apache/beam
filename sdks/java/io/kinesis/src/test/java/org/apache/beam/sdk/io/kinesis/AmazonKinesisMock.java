@@ -159,8 +159,7 @@ class AmazonKinesisMock implements AmazonKinesis {
     @Override
     public AmazonKinesis getKinesisClient() {
       return new AmazonKinesisMock(
-          shardedData
-              .stream()
+          shardedData.stream()
               .map(testDatas -> transform(testDatas, TestData::convertToRecord))
               .collect(Collectors.toList()),
           numberOfRecordsPerGet);

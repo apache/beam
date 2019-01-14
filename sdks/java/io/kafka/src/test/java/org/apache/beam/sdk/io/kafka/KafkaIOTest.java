@@ -238,9 +238,7 @@ public class KafkaIOTest {
           @Override
           public synchronized Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes(
               Map<TopicPartition, Long> timestampsToSearch) {
-            return timestampsToSearch
-                .entrySet()
-                .stream()
+            return timestampsToSearch.entrySet().stream()
                 .map(
                     e -> {
                       // In test scope, timestamp == offset.
@@ -283,10 +281,11 @@ public class KafkaIOTest {
               if (config.get("inject.error.at.eof") != null) {
                 consumer.setException(new KafkaException("Injected error in consumer.poll()"));
               }
-              // MockConsumer.poll(timeout) does not actually wait even when there aren't any records.
+              // MockConsumer.poll(timeout) does not actually wait even when there aren't any
+              // records.
               // Add a small wait here in order to avoid busy looping in the reader.
               Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
-              //TODO: BEAM-4086: testUnboundedSourceWithoutBoundedWrapper() occasionally hangs
+              // TODO: BEAM-4086: testUnboundedSourceWithoutBoundedWrapper() occasionally hangs
               //     without this wait. Need to look into it.
             }
             consumer.schedulePollTask(this);
@@ -1583,11 +1582,13 @@ public class KafkaIOTest {
       producerKey = String.valueOf(ThreadLocalRandom.current().nextLong());
       mockProducer =
           new MockProducer<Integer, Long>(
-              false, // disable synchronous completion of send. see ProducerSendCompletionThread below.
+              false, // disable synchronous completion of send. see ProducerSendCompletionThread
+              // below.
               new IntegerSerializer(),
               new LongSerializer()) {
 
-            // override flush() so that it does not complete all the waiting sends, giving a chance to
+            // override flush() so that it does not complete all the waiting sends, giving a chance
+            // to
             // ProducerCompletionThread to inject errors.
 
             @Override

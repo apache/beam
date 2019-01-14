@@ -360,7 +360,8 @@ public class JmsIOTest {
     session.close();
     connection.close();
 
-    // create a JmsIO.Read with a decorated ConnectionFactory which will introduce a delay in sending
+    // create a JmsIO.Read with a decorated ConnectionFactory which will introduce a delay in
+    // sending
     // acknowledgements - this should help uncover threading issues around checkpoint management.
     JmsIO.Read spec =
         JmsIO.read()
@@ -383,7 +384,8 @@ public class JmsIOTest {
     // the messages are still pending in the queue (no ACK yet)
     assertEquals(messagesToProcess, count(QUEUE));
 
-    // we finalize the checkpoint for the already-processed messages while simultaneously consuming the remainder of
+    // we finalize the checkpoint for the already-processed messages while simultaneously consuming
+    // the remainder of
     // messages from the queue
     Thread runner =
         new Thread(
@@ -399,7 +401,8 @@ public class JmsIOTest {
     runner.start();
     reader.getCheckpointMark().finalizeCheckpoint();
 
-    // Concurrency issues would cause an exception to be thrown before this method exits, failing the test
+    // Concurrency issues would cause an exception to be thrown before this method exits, failing
+    // the test
     runner.join();
   }
 

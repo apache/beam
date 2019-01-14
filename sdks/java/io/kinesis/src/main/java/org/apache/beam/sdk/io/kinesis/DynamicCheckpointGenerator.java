@@ -62,8 +62,7 @@ class DynamicCheckpointGenerator implements CheckpointGenerator {
         shardsAtStartingPoint,
         startingPoint.getTimestamp());
     return new KinesisReaderCheckpoint(
-        shardsAtStartingPoint
-            .stream()
+        shardsAtStartingPoint.stream()
             .map(shard -> new ShardCheckpoint(streamName, shard.getShardId(), startingPoint))
             .collect(Collectors.toList()));
   }

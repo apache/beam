@@ -50,10 +50,7 @@ public class BigQueryResultsPublisher {
   }
 
   private Map<String, Object> getRowOfSchema(TestResult result) {
-    return result
-        .toMap()
-        .entrySet()
-        .stream()
+    return result.toMap().entrySet().stream()
         .filter(element -> schema.containsKey(element.getKey()))
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
