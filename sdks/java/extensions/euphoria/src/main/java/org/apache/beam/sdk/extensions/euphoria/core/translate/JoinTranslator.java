@@ -244,16 +244,18 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
   @Override
   PCollection<KV<KeyT, OutputT>> translate(
       Join<LeftT, RightT, KeyT, OutputT> operator,
-      PCollection<KV<KeyT, LeftT>> left,
-      PCollection<KV<KeyT, RightT>> right) {
+      PCollection<LeftT> left,
+      PCollection<KV<KeyT, LeftT>> leftKeyed,
+      PCollection<RightT> reight,
+      PCollection<KV<KeyT, RightT>> rightKeyed) {
     final AccumulatorProvider accumulators =
-        new LazyAccumulatorProvider(AccumulatorProvider.of(left.getPipeline()));
+        new LazyAccumulatorProvider(AccumulatorProvider.of(leftKeyed.getPipeline()));
     final TupleTag<LeftT> leftTag = new TupleTag<>();
     final TupleTag<RightT> rightTag = new TupleTag<>();
     final JoinFn<LeftT, RightT, KeyT, OutputT> joinFn =
         getJoinFn(operator, leftTag, rightTag, accumulators);
-    return KeyedPCollectionTuple.of(leftTag, left)
-        .and(rightTag, right)
+    return KeyedPCollectionTuple.of(leftTag, leftKeyed)
+        .and(rightTag, rightKeyed)
         .apply("co-group-by-key", CoGroupByKey.create())
         .apply(joinFn.getFnName(), ParDo.of(joinFn));
   }
