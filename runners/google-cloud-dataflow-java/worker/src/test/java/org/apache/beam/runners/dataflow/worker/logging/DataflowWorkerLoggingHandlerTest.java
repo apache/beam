@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Supplier;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
@@ -36,6 +35,7 @@ import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;

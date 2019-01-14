@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /** Pair of a bit of user code (a "closure") and the {@link Requirements} needed to run it. */
 @Experimental(Kind.CONTEXTFUL)

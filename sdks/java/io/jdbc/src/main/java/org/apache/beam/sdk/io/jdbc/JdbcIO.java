@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -268,7 +268,9 @@ public class JdbcIO {
     public static DataSourceConfiguration create(String driverClassName, String url) {
       checkArgument(driverClassName != null, "driverClassName can not be null");
       checkArgument(url != null, "url can not be null");
-      return create(ValueProvider.StaticValueProvider.of(driverClassName), ValueProvider.StaticValueProvider.of(url));
+      return create(
+          ValueProvider.StaticValueProvider.of(driverClassName),
+          ValueProvider.StaticValueProvider.of(url));
     }
 
     public static DataSourceConfiguration create(

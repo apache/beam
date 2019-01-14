@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.status;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -30,6 +29,7 @@ import java.util.Objects;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /** Respond to /threadz with the stack traces of all running threads. */
 class ThreadzServlet extends BaseStatusServlet implements Capturable {

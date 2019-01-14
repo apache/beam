@@ -19,7 +19,6 @@ package org.apache.beam.sdk.loadtests;
 
 import static java.lang.String.format;
 
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Optional;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 
 /**
  * Load test for {@link ParDo} operation.

@@ -19,9 +19,9 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static org.mockito.BDDMockito.given;
 
-import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 import org.junit.runner.RunWith;

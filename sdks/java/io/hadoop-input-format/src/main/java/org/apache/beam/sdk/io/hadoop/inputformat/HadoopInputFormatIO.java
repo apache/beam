@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 
 /** @deprecated as of version 2.10. Use {@link HadoopFormatIO} instead. */

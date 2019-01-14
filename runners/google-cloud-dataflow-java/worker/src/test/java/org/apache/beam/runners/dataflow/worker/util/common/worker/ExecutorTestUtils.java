@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import static org.junit.Assert.assertFalse;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,6 +29,7 @@ import java.util.Observer;
 import org.apache.beam.runners.dataflow.worker.IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /** Utilities for tests. */
 @SuppressWarnings({"rawtypes", "unchecked"})

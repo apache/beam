@@ -19,9 +19,9 @@ package org.apache.beam.runners.spark.aggregators.metrics.sink;
 
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
-import com.google.common.base.Predicates;
 import java.util.Properties;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
 import org.apache.spark.metrics.sink.Sink;
 
 /** An in-memory {@link Sink} implementation for tests. */

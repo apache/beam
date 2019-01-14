@@ -19,8 +19,6 @@ package org.apache.beam.runners.spark.io;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.Lists;
-import com.google.common.io.Resources;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -35,6 +33,8 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Resources;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
