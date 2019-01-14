@@ -222,7 +222,7 @@ public class TikaIO {
       }
       Metadata metadata = getInputMetadata();
       if (metadata != null) {
-        //TODO: use metadata.toString() only without a trim() once Apache Tika 1.17 gets released
+        // TODO: use metadata.toString() only without a trim() once Apache Tika 1.17 gets released
         builder.add(
             DisplayData.item("inputMetadata", metadata.toString().trim())
                 .withLabel("Input Metadata"));

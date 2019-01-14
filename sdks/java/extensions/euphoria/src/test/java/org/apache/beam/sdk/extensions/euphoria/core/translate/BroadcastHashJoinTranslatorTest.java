@@ -55,18 +55,19 @@ public class BroadcastHashJoinTranslatorTest {
 
     // create input to be broadcast
     PCollection<KV<Integer, String>> lengthStrings =
-        p.apply("names",
-            Create.of(KV.of(1, "one"), KV.of(2, "two"), KV.of(3, "three")))
-                .setTypeDescriptor(
-                    TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.strings()));
+        p.apply("names", Create.of(KV.of(1, "one"), KV.of(2, "two"), KV.of(3, "three")))
+            .setTypeDescriptor(
+                TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.strings()));
 
     UnaryFunction<KV<Integer, String>, Integer> sharedKeyExtractor = KV::getKey;
 
     // other datasets to be joined with
     PCollection<String> letters =
-        p.apply("letters", Create.of("a", "b", "c", "d")).setTypeDescriptor(TypeDescriptors.strings());
+        p.apply("letters", Create.of("a", "b", "c", "d"))
+            .setTypeDescriptor(TypeDescriptors.strings());
     PCollection<String> acronyms =
-        p.apply("acronyms", Create.of("B2K", "DIY", "FKA", "EOBD")).setTypeDescriptor(TypeDescriptors.strings());
+        p.apply("acronyms", Create.of("B2K", "DIY", "FKA", "EOBD"))
+            .setTypeDescriptor(TypeDescriptors.strings());
 
     PCollection<KV<Integer, String>> lettersJoined =
         LeftJoin.named("join-letters-with-lengths")
@@ -87,7 +88,6 @@ public class BroadcastHashJoinTranslatorTest {
                     ctx.collect(maybeLength.orElse(KV.of(-1, "null")).getValue() + "-" + acronym),
                 TypeDescriptors.strings())
             .output();
-
 
     PAssert.that(lettersJoined)
         .containsInAnyOrder(

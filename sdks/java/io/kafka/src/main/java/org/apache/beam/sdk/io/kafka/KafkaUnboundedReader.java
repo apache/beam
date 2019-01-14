@@ -268,8 +268,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     // Return minimum watermark among partitions.
-    return partitionStates
-        .stream()
+    return partitionStates.stream()
         .map(PartitionState::updateAndGetWatermark)
         .min(Comparator.naturalOrder())
         .get();
@@ -279,8 +278,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   public CheckpointMark getCheckpointMark() {
     reportBacklog();
     return new KafkaCheckpointMark(
-        partitionStates
-            .stream()
+        partitionStates.stream()
             .map(
                 p ->
                     new PartitionMark(
@@ -394,7 +392,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private static final long UNINITIALIZED_OFFSET = -1;
 
-  //Add SpEL instance to cover the interface difference of Kafka client
+  // Add SpEL instance to cover the interface difference of Kafka client
   private transient ConsumerSpEL consumerSpEL;
 
   /** watermark before any records have been read. */
@@ -604,9 +602,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
 
     consumer.commitSync(
-        checkpointMark
-            .getPartitions()
-            .stream()
+        checkpointMark.getPartitions().stream()
             .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
             .collect(
                 Collectors.toMap(

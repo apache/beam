@@ -101,16 +101,14 @@ public class SessionSideInputJoinModel extends NexmarkQueryModel<Bid> {
       Instant sessionStart =
           Ordering.<Instant>natural()
               .min(
-                  session
-                      .stream()
+                  session.stream()
                       .<Instant>map(tsv -> tsv.getTimestamp())
                       .collect(Collectors.toList()));
 
       Instant sessionEnd =
           Ordering.<Instant>natural()
               .max(
-                  session
-                      .stream()
+                  session.stream()
                       .<Instant>map(tsv -> tsv.getTimestamp())
                       .collect(Collectors.toList()))
               .plus(configuration.sessionGap);
