@@ -30,7 +30,6 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -39,8 +38,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -339,24 +338,20 @@ public class PubsubJsonIT implements Serializable {
       throws SQLException {
     // HACK: PipelineOptions should expose a prominent method to do this reliably
     // The actual options are in the "options" field of the converted map
-    Map<String, Object> optionsMap =
-        (Map<String, Object>) MAPPER.convertValue(pipeline.getOptions(), Map.class).get("options");
     Map<String, String> argsMap =
-        optionsMap
+        ((Map<String, Object>) MAPPER.convertValue(pipeline.getOptions(), Map.class).get("options"))
             .entrySet()
             .stream()
-            .collect(Collectors.toMap(entry -> entry.getKey(), entry -> toArg(entry.getValue())));
+            .collect(Collectors.toMap(Map.Entry::getKey, entry -> toArg(entry.getValue())));
 
     InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
     for (TableProvider tableProvider : tableProviders) {
       inMemoryMetaStore.registerProvider(tableProvider);
     }
 
-    Properties info = new Properties();
-    BeamCalciteSchema dbSchema = new BeamCalciteSchema(inMemoryMetaStore);
-    dbSchema.getPipelineOptions().putAll(argsMap);
-    info.put(BEAM_CALCITE_SCHEMA, dbSchema);
-    return (CalciteConnection) INSTANCE.connect(CONNECT_STRING_PREFIX, info);
+    JdbcConnection connection = JdbcDriver.connect(inMemoryMetaStore);
+    connection.setPipelineOptionsMap(argsMap);
+    return connection;
   }
 
   private static Boolean containsAll(Set<PubsubMessage> set, PubsubMessage... subsetCandidate) {
