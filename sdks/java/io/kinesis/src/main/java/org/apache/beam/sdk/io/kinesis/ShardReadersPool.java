@@ -215,9 +215,7 @@ class ShardReadersPool {
   KinesisReaderCheckpoint getCheckpointMark() {
     ImmutableMap<String, ShardRecordsIterator> currentShardIterators = shardIteratorsMap.get();
     return new KinesisReaderCheckpoint(
-        currentShardIterators
-            .values()
-            .stream()
+        currentShardIterators.values().stream()
             .map(
                 shardRecordsIterator -> {
                   checkArgument(

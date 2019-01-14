@@ -322,9 +322,7 @@ public class KuduIO {
 
       } else {
         Stream<BoundedSource<T>> sources =
-            spec.getKuduService()
-                .createTabletScanners(spec)
-                .stream()
+            spec.getKuduService().createTabletScanners(spec).stream()
                 .map(s -> new KuduIO.KuduSource<T>(spec, spec.getCoder(), s));
         return sources.collect(Collectors.toList());
       }

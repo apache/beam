@@ -143,8 +143,7 @@ public class SyntheticBoundedSource extends OffsetBasedSource<KV<byte[], byte[]>
             : sourceOptions.forceNumInitialBundles;
 
     List<SyntheticBoundedSource> res =
-        bundleSplitter
-            .getBundleSizes(desiredNumBundles, this.getStartOffset(), this.getEndOffset())
+        bundleSplitter.getBundleSizes(desiredNumBundles, this.getStartOffset(), this.getEndOffset())
             .stream()
             .map(offsetRange -> createSourceForSubrange(offsetRange.getFrom(), offsetRange.getTo()))
             .collect(Collectors.toList());

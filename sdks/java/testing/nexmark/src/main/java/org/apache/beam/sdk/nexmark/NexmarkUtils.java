@@ -715,9 +715,7 @@ public class NexmarkUtils {
         break;
       case CSV:
         FileSystems.delete(
-            FileSystems.match(config.sideInputUrl + "*")
-                .metadata()
-                .stream()
+            FileSystems.match(config.sideInputUrl + "*").metadata().stream()
                 .map(metadata -> metadata.resourceId())
                 .collect(Collectors.toList()));
         break;

@@ -727,7 +727,7 @@ class BeamModulePlugin implements Plugin<Project> {
         enforceCheck !disableSpotlessCheck
         java {
           licenseHeader javaLicenseHeader
-          googleJavaFormat()
+          googleJavaFormat('1.7')
 
           // Details see: https://github.com/diffplug/spotless/blob/master/PADDEDCELL.md
           paddedCell()

@@ -79,9 +79,7 @@ public class BigQueryClient {
 
     if (client.getTable(tableId, FIELD_OPTIONS) == null) {
       List<Field> schemaFields =
-          schema
-              .entrySet()
-              .stream()
+          schema.entrySet().stream()
               .map(entry -> Field.of(entry.getKey(), LegacySQLTypeName.valueOf(entry.getValue())))
               .collect(Collectors.toList());
 
