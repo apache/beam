@@ -40,7 +40,6 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,6 +131,12 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
   /** Provider of EmbeddedEnvironmentFactory. */
   public static class Provider implements EnvironmentFactory.Provider {
 
+    private final PipelineOptions pipelineOptions;
+
+    public Provider(PipelineOptions pipelineOptions) {
+      this.pipelineOptions = pipelineOptions;
+    }
+
     @Override
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServer,
@@ -141,7 +146,7 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
         ControlClientPool clientPool,
         IdGenerator idGenerator) {
       return EmbeddedEnvironmentFactory.create(
-          PipelineOptionsFactory.create(), loggingServer, controlServer, clientPool.getSource());
+          pipelineOptions, loggingServer, controlServer, clientPool.getSource());
     }
 
     @Override

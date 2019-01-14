@@ -251,6 +251,8 @@ class BeamModulePlugin implements Plugin<Project> {
     Integer numParallelTests = 1
     // Extra options to pass to TestPipeline
     String[] pipelineOpts = []
+    // Spin up the Harness inside a DOCKER container
+    Environment environment = Environment.DOCKER
     // Categories for tests to run.
     Closure testCategories = {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
@@ -260,6 +262,12 @@ class BeamModulePlugin implements Plugin<Project> {
     }
     // Configuration for the classpath when running the test.
     Configuration testClasspathConfiguration
+
+    enum Environment {
+      DOCKER,   // Docker-based Harness execution
+      PROCESS,  // Process-based Harness execution
+      EMBEDDED, // Execute directly inside the execution engine (testing only)
+    }
   }
 
   def isRelease(Project project) {
@@ -1489,6 +1497,9 @@ class BeamModulePlugin implements Plugin<Project> {
         "--environmentCacheMillis=10000"
       ]
       beamTestPipelineOptions.addAll(config.pipelineOpts)
+      if (config.environment == PortableValidatesRunnerConfiguration.Environment.EMBEDDED) {
+        beamTestPipelineOptions += "--defaultEnvironmentType=EMBEDDED"
+      }
       if (config.jobServerConfig) {
         beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
       }
@@ -1500,7 +1511,9 @@ class BeamModulePlugin implements Plugin<Project> {
         testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
         maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
-        dependsOn ':beam-sdks-java-container:docker'
+        if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
+          dependsOn ':beam-sdks-java-container:docker'
+        }
       }
     }
 
