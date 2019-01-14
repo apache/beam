@@ -22,7 +22,6 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.calcite.config.CalciteConnectionConfig;
-import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.ConventionTraitDef;
@@ -57,7 +56,7 @@ class BeamQueryPlanner {
 
   private final FrameworkConfig config;
 
-  BeamQueryPlanner(CalciteConnection connection) {
+  BeamQueryPlanner(JdbcConnection connection) {
     final CalciteConnectionConfig config = connection.config();
     final SqlParser.ConfigBuilder parserConfig =
         SqlParser.configBuilder()
@@ -73,7 +72,7 @@ class BeamQueryPlanner {
     }
 
     final SchemaPlus schema = connection.getRootSchema();
-    final SchemaPlus defaultSchema = JdbcDriver.getDefaultSchema(connection);
+    final SchemaPlus defaultSchema = connection.getCurrentSchemaPlus();
 
     final ImmutableList<RelTraitDef> traitDefs = ImmutableList.of(ConventionTraitDef.INSTANCE);
 

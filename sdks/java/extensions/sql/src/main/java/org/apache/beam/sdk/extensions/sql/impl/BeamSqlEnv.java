@@ -33,11 +33,8 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.tools.RelConversionException;
@@ -50,13 +47,11 @@ import org.apache.calcite.tools.ValidationException;
 @Internal
 @Experimental
 public class BeamSqlEnv {
-  final CalciteConnection connection;
-  final SchemaPlus defaultSchema;
+  final JdbcConnection connection;
   final BeamQueryPlanner planner;
 
   private BeamSqlEnv(TableProvider tableProvider) {
     connection = JdbcDriver.connect(tableProvider);
-    defaultSchema = JdbcDriver.getDefaultSchema(connection);
     planner = new BeamQueryPlanner(connection);
   }
 
@@ -80,14 +75,14 @@ public class BeamSqlEnv {
   private void registerBuiltinUdf(Map<String, List<Method>> methods) {
     for (Map.Entry<String, List<Method>> entry : methods.entrySet()) {
       for (Method method : entry.getValue()) {
-        defaultSchema.add(entry.getKey(), UdfImpl.create(method));
+        connection.getCurrentSchemaPlus().add(entry.getKey(), UdfImpl.create(method));
       }
     }
   }
 
   /** Register a UDF function which can be used in SQL expression. */
   public void registerUdf(String functionName, Class<?> clazz, String method) {
-    defaultSchema.add(functionName, UdfImpl.create(clazz, method));
+    connection.getCurrentSchemaPlus().add(functionName, UdfImpl.create(clazz, method));
   }
 
   /** Register a UDF function which can be used in SQL expression. */
@@ -108,7 +103,7 @@ public class BeamSqlEnv {
    * org.apache.beam.sdk.transforms.Combine.CombineFn} on how to implement a UDAF.
    */
   public void registerUdaf(String functionName, Combine.CombineFn combineFn) {
-    defaultSchema.add(functionName, new UdafImpl(combineFn));
+    connection.getCurrentSchemaPlus().add(functionName, new UdafImpl(combineFn));
   }
 
   /** Load all UDF/UDAF from {@link UdfUdafProvider}. */
@@ -160,7 +155,7 @@ public class BeamSqlEnv {
   }
 
   public Map<String, String> getPipelineOptions() {
-    return ((BeamCalciteSchema) CalciteSchema.from(defaultSchema).schema).getPipelineOptions();
+    return connection.getPipelineOptionsMap();
   }
 
   public String explain(String sqlString) throws ParseException {
