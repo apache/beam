@@ -114,6 +114,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   public SparkPipelineResult run(final Pipeline pipeline) {
     translationContext = translatePipeline(pipeline);
     //TODO initialise other services: checkpointing, metrics system, listeners, ...
+    //TODO pass testMode using pipelineOptions
     translationContext.startPipeline(true);
     return new SparkPipelineResult();
   }

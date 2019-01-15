@@ -188,8 +188,7 @@ public class TranslationContext {
             }
           } else {
             // apply a dummy fn just to apply forech action that will trigger the pipeline run in spark
-            dataset.foreachPartition(t -> {
-            });
+            dataset.foreachPartition(t -> {});
           }
         }
       }
