@@ -64,6 +64,7 @@ public class JdbcConnection extends CalciteConnectionWrapper {
 
     JdbcConnection jdbcConnection = new JdbcConnection(connection);
     jdbcConnection.setPipelineOptionsMap(extractPipelineOptions(connection));
+    jdbcConnection.getRootSchema().setCacheEnabled(false);
     jdbcConnection.setSchema(
         connection.getSchema(), BeamCalciteSchemaFactory.fromInitialEmptySchema(jdbcConnection));
     return jdbcConnection;

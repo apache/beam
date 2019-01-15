@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.lang.reflect.Method;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -77,6 +78,18 @@ public class BeamSqlEnv {
       for (Method method : entry.getValue()) {
         connection.getCurrentSchemaPlus().add(entry.getKey(), UdfImpl.create(method));
       }
+    }
+  }
+
+  public void addSchema(String name, TableProvider tableProvider) {
+    connection.setSchema(name, tableProvider);
+  }
+
+  public void setCurrentSchema(String name) {
+    try {
+      connection.setSchema(name);
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
     }
   }
 
