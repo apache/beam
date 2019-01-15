@@ -15,17 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.streaming;
+package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
-import static org.apache.beam.runners.flink.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
+import static org.apache.beam.runners.flink.translation.wrappers.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
 import static org.apache.beam.sdk.transforms.windowing.PaneInfo.NO_FIRING;
 import static org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing.ON_TIME;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.core.Is.is;
 import static org.joda.time.Duration.standardMinutes;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
@@ -33,9 +34,6 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator.MultiOutputOutputManagerFactory;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -115,6 +113,44 @@ public class WindowDoFnOperatorTest {
                 new Instant(9_999),
                 window,
                 PaneInfo.createPane(true, true, ON_TIME))));
+    // cleanup
+    testHarness.close();
+  }
+
+  @Test
+  public void testTimerCleanupOfPendingTimerList() throws Exception {
+    // test harness
+    WindowDoFnOperator<Long, Long, Long> windowDoFnOperator = getWindowDoFnOperator();
+    KeyedOneInputStreamOperatorTestHarness<
+            ByteBuffer, WindowedValue<KeyedWorkItem<Long, Long>>, WindowedValue<KV<Long, Long>>>
+        testHarness = createTestHarness(windowDoFnOperator);
+    testHarness.open();
+
+    DoFnOperator<KeyedWorkItem<Long, Long>, KV<Long, Long>>.FlinkTimerInternals timerInternals =
+        windowDoFnOperator.timerInternals;
+
+    // process elements
+    IntervalWindow window = new IntervalWindow(new Instant(0), Duration.millis(100));
+    IntervalWindow window2 = new IntervalWindow(new Instant(100), Duration.millis(100));
+    testHarness.processWatermark(0L);
+    testHarness.processElement(
+        Item.builder().key(1L).timestamp(1L).value(100L).window(window).build().toStreamRecord());
+    testHarness.processElement(
+        Item.builder()
+            .key(1L)
+            .timestamp(150L)
+            .value(150L)
+            .window(window2)
+            .build()
+            .toStreamRecord());
+
+    assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(2));
+
+    // close window
+    testHarness.processWatermark(200L);
+
+    assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(0));
+
     // cleanup
     testHarness.close();
   }
