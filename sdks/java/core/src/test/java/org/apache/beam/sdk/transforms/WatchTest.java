@@ -76,7 +76,6 @@ public class WatchTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testSinglePollMultipleInputs() {
     PCollection<KV<String, String>> res =
@@ -103,7 +102,6 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testSinglePollMultipleInputsWithSideInput() {
     final PCollectionView<String> moo =
@@ -134,14 +132,12 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMultiplePollsWithTerminationBecauseOutputIsFinal() {
     testMultiplePolls(false);
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMultiplePollsWithTerminationDueToTerminationCondition() {
     testMultiplePolls(true);
@@ -179,7 +175,6 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMultiplePollsWithKeyExtractor() {
     List<KV<Integer, String>> polls =
@@ -229,7 +224,6 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMultiplePollsStopAfterTimeSinceNewOutput() {
     List<Integer> all = Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
@@ -256,7 +250,6 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testSinglePollWithManyResults() {
     // More than the default 100 elements per checkpoint for direct runner.
@@ -303,7 +296,6 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMultiplePollsWithManyResults() {
     final long numResults = 3000;
