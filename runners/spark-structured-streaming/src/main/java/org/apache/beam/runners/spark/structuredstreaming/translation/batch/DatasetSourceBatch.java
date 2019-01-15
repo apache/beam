@@ -183,7 +183,7 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-return InternalRow.apply(asScalaBuffer(list).toList());
+      return InternalRow.apply(asScalaBuffer(list).toList());
     }
 
     @Override
