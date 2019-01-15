@@ -19,12 +19,15 @@ package org.apache.beam.sdk.extensions.sql;
 
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -86,9 +89,17 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract boolean autoUdfUdafLoad();
 
+  abstract Map<String, TableProvider> tableProviderMap();
+
+  abstract @Nullable String defaultTableProvider();
+
   @Override
   public PCollection<Row> expand(PInput input) {
     BeamSqlEnv sqlEnv = BeamSqlEnv.readOnly(PCOLLECTION_NAME, toTableMap(input));
+    tableProviderMap().forEach(sqlEnv::addSchema);
+    if (defaultTableProvider() != null) {
+      sqlEnv.setCurrentSchema(defaultTableProvider());
+    }
 
     // TODO: validate duplicate functions.
     sqlEnv.loadBeamBuiltinFunctions();
@@ -154,8 +165,19 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
         .setQueryString(queryString)
         .setUdafDefinitions(Collections.emptyList())
         .setUdfDefinitions(Collections.emptyList())
+        .setTableProviderMap(Collections.emptyMap())
         .setAutoUdfUdafLoad(false)
         .build();
+  }
+
+  public SqlTransform withTableProvider(String name, TableProvider tableProvider) {
+    Map<String, TableProvider> map = new HashMap<>(tableProviderMap());
+    map.put(name, tableProvider);
+    return toBuilder().setTableProviderMap(ImmutableMap.copyOf(map)).build();
+  }
+
+  public SqlTransform withDefaultTableProvider(String name, TableProvider tableProvider) {
+    return withTableProvider(name, tableProvider).toBuilder().setDefaultTableProvider(name).build();
   }
 
   public SqlTransform withAutoUdfUdafLoad(boolean autoUdfUdafLoad) {
@@ -214,6 +236,10 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     abstract Builder setUdafDefinitions(List<UdafDefinition> udafDefinitions);
 
     abstract Builder setAutoUdfUdafLoad(boolean autoUdfUdafLoad);
+
+    abstract Builder setTableProviderMap(Map<String, TableProvider> tableProviderMap);
+
+    abstract Builder setDefaultTableProvider(@Nullable String defaultTableProvider);
 
     abstract SqlTransform build();
   }
