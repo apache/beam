@@ -50,7 +50,6 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
@@ -360,8 +359,7 @@ public class StreamingModeExecutionContextTest {
     try {
       sampler.start();
 
-      ExecutionStateTracker tracker =
-          new ExecutionStateTracker(sampler, ElementExecutionTracker.newForTest());
+      ExecutionStateTracker tracker = new ExecutionStateTracker(sampler);
 
       Thread executionThread = new Thread();
       executionThread.setName("looping-thread-for-test");

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -53,7 +54,10 @@ public class ShuffleReadCounter {
     if (this.experimentEnabled) {
       ExecutionStateTracker.ExecutionState currentState =
           ExecutionStateTracker.getCurrentExecutionState();
-      String currentStateName = currentState.getStepName().originalName();
+      String currentStateName = null;
+      if (currentState instanceof DataflowExecutionState) {
+        currentStateName = ((DataflowExecutionState) currentState).getStepName().originalName();
+      }
       if (this.currentCounter != null
           && currentStateName == this.currentCounter.getName().originalRequestingStepName()) {
         // If the step name of the state has not changed do not do another lookup.

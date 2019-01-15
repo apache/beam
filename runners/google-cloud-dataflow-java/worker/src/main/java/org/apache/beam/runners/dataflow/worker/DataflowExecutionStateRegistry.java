@@ -30,7 +30,7 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
 
 /** Manages the instances of {@link ExecutionState} */
-public abstract class ExecutionStateRegistry {
+public abstract class DataflowExecutionStateRegistry {
 
   /**
    * Generally, the execution states should be created when the MapTask is created, so this doesn't
@@ -38,7 +38,7 @@ public abstract class ExecutionStateRegistry {
    * MapTask. But, since it is theoretically possible for new states to be created, and the
    * execution sampler may be reading this at the same time, we use a concurrent map for safety.
    */
-  private final Map<ExecutionStateKey, DataflowOperationContext.DataflowExecutionState>
+  private final Map<DataflowExecutionStateKey, DataflowOperationContext.DataflowExecutionState>
       createdStates = new ConcurrentSkipListMap<>();
 
   /**
@@ -82,8 +82,8 @@ public abstract class ExecutionStateRegistry {
       @Nullable final Integer inputIndex,
       @Nullable final MetricsContainer container,
       final ProfileScope profileScope) {
-    ExecutionStateKey stateKey =
-        ExecutionStateKey.create(nameContext, stateName, requestingStepName, inputIndex);
+    DataflowExecutionStateKey stateKey =
+        DataflowExecutionStateKey.create(nameContext, stateName, requestingStepName, inputIndex);
     return createdStates.computeIfAbsent(
         stateKey,
         unused ->
@@ -94,9 +94,9 @@ public abstract class ExecutionStateRegistry {
   /**
    * Internal method to create and register an ExecutionState.
    *
-   * <p>Do not call this method directly. Instead, use the {@link ExecutionStateRegistry#getState},
-   * and {@link ExecutionStateRegistry#getIOState} public methods, or implement your own public
-   * create method.
+   * <p>Do not call this method directly. Instead, use the {@link
+   * DataflowExecutionStateRegistry#getState}, and {@link DataflowExecutionStateRegistry#getIOState}
+   * public methods, or implement your own public create method.
    */
   protected abstract DataflowOperationContext.DataflowExecutionState createState(
       NameContext nameContext,
