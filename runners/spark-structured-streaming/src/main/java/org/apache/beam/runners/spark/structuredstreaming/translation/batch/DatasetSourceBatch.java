@@ -121,7 +121,7 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
 
                 @Override
                 public InputPartitionReader<InternalRow> createPartitionReader() {
-                  return new DatasetPartitionReader<>(source, serializablePipelineOptions);
+                  return new DatasetPartitionReader<>(split, serializablePipelineOptions);
                 }
               });
         }
