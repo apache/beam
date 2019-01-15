@@ -113,7 +113,7 @@ public class DataflowSideInputReadCounterTest {
     when(mockedCounterFactory.longSum(any())).thenReturn(mockedCounter);
 
     when(mockedExecutionContext.getExecutionStateRegistry())
-        .thenReturn(mock(ExecutionStateRegistry.class));
+        .thenReturn(mock(DataflowExecutionStateRegistry.class));
 
     DataflowSideInputReadCounter testObject =
         new DataflowSideInputReadCounter(mockedExecutionContext, mockedOperationContext, siIndexId);
@@ -154,7 +154,8 @@ public class DataflowSideInputReadCounterTest {
     Counter<Long, Long> mockedCounter = mock(Counter.class);
     when(mockedCounterFactory.longSum(any())).thenReturn(mockedCounter);
 
-    ExecutionStateRegistry mockedExecutionStateRegistry = mock(ExecutionStateRegistry.class);
+    DataflowExecutionStateRegistry mockedExecutionStateRegistry =
+        mock(DataflowExecutionStateRegistry.class);
     when(mockedExecutionContext.getExecutionStateRegistry())
         .thenReturn(mockedExecutionStateRegistry);
 
@@ -200,7 +201,8 @@ public class DataflowSideInputReadCounterTest {
     Counter<Long, Long> mockedCounter = mock(Counter.class);
     when(mockedCounterFactory.longSum(any())).thenReturn(mockedCounter);
 
-    ExecutionStateRegistry mockedExecutionStateRegistry = mock(ExecutionStateRegistry.class);
+    DataflowExecutionStateRegistry mockedExecutionStateRegistry =
+        mock(DataflowExecutionStateRegistry.class);
     when(mockedExecutionContext.getExecutionStateRegistry())
         .thenReturn(mockedExecutionStateRegistry);
 
