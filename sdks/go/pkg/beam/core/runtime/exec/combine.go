@@ -319,7 +319,9 @@ func (n *LiftedCombine) FinishBundle(ctx context.Context) error {
 	// Need to run n.Out.ProcessElement for all the cached precombined KVs, and
 	// then finally Finish bundle as normal.
 	for _, a := range n.cache {
-		n.Out.ProcessElement(ctx, a)
+		if err := n.Out.ProcessElement(ctx, a); err != nil {
+			return n.fail(err)
+		}
 	}
 
 	if err := n.Out.FinishBundle(ctx); err != nil {
