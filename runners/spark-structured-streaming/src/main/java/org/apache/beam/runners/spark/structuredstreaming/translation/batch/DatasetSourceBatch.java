@@ -96,6 +96,9 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
     @Override
     public StructType readSchema() {
       // TODO: find a way to extend schema with a WindowedValue schema
+      // we use a binary schema for now because:
+        // using a empty schema raises a indexOutOfBoundsException
+        // using a NullType schema stores null in the elements
       StructField[] array = new StructField[1];
       StructField binaryStructField = StructField
           .apply("binaryStructField", DataTypes.BinaryType, true, Metadata.empty());
