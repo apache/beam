@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import org.apache.beam.runners.core.construction.PipelineOptionsSerializationUtils;
 import org.apache.beam.runners.core.construction.ReadTranslation;
@@ -26,6 +27,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.Translation
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -64,10 +66,15 @@ class ReadSourceTranslatorBatch<T>
         .option(DatasetSourceBatch.PIPELINE_OPTIONS,
             PipelineOptionsSerializationUtils.serializeToJson(context.getOptions())).load();
 
+    // extract windowedValue from Row
     MapFunction<Row, WindowedValue> func = new MapFunction<Row, WindowedValue>() {
       @Override public WindowedValue call(Row value) throws Exception {
         //there is only one value put in each Row by the InputPartitionReader
-        return value.<WindowedValue>getAs(0);
+        byte[] bytes = (byte[]) value.get(0);
+        WindowedValue.FullWindowedValueCoder<T> windowedValueCoder = WindowedValue.FullWindowedValueCoder
+            .of(source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
+        WindowedValue<T> windowedValue = windowedValueCoder.decode(new ByteArrayInputStream(bytes));
+        return windowedValue;
       }
     };
     //TODO: is there a better way than using the raw WindowedValue? Can an Encoder<WindowedValue<T>>

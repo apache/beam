@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import static com.google.common.base.Preconditions.checkArgument;
 import static scala.collection.JavaConversions.asScalaBuffer;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.ContinuousReadSupport;
@@ -93,10 +95,11 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
 
     @Override
     public StructType readSchema() {
+      // TODO: find a way to extend schema with a WindowedValue schema
       StructField[] array = new StructField[1];
-      StructField dummyStructField = StructField
-          .apply("dummyStructField", DataTypes.NullType, true, Metadata.empty());
-      array[0] = dummyStructField;
+      StructField binaryStructField = StructField
+          .apply("binaryStructField", DataTypes.BinaryType, true, Metadata.empty());
+      array[0] = binaryStructField;
       return new StructType(array);
     }
 
@@ -135,11 +138,13 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
   private static class DatasetPartitionReader<T> implements InputPartitionReader<InternalRow> {
     private boolean started;
     private boolean closed;
+    private BoundedSource<T> source;
     private BoundedReader<T> reader;
 
     DatasetPartitionReader(BoundedSource<T> source, SerializablePipelineOptions serializablePipelineOptions) {
       this.started = false;
       this.closed = false;
+      this.source = source;
       // reader is not serializable so lazy initialize it
       try {
         reader = source
@@ -162,10 +167,20 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
     @Override
     public InternalRow get() {
       List<Object> list = new ArrayList<>();
-      list.add(
-          WindowedValue.timestampedValueInGlobalWindow(
-              reader.getCurrent(), reader.getCurrentTimestamp()));
-      return InternalRow.apply(asScalaBuffer(list).toList());
+      WindowedValue<T> windowedValue = WindowedValue
+          .timestampedValueInGlobalWindow(reader.getCurrent(), reader.getCurrentTimestamp());
+      //serialize the windowedValue to bytes array to comply with dataset binary schema
+      WindowedValue.FullWindowedValueCoder<T> windowedValueCoder = WindowedValue.FullWindowedValueCoder
+          .of(source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
+      ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+      try {
+        windowedValueCoder.encode(windowedValue, byteArrayOutputStream);
+        byte[] bytes = byteArrayOutputStream.toByteArray();
+        list.add(bytes);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+return InternalRow.apply(asScalaBuffer(list).toList());
     }
 
     @Override
