@@ -184,7 +184,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     context.putDatasetWildcard(output.getValue(), outputDataset);
   }
 
-  class SparkDoFnFilterFunction implements FilterFunction<Tuple2<TupleTag<?>, WindowedValue<?>>> {
+  static class SparkDoFnFilterFunction implements FilterFunction<Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
     private final TupleTag<?> key;
 
