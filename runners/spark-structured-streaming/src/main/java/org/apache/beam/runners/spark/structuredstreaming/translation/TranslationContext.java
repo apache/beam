@@ -21,6 +21,7 @@ import com.google.common.collect.Iterables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -180,7 +181,11 @@ public class TranslationContext {
           dataset.writeStream().foreach(new NoOpForeachWriter<>()).start().awaitTermination();
         } else {
           if (testMode){
-            dataset.show();
+            // cannot use dataset.show because dataset schema is binary so it will print binary code.
+            List<WindowedValue> windowedValues = ((Dataset<WindowedValue>)dataset).collectAsList();
+            for (WindowedValue windowedValue : windowedValues){
+              System.out.println(windowedValue);
+            }
           } else {
             // apply a dummy fn just to apply forech action that will trigger the pipeline run in spark
             dataset.foreachPartition(t -> {
