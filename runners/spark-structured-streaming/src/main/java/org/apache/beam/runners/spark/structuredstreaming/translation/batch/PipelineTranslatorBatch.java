@@ -24,13 +24,14 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * {@link PipelineTranslator} for executing a {@link Pipeline} in Spark in batch mode. This contains
- * only the components specific to batch: {@link TranslationContextBatch}, registry of batch {@link
+ * only the components specific to batch: registry of batch {@link
  * TransformTranslator} and registry lookup code.
  */
 public class PipelineTranslatorBatch extends PipelineTranslator {
@@ -69,7 +70,7 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
   }
 
   public PipelineTranslatorBatch(SparkPipelineOptions options) {
-    translationContext = new TranslationContextBatch(options);
+    translationContext = new TranslationContext(options);
   }
 
   /** Returns a translator for the given node, if it is possible, otherwise null. */
