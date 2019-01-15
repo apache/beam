@@ -113,10 +113,7 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
       List<InputPartition<InternalRow>> result = new ArrayList<>();
       long desiredSizeBytes;
       try {
-        desiredSizeBytes =
-            (sparkPipelineOptions.getBundleSize() == null)
-                ? source.getEstimatedSizeBytes(sparkPipelineOptions) / numPartitions
-                : sparkPipelineOptions.getBundleSize();
+        desiredSizeBytes = source.getEstimatedSizeBytes(sparkPipelineOptions) / numPartitions;
         List<? extends BoundedSource<T>> splits = source.split(desiredSizeBytes, sparkPipelineOptions);
         for (BoundedSource<T> split : splits) {
           result.add(
