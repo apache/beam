@@ -279,7 +279,11 @@ class WriteToParquet(PTransform):
 
     .. testsetup::
 
+      import glob
+      import os
       import pyarrow
+
+      filename = 'myoutput'
 
     .. testcode::
 
@@ -287,11 +291,16 @@ class WriteToParquet(PTransform):
         records = p | 'Read' >> beam.Create(
             [{'name': 'foo', 'age': 10}, {'name': 'bar', 'age': 20}]
         )
-        _ = records | 'Write' >> beam.io.WriteToParquet('myoutput',
+        _ = records | 'Write' >> beam.io.WriteToParquet(filename,
             pyarrow.schema(
                 [('name', pyarrow.binary()), ('age', pyarrow.int64())]
             )
         )
+
+    .. testcleanup::
+
+      for output in glob.glob('{}*'.format(filename)):
+        os.remove(output)
 
     For more information on supported types and schema, please see the pyarrow
     document.
