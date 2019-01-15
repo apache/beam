@@ -73,16 +73,6 @@ public interface SparkPipelineOptions
 
   void setCheckpointDurationMillis(Long durationMillis);
 
-  @Description(
-      "If set bundleSize will be used for splitting BoundedSources, otherwise default to "
-          + "splitting BoundedSources on Spark defaultParallelism. Most effective when used with "
-          + "Spark dynamicAllocation.")
-  @Default.Long(0)
-  Long getBundleSize();
-
-  @Experimental
-  void setBundleSize(Long value);
-
   @Description("Enable/disable sending aggregator values to Spark's metric sinks")
   @Default.Boolean(true)
   Boolean getEnableSparkMetricSinks();
