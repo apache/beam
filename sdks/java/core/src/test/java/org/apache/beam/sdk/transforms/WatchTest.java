@@ -63,7 +63,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashCode;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
