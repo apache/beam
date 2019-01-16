@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
+import org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
@@ -692,6 +693,141 @@ public class Watch {
     }
   }
 
+  /**
+   * Local snapshot of GrowthState within a single ProcessElement invocation.
+   * TODO: Come up with a better name.
+   */
+  @VisibleForTesting
+  static class LocalProcessElementState<OutputT, KeyT, TerminationStateT> {
+    private final Funnel<OutputT> coderFunnel;
+    private final Growth.TerminationCondition<?, TerminationStateT> terminationCondition;
+
+    // The restriction describing the entire work to be done by the current ProcessElement call.
+    // Changes only in checkpoint().
+    private GrowthState<OutputT, KeyT, TerminationStateT> state;
+
+    // Remaining pending outputs; initialized from state.pending (if non-empty) or in
+    // addNewAsPending(); drained via tryClaimNextPending().
+    private Map<HashCode, TimestampedValue<OutputT>> pending;
+    private boolean isOutputComplete;
+    @Nullable private TerminationStateT terminationState;
+    @Nullable private Instant pollWatermark;
+
+    LocalProcessElementState(final SerializableFunction<OutputT, KeyT> keyFn,
+        final Coder<KeyT> outputKeyCoder,
+        GrowthState<OutputT, KeyT, TerminationStateT> state,
+        Growth.TerminationCondition<?, TerminationStateT> terminationCondition) {
+      this.coderFunnel =
+          (from, into) -> {
+            try {
+              // Rather than hashing the output itself, hash the output key.
+              KeyT outputKey = keyFn.apply(from);
+              outputKeyCoder.encode(outputKey, Funnels.asOutputStream(into));
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          };
+
+      this.terminationCondition = terminationCondition;
+      this.state = state;
+      this.isOutputComplete = state.isOutputComplete;
+      this.pollWatermark = state.pollWatermark;
+      this.terminationState = state.terminationState;
+      this.pending = Maps.newLinkedHashMap(state.pending);
+    }
+
+    @VisibleForTesting
+    boolean hasPending() {
+      return !pending.isEmpty();
+    }
+
+    @VisibleForTesting
+    int addNewAsPending(Growth.PollResult<OutputT> pollResult) {
+      checkState(
+          state.pending.isEmpty(),
+          "Should have drained all old pending outputs before adding new, "
+              + "but there are %s old pending outputs",
+          state.pending.size());
+      // Collect results to include as newly pending. Note that the poll result may in theory
+      // contain multiple outputs mapping to the the same output key - we need to ignore duplicates
+      // here already.
+      Map<HashCode, TimestampedValue<OutputT>> newPending = Maps.newHashMap();
+      for (TimestampedValue<OutputT> output : pollResult.getOutputs()) {
+        OutputT value = output.getValue();
+        HashCode hash = hash128(value);
+        if (state.completed.containsKey(hash) || newPending.containsKey(hash)) {
+          continue;
+        }
+        // TODO (https://issues.apache.org/jira/browse/BEAM-2680):
+        // Consider adding only at most N pending elements and ignoring others,
+        // instead relying on future poll rounds to provide them, in order to avoid
+        // blowing up the state. Combined with garbage collection of GrowthState.completed,
+        // this would make the transform scalable to very large poll results.
+        newPending.put(hash, TimestampedValue.of(value, output.getTimestamp()));
+      }
+      if (!newPending.isEmpty()) {
+        terminationState = terminationCondition.onSeenNewOutput(Instant.now(), terminationState);
+      }
+
+      List<Map.Entry<HashCode, TimestampedValue<OutputT>>> sortedPending =
+          Ordering.natural()
+              .onResultOf(
+                  (Map.Entry<HashCode, TimestampedValue<OutputT>> entry) ->
+                      entry.getValue().getTimestamp())
+              .sortedCopy(newPending.entrySet());
+      this.pending = Maps.newLinkedHashMap();
+      for (Map.Entry<HashCode, TimestampedValue<OutputT>> entry : sortedPending) {
+        this.pending.put(entry.getKey(), entry.getValue());
+      }
+      // If poll result doesn't provide a watermark, assume that future new outputs may
+      // arrive with about the same timestamps as the current new outputs.
+      if (pollResult.getWatermark() != null) {
+        this.pollWatermark = pollResult.getWatermark();
+      } else if (!pending.isEmpty()) {
+        this.pollWatermark = pending.values().iterator().next().getTimestamp();
+      }
+      if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(pollWatermark)) {
+        isOutputComplete = true;
+      }
+      return pending.size();
+    }
+
+    private HashCode hash128(OutputT value) {
+      return Hashing.murmur3_128().hashObject(value, coderFunnel);
+    }
+
+    private int getNumPending() {
+      return pending.size();
+    }
+
+    @VisibleForTesting
+    @Nullable
+    Map.Entry<HashCode, TimestampedValue<OutputT>> getNextPending() {
+      if (pending.isEmpty()) {
+        return null;
+      }
+      return pending.entrySet().iterator().next();
+    }
+
+    @VisibleForTesting
+    Instant getWatermark() {
+      // Future elements that can be claimed in this restriction come either from
+      // "pending" or from future polls, so the total watermark is
+      // min(watermark for future polling, earliest remaining pending element)
+      return Ordering.natural()
+          .nullsLast()
+          .min(
+              pollWatermark,
+              pending.isEmpty() ? null : pending.values().iterator().next().getTimestamp());
+    }
+
+    @VisibleForTesting
+    boolean shouldPollMore() {
+      return !isOutputComplete
+          && !terminationCondition.canStopPolling(Instant.now(), terminationState);
+    }
+  }
+
   @UnboundedPerElement
   private static class WatchGrowthFn<InputT, OutputT, KeyT, TerminationStateT>
       extends DoFn<InputT, KV<InputT, OutputT>> {
@@ -713,9 +849,14 @@ public class Watch {
 
     @ProcessElement
     public ProcessContinuation process(
+        //ProcessContext c, final RestrictionTracker<GrowthState<OutputT, KeyT, TerminationStateT>, HashCode> tracker)
         ProcessContext c, final GrowthTracker<OutputT, KeyT, TerminationStateT> tracker)
-        throws Exception {
-      if (!tracker.hasPending() && !tracker.currentRestriction().isOutputComplete) {
+    throws Exception {
+      LocalProcessElementState<OutputT, KeyT, TerminationStateT> localState = new LocalProcessElementState<>(
+          outputKeyFn, outputKeyCoder,
+          tracker.currentRestriction(), getTerminationCondition());
+      // if (!tracker.hasPending() && !tracker.currentRestriction().isOutputComplete) { // BEAM-6352
+      if (!localState.hasPending() && !tracker.currentRestriction().isOutputComplete) {
         Instant now = Instant.now();
         Growth.PollResult<OutputT> res =
             spec.getPollFn().getClosure().apply(c.element(), wrapProcessContext(c));
@@ -724,7 +865,8 @@ public class Watch {
         // up the state. In that case, we'd rely on the next poll cycle to provide more outputs.
         // All outputs would still have to be stored in state.completed, but it is more compact
         // because it stores hashes and because it could potentially be garbage-collected.
-        int numPending = tracker.addNewAsPending(res);
+        //int numPending = tracker.addNewAsPending(res); // BEAM-6352
+        int numPending = localState.addNewAsPending(res);
         if (numPending > 0) {
           LOG.info(
               "{} - current round of polling took {} ms and returned {} results, "
@@ -739,12 +881,15 @@ public class Watch {
         }
       }
       int numEmittedInThisRound = 0;
-      int numTotalPending = tracker.getNumPending();
+      // int numTotalPending = tracker.getNumPending(); // BEAM-6352
+      int numTotalPending = localState.getNumPending();
       int numPreviouslyEmitted = tracker.currentRestriction().completed.size();
       int numTotalKnown = numPreviouslyEmitted + numTotalPending;
       while (true) {
-        c.updateWatermark(tracker.getWatermark());
-        Map.Entry<HashCode, TimestampedValue<OutputT>> entry = tracker.getNextPending();
+        // c.updateWatermark(tracker.getWatermark()); // BEAM-6352
+        c.updateWatermark(localState.getWatermark());
+        // Map.Entry<HashCode, TimestampedValue<OutputT>> entry = tracker.getNextPending(); // BEAM-6352
+        Map.Entry<HashCode, TimestampedValue<OutputT>> entry = localState.getNextPending();
         if (entry == null || !tracker.tryClaim(entry.getKey())) {
           break;
         }
@@ -760,7 +905,8 @@ public class Watch {
           numTotalKnown,
           numEmittedInThisRound + numPreviouslyEmitted,
           numTotalPending - numEmittedInThisRound);
-      Instant watermark = tracker.getWatermark();
+      // Instant watermark = tracker.getWatermark(); // BEAM-6352
+      Instant watermark = localState.getWatermark();
       if (watermark != null) {
         // Null means the poll result did not provide a watermark and there were no new elements,
         // so we have no information to update the watermark and should keep it as-is.
@@ -768,7 +914,8 @@ public class Watch {
       }
       // No more pending outputs - future output will come from more polling,
       // unless output is complete or termination condition is reached.
-      if (tracker.shouldPollMore()) {
+      // if (tracker.shouldPollMore()) { // BEAM-6352
+      if (localState.shouldPollMore()) {
         LOG.info(
             "{} - emitted all {} known results so far; will resume polling in {} ms",
             c.element(),
@@ -880,6 +1027,7 @@ public class Watch {
 
     // Remaining pending outputs; initialized from state.pending (if non-empty) or in
     // addNewAsPending(); drained via tryClaimNextPending().
+    @Deprecated
     private Map<HashCode, TimestampedValue<OutputT>> pending;
     // Outputs that have been claimed in the current ProcessElement call. A prefix of "pending".
     private Map<HashCode, TimestampedValue<OutputT>> claimed = Maps.newLinkedHashMap();
@@ -972,16 +1120,19 @@ public class Watch {
     }
 
     @VisibleForTesting
+    @Deprecated
     synchronized boolean hasPending() {
       return !pending.isEmpty();
     }
 
+    @Deprecated
     private synchronized int getNumPending() {
       return pending.size();
     }
 
     @VisibleForTesting
     @Nullable
+    @Deprecated
     synchronized Map.Entry<HashCode, TimestampedValue<OutputT>> getNextPending() {
       if (pending.isEmpty()) {
         return null;
@@ -1002,12 +1153,14 @@ public class Watch {
     }
 
     @VisibleForTesting
+    @Deprecated
     synchronized boolean shouldPollMore() {
       return !isOutputComplete
           && !terminationCondition.canStopPolling(Instant.now(), terminationState);
     }
 
     @VisibleForTesting
+    @Deprecated
     synchronized int addNewAsPending(Growth.PollResult<OutputT> pollResult) {
       checkState(
           state.pending.isEmpty(),
@@ -1059,6 +1212,7 @@ public class Watch {
     }
 
     @VisibleForTesting
+    @Deprecated
     synchronized Instant getWatermark() {
       // Future elements that can be claimed in this restriction come either from
       // "pending" or from future polls, so the total watermark is

@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.Watch.Growth.PollFn;
 import org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
 import org.apache.beam.sdk.transforms.Watch.GrowthState;
 import org.apache.beam.sdk.transforms.Watch.GrowthTracker;
+import org.apache.beam.sdk.transforms.Watch.LocalProcessElementState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -494,9 +495,15 @@ public class WatchTest implements Serializable {
     return newTracker(new GrowthState<>(never().forNewInput(Instant.now(), null)));
   }
 
-  private String tryClaimNextPending(GrowthTracker<String, ?, ?> tracker) {
-    assertTrue(tracker.hasPending());
-    Map.Entry<HashCode, TimestampedValue<String>> entry = tracker.getNextPending();
+  private static LocalProcessElementState<String, String, Integer> newProcessElementState(GrowthTracker<String, String, Integer> tracker) {
+    // TODO: Refactor this
+    return new LocalProcessElementState<>(
+        SerializableFunctions.identity(), StringUtf8Coder.of(), new GrowthState<>(never().forNewInput(Instant.now(), null)), never());
+  }
+
+  private String tryClaimNextPending(GrowthTracker<String, ?, ?> tracker, LocalProcessElementState<String, ?, ?> localState) {
+    assertTrue(localState.hasPending());
+    Map.Entry<HashCode, TimestampedValue<String>> entry = localState.getNextPending();
     tracker.tryClaim(entry.getKey());
     return entry.getValue().getValue();
   }
@@ -505,6 +512,7 @@ public class WatchTest implements Serializable {
   public void testGrowthTrackerCheckpointNonEmpty() {
     Instant now = Instant.now();
     GrowthTracker<String, String, Integer> tracker = newTracker();
+    LocalProcessElementState localState = newProcessElementState(tracker);
     tracker.addNewAsPending(
         PollResult.incomplete(
                 Arrays.asList(
@@ -517,7 +525,7 @@ public class WatchTest implements Serializable {
     assertEquals(now.plus(standardSeconds(1)), tracker.getWatermark());
     assertEquals("a", tryClaimNextPending(tracker));
     assertEquals("b", tryClaimNextPending(tracker));
-    assertTrue(tracker.hasPending());
+    assertTrue(localState.hasPending());
     assertEquals(now.plus(standardSeconds(3)), tracker.getWatermark());
 
     GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
@@ -528,7 +536,7 @@ public class WatchTest implements Serializable {
     assertEquals(now.plus(standardSeconds(1)), primaryTracker.getWatermark());
     assertEquals("a", tryClaimNextPending(primaryTracker));
     assertEquals("b", tryClaimNextPending(primaryTracker));
-    assertFalse(primaryTracker.hasPending());
+    assertFalse(primaryState.hasPending());
     assertFalse(primaryTracker.shouldPollMore());
     // No more pending elements in primary restriction, and no polling.
     primaryTracker.checkDone();
