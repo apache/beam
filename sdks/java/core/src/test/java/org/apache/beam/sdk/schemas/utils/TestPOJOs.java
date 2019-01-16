@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -412,7 +413,7 @@ public class TestPOJOs {
           && Arrays.equals(bytes, that.bytes)
           && Objects.equals(byteBuffer, that.byteBuffer)
           && Objects.equals(bigDecimal, that.bigDecimal)
-          && Objects.equals(stringBuilder, that.stringBuilder);
+          && Objects.equals(stringBuilder.toString(), that.stringBuilder.toString());
     }
 
     @Override
@@ -789,4 +790,36 @@ public class TestPOJOs {
   /** The schema for {@link POJOWithByteArray}. * */
   public static final Schema POJO_WITH_BYTE_ARRAY_SCHEMA =
       Schema.builder().addByteArrayField("bytes1").addByteArrayField("bytes2").build();
+
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class PojoWithNestedArray {
+    public final List<List<SimplePOJO>> pojos;
+
+    @SchemaCreate
+    public PojoWithNestedArray(List<List<SimplePOJO>> pojos) {
+      this.pojos = pojos;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PojoWithNestedArray)) {
+        return false;
+      }
+      PojoWithNestedArray that = (PojoWithNestedArray) o;
+      return Objects.equals(pojos, that.pojos);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(pojos);
+    }
+  }
+  public static final Schema POJO_WITH_NESTED_ARRAY_SCHEMA =
+      Schema.builder().addArrayField("pojos",
+          FieldType.array(
+              FieldType.row(SIMPLE_POJO_SCHEMA)))
+      .build();
 }
