@@ -394,7 +394,7 @@ The verify_release_build.sh script may include failing or flaky tests. For each 
 
 * Issue Type: Bug
 
-* Summary: Either A) name of failing gradle task IF the majority (>50%) of tests under task are failing or B) name of failing test
+* Summary: Name of failing gradle task and name of failing test (where applicable) in form of :MyGradleProject:SomeGradleTask NameOfFailedTest: Short description of failure
 
 * Priority: Major
 
