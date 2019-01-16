@@ -89,7 +89,18 @@ public abstract class MatchResult {
      * Last modification timestamp in milliseconds since Unix epoch.
      *
      * <p>Note that this field is not encoded with the default {@link MetadataCoder} due to a need
-     * for compatibility with previous versions of the Beam SDK.
+     * for compatibility with previous versions of the Beam SDK. If you want to rely on {@code
+     * lastModifiedMillis} values, be sure to explicitly set the coder to {@link MetadataCoderV2}.
+     *
+     * <p>The following example sets the coder explicitly and accesses {@code lastModifiedMillis} to
+     * set record timestamps:
+     *
+     * <pre>{@code
+     * PCollection<Metadata> metadataWithTimestamp = p
+     *     .apply(FileIO.match().filepattern("hdfs://path/to/*.gz"))
+     *     .setCoder(MetadataCoderV2.of())
+     *     .apply(WithTimestamps.of(metadata -> new Instant(metadata.lastModifiedMillis())));
+     * }</pre>
      */
     @Experimental
     public abstract long lastModifiedMillis();
