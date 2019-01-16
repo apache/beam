@@ -102,6 +102,21 @@ def smokeTestConfigurations = [
                         fanout           : 10,
                         iterations       : 1,
                 ]
+        ],
+        [
+                title        : 'GroupByKey load test Spark',
+                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                runner       : CommonTestProperties.Runner.SPARK,
+                jobProperties: [
+                        sparkMaster      : 'local[4]',
+                        publishToBigQuery: true,
+                        bigQueryDataset  : 'load_test_SMOKE',
+                        bigQueryTable    : 'spark_gbk',
+                        sourceOptions    : '{"numRecords":100000,"splitPointFrequencyRecords":1}',
+                        stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true}',
+                        fanout           : 10,
+                        iterations       : 1,
+                ]
         ]
 ]
 
