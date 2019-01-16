@@ -53,6 +53,12 @@ func RegisterEmitter(t reflect.Type, maker func(ElementProcessor) ReusableEmitte
 	emitters[key] = maker
 }
 
+// IsEmitterRegistered returns whether an emitter maker has already been registered.
+func IsEmitterRegistered(t reflect.Type) bool {
+	_, exists := emitters[t.String()]
+	return exists
+}
+
 func makeEmit(t reflect.Type, n ElementProcessor) ReusableEmitter {
 	emittersMu.Lock()
 	maker, exists := emitters[t.String()]

@@ -17,41 +17,20 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * Manages concurrent access to the restriction and keeps track of its claimed part for a <a
+ * Manages access to the restriction and keeps track of its claimed part for a <a
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
+ *
+ * <p>Restriction trackers which can provide an estimate for the known amount of outstanding work
+ * should implement {@link Backlogs.HasBacklog} to provide information that can be used during
+ * progress reporting and splitting by runners to improve the performance of the pipeline and
+ * increase resource utilization. See <a
+ * href="https://s.apache.org/beam-bundles-backlog-splitting">Bundles w/ SplittableDoFns: Backlog
+ * &amp; Splitting</a> for further details.
  */
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
-  /** Internal interface allowing a runner to observe the calls to {@link #tryClaim}. */
-  @Internal
-  public interface ClaimObserver<PositionT> {
-    /** Called when {@link #tryClaim} returns true. */
-    void onClaimed(PositionT position);
-
-    /** Called when {@link #tryClaim} returns false. */
-    void onClaimFailed(PositionT position);
-  }
-
-  @Nullable private ClaimObserver<PositionT> claimObserver;
-
-  /**
-   * Sets a {@link ClaimObserver} to be invoked on every call to {@link #tryClaim}. Internal:
-   * intended only for runner authors.
-   */
-  @Internal
-  public void setClaimObserver(ClaimObserver<PositionT> claimObserver) {
-    checkNotNull(claimObserver, "claimObserver");
-    checkState(this.claimObserver == null, "A claim observer has already been set");
-    this.claimObserver = claimObserver;
-  }
-
   /**
    * Attempts to claim the block of work in the current restriction identified by the given
    * position.
@@ -65,27 +44,8 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    *       call to this method).
    *   <li>{@link RestrictionTracker#checkDone} MUST succeed.
    * </ul>
-   *
-   * <p>Under the hood, calls {@link #tryClaimImpl} and notifies {@link ClaimObserver} of the
-   * result.
    */
-  public final boolean tryClaim(PositionT position) {
-    if (tryClaimImpl(position)) {
-      if (claimObserver != null) {
-        claimObserver.onClaimed(position);
-      }
-      return true;
-    } else {
-      if (claimObserver != null) {
-        claimObserver.onClaimFailed(position);
-      }
-      return false;
-    }
-  }
-
-  /** Tracker-specific implementation of {@link #tryClaim}. */
-  @Internal
-  protected abstract boolean tryClaimImpl(PositionT position);
+  public abstract boolean tryClaim(PositionT position);
 
   /**
    * Returns a restriction accurately describing the full range of work the current {@link
@@ -114,6 +74,4 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * work remaining in the restriction.
    */
   public abstract void checkDone() throws IllegalStateException;
-
-  // TODO: Add the more general splitRemainderAfterFraction() and other methods.
 }

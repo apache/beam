@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import static org.hamcrest.Matchers.allOf;
@@ -26,7 +25,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasValue;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -43,6 +41,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -95,8 +94,7 @@ public class ExecutableStageTest {
     UserStateReference userStateRef =
         UserStateReference.of(
             transformNode, "user_state", PipelineNode.pCollection("input.out", input));
-    TimerReference timerRef =
-        TimerReference.of(transformNode, "timer", PipelineNode.pCollection("timer.out", timer));
+    TimerReference timerRef = TimerReference.of(transformNode, "timer");
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.of(
             components,

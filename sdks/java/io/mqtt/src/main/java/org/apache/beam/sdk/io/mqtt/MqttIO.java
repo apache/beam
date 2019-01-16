@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.mqtt;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.fusesource.mqtt.client.BlockingConnection;
 import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.Message;
@@ -305,11 +306,15 @@ public class MqttIO {
   @VisibleForTesting
   static class MqttCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
-    private String clientId;
-    private Instant oldestMessageTimestamp = Instant.now();
-    private transient List<Message> messages = new ArrayList<>();
+    @VisibleForTesting String clientId;
+    @VisibleForTesting Instant oldestMessageTimestamp = Instant.now();
+    @VisibleForTesting transient List<Message> messages = new ArrayList<>();
 
     public MqttCheckpointMark() {}
+
+    public MqttCheckpointMark(String id) {
+      clientId = id;
+    }
 
     public void add(Message message, Instant timestamp) {
       if (timestamp.isBefore(oldestMessageTimestamp)) {
@@ -335,7 +340,25 @@ public class MqttIO {
     // set an empty list to messages when deserialize
     private void readObject(java.io.ObjectInputStream stream)
         throws IOException, ClassNotFoundException {
+      stream.defaultReadObject();
       messages = new ArrayList<>();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other instanceof MqttCheckpointMark) {
+        MqttCheckpointMark that = (MqttCheckpointMark) other;
+        return Objects.equals(this.clientId, that.clientId)
+            && Objects.equals(this.oldestMessageTimestamp, that.oldestMessageTimestamp)
+            && Objects.deepEquals(this.messages, that.messages);
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(clientId, oldestMessageTimestamp, messages);
     }
   }
 

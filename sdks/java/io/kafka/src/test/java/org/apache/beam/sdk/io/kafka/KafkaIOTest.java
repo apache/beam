@@ -31,10 +31,6 @@ import static org.junit.Assume.assumeTrue;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -64,6 +60,7 @@ import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -98,6 +95,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -237,9 +238,7 @@ public class KafkaIOTest {
           @Override
           public synchronized Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes(
               Map<TopicPartition, Long> timestampsToSearch) {
-            return timestampsToSearch
-                .entrySet()
-                .stream()
+            return timestampsToSearch.entrySet().stream()
                 .map(
                     e -> {
                       // In test scope, timestamp == offset.
@@ -282,10 +281,11 @@ public class KafkaIOTest {
               if (config.get("inject.error.at.eof") != null) {
                 consumer.setException(new KafkaException("Injected error in consumer.poll()"));
               }
-              // MockConsumer.poll(timeout) does not actually wait even when there aren't any records.
+              // MockConsumer.poll(timeout) does not actually wait even when there aren't any
+              // records.
               // Add a small wait here in order to avoid busy looping in the reader.
               Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
-              //TODO: BEAM-4086: testUnboundedSourceWithoutBoundedWrapper() occasionally hangs
+              // TODO: BEAM-4086: testUnboundedSourceWithoutBoundedWrapper() occasionally hangs
               //     without this wait. Need to look into it.
             }
             consumer.schedulePollTask(this);
@@ -1066,6 +1066,162 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testRecordsSink() throws Exception {
+    // Simply read from kafka source and write to kafka sink using ProducerRecord transform. Then
+    // verify the records are correctly published to mock kafka producer.
+
+    int numElements = 1000;
+
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      String topic = "test";
+
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(ParDo.of(new KV2ProducerRecord(topic)))
+          .setCoder(ProducerRecordCoder.of(VarIntCoder.of(), VarLongCoder.of()))
+          .apply(
+              KafkaIO.<Integer, Long>writeRecords()
+                  .withBootstrapServers("none")
+                  .withTopic(topic)
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withInputTimestamp()
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false, true);
+    }
+  }
+
+  @Test
+  public void testSinkToMultipleTopics() throws Exception {
+    // Set different output topic names
+    int numElements = 1000;
+
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      String defaultTopic = "test";
+
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(ParDo.of(new KV2ProducerRecord(defaultTopic, false)))
+          .setCoder(ProducerRecordCoder.of(VarIntCoder.of(), VarLongCoder.of()))
+          .apply(
+              KafkaIO.<Integer, Long>writeRecords()
+                  .withBootstrapServers("none")
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withInputTimestamp()
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      // Verify that appropriate messages are written to different Kafka topics
+      List<ProducerRecord<Integer, Long>> sent = producerWrapper.mockProducer.history();
+
+      for (int i = 0; i < numElements; i++) {
+        ProducerRecord<Integer, Long> record = sent.get(i);
+        if (i % 2 == 0) {
+          assertEquals("test_2", record.topic());
+        } else {
+          assertEquals("test_1", record.topic());
+        }
+        assertEquals(i, record.key().intValue());
+        assertEquals(i, record.value().longValue());
+        assertEquals(i, record.timestamp().intValue());
+      }
+    }
+  }
+
+  @Test
+  public void testSinkProducerRecordsWithCustomTS() throws Exception {
+    int numElements = 1000;
+
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      final String defaultTopic = "test";
+      final Long ts = System.currentTimeMillis();
+
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(ParDo.of(new KV2ProducerRecord(defaultTopic, ts)))
+          .setCoder(ProducerRecordCoder.of(VarIntCoder.of(), VarLongCoder.of()))
+          .apply(
+              KafkaIO.<Integer, Long>writeRecords()
+                  .withBootstrapServers("none")
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      // Verify that messages are written with user-defined timestamp
+      List<ProducerRecord<Integer, Long>> sent = producerWrapper.mockProducer.history();
+
+      for (int i = 0; i < numElements; i++) {
+        ProducerRecord<Integer, Long> record = sent.get(i);
+        assertEquals(defaultTopic, record.topic());
+        assertEquals(i, record.key().intValue());
+        assertEquals(i, record.value().longValue());
+        assertEquals(ts, record.timestamp());
+      }
+    }
+  }
+
+  private static class KV2ProducerRecord
+      extends DoFn<KV<Integer, Long>, ProducerRecord<Integer, Long>> {
+    final String topic;
+    final boolean isSingleTopic;
+    final Long ts;
+
+    KV2ProducerRecord(String topic) {
+      this(topic, true);
+    }
+
+    KV2ProducerRecord(String topic, Long ts) {
+      this(topic, true, ts);
+    }
+
+    KV2ProducerRecord(String topic, boolean isSingleTopic) {
+      this(topic, isSingleTopic, null);
+    }
+
+    KV2ProducerRecord(String topic, boolean isSingleTopic, Long ts) {
+      this.topic = topic;
+      this.isSingleTopic = isSingleTopic;
+      this.ts = ts;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      KV<Integer, Long> kv = ctx.element();
+      if (isSingleTopic) {
+        ctx.output(new ProducerRecord<>(topic, null, ts, kv.getKey(), kv.getValue()));
+      } else {
+        if (kv.getKey() % 2 == 0) {
+          ctx.output(new ProducerRecord<>(topic + "_2", null, ts, kv.getKey(), kv.getValue()));
+        } else {
+          ctx.output(new ProducerRecord<>(topic + "_1", null, ts, kv.getKey(), kv.getValue()));
+        }
+      }
+    }
+  }
+
+  @Test
   public void testExactlyOnceSink() {
     // testSink() with EOS enabled.
     // This does not actually inject retries in a stage to test exactly-once-semantics.
@@ -1241,13 +1397,15 @@ public class KafkaIOTest {
               .withBootstrapServers("myServerA:9092,myServerB:9092")
               .withTopic("myTopic")
               .withValueSerializer(LongSerializer.class)
-              .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey));
+              .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey))
+              .updateProducerProperties(ImmutableMap.of("retry.backoff.ms", 100));
 
       DisplayData displayData = DisplayData.from(write);
 
       assertThat(displayData, hasDisplayItem("topic", "myTopic"));
       assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServerA:9092,myServerB:9092"));
       assertThat(displayData, hasDisplayItem("retries", 3));
+      assertThat(displayData, hasDisplayItem("retry.backoff.ms", 100));
     }
   }
 
@@ -1424,11 +1582,13 @@ public class KafkaIOTest {
       producerKey = String.valueOf(ThreadLocalRandom.current().nextLong());
       mockProducer =
           new MockProducer<Integer, Long>(
-              false, // disable synchronous completion of send. see ProducerSendCompletionThread below.
+              false, // disable synchronous completion of send. see ProducerSendCompletionThread
+              // below.
               new IntegerSerializer(),
               new LongSerializer()) {
 
-            // override flush() so that it does not complete all the waiting sends, giving a chance to
+            // override flush() so that it does not complete all the waiting sends, giving a chance
+            // to
             // ProducerCompletionThread to inject errors.
 
             @Override

@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.util;
 
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableList.Builder;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -33,6 +32,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.runners.core.construction.ModelCoderRegistrar;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -57,6 +58,8 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList.Builder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -150,11 +153,43 @@ public class CloudObjectsTest {
 
     @Test
     public void toAndFromCloudObject() throws Exception {
-      CloudObject cloudObject = CloudObjects.asCloudObject(coder);
+      CloudObject cloudObject = CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null);
       Coder<?> fromCloudObject = CloudObjects.coderFromCloudObject(cloudObject);
 
       assertEquals(coder.getClass(), fromCloudObject.getClass());
       assertEquals(coder, fromCloudObject);
+    }
+
+    @Test
+    public void toAndFromCloudObjectWithSdkComponents() throws Exception {
+      SdkComponents sdkComponents = SdkComponents.create();
+      CloudObject cloudObject = CloudObjects.asCloudObject(coder, sdkComponents);
+      Coder<?> fromCloudObject = CloudObjects.coderFromCloudObject(cloudObject);
+
+      assertEquals(coder.getClass(), fromCloudObject.getClass());
+      assertEquals(coder, fromCloudObject);
+
+      checkPipelineProtoCoderIds(coder, cloudObject, sdkComponents);
+    }
+
+    private static void checkPipelineProtoCoderIds(
+        Coder<?> coder, CloudObject cloudObject, SdkComponents sdkComponents) throws Exception {
+      if (ModelCoderRegistrar.isKnownCoder(coder)) {
+        assertFalse(cloudObject.containsKey(PropertyNames.PIPELINE_PROTO_CODER_ID));
+      } else {
+        assertTrue(cloudObject.containsKey(PropertyNames.PIPELINE_PROTO_CODER_ID));
+        assertEquals(
+            sdkComponents.registerCoder(coder),
+            cloudObject.get(PropertyNames.PIPELINE_PROTO_CODER_ID));
+      }
+      List<? extends Coder<?>> coderArguments = coder.getCoderArguments();
+      Object cloudComponentsObject = cloudObject.get(PropertyNames.COMPONENT_ENCODINGS);
+      assertTrue(cloudComponentsObject instanceof List);
+      List<CloudObject> cloudComponents = (List<CloudObject>) cloudComponentsObject;
+      assertEquals(coderArguments.size(), cloudComponents.size());
+      for (int i = 0; i < coderArguments.size(); i++) {
+        checkPipelineProtoCoderIds(coderArguments.get(i), cloudComponents.get(i), sdkComponents);
+      }
     }
   }
 

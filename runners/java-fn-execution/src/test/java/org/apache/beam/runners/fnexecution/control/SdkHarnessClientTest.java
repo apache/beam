@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
@@ -32,8 +32,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -50,7 +48,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.fnexecution.InProcessSdkHarness;
+import org.apache.beam.runners.fnexecution.EmbeddedSdkHarness;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.ActiveBundle;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
@@ -75,6 +73,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -91,7 +91,7 @@ public class SdkHarnessClientTest {
   @Mock public FnApiControlClient fnApiControlClient;
   @Mock public FnDataService dataService;
 
-  @Rule public InProcessSdkHarness harness = InProcessSdkHarness.create();
+  @Rule public EmbeddedSdkHarness harness = EmbeddedSdkHarness.create();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -236,7 +236,7 @@ public class SdkHarnessClientTest {
     when(dataService.send(any(), eq(coder))).thenReturn(mock(CloseableFnDataReceiver.class));
 
     try (ActiveBundle activeBundle =
-        processor.newBundle(Collections.emptyMap(), BundleProgressHandler.unsupported())) {
+        processor.newBundle(Collections.emptyMap(), BundleProgressHandler.ignored())) {
       // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying
       // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
       // the response.
@@ -271,7 +271,7 @@ public class SdkHarnessClientTest {
                     FullWindowedValueCoder.of(
                         LengthPrefixCoder.of(StringUtf8Coder.of()), Coder.INSTANCE),
                     outputs::add)),
-            BundleProgressHandler.unsupported())) {
+            BundleProgressHandler.ignored())) {
       FnDataReceiver<WindowedValue<?>> bundleInputReceiver =
           Iterables.getOnlyElement(activeBundle.getInputReceivers().values());
       bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("foo"));

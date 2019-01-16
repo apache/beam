@@ -68,7 +68,7 @@ public class SparkPCollectionView implements Serializable {
       }
     }
 
-    //lazily broadcast views
+    // lazily broadcast views
     SideInputBroadcast helper = broadcastHelperMap.get(view);
     if (helper == null) {
       synchronized (SparkPCollectionView.class) {

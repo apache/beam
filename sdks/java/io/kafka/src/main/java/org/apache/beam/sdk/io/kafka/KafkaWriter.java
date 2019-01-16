@@ -20,11 +20,10 @@ package org.apache.beam.sdk.io.kafka;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.io.kafka.KafkaIO.Write;
+import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.KV;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -35,10 +34,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A DoFn to write to Kafka, used in KafkaIO Write transform. See {@link KafkaIO} for user visible
- * documentation and example usage.
+ * A DoFn to write to Kafka, used in KafkaIO WriteRecords transform. See {@link KafkaIO} for user
+ * visible documentation and example usage.
  */
-class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
+class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
 
   @Setup
   public void setup() {
@@ -55,14 +54,19 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
   public void processElement(ProcessContext ctx) throws Exception {
     checkForFailures();
 
-    KV<K, V> kv = ctx.element();
+    ProducerRecord<K, V> record = ctx.element();
     Long timestampMillis =
-        spec.getPublishTimestampFunction() != null
-            ? spec.getPublishTimestampFunction().getTimestamp(kv, ctx.timestamp()).getMillis()
-            : null;
+        record.timestamp() != null
+            ? record.timestamp()
+            : (spec.getPublishTimestampFunction() != null
+                ? spec.getPublishTimestampFunction()
+                    .getTimestamp(record, ctx.timestamp())
+                    .getMillis()
+                : null);
+    String topicName = record.topic() != null ? record.topic() : spec.getTopic();
 
     producer.send(
-        new ProducerRecord<>(spec.getTopic(), null, timestampMillis, kv.getKey(), kv.getValue()),
+        new ProducerRecord<>(topicName, null, timestampMillis, record.key(), record.value()),
         new SendCallback());
 
     elementsWritten.inc();
@@ -83,7 +87,7 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaWriter.class);
 
-  private final Write<K, V> spec;
+  private final WriteRecords<K, V> spec;
   private final Map<String, Object> producerConfig;
 
   private transient Producer<K, V> producer = null;
@@ -93,7 +97,7 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
   private final Counter elementsWritten = SinkMetrics.elementsWritten();
 
-  KafkaWriter(Write<K, V> spec) {
+  KafkaWriter(WriteRecords<K, V> spec) {
     this.spec = spec;
 
     this.producerConfig = new HashMap<>(spec.getProducerConfig());

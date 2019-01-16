@@ -27,7 +27,7 @@ The Java SDK for Apache Beam provides a simple, powerful API for building both b
 
 Get started with the [Beam Programming Model]({{ site.baseurl }}/documentation/programming-guide/) to learn the basic concepts that apply to all SDKs in Beam.
 
-See the [Java API Reference]({{ site.baseurl }}/documentation/sdks/javadoc/) for more information on individual APIs.
+See the [Java API Reference](https://beam.apache.org/releases/javadoc/) for more information on individual APIs.
 
 
 ## Supported Features
@@ -45,7 +45,7 @@ The Java SDK has the following extensions:
 
 - [join-library]({{site.baseurl}}/documentation/sdks/java-extensions/#join-library) provides inner join, outer left join, and outer right join functions.
 - [sorter]({{site.baseurl}}/documentation/sdks/java-extensions/#sorter) is an efficient and scalable sorter for large iterables.
-- [Nexmark]({{site.baseurl}}/documentation/sdks/java/nexmark) is a benchmark suite that runs in batch and streaming modes.
+- [Nexmark]({{site.baseurl}}/documentation/sdks/java/testing/nexmark) is a benchmark suite that runs in batch and streaming modes.
 - [euphoria]({{site.baseurl}}/documentation/sdks/java/euphoria) is easy to use Java 8 DSL for BEAM.
 
 In addition several [3rd party Java libraries]({{site.baseurl}}/documentation/sdks/java-thirdparty/) exist.

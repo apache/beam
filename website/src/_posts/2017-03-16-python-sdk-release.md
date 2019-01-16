@@ -31,7 +31,7 @@ There are two runners capable of executing pipelines written with the Python SDK
 
 #### Try the Apache Beam Python SDK
 
-If you would like to try out the Python SDK, a good place to start is the [Quickstart]({{ site.baseurl }}/get-started/quickstart-py/). After that, you can take a look at additional [examples](https://github.com/apache/beam/tree/v0.6.0/sdks/python/apache_beam/examples), and deep dive into the [API reference]({{ site.baseurl }}/documentation/sdks/pydoc/).
+If you would like to try out the Python SDK, a good place to start is the [Quickstart]({{ site.baseurl }}/get-started/quickstart-py/). After that, you can take a look at additional [examples](https://github.com/apache/beam/tree/v0.6.0/sdks/python/apache_beam/examples), and deep dive into the [API reference](https://beam.apache.org/releases/pydoc/).
 
 Let’s take a look at a quick example together. First, install the `apache-beam` package from PyPI and start your Python interpreter.
 

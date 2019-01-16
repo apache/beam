@@ -33,7 +33,6 @@ Usage:
 from __future__ import absolute_import
 
 import logging
-import time
 import unittest
 
 from hamcrest.core.core.allof import all_of
@@ -60,20 +59,14 @@ class HourlyTeamScoreIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
 
     # Set up BigQuery environment
-    from google.cloud import bigquery
-    client = bigquery.Client()
-    unique_dataset_name = self.OUTPUT_DATASET + str(int(time.time()))
-    self.dataset = client.dataset(unique_dataset_name, project=self.project)
-    self.dataset.create()
-
-  def _cleanup_dataset(self):
-    self.dataset.delete()
+    self.dataset_ref = utils.create_bq_dataset(self.project,
+                                               self.OUTPUT_DATASET)
 
   @attr('IT')
   def test_hourly_team_score_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
-    query = ('SELECT COUNT(*) FROM [%s:%s.%s]' % (self.project,
-                                                  self.dataset.name,
+    query = ('SELECT COUNT(*) FROM `%s.%s.%s`' % (self.project,
+                                                  self.dataset_ref.dataset_id,
                                                   self.OUTPUT_TABLE))
 
     bigquery_verifier = BigqueryMatcher(self.project,
@@ -81,16 +74,14 @@ class HourlyTeamScoreIT(unittest.TestCase):
                                         self.DEFAULT_EXPECTED_CHECKSUM)
 
     extra_opts = {'input': self.DEFAULT_INPUT_FILE,
-                  'dataset': self.dataset.name,
+                  'dataset': self.dataset_ref.dataset_id,
                   'window_duration': 1,
                   'on_success_matcher': all_of(state_verifier,
                                                bigquery_verifier)}
 
     # Register clean up before pipeline execution
     # Note that actual execution happens in reverse order.
-    self.addCleanup(self._cleanup_dataset)
-    self.addCleanup(utils.delete_bq_table, self.project,
-                    self.dataset.name, self.OUTPUT_TABLE)
+    self.addCleanup(utils.delete_bq_dataset, self.project, self.dataset_ref)
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.

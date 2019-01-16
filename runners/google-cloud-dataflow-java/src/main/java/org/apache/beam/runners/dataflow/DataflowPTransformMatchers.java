@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static com.google.common.base.MoreObjects.toStringHelper;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.toStringHelper;
 
 import java.util.ArrayDeque;
 import org.apache.beam.sdk.Pipeline;

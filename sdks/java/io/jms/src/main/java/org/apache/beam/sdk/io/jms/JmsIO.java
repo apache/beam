@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.jms;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -54,6 +53,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -133,22 +133,19 @@ public class JmsIO {
                       properties.put(propertyName, textMessage.getObjectProperty(propertyName));
                     }
 
-                    JmsRecord jmsRecord =
-                        new JmsRecord(
-                            textMessage.getJMSMessageID(),
-                            textMessage.getJMSTimestamp(),
-                            textMessage.getJMSCorrelationID(),
-                            textMessage.getJMSReplyTo(),
-                            textMessage.getJMSDestination(),
-                            textMessage.getJMSDeliveryMode(),
-                            textMessage.getJMSRedelivered(),
-                            textMessage.getJMSType(),
-                            textMessage.getJMSExpiration(),
-                            textMessage.getJMSPriority(),
-                            properties,
-                            textMessage.getText());
-
-                    return jmsRecord;
+                    return new JmsRecord(
+                        textMessage.getJMSMessageID(),
+                        textMessage.getJMSTimestamp(),
+                        textMessage.getJMSCorrelationID(),
+                        textMessage.getJMSReplyTo(),
+                        textMessage.getJMSDestination(),
+                        textMessage.getJMSDeliveryMode(),
+                        textMessage.getJMSRedelivered(),
+                        textMessage.getJMSType(),
+                        textMessage.getJMSExpiration(),
+                        textMessage.getJMSPriority(),
+                        properties,
+                        textMessage.getText());
                   }
                 })
         .build();

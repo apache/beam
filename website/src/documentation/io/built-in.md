@@ -18,8 +18,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-[Pipeline I/O Table of Contents]({{site.baseurl}}/documentation/io/io-toc/)
-
 # Built-in I/O Transforms
 
 This table contains the currently available I/O transforms.
@@ -61,8 +59,8 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="{{site.baseurl}}/documentation/io/built-in/hcatalog">Apache Hive (HCatalog)</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kudu">Apache Kudu</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/solr">Apache Solr</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/elasticsearch">Elasticsearch (v2.x and v5.x)</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery">Google BigQuery</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/elasticsearch">Elasticsearch (v2.x, v5.x, v6.x)</a></p>
+    <p><a href="{{site.baseurl}}/documentation/io/built-in/google-bigquery/">Google BigQuery</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable">Google Cloud Bigtable</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/datastore">Google Cloud Datastore</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/spanner">Google Cloud Spanner</a></p>
@@ -84,7 +82,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/pubsub.py">Google Cloud Pub/Sub</a></p>
   </td>
   <td>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py">Google BigQuery</a></p>
+    <p><a href="{{site.baseurl}}/documentation/io/built-in/google-bigquery/">Google BigQuery</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/io/gcp/datastore">Google Cloud Datastore</a></p>
   </td>
 

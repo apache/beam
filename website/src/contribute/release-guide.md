@@ -167,8 +167,24 @@ please submit your GPG public key into [MIT PGP Public Key Server](http://pgp.mi
 
 #### Website development setup
 
-Prepare to update the Beam website by following the [website development
-instructions]({{ site.baseurl }}/contribute/website-contributions/).
+Updating the Beam website requires submitting PRs to both the main `apache/beam`
+repo and the `apache/beam-site` repo. The first contains reference manuals
+generated from SDK code, while the second updates the current release version
+number.
+
+You should already have setup a local clone of `apache/beam`. Setting up a clone
+of `apache/beam-site` is similar:
+
+    $ git clone -b release-docs https://github.com/apache/beam-site.git
+    $ cd beam-site
+    $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam-site.git
+    $ git fetch --all
+    $ git checkout -b <my-branch> origin/release-docs
+
+Further instructions on website development on `apache/beam` is
+[here](https://github.com/apache/beam/blob/master/website). Background
+information about how the website is updated can be found in [Beam-Site
+Automation Reliability](https://s.apache.org/beam-site-automation).
 
 #### Register to PyPI
 
@@ -180,8 +196,9 @@ When contributors resolve an issue in JIRA, they are tagging it with a release t
 
 __Attention__: Only PMC has permission to perform this. If you are not a PMC, please ask for help in dev@ mailing list.
 
-1. In JIRA, navigate to the [`Beam > Administration > Versions`](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions).
-1. Add a new release: choose the next minor version number compared to the one currently underway, select today’s date as the `Start Date`, and choose `Add`.
+1. In JIRA, navigate to [`Beam > Administration > Versions`](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions).
+1. Add a new release. Choose the next minor version number after the version currently underway, select the release cut date (today’s date) as the `Start Date`, and choose `Add`.
+1. At the end of the release, go to the same page and mark the recently released version as released. Use the `...` menu and choose `Release`.
 
 ### Triage release-blocking issues in JIRA
 
@@ -192,6 +209,8 @@ The list of release-blocking issues is available at the [version status page](ht
 * If the issue has been resolved and JIRA was not updated, resolve it accordingly.
 * If the issue has not been resolved and it is acceptable to defer this until the next release, update the `Fix Version` field to the new version you just created. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.
 * If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed. Instead, work with the Beam community to resolve the issue.
+
+If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.
 
 ### Review Release Notes in JIRA
 
@@ -449,15 +468,15 @@ For this step, we recommend you using automation script to create a RC, but you 
      When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage,sign and hash python binaries into dist.apache.ord dev repo python dir
-  1. Create a PR to update beam-site, changes includes:
+  1. Create a PR to update beam and beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
-     * Update release version into [_config.yml](https://github.com/apache/beam-site/blob/asf-site/_config.yml).
+     * Update release version into [_config.yml](https://github.com/apache/beam/blob/master/website/_config.yml).
      
 * Tasks you need to do manually
-  1. Add new release into src/get-started/downloads.md
-  1. Update last release download links in src/get-started/downloads.md
-  1. Update the Pydoc link on this page to point to the new version (in src/documentation/sdks/pydoc/current.md.
+  1. Add new release into `website/src/get-started/downloads.md`.
+  1. Update last release download links in `website/src/get-started/downloads.md`.
+  1. Update `website/src/.htaccess` to redirect to the new version.
 
 ### Run all steps manually
 
@@ -547,7 +566,6 @@ Make sure you have ```tox``` installed:
 
 ```
 pip install tox
-
 ```
 Create the Python SDK documentation using sphinx by running a helper script.
 ```
@@ -555,33 +573,41 @@ cd sdks/python && tox -e docs
 ```
 By default the Pydoc is generated in `sdks/python/target/docs/_build`. Let `${PYDOC_ROOT}` be the absolute path to `_build`.
 
-#### Propose a pull request for website updates
+#### Propose pull requests for website updates
 
-The final step of building the candidate is to propose a website pull request.
+Beam publishes API reference manuals for each release on the website. For Java
+and Python SDKs, that’s Javadoc and PyDoc, respectively. The final step of
+building the candidate is to propose website pull requests that update these
+manuals.
 
-Start by updating `release_latest` version flag in the top-level `_config.yml`, and list the new release in the [Apache Beam Downloads]({{ site.baseurl }}/get-started/downloads/), linking to the source code download and the Release Notes in JIRA.
+Merge the pull requests only after finalizing the release. To avoid invalid
+redirects for the 'current' version, merge these PRs in the order listed. Once
+the PR is merged, the new contents will get picked up automatically and served
+to the Beam website, usually within an hour.
 
-Beam publishes API reference manual for each release on the website. For Java SDK, that’s Javadoc.
+**PR 1: apache/beam-site**
 
-One of the artifacts created in the release contains the Javadoc for the
-website. To update the website, you must unpack this jar file from the release
-candidate into the source tree of the website.
+This pull request is against the `apache/beam-site` repo, on the `release-docs`
+branch.
 
-Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/javadoc/) page, as follows:
+* Add the new Javadoc to [SDK API Reference page](https://beam.apache.org/releases/javadoc/) page, as follows:
+  * Unpack the Maven artifact `org.apache.beam:beam-sdks-java-javadoc` into some temporary location. Call this `${JAVADOC_TMP}`.
+  * Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} javadoc/${RELEASE}`.
+* Add the new Pydoc to [SDK API Reference page](https://beam.apache.org/releases/pydoc/) page, as follows:
+  * Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} pydoc/${RELEASE}`.
+  * Remove `.doctrees` directory.
+* Stage files using: `git add --all javadoc/ pydoc/`.
 
-* Unpack the Maven artifact `org.apache.beam:beam-sdks-java-javadoc` into some temporary location. Call this `${JAVADOC_TMP}`.
-* Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} src/documentation/sdks/javadoc/${RELEASE}`.
-* Set up the necessary git commands to account for the new and deleted files from the javadoc.
-* Update the Javadoc link on this page to point to the new version (in `src/documentation/sdks/javadoc/current.md`).
+**PR 2: apache/beam**
 
-##### Create Pydoc
-Add the new Pydoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/pydoc/) page, as follows:
+This pull request is against the `apache/beam` repo, on the `master` branch.
 
-* Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} src/documentation/sdks/pydoc/${RELEASE}`.
-* Remove `.doctrees` directory.
-* Update the Pydoc link on this page to point to the new version (in `src/documentation/sdks/pydoc/current.md`).
-
-Finally, propose a pull request with these changes. (Don’t merge before finalizing the release.)
+* Update the `release_latest` version flag in `/website/_config.yml`, and list
+  the new release in `/website/src/get-started/downloads.md`, linking to the
+  source code download and the Release Notes in JIRA.
+* Update the `RedirectMatch` rule in
+  [/website/src/.htaccess](https://github.com/apache/beam/blob/master/website/src/.htaccess)
+  to point to the new release. See file history for examples.
 
 #### Build and stage python wheels
 
@@ -591,11 +617,14 @@ If you are interested in how it works, please refer to the [structure section](h
 
 Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide) to build python wheels.
 
+Once all python wheels have been staged [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/), 
+please run [./sign_hash_python_wheels.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh) to sign and hash python wheels.
+
 #### Checklist to proceed to the next step
 
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
-1. Website pull request proposed to list the [release]({{ site.baseurl }}/get-started/downloads/), publish the [Java API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/), and publish the [Python API reference manual]({{ site.baseurl }}/documentation/sdks/pydoc/).
+1. Website pull request proposed to list the [release]({{ site.baseurl }}/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
 
 You can (optionally) also do additional verification by:
 1. Check that Python zip file contains the `README.md`, `NOTICE`, and `LICENSE` files.
@@ -958,7 +987,7 @@ Create and push a new signed tag for the released version by copying the tag for
 
 ### Merge website pull request
 
-Merge the website pull request to [list the release]({{ site.baseurl }}/get-started/downloads/), publish the [Python API reference manual]({{ site.baseurl }}/documentation/sdks/pydoc/), and the [Java API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/) created earlier.
+Merge the website pull request to [list the release]({{ site.baseurl }}/get-started/downloads/), publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/), and the [Java API reference manual](https://beam.apache.org/releases/javadoc/) created earlier.
 
 ### Mark the version as released in JIRA
 
@@ -973,7 +1002,7 @@ Use reporter.apache.org to seed the information about the release into future pr
 * Maven artifacts released and indexed in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22)
 * Source distribution available in the release repository of [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/)
 * Source distribution removed from the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
-* Website pull request to [list the release]({{ site.baseurl }}/get-started/downloads/) and publish the [API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/) merged
+* Website pull request to [list the release]({{ site.baseurl }}/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged
 * Release tagged in the source code repository
 * Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)
 * Release version is listed at reporter.apache.org

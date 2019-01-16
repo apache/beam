@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
@@ -43,6 +43,11 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
     super(cluster, cluster.traitSetOf(BeamLogicalConvention.INSTANCE), table);
     this.sqlTable = sqlTable;
     this.pipelineOptions = pipelineOptions;
+  }
+
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return sqlTable.isBounded();
   }
 
   @Override

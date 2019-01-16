@@ -17,13 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -47,6 +44,9 @@ import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 
 /**
  * {@link PTransform}s for reading and writing TensorFlow TFRecord files.
@@ -237,7 +237,7 @@ public class TFRecordIO {
     abstract static class Builder {
       abstract Builder setOutputPrefix(ValueProvider<ResourceId> outputPrefix);
 
-      abstract Builder setShardTemplate(String shardTemplate);
+      abstract Builder setShardTemplate(@Nullable String shardTemplate);
 
       abstract Builder setFilenameSuffix(@Nullable String filenameSuffix);
 
@@ -627,7 +627,7 @@ public class TFRecordIO {
       if (lengthHash != maskedCrc32OfLength) {
         throw new IOException(
             String.format(
-                "Mistmatch of length mask when reading a record. Expected %d but received %d.",
+                "Mismatch of length mask when reading a record. Expected %d but received %d.",
                 maskedCrc32OfLength, lengthHash));
       }
 
@@ -649,7 +649,7 @@ public class TFRecordIO {
       if (dataHash != maskedCrc32OfData) {
         throw new IOException(
             String.format(
-                "Mistmatch of data mask when reading a record. Expected %d but received %d.",
+                "Mismatch of data mask when reading a record. Expected %d but received %d.",
                 maskedCrc32OfData, dataHash));
       }
       return data.array();

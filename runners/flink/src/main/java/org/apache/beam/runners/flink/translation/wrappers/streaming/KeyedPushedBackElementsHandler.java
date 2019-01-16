@@ -61,7 +61,7 @@ class KeyedPushedBackElementsHandler<K, T> implements PushedBackElementsHandler<
     return backend
         .getKeys(stateDescriptor.getName(), VoidNamespace.INSTANCE)
         .flatMap(
-            (key) -> {
+            key -> {
               try {
                 backend.setCurrentKey(key);
 

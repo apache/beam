@@ -61,15 +61,16 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
 
     Args:
       pipeline: (Pipeline proto) or (Pipeline) pipeline to be rendered.
-      required_transforms: (dict from str to PTransform proto) Mapping from
-          transform ID to transforms that leads to visible results.
-      referenced_pcollections: (dict from str to PCollection proto) PCollection
-          ID mapped to PCollection referenced during pipeline execution.
+      required_transforms: (list/set of str) ID of top level PTransforms that
+          lead to visible results.
+      referenced_pcollections: (list/set of str) ID of PCollections that are
+          referenced by top level PTransforms executed (i.e.
+          required_transforms)
       cached_pcollections: (set of str) a set of PCollection IDs of those whose
           cached results are used in the execution.
     """
-    self._required_transforms = required_transforms or {}
-    self._referenced_pcollections = referenced_pcollections or {}
+    self._required_transforms = required_transforms or set()
+    self._referenced_pcollections = referenced_pcollections or set()
     self._cached_pcollections = cached_pcollections or set()
 
     super(InteractivePipelineGraph, self).__init__(

@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.datastore;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.Random;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.MovingFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
  * An implementation of client-side adaptive throttling. See

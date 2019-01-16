@@ -17,14 +17,8 @@
  */
 package org.apache.beam.fn.harness;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -59,6 +53,12 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /** A {@link PTransformRunnerFactory} for transforms invoking a {@link DoFn}. */
 abstract class DoFnPTransformRunnerFactory<
@@ -130,7 +130,7 @@ abstract class DoFnPTransformRunnerFactory<
               .getTimeDomain();
       pCollectionIdsToConsumers.put(
           pTransform.getInputsOrThrow(localName),
-          (timer) ->
+          timer ->
               runner.processTimer(localName, timeDomain, (WindowedValue<KV<Object, Timer>>) timer));
     }
 

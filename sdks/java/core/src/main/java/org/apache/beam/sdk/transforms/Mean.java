@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * {@code PTransform}s for computing the arithmetic mean (a.k.a. average) of the elements in a

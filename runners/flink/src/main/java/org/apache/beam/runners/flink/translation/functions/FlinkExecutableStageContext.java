@@ -19,6 +19,8 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import java.io.Serializable;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.translation.functions.FlinkDefaultExecutableStageContext.MultiInstanceFactory;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 
@@ -35,8 +37,8 @@ public interface FlinkExecutableStageContext extends AutoCloseable {
     FlinkExecutableStageContext get(JobInfo jobInfo);
   }
 
-  static Factory factory() {
-    return FlinkDefaultExecutableStageContext.ReferenceCountingFactory.REFERENCE_COUNTING;
+  static Factory factory(FlinkPipelineOptions options) {
+    return MultiInstanceFactory.MULTI_INSTANCE;
   }
 
   StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);

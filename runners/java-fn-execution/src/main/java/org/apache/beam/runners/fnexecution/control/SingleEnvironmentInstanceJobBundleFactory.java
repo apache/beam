@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,14 +34,14 @@ import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * A {@link JobBundleFactory} which can manage a single instance of an {@link Environment}.
  *
- * @deprecated replace with a {@link DockerJobBundleFactory} when appropriate if the {@link
+ * @deprecated replace with a {@link DefaultJobBundleFactory} when appropriate if the {@link
  *     EnvironmentFactory} is a {@link
  *     org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory}, or create an
  *     {@code InProcessJobBundleFactory} and inline the creation of the environment if appropriate.
@@ -53,8 +51,10 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
   public static JobBundleFactory create(
       EnvironmentFactory environmentFactory,
       GrpcFnServer<GrpcDataService> data,
-      GrpcFnServer<GrpcStateService> state) {
-    return new SingleEnvironmentInstanceJobBundleFactory(environmentFactory, data, state);
+      GrpcFnServer<GrpcStateService> state,
+      IdGenerator idGenerator) {
+    return new SingleEnvironmentInstanceJobBundleFactory(
+        environmentFactory, data, state, idGenerator);
   }
 
   private final EnvironmentFactory environmentFactory;
@@ -67,15 +67,17 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
   private final ConcurrentMap<Environment, RemoteEnvironment> environments =
       new ConcurrentHashMap<>();
 
-  private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
+  private final IdGenerator idGenerator;
 
   private SingleEnvironmentInstanceJobBundleFactory(
       EnvironmentFactory environmentFactory,
       GrpcFnServer<GrpcDataService> dataService,
-      GrpcFnServer<GrpcStateService> stateService) {
+      GrpcFnServer<GrpcStateService> stateService,
+      IdGenerator idGenerator) {
     this.environmentFactory = environmentFactory;
     this.dataService = dataService;
     this.stateService = stateService;
+    this.idGenerator = idGenerator;
   }
 
   @Override
@@ -165,6 +167,11 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
             RemoteOutputReceiver.of(targetCoders.getValue(), outputReceiver));
       }
       return processor.newBundle(outputReceivers, stateRequestHandler, progressHandler);
+    }
+
+    @Override
+    public ExecutableProcessBundleDescriptor getProcessBundleDescriptor() {
+      return descriptor;
     }
 
     @Override

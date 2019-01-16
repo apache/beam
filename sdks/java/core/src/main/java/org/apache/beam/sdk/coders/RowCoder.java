@@ -17,22 +17,24 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /** A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly. */
 @Experimental
@@ -116,7 +118,21 @@ public class RowCoder extends CustomCoder<Row> {
 
   @Override
   public void verifyDeterministic()
-      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {}
+      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+    verifyDeterministic(schema);
+  }
+
+  private void verifyDeterministic(Schema schema)
+      throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
+
+    List<Coder<?>> coders =
+        schema.getFields().stream()
+            .map(Field::getType)
+            .map(RowCoder::coderForFieldType)
+            .collect(Collectors.toList());
+
+    Coder.verifyDeterministic(this, "All fields must have deterministic encoding", coders);
+  }
 
   @Override
   public boolean consistentWithEquals() {
@@ -124,8 +140,20 @@ public class RowCoder extends CustomCoder<Row> {
   }
 
   /** Returns the coder used for a given primitive type. */
-  public static <T> Coder<T> coderForPrimitiveType(TypeName typeName) {
-    return (Coder<T>) CODER_MAP.get(typeName);
+  public static <T> Coder<T> coderForFieldType(FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case ROW:
+        return (Coder<T>) RowCoder.of(fieldType.getRowSchema());
+      case ARRAY:
+        return (Coder<T>) ListCoder.of(coderForFieldType(fieldType.getCollectionElementType()));
+      case MAP:
+        return (Coder<T>)
+            MapCoder.of(
+                coderForFieldType(fieldType.getMapKeyType()),
+                coderForFieldType(fieldType.getMapValueType()));
+      default:
+        return (Coder<T>) CODER_MAP.get(fieldType.getTypeName());
+    }
   }
 
   /** Return the estimated serialized size of a give row object. */

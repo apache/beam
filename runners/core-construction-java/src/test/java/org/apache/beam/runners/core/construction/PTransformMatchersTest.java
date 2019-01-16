@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.instanceOf;
@@ -23,8 +22,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.Collections;
 import javax.annotation.Nullable;
@@ -73,6 +70,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -164,7 +163,8 @@ public class PTransformMatchersTest implements Serializable {
   private DoFn<KV<String, Integer>, Integer> splittableDoFn =
       new DoFn<KV<String, Integer>, Integer>() {
         @ProcessElement
-        public void processElement(ProcessContext context, SomeTracker tracker) {}
+        public void processElement(
+            ProcessContext context, RestrictionTracker<Void, Void> tracker) {}
 
         @GetInitialRestriction
         public Void getInitialRestriction(KV<String, Integer> element) {

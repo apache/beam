@@ -15,23 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.control;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,12 +42,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.FnHarness;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
@@ -83,6 +79,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
@@ -108,17 +105,29 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.hamcrest.CoreMatchers;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests the execution of a pipeline from specification time to executing a single fused stage,
@@ -127,6 +136,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class RemoteExecutionTest implements Serializable {
   @Rule public transient ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
+
+  private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutionTest.class);
 
   private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
   private transient GrpcFnServer<GrpcDataService> dataServer;
@@ -264,7 +275,7 @@ public class RemoteExecutionTest implements Serializable {
     // The impulse example
 
     try (ActiveBundle bundle =
-        processor.newBundle(outputReceivers, BundleProgressHandler.unsupported())) {
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow(new byte[0]));
     }
@@ -276,6 +287,91 @@ public class RemoteExecutionTest implements Serializable {
               WindowedValue.valueInGlobalWindow(kvBytes("foo", 4)),
               WindowedValue.valueInGlobalWindow(kvBytes("foo", 3)),
               WindowedValue.valueInGlobalWindow(kvBytes("foo", 3))));
+    }
+  }
+
+  @Test
+  public void testBundleProcessorThrowsExecutionExceptionWhenUserCodeThrows() throws Exception {
+    Pipeline p = Pipeline.create();
+    p.apply("impulse", Impulse.create())
+        .apply(
+            "create",
+            ParDo.of(
+                new DoFn<byte[], KV<String, String>>() {
+                  @ProcessElement
+                  public void process(ProcessContext ctxt) throws Exception {
+                    String element =
+                        CoderUtils.decodeFromByteArray(StringUtf8Coder.of(), ctxt.element());
+                    if (element.equals("X")) {
+                      throw new Exception("testBundleExecutionFailure");
+                    }
+                    ctxt.output(KV.of(element, element));
+                  }
+                }))
+        .apply("gbk", GroupByKey.create());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
+    checkState(fused.getFusedStages().size() == 1, "Expected exactly one fused stage");
+    ExecutableStage stage = fused.getFusedStages().iterator().next();
+
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "my_stage", stage, dataServer.getApiServiceDescriptor());
+
+    BundleProcessor processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(), descriptor.getRemoteInputDestinations());
+    Map<Target, ? super Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+    Map<Target, Collection<? super WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<Target, ? super Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+      List<? super WindowedValue<?>> outputContents =
+          Collections.synchronizedList(new ArrayList<>());
+      outputValues.put(targetCoder.getKey(), outputContents);
+      outputReceivers.put(
+          targetCoder.getKey(),
+          RemoteOutputReceiver.of(
+              (Coder) targetCoder.getValue(),
+              (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
+    }
+
+    try (ActiveBundle bundle =
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+    }
+
+    try {
+      try (ActiveBundle bundle =
+          processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
+        Iterables.getOnlyElement(bundle.getInputReceivers().values())
+            .accept(
+                WindowedValue.valueInGlobalWindow(
+                    CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+      }
+      // Fail the test if we reach this point and never threw the exception.
+      fail();
+    } catch (ExecutionException e) {
+      assertTrue(e.getMessage().contains("testBundleExecutionFailure"));
+    }
+
+    try (ActiveBundle bundle =
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Z")));
+    }
+
+    for (Collection<? super WindowedValue<?>> windowedValues : outputValues.values()) {
+      assertThat(
+          windowedValues,
+          containsInAnyOrder(
+              WindowedValue.valueInGlobalWindow(kvBytes("Y", "Y")),
+              WindowedValue.valueInGlobalWindow(kvBytes("Z", "Z"))));
     }
   }
 
@@ -375,7 +471,7 @@ public class RemoteExecutionTest implements Serializable {
                 };
               }
             });
-    BundleProgressHandler progressHandler = BundleProgressHandler.unsupported();
+    BundleProgressHandler progressHandler = BundleProgressHandler.ignored();
 
     try (ActiveBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
@@ -398,6 +494,124 @@ public class RemoteExecutionTest implements Serializable {
               WindowedValue.valueInGlobalWindow(kvBytes("Y", "A")),
               WindowedValue.valueInGlobalWindow(kvBytes("Y", "B")),
               WindowedValue.valueInGlobalWindow(kvBytes("Y", "C"))));
+    }
+  }
+
+  @Test
+  public void testMetrics() throws Exception {
+    final String counterMetricName = "counterMetric";
+    Pipeline p = Pipeline.create();
+    PCollection<String> input =
+        p.apply("impulse", Impulse.create())
+            .apply(
+                "create",
+                ParDo.of(
+                    new DoFn<byte[], String>() {
+                      @ProcessElement
+                      public void process(ProcessContext ctxt) {
+                        Metrics.counter(RemoteExecutionTest.class, counterMetricName).inc();
+                      }
+                    }))
+            .setCoder(StringUtf8Coder.of());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
+    Optional<ExecutableStage> optionalStage =
+        Iterables.tryFind(fused.getFusedStages(), (ExecutableStage stage) -> true);
+    checkState(optionalStage.isPresent(), "Expected a stage with side inputs.");
+    ExecutableStage stage = optionalStage.get();
+
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "test_stage",
+            stage,
+            dataServer.getApiServiceDescriptor(),
+            stateServer.getApiServiceDescriptor());
+
+    BundleProcessor processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(),
+            descriptor.getRemoteInputDestinations(),
+            stateDelegator);
+
+    Map<Target, Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+    Map<Target, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<Target, Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+      List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
+      outputValues.put(targetCoder.getKey(), outputContents);
+      outputReceivers.put(
+          targetCoder.getKey(),
+          RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
+    }
+
+    Iterable<byte[]> sideInputData =
+        Arrays.asList(
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A"),
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
+
+    StateRequestHandler stateRequestHandler =
+        StateRequestHandlers.forSideInputHandlerFactory(
+            descriptor.getSideInputSpecs(),
+            new SideInputHandlerFactory() {
+              @Override
+              public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
+                  String pTransformId,
+                  String sideInputId,
+                  RunnerApi.FunctionSpec accessPattern,
+                  Coder<T> elementCoder,
+                  Coder<W> windowCoder) {
+                return new SideInputHandler<V, W>() {
+                  @Override
+                  public Iterable<V> get(byte[] key, W window) {
+                    return (Iterable) sideInputData;
+                  }
+
+                  @Override
+                  public Coder<V> resultCoder() {
+                    return ((KvCoder) elementCoder).getValueCoder();
+                  }
+                };
+              }
+            });
+
+    BundleProgressHandler progressHandler =
+        new BundleProgressHandler() {
+          @Override
+          public void onProgress(ProcessBundleProgressResponse progress) {}
+
+          @Override
+          public void onCompleted(ProcessBundleResponse response) {
+            // Assert the timestamps are non empty then 0 them out before comparing.
+            List<MonitoringInfo> actualMIs = new ArrayList<>();
+            for (MonitoringInfo mi : response.getMonitoringInfosList()) {
+              MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
+              Assert.assertTrue(mi.getTimestamp().getSeconds() > 0);
+              builder.mergeFrom(mi);
+              builder.clearTimestamp();
+              actualMIs.add(builder.build());
+            }
+
+            SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), counterMetricName);
+            builder.setInt64Value(2);
+            MonitoringInfo expectedCounter = builder.build();
+
+            assertThat(actualMIs, CoreMatchers.hasItems(expectedCounter));
+          }
+        };
+
+    try (ActiveBundle bundle =
+        processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
     }
   }
 
@@ -529,7 +743,7 @@ public class RemoteExecutionTest implements Serializable {
 
     try (ActiveBundle bundle =
         processor.newBundle(
-            outputReceivers, stateRequestHandler, BundleProgressHandler.unsupported())) {
+            outputReceivers, stateRequestHandler, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow(kvBytes("X", "Y")));
     }
@@ -656,10 +870,10 @@ public class RemoteExecutionTest implements Serializable {
         descriptor.getTimerSpecs().values()) {
       for (ProcessBundleDescriptors.TimerSpec timerSpec : timerSpecs.values()) {
         if (TimeDomain.EVENT_TIME.equals(timerSpec.getTimerSpec().getTimeDomain())) {
-          eventTimeInputPCollectionId = timerSpec.collectionId();
+          eventTimeInputPCollectionId = timerSpec.inputCollectionId();
           eventTimeOutputTarget = timerSpec.outputTarget();
         } else if (TimeDomain.PROCESSING_TIME.equals(timerSpec.getTimerSpec().getTimeDomain())) {
-          processingTimeInputPCollectionId = timerSpec.collectionId();
+          processingTimeInputPCollectionId = timerSpec.inputCollectionId();
           processingTimeOutputTarget = timerSpec.outputTarget();
         } else {
           fail(String.format("Unknown timer specification %s", timerSpec));
@@ -667,14 +881,13 @@ public class RemoteExecutionTest implements Serializable {
       }
     }
 
-    // Set the current system time to a fixed value to get stable values for processing time timer output.
+    // Set the current system time to a fixed value to get stable values for processing time timer
+    // output.
     DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
     try (ActiveBundle bundle =
         processor.newBundle(
-            outputReceivers,
-            StateRequestHandler.unsupported(),
-            BundleProgressHandler.unsupported())) {
+            outputReceivers, StateRequestHandler.unsupported(), BundleProgressHandler.ignored())) {
       bundle
           .getInputReceivers()
           .get(stage.getInputPCollection().getId())
@@ -795,7 +1008,7 @@ public class RemoteExecutionTest implements Serializable {
           processor.newBundle(
               outputReceivers,
               StateRequestHandler.unsupported(),
-              BundleProgressHandler.unsupported())) {
+              BundleProgressHandler.ignored())) {
         bundle
             .getInputReceivers()
             .get(stage.getInputPCollection().getId())

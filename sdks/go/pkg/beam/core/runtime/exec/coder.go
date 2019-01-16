@@ -384,7 +384,8 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 	if err != nil {
 		return nil, mtime.ZeroTimestamp, err
 	}
-	if _, err := ioutilx.ReadN(r, 1); err != nil { // NO_FIRING pane
+	var data [1]byte
+	if err := ioutilx.ReadNBufUnsafe(r, data[:]); err != nil { // NO_FIRING pane
 		return nil, mtime.ZeroTimestamp, err
 	}
 	return ws, t, nil

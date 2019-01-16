@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
 import com.google.common.collect.Iterables;
@@ -84,8 +83,7 @@ public class BoundedDataset<T> implements Dataset {
       JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
       List<byte[]> clientBytes = bytesRDD.collect();
       windowedValues =
-          clientBytes
-              .stream()
+          clientBytes.stream()
               .map(bytes -> CoderHelpers.fromByteArray(bytes, windowedValueCoder))
               .collect(Collectors.toList());
     }

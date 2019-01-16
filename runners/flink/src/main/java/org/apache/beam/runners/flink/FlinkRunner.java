@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
-import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
@@ -31,11 +30,13 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.DetachedEnvironment;
 import org.slf4j.Logger;
@@ -133,7 +134,9 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
           new FlinkRunnerResult(accumulators, result.getNetRuntime());
       MetricsPusher metricsPusher =
           new MetricsPusher(
-              flinkRunnerResult.getMetricsContainerStepMap(), options, flinkRunnerResult);
+              flinkRunnerResult.getMetricsContainerStepMap(),
+              options.as(MetricsOptions.class),
+              flinkRunnerResult);
       metricsPusher.start();
       return flinkRunnerResult;
     }

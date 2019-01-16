@@ -17,8 +17,12 @@
  */
 package org.apache.beam.runners.flink;
 
+import java.util.List;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.flink.api.common.JobExecutionResult;
 
 /**
  * Interface for portable Flink translators. This allows for a uniform invocation pattern for
@@ -34,8 +38,23 @@ public interface FlinkPortablePipelineTranslator<
   /** The context used for pipeline translation. */
   interface TranslationContext {
     JobInfo getJobInfo();
+
+    FlinkPipelineOptions getPipelineOptions();
   }
 
+  /** A handle used to execute a translated pipeline. */
+  interface Executor {
+    JobExecutionResult execute(String jobName) throws Exception;
+  }
+
+  T createTranslationContext(
+      JobInfo jobInfo,
+      FlinkPipelineOptions pipelineOptions,
+      @Nullable String confDir,
+      List<String> filesToStage);
+
+  Set<String> knownUrns();
+
   /** Translates the given pipeline. */
-  void translate(T context, RunnerApi.Pipeline pipeline);
+  Executor translate(T context, RunnerApi.Pipeline pipeline);
 }

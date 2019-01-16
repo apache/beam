@@ -20,6 +20,7 @@ package org.apache.beam.gradle
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -53,6 +54,26 @@ import org.gradle.testing.jacoco.tasks.JacocoReport
  */
 class BeamModulePlugin implements Plugin<Project> {
 
+  /** Licence header enforced by spotless */
+  static final String javaLicenseHeader = """/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+"""
+
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   class JavaNatureConfiguration {
     /** Controls the JDK source language and target compatibility. */
@@ -81,6 +102,14 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean validateShadowJar = true
 
     /**
+     * The set of excludes that should be used during validation of the shadow jar. Projects should override
+     * the default with the most specific set of excludes that is valid for the contents of its shaded jar.
+     *
+     * By default we exclude any class underneath the org.apache.beam namespace.
+     */
+    List<String> shadowJarValidationExcludes = ["org/apache/beam/**"]
+
+    /**
      * The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
      * Users can compose their closure with the default closure via:
      * DEFAULT_SHADOW_CLOSURE << {
@@ -94,6 +123,20 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
+
+    /** Controls whether javadoc is exported for this project. */
+    boolean exportJavadoc = true
+  }
+
+  /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
+  class PortabilityNatureConfiguration {
+    /**
+     * The set of excludes that should be used during validation of the shadow jar. Projects should override
+     * the default with the most specific set of excludes that is valid for the contents of its shaded jar.
+     *
+     * By default we exclude any class underneath the org.apache.beam namespace.
+     */
+    List<String> shadowJarValidationExcludes = ["org/apache/beam/**"]
   }
 
   // A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
@@ -204,20 +247,27 @@ class BeamModulePlugin implements Plugin<Project> {
     String jobServerDriver
     // A string representing the jobServer Configuration.
     String jobServerConfig
+    // Number of parallel test runs.
+    Integer numParallelTests = 1
+    // Extra options to pass to TestPipeline
+    String[] pipelineOpts = []
+    // Spin up the Harness inside a DOCKER container
+    Environment environment = Environment.DOCKER
     // Categories for tests to run.
     Closure testCategories = {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      // Use the following to include / exclude categories:
+      // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
     // Configuration for the classpath when running the test.
     Configuration testClasspathConfiguration
+
+    enum Environment {
+      DOCKER,   // Docker-based Harness execution
+      PROCESS,  // Process-based Harness execution
+      EMBEDDED, // Execute directly inside the execution engine (testing only)
+    }
   }
 
   def isRelease(Project project) {
@@ -233,39 +283,13 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.8.0'
+    project.version = '2.11.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
 
-    project.repositories {
-      maven { url project.offlineRepositoryRoot }
-
-      // To run gradle in offline mode, one must first invoke
-      // 'updateOfflineRepository' to create an offline repo
-      // inside the root project directory. See the application
-      // of the offline repo plugin within build_rules.gradle
-      // for further details.
-      if (project.gradle.startParameter.isOffline()) {
-        return
-      }
-
-      mavenLocal()
-      mavenCentral()
-      jcenter()
-
-      // Spring for resolving pentaho dependency.
-      maven { url "https://repo.spring.io/plugins-release/" }
-
-      // Release staging repository
-      maven { url "https://oss.sonatype.org/content/repositories/staging/" }
-
-      // Apache nightly snapshots
-      maven { url "https://repository.apache.org/snapshots" }
-
-      // Apache release snapshots
-      maven { url "https://repository.apache.org/content/repositories/releases" }
-    }
+    // Register all Beam repositories and configuration tweaks
+    Repositories.register(project)
 
     // Apply a plugin which enables configuring projects imported into Intellij.
     project.apply plugin: "idea"
@@ -302,7 +326,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def generated_grpc_ga_version = "1.18.0"
     def google_cloud_bigdataoss_version = "1.9.0"
     def bigtable_version = "1.4.0"
-    def google_clients_version = "1.24.1"
+    def google_clients_version = "1.27.0"
     def google_auth_version = "0.10.0"
     def grpc_version = "1.13.1"
     def protobuf_version = "3.6.0"
@@ -311,8 +335,9 @@ class BeamModulePlugin implements Plugin<Project> {
     def proto_google_common_protos_version = "1.12.0"
     def hamcrest_version = "1.3"
     def hadoop_version = "2.7.3"
-    def jackson_version = "2.9.5"
-    def spark_version = "2.3.1"
+    def jackson_version = "2.9.8"
+    def spark_version = "2.3.2"
+    def nemo_version = "0.1"
     def apex_core_version = "3.7.0"
     def apex_malhar_version = "3.4.0"
     def postgres_version = "42.2.2"
@@ -334,15 +359,18 @@ class BeamModulePlugin implements Plugin<Project> {
         activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:5.13.1",
         activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:5.13.1",
         activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:5.13.1",
+        antlr                                       : "org.antlr:antlr4:4.7",
+        antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         apex_common                                 : "org.apache.apex:apex-common:$apex_core_version",
         apex_engine                                 : "org.apache.apex:apex-engine:$apex_core_version",
         args4j                                      : "args4j:args4j:2.33",
         avro                                        : "org.apache.avro:avro:1.8.2",
+        avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:$bigtable_version",
         bigtable_protos                             : "com.google.api.grpc:grpc-google-cloud-bigtable-v2:$generated_grpc_beta_version",
-        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.8.11",
+        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.9.3",
         commons_compress                            : "org.apache.commons:commons-compress:1.16.1",
         commons_csv                                 : "org.apache.commons:commons-csv:1.4",
         commons_io_1x                               : "commons-io:commons-io:1.3.2",
@@ -357,14 +385,15 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common:1.6.0",
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev402-$google_clients_version",
-        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev253-$google_clients_version",
-        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev502-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev257-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev399-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev136-$google_clients_version",
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20181104-$google_clients_version",
+        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20180801-$google_clients_version",
+        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20181015-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20181107-$google_clients_version",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20181105-$google_clients_version",
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20181013-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
+        google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:$google_clients_version",
         google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc:$google_cloud_core_version",
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
@@ -402,11 +431,12 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_module_scala                        : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
         jaxb_api                                    : "javax.xml.bind:jaxb-api:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.4",
-        junit                                       : "junit:junit:4.12",
+        junit                                       : "junit:junit:4.13-beta-1",
         kafka_2_11                                  : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
         mockito_core                                : "org.mockito:mockito-core:1.10.19",
+        nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.8.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
@@ -426,8 +456,13 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
+        vendored_grpc_1_13_1                        : "org.apache.beam:beam-vendor-grpc-1_13_1:0.2",
+        vendored_guava_20_0                         : "org.apache.beam:beam-vendor-guava-20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
+      ],
+      groovy: [
+        groovy_all: "org.codehaus.groovy:groovy-all:2.4.13",
       ],
       // For generating pom.xml from archetypes.
       maven: [
@@ -469,6 +504,47 @@ class BeamModulePlugin implements Plugin<Project> {
       relocate "com.google.thirdparty", project.getJavaRelocatedPath("com.google.thirdparty")
     }
 
+    project.ext.repositories = {
+      maven {
+        name "testPublicationLocal"
+        url "file://${project.rootProject.projectDir}/testPublication/"
+      }
+      maven {
+        url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
+                ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
+                : 'https://repository.apache.org/content/repositories/snapshots')
+
+        // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
+        // has configured with the Apache release and snapshot staging credentials.
+        // <settings>
+        //   <servers>
+        //     <server>
+        //       <id>apache.releases.https</id>
+        //       <username>USER_TOKEN</username>
+        //       <password>PASS_TOKEN</password>
+        //     </server>
+        //     <server>
+        //       <id>apache.snapshots.https</id>
+        //       <username>USER_TOKEN</username>
+        //       <password>PASS_TOKEN</password>
+        //     </server>
+        //   </servers>
+        // </settings>
+        def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
+        if (settingsXml.exists()) {
+          def serverId = (project.properties['distMgmtServerId'] ?: isRelease(project)
+                  ? 'apache.releases.https' : 'apache.snapshots.https')
+          def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
+          if (m2SettingCreds) {
+            credentials {
+              username m2SettingCreds.username.text()
+              password m2SettingCreds.password.text()
+            }
+          }
+        }
+      }
+    }
+
     // Configures a project with a default set of plugins that should apply to all Java projects.
     //
     // Users should invoke this method using Groovy map syntax. For example:
@@ -482,6 +558,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //  * net.ltgt.apt (plugin to configure annotation processing tool)
     //  * propdeps (provide optional and provided dependency configurations)
     //  * propdeps-maven
+    //  * propdeps-idea
     //  * checkstyle
     //  * findbugs
     //  * shadow
@@ -532,6 +609,7 @@ class BeamModulePlugin implements Plugin<Project> {
         'options',
         'cast',
         'deprecation',
+        'fallthrough',
         'processing',
         'rawtypes',
         'serial',
@@ -542,12 +620,15 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
+        // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
+        // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
+        options.compilerArgs -= ["-Xlint:deprecation"]
         options.compilerArgs += ([
           '-parameters',
           '-Xlint:all',
           '-Werror',
           '-XepDisableWarningsInGeneratedCode',
-          '-XepExcludedPaths:(.*/)?(build/generated.*avro-java|build/generated)/.*',
+          '-XepExcludedPaths:(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*',
           '-Xep:MutableConstantField:OFF' // Guava's immutable collections cannot appear on API surface.
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
@@ -568,32 +649,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Ensure that tests are packaged and part of the artifact set.
       project.task('packageTests', type: Jar) {
-        classifier = 'tests'
+        classifier = 'tests-unshaded'
         from project.sourceSets.test.output
       }
       project.artifacts.archives project.packageTests
-
-      // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
-      // repository. This offline repository satisfies all Gradle build dependencies and Java
-      // project dependencies. The offline repository is placed within $rootDir/offline-repo
-      // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
-      // Note that parallel build must be disabled when executing 'updateOfflineRepository'
-      // by specifying '--no-parallel', see
-      // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
-      project.apply plugin: "io.pry.gradle.offline_dependencies"
-      project.offlineDependencies {
-        repositories {
-          mavenLocal()
-          mavenCentral()
-          jcenter()
-          maven { url "https://plugins.gradle.org/m2/" }
-          maven { url "http://repo.spring.io/plugins-release" }
-          maven { url project.offlineRepositoryRoot }
-        }
-        includeSources = false
-        includeJavadocs = false
-        includeIvyXmls = false
-      }
 
       // Configures annotation processing for commonly used annotation processors
       // across all Java projects.
@@ -602,17 +661,18 @@ class BeamModulePlugin implements Plugin<Project> {
         // Note that these plugins specifically use the compileOnly and testCompileOnly
         // configurations because they are never required to be shaded or become a
         // dependency of the output.
-        def auto_value = "com.google.auto.value:auto-value:1.5.3"
+        def auto_value = "com.google.auto.value:auto-value:1.6.3"
+        def auto_value_annotations = "com.google.auto.value:auto-value-annotations:1.6.3"
         def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
 
-        compileOnly auto_value
+        compileOnly auto_value_annotations
+        testCompileOnly auto_value_annotations
         apt auto_value
-        testCompileOnly auto_value
         testApt auto_value
 
         compileOnly auto_service
-        apt auto_service
         testCompileOnly auto_service
+        apt auto_service
         testApt auto_service
 
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
@@ -623,8 +683,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // See: https://www.apache.org/legal/resolved.html#prohibited
         def findbugs_annotations = "com.google.code.findbugs:annotations:3.0.1"
         compileOnly findbugs_annotations
-        apt findbugs_annotations
         testCompileOnly findbugs_annotations
+        apt findbugs_annotations
         testApt findbugs_annotations
       }
 
@@ -633,6 +693,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // with the correct dependency scopes configured.
       project.apply plugin: 'propdeps'
       project.apply plugin: 'propdeps-maven'
+      project.apply plugin: 'propdeps-idea'
 
       // Configures a checkstyle plugin enforcing a set of rules and also allows for a set of
       // suppressions.
@@ -659,7 +720,21 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enables a plugin which can apply code formatting to source.
       // TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this plugin be enabled for all projects?
       project.apply plugin: "com.diffplug.gradle.spotless"
-      project.spotless { java { googleJavaFormat() } }
+
+      // Spotless can be removed from the 'check' task by passing -PdisableSpotlessCheck=true on the Gradle
+      // command-line. This is useful for pre-commit which runs spotless separately.
+      def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
+              project.disableSpotlessCheck == 'true'
+      project.spotless {
+        enforceCheck !disableSpotlessCheck
+        java {
+          licenseHeader javaLicenseHeader
+          googleJavaFormat('1.7')
+
+          // Details see: https://github.com/diffplug/spotless/blob/master/PADDEDCELL.md
+          paddedCell()
+        }
+      }
 
       // Enables a plugin which performs code analysis for common bugs.
       // This plugin is configured to only analyze the "main" source set.
@@ -679,6 +754,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Enable errorprone static analysis
       project.apply plugin: 'net.ltgt.errorprone'
+
+      project.configurations.errorprone { resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.3.1' }
 
       // Enables a plugin which can perform shading of classes. See the general comments
       // above about dependency management for Java projects and how the shadow plugin
@@ -748,22 +825,33 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       if (configuration.validateShadowJar) {
-        project.task('validateShadedJarDoesntLeakNonOrgApacheBeamClasses', dependsOn: 'shadowJar') {
+        project.task('validateShadedJarDoesntLeakNonProjectClasses', dependsOn: 'shadowJar') {
+          ext.outFile = project.file("${project.reportsDir}/${name}.out")
           inputs.files project.configurations.shadow.artifacts.files
+          outputs.files outFile
           doLast {
             project.configurations.shadow.artifacts.files.each {
               FileTree exposedClasses = project.zipTree(it).matching {
                 include "**/*.class"
-                exclude "org/apache/beam/**"
+                // BEAM-5919: Exclude paths for Java 9 multi-release jars.
+                exclude "META-INF/versions/*/module-info.class"
+                configuration.shadowJarValidationExcludes.each {
+                  exclude "$it"
+                  exclude "META-INF/versions/*/$it"
+                }
               }
+              outFile.text = exposedClasses.files
               if (exposedClasses.files) {
-                throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
+                throw new GradleException("$it exposed classes outside of ${configuration.shadowJarValidationExcludes}: ${exposedClasses.files}")
               }
             }
           }
         }
-        project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonOrgApacheBeamClasses
+        project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonProjectClasses
       }
+
+      project.ext.includeInJavaBom = configuration.publish
+      project.ext.exportJavadoc = configuration.exportJavadoc
 
       if ((isRelease(project) || project.hasProperty('publishing')) &&
       configuration.publish) {
@@ -777,9 +865,8 @@ class BeamModulePlugin implements Plugin<Project> {
           doLast {
             new File("${pomPropertiesFile}").text =
                     """version=${project.version}
-groupId=${project.group}
-artifactId=${project.name}
-"""
+                       groupId=${project.group}
+                       artifactId=${project.name}"""
           }
         }
 
@@ -799,7 +886,10 @@ artifactId=${project.name}
           }
 
           dependsOn 'generatePomFileForMavenJavaPublication'
-          into("META-INF/maven/${project.group}/${project.name}") { from "${pomFile}" }
+          into("META-INF/maven/${project.group}/${project.name}") {
+            from "${pomFile}"
+            rename('.*', 'pom.xml')
+          }
 
           dependsOn project.generatePomPropertiesFileForMavenJavaPublication
           into("META-INF/maven/${project.group}/${project.name}") { from "${pomPropertiesFile}" }
@@ -828,46 +918,7 @@ artifactId=${project.name}
         project.artifacts.archives project.javadocJar
 
         project.publishing {
-          repositories {
-            maven {
-              name "testPublicationLocal"
-              url "file://${project.rootProject.projectDir}/testPublication/"
-            }
-            maven {
-              url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
-                      ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
-                      : 'https://repository.apache.org/content/repositories/snapshots')
-
-              // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
-              // has configured with the Apache release and snapshot staging credentials.
-              // <settings>
-              //   <servers>
-              //     <server>
-              //       <id>apache.releases.https</id>
-              //       <username>USER_TOKEN</username>
-              //       <password>PASS_TOKEN</password>
-              //     </server>
-              //     <server>
-              //       <id>apache.snapshots.https</id>
-              //       <username>USER_TOKEN</username>
-              //       <password>PASS_TOKEN</password>
-              //     </server>
-              //   </servers>
-              // </settings>
-              def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
-              if (settingsXml.exists()) {
-                def serverId = (project.properties['distMgmtServerId'] ?: isRelease(project)
-                        ? 'apache.releases.https' : 'apache.snapshots.https')
-                def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
-                if (m2SettingCreds) {
-                  credentials {
-                    username m2SettingCreds.username.text()
-                    password m2SettingCreds.password.text()
-                  }
-                }
-              }
-            }
-          }
+          repositories project.ext.repositories
 
           publications {
             mavenJava(MavenPublication) {
@@ -1079,7 +1130,23 @@ artifactId=${project.name}
         outputs.upToDateWhen { false }
 
         include "**/*IT.class"
-        systemProperties.beamTestPipelineOptions = configuration.integrationTestPipelineOptions
+
+        def pipelineOptionsString = configuration.integrationTestPipelineOptions
+        if(pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
+          project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
+          def allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
+          def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
+                  project.project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
+
+          allOptionsList.addAll([
+            '--workerHarnessContainerImage=',
+            '--dataflowWorkerJar=${dataflowWorkerJar}',
+          ])
+
+          pipelineOptionsString = JsonOutput.toJson(allOptionsList)
+        }
+
+        systemProperties.beamTestPipelineOptions = pipelineOptionsString
       }
     }
 
@@ -1099,6 +1166,7 @@ artifactId=${project.name}
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
           testCompile it.project(path: ":beam-runners-google-cloud-dataflow-java", configuration: 'shadowTest')
+          shadow it.project(path: ":beam-runners-google-cloud-dataflow-java-legacy-worker", configuration: 'shadow')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
@@ -1107,6 +1175,17 @@ artifactId=${project.name}
 
         if (runner?.equalsIgnoreCase('flink')) {
           testCompile it.project(path: ":beam-runners-flink_2.11", configuration: 'shadowTest')
+        }
+
+        if (runner?.equalsIgnoreCase('spark')) {
+          testCompile it.project(path: ":beam-runners-spark", configuration: 'shadowTest')
+          testCompile project.library.java.spark_core
+          testCompile project.library.java.spark_streaming
+
+          // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+          project.configurations.testRuntimeClasspath {
+            exclude group: "org.slf4j", module: "slf4j-jdk14"
+          }
         }
 
         /* include dependencies required by filesystems */
@@ -1213,6 +1292,24 @@ artifactId=${project.name}
       project.docker { noCache true }
     }
 
+    /** ***********************************************************************************************/
+
+    project.ext.applyGroovyNature = {
+      println "Applying groovy nature"
+      project.apply plugin: "groovy"
+
+      project.apply plugin: "com.diffplug.gradle.spotless"
+      project.spotless {
+        def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
+        groovy {
+          licenseHeader javaLicenseHeader
+          paddedCell() // Recommended to avoid cyclic ambiguity issues
+          greclipse().configFile(grEclipseConfig)
+        }
+        groovyGradle { greclipse().configFile(grEclipseConfig) }
+      }
+    }
+
     // containerImageName returns a configurable container image name, by default a
     // development image at bintray.io (see sdks/CONTAINERS.md):
     //
@@ -1292,62 +1389,20 @@ artifactId=${project.name}
 
     project.ext.applyPortabilityNature = {
       println "applyPortabilityNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
-      project.ext.applyJavaNature(enableFindbugs: false, shadowClosure: {
-        // The relocation paths below specifically use the major version number of the dependency
-        // since we assume that packages following semantic versioning rules. For packages
-        // with a major version number that is 0 (implying that the dependency is unstable),
-        // we use the full version identifier in the relocated path (e.g. v0_minor_patch).
-        // For stable dependencies, if two or more packages use the same major version number,
-        // we should bias to vendoring the highest version to minimize jar files instead of
-        // vendoring using their minor or patch version numbers. Some packages may be incompatible
-        // across minor or patch versions and in those instances we should either attempt to update our
-        // usage of the dependency so we don't need to vendor both or choose to vendor
-        // both specifying the minor version in the relocation path.
+      PortabilityNatureConfiguration configuration = it ? it as PortabilityNatureConfiguration : new PortabilityNatureConfiguration()
 
-        // To produce the list of necessary relocations, one needs to start with a set of target
-        // packages that one wants to vendor, find all necessary transitive dependencies of that
-        // set and provide relocations for each such that all necessary packages and their
-        // dependencies are relocated. Any optional dependency that doesn't need relocation
-        // must be excluded via an 'exclude' rule. There is additional complexity of libraries that use
-        // JNI or reflection and have to be handled on case by case basis by learning whether
-        // they support relocation and how would one go about doing it by reading any documentation
-        // those libraries may provide. The 'validateShadedJarDoesntLeakNonOrgApacheBeamClasses'
-        // ensures that there are no classes outside of the 'org.apache.beam' namespace.
-
-        // guava uses the com.google.common and com.google.thirdparty package namespaces
-        relocate "com.google.common", "org.apache.beam.vendor.guava.v20.com.google.common"
-        relocate "com.google.thirdparty", "org.apache.beam.vendor.guava.v20.com.google.thirdparty"
-
-        relocate "com.google.protobuf", "org.apache.beam.vendor.protobuf.v3.com.google.protobuf"
-        relocate "com.google.gson", "org.apache.beam.vendor.gson.v2.com.google.gson"
-        relocate "io.grpc", "org.apache.beam.vendor.grpc.v1.io.grpc"
-        relocate "com.google.auth", "org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth"
-        relocate "com.google.api", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.api"
-        relocate "com.google.cloud", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.cloud"
-        relocate "com.google.logging", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.logging"
-        relocate "com.google.longrunning", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.longrunning"
-        relocate "com.google.rpc", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.rpc"
-        relocate "com.google.type", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.type"
-        relocate "io.opencensus", "org.apache.beam.vendor.opencensus.v0_12_3.io.opencensus"
-
-        // Adapted from https://github.com/grpc/grpc-java/blob/e283f70ad91f99c7fee8b31b605ef12a4f9b1690/netty/shaded/build.gradle#L41
-        relocate "io.netty", "org.apache.beam.vendor.netty.v4.io.netty"
-        // We have to be careful with these replacements as they must not match any
-        // string in NativeLibraryLoader, else they cause corruption. Note that
-        // this includes concatenation of string literals and constants.
-        relocate 'META-INF/native/libnetty', 'META-INF/native/liborg_apache_beam_vendor_netty_v4_netty'
-        relocate 'META-INF/native/netty', 'META-INF/native/org_apache_beam_vendor_netty_v4_netty'
-
-        // Don't include errorprone, JDK8 annotations, objenesis, junit, and mockito in the bundled jar
-        exclude "com/google/errorprone/**"
-        exclude "com/google/instrumentation/**"
-        exclude "javax/annotation/**"
-        exclude "junit/**"
-        exclude "org/hamcrest/**"
-        exclude "org/junit/**"
-        exclude "org/mockito/**"
-        exclude "org/objenesis/**"
-      })
+      project.ext.applyJavaNature(
+              exportJavadoc: false,
+              enableFindbugs: false,
+              shadowJarValidationExcludes: it.shadowJarValidationExcludes,
+              shadowClosure: GrpcVendoring.shadowClosure() << {
+                // We perform all the code relocations but don't include
+                // any of the actual dependencies since they will be supplied
+                // by org.apache.beam:beam-vendor-grpc-v1p13p1:0.1
+                dependencies {
+                  include(dependency { return false })
+                }
+              })
 
       // Don't force modules here because we don't want to take the shared declarations in build_rules.gradle
       // because we would like to have the freedom to choose which versions of dependencies we
@@ -1380,28 +1435,7 @@ artifactId=${project.name}
         }
       }
 
-      project.dependencies {
-        compile 'com.google.guava:guava:20.0'
-        compile 'com.google.protobuf:protobuf-java:3.6.0'
-        compile 'com.google.protobuf:protobuf-java-util:3.6.0'
-        compile 'com.google.code.gson:gson:2.7'
-        compile 'io.grpc:grpc-auth:1.13.1'
-        compile 'io.grpc:grpc-core:1.13.1'
-        compile 'io.grpc:grpc-context:1.13.1'
-        compile 'io.grpc:grpc-netty:1.13.1'
-        compile 'io.grpc:grpc-protobuf:1.13.1'
-        compile 'io.grpc:grpc-stub:1.13.1'
-        compile 'io.netty:netty-transport-native-epoll:4.1.25.Final'
-        compile 'io.netty:netty-tcnative-boringssl-static:2.0.8.Final'
-        compile 'com.google.auth:google-auth-library-credentials:0.10.0'
-        compile 'io.grpc:grpc-testing:1.13.1'
-        compile 'com.google.api.grpc:proto-google-common-protos:1.12.0'
-        compile 'io.opencensus:opencensus-api:0.12.3'
-        compile 'io.opencensus:opencensus-contrib-grpc-metrics:0.12.3'
-        shadow 'com.google.errorprone:error_prone_annotations:2.1.2'
-      }
-
-      // TODO(BEAM-4544): Integrate intellij support into this.
+      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_13_1 }
     }
 
     /** ***********************************************************************************************/
@@ -1409,6 +1443,20 @@ artifactId=${project.name}
     // TODO: Decide whether this should be inlined into the one project that relies on it
     // or be left here.
     project.ext.applyAvroNature = { project.apply plugin: "com.commercehub.gradle.plugin.avro" }
+
+    project.ext.applyAntlrNature = {
+      project.apply plugin: 'antlr'
+      def generatedDir = "${project.buildDir}/generated/source-src/antlr/main/java/"
+      project.sourceSets {
+        generated { java.srcDir generatedDir }
+      }
+      project.idea {
+        module {
+          sourceDirs += project.file(generatedDir)
+          generatedSourceDirs += project.file(generatedDir)
+        }
+      }
+    }
 
     // Creates a task to run the quickstart for a runner.
     // Releases version and URL, can be overriden for a RC release with
@@ -1462,7 +1510,12 @@ artifactId=${project.name}
       def beamTestPipelineOptions = [
         "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
         "--jobServerDriver=${config.jobServerDriver}",
+        "--environmentCacheMillis=10000"
       ]
+      beamTestPipelineOptions.addAll(config.pipelineOpts)
+      if (config.environment == PortableValidatesRunnerConfiguration.Environment.EMBEDDED) {
+        beamTestPipelineOptions += "--defaultEnvironmentType=EMBEDDED"
+      }
       if (config.jobServerConfig) {
         beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
       }
@@ -1472,9 +1525,88 @@ artifactId=${project.name}
         systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
         classpath = config.testClasspathConfiguration
         testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
-        maxParallelForks 1
+        maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
+        if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
+          dependsOn ':beam-sdks-java-container:docker'
+        }
       }
+    }
+
+    /** ***********************************************************************************************/
+
+    project.ext.applyPythonNature = {
+
+      // Define common lifecycle tasks and artifact types
+      project.apply plugin: "base"
+
+      // For some reason base doesn't define a test task  so we define it below and make
+      // check depend on it. This makes the Python project similar to the task layout like
+      // Java projects, see https://docs.gradle.org/4.2.1/userguide/img/javaPluginTasks.png
+      project.task('test') {}
+      project.check.dependsOn project.test
+
+      project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
+
+      // Due to Beam-4256, we need to limit the length of virtualenv path to make the
+      // virtualenv activated properly. So instead of include project name in the path,
+      // we use the hash value.
+      project.ext.envdir = "${project.rootProject.buildDir}/gradleenv/${project.name.hashCode()}"
+      project.ext.pythonRootDir = "${project.rootDir}/sdks/python"
+
+      project.task('setupVirtualenv')  {
+        doLast {
+          project.exec { commandLine 'virtualenv', "${project.ext.envdir}" }
+          project.exec {
+            executable 'sh'
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5"
+          }
+        }
+        // Gradle will delete outputs whenever it thinks they are stale. Putting a
+        // specific binary here could make gradle delete it while pip will believe
+        // the package is fully installed.
+        outputs.dirs(project.ext.envdir)
+      }
+
+      project.configurations { distConfig }
+
+      project.task('sdist', dependsOn: 'setupVirtualenv') {
+        doLast {
+          project.exec {
+            executable 'sh'
+            args '-c', ". ${project.ext.envdir}/bin/activate && python ${project.ext.pythonRootDir}/setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
+          }
+          def collection = project.fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz'}
+          println "sdist archive name: ${collection.singleFile}"
+          // we need a fixed name for the artifact
+          project.copy { from collection.singleFile; into "${project.buildDir}"; rename { 'apache-beam.tar.gz' } }
+        }
+      }
+
+      project.artifacts {
+        distConfig file: project.file("${project.buildDir}/apache-beam.tar.gz"), builtBy: project.sdist
+      }
+
+      project.task('installGcpTest', dependsOn: 'setupVirtualenv') {
+        doLast {
+          project.exec {
+            executable 'sh'
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 -e ${project.ext.pythonRootDir}/[gcp,test]"
+          }
+        }
+      }
+      project.installGcpTest.mustRunAfter project.sdist
+
+      project.task('cleanPython', dependsOn: 'setupVirtualenv') {
+        doLast {
+          project.exec {
+            executable 'sh'
+            args '-c', ". ${project.ext.envdir}/bin/activate && python ${project.ext.pythonRootDir}/setup.py clean"
+          }
+          project.delete project.buildDir
+        }
+      }
+      project.clean.dependsOn project.cleanPython
     }
   }
 }

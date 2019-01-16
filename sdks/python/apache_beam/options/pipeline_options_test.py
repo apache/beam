@@ -25,6 +25,8 @@ import unittest
 import hamcrest as hc
 
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.transforms.display import DisplayData
@@ -45,16 +47,24 @@ class PipelineOptionsTest(unittest.TestCase):
        'display_data': [DisplayDataItemMatcher('num_workers', 5)]},
       {
           'flags': [
-              '--profile_cpu', '--profile_location', 'gs://bucket/', 'ignored'],
+              '--profile_cpu', '--profile_location', 'gs://bucket/',
+              'ignored', '-invalid=arg', '--unknown_arg', 'unknown_value',
+              '--unknown_flag'
+          ],
           'expected': {
               'profile_cpu': True, 'profile_location': 'gs://bucket/',
               'mock_flag': False, 'mock_option': None,
-              'mock_multi_option': None},
+              'mock_multi_option': None,
+              'unknown_arg': 'unknown_value',
+              'unknown_flag': None},
           'display_data': [
               DisplayDataItemMatcher('profile_cpu',
                                      True),
               DisplayDataItemMatcher('profile_location',
-                                     'gs://bucket/')]
+                                     'gs://bucket/'),
+              DisplayDataItemMatcher('unknown_arg',
+                                     'unknown_value')
+          ]
       },
       {'flags': ['--num_workers', '5', '--mock_flag'],
        'expected': {'num_workers': 5,
@@ -280,6 +290,30 @@ class PipelineOptionsTest(unittest.TestCase):
 
     with self.assertRaises(RuntimeError):
       options.pot_non_vp_arg1.get()
+
+  # Converts duplicate unknown argument values to a single argument
+  # with a list value.
+  def test_unknown_duplicate_args_converted_to_list(self):
+    options = PipelineOptions(['--dup_arg', 'val1',
+                               '--dup_arg', 'val2',
+                               '--dup_arg=val3'])
+    self.assertEqual(options.get_all_options()['dup_arg'],
+                     ['val1', 'val2', 'val3'])
+
+  # The argparse package by default tries to autocomplete option names. This
+  # results in an "ambiguous option" error from argparse when an unknown option
+  # matching multiple known ones are used. This tests that we suppress this
+  # error.
+  def test_unknown_option_prefix(self):
+    # Test that the "ambiguous option" error is suppressed.
+    options = PipelineOptions(['--profi', 'val1'])
+    options.view_as(ProfilingOptions)
+
+    # Test that valid errors are not suppressed.
+    with self.assertRaises(SystemExit):
+      # Invalid option choice.
+      options = PipelineOptions(['--type_check_strictness', 'blahblah'])
+      options.view_as(TypeOptions)
 
 
 if __name__ == '__main__':

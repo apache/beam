@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -31,6 +31,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /**
  * Holds the metrics for a single step and uses metric cells that allow extracting the cumulative
@@ -135,6 +136,23 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   public MetricUpdates getUpdates() {
     return MetricUpdates.create(
         extractUpdates(counters), extractUpdates(distributions), extractUpdates(gauges));
+  }
+
+  /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  public Iterable<MonitoringInfo> getMonitoringInfos() {
+    // Extract user metrics and store as MonitoringInfos.
+    ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
+    MetricUpdates mus = this.getUpdates();
+
+    for (MetricUpdate<Long> mu : mus.counterUpdates()) {
+      SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+      builder.setUrnForUserMetric(
+          mu.getKey().metricName().getNamespace(), mu.getKey().metricName().getName());
+      builder.setInt64Value(mu.getUpdate());
+      builder.setTimestampToNow();
+      monitoringInfos.add(builder.build());
+    }
+    return monitoringInfos;
   }
 
   private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {

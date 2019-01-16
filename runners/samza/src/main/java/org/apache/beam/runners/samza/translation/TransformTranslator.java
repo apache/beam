@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.translation;
 
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /** Interface of Samza translator for BEAM {@link PTransform}. */
-interface TransformTranslator<T extends PTransform<?, ?>> {
+public interface TransformTranslator<T extends PTransform<?, ?>> {
   void translate(T transform, TransformHierarchy.Node node, TranslationContext ctx);
 }

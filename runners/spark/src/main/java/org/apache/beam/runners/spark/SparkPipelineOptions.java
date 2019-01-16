@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark;
 
 import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -99,6 +99,16 @@ public interface SparkPipelineOptions
 
   void setCheckpointDurationMillis(Long durationMillis);
 
+  @Description(
+      "If set bundleSize will be used for splitting BoundedSources, otherwise default to "
+          + "splitting BoundedSources on Spark defaultParallelism. Most effective when used with "
+          + "Spark dynamicAllocation.")
+  @Default.Long(0)
+  Long getBundleSize();
+
+  @Experimental
+  void setBundleSize(Long value);
+
   @Description("Enable/disable sending aggregator values to Spark's metric sinks")
   @Default.Boolean(true)
   Boolean getEnableSparkMetricSinks();
@@ -126,4 +136,12 @@ public interface SparkPipelineOptions
   List<String> getFilesToStage();
 
   void setFilesToStage(List<String> value);
+
+  @Description(
+      "Disable caching of reused PCollections for whole Pipeline."
+          + " It's useful when it's faster to recompute RDD rather than save. ")
+  @Default.Boolean(false)
+  boolean isCacheDisabled();
+
+  void setCacheDisabled(boolean value);
 }

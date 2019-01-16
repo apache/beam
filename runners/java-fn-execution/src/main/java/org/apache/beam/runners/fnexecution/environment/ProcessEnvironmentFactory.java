@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -32,33 +30,18 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@link EnvironmentFactory} which forks processes based on the given URL in the Environment.
+ * An {@link EnvironmentFactory} which forks processes based on the parameters in the Environment.
  * The returned {@link ProcessEnvironment} has to make sure to stop the processes.
  */
 public class ProcessEnvironmentFactory implements EnvironmentFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessEnvironmentFactory.class);
-
-  public static ProcessEnvironmentFactory create(
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
-      GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      ControlClientPool.Source clientSource,
-      IdGenerator idGenerator) {
-    return create(
-        ProcessManager.create(),
-        controlServiceServer,
-        loggingServiceServer,
-        retrievalServiceServer,
-        provisioningServiceServer,
-        clientSource,
-        idGenerator);
-  }
 
   public static ProcessEnvironmentFactory create(
       ProcessManager processManager,
@@ -161,5 +144,26 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     }
 
     return ProcessEnvironment.create(processManager, environment, workerId, instructionHandler);
+  }
+
+  /** Provider of ProcessEnvironmentFactory. */
+  public static class Provider implements EnvironmentFactory.Provider {
+    @Override
+    public EnvironmentFactory createEnvironmentFactory(
+        GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
+        GrpcFnServer<GrpcLoggingService> loggingServiceServer,
+        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+        ControlClientPool clientPool,
+        IdGenerator idGenerator) {
+      return create(
+          ProcessManager.create(),
+          controlServiceServer,
+          loggingServiceServer,
+          retrievalServiceServer,
+          provisioningServiceServer,
+          clientPool.getSource(),
+          idGenerator);
+    }
   }
 }

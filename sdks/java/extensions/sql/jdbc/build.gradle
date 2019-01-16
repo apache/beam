@@ -19,7 +19,12 @@ import groovy.json.JsonOutput
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(testShadowJar: true, validateShadowJar: false, shadowClosure: {})
+applyJavaNature(
+  exportJavadoc: false,
+  testShadowJar: true,
+  validateShadowJar: false,
+  shadowClosure: {}
+)
 
 configurations {
   integrationTest

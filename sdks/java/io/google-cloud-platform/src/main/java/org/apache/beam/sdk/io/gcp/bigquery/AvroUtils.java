@@ -25,7 +25,7 @@ import org.joda.time.Instant;
 
 /** Utils to help convert Apache Avro types to Beam types. */
 public class AvroUtils {
-  public static Object convertAvroFormat(Field beamField, Object value) throws RuntimeException {
+  public static Object convertAvroFormat(Field beamField, Object value) {
     Object ret;
     TypeName beamFieldTypeName = beamField.getType().getTypeName();
     switch (beamFieldTypeName) {

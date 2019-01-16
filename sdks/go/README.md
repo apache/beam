@@ -31,7 +31,7 @@ most examples), follow the setup
 verify that it works by running the corresponding Java example.
 
 The examples are normal Go programs and are most easily run directly. They
-are parameterized by Go flags. For example, to run wordcount do:
+are parameterized by Go flags. For example, to run wordcount on direct runner do:
 
 ```
 $ pwd
@@ -84,6 +84,29 @@ sentence: 1
 purse: 6
 ```
 
+To run wordcount on dataflow runner do:
+
+```
+$  go run wordcount.go --runner=dataflow --project=<YOUR_GCP_PROJECT> --staging_location=<YOUR_GCS_LOCATION>/staging --worker_harness_container_image=<YOUR_SDK_HARNESS_IMAGE_LOCATION> --output=<YOUR_GCS_LOCATION>/output
+```
+
+The output is a GCS file in this case:
+
+```
+$ gsutil cat <YOUR_GCS_LOCATION>/output* | head
+Blanket: 1
+blot: 1
+Kneeling: 3
+cautions: 1
+appears: 4
+Deserved: 1
+nettles: 1
+OSWALD: 53
+sport: 3
+Crown'd: 1
+```
+
+
 See [BUILD.md](./BUILD.md) for how to build Go code in general. See
 [CONTAINERS.md](../CONTAINERS.md) for how to build and push the Go
 SDK harness container image.
@@ -123,6 +146,26 @@ $ go get -u ./...
 $ go test ./...
 ```
 
-If you don’t have a GOPATH set, create a new directory in your home directory, and use that.
+If you don’t have a GOPATH set, follow [these instructions](https://github.com/golang/go/wiki/SettingGOPATH) to create a new directory in your home directory, and use that.
 
 Follow the [contribution guide](https://beam.apache.org/contribute/contribution-guide/#code) to create branches, and submit pull requests as normal.
+
+### Dependency management
+Until [BEAM-5379](https://issues.apache.org/jira/browse/BEAM-5379) is resolved,
+Beam locks versions of packages with the gogradle plugin. If new dependencies
+are added in a PR then the lock file needs to be updated. 
+From the `$GOPATH/src/github.com/apache/beam` directory run
+
+```
+$ ./gradlew :beam-sdks-go:lock
+`./gradlew :goPostcommit`
+```
+
+ to update the lock file, and test your code under the locked versions. gogradle
+will add vendor directories with the locked versions of the code.
+
+You can sanity check a PR on Jenkins by commenting `Run Go PostCommit` to trigger 
+the integration tests. This is important so that the Beam testing done on the
+jenkins cluster can produce consistent results, and have the packages available.
+
+

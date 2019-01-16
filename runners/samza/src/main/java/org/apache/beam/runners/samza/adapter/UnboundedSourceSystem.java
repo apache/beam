@@ -15,11 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.adapter;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -38,17 +35,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.FnWithMetricsWrapper;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.runners.samza.runtime.OpMessage;
-import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.Partition;
 import org.apache.samza.SamzaException;
@@ -76,28 +75,6 @@ public class UnboundedSourceSystem {
   // lastException field, which will be populated.
   private static final IncomingMessageEnvelope CHECK_LAST_EXCEPTION_ENVELOPE =
       new IncomingMessageEnvelope(null, null, null, null);
-
-  /**
-   * Returns the configuration required to instantiate a consumer for the given {@link
-   * UnboundedSource}.
-   *
-   * @param id a unique id for the source. Must use only valid characters for a system name in
-   *     Samza.
-   * @param source the source
-   * @param coder a coder to deserialize messages received by the source's consumer
-   * @param <T> the type of object produced by the source consumer
-   */
-  public static <T> Map<String, String> createConfigFor(
-      String id, UnboundedSource<T, ?> source, Coder<WindowedValue<T>> coder, String stepName) {
-    final Map<String, String> config = new HashMap<>();
-    final String streamPrefix = "systems." + id;
-    config.put(streamPrefix + ".samza.factory", UnboundedSourceSystem.Factory.class.getName());
-    config.put(streamPrefix + ".source", Base64Serializer.serializeUnchecked(source));
-    config.put(streamPrefix + ".coder", Base64Serializer.serializeUnchecked(coder));
-    config.put(streamPrefix + ".stepName", stepName);
-    config.put("streams." + id + ".samza.system", id);
-    return config;
-  }
 
   /**
    * For better parallelism in Samza, we need to configure a large split number for {@link
@@ -141,8 +118,7 @@ public class UnboundedSourceSystem {
 
     @Override
     public Map<String, SystemStreamMetadata> getSystemStreamMetadata(Set<String> streamNames) {
-      return streamNames
-          .stream()
+      return streamNames.stream()
           .collect(
               Collectors.toMap(
                   Function.<String>identity(),
@@ -336,7 +312,7 @@ public class UnboundedSourceSystem {
             updateWatermark();
 
             if (!elementAvailable) {
-              //TODO: make poll interval configurable
+              // TODO: make poll interval configurable
               Thread.sleep(50);
             }
           }
@@ -456,8 +432,7 @@ public class UnboundedSourceSystem {
 
   /**
    * A {@link SystemFactory} that produces a {@link UnboundedSourceSystem} for a particular {@link
-   * UnboundedSource} registered in {@link Config} via {@link #createConfigFor(String,
-   * UnboundedSource, Coder, String)}.
+   * UnboundedSource} registered in {@link Config}.
    */
   public static class Factory<T, CheckpointMarkT extends CheckpointMark> implements SystemFactory {
     @Override

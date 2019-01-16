@@ -18,10 +18,6 @@
 package org.apache.beam.sdk.schemas;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -38,6 +34,10 @@ import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
@@ -209,7 +209,27 @@ public class Schema implements Serializable {
         && Objects.equals(getFields(), other.getFields());
   }
 
-  enum EquivalenceNullablePolicy {
+  /** Returns true if two schemas are equal ignoring field names and descriptions. */
+  public boolean typesEqual(Schema other) {
+    if (uuid != null && other.uuid != null && Objects.equals(uuid, other.uuid)) {
+      return true;
+    }
+    if (getFieldCount() != other.getFieldCount()) {
+      return false;
+    }
+    if (!Objects.equals(fieldIndices.values(), other.fieldIndices.values())) {
+      return false;
+    }
+    for (int i = 0; i < getFieldCount(); ++i) {
+      if (!getField(i).typesEqual(other.getField(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Control whether nullable is included in equivalence check. */
+  public enum EquivalenceNullablePolicy {
     SAME,
     WEAKEN,
     IGNORE
@@ -236,21 +256,18 @@ public class Schema implements Serializable {
     }
 
     List<Field> otherFields =
-        other
-            .getFields()
-            .stream()
+        other.getFields().stream()
             .sorted(Comparator.comparing(Field::getName))
             .collect(Collectors.toList());
     List<Field> actualFields =
-        getFields()
-            .stream()
+        getFields().stream()
             .sorted(Comparator.comparing(Field::getName))
             .collect(Collectors.toList());
 
     for (int i = 0; i < otherFields.size(); ++i) {
       Field otherField = otherFields.get(i);
       Field actualField = actualFields.get(i);
-      if (!otherField.equivalent(actualField, nullablePolicy)) {
+      if (!actualField.equivalent(otherField, nullablePolicy)) {
         return false;
       }
     }
@@ -292,7 +309,7 @@ public class Schema implements Serializable {
     INT16, // two-byte signed integer.
     INT32, // four-byte signed integer.
     INT64, // eight-byte signed integer.
-    DECIMAL, // Decimal integer
+    DECIMAL, // Arbitrary-precision decimal number
     FLOAT,
     DOUBLE,
     STRING, // String.
@@ -338,6 +355,47 @@ public class Schema implements Serializable {
     public boolean isCompositeType() {
       return COMPOSITE_TYPES.contains(this);
     }
+
+    public boolean isSubtypeOf(TypeName other) {
+      return other.isSupertypeOf(this);
+    }
+
+    public boolean isSupertypeOf(TypeName other) {
+      if (this == other) {
+        return true;
+      }
+
+      // defined only for numeric types
+      if (!isNumericType() || !other.isNumericType()) {
+        return false;
+      }
+
+      switch (this) {
+        case BYTE:
+          return false;
+
+        case INT16:
+          return other == BYTE;
+
+        case INT32:
+          return other == BYTE || other == INT16;
+
+        case INT64:
+          return other == BYTE || other == INT16 || other == INT32;
+
+        case FLOAT:
+          return false;
+
+        case DOUBLE:
+          return other == FLOAT;
+
+        case DECIMAL:
+          return other == FLOAT || other == DOUBLE;
+
+        default:
+          throw new AssertionError("Unexpected numeric type: " + this);
+      }
+    }
   }
 
   /**
@@ -349,6 +407,9 @@ public class Schema implements Serializable {
   public abstract static class FieldType implements Serializable {
     // Returns the type of this field.
     public abstract TypeName getTypeName();
+
+    // Whether this type is nullable.
+    public abstract Boolean getNullable();
 
     // For container types (e.g. ARRAY), returns the type of the contained element.
     @Nullable
@@ -374,7 +435,7 @@ public class Schema implements Serializable {
     abstract FieldType.Builder toBuilder();
 
     public static FieldType.Builder forTypeName(TypeName typeName) {
-      return new AutoValue_Schema_FieldType.Builder().setTypeName(typeName);
+      return new AutoValue_Schema_FieldType.Builder().setTypeName(typeName).setNullable(false);
     }
 
     @AutoValue.Builder
@@ -382,6 +443,8 @@ public class Schema implements Serializable {
       abstract Builder setTypeName(TypeName typeName);
 
       abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
+
+      abstract Builder setNullable(Boolean nullable);
 
       abstract Builder setMapKeyType(@Nullable FieldType mapKeyType);
 
@@ -437,11 +500,25 @@ public class Schema implements Serializable {
       return FieldType.forTypeName(TypeName.ARRAY).setCollectionElementType(elementType).build();
     }
 
+    public static final FieldType array(FieldType elementType, boolean nullable) {
+      return FieldType.forTypeName(TypeName.ARRAY)
+          .setCollectionElementType(elementType.withNullable(nullable))
+          .build();
+    }
+
     /** Create a map type for the given key and value types. */
     public static final FieldType map(FieldType keyType, FieldType valueType) {
       return FieldType.forTypeName(TypeName.MAP)
           .setMapKeyType(keyType)
           .setMapValueType(valueType)
+          .build();
+    }
+
+    public static final FieldType map(
+        FieldType keyType, FieldType valueType, boolean valueTypeNullable) {
+      return FieldType.forTypeName(TypeName.MAP)
+          .setMapKeyType(keyType)
+          .setMapValueType(valueType.withNullable(valueTypeNullable))
           .build();
     }
 
@@ -460,6 +537,18 @@ public class Schema implements Serializable {
       return toBuilder().setMetadata(metadata.getBytes(StandardCharsets.UTF_8)).build();
     }
 
+    public String getMetadataString() {
+      if (getMetadata() != null) {
+        return new String(getMetadata(), StandardCharsets.UTF_8);
+      } else {
+        return "";
+      }
+    }
+
+    public FieldType withNullable(boolean nullable) {
+      return toBuilder().setNullable(nullable).build();
+    }
+
     @Override
     public boolean equals(Object o) {
       if (!(o instanceof FieldType)) {
@@ -467,6 +556,7 @@ public class Schema implements Serializable {
       }
       FieldType other = (FieldType) o;
       return Objects.equals(getTypeName(), other.getTypeName())
+          && Objects.equals(getNullable(), other.getNullable())
           && Objects.equals(getCollectionElementType(), other.getCollectionElementType())
           && Objects.equals(getMapKeyType(), other.getMapKeyType())
           && Objects.equals(getMapValueType(), other.getMapValueType())
@@ -474,29 +564,67 @@ public class Schema implements Serializable {
           && Arrays.equals(getMetadata(), other.getMetadata());
     }
 
-    private boolean equivalent(FieldType other) {
-      if (!other.getTypeName().equals(getTypeName())) {
+    /** Returns true if two FieldTypes are equal. */
+    public boolean typesEqual(FieldType other) {
+      if (!Objects.equals(getTypeName(), other.getTypeName())) {
         return false;
       }
+      if (!Arrays.equals(getMetadata(), other.getMetadata())) {
+        return false;
+      }
+      if (getTypeName() == TypeName.ARRAY
+          && !getCollectionElementType().typesEqual(other.getCollectionElementType())) {
+        return false;
+      }
+      if (getTypeName() == TypeName.MAP
+          && (!getMapValueType().typesEqual(other.getMapValueType())
+              || !getMapKeyType().typesEqual(other.getMapKeyType()))) {
+        return false;
+      }
+      if (getTypeName() == TypeName.ROW && !getRowSchema().typesEqual(other.getRowSchema())) {
+        return false;
+      }
+      return true;
+    }
+
+    /** Check whether two types are equivalent. */
+    public boolean equivalent(FieldType other, EquivalenceNullablePolicy nullablePolicy) {
+      if (nullablePolicy == EquivalenceNullablePolicy.SAME
+          && !other.getNullable().equals(getNullable())) {
+        return false;
+      } else if (nullablePolicy == EquivalenceNullablePolicy.WEAKEN) {
+        if (getNullable() && !other.getNullable()) {
+          return false;
+        }
+      }
+
+      if (!getTypeName().equals(other.getTypeName())) {
+        return false;
+      }
+      if (!Arrays.equals(getMetadata(), other.getMetadata())) {
+        return false;
+      }
+
       switch (getTypeName()) {
         case ROW:
-          if (!other.getRowSchema().equivalent(getRowSchema())) {
+          if (!getRowSchema().equivalent(other.getRowSchema(), nullablePolicy)) {
             return false;
           }
           break;
         case ARRAY:
-          if (!other.getCollectionElementType().equivalent(getCollectionElementType())) {
+          if (!getCollectionElementType()
+              .equivalent(other.getCollectionElementType(), nullablePolicy)) {
             return false;
           }
           break;
         case MAP:
-          if (!other.getMapKeyType().equivalent(getMapKeyType())
-              || !other.getMapValueType().equivalent(getMapValueType())) {
+          if (!getMapKeyType().equivalent(other.getMapKeyType(), nullablePolicy)
+              || !getMapValueType().equivalent(other.getMapValueType(), nullablePolicy)) {
             return false;
           }
           break;
         default:
-          return other.equals(this);
+          return true;
       }
       return true;
     }
@@ -506,6 +634,7 @@ public class Schema implements Serializable {
       return Arrays.deepHashCode(
           new Object[] {
             getTypeName(),
+            getNullable(),
             getCollectionElementType(),
             getMapKeyType(),
             getMapValueType(),
@@ -527,9 +656,6 @@ public class Schema implements Serializable {
     /** Returns the fields {@link FieldType}. */
     public abstract FieldType getType();
 
-    /** Returns whether the field supports null values. */
-    public abstract Boolean getNullable();
-
     public abstract Builder toBuilder();
 
     /** Builder for {@link Field}. */
@@ -541,8 +667,6 @@ public class Schema implements Serializable {
 
       public abstract Builder setType(FieldType fieldType);
 
-      public abstract Builder setNullable(Boolean nullable);
-
       public abstract Field build();
     }
 
@@ -552,7 +676,6 @@ public class Schema implements Serializable {
           .setName(name)
           .setDescription("")
           .setType(fieldType)
-          .setNullable(false) // By default fields are not nullable.
           .build();
     }
 
@@ -561,8 +684,7 @@ public class Schema implements Serializable {
       return new AutoValue_Schema_Field.Builder()
           .setName(name)
           .setDescription("")
-          .setType(fieldType)
-          .setNullable(true)
+          .setType(fieldType.withNullable(true))
           .build();
     }
 
@@ -583,7 +705,7 @@ public class Schema implements Serializable {
 
     /** Returns a copy of the Field with isNullable set. */
     public Field withNullable(boolean isNullable) {
-      return toBuilder().setNullable(isNullable).build();
+      return toBuilder().setType(getType().withNullable(isNullable)).build();
     }
 
     @Override
@@ -594,25 +716,22 @@ public class Schema implements Serializable {
       Field other = (Field) o;
       return Objects.equals(getName(), other.getName())
           && Objects.equals(getDescription(), other.getDescription())
-          && Objects.equals(getType(), other.getType())
-          && Objects.equals(getNullable(), other.getNullable());
+          && Objects.equals(getType(), other.getType());
+    }
+
+    /** Returns true if two fields are equal, ignoring name and description. */
+    public boolean typesEqual(Field other) {
+      return getType().typesEqual(other.getType());
     }
 
     private boolean equivalent(Field otherField, EquivalenceNullablePolicy nullablePolicy) {
-      if (nullablePolicy == EquivalenceNullablePolicy.SAME
-          && !otherField.getNullable().equals(getNullable())) {
-        return false;
-      } else if (nullablePolicy == EquivalenceNullablePolicy.WEAKEN) {
-        if (getNullable() && !otherField.getNullable()) {
-          return false;
-        }
-      }
-      return otherField.getName().equals(getName()) && getType().equivalent(otherField.getType());
+      return getName().equals(otherField.getName())
+          && getType().equivalent(otherField.getType(), nullablePolicy);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(getName(), getDescription(), getType(), getNullable());
+      return Objects.hash(getName(), getDescription(), getType());
     }
   }
 

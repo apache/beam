@@ -60,6 +60,7 @@ from future.utils import with_metaclass
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -151,6 +152,14 @@ class Pipeline(object):
     if errors:
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
+
+    # set default experiments for portable runner
+    # (needs to occur prior to pipeline construction)
+    if self._options.view_as(StandardOptions).runner == 'PortableRunner':
+      experiments = (self._options.view_as(DebugOptions).experiments or [])
+      if not 'beam_fn_api' in experiments:
+        experiments.append('beam_fn_api')
+        self._options.view_as(DebugOptions).experiments = experiments
 
     # Default runner to be used.
     self.runner = runner
@@ -391,7 +400,9 @@ class Pipeline(object):
     # When possible, invoke a round trip through the runner API.
     if test_runner_api and self._verify_runner_api_compatible():
       return Pipeline.from_runner_api(
-          self.to_runner_api(), self.runner, self._options).run(False)
+          self.to_runner_api(use_fake_coders=True),
+          self.runner,
+          self._options).run(False)
 
     if self._options.view_as(TypeOptions).runtime_type_check:
       from apache_beam.typehints import typecheck
@@ -404,7 +415,7 @@ class Pipeline(object):
         pickler.dump_session(os.path.join(tmpdir, 'main_session.pickle'))
       finally:
         shutil.rmtree(tmpdir)
-    return self.runner.run_pipeline(self)
+    return self.runner.run_pipeline(self, self._options)
 
   def __enter__(self):
     return self
@@ -501,7 +512,7 @@ class Pipeline(object):
     if type_options.pipeline_type_check:
       transform.type_check_inputs(pvalueish)
 
-    pvalueish_result = self.runner.apply(transform, pvalueish)
+    pvalueish_result = self.runner.apply(transform, pvalueish, self._options)
 
     if type_options is not None and type_options.pipeline_type_check:
       transform.type_check_outputs(pvalueish_result)
@@ -533,11 +544,12 @@ class Pipeline(object):
 
   def _infer_result_type(self, transform, inputs, result_pcollection):
     # TODO(robertwb): Multi-input, multi-output inference.
-    # TODO(robertwb): Ideally we'd do intersection here.
     type_options = self._options.view_as(TypeOptions)
     if (type_options is not None and type_options.pipeline_type_check
         and isinstance(result_pcollection, pvalue.PCollection)
-        and not result_pcollection.element_type):
+        and (not result_pcollection.element_type
+             # TODO(robertwb): Ideally we'd do intersection here.
+             or result_pcollection.element_type == typehints.Any)):
       input_element_type = (
           inputs[0].element_type
           if len(inputs) == 1
@@ -594,12 +606,44 @@ class Pipeline(object):
     self.visit(Visitor())
     return Visitor.ok
 
-  def to_runner_api(self, return_context=False, context=None):
+  def to_runner_api(
+      self, return_context=False, context=None, use_fake_coders=False,
+      default_environment=None):
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
     if context is None:
-      context = pipeline_context.PipelineContext()
+      context = pipeline_context.PipelineContext(
+          use_fake_coders=use_fake_coders,
+          default_environment=default_environment)
+    elif default_environment is not None:
+      raise ValueError(
+          'Only one of context or default_environment may be specificed.')
+
+    # The RunnerAPI spec requires certain transforms to have KV inputs
+    # (and corresponding outputs).
+    # Currently we only upgrade to KV pairs.  If there is a need for more
+    # general shapes, potential conflicts will have to be resolved.
+    # We also only handle single-input, and (for fixing the output) single
+    # output, which is sufficient.
+    class ForceKvInputTypes(PipelineVisitor):
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        if (transform_node.transform
+            and transform_node.transform.runner_api_requires_keyed_input()):
+          pcoll = transform_node.inputs[0]
+          pcoll.element_type = typehints.coerce_to_kv_type(
+              pcoll.element_type, transform_node.full_label)
+          if len(transform_node.outputs) == 1:
+            # The runner often has expectations about the output types as well.
+            output, = transform_node.outputs.values()
+            output.element_type = transform_node.transform.infer_output_type(
+                pcoll.element_type)
+
+    self.visit(ForceKvInputTypes())
+
     # Mutates context; placing inline would force dependence on
     # argument evaluation order.
     root_transform_id = context.transforms.get_id(self._root_transform())

@@ -15,11 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas.transforms;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -32,6 +29,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /**
  * A {@link PTransform} for filtering a collection of schema types.
@@ -126,9 +125,7 @@ public class Filter {
       for (String fieldName :
           Sets.union(
               fieldNameFilters.keySet(),
-              fieldNamesFilters
-                  .keySet()
-                  .stream()
+              fieldNamesFilters.keySet().stream()
                   .flatMap(List::stream)
                   .collect(Collectors.toSet()))) {
         schema.getField(fieldName);
@@ -136,9 +133,7 @@ public class Filter {
       for (int fieldIndex :
           Sets.union(
               fieldIdFilters.keySet(),
-              fieldIdsFilters
-                  .keySet()
-                  .stream()
+              fieldIdsFilters.keySet().stream()
                   .flatMap(List::stream)
                   .collect(Collectors.toSet()))) {
         if (fieldIndex >= schema.getFieldCount() || fieldIndex < 0) {

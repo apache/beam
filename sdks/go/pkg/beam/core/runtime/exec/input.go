@@ -60,6 +60,12 @@ func RegisterInput(t reflect.Type, maker func(ReStream) ReusableInput) {
 	inputs[t] = maker
 }
 
+// IsInputRegistered returns whether an input maker has already been registered.
+func IsInputRegistered(t reflect.Type) bool {
+	_, exists := inputs[t]
+	return exists
+}
+
 type reIterValue struct {
 	t  reflect.Type
 	s  ReStream

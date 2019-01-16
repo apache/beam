@@ -24,9 +24,6 @@ import static org.junit.Assert.assertThat;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.io.BaseEncoding;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +41,9 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -87,7 +87,8 @@ public class BigQueryAvroUtilsTest {
               .setName("associates")
               .setType("RECORD")
               .setMode("REPEATED")
-              .setFields(subFields));
+              .setFields(subFields),
+          new TableFieldSchema().setName("geoPositions").setType("GEOGRAPHY").setMode("NULLABLE"));
 
   @Test
   public void testConvertGenericRecordToTableRow() throws Exception {
@@ -114,7 +115,7 @@ public class BigQueryAvroUtilsTest {
     List<Schema.Field> avroFields = new ArrayList<>();
     for (Schema.Field field : AvroCoder.of(Bird.class).getSchema().getFields()) {
       Schema schema = field.schema();
-      if (field.name().equals("birthdayMoney")) {
+      if ("birthdayMoney".equals(field.name())) {
         // birthdayMoney is a nullable field with type BYTES/DECIMAL.
         schema =
             Schema.createUnion(
@@ -134,6 +135,8 @@ public class BigQueryAvroUtilsTest {
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
       TableRow row = new TableRow().set("number", "5").set("associates", new ArrayList<TableRow>());
       assertEquals(row, convertedRow);
+      TableRow clonedRow = convertedRow.clone();
+      assertEquals(convertedRow, clonedRow);
     }
     {
       // Test type conversion for:
@@ -151,6 +154,7 @@ public class BigQueryAvroUtilsTest {
       record.put("anniversaryDate", new Utf8("2000-01-01"));
       record.put("anniversaryDatetime", new String("2000-01-01 00:00:00.000005"));
       record.put("anniversaryTime", new Utf8("00:00:00.000005"));
+      record.put("geoPositions", new String("LINESTRING(1 2, 3 4, 5 6, 7 8)"));
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
       TableRow row =
           new TableRow()
@@ -163,7 +167,10 @@ public class BigQueryAvroUtilsTest {
               .set("sound", BaseEncoding.base64().encode(soundBytes))
               .set("anniversaryDate", "2000-01-01")
               .set("anniversaryDatetime", "2000-01-01 00:00:00.000005")
-              .set("anniversaryTime", "00:00:00.000005");
+              .set("anniversaryTime", "00:00:00.000005")
+              .set("geoPositions", "LINESTRING(1 2, 3 4, 5 6, 7 8)");
+      TableRow clonedRow = convertedRow.clone();
+      assertEquals(convertedRow, clonedRow);
       assertEquals(row, convertedRow);
     }
     {
@@ -182,6 +189,8 @@ public class BigQueryAvroUtilsTest {
               .set("number", "5")
               .set("birthdayMoney", birthdayMoney.toString());
       assertEquals(row, convertedRow);
+      TableRow clonedRow = convertedRow.clone();
+      assertEquals(convertedRow, clonedRow);
     }
   }
 
@@ -222,6 +231,9 @@ public class BigQueryAvroUtilsTest {
         equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.STRING))));
     assertThat(
         avroSchema.getField("anniversaryTime").schema(),
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.STRING))));
+    assertThat(
+        avroSchema.getField("geoPositions").schema(),
         equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.STRING))));
 
     assertThat(
@@ -269,6 +281,7 @@ public class BigQueryAvroUtilsTest {
     @Nullable Long quantity;
     @Nullable Long birthday; // Exercises TIMESTAMP.
     @Nullable ByteBuffer birthdayMoney; // Exercises NUMERIC.
+    @Nullable String geoPositions; // Exercises GEOGRAPHY.
     @Nullable Boolean flighted;
     @Nullable ByteBuffer sound;
     @Nullable Utf8 anniversaryDate;

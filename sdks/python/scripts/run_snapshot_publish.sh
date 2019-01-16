@@ -16,19 +16,27 @@
 #    limitations under the License.
 #
 
+BUCKET=gs://beam-python-nightly-snapshots
 
 VERSION=$(awk '/__version__/{print $3}' $WORKSPACE/src/sdks/python/apache_beam/version.py)
 VERSION=$(echo $VERSION | cut -c 2- | rev | cut -c 2- | rev)
 time=$(date +"%Y-%m-%dT%H:%M:%S")
 SNAPSHOT="apache-beam-$VERSION-$time.zip"
-BUCKET=gs://beam-python-nightly-snapshots
 
+DEP_SNAPSHOT_ROOT="$BUCKET/dependency_requirements_snapshot"
+DEP_SNAPSHOT_FILE_NAME="beam-py-requirements-$time.txt"
+
+# Snapshots are built by Gradle task :beam-sdks-python:depSnapshot
+# and located under Gradle build directory.
 cd $WORKSPACE/src/sdks/python/build
 
-# rename the file to be apache-beam-{VERSION}-{datetime}.zip
+# Rename the file to be apache-beam-{VERSION}-{datetime}.zip
 for file in "apache-beam-$VERSION*.zip"; do
   mv $file $SNAPSHOT
 done
 
-# upload to gcs bucket
+# Upload to gcs bucket
 gsutil cp $SNAPSHOT $BUCKET/$VERSION/
+
+# Upload requirements.txt to gcs.
+gsutil cp requirements.txt $DEP_SNAPSHOT_ROOT/$DEP_SNAPSHOT_FILE_NAME

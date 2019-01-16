@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.examples.complete;
 
 import static org.junit.Assert.assertEquals;
@@ -44,7 +43,7 @@ public class TrafficRoutesIT {
   private BigqueryClient bqClient;
 
   @Before
-  public void setupTestEnvironment() {
+  public void setupTestEnvironment() throws Exception {
     PipelineOptionsFactory.register(TrafficRoutesOptions.class);
     this.options = TestPipeline.testingPipelineOptions().as(TrafficRoutesOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();

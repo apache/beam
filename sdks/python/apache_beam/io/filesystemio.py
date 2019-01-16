@@ -80,7 +80,7 @@ class Uploader(with_metaclass(abc.ABCMeta, object)):
 class DownloaderStream(io.RawIOBase):
   """Provides a stream interface for Downloader objects."""
 
-  def __init__(self, downloader, mode='r'):
+  def __init__(self, downloader, mode='rb'):
     """Initializes the stream.
 
     Args:
@@ -161,7 +161,7 @@ class DownloaderStream(io.RawIOBase):
 class UploaderStream(io.RawIOBase):
   """Provides a stream interface for Uploader objects."""
 
-  def __init__(self, uploader, mode='w'):
+  def __init__(self, uploader, mode='wb'):
     """Initializes the stream.
 
     Args:
@@ -214,7 +214,7 @@ class PipeStream(object):
     self.conn = recv_pipe
     self.closed = False
     self.position = 0
-    self.remaining = ''
+    self.remaining = b''
 
   def read(self, size):
     """Read data from the wrapped pipe connection.
@@ -239,7 +239,7 @@ class PipeStream(object):
           self.remaining = self.conn.recv_bytes()
         except EOFError:
           break
-    return ''.join(data_list)
+    return b''.join(data_list)
 
   def tell(self):
     """Tell the file's current offset.

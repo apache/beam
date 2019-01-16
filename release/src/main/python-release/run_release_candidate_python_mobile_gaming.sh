@@ -81,7 +81,7 @@ function verify_userscore_direct() {
     --output=$output_file_name \
     --project=$PROJECT_ID \
     --dataset=$DATASET \
-    --input=gs://$BUCKET_NAME/5000_gaming_data.csv
+    --input=$GAME_INPUT_DATA
 
   verify_user_score "direct"
 }
@@ -103,7 +103,7 @@ function verify_userscore_dataflow() {
     --runner=DataflowRunner \
     --temp_location=gs://$BUCKET_NAME/temp/ \
     --sdk_location=$BEAM_PYTHON_SDK \
-    --input=gs://$BUCKET_NAME/5000_gaming_data.csv \
+    --input=$GAME_INPUT_DATA \
     --output=gs://$BUCKET_NAME/$output_file_name
 
   verify_user_score "dataflow"
@@ -122,7 +122,7 @@ function verify_hourlyteamscore_direct() {
   python -m apache_beam.examples.complete.game.hourly_team_score \
     --project=$PROJECT_ID \
     --dataset=$DATASET \
-    --input=gs://$BUCKET_NAME/5000_gaming_data.csv \
+    --input=$GAME_INPUT_DATA \
     --table="hourly_team_score_python_direct"
 
   verify_hourly_team_score "direct"
@@ -145,7 +145,7 @@ function verify_hourlyteamscore_dataflow() {
     --runner=DataflowRunner \
     --temp_location=gs://$BUCKET_NAME/temp/ \
     --sdk_location $BEAM_PYTHON_SDK \
-    --input=gs://$BUCKET_NAME/5000_gaming_data.csv \
+    --input=$GAME_INPUT_DATA \
     --table="hourly_team_score_python_dataflow"
 
   verify_hourly_team_score "dataflow"

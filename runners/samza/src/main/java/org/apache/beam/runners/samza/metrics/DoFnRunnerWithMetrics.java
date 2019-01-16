@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.metrics;
 
 import org.apache.beam.runners.core.DoFnRunner;

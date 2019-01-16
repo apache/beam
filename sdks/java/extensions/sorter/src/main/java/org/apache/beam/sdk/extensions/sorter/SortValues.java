@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sorter;
 
 import java.io.IOException;
@@ -97,7 +96,7 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
     }
     @SuppressWarnings("unchecked")
     KvCoder<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>> kvCoder =
-        (KvCoder<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>) (inputCoder);
+        (KvCoder<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>) inputCoder;
 
     if (!(kvCoder.getValueCoder() instanceof IterableCoder)) {
       throw new IllegalStateException(

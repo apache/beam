@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAYS_POJO_SCHEMA;
@@ -31,10 +30,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -42,6 +37,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.AnnotatedSimplePojo;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArraysPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
@@ -50,7 +46,12 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNestedNullable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.StaticCreationSimplePojo;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -75,6 +76,38 @@ public class JavaFieldSchemaTest {
         INSTANT,
         BYTE_ARRAY,
         BYTE_BUFFER,
+        BigDecimal.ONE,
+        new StringBuilder(name).append("builder"));
+  }
+
+  private AnnotatedSimplePojo createAnnotated(String name) {
+    return new AnnotatedSimplePojo(
+        name,
+        (byte) 1,
+        4L,
+        (short) 2,
+        3,
+        true,
+        DATE,
+        BigDecimal.ONE,
+        INSTANT,
+        BYTE_ARRAY,
+        BYTE_BUFFER,
+        new StringBuilder(name).append("builder"));
+  }
+
+  private StaticCreationSimplePojo createStaticCreation(String name) {
+    return StaticCreationSimplePojo.of(
+        name,
+        4L,
+        (byte) 1,
+        (short) 2,
+        3,
+        true,
+        DATE,
+        BYTE_BUFFER,
+        INSTANT,
+        BYTE_ARRAY,
         BigDecimal.ONE,
         new StringBuilder(name).append("builder"));
   }
@@ -250,9 +283,9 @@ public class JavaFieldSchemaTest {
     NestedArrayPOJO pojo = new NestedArrayPOJO(simple1, simple2, simple3);
     Row row = registry.getToRowFunction(NestedArrayPOJO.class).apply(pojo);
     List<Row> rows = row.getArray("pojos");
-    assertSame(simple1, registry.getFromRowFunction(NestedArrayPOJO.class).apply(rows.get(0)));
-    assertSame(simple2, registry.getFromRowFunction(NestedArrayPOJO.class).apply(rows.get(1)));
-    assertSame(simple3, registry.getFromRowFunction(NestedArrayPOJO.class).apply(rows.get(2)));
+    assertSame(simple1, registry.getFromRowFunction(SimplePOJO.class).apply(rows.get(0)));
+    assertSame(simple2, registry.getFromRowFunction(SimplePOJO.class).apply(rows.get(1)));
+    assertSame(simple3, registry.getFromRowFunction(SimplePOJO.class).apply(rows.get(2)));
   }
 
   @Test
@@ -386,5 +419,35 @@ public class JavaFieldSchemaTest {
     POJOWithNestedNullable pojo =
         registry.getFromRowFunction(POJOWithNestedNullable.class).apply(row);
     assertNull(pojo.nested);
+  }
+
+  @Test
+  public void testAnnotations() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(AnnotatedSimplePojo.class);
+    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_POJO_SCHEMA, schema);
+
+    Row simpleRow = createSimpleRow("string");
+    AnnotatedSimplePojo pojo = createAnnotated("string");
+    assertEquals(simpleRow, registry.getToRowFunction(AnnotatedSimplePojo.class).apply(pojo));
+
+    AnnotatedSimplePojo pojo2 =
+        registry.getFromRowFunction(AnnotatedSimplePojo.class).apply(simpleRow);
+    assertEquals(pojo, pojo2);
+  }
+
+  @Test
+  public void testStaticCreator() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(StaticCreationSimplePojo.class);
+    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_POJO_SCHEMA, schema);
+
+    Row simpleRow = createSimpleRow("string");
+    StaticCreationSimplePojo pojo = createStaticCreation("string");
+    assertEquals(simpleRow, registry.getToRowFunction(StaticCreationSimplePojo.class).apply(pojo));
+
+    StaticCreationSimplePojo pojo2 =
+        registry.getFromRowFunction(StaticCreationSimplePojo.class).apply(simpleRow);
+    assertEquals(pojo, pojo2);
   }
 }

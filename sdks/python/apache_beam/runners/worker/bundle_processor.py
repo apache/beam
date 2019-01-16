@@ -33,10 +33,12 @@ from builtins import object
 from future.utils import itervalues
 
 import apache_beam as beam
+from apache_beam import coders
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import coder_impl
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
+from apache_beam.metrics import monitoring_infos
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -50,6 +52,7 @@ from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
+from apache_beam.utils import timestamp
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -124,17 +127,25 @@ class DataInputOperation(RunnerIOOperation):
 
 
 class _StateBackedIterable(object):
-  def __init__(self, state_handler, state_key, coder):
+  def __init__(self, state_handler, state_key, coder_or_impl):
     self._state_handler = state_handler
     self._state_key = state_key
-    self._coder_impl = coder.get_impl()
+    if isinstance(coder_or_impl, coders.Coder):
+      self._coder_impl = coder_or_impl.get_impl()
+    else:
+      self._coder_impl = coder_or_impl
 
   def __iter__(self):
-    # TODO(robertwb): Support pagination.
-    input_stream = coder_impl.create_InputStream(
-        self._state_handler.blocking_get(self._state_key))
-    while input_stream.size() > 0:
-      yield self._coder_impl.decode_from_stream(input_stream, True)
+    data, continuation_token = self._state_handler.blocking_get(self._state_key)
+    while True:
+      input_stream = coder_impl.create_InputStream(data)
+      while input_stream.size() > 0:
+        yield self._coder_impl.decode_from_stream(input_stream, True)
+      if not continuation_token:
+        break
+      else:
+        data, continuation_token = self._state_handler.blocking_get(
+            self._state_key, continuation_token)
 
   def __reduce__(self):
     return list, (list(self),)
@@ -149,7 +160,6 @@ class StateBackedSideInputMap(object):
     self._element_coder = coder.wrapped_value_coder
     self._target_window_coder = coder.window_coder
     # TODO(robertwb): Limit the cache size.
-    # TODO(robertwb): Cross-bundle caching respecting cache tokens.
     self._cache = {}
 
   def __getitem__(self, window):
@@ -203,6 +213,10 @@ class StateBackedSideInputMap(object):
     return (self._side_input_data.window_mapping_fn
             == sideinputs._global_window_mapping_fn)
 
+  def reset(self):
+    # TODO(BEAM-5428): Cross-bundle caching respecting cache tokens.
+    self._cache = {}
+
 
 class CombiningValueRuntimeState(userstate.RuntimeState):
   def __init__(self, underlying_bag_state, combinefn):
@@ -235,6 +249,25 @@ class CombiningValueRuntimeState(userstate.RuntimeState):
   def clear(self):
     self._underlying_bag_state.clear()
 
+  def _commit(self):
+    self._underlying_bag_state._commit()
+
+
+class _ConcatIterable(object):
+  """An iterable that is the concatination of two iterables.
+
+  Unlike itertools.chain, this allows reiteration.
+  """
+  def __init__(self, first, second):
+    self.first = first
+    self.second = second
+
+  def __iter__(self):
+    for elem in self.first:
+      yield elem
+    for elem in self.second:
+      yield elem
+
 
 # TODO(BEAM-5428): Implement cross-bundle state caching.
 class SynchronousBagRuntimeState(userstate.RuntimeState):
@@ -242,30 +275,75 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
     self._state_handler = state_handler
     self._state_key = state_key
     self._value_coder = value_coder
+    self._cleared = False
+    self._added_elements = []
 
   def read(self):
-    return _StateBackedIterable(
-        self._state_handler, self._state_key, self._value_coder)
+    return _ConcatIterable(
+        [] if self._cleared else _StateBackedIterable(
+            self._state_handler, self._state_key, self._value_coder),
+        self._added_elements)
 
   def add(self, value):
-    self._state_handler.blocking_append(
-        self._state_key, self._value_coder.encode(value))
+    self._added_elements.append(value)
 
   def clear(self):
-    self._state_handler.blocking_clear(self._state_key)
+    self._cleared = True
+    self._added_elements = []
+
+  def _commit(self):
+    if self._cleared:
+      self._state_handler.blocking_clear(self._state_key)
+    if self._added_elements:
+      value_coder_impl = self._value_coder.get_impl()
+      out = coder_impl.create_OutputStream()
+      for element in self._added_elements:
+        value_coder_impl.encode_to_stream(element, out, True)
+      self._state_handler.blocking_append(self._state_key, out.get())
+
+
+class OutputTimer(object):
+  def __init__(self, key, receiver):
+    self._key = key
+    self._receiver = receiver
+
+  def set(self, ts):
+    from apache_beam.transforms.window import GlobalWindows
+    self._receiver.receive(
+        GlobalWindows.windowed_value(
+            (self._key,
+             dict(timestamp=timestamp.Timestamp.of(ts)))))
+
+  def clear(self, timestamp):
+    self._receiver.receive((self._key, dict(clear=True)))
 
 
 class FnApiUserStateContext(userstate.UserStateContext):
-  def __init__(self, state_handler, transform_id, key_coder, window_coder):
+  def __init__(
+      self, state_handler, transform_id, key_coder, window_coder, timer_specs):
     self._state_handler = state_handler
     self._transform_id = transform_id
     self._key_coder = key_coder
     self._window_coder = window_coder
+    self._timer_specs = timer_specs
+    self._timer_receivers = None
+    self._all_states = {}
+
+  def update_timer_receivers(self, receivers):
+    self._timer_receivers = {}
+    for tag in self._timer_specs:
+      self._timer_receivers[tag] = receivers.pop(tag)
 
   def get_timer(self, timer_spec, key, window):
-    raise NotImplementedError
+    return OutputTimer(key, self._timer_receivers[timer_spec.name])
 
-  def get_state(self, state_spec, key, window):
+  def get_state(self, *args):
+    state_handle = self._all_states.get(args)
+    if state_handle is None:
+      state_handle = self._all_states[args] = self._create_state(*args)
+    return state_handle
+
+  def _create_state(self, state_spec, key, window):
     if isinstance(state_spec,
                   (userstate.BagStateSpec, userstate.CombiningValueStateSpec)):
       bag_state = SynchronousBagRuntimeState(
@@ -283,6 +361,14 @@ class FnApiUserStateContext(userstate.UserStateContext):
         return CombiningValueRuntimeState(bag_state, state_spec.combine_fn)
     else:
       raise NotImplementedError(state_spec)
+
+  def commit(self):
+    for state in self._all_states.values():
+      state._commit()
+
+  def reset(self):
+    # TODO(BEAM-5428): Implement cross-bundle state caching.
+    self._all_states = {}
 
 
 def memoize(func):
@@ -316,6 +402,8 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+    for op in self.ops.values():
+      op.setup()
 
   def create_execution_tree(self, descriptor):
 
@@ -359,8 +447,14 @@ class BundleProcessor(object):
         for transform_id in sorted(
             descriptor.transforms, key=topological_height, reverse=True)])
 
-  def process_bundle(self, instruction_id):
+  def reset(self):
+    self.counter_factory.reset()
+    self.state_sampler.reset()
+    # Side input caches.
+    for op in self.ops.values():
+      op.reset()
 
+  def process_bundle(self, instruction_id):
     expected_inputs = []
     for op in self.ops.values():
       if isinstance(op, DataOutputOperation):
@@ -380,11 +474,19 @@ class BundleProcessor(object):
         op.start()
 
       # Inject inputs from data plane.
+      data_channels = collections.defaultdict(list)
+      input_op_by_target = {}
       for input_op in expected_inputs:
-        for data in input_op.data_channel.input_elements(
-            instruction_id, [input_op.target]):
-          # ignores input name
-          input_op.process_encoded(data.data)
+        data_channels[input_op.data_channel].append(input_op.target)
+        # ignores input name
+        input_op_by_target[
+            input_op.target.primitive_transform_reference] = input_op
+      for data_channel, expected_targets in data_channels.items():
+        for data in data_channel.input_elements(
+            instruction_id, expected_targets):
+          input_op_by_target[
+              data.target.primitive_transform_reference
+          ].process_encoded(data.data)
 
       # Finish all operations.
       for op in self.ops.values():
@@ -394,6 +496,7 @@ class BundleProcessor(object):
       self.state_sampler.stop_if_still_running()
 
   def metrics(self):
+    # DEPRECATED
     return beam_fn_api_pb2.Metrics(
         # TODO(robertwb): Rename to progress?
         ptransforms={
@@ -402,16 +505,18 @@ class BundleProcessor(object):
             for transform_id, op in self.ops.items()})
 
   def _fix_output_tags(self, transform_id, metrics):
+    # DEPRECATED
+    actual_output_tags = list(
+        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
     # Outputs are still referred to by index, not by name, in many Operations.
     # However, if there is exactly one output, we can fix up the name here.
+
     def fix_only_output_tag(actual_output_tag, mapping):
       if len(mapping) == 1:
         fake_output_tag, count = only_element(list(mapping.items()))
         if fake_output_tag != actual_output_tag:
           del mapping[fake_output_tag]
           mapping[actual_output_tag] = count
-    actual_output_tags = list(
-        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
     if len(actual_output_tags) == 1:
       fix_only_output_tag(
           actual_output_tags[0],
@@ -420,6 +525,25 @@ class BundleProcessor(object):
           actual_output_tags[0],
           metrics.active_elements.measured.output_element_counts)
     return metrics
+
+  def monitoring_infos(self):
+    """Returns the list of MonitoringInfos collected processing this bundle."""
+    # Construct a new dict first to remove duplciates.
+    all_monitoring_infos_dict = {}
+    for transform_id, op in self.ops.items():
+      for mi in op.monitoring_infos(transform_id).values():
+        fixed_mi = self._fix_output_tags_monitoring_info(transform_id, mi)
+        all_monitoring_infos_dict[monitoring_infos.to_key(fixed_mi)] = fixed_mi
+    return list(all_monitoring_infos_dict.values())
+
+  def _fix_output_tags_monitoring_info(self, transform_id, monitoring_info):
+    actual_output_tags = list(
+        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
+    if ('TAG' in monitoring_info.labels and
+        monitoring_info.labels['TAG'] == 'ONLY_OUTPUT'):
+      if len(actual_output_tags) == 1:
+        monitoring_info.labels['TAG'] = actual_output_tags[0]
+    return monitoring_info
 
 
 class BeamTransformFactory(object):
@@ -431,7 +555,14 @@ class BeamTransformFactory(object):
     self.counter_factory = counter_factory
     self.state_sampler = state_sampler
     self.state_handler = state_handler
-    self.context = pipeline_context.PipelineContext(descriptor)
+    self.context = pipeline_context.PipelineContext(
+        descriptor,
+        iterable_state_read=lambda token, element_coder_impl:
+        _StateBackedIterable(
+            state_handler,
+            beam_fn_api_pb2.StateKey(
+                runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
+            element_coder_impl))
 
   _known_urns = {}
 
@@ -444,6 +575,9 @@ class BeamTransformFactory(object):
 
   def create_operation(self, transform_id, consumers):
     transform_proto = self.descriptor.transforms[transform_id]
+    if not transform_proto.unique_name:
+      logging.warn("No unique name set for transform %s" % transform_id)
+      transform_proto.unique_name = transform_id
     creator, parameter_type = self._known_urns[transform_proto.spec.urn]
     payload = proto_utils.parse_Bytes(
         transform_proto.spec.payload, parameter_type)
@@ -499,21 +633,49 @@ class BeamTransformFactory(object):
     return op
 
 
+class TimerConsumer(operations.Operation):
+  def __init__(self, timer_tag, do_op):
+    self._timer_tag = timer_tag
+    self._do_op = do_op
+
+  def process(self, windowed_value):
+    self._do_op.process_timer(self._timer_tag, windowed_value)
+
+
 @BeamTransformFactory.register_urn(
     DATA_INPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
 def create(factory, transform_id, transform_proto, grpc_port, consumers):
+  # Timers are the one special case where we don't want to call the
+  # (unlabeled) operation.process() method, which we detect here.
+  # TODO(robertwb): Consider generalizing if there are any more cases.
+  output_pcoll = only_element(transform_proto.outputs.values())
+  output_consumers = only_element(consumers.values())
+  if (len(output_consumers) == 1
+      and isinstance(only_element(output_consumers), operations.DoOperation)):
+    do_op = only_element(output_consumers)
+    for tag, pcoll_id in do_op.timer_inputs.items():
+      if pcoll_id == output_pcoll:
+        output_consumers[:] = [TimerConsumer(tag, do_op)]
+        break
+
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
       name=only_element(list(transform_proto.outputs.keys())))
+  if grpc_port.coder_id:
+    output_coder = factory.get_coder(grpc_port.coder_id)
+  else:
+    logging.error(
+        'Missing required coder_id on grpc_port for %s; '
+        'using deprecated fallback.',
+        transform_id)
+    output_coder = factory.get_only_output_coder(transform_proto)
   return DataInputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_coder(grpc_port.coder_id)
-      if grpc_port.coder_id
-      else factory.get_only_output_coder(transform_proto),
+      output_coder,
       input_target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
@@ -524,15 +686,21 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
       name=only_element(list(transform_proto.inputs.keys())))
+  if grpc_port.coder_id:
+    output_coder = factory.get_coder(grpc_port.coder_id)
+  else:
+    logging.error(
+        'Missing required coder_id on grpc_port for %s; '
+        'using deprecated fallback.',
+        transform_id)
+    output_coder = factory.get_only_input_coder(transform_proto)
   return DataOutputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
       consumers,
       factory.counter_factory,
       factory.state_sampler,
-      factory.get_coder(grpc_port.coder_id)
-      if grpc_port.coder_id
-      else factory.get_only_input_coder(transform_proto),
+      output_coder,
       target=target,
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
@@ -597,18 +765,18 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
   serialized_fn = parameter.do_fn.spec.payload
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
-      serialized_fn, parameter.side_inputs)
+      serialized_fn, parameter)
 
 
 def _create_pardo_operation(
     factory, transform_id, transform_proto, consumers,
-    serialized_fn, side_inputs_proto=None):
+    serialized_fn, pardo_proto=None):
 
-  if side_inputs_proto:
+  if pardo_proto and pardo_proto.side_inputs:
     input_tags_to_coders = factory.get_input_coders(transform_proto)
     tagged_side_inputs = [
         (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
-        for tag, si in side_inputs_proto.items()]
+        for tag, si in pardo_proto.side_inputs.items()]
     tagged_side_inputs.sort(
         key=lambda tag_si: int(re.match('side([0-9]+)(-.*)?$',
                                         tag_si[0]).group(1)))
@@ -638,22 +806,40 @@ def _create_pardo_operation(
   dofn_data = pickler.loads(serialized_fn)
   if not dofn_data[-1]:
     # Windowing not set.
-    side_input_tags = side_inputs_proto or ()
+    if pardo_proto:
+      other_input_tags = set.union(
+          set(pardo_proto.side_inputs), set(pardo_proto.timer_specs))
+    else:
+      other_input_tags = ()
     pcoll_id, = [pcoll for tag, pcoll in transform_proto.inputs.items()
-                 if tag not in side_input_tags]
+                 if tag not in other_input_tags]
     windowing = factory.context.windowing_strategies.get_by_id(
         factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
     serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))
 
-  if userstate.is_stateful_dofn(dofn_data[0]):
-    input_coder = factory.get_only_input_coder(transform_proto)
+  if pardo_proto and (pardo_proto.timer_specs or pardo_proto.state_specs):
+    main_input_coder = None
+    timer_inputs = {}
+    for tag, pcoll_id in transform_proto.inputs.items():
+      if tag in pardo_proto.timer_specs:
+        timer_inputs[tag] = pcoll_id
+      elif tag in pardo_proto.side_inputs:
+        pass
+      else:
+        # Must be the main input
+        assert main_input_coder is None
+        main_input_coder = factory.get_windowed_coder(pcoll_id)
+    assert main_input_coder is not None
+
     user_state_context = FnApiUserStateContext(
         factory.state_handler,
         transform_id,
-        input_coder.key_coder(),
-        input_coder.window_coder)
+        main_input_coder.key_coder(),
+        main_input_coder.window_coder,
+        timer_specs=pardo_proto.timer_specs)
   else:
     user_state_context = None
+    timer_inputs = None
 
   output_coders = factory.get_output_coders(transform_proto)
   spec = operation_specs.WorkerDoFn(
@@ -670,7 +856,8 @@ def _create_pardo_operation(
           factory.counter_factory,
           factory.state_sampler,
           side_input_maps,
-          user_state_context),
+          user_state_context,
+          timer_inputs=timer_inputs),
       transform_proto.unique_name,
       consumers,
       output_tags)

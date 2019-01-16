@@ -41,6 +41,7 @@ func (*ApiServiceDescriptor) ProtoMessage()    {}
 func (*ApiServiceDescriptor) Descriptor() ([]byte, []int) {
 	return fileDescriptor_6445e0c85107719d, []int{0}
 }
+
 func (m *ApiServiceDescriptor) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ApiServiceDescriptor.Unmarshal(m, b)
 }
@@ -160,6 +161,7 @@ func (*OAuth2ClientCredentialsGrant) ProtoMessage()    {}
 func (*OAuth2ClientCredentialsGrant) Descriptor() ([]byte, []int) {
 	return fileDescriptor_6445e0c85107719d, []int{1}
 }
+
 func (m *OAuth2ClientCredentialsGrant) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_OAuth2ClientCredentialsGrant.Unmarshal(m, b)
 }

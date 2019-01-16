@@ -17,23 +17,41 @@
  */
 package org.apache.beam.runners.flink;
 
+import static java.util.Arrays.asList;
+import static org.apache.beam.sdk.testing.RegexMatcher.matches;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.core.Every.everyItem;
+import static org.junit.Assert.assertThat;
+
+import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 /** Tests for {@link FlinkPipelineExecutionEnvironment}. */
 @RunWith(JUnit4.class)
 public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
+
+  @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Test
   public void shouldRecognizeAndTranslateStreamingPipeline() {
@@ -49,6 +67,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<Long, String>() {
+
                   @ProcessElement
                   public void processElement(ProcessContext c) throws Exception {
                     c.output(Long.toString(c.element()));
@@ -60,5 +79,86 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
     flinkEnv.translate(pipeline);
 
     // no exception should be thrown
+  }
+
+  @Test
+  public void shouldPrepareFilesToStageWhenFlinkMasterIsSetExplicitly() throws IOException {
+    FlinkPipelineOptions options = testPreparingResourcesToStage("localhost:8081");
+
+    assertThat(options.getFilesToStage().size(), is(1));
+    assertThat(options.getFilesToStage().get(0), matches(".*\\.jar"));
+  }
+
+  @Test
+  public void shouldNotPrepareFilesToStageWhenFlinkMasterIsSetToAuto() throws IOException {
+    FlinkPipelineOptions options = testPreparingResourcesToStage("[auto]");
+
+    assertThat(options.getFilesToStage().size(), is(2));
+    assertThat(options.getFilesToStage(), everyItem(not(matches(".*\\.jar"))));
+  }
+
+  @Test
+  public void shouldNotPrepareFilesToStagewhenFlinkMasterIsSetToCollection() throws IOException {
+    FlinkPipelineOptions options = testPreparingResourcesToStage("[collection]");
+
+    assertThat(options.getFilesToStage().size(), is(2));
+    assertThat(options.getFilesToStage(), everyItem(not(matches(".*\\.jar"))));
+  }
+
+  @Test
+  public void shouldNotPrepareFilesToStageWhenFlinkMasterIsSetToLocal() throws IOException {
+    FlinkPipelineOptions options = testPreparingResourcesToStage("[local]");
+
+    assertThat(options.getFilesToStage().size(), is(2));
+    assertThat(options.getFilesToStage(), everyItem(not(matches(".*\\.jar"))));
+  }
+
+  @Test
+  public void shouldUseTransformOverrides() {
+    boolean[] testParameters = {true, false};
+    for (boolean streaming : testParameters) {
+      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      options.setStreaming(streaming);
+      options.setRunner(FlinkRunner.class);
+      FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+      Pipeline p = Mockito.spy(Pipeline.create(options));
+
+      flinkEnv.translate(p);
+
+      ArgumentCaptor<ImmutableList> captor = ArgumentCaptor.forClass(ImmutableList.class);
+      Mockito.verify(p).replaceAll(captor.capture());
+      ImmutableList<PTransformOverride> overridesList = captor.getValue();
+
+      assertThat(overridesList.isEmpty(), is(false));
+      assertThat(
+          overridesList.size(), is(FlinkTransformOverrides.getDefaultOverrides(options).size()));
+    }
+  }
+
+  private FlinkPipelineOptions testPreparingResourcesToStage(String flinkMaster)
+      throws IOException {
+    Pipeline pipeline = Pipeline.create();
+    String tempLocation = tmpFolder.newFolder().getAbsolutePath();
+
+    File notEmptyDir = tmpFolder.newFolder();
+    notEmptyDir.createNewFile();
+    String notEmptyDirPath = notEmptyDir.getAbsolutePath();
+    String notExistingPath = "/path/to/not/existing/dir";
+
+    FlinkPipelineOptions options =
+        setPipelineOptions(flinkMaster, tempLocation, asList(notEmptyDirPath, notExistingPath));
+    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+    flinkEnv.translate(pipeline);
+    return options;
+  }
+
+  private FlinkPipelineOptions setPipelineOptions(
+      String flinkMaster, String tempLocation, List<String> filesToStage) {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(TestFlinkRunner.class);
+    options.setFlinkMaster(flinkMaster);
+    options.setTempLocation(tempLocation);
+    options.setFilesToStage(filesToStage);
+    return options;
   }
 }

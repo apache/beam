@@ -15,18 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.sdk.values.Row.toRow;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -43,6 +41,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.chrono.ISOChronology;
@@ -124,7 +123,7 @@ public class BigQueryUtils {
   }
 
   private static List<TableFieldSchema> toTableFieldSchema(Schema schema) {
-    List<TableFieldSchema> fields = new ArrayList<TableFieldSchema>(schema.getFieldCount());
+    List<TableFieldSchema> fields = new ArrayList<>(schema.getFieldCount());
     for (Field schemaField : schema.getFields()) {
       FieldType type = schemaField.getType();
 
@@ -133,7 +132,7 @@ public class BigQueryUtils {
         field.setDescription(schemaField.getDescription());
       }
 
-      if (!schemaField.getNullable()) {
+      if (!schemaField.getType().getNullable()) {
         field.setMode(Mode.REQUIRED.toString());
       }
       if (TypeName.ARRAY == type.getTypeName()) {
@@ -223,7 +222,7 @@ public class BigQueryUtils {
           type = schemaField.getType().getCollectionElementType().getTypeName();
           if (TypeName.ROW == type) {
             List<Row> rows = (List<Row>) value;
-            List<TableRow> tableRows = new ArrayList<TableRow>(rows.size());
+            List<TableRow> tableRows = new ArrayList<>(rows.size());
             for (int j = 0; j < rows.size(); j++) {
               tableRows.add(toTableRow(rows.get(j)));
             }
@@ -264,9 +263,7 @@ public class BigQueryUtils {
             .collect(toMap(i -> bqFields.get(i).getName(), i -> i));
 
     List<Object> rawJsonValues =
-        rowSchema
-            .getFields()
-            .stream()
+        rowSchema.getFields().stream()
             .map(field -> bqFieldIndices.get(field.getName()))
             .map(index -> jsonBqRow.getF().get(index).getV())
             .collect(toList());
@@ -279,15 +276,15 @@ public class BigQueryUtils {
 
   private static Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
     if (jsonBQValue instanceof String && JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
-      return JSON_VALUE_PARSERS.get((fieldType.getTypeName())).apply((String) jsonBQValue);
+      return JSON_VALUE_PARSERS.get(fieldType.getTypeName()).apply((String) jsonBQValue);
     }
 
     if (jsonBQValue instanceof List) {
       return ((List<Object>) jsonBQValue)
           .stream()
-          .map(v -> ((Map<String, Object>) v).get("v"))
-          .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
-          .collect(toList());
+              .map(v -> ((Map<String, Object>) v).get("v"))
+              .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
+              .collect(toList());
     }
 
     throw new UnsupportedOperationException(

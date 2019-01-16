@@ -98,30 +98,30 @@ class InteractiveRunner(runners.PipelineRunner):
   def cleanup(self):
     self._cache_manager.cleanup()
 
-  def apply(self, transform, pvalueish):
+  def apply(self, transform, pvalueish, options):
     # TODO(qinyeli, BEAM-646): Remove runner interception of apply.
-    return self._underlying_runner.apply(transform, pvalueish)
+    return self._underlying_runner.apply(transform, pvalueish, options)
 
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     if not hasattr(self, '_desired_cache_labels'):
       self._desired_cache_labels = set()
 
     # Invoke a round trip through the runner API. This makes sure the Pipeline
     # proto is stable.
     pipeline = beam.pipeline.Pipeline.from_runner_api(
-        pipeline.to_runner_api(),
+        pipeline.to_runner_api(use_fake_coders=True),
         pipeline.runner,
-        pipeline._options)
+        options)
 
     # Snapshot the pipeline in a portable proto before mutating it.
     pipeline_proto, original_context = pipeline.to_runner_api(
-        return_context=True)
+        return_context=True, use_fake_coders=True)
     pcolls_to_pcoll_id = self._pcolls_to_pcoll_id(pipeline, original_context)
 
     analyzer = pipeline_analyzer.PipelineAnalyzer(self._cache_manager,
                                                   pipeline_proto,
                                                   self._underlying_runner,
-                                                  pipeline._options,
+                                                  options,
                                                   self._desired_cache_labels)
     # Should be only accessed for debugging purpose.
     self._analyzer = analyzer
@@ -129,25 +129,20 @@ class InteractiveRunner(runners.PipelineRunner):
     pipeline_to_execute = beam.pipeline.Pipeline.from_runner_api(
         analyzer.pipeline_proto_to_execute(),
         self._underlying_runner,
-        pipeline._options)
-
-    pipeline_info = pipeline_analyzer.PipelineInfo(pipeline_proto.components)
+        options)
 
     display = display_manager.DisplayManager(
-        pipeline_info=pipeline_info,
         pipeline_proto=pipeline_proto,
-        caches_used=analyzer.caches_used(),
+        pipeline_analyzer=analyzer,
         cache_manager=self._cache_manager,
-        referenced_pcollections=analyzer.top_level_referenced_pcollection_ids(),
-        required_transforms=analyzer.top_level_required_transforms(),
         pipeline_graph_renderer=self._renderer)
     display.start_periodic_update()
     result = pipeline_to_execute.run()
     result.wait_until_finish()
     display.stop_periodic_update()
 
-    return PipelineResult(result, self, pipeline_info, self._cache_manager,
-                          pcolls_to_pcoll_id)
+    return PipelineResult(result, self, self._analyzer.pipeline_info(),
+                          self._cache_manager, pcolls_to_pcoll_id)
 
   def _pcolls_to_pcoll_id(self, pipeline, original_context):
     """Returns a dict mapping PCollections string to PCollection IDs.

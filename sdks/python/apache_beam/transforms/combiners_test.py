@@ -114,6 +114,22 @@ class CombineTest(unittest.TestCase):
                 label='key:cmp')
     pipeline.run()
 
+  def test_empty_global_top(self):
+    with TestPipeline() as p:
+      assert_that(p | beam.Create([]) | combine.Top.Largest(10),
+                  equal_to([[]]))
+
+  def test_sharded_top(self):
+    elements = list(range(100))
+    random.shuffle(elements)
+
+    pipeline = TestPipeline()
+    shards = [pipeline | 'Shard%s' % shard >> beam.Create(elements[shard::7])
+              for shard in range(7)]
+    assert_that(shards | beam.Flatten() | combine.Top.Largest(10),
+                equal_to([[99, 98, 97, 96, 95, 94, 93, 92, 91, 90]]))
+    pipeline.run()
+
   def test_top_key(self):
     self.assertEqual(
         ['aa', 'bbb', 'c', 'dddd'] | combine.Top.Of(3, key=len),
@@ -161,26 +177,16 @@ class CombineTest(unittest.TestCase):
     individual_test_per_key_dd(combine.Largest(5))
 
   def test_combine_sample_display_data(self):
-    def individual_test_per_key_dd(sampleFn, args, kwargs):
-      trs = [sampleFn(*args, **kwargs)]
+    def individual_test_per_key_dd(sampleFn, n):
+      trs = [sampleFn(n)]
       for transform in trs:
         dd = DisplayData.create_from(transform)
-        expected_items = [
-            DisplayDataItemMatcher('fn', transform._fn.__name__)]
-        if args:
-          expected_items.append(
-              DisplayDataItemMatcher('args', str(args)))
-        if kwargs:
-          expected_items.append(
-              DisplayDataItemMatcher('kwargs', str(kwargs)))
-        hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+        hc.assert_that(
+            dd.items,
+            hc.contains_inanyorder(DisplayDataItemMatcher('n', transform._n)))
 
-    individual_test_per_key_dd(combine.Sample.FixedSizePerKey,
-                               args=(5,),
-                               kwargs={})
-    individual_test_per_key_dd(combine.Sample.FixedSizeGlobally,
-                               args=(8,),
-                               kwargs={'arg':  9})
+    individual_test_per_key_dd(combine.Sample.FixedSizePerKey, 5)
+    individual_test_per_key_dd(combine.Sample.FixedSizeGlobally, 5)
 
   def test_combine_globally_display_data(self):
     transform = beam.CombineGlobally(combine.Smallest(5))

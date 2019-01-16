@@ -28,6 +28,7 @@ from __future__ import absolute_import
 
 import collections
 import itertools
+import typing
 from builtins import hex
 from builtins import object
 
@@ -111,7 +112,7 @@ class PValue(object):
     return self.pipeline.apply(ptransform, self)
 
 
-class PCollection(PValue):
+class PCollection(PValue, typing.Generic[typing.TypeVar('T')]):
   """A multiple values (potentially huge) container.
 
   Dataflow users should not construct PCollection objects directly in their
@@ -121,6 +122,10 @@ class PCollection(PValue):
   def __eq__(self, other):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __hash__(self):
     return hash((self.tag, self.producer))
@@ -142,7 +147,7 @@ class PCollection(PValue):
     return beam_runner_api_pb2.PCollection(
         unique_name='%d%s.%s' % (
             len(self.producer.full_label), self.producer.full_label, self.tag),
-        coder_id=pickler.dumps(self.element_type),
+        coder_id=context.coder_id_from_element_type(self.element_type),
         is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
             self.windowing))

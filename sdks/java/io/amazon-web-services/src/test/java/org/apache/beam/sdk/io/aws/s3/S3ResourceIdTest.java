@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.aws.s3;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY;
@@ -221,7 +220,7 @@ public class S3ResourceIdTest {
     assertFalse(parent.getKey().startsWith(path.getKey()));
 
     // s3://bucket/
-    S3ResourceId grandParent = ((S3ResourceId) parent.resolve("..", RESOLVE_DIRECTORY));
+    S3ResourceId grandParent = (S3ResourceId) parent.resolve("..", RESOLVE_DIRECTORY);
     assertEquals("bucket", grandParent.getBucket());
     assertEquals("", grandParent.getKey());
   }

@@ -42,10 +42,10 @@ if [[ $# -eq 1 && $1 = "-h" ]]; then
 else
 	for param in "$@"
 	do
-		if [[ $param =~ --release\=([0-9]\.[0-9]\.[0-9]) ]]; then
+		if [[ $param =~ --release\=([0-9]\.[0-9]*\.[0-9]) ]]; then
 			RELEASE=${BASH_REMATCH[1]}
 		fi
-		if [[ $param =~ --next_release\=([0-9]\.[0-9]\.[0-9]) ]]; then
+		if [[ $param =~ --next_release\=([0-9]\.[0-9]*\.[0-9]) ]]; then
 			NEXT_VERSION_IN_BASE_BRANCH=${BASH_REMATCH[1]}
 		fi
 	done
@@ -72,6 +72,9 @@ echo "local repo dir: ~/${LOCAL_CLONE_DIR}/${BEAM_ROOT_DIR}"
 echo "==============================================================="
 
 cd ~
+if [[ -d ${LOCAL_CLONE_DIR} ]]; then
+  rm -rf ${LOCAL_CLONE_DIR}
+fi
 mkdir ${LOCAL_CLONE_DIR}
 cd ${LOCAL_CLONE_DIR}
 git clone ${GITHUB_REPO_URL}

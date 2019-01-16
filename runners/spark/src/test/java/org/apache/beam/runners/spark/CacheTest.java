@@ -18,11 +18,15 @@
 package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -30,12 +34,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
 
-/**
- * This test checks how the cache candidates map is populated by the runner when evaluating the
- * pipeline.
- */
+/** Tests of {@link Dataset#cache(String, Coder)}} scenarios. */
 public class CacheTest {
 
+  /**
+   * Test checks how the cache candidates map is populated by the runner when evaluating the
+   * pipeline.
+   */
   @Test
   public void cacheCandidatesUpdaterTest() throws Exception {
     SparkPipelineOptions options =
@@ -56,5 +61,24 @@ public class CacheTest {
         new SparkRunner.CacheVisitor(new TransformTranslator.Translator(), ctxt);
     pipeline.traverseTopologically(cacheVisitor);
     assertEquals(2L, (long) ctxt.getCacheCandidates().get(pCollection));
+  }
+
+  @Test
+  public void cacheDisabledOptionTest() {
+    SparkPipelineOptions options =
+        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
+    options.setRunner(TestSparkRunner.class);
+    options.setCacheDisabled(true);
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<String> pCollection = pipeline.apply(Create.of("foo", "bar"));
+
+    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
+    EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options);
+    ctxt.getCacheCandidates().put(pCollection, 2L);
+
+    assertFalse(ctxt.shouldCache(pCollection));
+
+    options.setCacheDisabled(false);
+    assertTrue(ctxt.shouldCache(pCollection));
   }
 }

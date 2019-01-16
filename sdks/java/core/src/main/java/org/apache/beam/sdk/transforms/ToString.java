@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.transforms;
 
-import com.google.common.base.Joiner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 
 /**
  * {@link PTransform PTransforms} for converting a {@link PCollection PCollection&lt;?&gt;}, {@link
@@ -28,7 +27,7 @@ import org.apache.beam.sdk.values.PCollection;
  * PCollection&lt;Iterable&lt;?&gt;&gt;} to a {@link PCollection PCollection&lt;String&gt;}.
  *
  * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
- * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
+ * {@link ProcessFunction} using {@link MapElements#via(ProcessFunction)}
  */
 public final class ToString {
   private ToString() {
@@ -97,7 +96,7 @@ public final class ToString {
    * }</pre>
    *
    * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
-   * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
+   * {@link ProcessFunction} using {@link MapElements#via(ProcessFunction)}
    */
   private static final class Elements extends PTransform<PCollection<?>, PCollection<String>> {
     @Override
@@ -126,7 +125,7 @@ public final class ToString {
    * }</pre>
    *
    * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
-   * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
+   * {@link ProcessFunction} using {@link MapElements#via(ProcessFunction)}
    */
   private static final class KVs
       extends PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> {
@@ -161,7 +160,7 @@ public final class ToString {
    * }</pre>
    *
    * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
-   * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
+   * {@link ProcessFunction} using {@link MapElements#via(ProcessFunction)}
    */
   private static final class Iterables
       extends PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> {

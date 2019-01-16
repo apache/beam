@@ -17,12 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMultimap;
-import com.google.common.collect.Multimap;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
@@ -43,6 +40,9 @@ import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
 /**
@@ -158,7 +158,7 @@ class FlinkBatchSideInputHandlerFactory implements SideInputHandlerFactory {
       }
     }
 
-    return new MultimapSideInputHandler(multimap.build(), keyCoder, valueCoder, windowCoder);
+    return new MultimapSideInputHandler<>(multimap.build(), keyCoder, valueCoder, windowCoder);
   }
 
   private static class MultimapSideInputHandler<K, V, W extends BoundedWindow>

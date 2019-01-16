@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.translation;
 
-import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.TransformInputs;
@@ -30,19 +28,29 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.samza.operators.KV;
 import org.apache.samza.operators.MessageStream;
+import org.apache.samza.operators.OutputStream;
 import org.apache.samza.operators.StreamGraph;
+import org.apache.samza.operators.TableDescriptor;
+import org.apache.samza.table.Table;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Helper that keeps the mapping from BEAM {@link PValue}/{@link PCollectionView} to Samza {@link
  * MessageStream}. It also provides other context data such as input and output of a {@link
  * PTransform}.
  */
-class TranslationContext {
+public class TranslationContext {
+  public static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
   private final StreamGraph streamGraph;
   private final Map<PValue, MessageStream<?>> messsageStreams = new HashMap<>();
   private final Map<PCollectionView<?>, MessageStream<?>> viewStreams = new HashMap<>();
   private final Map<PValue, String> idMap;
+  private final Map<String, MessageStream> registeredInputStreams = new HashMap<>();
+  private final Map<String, Table> registeredTables = new HashMap<>();
   private final PValue dummySource;
   private final SamzaPipelineOptions options;
 
@@ -63,7 +71,14 @@ class TranslationContext {
   public <OutT> void registerInputMessageStream(PValue pvalue) {
     // We only register dummySource if it is actually used (determined by a call to getDummyStream).
     if (!pvalue.equals(dummySource)) {
-      doRegisterInputMessageStream(pvalue);
+      doRegisterInputMessageStream(pvalue, getIdForPValue(pvalue));
+    }
+  }
+
+  public <OutT> void registerInputMessageStreamById(PValue pvalue, String streamId) {
+    // We only register dummySource if it is actually used (determined by a call to getDummyStream).
+    if (!pvalue.equals(dummySource)) {
+      doRegisterInputMessageStream(pvalue, streamId);
     }
   }
 
@@ -77,7 +92,7 @@ class TranslationContext {
 
   public MessageStream<OpMessage<String>> getDummyStream() {
     if (!messsageStreams.containsKey(dummySource)) {
-      doRegisterInputMessageStream(dummySource);
+      doRegisterInputMessageStream(dummySource, getIdForPValue(dummySource));
     }
 
     return getMessageStream(dummySource);
@@ -162,15 +177,36 @@ class TranslationContext {
     return this.options;
   }
 
-  private <OutT> void doRegisterInputMessageStream(PValue pvalue) {
+  public <OutT> OutputStream<OutT> getOutputStreamById(String outputStreamId) {
+    return streamGraph.getOutputStream(outputStreamId);
+  }
+
+  @SuppressWarnings("unchecked")
+  public <K, V> Table<KV<K, V>> getTable(TableDescriptor<K, V, ?> tableDesc) {
+    return registeredTables.computeIfAbsent(
+        tableDesc.getTableId(), id -> streamGraph.getTable(tableDesc));
+  }
+
+  private <OutT> void doRegisterInputMessageStream(PValue pvalue, String streamId) {
+    // we want to register it with the Samza graph only once per i/o stream
+    if (registeredInputStreams.containsKey(streamId)) {
+      MessageStream<OpMessage<OutT>> messageStream = registeredInputStreams.get(streamId);
+      LOG.info(
+          String.format(
+              "Stream id %s has already been mapped to %s stream. Mapping %s to the same message stream.",
+              streamId, messageStream, pvalue));
+      registerMessageStream(pvalue, messageStream);
+
+      return;
+    }
     @SuppressWarnings("unchecked")
     final MessageStream<OpMessage<OutT>> typedStream =
         streamGraph
-            .<org.apache.samza.operators.KV<?, OpMessage<OutT>>>getInputStream(
-                getIdForPValue(pvalue))
+            .<org.apache.samza.operators.KV<?, OpMessage<OutT>>>getInputStream(streamId)
             .map(org.apache.samza.operators.KV::getValue);
 
     registerMessageStream(pvalue, typedStream);
+    registeredInputStreams.put(streamId, typedStream);
   }
 
   private String getIdForPValue(PValue pvalue) {

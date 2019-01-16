@@ -53,6 +53,9 @@ import (
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
 func main() {
+	// beam.Init() is an initialization hook that must be called on startup.
+	beam.Init()
+
 	// Create the Pipeline object and root scope.
 	p := beam.NewPipeline()
 	s := p.Root()

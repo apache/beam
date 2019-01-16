@@ -41,7 +41,7 @@ test {
 evaluationDependsOn(":beam-sdks-java-io-common")
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
   shadow library.java.slf4j_api

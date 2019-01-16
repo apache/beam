@@ -55,6 +55,7 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
+from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
@@ -155,9 +156,15 @@ class DataflowRunner(PipelineRunner):
               or str(response.currentState) == 'JOB_STATE_UPDATED'
               or str(response.currentState) == 'JOB_STATE_DRAINED'):
             break
-          # The job has failed; ensure we see any final error messages.
-          sleep_secs = 1.0      # poll faster during the final countdown
-          final_countdown_timer_secs -= sleep_secs
+
+          # Check that job is in a post-preparation state before starting the
+          # final countdown.
+          if (str(response.currentState) not in (
+              'JOB_STATE_PENDING', 'JOB_STATE_QUEUED')):
+            # The job has failed; ensure we see any final error messages.
+            sleep_secs = 1.0      # poll faster during the final countdown
+            final_countdown_timer_secs -= sleep_secs
+
       time.sleep(sleep_secs)
 
       # Get all messages since beginning of the job run or since last message.
@@ -168,7 +175,7 @@ class DataflowRunner(PipelineRunner):
         for m in messages:
           message = '%s: %s: %s' % (m.time, m.messageImportance, m.messageText)
 
-          if m.time > last_message_time:
+          if not last_message_time or m.time > last_message_time:
             last_message_time = m.time
             current_seen_messages = set()
 
@@ -304,7 +311,7 @@ class DataflowRunner(PipelineRunner):
 
     return FlattenInputVisitor()
 
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
     try:
@@ -316,7 +323,8 @@ class DataflowRunner(PipelineRunner):
           'please install apache_beam[gcp]')
 
     # Convert all side inputs into a form acceptable to Dataflow.
-    if apiclient._use_fnapi(pipeline._options):
+    if apiclient._use_fnapi(options) and (
+        not apiclient._use_unified_worker(options)):
       pipeline.visit(self.side_input_visitor())
 
     # Performing configured PTransform overrides.  Note that this is currently
@@ -328,32 +336,24 @@ class DataflowRunner(PipelineRunner):
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True)
 
-    # TODO(BEAM-2717): Remove once Coders are already in proto.
-    for pcoll in self.proto_pipeline.components.pcollections.values():
-      if pcoll.coder_id not in self.proto_context.coders:
-        coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
-        pcoll.coder_id = self.proto_context.coders.get_id(coder)
-    self.proto_context.coders.populate_map(
-        self.proto_pipeline.components.coders)
-
     # Add setup_options for all the BeamPlugin imports
-    setup_options = pipeline._options.view_as(SetupOptions)
+    setup_options = options.view_as(SetupOptions)
     plugins = BeamPlugin.get_all_plugin_paths()
     if setup_options.beam_plugins is not None:
       plugins = list(set(plugins + setup_options.beam_plugins))
     setup_options.beam_plugins = plugins
 
     # Elevate "min_cpu_platform" to pipeline option, but using the existing
-    # experiment
-    debug_options = pipeline._options.view_as(DebugOptions)
-    worker_options = pipeline._options.view_as(WorkerOptions)
+    # experiment.
+    debug_options = options.view_as(DebugOptions)
+    worker_options = options.view_as(WorkerOptions)
     if worker_options.min_cpu_platform:
       experiments = ["min_cpu_platform=%s" % worker_options.min_cpu_platform]
       if debug_options.experiments is not None:
         experiments = list(set(experiments + debug_options.experiments))
       debug_options.experiments = experiments
 
-    self.job = apiclient.Job(pipeline._options, self.proto_pipeline)
+    self.job = apiclient.Job(options, self.proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
@@ -364,16 +364,27 @@ class DataflowRunner(PipelineRunner):
     pipeline.visit(self.flatten_input_visitor())
 
     # The superclass's run will trigger a traversal of all reachable nodes.
-    super(DataflowRunner, self).run_pipeline(pipeline)
+    super(DataflowRunner, self).run_pipeline(pipeline, options)
 
-    test_options = pipeline._options.view_as(TestOptions)
+    test_options = options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.
     if test_options.dry_run:
       return None
 
     # Get a Dataflow API client and set its options
-    self.dataflow_client = apiclient.DataflowApplicationClient(
-        pipeline._options)
+    self.dataflow_client = apiclient.DataflowApplicationClient(options)
+
+    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
+    if dataflow_worker_jar is not None:
+      if not apiclient._use_fnapi(options):
+        logging.fatal(
+            'Typical end users should not use this worker jar feature. '
+            'It can only be used when fnapi is enabled.')
+
+      experiments = ["use_staged_dataflow_worker_jar"]
+      if debug_options.experiments is not None:
+        experiments = list(set(experiments + debug_options.experiments))
+      debug_options.experiments = experiments
 
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.
@@ -388,10 +399,10 @@ class DataflowRunner(PipelineRunner):
     result.metric_results = self._metrics
     return result
 
-  def _get_typehint_based_encoding(self, typehint, window_coder):
+  def _get_typehint_based_encoding(self, typehint, window_coder, use_fnapi):
     """Returns an encoding based on a typehint object."""
-    return self._get_cloud_encoding(self._get_coder(typehint,
-                                                    window_coder=window_coder))
+    return self._get_cloud_encoding(
+        self._get_coder(typehint, window_coder=window_coder), use_fnapi)
 
   @staticmethod
   def _get_coder(typehint, window_coder):
@@ -402,12 +413,13 @@ class DataflowRunner(PipelineRunner):
           window_coder=window_coder)
     return coders.registry.get_coder(typehint)
 
-  def _get_cloud_encoding(self, coder):
+  def _get_cloud_encoding(self, coder, use_fnapi):
     """Returns an encoding based on a coder object."""
     if not isinstance(coder, coders.Coder):
       raise TypeError('Coder object must inherit from coders.Coder: %s.' %
                       str(coder))
-    return coder.as_cloud_object()
+    return coder.as_cloud_object(self.proto_context
+                                 .coders if use_fnapi else None)
 
   def _get_side_input_encoding(self, input_encoding):
     """Returns an encoding for the output of a view transform.
@@ -444,8 +456,11 @@ class DataflowRunner(PipelineRunner):
           transform_node.outputs[None].windowing.windowfn.get_window_coder())
     else:
       window_coder = None
-    return self._get_typehint_based_encoding(
-        element_type, window_coder=window_coder)
+    from apache_beam.runners.dataflow.internal import apiclient
+    use_fnapi = apiclient._use_fnapi(
+        transform_node.outputs.values()[0].pipeline._options)
+    return self._get_typehint_based_encoding(element_type, window_coder,
+                                             use_fnapi)
 
   def _add_step(self, step_kind, step_label, transform_node, side_tags=()):
     """Creates a Step object and adds it to the cache."""
@@ -498,27 +513,32 @@ class DataflowRunner(PipelineRunner):
         self.serialize_windowing_strategy(windowing_strategy))
     return step
 
-  def run_Impulse(self, transform_node):
-    standard_options = (
-        transform_node.outputs[None].pipeline._options.view_as(StandardOptions))
+  def run_Impulse(self, transform_node, options):
+    standard_options = options.view_as(StandardOptions)
+    step = self._add_step(
+        TransformNames.READ, transform_node.full_label, transform_node)
     if standard_options.streaming:
-      step = self._add_step(
-          TransformNames.READ, transform_node.full_label, transform_node)
       step.add_property(PropertyNames.FORMAT, 'pubsub')
       step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION, '_starting_signal/')
-
-      step.encoding = self._get_encoded_output_coder(transform_node)
-      step.add_property(
-          PropertyNames.OUTPUT_INFO,
-          [{PropertyNames.USER_NAME: (
-              '%s.%s' % (
-                  transform_node.full_label, PropertyNames.OUT)),
-            PropertyNames.ENCODING: step.encoding,
-            PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
     else:
-      ValueError('Impulse source for batch pipelines has not been defined.')
+      step.add_property(PropertyNames.FORMAT, 'impulse')
+      encoded_impulse_element = coders.WindowedValueCoder(
+          coders.BytesCoder(),
+          coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
+              window.GlobalWindows.windowed_value(b''))
+      step.add_property(PropertyNames.IMPULSE_ELEMENT,
+                        self.byte_array_to_json_string(encoded_impulse_element))
 
-  def run_Flatten(self, transform_node):
+    step.encoding = self._get_encoded_output_coder(transform_node)
+    step.add_property(
+        PropertyNames.OUTPUT_INFO,
+        [{PropertyNames.USER_NAME: (
+            '%s.%s' % (
+                transform_node.full_label, PropertyNames.OUT)),
+          PropertyNames.ENCODING: step.encoding,
+          PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
+
+  def run_Flatten(self, transform_node, options):
     step = self._add_step(TransformNames.FLATTEN,
                           transform_node.full_label, transform_node)
     inputs = []
@@ -537,16 +557,16 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
 
-  def apply_WriteToBigQuery(self, transform, pcoll):
+  def apply_WriteToBigQuery(self, transform, pcoll, options):
     # Make sure this is the WriteToBigQuery class that we expected
     if not isinstance(transform, beam.io.WriteToBigQuery):
-      return self.apply_PTransform(transform, pcoll)
-    standard_options = pcoll.pipeline._options.view_as(StandardOptions)
+      return self.apply_PTransform(transform, pcoll, options)
+    standard_options = options.view_as(StandardOptions)
     if standard_options.streaming:
       if (transform.write_disposition ==
           beam.io.BigQueryDisposition.WRITE_TRUNCATE):
         raise RuntimeError('Can not use write truncation mode in streaming')
-      return self.apply_PTransform(transform, pcoll)
+      return self.apply_PTransform(transform, pcoll, options)
     else:
       return pcoll  | 'WriteToBigQuery' >> beam.io.Write(
           beam.io.BigQuerySink(
@@ -557,7 +577,7 @@ class DataflowRunner(PipelineRunner):
               transform.create_disposition,
               transform.write_disposition))
 
-  def apply_GroupByKey(self, transform, pcoll):
+  def apply_GroupByKey(self, transform, pcoll, options):
     # Infer coder of parent.
     #
     # TODO(ccy): make Coder inference and checking less specialized and more
@@ -577,7 +597,7 @@ class DataflowRunner(PipelineRunner):
 
     return pvalue.PCollection(pcoll.pipeline)
 
-  def run_GroupByKey(self, transform_node):
+  def run_GroupByKey(self, transform_node, options):
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
     step = self._add_step(
@@ -600,7 +620,7 @@ class DataflowRunner(PipelineRunner):
         PropertyNames.SERIALIZED_FN,
         self.serialize_windowing_strategy(windowing))
 
-  def run_ParDo(self, transform_node):
+  def run_ParDo(self, transform_node, options):
     transform = transform_node.transform
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
@@ -655,8 +675,11 @@ class DataflowRunner(PipelineRunner):
     from apache_beam.runners.dataflow.internal import apiclient
     transform_proto = self.proto_context.transforms.get_proto(transform_node)
     transform_id = self.proto_context.transforms.get_id(transform_node)
-    if (apiclient._use_fnapi(transform_node.inputs[0].pipeline._options)
-        and transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
+    # The data transmitted in SERIALIZED_FN is different depending on whether
+    # this is a fnapi pipeline or not.
+    if (apiclient._use_fnapi(options) and
+        (transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn or
+         apiclient._use_unified_worker(options))):
       # Patch side input ids to be unique across a given pipeline.
       if (label_renames and
           transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
@@ -725,10 +748,10 @@ class DataflowRunner(PipelineRunner):
     return (transform.fn, transform.args, transform.kwargs, si_tags_and_types,
             transform_node.inputs[0].windowing)
 
-  def apply_CombineValues(self, transform, pcoll):
+  def apply_CombineValues(self, transform, pcoll, options):
     return pvalue.PCollection(pcoll.pipeline)
 
-  def run_CombineValues(self, transform_node):
+  def run_CombineValues(self, transform_node, options):
     transform = transform_node.transform
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
@@ -738,7 +761,8 @@ class DataflowRunner(PipelineRunner):
     # The data transmitted in SERIALIZED_FN is different depending on whether
     # this is a fnapi pipeline or not.
     from apache_beam.runners.dataflow.internal import apiclient
-    if apiclient._use_fnapi(transform_node.inputs[0].pipeline._options):
+    use_fnapi = apiclient._use_fnapi(options)
+    if use_fnapi:
       # Fnapi pipelines send the transform ID of the CombineValues transform's
       # parent composite because Dataflow expects the ID of a CombinePerKey
       # transform.
@@ -760,7 +784,7 @@ class DataflowRunner(PipelineRunner):
     # Note that the accumulator must not have a WindowedValue encoding, while
     # the output of this step does in fact have a WindowedValue encoding.
     accumulator_encoding = self._get_cloud_encoding(
-        transform_node.transform.fn.get_accumulator_coder())
+        transform_node.transform.fn.get_accumulator_coder(), use_fnapi)
     output_encoding = self._get_encoded_output_coder(transform_node)
 
     step.encoding = output_encoding
@@ -775,19 +799,30 @@ class DataflowRunner(PipelineRunner):
          PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
-  def apply_Read(self, unused_transform, pbegin):
-    # Always consider Read to be a primitive for dataflow.
-    return beam.pvalue.PCollection(pbegin.pipeline)
+  def apply_Read(self, transform, pbegin, options):
+    if hasattr(transform.source, 'format'):
+      # Consider native Read to be a primitive for dataflow.
+      return beam.pvalue.PCollection(pbegin.pipeline)
+    else:
+      debug_options = options.view_as(DebugOptions)
+      if (
+          debug_options.experiments and
+          'beam_fn_api' in debug_options.experiments
+      ):
+        # Expand according to FnAPI primitives.
+        return self.apply_PTransform(transform, pbegin, options)
+      else:
+        # Custom Read is also a primitive for non-FnAPI on dataflow.
+        return beam.pvalue.PCollection(pbegin.pipeline)
 
-  def run_Read(self, transform_node):
+  def run_Read(self, transform_node, options):
     transform = transform_node.transform
     step = self._add_step(
         TransformNames.READ, transform_node.full_label, transform_node)
     # TODO(mairbek): refactor if-else tree to use registerable functions.
     # Initialize the source specific properties.
 
-    standard_options = transform_node.inputs[0].pipeline.options.view_as(
-        StandardOptions)
+    standard_options = options.view_as(StandardOptions)
     if not hasattr(transform.source, 'format'):
       # If a format is not set, we assume the source to be a custom source.
       source_dict = {}
@@ -885,7 +920,9 @@ class DataflowRunner(PipelineRunner):
         coders.registry.get_coder(transform_node.outputs[None].element_type),
         coders.coders.GlobalWindowCoder())
 
-    step.encoding = self._get_cloud_encoding(coder)
+    from apache_beam.runners.dataflow.internal import apiclient
+    use_fnapi = apiclient._use_fnapi(options)
+    step.encoding = self._get_cloud_encoding(coder, use_fnapi)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
         [{PropertyNames.USER_NAME: (
@@ -893,7 +930,7 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
 
-  def run__NativeWrite(self, transform_node):
+  def run__NativeWrite(self, transform_node, options):
     transform = transform_node.transform
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
@@ -939,8 +976,7 @@ class DataflowRunner(PipelineRunner):
         step.add_property(
             PropertyNames.BIGQUERY_SCHEMA, transform.sink.schema_as_json())
     elif transform.sink.format == 'pubsub':
-      standard_options = (
-          transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
+      standard_options = options.view_as(StandardOptions)
       if not standard_options.streaming:
         raise ValueError('Cloud Pub/Sub is currently available for use '
                          'only in streaming pipelines.')
@@ -968,7 +1004,9 @@ class DataflowRunner(PipelineRunner):
     # correct coder.
     coder = coders.WindowedValueCoder(transform.sink.coder,
                                       coders.coders.GlobalWindowCoder())
-    step.encoding = self._get_cloud_encoding(coder)
+    from apache_beam.runners.dataflow.internal import apiclient
+    use_fnapi = apiclient._use_fnapi(options)
+    step.encoding = self._get_cloud_encoding(coder, use_fnapi)
     step.add_property(PropertyNames.ENCODING, step.encoding)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,

@@ -15,12 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -47,6 +43,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
@@ -150,10 +149,7 @@ public final class TranslationUtils {
 
   /** A pair to {@link KV} flatmap function . */
   static <K, V> FlatMapFunction<Iterator<Tuple2<K, V>>, KV<K, V>> fromPairFlatMapFunction() {
-    return itr -> {
-      final Iterator<KV<K, V>> outputItr = Iterators.transform(itr, t2 -> KV.of(t2._1(), t2._2()));
-      return outputItr;
-    };
+    return itr -> Iterators.transform(itr, t2 -> KV.of(t2._1(), t2._2()));
   }
 
   /** Extract key from a {@link WindowedValue} {@link KV} into a pair. */

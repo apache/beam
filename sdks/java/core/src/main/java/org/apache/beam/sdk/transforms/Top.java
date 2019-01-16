@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.util.NameUtils.NameOverride;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /**
  * {@code PTransform}s for finding the largest (or smallest) set of elements in a {@code
@@ -414,10 +414,10 @@ public class Top {
 
     @Override
     public String getIncompatibleGlobalWindowErrorMessage() {
-      return "Default values are not supported in Top.[of, smallest, largest]() if the output "
+      return "Default values are not supported in Top.[of, smallest, largest]() if the input "
           + "PCollection is not windowed by GlobalWindows. Instead, use "
-          + "Top.[of, smallest, largest]().withoutDefaults() to output an empty PCollection if the"
-          + " input PCollection is empty, or Top.[of, smallest, largest]().asSingletonView() to "
+          + "Top.[of, smallest, largest]().withoutDefaults() to output an empty PCollection if the "
+          + "input PCollection is empty, or Top.[of, smallest, largest]().asSingletonView() to "
           + "get a PCollection containing the empty list if the input PCollection is empty.";
     }
   }

@@ -40,7 +40,8 @@ configurations.testRuntimeClasspath {
 
 dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  compile library.java.guava
+  shadow project(path: ":beam-sdks-java-io-hadoop-format", configuration: "shadow")
+  shadow library.java.vendored_guava_20_0
   shadow library.java.slf4j_api
   shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
   provided library.java.hadoop_common

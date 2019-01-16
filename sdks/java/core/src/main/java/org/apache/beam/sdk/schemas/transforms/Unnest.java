@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Lists;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -30,6 +29,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+
 /**
  * A {@link PTransform} to unnest nested rows.
  *

@@ -17,12 +17,12 @@
  */
 package org.apache.beam.examples.subprocess.utils;
 
-import com.google.common.collect.Sets;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +41,7 @@ public class CallingSubProcessUtils {
   private static final Set<String> downloadedFiles = Sets.<String>newConcurrentHashSet();
 
   // Limit the number of threads able to do work
-  private static Map<String, Semaphore> semaphores = new ConcurrentHashMap<String, Semaphore>();
+  private static Map<String, Semaphore> semaphores = new ConcurrentHashMap<>();
 
   public static void setUp(SubProcessConfiguration configuration, String binaryName)
       throws Exception {

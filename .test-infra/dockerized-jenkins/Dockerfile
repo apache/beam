@@ -25,7 +25,7 @@ FROM jenkins/jenkins:lts
 ENV JENKINS_HOME=/var/jenkins_real_home/
 
 # Pre-install plugins specified in plugins.txt
-COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
+COPY --chown=root:jenkins plugins.txt /usr/share/jenkins/ref/plugins.txt
 RUN /usr/local/bin/install-plugins.sh < /usr/share/jenkins/ref/plugins.txt
 
 # Copy default configuration and sample seed job.

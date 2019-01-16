@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
@@ -32,11 +31,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Suppliers;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,6 +54,11 @@ import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Before;
 import org.junit.Test;
@@ -156,6 +155,11 @@ public class BeamFnDataWriteRunnerTest {
           @Override
           public void accept(WindowedValue<String> t) throws Exception {
             outputValues.add(t);
+          }
+
+          @Override
+          public void flush() throws Exception {
+            throw new UnsupportedOperationException("Flush is not supported");
           }
         };
 
@@ -257,6 +261,11 @@ public class BeamFnDataWriteRunnerTest {
         throw new IllegalStateException("Consumer is closed but attempting to consume " + t);
       }
       add(t);
+    }
+
+    @Override
+    public void flush() throws Exception {
+      throw new UnsupportedOperationException("Flush is not supported");
     }
   }
 

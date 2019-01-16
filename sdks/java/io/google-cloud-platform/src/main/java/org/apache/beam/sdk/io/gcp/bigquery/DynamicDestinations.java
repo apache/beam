@@ -15,14 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParameters;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -34,6 +32,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /**
  * This class provides the most general way of specifying dynamic BigQuery table destinations.

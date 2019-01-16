@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
@@ -48,8 +48,6 @@ import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,10 +61,13 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.BackOffAdapter;
+import org.apache.beam.sdk.util.CustomHttpErrors;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -736,16 +737,15 @@ class BigQueryServicesImpl implements BigQueryServices {
                         try {
                           return insert.execute().getInsertErrors();
                         } catch (IOException e) {
-                          if (new ApiErrorExtractor().rateLimited(e)) {
-                            LOG.info("BigQuery insertAll exceeded rate limit, retrying");
-                            try {
-                              sleeper.sleep(backoff1.nextBackOffMillis());
-                            } catch (InterruptedException interrupted) {
-                              throw new IOException(
-                                  "Interrupted while waiting before retrying insertAll");
-                            }
-                          } else {
-                            throw e;
+                          LOG.info(
+                              String.format(
+                                  "BigQuery insertAll error, retrying: %s",
+                                  ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
+                          try {
+                            sleeper.sleep(backoff1.nextBackOffMillis());
+                          } catch (InterruptedException interrupted) {
+                            throw new IOException(
+                                "Interrupted while waiting before retrying insertAll");
                           }
                         }
                       }
@@ -905,13 +905,18 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
   private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
+    RetryHttpRequestInitializer httpRequestInitializer =
+        new RetryHttpRequestInitializer(ImmutableList.of(404));
+    httpRequestInitializer.setCustomErrors(createBigQueryClientCustomErrors());
+    httpRequestInitializer.setWriteTimeout(options.getHTTPWriteTimeout());
     return new Bigquery.Builder(
             Transport.getTransport(),
             Transport.getJsonFactory(),
             chainHttpRequestInitializer(
                 options.getGcpCredential(),
-                // Do not log 404. It clutters the output and is possibly even required by the caller.
-                new RetryHttpRequestInitializer(ImmutableList.of(404))))
+                // Do not log 404. It clutters the output and is possibly even required by the
+                // caller.
+                httpRequestInitializer))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
@@ -925,5 +930,19 @@ class BigQueryServicesImpl implements BigQueryServices {
       return new ChainingHttpRequestInitializer(
           new HttpCredentialsAdapter(credential), httpRequestInitializer);
     }
+  }
+
+  public static CustomHttpErrors createBigQueryClientCustomErrors() {
+    CustomHttpErrors.Builder builder = new CustomHttpErrors.Builder();
+    // 403 errors, to list tables, matching this URL:
+    // http://www.googleapis.com/bigquery/v2/projects/myproject/datasets/
+    //     mydataset/tables?maxResults=1000
+    builder.addErrorForCodeAndUrlContains(
+        403,
+        "/tables?",
+        "The GCP project is most likely exceeding the rate limit on "
+            + "bigquery.tables.list, please find the instructions to increase this limit at: "
+            + "https://cloud.google.com/service-infrastructure/docs/rate-limiting#configure");
+    return builder.build();
   }
 }

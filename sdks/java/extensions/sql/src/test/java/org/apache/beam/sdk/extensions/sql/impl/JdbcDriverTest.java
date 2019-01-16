@@ -27,12 +27,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableMap;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -43,11 +43,12 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.schema.SchemaPlus;
@@ -82,7 +83,7 @@ public class JdbcDriverTest {
           "test",
           ImmutableMap.of(
               "test",
-              MockedBoundedTable.of(
+              TestBoundedTable.of(
                       Schema.FieldType.INT32, "id",
                       Schema.FieldType.STRING, "name")
                   .addRows(1, "first")));
@@ -196,8 +197,7 @@ public class JdbcDriverTest {
         connection.createStatement().executeQuery("SELECT id, name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 
@@ -321,8 +321,7 @@ public class JdbcDriverTest {
             .executeQuery("SELECT person.nestedRow.id, person.nestedRow.name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 
@@ -349,8 +348,7 @@ public class JdbcDriverTest {
         connection.createStatement().executeQuery("SELECT id, name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(resultValues -> resultValues.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 
@@ -375,7 +373,7 @@ public class JdbcDriverTest {
             "test",
             ImmutableMap.of(
                 "test",
-                MockedBoundedTable.of(
+                TestBoundedTable.of(
                         Schema.FieldType.INT32, "id",
                         Schema.FieldType.STRING, "name")
                     .addRows(1, "first")
@@ -414,7 +412,7 @@ public class JdbcDriverTest {
             "test",
             ImmutableMap.of(
                 "test",
-                MockedUnboundedTable.of(
+                TestUnboundedTable.of(
                         Schema.FieldType.INT32, "order_id",
                         Schema.FieldType.INT32, "site_id",
                         Schema.FieldType.INT32, "price",
@@ -483,5 +481,13 @@ public class JdbcDriverTest {
     assertEquals(0, statement.executeUpdate("SET runner = bogus"));
     assertEquals(0, statement.executeUpdate("RESET ALL"));
     assertTrue(statement.execute("SELECT * FROM test"));
+  }
+
+  @Test
+  public void testInternalConnect_driverManagerDifferentProtocol() throws Exception {
+    thrown.expect(SQLException.class);
+    thrown.expectMessage("No suitable driver found");
+
+    DriverManager.getConnection("jdbc:baaaaaad");
   }
 }

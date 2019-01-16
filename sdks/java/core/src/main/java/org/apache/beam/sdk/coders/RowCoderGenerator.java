@@ -15,11 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.coders;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -52,8 +49,11 @@ import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /**
  * A utility for automatically generating a {@link Coder} for {@link Row} objects corresponding to a
@@ -113,7 +113,7 @@ public abstract class RowCoderGenerator {
           MethodInvocation.invoke(
               new ForLoadedType(entry.getValue().getClass())
                   .getDeclaredMethods()
-                  .filter(ElementMatchers.named(("of")))
+                  .filter(ElementMatchers.named("of"))
                   .getOnly());
       CODER_MAP.putIfAbsent(entry.getKey(), stackManipulation);
     }
@@ -148,7 +148,8 @@ public abstract class RowCoderGenerator {
 
   private static DynamicType.Builder<Coder> implementMethods(
       Schema schema, DynamicType.Builder<Coder> builder) {
-    boolean hasNullableFields = schema.getFields().stream().anyMatch(Field::getNullable);
+    boolean hasNullableFields =
+        schema.getFields().stream().map(Field::getType).anyMatch(FieldType::getNullable);
     return builder
         .defineMethod("getSchema", Schema.class, Visibility.PRIVATE, Ownership.STATIC)
         .intercept(FixedValue.reference(schema))
@@ -341,7 +342,7 @@ public abstract class RowCoderGenerator {
       return listCoder(fieldType.getCollectionElementType());
     } else if (TypeName.MAP.equals(fieldType.getTypeName())) {
       return mapCoder(fieldType.getMapKeyType(), fieldType.getMapValueType());
-    } else if (TypeName.ROW.equals((fieldType.getTypeName()))) {
+    } else if (TypeName.ROW.equals(fieldType.getTypeName())) {
       Coder<Row> nestedCoder = generate(fieldType.getRowSchema(), UUID.randomUUID());
       return rowCoder(nestedCoder.getClass());
     } else {

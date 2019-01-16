@@ -21,12 +21,19 @@ import java.io.Serializable;
 
 /**
  * A function that computes an output value of type {@code OutputT} from an input value of type
- * {@code InputT} and is {@link Serializable}.
+ * {@code InputT}, is {@link Serializable}, and does not allow checked exceptions to be declared.
+ *
+ * <p>To allow checked exceptions, implement the superinterface {@link ProcessFunction} instead. To
+ * allow more robust {@link org.apache.beam.sdk.coders.Coder Coder} inference, see {@link
+ * InferableFunction}.
  *
  * @param <InputT> input value type
  * @param <OutputT> output value type
  */
-public interface SerializableFunction<InputT, OutputT> extends Serializable {
+@FunctionalInterface
+public interface SerializableFunction<InputT, OutputT>
+    extends ProcessFunction<InputT, OutputT>, Serializable {
   /** Returns the result of invoking this function on the given input. */
+  @Override
   OutputT apply(InputT input);
 }

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
@@ -41,10 +41,6 @@ import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
@@ -68,6 +64,10 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,6 +136,8 @@ public class GcsUtil {
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
   private final ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
+  // Unbounded thread pool for codependent pipeline operations that will deadlock the pipeline if
+  // starved for threads.
   // Exposed for testing.
   final ExecutorService executorService;
 
@@ -470,23 +472,20 @@ public class GcsUtil {
     Storage.Buckets.Get getBucket = storageClient.buckets().get(path.getBucket());
 
     try {
-      Bucket bucket =
-          ResilientOperation.retry(
-              ResilientOperation.getGoogleRequestCallable(getBucket),
-              backoff,
-              new RetryDeterminer<IOException>() {
-                @Override
-                public boolean shouldRetry(IOException e) {
-                  if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
-                    return false;
-                  }
-                  return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
-                }
-              },
-              IOException.class,
-              sleeper);
-
-      return bucket;
+      return ResilientOperation.retry(
+          ResilientOperation.getGoogleRequestCallable(getBucket),
+          backoff,
+          new RetryDeterminer<IOException>() {
+            @Override
+            public boolean shouldRetry(IOException e) {
+              if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
+                return false;
+              }
+              return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+            }
+          },
+          IOException.class,
+          sleeper);
     } catch (GoogleJsonResponseException e) {
       if (errorExtractor.accessDenied(e)) {
         throw new AccessDeniedException(path.toString(), null, e.getMessage());
@@ -548,13 +547,12 @@ public class GcsUtil {
   private static void executeBatches(List<BatchRequest> batches) throws IOException {
     ExecutorService executor =
         MoreExecutors.listeningDecorator(
-            MoreExecutors.getExitingExecutorService(
-                new ThreadPoolExecutor(
-                    MAX_CONCURRENT_BATCHES,
-                    MAX_CONCURRENT_BATCHES,
-                    0L,
-                    TimeUnit.MILLISECONDS,
-                    new LinkedBlockingQueue<>())));
+            new ThreadPoolExecutor(
+                MAX_CONCURRENT_BATCHES,
+                MAX_CONCURRENT_BATCHES,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>()));
 
     List<CompletionStage<Void>> futures = new ArrayList<>();
     for (final BatchRequest batch : batches) {

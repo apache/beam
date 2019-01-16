@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.junit.Assert.assertEquals;
@@ -99,6 +98,11 @@ public class BeamEnumerableConverterTest {
   private static class FakeTable extends BaseBeamTable {
     public FakeTable() {
       super(null);
+    }
+
+    @Override
+    public PCollection.IsBounded isBounded() {
+      return null;
     }
 
     @Override

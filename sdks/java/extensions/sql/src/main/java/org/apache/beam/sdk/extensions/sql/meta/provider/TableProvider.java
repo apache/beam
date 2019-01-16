@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
 /**
@@ -27,6 +27,10 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
  *
  * <p>So there will be a provider to handle textfile(CSV) based tables, there is a provider to
  * handle MySQL based tables, a provider to handle Casandra based tables etc.
+ *
+ * <p><i>Note:</i> all implementations marked with {@code @AutoService(TableProvider.class)} are
+ * automatically loaded by CLI or other cases when {@link JdbcDriver} is used with default
+ * connection parameters.
  */
 public interface TableProvider {
   /** Gets the table type this provider handles. */

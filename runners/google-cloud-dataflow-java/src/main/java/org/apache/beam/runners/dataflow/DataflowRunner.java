@@ -17,15 +17,15 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,12 +38,6 @@ import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.WorkerPool;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
-import com.google.common.base.Utf8;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -61,6 +55,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
@@ -152,8 +147,15 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Utf8;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -195,6 +197,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1024 * 1024;
 
   @VisibleForTesting static final String PIPELINE_FILE_NAME = "pipeline.pb";
+  @VisibleForTesting static final String DATAFLOW_GRAPH_FILE_NAME = "dataflow_graph.pb";
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -740,6 +743,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
+    if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar())) {
+      List<String> experiments =
+          dataflowOptions.getExperiments() == null
+              ? new ArrayList<>()
+              : new ArrayList<>(dataflowOptions.getExperiments());
+      experiments.add("use_staged_dataflow_worker_jar");
+      dataflowOptions.setExperiments(experiments);
+    }
+
     Job newJob = jobSpecification.getJob();
     try {
       newJob
@@ -769,7 +781,28 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               dataflowOptions.getPathValidator().verifyPath(options.getGcpTempLocation()));
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
-    newJob.getEnvironment().setExperiments(options.getExperiments());
+
+    // Represent the minCpuPlatform pipeline option as an experiment, if not already present.
+    List<String> experiments =
+        firstNonNull(dataflowOptions.getExperiments(), new ArrayList<String>());
+    if (!isNullOrEmpty(dataflowOptions.getMinCpuPlatform())) {
+
+      List<String> minCpuFlags =
+          experiments.stream()
+              .filter(p -> p.startsWith("min_cpu_platform"))
+              .collect(Collectors.toList());
+
+      if (minCpuFlags.isEmpty()) {
+        experiments.add("min_cpu_platform=" + dataflowOptions.getMinCpuPlatform());
+      } else {
+        LOG.warn(
+            "Flag min_cpu_platform is defined in both top level PipelineOption, "
+                + "as well as under experiments. Proceed using {}.",
+            minCpuFlags.get(0));
+      }
+    }
+
+    newJob.getEnvironment().setExperiments(experiments);
 
     // Set the Docker container image that executes Dataflow worker harness, residing in Google
     // Container Registry. Translator is guaranteed to create a worker pool prior to this point.
@@ -828,6 +861,23 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       newJob.setTransformNameMapping(options.getTransformNameMapping());
       newJob.setReplaceJobId(jobIdToUpdate);
     }
+    if (options.getCreateFromSnapshot() != null && !options.getCreateFromSnapshot().isEmpty()) {
+      newJob.setCreatedFromSnapshotId(options.getCreateFromSnapshot());
+    }
+
+    // Upload the job to GCS and remove the graph object from the API call.  The graph
+    // will be downloaded from GCS by the service.
+    if (hasExperiment(options, "upload_graph")) {
+      DataflowPackage stagedGraph =
+          options
+              .getStager()
+              .stageToFile(
+                  DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8),
+                  DATAFLOW_GRAPH_FILE_NAME);
+      newJob.getSteps().clear();
+      newJob.setStepsLocation(stagedGraph.getLocation());
+    }
+
     Job jobResult;
     try {
       jobResult = dataflowClient.createJob(newJob);
@@ -837,9 +887,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         if (Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
           errorMessages =
               "The size of the serialized JSON representation of the pipeline "
-                  + "exceeds the allowable limit. "
-                  + "For more information, please check the FAQ link below:\n"
-                  + "https://cloud.google.com/dataflow/faq";
+                  + "exceeds the allowable limit for the API. Use experiment "
+                  + "'upload_graph' (--experiments=upload_graph) to direct the runner to "
+                  + "upload the JSON to your GCS staging bucket instead of embedding in the API request.";
         } else {
           errorMessages = e.getDetails().getMessage();
         }
@@ -1462,7 +1512,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PCollection<T> expand(PCollection<ValueWithRecordId<T>> input) {
       return input
-          .apply(WithKeys.of(value -> Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS))
+          .apply(
+              WithKeys.of(
+                      (ValueWithRecordId<T> value) ->
+                          Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS)
+                  .withKeyType(TypeDescriptors.integers()))
           // Reshuffle will dedup based on ids in ValueWithRecordId by passing the data through
           // WindmillSink.
           .apply(Reshuffle.of())
@@ -1622,13 +1676,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class PrimitiveCombineGroupedValuesOverrideFactory<K, InputT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>,
+          PCollection<KV<K, Iterable<InputT>>>,
+          PCollection<KV<K, OutputT>>,
           Combine.GroupedValues<K, InputT, OutputT>> {
     @Override
     public PTransformReplacement<PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>,
+                    PCollection<KV<K, Iterable<InputT>>>,
+                    PCollection<KV<K, OutputT>>,
                     GroupedValues<K, InputT, OutputT>>
                 transform) {
       return PTransformReplacement.of(
@@ -1671,7 +1727,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static class StreamingShardedWriteFactory<UserT, DestinationT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<UserT>, WriteFilesResult<DestinationT>,
+          PCollection<UserT>,
+          WriteFilesResult<DestinationT>,
           WriteFiles<UserT, DestinationT, OutputT>> {
     // We pick 10 as a a default, as it works well with the default number of workers started
     // by Dataflow.
@@ -1686,7 +1743,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public PTransformReplacement<PCollection<UserT>, WriteFilesResult<DestinationT>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<UserT>, WriteFilesResult<DestinationT>,
+                    PCollection<UserT>,
+                    WriteFilesResult<DestinationT>,
                     WriteFiles<UserT, DestinationT, OutputT>>
                 transform) {
       // By default, if numShards is not set WriteFiles will produce one file per bundle. In

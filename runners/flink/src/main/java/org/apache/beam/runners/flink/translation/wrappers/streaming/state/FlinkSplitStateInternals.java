@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
-import com.google.common.collect.Iterators;
 import java.util.Collections;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.runtime.state.OperatorStateBackend;

@@ -24,10 +24,13 @@ import filecmp
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 
 import mock
+from parameterized import param
+from parameterized import parameterized
 
 from apache_beam.io import localfilesystem
 from apache_beam.io.filesystem import BeamIOError
@@ -57,6 +60,12 @@ def _gen_fake_split(separator):
 
 
 class LocalFileSystemTest(unittest.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
@@ -150,17 +159,48 @@ class LocalFileSystemTest(unittest.TestCase):
       self.fs.match([None])
     self.assertEqual(list(error.exception.exception_details.keys()), [None])
 
-  def test_match_glob(self):
-    path1 = os.path.join(self.tmpdir, 'f1')
-    path2 = os.path.join(self.tmpdir, 'f2')
-    open(path1, 'a').close()
-    open(path2, 'a').close()
+  @parameterized.expand([
+      param('*',
+            files=['a', 'b', os.path.join('c', 'x')],
+            expected=['a', 'b']),
+      param('**',
+            files=['a', os.path.join('b', 'x'), os.path.join('c', 'x')],
+            expected=['a', os.path.join('b', 'x'), os.path.join('c', 'x')]),
+      param(os.path.join('*', '*'),
+            files=['a',
+                   os.path.join('b', 'x'),
+                   os.path.join('c', 'x'),
+                   os.path.join('d', 'x', 'y')],
+            expected=[os.path.join('b', 'x'), os.path.join('c', 'x')]),
+      param(os.path.join('**', '*'),
+            files=['a',
+                   os.path.join('b', 'x'),
+                   os.path.join('c', 'x'),
+                   os.path.join('d', 'x', 'y')],
+            expected=[os.path.join('b', 'x'),
+                      os.path.join('c', 'x'),
+                      os.path.join('d', 'x', 'y')]),
+  ])
+  def test_match_glob(self, pattern, files, expected):
+    for filename in files:
+      full_path = os.path.join(self.tmpdir, filename)
+      dirname = os.path.dirname(full_path)
+      if not dirname == full_path:
+        # Make sure we don't go outside the tmpdir
+        assert os.path.commonprefix([self.tmpdir, full_path]) == self.tmpdir
+        try:
+          self.fs.mkdirs(dirname)
+        except IOError:
+          # Directory exists
+          pass
+
+      open(full_path, 'a').close()  # create empty file
 
     # Match both the files in the directory
-    path = os.path.join(self.tmpdir, '*')
-    result = self.fs.match([path])[0]
-    files = [f.path for f in result.metadata_list]
-    self.assertItemsEqual(files, [path1, path2])
+    full_pattern = os.path.join(self.tmpdir, pattern)
+    result = self.fs.match([full_pattern])[0]
+    files = [os.path.relpath(f.path, self.tmpdir) for f in result.metadata_list]
+    self.assertCountEqual(files, expected)
 
   def test_match_directory(self):
     result = self.fs.match([self.tmpdir])[0]
@@ -173,9 +213,9 @@ class LocalFileSystemTest(unittest.TestCase):
     open(path1, 'a').close()
     open(path2, 'a').close()
 
-    result = self.fs.match([self.tmpdir + '/'])[0]
+    result = self.fs.match([os.path.join(self.tmpdir, '*')])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertItemsEqual(files, [path1, path2])
+    self.assertCountEqual(files, [path1, path2])
 
   def test_copy(self):
     path1 = os.path.join(self.tmpdir, 'f1')
@@ -196,8 +236,8 @@ class LocalFileSystemTest(unittest.TestCase):
                      [(path1, path2)])
 
   def test_copy_directory(self):
-    path_t1 = os.path.join(self.tmpdir, 't1/11')
-    path_t2 = os.path.join(self.tmpdir, 't2/22')
+    path_t1 = os.path.join(self.tmpdir, 't1')
+    path_t2 = os.path.join(self.tmpdir, 't2')
     self.fs.mkdirs(path_t1)
     self.fs.mkdirs(path_t2)
 
@@ -208,19 +248,6 @@ class LocalFileSystemTest(unittest.TestCase):
 
     self.fs.copy([path_t1], [path_t2])
     self.assertTrue(filecmp.cmp(path1, path2))
-
-  def test_create_mkdirs_open(self):
-    path = os.path.join(self.tmpdir, 't1/t2/t3')
-    with self.fs.create(path) as f:
-      f.write("yay")
-
-    with self.fs.open(path) as f:
-      self.assertEqual(f.read(), "yay")
-
-  def test_open_error(self):
-    path = os.path.join(self.tmpdir, 't1')
-    with self.assertRaisesRegexp(IOError, r'No such file or directory'):
-      self.fs.open(path)
 
   def test_rename(self):
     path1 = os.path.join(self.tmpdir, 'f1')
@@ -244,22 +271,6 @@ class LocalFileSystemTest(unittest.TestCase):
   def test_rename_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
     path_t2 = os.path.join(self.tmpdir, 't2')
-    self.fs.mkdirs(path_t1)
-
-    path1 = os.path.join(path_t1, 'f1')
-    path2 = os.path.join(path_t2, 'f1')
-    with open(path1, 'a') as f:
-      f.write('Hello')
-
-    self.fs.rename([path_t1], [path_t2])
-    self.assertTrue(self.fs.exists(path_t2))
-    self.assertFalse(self.fs.exists(path_t1))
-    self.assertTrue(self.fs.exists(path2))
-    self.assertFalse(self.fs.exists(path1))
-
-  def test_rename_mkdirs(self):
-    path_t1 = os.path.join(self.tmpdir, 't1')
-    path_t2 = os.path.join(self.tmpdir, 't2/t3/t4')
     self.fs.mkdirs(path_t1)
 
     path1 = os.path.join(path_t1, 'f1')
@@ -396,7 +407,7 @@ class LocalFileSystemTest(unittest.TestCase):
 
     self.fs.delete([
         os.path.join(dir, 'path*'),
-        os.path.join(dir, 'aaa/b*')
+        os.path.join(dir, 'aaa', 'b*')
     ])
 
     # One empty nested directory is left
@@ -430,8 +441,8 @@ class LocalFileSystemTest(unittest.TestCase):
                                  r'^Delete operation failed') as error:
       self.fs.delete([
           os.path.join(dir, 'path*'),
-          os.path.join(dir, 'aaa/b*'),
-          os.path.join(dir, 'aaa/d*')  # doesn't match anything, will raise
+          os.path.join(dir, 'aaa', 'b*'),
+          os.path.join(dir, 'aaa', 'd*')  # doesn't match anything, will raise
       ])
 
     self.check_tree(
@@ -451,7 +462,7 @@ class LocalFileSystemTest(unittest.TestCase):
             .exception_details
             .keys()
         ),
-        [os.path.join(dir, 'aaa/d*')]
+        [os.path.join(dir, 'aaa', 'd*')]
     )
 
     with self.assertRaisesRegexp(BeamIOError,

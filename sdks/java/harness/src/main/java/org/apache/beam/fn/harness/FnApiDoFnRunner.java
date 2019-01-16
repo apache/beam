@@ -17,12 +17,11 @@
  */
 package org.apache.beam.fn.harness;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
@@ -62,6 +61,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -209,7 +210,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
             context.beamFnStateClient,
             context.keyCoder,
             (Coder<BoundedWindow>) context.windowCoder,
-            () -> currentElement,
+            () -> MoreObjects.firstNonNull(currentElement, currentTimer),
             () -> currentWindow);
 
     doFnInvoker.invokeStartBundle(startBundleContext);

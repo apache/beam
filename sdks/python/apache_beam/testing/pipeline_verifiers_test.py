@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import logging
+import os
 import tempfile
 import unittest
 from builtins import range
@@ -92,7 +93,7 @@ class PipelineVerifiersTest(unittest.TestCase):
 
   def create_temp_file(self, content, directory=None):
     with tempfile.NamedTemporaryFile(delete=False, dir=directory) as f:
-      f.write(content)
+      f.write(content.encode('utf-8'))
       return f.name
 
   def test_file_checksum_matcher_success(self):
@@ -100,14 +101,15 @@ class PipelineVerifiersTest(unittest.TestCase):
       temp_dir = tempfile.mkdtemp()
       for _ in range(case['num_files']):
         self.create_temp_file(case['content'], temp_dir)
-      matcher = verifiers.FileChecksumMatcher(temp_dir + '/*',
+      matcher = verifiers.FileChecksumMatcher(os.path.join(temp_dir, '*'),
                                               case['expected_checksum'])
       hc_assert_that(self._mock_result, matcher)
 
   @patch.object(LocalFileSystem, 'match')
   def test_file_checksum_matcher_read_failed(self, mock_match):
     mock_match.side_effect = IOError('No file found.')
-    matcher = verifiers.FileChecksumMatcher('dummy/path', Mock())
+    matcher = verifiers.FileChecksumMatcher(
+        os.path.join('dummy', 'path'), Mock())
     with self.assertRaises(IOError):
       hc_assert_that(self._mock_result, matcher)
     self.assertTrue(mock_match.called)
@@ -133,14 +135,14 @@ class PipelineVerifiersTest(unittest.TestCase):
     self.assertEqual(cm.exception.args[0],
                      'Sleep seconds, if received, must be int. '
                      'But received: \'invalid_sleep_time\', '
-                     '<type \'str\'>')
+                     '{}'.format(str))
 
   @patch('time.sleep', return_value=None)
   def test_file_checksum_matcher_sleep_before_verify(self, mocked_sleep):
     temp_dir = tempfile.mkdtemp()
     case = self.test_cases[0]
     self.create_temp_file(case['content'], temp_dir)
-    matcher = verifiers.FileChecksumMatcher(temp_dir + '/*',
+    matcher = verifiers.FileChecksumMatcher(os.path.join(temp_dir, '*'),
                                             case['expected_checksum'],
                                             10)
     hc_assert_that(self._mock_result, matcher)

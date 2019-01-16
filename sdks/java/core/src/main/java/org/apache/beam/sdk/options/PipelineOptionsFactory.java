@@ -17,36 +17,13 @@
  */
 package org.apache.beam.sdk.options;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Locale.ROOT;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.base.Strings;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
-import com.google.common.collect.RowSortedTable;
-import com.google.common.collect.Sets;
-import com.google.common.collect.SortedSetMultimap;
-import com.google.common.collect.TreeBasedTable;
-import com.google.common.collect.TreeMultimap;
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
@@ -85,6 +62,29 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSortedSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.RowSortedTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.SortedSetMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeBasedTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeMultimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -354,8 +354,7 @@ public class PipelineOptionsFactory {
       } catch (ClassNotFoundException e) {
         // If we didn't find an exact match, look for any that match the class name.
         Iterable<Class<? extends PipelineOptions>> matches =
-            getRegisteredOptions()
-                .stream()
+            getRegisteredOptions().stream()
                 .filter(
                     input -> {
                       if (helpOption.contains(".")) {
@@ -865,6 +864,19 @@ public class PipelineOptionsFactory {
       Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces,
       Class<? extends PipelineOptions> klass)
       throws IntrospectionException {
+
+    // TODO(BEAM-308): Make this an error in users pipelines for the next major version
+    // of Apache Beam.
+    if (!Modifier.isPublic(iface.getModifiers())) {
+      LOG.warn(
+          "Using non-public interface {} may fail during runtime. The JVM requires that "
+              + "all non-public interfaces to be in the same package; otherwise, it would not be "
+              + "possible for the PipelineOptions proxy class to implement all of the interfaces, "
+              + "regardless of what package it is defined in. This will become an error in"
+              + "a future version of Apache Beam.",
+          iface.getName());
+    }
+
     // Verify that there are no methods with the same name with two different return types.
     validateReturnType(iface);
 
@@ -1541,7 +1553,7 @@ public class PipelineOptionsFactory {
           } else {
             try {
               Class<?> runnerClass = Class.forName(runner, true, ReflectHelpers.findClassLoader());
-              if (!(PipelineRunner.class.isAssignableFrom(runnerClass))) {
+              if (!PipelineRunner.class.isAssignableFrom(runnerClass)) {
                 throw new IllegalArgumentException(
                     String.format(
                         "Class '%s' does not implement PipelineRunner. "

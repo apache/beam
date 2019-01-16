@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.data;
 
-import com.google.common.util.concurrent.SettableFuture;
 import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -38,7 +36,8 @@ import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +77,15 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     this.additionalMultiplexers = new LinkedBlockingQueue<>();
     this.executor = executor;
     this.outboundObserverFactory = outboundObserverFactory;
+  }
+
+  /** @deprecated This constructor is for migrating Dataflow purpose only. */
+  @Deprecated
+  public GrpcDataService() {
+    this.connectedClient = null;
+    this.additionalMultiplexers = null;
+    this.executor = null;
+    this.outboundObserverFactory = null;
   }
 
   @Override

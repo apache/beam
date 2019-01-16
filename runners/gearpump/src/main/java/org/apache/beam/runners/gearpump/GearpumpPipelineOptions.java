@@ -15,16 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.gearpump.cluster.client.ClientContext;
 import java.util.Map;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.gearpump.cluster.client.ClientContext;
-import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
 
 /** Options that configure the Gearpump pipeline. */
 public interface GearpumpPipelineOptions extends PipelineOptions {
@@ -46,11 +44,12 @@ public interface GearpumpPipelineOptions extends PipelineOptions {
   @JsonIgnore
   Map<String, String> getSerializers();
 
-  @Description("set EmbeddedCluster for tests")
-  void setEmbeddedCluster(EmbeddedCluster cluster);
+  @Description(
+      "Whether the pipeline will be run on a remote cluster. If false, it will be run on a EmbeddedCluster")
+  void setRemote(Boolean remote);
 
-  @JsonIgnore
-  EmbeddedCluster getEmbeddedCluster();
+  @Default.Boolean(true)
+  Boolean getRemote();
 
   void setClientContext(ClientContext clientContext);
 

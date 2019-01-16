@@ -102,29 +102,31 @@ else:
     cythonize = lambda *args, **kwargs: []
 
 REQUIRED_PACKAGES_PY2_ONLY = [
-    'avro>=1.8.1,<2.0.0'
+    'avro>=1.8.1,<2.0.0',
+    'dill>=0.2.6,<=0.2.8.2',
 ]
 
 REQUIRED_PACKAGES_PY3_ONLY = [
-    'avro-python3>=1.8.1,<2.0.0'
+    'avro-python3>=1.8.1,<2.0.0',
+    'dill==0.2.9.dev0'
 ]
 
 REQUIRED_PACKAGES = [
     'crcmod>=1.7,<2.0',
-    'dill>=0.2.6,<=0.2.8.2',
     'fastavro>=0.21.4,<0.22',
+    'pyarrow>=0.11.1,<0.12.0',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.11.3',
     'mock>=1.0.1,<3.0.0',
-    'oauth2client>=2.0.1,<5',
+    'oauth2client>=2.0.1,<4',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
     'pydot>=1.2.0,<1.3',
-    'pytz>=2018.3,<=2018.4',
+    'pytz>=2018.3',
     'pyyaml>=3.12,<4.0.0',
     'pyvcf>=0.6.8,<0.7.0',
-    'typing>=3.6.0,<3.7.0',
+    'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
     'futures>=3.1.1,<4.0.0',
     'future>=0.16.0,<1.0.0',
     ]
@@ -132,24 +134,37 @@ REQUIRED_PACKAGES = [
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'numpy>=1.14.3,<2',
+    'pandas>=0.23.4,<0.24',
+    'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
+    'tenacity>=5.0.2,<6.0',
     ]
 
 GCP_REQUIREMENTS = [
-    # oauth2client >=4 only works with google-apitools>=0.5.18.
-    'google-apitools>=0.5.18,<=0.5.20',
+    # google-apitools 0.5.23 and above has important Python 3 supports.
+    'google-apitools>=0.5.23,<=0.5.24',
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-    'googledatastore==7.0.1',
-    'google-cloud-pubsub==0.26.0',
-    'proto-google-cloud-pubsub-v1==0.15.4',
+    'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
+    'google-cloud-pubsub==0.39.0',
     # GCP packages required by tests
-    'google-cloud-bigquery==0.25.0',
+    'google-cloud-bigquery>=1.6.0,<1.7.0',
 ]
 
 if sys.version_info[0] == 2:
   REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY2_ONLY
+  DEPENDENCY_LINKS = []
 elif sys.version_info[0] >= 3:
   REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY3_ONLY
+  # TODO(BEAM-6135): Revert when new dill version released
+  DEPENDENCY_LINKS = ['git+https://github.com/uqfoundation/dill.git'
+                      '@7a73fbe3d6aa445f93f58f266687b7315d14a3ac'
+                      '#egg=dill-0.2.9.dev0']
+
+# pyarrow is not supported on Windows Python 2 [BEAM-6287]
+if platform.system() == 'Windows' and sys.version_info[0] == 2:
+  REQUIRED_PACKAGES = [
+      x for x in REQUIRED_PACKAGES if not x.startswith("pyarrow")
+  ]
 
 
 # We must generate protos after setup_requires are installed.
@@ -198,6 +213,7 @@ setuptools.setup(
         'apache_beam/utils/windowed_value.py',
     ]),
     install_requires=REQUIRED_PACKAGES,
+    dependency_links=DEPENDENCY_LINKS,
     python_requires=python_requires,
     test_suite='nose.collector',
     tests_require=REQUIRED_TEST_PACKAGES,

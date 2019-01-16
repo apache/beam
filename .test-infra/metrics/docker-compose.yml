@@ -1,0 +1,88 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+version: '3'
+services:
+  postgresql:
+    image: postgres
+    ports:
+      - "5432:5432"
+    container_name: beampostgresql
+    volumes:
+      - beam-postgresql-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=<PGPasswordHere>
+      - POSTGRES_DB=beam_metrics
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    container_name: beamgrafana
+    volumes:
+      - beam-grafana-libdata:/var/lib/grafana
+      - beam-grafana-etcdata:/etc/grafana
+      - beam-grafana-logdata:/var/log/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=<GrafanaPasswordHere>
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Beam
+      - GF_INSTALL_PLUGINS=vonage-status-panel
+  syncgithub:
+    image: syncgithub
+    container_name: beamsyncgithub
+    build:
+      context: ./sync/github
+      dockerfile: Dockerfile
+    environment:
+      - DB_HOST=beampostgresql
+      - DB_PORT=5432
+      - DB_DBNAME=beam_metrics
+      - DB_DBUSERNAME=admin
+      - DB_DBPWD=<PGPasswordHere>
+      - GH_ACCESS_TOKEN=<GitHubAccessToken>
+  syncjenkins:
+    image: syncjenkins
+    container_name: beamsyncjenkins
+    build:
+      context: ./sync/jenkins
+      dockerfile: Dockerfile
+    environment:
+      - JENSYNC_HOST=beampostgresql
+      - JENSYNC_PORT=5432
+      - JENSYNC_DBNAME=beam_metrics
+      - JENSYNC_DBUSERNAME=admin
+      - JENSYNC_DBPWD=<PGPasswordHere>
+  syncjira:
+    image: syncjira
+    container_name: beamsyncjira
+    build:
+      context: ./sync/jira
+      dockerfile: Dockerfile
+    environment:
+      - DB_HOST=beampostgresql
+      - DB_PORT=5432
+      - DB_DBNAME=beam_metrics
+      - DB_DBUSERNAME=admin
+      - DB_DBPWD=<PGPasswordHere>
+volumes:
+  beam-postgresql-data:
+  beam-grafana-libdata:
+  beam-grafana-etcdata:
+  beam-grafana-logdata:
+

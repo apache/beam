@@ -59,7 +59,7 @@ The Flink cluster version has to match the version used by the FlinkRunner. To f
   <th>Flink version</th>
 </tr>
 <tr>
-  <td>2.7.0, 2.6.0</td>
+  <td>2.8.0, 2.7.0, 2.6.0</td>
   <td>1.5.x</td>
 </tr>
 <tr>
@@ -114,7 +114,7 @@ $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
       --inputFile=/path/to/pom.xml \
       --output=/path/to/counts \
       --flinkMaster=<flink master url> \
-      --filesToStage=target/word-count-beam--bundled-0.1.jar"
+      --filesToStage=target/word-count-beam-bundled-0.1.jar"
 ```
 If you have a Flink `JobManager` running on your local machine you can give `localhost:8081` for
 `flinkMaster`.
@@ -177,7 +177,7 @@ When executing your pipeline with the Flink Runner, you can set these pipeline o
 </tr>
 </table>
 
-See the reference documentation for the  <span class="language-java">[FlinkPipelineOptions]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/flink/FlinkPipelineOptions.html)</span><span class="language-py">[PipelineOptions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py)</span> interface (and its subinterfaces) for the complete list of pipeline configuration options.
+See the reference documentation for the  <span class="language-java">[FlinkPipelineOptions](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/flink/FlinkPipelineOptions.html)</span><span class="language-py">[PipelineOptions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py)</span> interface (and its subinterfaces) for the complete list of pipeline configuration options.
 
 ## Additional information and caveats
 

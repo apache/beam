@@ -152,6 +152,11 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>Enable reporting metrics to Spark's metrics Sinks.</td>
   <td>true</td>
 </tr>
+<tr>
+  <td><code>cacheDisabled</code></td>
+  <td>Disable caching of reused PCollections for whole Pipeline. It's useful when it's faster to recompute RDD rather than save.</td>
+  <td>false</td>
+</tr>
 </table>
 
 ## Additional notes

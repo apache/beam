@@ -58,6 +58,10 @@ fi
 hub version
 
 echo "===============Starting creating empty PR==============="
+cd ~
+if [[ -d ${LOCAL_BEAM_DIR} ]]; then
+  rm -rf ${LOCAL_BEAM_DIR}
+fi
 mkdir ${LOCAL_BEAM_DIR}
 cd ${LOCAL_BEAM_DIR}
 git clone ${GIT_REPO_URL}

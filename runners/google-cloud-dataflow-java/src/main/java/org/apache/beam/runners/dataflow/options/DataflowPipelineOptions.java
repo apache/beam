@@ -90,6 +90,14 @@ public interface DataflowPipelineOptions
 
   void setUpdate(boolean value);
 
+  /** If set, the snapshot from which the job should be created. */
+  @Hidden
+  @Experimental
+  @Description("If set, the snapshot from which the job should be created.")
+  String getCreateFromSnapshot();
+
+  void setCreateFromSnapshot(String value);
+
   /** Where the runner should generate a template file. Must either be local or Cloud Storage. */
   @Description(
       "Where the runner should generate a template file. "
@@ -135,6 +143,11 @@ public interface DataflowPipelineOptions
   String getPipelineUrl();
 
   void setPipelineUrl(String urlString);
+
+  @Description("The customized dataflow worker jar")
+  String getDataflowWorkerJar();
+
+  void setDataflowWorkerJar(String dataflowWorkerJar);
 
   /** Returns a default staging location under {@link GcpOptions#getGcpTempLocation}. */
   class StagingLocationFactory implements DefaultValueFactory<String> {

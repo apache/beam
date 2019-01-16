@@ -15,11 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
 import java.util.EnumMap;
 import java.util.List;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
@@ -34,6 +31,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builder;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
@@ -43,8 +41,8 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,11 +86,7 @@ public class FnHarness {
     System.out.format("Pipeline options %s%n", System.getenv(PIPELINE_OPTIONS));
 
     String id = System.getenv(HARNESS_ID);
-    ObjectMapper objectMapper =
-        new ObjectMapper()
-            .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
-    PipelineOptions options =
-        objectMapper.readValue(System.getenv(PIPELINE_OPTIONS), PipelineOptions.class);
+    PipelineOptions options = PipelineOptionsTranslation.fromJson(System.getenv(PIPELINE_OPTIONS));
 
     Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor =
         getApiServiceDescriptor(LOGGING_API_SERVICE_DESCRIPTOR);

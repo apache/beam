@@ -15,19 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.beam.runners.core.construction.SyntheticComponents.uniqueId;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +46,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.ModelCoders.KvCoderComponents;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -75,17 +70,23 @@ import org.apache.beam.runners.fnexecution.control.MapControlClientPool;
 import org.apache.beam.runners.fnexecution.control.SingleEnvironmentInstanceJobBundleFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
-import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -96,6 +97,8 @@ public class ReferenceRunner {
   @Nullable private final File artifactsDir;
 
   private final EnvironmentType environmentType;
+
+  private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
 
   private ReferenceRunner(
       Pipeline p, Struct options, @Nullable File artifactsDir, EnvironmentType environmentType) {
@@ -195,10 +198,10 @@ public class ReferenceRunner {
             GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory)) {
 
       EnvironmentFactory environmentFactory =
-          createEnvironmentFactory(
-              control, logging, artifact, provisioning, controlClientPool.getSource());
+          createEnvironmentFactory(control, logging, artifact, provisioning, controlClientPool);
       JobBundleFactory jobBundleFactory =
-          SingleEnvironmentInstanceJobBundleFactory.create(environmentFactory, data, state);
+          SingleEnvironmentInstanceJobBundleFactory.create(
+              environmentFactory, data, state, idGenerator);
 
       TransformEvaluatorRegistry transformRegistry =
           TransformEvaluatorRegistry.portableRegistry(
@@ -234,19 +237,15 @@ public class ReferenceRunner {
       GrpcFnServer<GrpcLoggingService> logging,
       GrpcFnServer<ArtifactRetrievalService> artifact,
       GrpcFnServer<StaticGrpcProvisionService> provisioning,
-      ControlClientPool.Source controlClientSource) {
+      ControlClientPool controlClient) {
     switch (environmentType) {
       case DOCKER:
-        return DockerEnvironmentFactory.forServices(
-            control,
-            logging,
-            artifact,
-            provisioning,
-            controlClientSource,
-            IdGenerators.incrementingLongs());
+        return new DockerEnvironmentFactory.Provider(PipelineOptionsTranslation.fromProto(options))
+            .createEnvironmentFactory(
+                control, logging, artifact, provisioning, controlClient, idGenerator);
       case IN_PROCESS:
-        return InProcessEnvironmentFactory.create(
-            PipelineOptionsFactory.create(), logging, control, controlClientSource);
+        return EmbeddedEnvironmentFactory.create(
+            PipelineOptionsFactory.create(), logging, control, controlClient.getSource());
       default:
         throw new IllegalArgumentException(
             String.format("Unknown %s %s", EnvironmentType.class.getSimpleName(), environmentType));
@@ -480,8 +479,7 @@ public class ReferenceRunner {
     QueryablePipeline q = QueryablePipeline.forPipeline(p);
     String feedSdfUrn = SplittableRemoteStageEvaluatorFactory.FEED_SDF_URN;
     List<PTransformNode> feedSDFNodes =
-        q.getTransforms()
-            .stream()
+        q.getTransforms().stream()
             .filter(node -> node.getTransform().getSpec().getUrn().equals(feedSdfUrn))
             .collect(Collectors.toList());
     Map<String, PTransformNode> stageToFeeder = Maps.newHashMap();

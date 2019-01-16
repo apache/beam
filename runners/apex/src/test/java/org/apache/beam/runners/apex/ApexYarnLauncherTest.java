@@ -28,6 +28,7 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.StreamingApplication;
 import java.io.File;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -40,7 +41,6 @@ import org.apache.apex.api.EmbeddedAppLauncher;
 import org.apache.apex.api.Launcher;
 import org.apache.apex.api.Launcher.AppHandle;
 import org.apache.apex.api.Launcher.LaunchMode;
-import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -56,8 +56,8 @@ public class ApexYarnLauncherTest {
     List<File> deps = ApexYarnLauncher.getYarnDeployDependencies();
     String depsToString = deps.toString();
     // the beam dependencies are not present as jar when running within the Maven build reactor
-    //assertThat(depsToString, containsString("beam-runners-core-"));
-    //assertThat(depsToString, containsString("beam-runners-apex-"));
+    // assertThat(depsToString, containsString("beam-runners-core-"));
+    // assertThat(depsToString, containsString("beam-runners-apex-"));
     assertThat(depsToString, containsString("apex-common-"));
     assertThat(depsToString, not(containsString("hadoop-")));
     assertThat(depsToString, not(containsString("zookeeper-")));
@@ -120,7 +120,7 @@ public class ApexYarnLauncherTest {
     File baseDir = tmpFolder.newFolder("target", "testCreateJar");
     File srcDir = tmpFolder.newFolder("target", "testCreateJar", "src");
     String file1 = "file1";
-    FileUtils.write(new File(srcDir, file1), "file1");
+    Files.write(new File(srcDir, file1).toPath(), "file1".getBytes(StandardCharsets.UTF_8));
 
     File jarFile = new File(baseDir, "test.jar");
     ApexYarnLauncher.createJar(srcDir, jarFile);

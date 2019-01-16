@@ -43,7 +43,7 @@ class DatastoreWordCountIT(unittest.TestCase):
     dataset = test_pipeline.get_option("project")
     kind = self.DATASTORE_WORDCOUNT_KIND
     output = '/'.join([test_pipeline.get_option('output'),
-                       str(int(time.time())),
+                       str(int(time.time() * 1000)),
                        'datastore_wordcount_results'])
 
     arg_sleep_secs = test_pipeline.get_option('sleep_secs')

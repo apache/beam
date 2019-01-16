@@ -15,14 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.runtime;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
@@ -32,9 +33,9 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.apache.samza.config.Config;
 import org.apache.samza.operators.TimerRegistry;
 import org.apache.samza.storage.kv.KeyValueStore;
@@ -80,9 +82,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // This is derivable from pushbackValues which is persisted to a store.
   // TODO: eagerly initialize the hold in init
   @edu.umd.cs.findbugs.annotations.SuppressWarnings(
-    justification = "No bug",
-    value = "SE_TRANSIENT_FIELD_NOT_RESTORED"
-  )
+      justification = "No bug",
+      value = "SE_TRANSIENT_FIELD_NOT_RESTORED")
   private transient Instant pushbackWatermarkHold;
 
   // TODO: add this to checkpointable state
@@ -169,7 +170,14 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
     this.pushbackValues = new ArrayList<>();
 
-    doFnInvoker = DoFnInvokers.invokerFor(doFn);
+    final Iterator<SamzaDoFnInvokerRegistrar> invokerReg =
+        ServiceLoader.load(SamzaDoFnInvokerRegistrar.class).iterator();
+    if (!invokerReg.hasNext()) {
+      // use the default invoker here
+      doFnInvoker = DoFnInvokers.invokerFor(doFn);
+    } else {
+      doFnInvoker = Iterators.getOnlyElement(invokerReg).invokerFor(doFn, context);
+    }
 
     doFnInvoker.invokeSetup();
   }

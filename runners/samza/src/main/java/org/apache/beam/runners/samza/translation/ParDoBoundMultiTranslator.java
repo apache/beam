@@ -15,21 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.translation;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
 import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
+import org.apache.beam.runners.samza.runtime.SamzaDoFnInvokerRegistrar;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.functions.FilterFunction;
 import org.apache.samza.operators.functions.FlatMapFunction;
@@ -50,7 +53,16 @@ import org.joda.time.Instant;
 
 /** Translates {@link org.apache.beam.sdk.transforms.ParDo.MultiOutput} to Samza {@link DoFnOp}. */
 class ParDoBoundMultiTranslator<InT, OutT>
-    implements TransformTranslator<ParDo.MultiOutput<InT, OutT>> {
+    implements TransformTranslator<ParDo.MultiOutput<InT, OutT>>,
+        TransformConfigGenerator<ParDo.MultiOutput<InT, OutT>> {
+
+  private final SamzaDoFnInvokerRegistrar doFnInvokerRegistrar;
+
+  ParDoBoundMultiTranslator() {
+    final Iterator<SamzaDoFnInvokerRegistrar> invokerReg =
+        ServiceLoader.load(SamzaDoFnInvokerRegistrar.class).iterator();
+    doFnInvokerRegistrar = invokerReg.hasNext() ? Iterators.getOnlyElement(invokerReg) : null;
+  }
 
   @Override
   public void translate(
@@ -59,10 +71,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
       TranslationContext ctx) {
     final PCollection<? extends InT> input = ctx.getInput(transform);
     final Map<TupleTag<?>, Coder<?>> outputCoders =
-        ctx.getCurrentTransform()
-            .getOutputs()
-            .entrySet()
-            .stream()
+        ctx.getCurrentTransform().getOutputs().entrySet().stream()
             .filter(e -> e.getValue() instanceof PCollection)
             .collect(
                 Collectors.toMap(e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
@@ -81,9 +90,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStream(input);
     final List<MessageStream<OpMessage<InT>>> sideInputStreams =
-        transform
-            .getSideInputs()
-            .stream()
+        transform.getSideInputs().stream()
             .map(ctx::<InT>getViewStream)
             .collect(Collectors.toList());
     final Map<TupleTag<?>, Integer> tagToIdMap = new HashMap<>();
@@ -138,6 +145,30 @@ class ParDoBoundMultiTranslator<InT, OutT>
       registerSideOutputStream(
           taggedOutputStream, idToPCollectionMap.get(outputIndex), outputIndex, ctx);
     }
+  }
+
+  @Override
+  public Map<String, String> createConfig(
+      ParDo.MultiOutput<InT, OutT> transform, TransformHierarchy.Node node, ConfigContext ctx) {
+    final Map<String, String> config = new HashMap<>();
+    final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+    if (signature.usesState()) {
+      // set up user state configs
+      for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
+        final String storeId = state.id();
+        config.put(
+            "stores." + storeId + ".factory",
+            "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+        config.put("stores." + storeId + ".key.serde", "byteSerde");
+        config.put("stores." + storeId + ".msg.serde", "byteSerde");
+      }
+    }
+
+    if (doFnInvokerRegistrar != null) {
+      config.putAll(doFnInvokerRegistrar.configFor(transform.getFn()));
+    }
+
+    return config;
   }
 
   private <T> void registerSideOutputStream(

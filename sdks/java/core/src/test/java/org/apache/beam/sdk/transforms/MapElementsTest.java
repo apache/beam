@@ -76,10 +76,33 @@ public class MapElementsTest implements Serializable {
     }
   }
 
+  /**
+   * An {@link InferableFunction} to test that the coder registry can propagate coders that are
+   * bound to type variables.
+   */
+  private static class PolymorphicInferableFunction<T> extends InferableFunction<T, T> {
+    @Override
+    public T apply(T input) throws Exception {
+      return input;
+    }
+  }
+
+  /**
+   * An {@link InferableFunction} to test that the coder registry can propagate coders that are
+   * bound to type variables, when the variable appears nested in the output.
+   */
+  private static class NestedPolymorphicInferableFunction<T>
+      extends InferableFunction<T, KV<T, String>> {
+    @Override
+    public KV<T, String> apply(T input) throws Exception {
+      return KV.of(input, "hello");
+    }
+  }
+
   /** Basic test of {@link MapElements} with a {@link SimpleFunction}. */
   @Test
   @Category(NeedsRunner.class)
-  public void testMapBasic() throws Exception {
+  public void testMapSimpleFunction() throws Exception {
     PCollection<Integer> output =
         pipeline
             .apply(Create.of(1, 2, 3))
@@ -88,6 +111,26 @@ public class MapElementsTest implements Serializable {
                     new SimpleFunction<Integer, Integer>() {
                       @Override
                       public Integer apply(Integer input) {
+                        return -input;
+                      }
+                    }));
+
+    PAssert.that(output).containsInAnyOrder(-2, -1, -3);
+    pipeline.run();
+  }
+
+  /** Basic test of {@link MapElements} with an {@link InferableFunction}. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapInferableFunction() throws Exception {
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                MapElements.via(
+                    new InferableFunction<Integer, Integer>() {
+                      @Override
+                      public Integer apply(Integer input) throws Exception {
                         return -input;
                       }
                     }));
@@ -140,6 +183,28 @@ public class MapElementsTest implements Serializable {
   }
 
   /**
+   * Basic test of {@link MapElements} coder propagation with a parametric {@link
+   * InferableFunction}.
+   */
+  @Test
+  public void testPolymorphicInferableFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply("Polymorphic Identity", MapElements.via(new PolymorphicInferableFunction<>()))
+        .apply(
+            "Test Consumer",
+            MapElements.via(
+                new InferableFunction<Integer, Integer>() {
+                  @Override
+                  public Integer apply(Integer input) throws Exception {
+                    return input;
+                  }
+                }));
+  }
+
+  /**
    * Test of {@link MapElements} coder propagation with a parametric {@link SimpleFunction} where
    * the type variable occurs nested within other concrete type constructors.
    */
@@ -166,12 +231,31 @@ public class MapElementsTest implements Serializable {
   }
 
   /**
-   * Basic test of {@link MapElements} with a {@link SerializableFunction}. This style is generally
-   * discouraged in Java 7, in favor of {@link SimpleFunction}.
+   * Test of {@link MapElements} coder propagation with a parametric {@link InferableFunction} where
+   * the type variable occurs nested within other concrete type constructors.
    */
   @Test
+  public void testNestedPolymorphicInferableFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply("Polymorphic Identity", MapElements.via(new NestedPolymorphicInferableFunction<>()))
+        .apply(
+            "Test Consumer",
+            MapElements.via(
+                new InferableFunction<KV<Integer, String>, Integer>() {
+                  @Override
+                  public Integer apply(KV<Integer, String> input) throws Exception {
+                    return 42;
+                  }
+                }));
+  }
+
+  /** Basic test of {@link MapElements} with a {@link ProcessFunction}. */
+  @Test
   @Category(NeedsRunner.class)
-  public void testMapBasicSerializableFunction() throws Exception {
+  public void testMapBasicProcessFunction() throws Exception {
     PCollection<Integer> output =
         pipeline.apply(Create.of(1, 2, 3)).apply(MapElements.into(integers()).via(input -> -input));
 
@@ -208,6 +292,35 @@ public class MapElementsTest implements Serializable {
     pipeline.run();
   }
 
+  /**
+   * Tests that when built with a concrete subclass of {@link InferableFunction}, the type
+   * descriptor of the output reflects its static type.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testInferableFunctionOutputTypeDescriptor() throws Exception {
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of("hello"))
+            .apply(
+                MapElements.via(
+                    new InferableFunction<String, String>() {
+                      @Override
+                      public String apply(String input) throws Exception {
+                        return input;
+                      }
+                    }));
+    assertThat(
+        output.getTypeDescriptor(),
+        equalTo((TypeDescriptor<String>) new TypeDescriptor<String>() {}));
+    assertThat(
+        pipeline.getCoderRegistry().getCoder(output.getTypeDescriptor()),
+        equalTo(pipeline.getCoderRegistry().getCoder(new TypeDescriptor<String>() {})));
+
+    // Make sure the pipeline runs too
+    pipeline.run();
+  }
+
   @Test
   @Category(NeedsRunner.class)
   public void testVoidValues() throws Exception {
@@ -229,6 +342,14 @@ public class MapElementsTest implements Serializable {
   }
 
   @Test
+  public void testProcessFunctionDisplayData() {
+    ProcessFunction<Integer, Integer> processFn = input -> input;
+
+    MapElements<?, ?> processMap = MapElements.into(integers()).via(processFn);
+    assertThat(DisplayData.from(processMap), hasDisplayItem("class", processFn.getClass()));
+  }
+
+  @Test
   public void testSimpleFunctionClassDisplayData() {
     SimpleFunction<?, ?> simpleFn =
         new SimpleFunction<Integer, Integer>() {
@@ -240,6 +361,20 @@ public class MapElementsTest implements Serializable {
 
     MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
     assertThat(DisplayData.from(simpleMap), hasDisplayItem("class", simpleFn.getClass()));
+  }
+
+  @Test
+  public void testInferableFunctionClassDisplayData() {
+    InferableFunction<?, ?> inferableFn =
+        new InferableFunction<Integer, Integer>() {
+          @Override
+          public Integer apply(Integer input) throws Exception {
+            return input;
+          }
+        };
+
+    MapElements<?, ?> inferableMap = MapElements.via(inferableFn);
+    assertThat(DisplayData.from(inferableMap), hasDisplayItem("class", inferableFn.getClass()));
   }
 
   @Test
@@ -260,6 +395,26 @@ public class MapElementsTest implements Serializable {
     MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
     assertThat(DisplayData.from(simpleMap), hasDisplayItem("class", simpleFn.getClass()));
     assertThat(DisplayData.from(simpleMap), hasDisplayItem("foo", "baz"));
+  }
+
+  @Test
+  public void testInferableFunctionDisplayData() {
+    InferableFunction<Integer, ?> inferableFn =
+        new InferableFunction<Integer, Integer>() {
+          @Override
+          public Integer apply(Integer input) {
+            return input;
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "baz"));
+          }
+        };
+
+    MapElements<?, ?> inferableMap = MapElements.via(inferableFn);
+    assertThat(DisplayData.from(inferableMap), hasDisplayItem("class", inferableFn.getClass()));
+    assertThat(DisplayData.from(inferableMap), hasDisplayItem("foo", "baz"));
   }
 
   @Test

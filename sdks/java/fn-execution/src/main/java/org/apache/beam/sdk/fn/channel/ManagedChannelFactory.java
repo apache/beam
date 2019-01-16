@@ -15,20 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.channel;
 
 import java.net.SocketAddress;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.grpc.v1.io.grpc.netty.NettyChannelBuilder;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollDomainSocketChannel;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollEventLoopGroup;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.EpollSocketChannel;
-import org.apache.beam.vendor.netty.v4.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.EpollDomainSocketChannel;
+import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.EpollEventLoopGroup;
+import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.EpollSocketChannel;
+import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.unix.DomainSocketAddress;
 
 /** A Factory which creates an underlying {@link ManagedChannel} implementation. */
 public abstract class ManagedChannelFactory {
@@ -37,7 +36,7 @@ public abstract class ManagedChannelFactory {
   }
 
   public static ManagedChannelFactory createEpoll() {
-    org.apache.beam.vendor.netty.v4.io.netty.channel.epoll.Epoll.ensureAvailability();
+    org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.Epoll.ensureAvailability();
     return new Epoll();
   }
 

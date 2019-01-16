@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Verify.verifyNotNull;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
@@ -28,6 +25,9 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Verify.verifyNotNull;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
@@ -52,10 +52,6 @@ import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.cloud.bigtable.config.RetryOptions;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
@@ -101,8 +97,12 @@ import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
-import org.hamcrest.collection.IsIterableContainingInOrder;
+import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -581,8 +581,7 @@ public class BigtableIOTest {
     String regex = ".*17.*";
     final KeyMatchesRegex keyPredicate = new KeyMatchesRegex(regex);
     Iterable<Row> filteredRows =
-        testRows
-            .stream()
+        testRows.stream()
             .filter(
                 input -> {
                   verifyNotNull(input, "input");
@@ -710,7 +709,7 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    //Construct few non contiguous key ranges [..1][1..2][3..4][4..5][6..7][8..9]
+    // Construct few non contiguous key ranges [..1][1..2][3..4][4..5][6..7][8..9]
     List<ByteKeyRange> keyRanges =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
@@ -720,7 +719,7 @@ public class BigtableIOTest {
             ByteKeyRange.of(createByteKey(6), createByteKey(7)),
             ByteKeyRange.of(createByteKey(8), createByteKey(9)));
 
-    //Expected ranges after split and reduction by maxSplitCount is [..2][3..5][6..7][8..9]
+    // Expected ranges after split and reduction by maxSplitCount is [..2][3..5][6..7][8..9]
     List<ByteKeyRange> expectedKeyRangesAfterReducedSplits =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(2)),
@@ -736,14 +735,14 @@ public class BigtableIOTest {
             keyRanges,
             null /*size*/);
 
-    List<BigtableSource> splits =
-        source.split(numRows * bytesPerRow / numSamples, null /* options */);
-
-    assertThat(splits, hasSize(keyRanges.size()));
+    List<BigtableSource> splits = new ArrayList<>();
+    for (ByteKeyRange range : keyRanges) {
+      splits.add(source.withSingleRange(range));
+    }
 
     List<BigtableSource> reducedSplits = source.reduceSplits(splits, null, maxSplit);
 
-    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<>();
 
     for (BigtableSource splitSource : reducedSplits) {
       actualRangesAfterSplit.addAll(splitSource.getRanges());
@@ -753,7 +752,8 @@ public class BigtableIOTest {
 
     assertThat(
         actualRangesAfterSplit,
-        IsIterableContainingInOrder.contains(expectedKeyRangesAfterReducedSplits.toArray()));
+        IsIterableContainingInAnyOrder.containsInAnyOrder(
+            expectedKeyRangesAfterReducedSplits.toArray()));
   }
 
   /** Tests reduce split with all non adjacent ranges. */
@@ -769,7 +769,7 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    //Construct non contiguous key ranges [..1][2..3][4..5][6..7][8..9]
+    // Construct non contiguous key ranges [..1][2..3][4..5][6..7][8..9]
     List<ByteKeyRange> keyRanges =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
@@ -786,14 +786,14 @@ public class BigtableIOTest {
             keyRanges,
             null /*size*/);
 
-    List<BigtableSource> splits =
-        source.split(numRows * bytesPerRow / numSamples, null /* options */);
-
-    assertThat(splits, hasSize(keyRanges.size()));
+    List<BigtableSource> splits = new ArrayList<>();
+    for (ByteKeyRange range : keyRanges) {
+      splits.add(source.withSingleRange(range));
+    }
 
     List<BigtableSource> reducedSplits = source.reduceSplits(splits, null, maxSplit);
 
-    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<>();
 
     for (BigtableSource splitSource : reducedSplits) {
       actualRangesAfterSplit.addAll(splitSource.getRanges());
@@ -801,8 +801,10 @@ public class BigtableIOTest {
 
     assertAllSourcesHaveSingleRanges(reducedSplits);
 
-    //The expected split source ranges are exactly same as original
-    assertThat(actualRangesAfterSplit, IsIterableContainingInOrder.contains(keyRanges.toArray()));
+    // The expected split source ranges are exactly same as original
+    assertThat(
+        actualRangesAfterSplit,
+        IsIterableContainingInAnyOrder.containsInAnyOrder(keyRanges.toArray()));
   }
 
   /** Tests reduce Splits with all adjacent ranges. */
@@ -826,13 +828,25 @@ public class BigtableIOTest {
             Arrays.asList(ByteKeyRange.ALL_KEYS),
             null /*size*/);
 
-    List<BigtableSource> splits =
-        source.split(numRows * bytesPerRow / numSamples, null /* options */);
+    List<BigtableSource> splits = new ArrayList<>();
+    List<ByteKeyRange> keyRanges =
+        Arrays.asList(
+            ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
+            ByteKeyRange.of(createByteKey(1), createByteKey(2)),
+            ByteKeyRange.of(createByteKey(2), createByteKey(3)),
+            ByteKeyRange.of(createByteKey(3), createByteKey(4)),
+            ByteKeyRange.of(createByteKey(4), createByteKey(5)),
+            ByteKeyRange.of(createByteKey(5), createByteKey(6)),
+            ByteKeyRange.of(createByteKey(6), createByteKey(7)),
+            ByteKeyRange.of(createByteKey(7), createByteKey(8)),
+            ByteKeyRange.of(createByteKey(8), createByteKey(9)),
+            ByteKeyRange.of(createByteKey(9), ByteKey.EMPTY));
+    for (ByteKeyRange range : keyRanges) {
+      splits.add(source.withSingleRange(range));
+    }
 
-    assertThat(splits, hasSize(numSamples));
-
-    //Splits Source have ranges [..1][1..2][2..3][3..4][4..5][5..6][6..7][7..8][8..9][9..]
-    //expected reduced Split source ranges are [..4][4..8][8..]
+    // Splits Source have ranges [..1][1..2][2..3][3..4][4..5][5..6][6..7][7..8][8..9][9..]
+    // expected reduced Split source ranges are [..4][4..8][8..]
     List<ByteKeyRange> expectedKeyRangesAfterReducedSplits =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(4)),
@@ -841,7 +855,7 @@ public class BigtableIOTest {
 
     List<BigtableSource> reducedSplits = source.reduceSplits(splits, null, maxSplit);
 
-    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<>();
 
     for (BigtableSource splitSource : reducedSplits) {
       actualRangesAfterSplit.addAll(splitSource.getRanges());
@@ -849,7 +863,8 @@ public class BigtableIOTest {
 
     assertThat(
         actualRangesAfterSplit,
-        IsIterableContainingInOrder.contains(expectedKeyRangesAfterReducedSplits.toArray()));
+        IsIterableContainingInAnyOrder.containsInAnyOrder(
+            expectedKeyRangesAfterReducedSplits.toArray()));
     assertAllSourcesHaveSingleAdjacentRanges(reducedSplits);
     assertSourcesEqualReferenceSource(source, reducedSplits, null /* options */);
   }
@@ -1058,6 +1073,39 @@ public class BigtableIOTest {
             + "display data",
         displayData,
         Matchers.hasItem(hasDisplayItem("rowFilter")));
+  }
+
+  @Test
+  public void testReadingDisplayDataFromRuntimeParameters() {
+    ReadOptions options = PipelineOptionsFactory.fromArgs().withValidation().as(ReadOptions.class);
+    BigtableIO.Read read =
+        BigtableIO.read()
+            .withBigtableOptions(BIGTABLE_OPTIONS)
+            .withProjectId(options.getBigtableProject())
+            .withInstanceId(options.getBigtableInstanceId())
+            .withTableId(options.getBigtableTableId());
+    DisplayData displayData = DisplayData.from(read);
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("projectId"),
+                hasLabel("Bigtable Project Id"),
+                hasValue("RuntimeValueProvider{propertyName=bigtableProject, default=null}"))));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("instanceId"),
+                hasLabel("Bigtable Instance Id"),
+                hasValue("RuntimeValueProvider{propertyName=bigtableInstanceId, default=null}"))));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            allOf(
+                hasKey("tableId"),
+                hasLabel("Bigtable Table Id"),
+                hasValue("RuntimeValueProvider{propertyName=bigtableTableId, default=null}"))));
   }
 
   @Test

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.values;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collections;
 import java.util.Map;
@@ -321,13 +321,31 @@ public class PCollection<T> extends PValueBase implements PValue {
     return getCoder() instanceof SchemaCoder;
   }
 
-  /** Returns the attached schema, or null if there is none. */
+  /** Returns the attached schema. */
   @Experimental(Kind.SCHEMAS)
   public Schema getSchema() {
     if (!hasSchema()) {
       throw new IllegalStateException("Cannot call getSchema when there is no schema");
     }
     return ((SchemaCoder) getCoder()).getSchema();
+  }
+
+  /** Returns the attached schema's toRowFunction. */
+  @Experimental(Kind.SCHEMAS)
+  public SerializableFunction<T, Row> getToRowFunction() {
+    if (!hasSchema()) {
+      throw new IllegalStateException("Cannot call getToRowFunction when there is no schema");
+    }
+    return ((SchemaCoder<T>) getCoder()).getToRowFunction();
+  }
+
+  /** Returns the attached schema's fromRowFunction. */
+  @Experimental(Kind.SCHEMAS)
+  public SerializableFunction<Row, T> getFromRowFunction() {
+    if (!hasSchema()) {
+      throw new IllegalStateException("Cannot call getFromRowFunction when there is no schema");
+    }
+    return ((SchemaCoder<T>) getCoder()).getFromRowFunction();
   }
 
   /**

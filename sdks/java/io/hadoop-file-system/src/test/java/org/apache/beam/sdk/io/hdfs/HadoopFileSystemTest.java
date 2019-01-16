@@ -25,9 +25,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.io.ByteStreams;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.URI;
@@ -36,7 +33,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileAlreadyExistsException;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
@@ -50,6 +46,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
@@ -301,7 +300,8 @@ public class HadoopFileSystemTest {
         ImmutableList.of(testPath("missingFile")), ImmutableList.of(testPath("testFileA")));
   }
 
-  @Test(expected = FileAlreadyExistsException.class)
+  /** Test that rename overwrites existing files. */
+  @Test
   public void testRenameExistingDestination() throws Exception {
     create("testFileA", "testDataA".getBytes(StandardCharsets.UTF_8));
     create("testFileB", "testDataB".getBytes(StandardCharsets.UTF_8));
@@ -312,6 +312,10 @@ public class HadoopFileSystemTest {
 
     fileSystem.rename(
         ImmutableList.of(testPath("testFileA")), ImmutableList.of(testPath("testFileB")));
+
+    expectedLogs.verifyDebug(
+        String.format(HadoopFileSystem.LOG_DELETING_EXISTING_FILE, "/testFileB"));
+    assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("testFileB", 0));
   }
 
   /** Test that rename throws predictably when source doesn't exist and destination does. */

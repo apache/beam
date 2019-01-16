@@ -160,6 +160,7 @@ ignore_identifiers = [
   'apache_beam.typehints.typehints.CompositeTypeHint',
   'apache_beam.typehints.typehints.TypeConstraint',
   'apache_beam.typehints.typehints.validate_composite_type_param()',
+  'apache_beam.utils.windowed_value._IntervalWindowBase',
 
   # Private classes which are used within the same module
   'WindowedTypeConstraint',  # apache_beam.typehints.typehints
@@ -170,6 +171,9 @@ ignore_identifiers = [
   # DoFn param inner classes, due to a Sphinx misparsing of inner classes
   '_StateDoFnParam',
   '_TimerDoFnParam',
+
+  # Sphinx cannot find this py:class reference target
+  'typing.Generic',
 ]
 
 # When inferring a base class it will use ':py:class'; if inferring a function

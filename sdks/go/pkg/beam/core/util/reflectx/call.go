@@ -55,7 +55,7 @@ func RegisterFunc(t reflect.Type, maker func(interface{}) Func) {
 
 	key := t.String()
 	if _, exists := funcs[key]; exists {
-		log.Warnf(context.Background(), "Func for %v already registered. Overwriting.", key)
+		log.Debugf(context.Background(), "Func for %v already registered. Overwriting.", key)
 	}
 	funcs[key] = maker
 }

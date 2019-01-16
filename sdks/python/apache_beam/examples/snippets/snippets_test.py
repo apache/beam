@@ -24,6 +24,7 @@ import glob
 import gzip
 import logging
 import os
+import sys
 import tempfile
 import unittest
 import uuid
@@ -474,6 +475,12 @@ class SnippetsTest(unittest.TestCase):
       return pcoll | 'DummyWriteForTesting' >> beam.ParDo(
           SnippetsTest.DummyWriteTransform.WriteDoFn(self.file_to_write))
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def setUp(self):
     self.old_read_from_text = beam.io.ReadFromText
     self.old_write_to_text = beam.io.WriteToText
@@ -591,7 +598,7 @@ class SnippetsTest(unittest.TestCase):
         for line in f:
           received_output.append(line.rstrip(os.linesep))
 
-    self.assertItemsEqual(expected_output, received_output)
+    self.assertCountEqual(expected_output, received_output)
 
     glob_pattern = tempdir_name + os.sep + 'final_table_with_ptransform*'
     output_files = glob.glob(glob_pattern)
@@ -603,7 +610,7 @@ class SnippetsTest(unittest.TestCase):
         for line in f:
           received_output.append(line.rstrip(os.linesep))
 
-    self.assertItemsEqual(expected_output, received_output)
+    self.assertCountEqual(expected_output, received_output)
 
   def test_model_textio(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')
@@ -1177,18 +1184,17 @@ class CombineTest(unittest.TestCase):
       unkeyed_items = p | beam.Create([2, 11, 16, 27])
       items = (unkeyed_items
                | 'key' >> beam.Map(
-                   lambda x: beam.window.TimestampedValue(('k', x), x)))
+                   lambda x: beam.window.TimestampedValue(('k', x), x * 60)))
       # [START setting_session_windows]
       from apache_beam import window
       session_windowed_items = (
-          items | 'window' >> beam.WindowInto(window.Sessions(10)))
+          items | 'window' >> beam.WindowInto(window.Sessions(10 * 60)))
       # [END setting_session_windows]
       summed = (session_windowed_items
                 | 'group' >> beam.GroupByKey()
                 | 'combine' >> beam.CombineValues(sum))
       unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-      assert_that(unkeyed,
-                  equal_to([29, 27]))
+      assert_that(unkeyed, equal_to([29, 27]))
 
   def test_setting_global_window(self):
     with TestPipeline() as p:

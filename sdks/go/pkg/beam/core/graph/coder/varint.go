@@ -18,6 +18,8 @@ package coder
 import (
 	"errors"
 	"io"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
 )
 
 // ErrVarIntTooLong indicates a data corruption issue that needs special
@@ -27,7 +29,7 @@ var ErrVarIntTooLong = errors.New("varint too long")
 
 // EncodeVarUint64 encodes an uint64.
 func EncodeVarUint64(value uint64, w io.Writer) error {
-	var ret []byte
+	ret := make([]byte, 0, 8)
 	for {
 		// Encode next 7 bits + terminator bit
 		bits := value & 0x7f
@@ -39,7 +41,7 @@ func EncodeVarUint64(value uint64, w io.Writer) error {
 		}
 		ret = append(ret, (byte)(bits|mask))
 		if value == 0 {
-			_, err := w.Write(ret)
+			_, err := ioutilx.WriteUnsafe(w, ret)
 			return err
 		}
 	}
@@ -60,10 +62,10 @@ func DecodeVarUint64(r io.Reader) (uint64, error) {
 	var ret uint64
 	var shift uint
 
-	data := make([]byte, 1)
+	var data [1]byte
 	for {
 		// Get 7 bits from next byte
-		if n, err := r.Read(data); n < 1 {
+		if n, err := ioutilx.ReadUnsafe(r, data[:]); n < 1 {
 			return 0, err
 		}
 

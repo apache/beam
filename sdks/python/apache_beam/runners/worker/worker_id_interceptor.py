@@ -21,7 +21,6 @@ from __future__ import print_function
 
 import collections
 import os
-import uuid
 
 import grpc
 
@@ -39,10 +38,11 @@ class WorkerIdInterceptor(grpc.StreamStreamClientInterceptor):
   # and throw exception in worker_id_interceptor.py after we have rolled out
   # the corresponding container changes.
   # Unique worker Id for this worker.
-  _worker_id = os.environ.get('WORKER_ID', str(uuid.uuid4()))
+  _worker_id = os.environ.get('WORKER_ID')
 
-  def __init__(self):
-    pass
+  def __init__(self, worker_id=None):
+    if worker_id:
+      self._worker_id = worker_id
 
   def intercept_stream_stream(self, continuation, client_call_details,
                               request_iterator):

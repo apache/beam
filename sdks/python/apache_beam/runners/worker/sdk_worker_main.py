@@ -28,18 +28,17 @@ import threading
 import traceback
 from builtins import object
 
-from future import standard_library
 from google.protobuf import text_format
 
 from apache_beam.internal import pickler
+from apache_beam.options import pipeline_options
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.portability.api import endpoints_pb2
-from apache_beam.runners.dataflow.internal import names
+from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
-
-standard_library.install_aliases()
+from apache_beam.utils import profiler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -141,7 +140,10 @@ def main(unused_argv):
     assert not service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(
         control_address=service_descriptor.url,
-        worker_count=_get_worker_count(sdk_pipeline_options)).run()
+        worker_count=_get_worker_count(sdk_pipeline_options),
+        profiler_factory=profiler.Profile.factory_from_options(
+            sdk_pipeline_options.view_as(pipeline_options.ProfilingOptions))
+    ).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     logging.exception('Python sdk harness failed: ')
@@ -162,7 +164,7 @@ def _parse_pipeline_options(options_json):
     return PipelineOptions.from_dictionary({
         re.match(portable_option_regex, k).group('key')
         if re.match(portable_option_regex, k) else k: v
-        for k, v in options.iteritems()
+        for k, v in options.items()
     })
 
 

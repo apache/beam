@@ -15,13 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +32,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** Implementation of DoFn to perform streaming BigQuery write. */
 @SystemDoFnInternal

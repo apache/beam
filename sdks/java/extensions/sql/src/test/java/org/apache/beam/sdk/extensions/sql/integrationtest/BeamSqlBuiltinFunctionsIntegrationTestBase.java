@@ -15,16 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -37,8 +35,8 @@ import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -53,8 +51,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
 import org.junit.Rule;
 
 /** Base class for all built-in functions integration tests. */
@@ -74,6 +73,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           .put(String.class, TypeName.STRING)
           .put(DateTime.class, TypeName.DATETIME)
           .put(Boolean.class, TypeName.BOOLEAN)
+          .put(byte[].class, TypeName.BYTES)
           .build();
 
   private static final Schema ROW_TYPE =
@@ -116,9 +116,9 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
   protected PCollection<Row> getTestPCollection() {
     try {
-      return MockedBoundedTable.of(ROW_TYPE)
+      return TestBoundedTable.of(ROW_TYPE)
           .addRows(
-              parseDate("1986-02-15 11:35:26"),
+              parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"),
               (byte) 1,
               (short) 1,
               1,
@@ -139,8 +139,8 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
   protected PCollection<Row> getFloorCeilingTestPCollection() {
     try {
-      return MockedBoundedTable.of(ROW_TYPE_THREE)
-          .addRows(parseDate("1986-02-15 11:35:26"), 1.4)
+      return TestBoundedTable.of(ROW_TYPE_THREE)
+          .addRows(parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"), 1.4)
           .buildIOReader(pipeline.begin())
           .setRowSchema(ROW_TYPE_THREE);
     } catch (Exception e) {
@@ -150,9 +150,9 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
   protected PCollection<Row> getAggregationTestPCollection() {
     try {
-      return MockedBoundedTable.of(ROW_TYPE_TWO)
+      return TestBoundedTable.of(ROW_TYPE_TWO)
           .addRows(
-              parseDate("1986-02-15 11:35:26"),
+              parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"),
               (byte) 1,
               (short) 1,
               1,
@@ -163,7 +163,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               7.0,
               BigDecimal.valueOf(1.0))
           .addRows(
-              parseDate("1986-03-15 11:35:26"),
+              parseTimestampWithUTCTimeZone("1986-03-15 11:35:26"),
               (byte) 2,
               (short) 2,
               2,
@@ -174,7 +174,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               8.0,
               BigDecimal.valueOf(2.0))
           .addRows(
-              parseDate("1986-04-15 11:35:26"),
+              parseTimestampWithUTCTimeZone("1986-04-15 11:35:26"),
               (byte) 3,
               (short) 3,
               3,
@@ -190,10 +190,6 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-  }
-
-  protected static DateTime parseDate(String str) {
-    return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC().parseDateTime(str);
   }
 
   @AutoValue
@@ -241,6 +237,12 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
                   + "FieldType type)' instead and provide the type of the expected object",
               expectedValue));
       addExpr(expression, expectedValue, FieldType.of(resultTypeName));
+      return this;
+    }
+
+    public ExpressionChecker addExprWithNullExpectedValue(
+        String expression, TypeName resultTypeName) {
+      addExpr(expression, null, FieldType.of(resultTypeName));
       return this;
     }
 
@@ -346,7 +348,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
             "test",
             ImmutableMap.of(
                 "test",
-                MockedBoundedTable.of(
+                TestBoundedTable.of(
                         Schema.FieldType.INT32, "id",
                         Schema.FieldType.STRING, "name")
                     .addRows(1, "first")));

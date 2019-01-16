@@ -90,7 +90,7 @@ To view the full code in Python, see
 
 {:.language-go}
 To view the full code in Go, see
-**[wordcount_minimal.go](https://github.com/apache/beam/blob/master/sdks/go/examples/minimal_wordcount/minimal_wordcount.go).**
+**[minimal_wordcount.go](https://github.com/apache/beam/blob/master/sdks/go/examples/minimal_wordcount/minimal_wordcount.go).**
 
 **Key Concepts:**
 
@@ -384,6 +384,12 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts --runner=SamzaRunner" -Psamza-runner
 ```
 
+{:.runner-nemo}
+```
+$ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+```
+
 To view the full code in Java, see
 **[WordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java).**
 
@@ -430,6 +436,11 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 This runner is not yet available for the Python SDK.
 ```
 
+{:.runner-nemo}
+```
+This runner is not yet available for the Python SDK.
+```
+
 To view the full code in Python, see
 **[wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py).**
 
@@ -464,15 +475,23 @@ This runner is not yet available for the Go SDK.
 {:.runner-dataflow}
 ```
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://<your-gcs-bucket>/counts \
             --runner dataflow \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
+            --staging_location gs://<your-gcs-bucket>/binaries/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 
 {:.runner-samza-local}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-nemo}
 ```
 This runner is not yet available for the Go SDK.
 ```
@@ -711,6 +730,12 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordC
      -Dexec.args="--runner=SamzaRunner --output=counts" -Psamza-runner
 ```
 
+{:.runner-nemo}
+```
+$ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
+     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+```
+
 To view the full code in Java, see
 [DebuggingWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java).
 
@@ -757,6 +782,11 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
 This runner is not yet available for the Python SDK.
 ```
 
+{:.runner-nemo}
+```
+This runner is not yet available for the Python SDK.
+```
+
 To view the full code in Python, see
 **[wordcount_debugging.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py).**
 
@@ -791,15 +821,23 @@ This runner is not yet available for the Go SDK.
 {:.runner-dataflow}
 ```
 $ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
 $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                       --output gs://<your-gcs-bucket>/counts \
                       --runner dataflow \
                       --project your-gcp-project \
                       --temp_location gs://<your-gcs-bucket>/tmp/ \
+                      --staging_location gs://<your-gcs-bucket>/binaries/ \
                       --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 
 {:.runner-samza-local}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-nemo}
 ```
 This runner is not yet available for the Go SDK.
 ```
@@ -912,6 +950,16 @@ or DEBUG significantly increases the amount of logs output.
 
 > **Note:** This section is yet to be added. There is an open issue for this
 > ([BEAM-2285](https://issues.apache.org/jira/browse/BEAM-2285)).
+
+#### Apache Nemo Runner
+
+When executing your pipeline with the `NemoRunner`, most log messages are printed 
+directly to your local console. You should add `Slf4j` to your class path to make 
+full use of the logs. In order to observe the logs on each of the driver and the 
+executor sides, you should observe the folders created by Apache REEF. For example,
+when running your pipeline through the local runtime, a folder called `REEF_LOCAL_RUNTIME`
+will be created on your work directory, and the logs and the metric information can
+all be found under the directory.
 
 ### Testing your pipeline with asserts
 
@@ -1031,6 +1079,12 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCo
      -Dexec.args="--runner=SamzaRunner --inputFile=pom.xml --output=counts" -Psamza-runner
 ```
 
+{:.runner-nemo}
+```
+$ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
+     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+```
+
 To view the full code in Java, see
 **[WindowedWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java).**
 
@@ -1081,10 +1135,15 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
 This runner is not yet available for the Python SDK.
 ```
 
+{:.runner-nemo}
+```
+This runner is not yet available for the Python SDK.
+```
+
 To view the full code in Python, see
 **[windowed_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/windowed_wordcount.py).**
 
-**To run this example in Python:**
+**To run this example in Go:**
 
 {:.runner-direct}
 ```
@@ -1115,15 +1174,23 @@ This runner is not yet available for the Go SDK.
 {:.runner-dataflow}
 ```
 $ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
 $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://<your-gcs-bucket>/counts \
             --runner dataflow \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
+            --staging_location gs://<your-gcs-bucket>/binaries/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 
 {:.runner-samza-local}
+```
+This runner is not yet available for the Go SDK.
+```
+
+{:.runner-nemo}
 ```
 This runner is not yet available for the Go SDK.
 ```
@@ -1139,7 +1206,7 @@ unbounded datasets. If your dataset has a fixed number of elements, it is a boun
 dataset and all of the data can be processed together. For bounded datasets,
 the question to ask is "Do I have all of the data?" If data continuously
 arrives (such as an endless stream of game scores in the
-[Mobile gaming example](https://beam.apache.org/get-started/mobile-gaming-example/),
+[Mobile gaming example]({{ site.baseurl }}/get-started/mobile-gaming-example/),
 it is an unbounded dataset. An unbounded dataset is never available for
 processing at any one time, so the data must be processed using a streaming
 pipeline that runs continuously. The dataset will only be complete up to a
@@ -1368,6 +1435,11 @@ python -m apache_beam.examples.streaming_wordcount \
 This runner is not yet available for the Python SDK.
 ```
 
+{:.runner-nemo}
+```
+This runner is not yet available for the Python SDK.
+```
+
 To view the full code in Python, see
 **[streaming_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/streaming_wordcount.py).**
 
@@ -1381,7 +1453,7 @@ To view the full code in Python, see
 
 This example uses an unbounded dataset as input. The code reads Pub/Sub
 messages from a Pub/Sub subscription or topic using
-[`beam.io.ReadStringsFromPubSub`]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub).
+[`beam.io.ReadStringsFromPubSub`](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub).
 
 ```java
   // This example is not currently available for the Beam SDK for Java.
@@ -1407,7 +1479,7 @@ outputs.
 
 This example uses an unbounded `PCollection` and streams the results to
 Google Pub/Sub. The code formats the results and writes them to a Pub/Sub topic
-using [`beam.io.WriteStringsToPubSub`]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub).
+using [`beam.io.WriteStringsToPubSub`](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub).
 
 ```java
   // This example is not currently available for the Beam SDK for Java.
@@ -1420,3 +1492,11 @@ using [`beam.io.WriteStringsToPubSub`]({{ site.baseurl }}/documentation/sdks/pyd
   // This example is not currently available for the Beam SDK for Go.
 ```
 
+## Next Steps
+
+* Walk through the Mobile Gaming examples in the [Mobile Gaming Example Walkthrough]({{ site.baseurl }}/get-started/mobile-gaming-example).
+* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
+* Dive in to some of our favorite [Videos and Podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
+* Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
+
+Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!

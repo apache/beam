@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
-import java.lang.reflect.Type;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 
@@ -38,19 +36,4 @@ public interface FieldValueSetter<ObjectT, ValueT> extends Serializable {
 
   /** Returns the name of the field. */
   String name();
-
-  /** Returns the field type. */
-  Class type();
-
-  /** If the field is a container type, returns the element type. */
-  @Nullable
-  Type elementType();
-
-  /** If the field is a map type, returns the key type. */
-  @Nullable
-  Type mapKeyType();
-
-  /** If the field is a map type, returns the key type. */
-  @Nullable
-  Type mapValueType();
 }

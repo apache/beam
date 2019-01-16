@@ -33,10 +33,11 @@ test {
 }
 
 dependencies {
-  compile library.java.guava
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-job-management", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow library.java.vendored_grpc_1_13_1
+  shadow library.java.vendored_guava_20_0
   shadow library.java.jackson_core
   shadow library.java.jackson_databind
   shadow library.java.joda_time

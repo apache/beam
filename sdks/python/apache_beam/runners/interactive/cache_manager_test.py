@@ -61,10 +61,10 @@ class FileBasedCacheManagerTest(unittest.TestCase):
     time.sleep(0.1)
 
     cache_file = cache_label + '-1-of-2'
-    with open(self.cache_manager._path(prefix, cache_file), 'w') as f:
+    with open(self.cache_manager._path(prefix, cache_file), 'wb') as f:
       for line in pcoll_list:
         f.write(cache.SafeFastPrimitivesCoder().encode(line))
-        f.write('\n')
+        f.write(b'\n')
 
   def test_exists(self):
     """Test that CacheManager can correctly tell if the cache exists or not."""

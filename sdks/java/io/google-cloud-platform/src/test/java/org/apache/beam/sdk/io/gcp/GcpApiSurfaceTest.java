@@ -21,11 +21,11 @@ import static org.apache.beam.sdk.util.ApiSurface.classesInPackage;
 import static org.apache.beam.sdk.util.ApiSurface.containsOnlyClassesMatching;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
 import org.apache.beam.sdk.util.ApiSurface;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Test;

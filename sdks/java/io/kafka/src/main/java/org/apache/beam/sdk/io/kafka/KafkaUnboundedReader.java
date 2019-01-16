@@ -2,7 +2,8 @@
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  The ASF E 2.0 (the
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
@@ -16,12 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
-import com.google.common.io.Closeables;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -55,6 +52,10 @@ import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Closeables;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -267,8 +268,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     // Return minimum watermark among partitions.
-    return partitionStates
-        .stream()
+    return partitionStates.stream()
         .map(PartitionState::updateAndGetWatermark)
         .min(Comparator.naturalOrder())
         .get();
@@ -278,8 +278,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   public CheckpointMark getCheckpointMark() {
     reportBacklog();
     return new KafkaCheckpointMark(
-        partitionStates
-            .stream()
+        partitionStates.stream()
             .map(
                 p ->
                     new PartitionMark(
@@ -393,7 +392,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private static final long UNINITIALIZED_OFFSET = -1;
 
-  //Add SpEL instance to cover the interface difference of Kafka client
+  // Add SpEL instance to cover the interface difference of Kafka client
   private transient ConsumerSpEL consumerSpEL;
 
   /** watermark before any records have been read. */
@@ -603,9 +602,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
 
     consumer.commitSync(
-        checkpointMark
-            .getPartitions()
-            .stream()
+        checkpointMark.getPartitions().stream()
             .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
             .collect(
                 Collectors.toMap(

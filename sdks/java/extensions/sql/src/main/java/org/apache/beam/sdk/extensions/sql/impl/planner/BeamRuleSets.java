@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamBasicAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
@@ -32,6 +32,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
@@ -135,6 +136,7 @@ public class BeamRuleSets {
       ImmutableList.of(
           BeamCalcRule.INSTANCE,
           BeamAggregationRule.INSTANCE,
+          BeamBasicAggregationRule.INSTANCE,
           BeamSortRule.INSTANCE,
           BeamValuesRule.INSTANCE,
           BeamIntersectRule.INSTANCE,

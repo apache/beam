@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import static org.apache.beam.sdk.values.Row.toRow;
@@ -91,9 +90,15 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
+  /**
+   * Attempt to cast an object to a specified Schema.Field.Type.
+   *
+   * @throws IllegalArgumentException if the value cannot be cast to that type.
+   * @return The casted object in Schema.Field.Type.
+   */
   public static Object autoCastField(Schema.Field field, Object rawObj) {
     if (rawObj == null) {
-      if (!field.getNullable()) {
+      if (!field.getType().getNullable()) {
         throw new IllegalArgumentException(String.format("Field %s not nullable", field.getName()));
       }
       return null;
@@ -107,7 +112,8 @@ public final class BeamTableUtils {
         return rawObj;
       }
     } else if (type.isDateType()) {
-      return DateTime.parse(rawObj.toString());
+      // Internal representation of DateType in Calcite is convertible to Joda's Datetime.
+      return new DateTime(rawObj);
     } else if (type.isNumericType()
         && ((rawObj instanceof String)
             || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL))) {

@@ -19,15 +19,21 @@ from __future__ import absolute_import
 import json
 import logging
 import os
+import sys
 import tempfile
 import unittest
 from builtins import range
 
 import avro.datafile
-import avro.schema
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
 import hamcrest as hc
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from avro.schema import Parse # avro-python3 library for python3
+except ImportError:
+  from avro.schema import parse as Parse # avro library for python2
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 import apache_beam as beam
 from apache_beam import Create
@@ -48,7 +54,7 @@ try:
   import snappy  # pylint: disable=import-error
 except ImportError:
   snappy = None  # pylint: disable=invalid-name
-  logging.warning('snappy is not installed; some tests will be skipped.')
+  logging.warning('python-snappy is not installed; some tests will be skipped.')
 
 
 class TestAvro(unittest.TestCase):
@@ -58,6 +64,12 @@ class TestAvro(unittest.TestCase):
   def __init__(self, methodName='runTest'):
     super(TestAvro, self).__init__(methodName)
     self.use_fastavro = False
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
@@ -86,7 +98,7 @@ class TestAvro(unittest.TestCase):
                                          'favorite_number': 6,
                                          'favorite_color': 'Green'}]
 
-  SCHEMA = avro.schema.parse('''
+  SCHEMA = Parse('''
   {"namespace": "example.avro",
    "type": "record",
    "name": "User",
@@ -150,7 +162,7 @@ class TestAvro(unittest.TestCase):
           (source, None, None), sources_info)
     else:
       read_records = source_test_utils.read_from_source(source, None, None)
-      self.assertItemsEqual(expected_result, read_records)
+      self.assertCountEqual(expected_result, read_records)
 
   def test_read_without_splitting(self):
     file_name = self._write_data()
@@ -305,13 +317,13 @@ class TestAvro(unittest.TestCase):
     expected_result = self.RECORDS
     self._run_avro_test(file_name, 100, True, expected_result)
 
-  @unittest.skipIf(snappy is None, 'snappy not installed.')
+  @unittest.skipIf(snappy is None, 'python-snappy not installed.')
   def test_read_without_splitting_compressed_snappy(self):
     file_name = self._write_data(codec='snappy')
     expected_result = self.RECORDS
     self._run_avro_test(file_name, None, False, expected_result)
 
-  @unittest.skipIf(snappy is None, 'snappy not installed.')
+  @unittest.skipIf(snappy is None, 'python-snappy not installed.')
   def test_read_with_splitting_compressed_snappy(self):
     file_name = self._write_data(codec='snappy')
     expected_result = self.RECORDS
@@ -351,7 +363,7 @@ class TestAvro(unittest.TestCase):
     # the last sync_marker.
     last_char_index = len(data) - 1
     corrupted_data = data[:last_char_index]
-    corrupted_data += 'A' if data[last_char_index] == 'B' else 'B'
+    corrupted_data += b'A' if data[last_char_index] == b'B' else b'B'
     with tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template) as f:
       f.write(corrupted_data)
@@ -426,7 +438,7 @@ class TestAvro(unittest.TestCase):
             | beam.Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
-  @unittest.skipIf(snappy is None, 'snappy not installed.')
+  @unittest.skipIf(snappy is None, 'python-snappy not installed.')
   def test_sink_transform_snappy(self):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name

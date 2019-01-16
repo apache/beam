@@ -98,7 +98,8 @@ TableSchema: Describes the schema (types and order) for values in each row.
 
 TableFieldSchema: Describes the schema (type, name) for one field.
   Has several attributes, including 'name' and 'type'. Common values for
-  the type attribute are: 'STRING', 'INTEGER', 'FLOAT', 'BOOLEAN', 'NUMERIC'.
+  the type attribute are: 'STRING', 'INTEGER', 'FLOAT', 'BOOLEAN', 'NUMERIC',
+  'GEOGRAPHY'.
   All possible values are described at:
   https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
 
@@ -111,6 +112,9 @@ TableCell: Holds the value for one cell (or field).  Has one attribute,
 
 As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
 high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
+The GEOGRAPHY data type works with Well-Known Text (See
+https://en.wikipedia.org/wiki/Well-known_text) format for reading and writing
+to BigQuery.
 """
 
 from __future__ import absolute_import
@@ -134,6 +138,7 @@ from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
@@ -464,7 +469,13 @@ class BigQuerySource(dataflow_io.NativeSource):
 
 
 class BigQuerySink(dataflow_io.NativeSink):
-  """A sink based on a BigQuery table."""
+  """A sink based on a BigQuery table.
+
+  This BigQuery sink triggers a Dataflow native sink for BigQuery
+  that only supports batch pipelines.
+  Instead of using this sink directly, please use WriteToBigQuery
+  transform that works for both batch and streaming pipelines.
+  """
 
   def __init__(self, table, dataset=None, project=None, schema=None,
                create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
@@ -646,7 +657,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.use_legacy_sql = use_legacy_sql
     self.flatten_results = flatten_results
 
-    if self.source.query is None:
+    if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
       # project.
       project_id = self.source.table_reference.projectId
@@ -656,30 +667,44 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
           project_id,
           self.source.table_reference.datasetId,
           self.source.table_reference.tableId)
-    else:
+    elif self.source.query is not None:
       self.query = self.source.query
-
-  def _get_source_table_location(self):
-    tr = self.source.table_reference
-    if tr is None:
-      # TODO: implement location retrieval for query sources
-      return
-
-    if tr.projectId is None:
-      source_project_id = self.executing_project
     else:
-      source_project_id = tr.projectId
+      # Enforce the "modes" enforced by BigQuerySource.__init__.
+      # If this exception has been raised, the BigQuerySource "modes" have
+      # changed and this method will need to be updated as well.
+      raise ValueError("BigQuerySource must have either a table or query")
 
-    source_dataset_id = tr.datasetId
-    source_table_id = tr.tableId
-    source_location = self.client.get_table_location(
-        source_project_id, source_dataset_id, source_table_id)
-    return source_location
+  def _get_source_location(self):
+    """
+    Get the source location (e.g. ``"EU"`` or ``"US"``) from either
+
+    - :data:`source.table_reference`
+      or
+    - The first referenced table in :data:`source.query`
+
+    See Also:
+      - :meth:`BigQueryWrapper.get_query_location`
+      - :meth:`BigQueryWrapper.get_table_location`
+
+    Returns:
+      Optional[str]: The source location, if any.
+    """
+    if self.source.table_reference is not None:
+      tr = self.source.table_reference
+      return self.client.get_table_location(
+          tr.projectId if tr.projectId is not None else self.executing_project,
+          tr.datasetId, tr.tableId)
+    else:  # It's a query source
+      return self.client.get_query_location(
+          self.executing_project,
+          self.source.query,
+          self.source.use_legacy_sql)
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
     self.client.create_temporary_dataset(
-        self.executing_project, location=self._get_source_table_location())
+        self.executing_project, location=self._get_source_location())
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
@@ -771,6 +796,7 @@ class BigQueryWrapper(object):
 
   def __init__(self, client=None):
     self.client = client or bigquery.BigqueryV2(
+        http=get_new_http(),
         credentials=auth.get_service_credentials())
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
@@ -798,6 +824,53 @@ class BigQueryWrapper(object):
         table=BigQueryWrapper.TEMP_TABLE + self._temporary_table_suffix,
         dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
         project=project_id)
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def get_query_location(self, project_id, query, use_legacy_sql):
+    """
+    Get the location of tables referenced in a query.
+
+    This method returns the location of the first referenced table in the query
+    and depends on the BigQuery service to provide error handling for
+    queries that reference tables in multiple locations.
+    """
+    reference = bigquery.JobReference(jobId=uuid.uuid4().hex,
+                                      projectId=project_id)
+    request = bigquery.BigqueryJobsInsertRequest(
+        projectId=project_id,
+        job=bigquery.Job(
+            configuration=bigquery.JobConfiguration(
+                dryRun=True,
+                query=bigquery.JobConfigurationQuery(
+                    query=query,
+                    useLegacySql=use_legacy_sql,
+                )),
+            jobReference=reference))
+
+    response = self.client.jobs.Insert(request)
+
+    if response.statistics is None:
+      # This behavior is only expected in tests
+      logging.warning(
+          "Unable to get location, missing response.statistics. Query: %s",
+          query)
+      return None
+
+    referenced_tables = response.statistics.query.referencedTables
+    if referenced_tables:  # Guards against both non-empty and non-None
+      table = referenced_tables[0]
+      location = self.get_table_location(
+          table.projectId,
+          table.datasetId,
+          table.tableId)
+      logging.info("Using location %r from table %r referenced by query %s",
+                   location, table, query)
+      return location
+
+    logging.debug("Query %s does not reference any tables.", query)
+    return None
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -949,8 +1022,7 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def create_temporary_dataset(self, project_id, location=None):
-    # TODO: make location required, once "query" locations can be determined
+  def create_temporary_dataset(self, project_id, location):
     dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
     # Check if dataset exists to make sure that the temporary id is unique
     try:
@@ -1177,6 +1249,8 @@ class BigQueryWrapper(object):
       return self.convert_row_to_dict(value, field)
     elif field.type == 'NUMERIC':
       return decimal.Decimal(value)
+    elif field.type == 'GEOGRAPHY':
+      return value
     else:
       raise RuntimeError('Unexpected field type: %s' % field.type)
 
@@ -1214,7 +1288,7 @@ class BigQueryWriteFn(DoFn):
   """
 
   def __init__(self, table_id, dataset_id, project_id, batch_size, schema,
-               create_disposition, write_disposition, client):
+               create_disposition, write_disposition, test_client):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1250,12 +1324,19 @@ class BigQueryWriteFn(DoFn):
     self.dataset_id = dataset_id
     self.project_id = project_id
     self.schema = schema
-    self.client = client
+    self.test_client = test_client
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self._rows_buffer = []
     # The default batch size is 500
     self._max_batch_size = batch_size or 500
+
+  def display_data(self):
+    return {'table_id': self.table_id,
+            'dataset_id': self.dataset_id,
+            'project_id': self.project_id,
+            'schema': str(self.schema),
+            'max_batch_size': self._max_batch_size}
 
   @staticmethod
   def get_table_schema(schema):
@@ -1280,7 +1361,7 @@ class BigQueryWriteFn(DoFn):
     self._rows_buffer = []
     self.table_schema = self.get_table_schema(self.schema)
 
-    self.bigquery_wrapper = BigQueryWrapper(client=self.client)
+    self.bigquery_wrapper = BigQueryWrapper(client=self.test_client)
     self.bigquery_wrapper.get_or_create_table(
         self.project_id, self.dataset_id, self.table_id, self.table_schema,
         self.create_disposition, self.write_disposition)
@@ -1460,7 +1541,7 @@ bigquery_v2_messages.TableSchema):
         schema=self.get_dict_table_schema(self.schema),
         create_disposition=self.create_disposition,
         write_disposition=self.write_disposition,
-        client=self.test_client)
+        test_client=self.test_client)
     return pcoll | 'WriteToBigQuery' >> ParDo(bigquery_write_fn)
 
   def display_data(self):

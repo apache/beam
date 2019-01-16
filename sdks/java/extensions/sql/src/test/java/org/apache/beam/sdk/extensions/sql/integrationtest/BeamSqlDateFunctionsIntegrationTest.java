@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
+import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -56,11 +56,32 @@ public class BeamSqlDateFunctionsIntegrationTest
       Row row = iter.next();
       // LOCALTIME
       DateTime date = DateTime.now();
-      assertTrue(date.getMillis() - row.getDateTime(0).getMillis() < 1000);
-      assertTrue(date.getMillis() - row.getDateTime(1).getMillis() < 1000);
-      assertTrue(date.getMillis() - row.getDateTime(2).getMillis() < 1000);
-      assertTrue(date.getMillis() - row.getDateTime(3).getMillis() < 1000);
-      assertTrue(date.getMillis() - row.getDateTime(4).getMillis() < 1000);
+      long millis = date.getMillis();
+      int timeMillis = (int) (date.getMillis() % MILLIS_PER_DAY);
+
+      // These asserts checks that various time casts are correct within 1 second.
+      // We should pass in a deterministic clock for testing.
+
+      // LOCALTIME
+      assertTrue(timeMillis - row.getDateTime(0).getMillis() < 1000);
+      assertTrue(timeMillis - row.getDateTime(0).getMillis() > -1000);
+
+      // LOCALTIMESTAMP
+      assertTrue(millis - row.getDateTime(1).getMillis() < 1000);
+      assertTrue(millis - row.getDateTime(1).getMillis() > -1000);
+
+      // CURRENT_DATE
+      assertTrue(millis - row.getDateTime(2).getMillis() < MILLIS_PER_DAY);
+      assertTrue(millis - row.getDateTime(2).getMillis() > -MILLIS_PER_DAY);
+
+      // CURRENT_TIME
+      assertTrue(timeMillis - row.getDateTime(3).getMillis() < 1000);
+      assertTrue(timeMillis - row.getDateTime(3).getMillis() > -1000);
+
+      // CURRENT_TIMESTAMP
+      assertTrue(millis - row.getDateTime(4).getMillis() < 1000);
+      assertTrue(millis - row.getDateTime(4).getMillis() > -1000);
+
       assertFalse(iter.hasNext());
       return null;
     }

@@ -18,9 +18,10 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -82,6 +84,25 @@ public class MapCoderTest {
     thrown.expectMessage("cannot encode a null Map");
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    MapCoder<byte[], Integer> coder = MapCoder.of(ByteArrayCoder.of(), VarIntCoder.of());
+    Map<byte[], Integer> value = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
+    CoderProperties.structuralValueDecodeEncodeEqual(coder, value);
+  }
+
+  @Test
+  public void testNotConsistentWithEquals() {
+    MapCoder<Integer, byte[]> coder = MapCoder.of(VarIntCoder.of(), ByteArrayCoder.of());
+    assertFalse(coder.consistentWithEquals());
+  }
+
+  @Test
+  public void testConsistentWithEquals() {
+    MapCoder<Integer, Integer> coder = MapCoder.of(VarIntCoder.of(), VarIntCoder.of());
+    assertTrue(coder.consistentWithEquals());
   }
 
   @Test

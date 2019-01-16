@@ -202,8 +202,8 @@ Do not:
 Do:
 
 * Generally, follow the rules of [semantic versioning](http://semver.org/).
-* If the API of the transform is not yet stable, annotate it as `@Experimental` (Java) or `@experimental` ([Python]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
-* If the API deprecated, annotate it as `@Deprecated` (Java) or `@deprecated` ([Python]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
+* If the API of the transform is not yet stable, annotate it as `@Experimental` (Java) or `@experimental` ([Python](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
+* If the API deprecated, annotate it as `@Deprecated` (Java) or `@deprecated` ([Python](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
 * Pay attention to the stability and versioning of third-party classes exposed by the transform's API: if they are unstable or improperly versioned (do not obey [semantic versioning](http://semver.org/)), it is better to wrap them in your own classes.
 
 Do not:
@@ -395,8 +395,8 @@ If the transform has an aspect of behavior to be customized by a user's code, ma
 
 Do:
 
-* If possible, just use PTransform composition as an extensibility device - i.e. if the same effect can be achieved by the user applying the transform in their pipeline and composing it with another `PTransform`, then the transform itself should not be extensible. E.g., a transform that writes JSON objects to a third-party system should take a `PCollection<JsonObject>` (assuming it is possible to provide a `Coder` for `JsonObject`), rather than taking a generic `PCollection<T>` and a `SerializableFunction<T, JsonObject>` (anti-example that should be fixed: `TextIO`).
-* If extensibility by user code is necessary inside the transform, pass the user code as a `SerializableFunction` or define your own serializable function-like type (ideally single-method, for interoperability with Java 8 lambdas). Because Java erases the types of lambdas, you should be sure to have adequate type information even if a raw-type `SerializableFunction` is provided by the user. See `MapElements` and `FlatMapElements` for examples of how to use `SimpleFunction` and `SerializableFunction` in tandem to support Java 7 and Java 8 well.
+* If possible, just use PTransform composition as an extensibility device - i.e. if the same effect can be achieved by the user applying the transform in their pipeline and composing it with another `PTransform`, then the transform itself should not be extensible. E.g., a transform that writes JSON objects to a third-party system should take a `PCollection<JsonObject>` (assuming it is possible to provide a `Coder` for `JsonObject`), rather than taking a generic `PCollection<T>` and a `ProcessFunction<T, JsonObject>` (anti-example that should be fixed: `TextIO`).
+* If extensibility by user code is necessary inside the transform, pass the user code as a `ProcessFunction` or define your own serializable function-like type (ideally single-method, for interoperability with Java 8 lambdas). Because Java erases the types of lambdas, you should be sure to have adequate type information even if a raw-type `ProcessFunction` is provided by the user. See `MapElements` and `FlatMapElements` for examples of how to use `ProcessFunction` and `InferableFunction` in tandem to provide good support for both lambdas and concrete subclasses with type information.
 
 Do not:
 

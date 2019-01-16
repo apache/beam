@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
@@ -67,7 +66,8 @@ class ElasticSearchIOTestUtils {
   private static void deleteIndex(RestClient restClient, String index) throws IOException {
     try {
       closeIndex(restClient, index);
-      restClient.performRequest("DELETE", String.format("/%s", index));
+      restClient.performRequest(
+          "DELETE", String.format("/%s", index), Collections.singletonMap("refresh", "wait_for"));
     } catch (IOException e) {
       // it is fine to ignore this expression as deleteIndex occurs in @before,
       // so when the first tests is run, the index does not exist yet
@@ -89,7 +89,8 @@ class ElasticSearchIOTestUtils {
                 "{\"source\" : { \"index\" : \"%s\" }, \"dest\" : { \"index\" : \"%s\" } }",
                 source, target),
             ContentType.APPLICATION_JSON);
-    restClient.performRequest("POST", "/_reindex", Collections.EMPTY_MAP, entity);
+    restClient.performRequest(
+        "POST", "/_reindex", Collections.singletonMap("refresh", "wait_for"), entity);
   }
 
   /** Inserts the given number of test documents into Elasticsearch. */
@@ -117,9 +118,9 @@ class ElasticSearchIOTestUtils {
         new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
     Response response =
         restClient.performRequest(
-            "POST", endPoint, Collections.singletonMap("refresh", "true"), requestBody);
+            "POST", endPoint, Collections.singletonMap("refresh", "wait_for"), requestBody);
     ElasticsearchIO.checkForErrors(
-        response, ElasticsearchIO.getBackendVersion(connectionConfiguration));
+        response.getEntity(), ElasticsearchIO.getBackendVersion(connectionConfiguration));
   }
 
   /**
@@ -155,7 +156,7 @@ class ElasticSearchIOTestUtils {
 
       endPoint = String.format("/%s/%s/_search", index, type);
       Response response = restClient.performRequest("GET", endPoint);
-      JsonNode searchResult = ElasticsearchIO.parseResponse(response);
+      JsonNode searchResult = ElasticsearchIO.parseResponse(response.getEntity());
       result = searchResult.path("hits").path("total").asLong();
     } catch (IOException e) {
       // it is fine to ignore bellow exceptions because in testWriteWithBatchSize* sometimes,
@@ -239,7 +240,7 @@ class ElasticSearchIOTestUtils {
     HttpEntity httpEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
     Response response =
         restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
-    JsonNode searchResult = parseResponse(response);
+    JsonNode searchResult = parseResponse(response.getEntity());
     return searchResult.path("hits").path("total").asInt();
   }
 }

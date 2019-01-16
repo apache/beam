@@ -19,8 +19,10 @@
 FROM openjdk:8
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
-ADD target/beam-runners-flink-job-server.jar /opt/apache/beam/jars/
-ADD target/flink-job-server.sh /opt/apache/beam/
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y libltdl7
+
+ADD beam-runners-flink-job-server.jar /opt/apache/beam/jars/
+ADD flink-job-server.sh /opt/apache/beam/
 
 WORKDIR /opt/apache/beam
 ENTRYPOINT ["./flink-job-server.sh"]

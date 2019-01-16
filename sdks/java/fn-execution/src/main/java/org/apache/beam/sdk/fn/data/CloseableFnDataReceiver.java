@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.fn.data;
 
 /**
@@ -24,6 +23,17 @@ package org.apache.beam.sdk.fn.data;
  * <p>The close method for a {@link CloseableFnDataReceiver} must be idempotent.
  */
 public interface CloseableFnDataReceiver<T> extends FnDataReceiver<T>, AutoCloseable {
+
+  /**
+   * Eagerly flushes any data that is buffered in this channel.
+   *
+   * @deprecated to be removed once splitting/checkpointing are available in SDKs and rewinding in
+   *     readers.
+   * @throws Exception
+   */
+  @Deprecated
+  void flush() throws Exception;
+
   /**
    * {@inheritDoc}.
    *

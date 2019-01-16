@@ -25,7 +25,6 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.MoreObjects;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -61,6 +60,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -141,7 +141,7 @@ public class AvroSourceTest {
   @Test
   public void testReadWithDifferentCodecs() throws Exception {
     // Test reading files generated using all codecs.
-    String codecs[] = {
+    String[] codecs = {
       DataFileConstants.NULL_CODEC,
       DataFileConstants.BZIP2_CODEC,
       DataFileConstants.DEFLATE_CODEC,
@@ -722,7 +722,7 @@ public class AvroSourceTest {
   @Test
   public void testReadMetadataWithCodecs() throws Exception {
     // Test reading files generated using all codecs.
-    String codecs[] = {
+    String[] codecs = {
       DataFileConstants.NULL_CODEC,
       DataFileConstants.BZIP2_CODEC,
       DataFileConstants.DEFLATE_CODEC,

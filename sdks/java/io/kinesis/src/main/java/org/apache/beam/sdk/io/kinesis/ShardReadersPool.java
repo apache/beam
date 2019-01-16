@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -33,6 +31,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +44,7 @@ class ShardReadersPool {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShardReadersPool.class);
   private static final int DEFAULT_CAPACITY_PER_SHARD = 10_000;
+  private static final int ATTEMPTS_TO_SHUTDOWN = 3;
 
   /**
    * Executor service for running the threads that read records from shards handled by this pool.
@@ -172,17 +173,29 @@ class ShardReadersPool {
   void stop() {
     LOG.info("Closing shard iterators pool");
     poolOpened.set(false);
-    executorService.shutdownNow();
-    boolean isShutdown = false;
-    int attemptsLeft = 3;
-    while (!isShutdown && attemptsLeft-- > 0) {
+    executorService.shutdown();
+    awaitTermination();
+    if (!executorService.isTerminated()) {
+      LOG.warn(
+          "Executor service was not completely terminated after {} attempts, trying to forcibly stop it.",
+          ATTEMPTS_TO_SHUTDOWN);
+      executorService.shutdownNow();
+      awaitTermination();
+    }
+  }
+
+  private void awaitTermination() {
+    int attemptsLeft = ATTEMPTS_TO_SHUTDOWN;
+    boolean isTerminated = executorService.isTerminated();
+
+    while (!isTerminated && attemptsLeft-- > 0) {
       try {
-        isShutdown = executorService.awaitTermination(10, TimeUnit.SECONDS);
+        isTerminated = executorService.awaitTermination(10, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         LOG.error("Interrupted while waiting for the executor service to shutdown");
         throw new RuntimeException(e);
       }
-      if (!isShutdown && attemptsLeft > 0) {
+      if (!isTerminated && attemptsLeft > 0) {
         LOG.warn(
             "Executor service is taking long time to shutdown, will retry. {} attempts left",
             attemptsLeft);
@@ -202,9 +215,7 @@ class ShardReadersPool {
   KinesisReaderCheckpoint getCheckpointMark() {
     ImmutableMap<String, ShardRecordsIterator> currentShardIterators = shardIteratorsMap.get();
     return new KinesisReaderCheckpoint(
-        currentShardIterators
-            .values()
-            .stream()
+        currentShardIterators.values().stream()
             .map(
                 shardRecordsIterator -> {
                   checkArgument(

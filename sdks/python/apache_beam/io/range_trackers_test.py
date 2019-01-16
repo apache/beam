@@ -325,82 +325,87 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
     self.assertEqual(computed_key, key, str(locals()))
 
   def test_key_to_fraction_no_endpoints(self):
-    self._check(key='\x07', fraction=7/256.)
-    self._check(key='\xFF', fraction=255/256.)
-    self._check(key='\x01\x02\x03', fraction=(2**16 + 2**9 + 3) / (2.0**24))
+    self._check(key=b'\x07', fraction=7/256.)
+    self._check(key=b'\xFF', fraction=255/256.)
+    self._check(key=b'\x01\x02\x03', fraction=(2**16 + 2**9 + 3) / (2.0**24))
 
   def test_key_to_fraction(self):
-    self._check(key='\x87', start='\x80', fraction=7/128.)
-    self._check(key='\x07', end='\x10', fraction=7/16.)
-    self._check(key='\x47', start='\x40', end='\x80', fraction=7/64.)
-    self._check(key='\x47\x80', start='\x40', end='\x80', fraction=15/128.)
+    self._check(key=b'\x87', start=b'\x80', fraction=7/128.)
+    self._check(key=b'\x07', end=b'\x10', fraction=7/16.)
+    self._check(key=b'\x47', start=b'\x40', end=b'\x80', fraction=7/64.)
+    self._check(key=b'\x47\x80', start=b'\x40', end=b'\x80', fraction=15/128.)
 
   def test_key_to_fraction_common_prefix(self):
     self._check(
-        key='a' * 100 + 'b', start='a' * 100 + 'a', end='a' * 100 + 'c',
+        key=b'a' * 100 + b'b', start=b'a' * 100 + b'a', end=b'a' * 100 + b'c',
         fraction=0.5)
     self._check(
-        key='a' * 100 + 'b', start='a' * 100 + 'a', end='a' * 100 + 'e',
+        key=b'a' * 100 + b'b', start=b'a' * 100 + b'a', end=b'a' * 100 + b'e',
         fraction=0.25)
     self._check(
-        key='\xFF' * 100 + '\x40', start='\xFF' * 100, end=None, fraction=0.25)
-    self._check(key='foob',
-                start='fooa\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFE',
-                end='foob\x00\x00\x00\x00\x00\x00\x00\x00\x02',
+        key=b'\xFF' * 100 + b'\x40', start=b'\xFF' * 100, end=None,
+        fraction=0.25)
+    self._check(key=b'foob',
+                start=b'fooa\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFE',
+                end=b'foob\x00\x00\x00\x00\x00\x00\x00\x00\x02',
                 fraction=0.5)
 
   def test_tiny(self):
-    self._check(fraction=.5**20, key='\0\0\x10')
-    self._check(fraction=.5**20, start='a', end='b', key='a\0\0\x10')
-    self._check(fraction=.5**20, start='a', end='c', key='a\0\0\x20')
-    self._check(fraction=.5**20, start='xy_a', end='xy_c', key='xy_a\0\0\x20')
-    self._check(fraction=.5**20, start='\xFF\xFF\x80',
-                key='\xFF\xFF\x80\x00\x08')
+    self._check(fraction=.5**20, key=b'\0\0\x10')
+    self._check(fraction=.5**20, start=b'a', end=b'b', key=b'a\0\0\x10')
+    self._check(fraction=.5**20, start=b'a', end=b'c', key=b'a\0\0\x20')
+    self._check(fraction=.5**20, start=b'xy_a', end=b'xy_c',
+                key=b'xy_a\0\0\x20')
+    self._check(fraction=.5**20, start=b'\xFF\xFF\x80',
+                key=b'\xFF\xFF\x80\x00\x08')
     self._check(fraction=.5**20 / 3,
-                start='xy_a',
-                end='xy_c',
-                key='xy_a\x00\x00\n\xaa\xaa\xaa\xaa\xaa',
+                start=b'xy_a',
+                end=b'xy_c',
+                key=b'xy_a\x00\x00\n\xaa\xaa\xaa\xaa\xaa',
                 delta=1e-15)
-    self._check(fraction=.5**100, key='\0' * 12 + '\x10')
+    self._check(fraction=.5**100, key=b'\0' * 12 + b'\x10')
 
   def test_lots(self):
     for fraction in (0, 1, .5, .75, 7./512, 1 - 7./4096):
       self._check(fraction)
-      self._check(fraction, start='\x01')
-      self._check(fraction, end='\xF0')
-      self._check(fraction, start='0x75', end='\x76')
-      self._check(fraction, start='0x75', end='\x77')
-      self._check(fraction, start='0x75', end='\x78')
-      self._check(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81')
-      self._check(fraction, start='a' * 101 + '\x80', end='a' * 101 + '\x81')
-      self._check(fraction, start='a' * 102 + '\x80', end='a' * 102 + '\x81')
+      self._check(fraction, start=b'\x01')
+      self._check(fraction, end=b'\xF0')
+      self._check(fraction, start=b'0x75', end=b'\x76')
+      self._check(fraction, start=b'0x75', end=b'\x77')
+      self._check(fraction, start=b'0x75', end=b'\x78')
+      self._check(fraction, start=b'a' * 100 + b'\x80',
+                  end=b'a' * 100 + b'\x81')
+      self._check(fraction, start=b'a' * 101 + b'\x80',
+                  end=b'a' * 101 + b'\x81')
+      self._check(fraction, start=b'a' * 102 + b'\x80',
+                  end=b'a' * 102 + b'\x81')
     for fraction in (.3, 1/3., 1/math.e, .001, 1e-30, .99, .999999):
       self._check(fraction, delta=1e-14)
-      self._check(fraction, start='\x01', delta=1e-14)
-      self._check(fraction, end='\xF0', delta=1e-14)
-      self._check(fraction, start='0x75', end='\x76', delta=1e-14)
-      self._check(fraction, start='0x75', end='\x77', delta=1e-14)
-      self._check(fraction, start='0x75', end='\x78', delta=1e-14)
-      self._check(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81',
-                  delta=1e-14)
+      self._check(fraction, start=b'\x01', delta=1e-14)
+      self._check(fraction, end=b'\xF0', delta=1e-14)
+      self._check(fraction, start=b'0x75', end=b'\x76', delta=1e-14)
+      self._check(fraction, start=b'0x75', end=b'\x77', delta=1e-14)
+      self._check(fraction, start=b'0x75', end=b'\x78', delta=1e-14)
+      self._check(fraction, start=b'a' * 100 + b'\x80',
+                  end=b'a' * 100 + b'\x81', delta=1e-14)
 
   def test_good_prec(self):
     # There should be about 7 characters (~53 bits) of precision
     # (beyond the common prefix of start and end).
-    self._check(1 / math.e, start='abc_abc', end='abc_xyz',
-                key='abc_i\xe0\xf4\x84\x86\x99\x96',
+    self._check(1 / math.e, start=b'abc_abc', end=b'abc_xyz',
+                key=b'abc_i\xe0\xf4\x84\x86\x99\x96',
                 delta=1e-15)
     # This remains true even if the start and end keys are given to
     # high precision.
     self._check(1 / math.e,
-                start='abcd_abc\0\0\0\0\0_______________abc',
-                end='abcd_xyz\0\0\0\0\0\0_______________abc',
-                key='abcd_i\xe0\xf4\x84\x86\x99\x96',
+                start=b'abcd_abc\0\0\0\0\0_______________abc',
+                end=b'abcd_xyz\0\0\0\0\0\0_______________abc',
+                key=b'abcd_i\xe0\xf4\x84\x86\x99\x96',
                 delta=1e-15)
     # For very small fractions, however, higher precision is used to
     # accurately represent small increments in the keyspace.
-    self._check(1e-20 / math.e, start='abcd_abc', end='abcd_xyz',
-                key='abcd_abc\x00\x00\x00\x00\x00\x01\x91#\x172N\xbb',
+    self._check(1e-20 / math.e, start=b'abcd_abc', end=b'abcd_xyz',
+                key=b'abcd_abc\x00\x00\x00\x00\x00\x01\x91#\x172N\xbb',
                 delta=1e-35)
 
 

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
 import org.apache.beam.sdk.annotations.Internal;
@@ -58,6 +57,11 @@ public class TextTable extends BaseBeamTable {
 
   public String getFilePattern() {
     return filePattern;
+  }
+
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.BOUNDED;
   }
 
   @Override

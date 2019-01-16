@@ -62,7 +62,7 @@ def run_bq_pipeline(argv=None):
            known_args.output,
            schema=table_schema,
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-           write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)))
+           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY)))
 
   result = p.run()
   result.wait_until_finish()

@@ -26,11 +26,13 @@ def testConfiguration = [
                 bqTables: [
                         "beam_performance.textioit_pkb_results",
                         "beam_performance.compressed_textioit_pkb_results",
+                        "beam_performance.many_files_textioit_pkb_results",
                         "beam_performance.avroioit_pkb_results",
                         "beam_performance.tfrecordioit_pkb_results",
                         "beam_performance.xmlioit_pkb_results",
                         "beam_performance.textioit_hdfs_pkb_results",
                         "beam_performance.compressed_textioit_hdfs_pkb_results",
+                        "beam_performance.many_files_textioit_hdfs_pkb_results",
                         "beam_performance.avroioit_hdfs_pkb_results",
                         "beam_performance.xmlioit_hdfs_pkb_results",
                         "beam_performance.hadoopinputformatioit_pkb_results",

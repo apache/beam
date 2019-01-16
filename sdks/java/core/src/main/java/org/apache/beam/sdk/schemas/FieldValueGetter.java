@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
@@ -35,6 +34,4 @@ public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
   ValueT get(ObjectT object);
 
   String name();
-
-  Class type();
 }

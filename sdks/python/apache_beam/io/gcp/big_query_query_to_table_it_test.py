@@ -22,6 +22,7 @@ from __future__ import absolute_import
 
 import datetime
 import logging
+import random
 import time
 import unittest
 
@@ -47,7 +48,7 @@ NEW_TYPES_INPUT_TABLE = 'python_new_types_table'
 NEW_TYPES_OUTPUT_SCHEMA = (
     '{"fields": [{"name": "bytes","type": "BYTES"},'
     '{"name": "date","type": "DATE"},{"name": "time","type": "TIME"}]}')
-NEW_TYPES_OUTPUT_VERIFY_QUERY = ('SELECT date FROM [%s];')
+NEW_TYPES_OUTPUT_VERIFY_QUERY = ('SELECT date FROM `%s`;')
 # There are problems with query time and bytes with current version of bigquery.
 NEW_TYPES_OUTPUT_EXPECTED = [
     (datetime.date(2000, 1, 1),),
@@ -61,7 +62,7 @@ STANDARD_QUERY = (
 NEW_TYPES_QUERY = (
     'SELECT bytes, date, time FROM [%s.%s]')
 DIALECT_OUTPUT_SCHEMA = ('{"fields": [{"name": "fruit","type": "STRING"}]}')
-DIALECT_OUTPUT_VERIFY_QUERY = ('SELECT fruit from [%s];')
+DIALECT_OUTPUT_VERIFY_QUERY = ('SELECT fruit from `%s`;')
 DIALECT_OUTPUT_EXPECTED = [(u'apple',), (u'orange',)]
 
 
@@ -72,7 +73,8 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
 
     self.bigquery_client = BigQueryWrapper()
-    self.dataset_id = BIG_QUERY_DATASET_ID + str(int(time.time()))
+    self.dataset_id = '%s%s%d' % (BIG_QUERY_DATASET_ID, str(int(time.time())),
+                                  random.randint(0, 10000))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
 

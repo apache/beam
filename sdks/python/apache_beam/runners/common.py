@@ -24,13 +24,12 @@ For internal use only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
-import sys
 import traceback
 from builtins import next
 from builtins import object
 from builtins import zip
 
-from future.utils import raise_
+from future.utils import raise_with_traceback
 from past.builtins import unicode
 
 from apache_beam.internal import util
@@ -63,6 +62,7 @@ class NameContext(object):
     return self.step_name == other.step_name
 
   def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __repr__(self):
@@ -105,6 +105,7 @@ class DataflowNameContext(NameContext):
             self.system_name == other.system_name)
 
   def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __hash__(self):
@@ -151,8 +152,13 @@ class MethodWrapper(object):
                        'a \'RestrictionProvider\'. Received %r instead.'
                        % obj_to_invoke)
 
-    args, _, _, defaults = core.get_function_arguments(
+    fullargspec = core.get_function_arguments(
         obj_to_invoke, method_name)
+
+    # TODO(BEAM-5878) support kwonlyargs on Python 3.
+    args = fullargspec[0]
+    defaults = fullargspec[3]
+
     defaults = defaults if defaults else []
     method_value = getattr(obj_to_invoke, method_name)
     self.method_value = method_value
@@ -386,8 +392,6 @@ def _find_param_with_default(
         'provided. Received %r and %r.' % (default_as_value, default_as_type))
 
   defaults = method.defaults
-  default_as_value = default_as_value
-  default_as_type = default_as_type
   ret = None
   for i, value in enumerate(defaults):
     if default_as_value and value == default_as_value:
@@ -703,7 +707,6 @@ class DoFnRunner(Receiver):
       raise
     step_annotation = " [while running '%s']" % self.step_name
     # To emulate exception chaining (not available in Python 2).
-    original_traceback = sys.exc_info()[2]
     try:
       # Attempt to construct the same kind of exception
       # with an augmented message.
@@ -716,7 +719,7 @@ class DoFnRunner(Receiver):
           traceback.format_exception_only(type(exn), exn)[-1].strip()
           + step_annotation)
       new_exn._tagged_with_step = True
-    raise_(type(new_exn), new_exn, original_traceback)
+    raise_with_traceback(new_exn)
 
 
 class OutputProcessor(object):

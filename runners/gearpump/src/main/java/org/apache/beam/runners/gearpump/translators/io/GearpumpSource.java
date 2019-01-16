@@ -15,9 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.gearpump.translators.io;
 
+import io.gearpump.DefaultMessage;
+import io.gearpump.Message;
+import io.gearpump.streaming.source.DataSource;
+import io.gearpump.streaming.source.Watermark;
+import io.gearpump.streaming.task.TaskContext;
 import java.io.IOException;
 import java.time.Instant;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -27,11 +31,6 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.gearpump.DefaultMessage;
-import org.apache.gearpump.Message;
-import org.apache.gearpump.streaming.source.DataSource;
-import org.apache.gearpump.streaming.source.Watermark;
-import org.apache.gearpump.streaming.task.TaskContext;
 
 /** common methods for {@link BoundedSourceWrapper} and {@link UnboundedSourceWrapper}. */
 public abstract class GearpumpSource<T> implements DataSource {

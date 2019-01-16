@@ -178,6 +178,10 @@ class TypeConstraint(object):
       else:
         visitor(t, visitor_arg)
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
 
 def match_type_variables(type_constraint, concrete_type):
   if isinstance(type_constraint, TypeConstraint):
@@ -341,7 +345,8 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   # Must either be a TypeConstraint instance or a basic Python type.
   possible_classes = [type, TypeConstraint]
   if sys.version_info[0] == 2:
-    possible_classes.append(types.ClassType)
+    # Access from __dict__ to avoid py27-lint3 compatibility checker complaint.
+    possible_classes.append(types.__dict__["ClassType"])
   is_not_type_constraint = (
       not isinstance(type_param, tuple(possible_classes))
       and type_param is not None)

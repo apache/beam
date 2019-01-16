@@ -17,7 +17,9 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+applyJavaNature(
+    exportJavadoc: false,
+    shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     dependencies {
         include(dependency('com.google.guava:guava:20.0'))
         include(dependency('com.google.protobuf:protobuf-java:3.5.1'))
@@ -29,11 +31,12 @@ applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     relocate "org.apache.beam.sdk.extensions.protobuf", "org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf"
 
     // guava uses the com.google.common and com.google.thirdparty package namespaces
-    relocate "com.google.common", "org.apache.beam.vendor.guava.v20.com.google.common"
-    relocate "com.google.thirdparty", "org.apache.beam.vendor.guava.v20.com.google.thirdparty"
+    relocate "com.google.common", "org.apache.beam.vendor.grpc.v1p13p1.com.google.common"
+    relocate "com.google.thirdparty", "org.apache.beam.vendor.grpc.v1p13p1.com.google.thirdparty"
 
-    relocate "com.google.protobuf", "org.apache.beam.vendor.protobuf.v3.com.google.protobuf"
-})
+    relocate "com.google.protobuf", "org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf"
+    }
+)
 
 description = "Apache Beam :: Vendored Dependencies :: SDKs :: Java :: Extensions :: Protobuf"
 ext.summary = "Add support to Apache Beam for Vendored Google Protobuf."

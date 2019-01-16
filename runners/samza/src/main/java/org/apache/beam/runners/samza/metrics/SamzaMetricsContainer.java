@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
@@ -70,7 +69,7 @@ public class SamzaMetricsContainer {
     final GaugeUpdater updateGauge = new GaugeUpdater();
     results.getGauges().forEach(updateGauge);
 
-    //TODO: add distribution metrics to Samza
+    // TODO: add distribution metrics to Samza
   }
 
   private class CounterUpdater implements Consumer<MetricResult<Long>> {

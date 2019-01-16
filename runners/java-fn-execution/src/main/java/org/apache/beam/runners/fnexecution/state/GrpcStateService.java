@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.state;
 
-import static com.google.common.base.Throwables.getStackTraceAsString;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getStackTraceAsString;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -28,7 +28,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.ServerCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 
 /** An implementation of the Beam Fn State service. */
 public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
@@ -51,6 +52,14 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     Exception thrown = null;
     for (Inbound inbound : clients) {
       try {
+        // the call may be cancelled because the sdk harness hung up
+        // (we terminate the environment before terminating the service endpoints)
+        if (inbound.outboundObserver instanceof ServerCallStreamObserver) {
+          if (((ServerCallStreamObserver) inbound.outboundObserver).isCancelled()) {
+            // skip to avoid call already closed exception
+            continue;
+          }
+        }
         inbound.outboundObserver.onCompleted();
       } catch (Exception t) {
         if (thrown == null) {
@@ -119,7 +128,7 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
           requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
       try {
         CompletionStage<StateResponse.Builder> result = handler.handle(request);
-        result.whenCompleteAsync(
+        result.whenComplete(
             (StateResponse.Builder responseBuilder, Throwable t) ->
                 // note that this is threadsafe if and only if outboundObserver is threadsafe.
                 outboundObserver.onNext(

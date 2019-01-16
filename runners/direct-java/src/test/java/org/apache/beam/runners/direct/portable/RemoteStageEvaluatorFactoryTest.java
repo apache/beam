@@ -15,15 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct.portable;
 
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -45,12 +43,13 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.SingleEnvironmentInstanceJobBundleFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
+import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
-import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -62,6 +61,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -97,7 +97,7 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
 
     EnvironmentFactory environmentFactory =
-        InProcessEnvironmentFactory.create(
+        EmbeddedEnvironmentFactory.create(
             PipelineOptionsFactory.create(),
             loggingServer,
             controlServer,
@@ -112,7 +112,7 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
     bundleFactory = ImmutableListBundleFactory.create();
     JobBundleFactory jobBundleFactory =
         SingleEnvironmentInstanceJobBundleFactory.create(
-            environmentFactory, dataServer, stateServer);
+            environmentFactory, dataServer, stateServer, IdGenerators.incrementingLongs());
     factory = new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory);
   }
 
@@ -157,9 +157,7 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
     PTransformNode impulseTransform = getOnlyElement(fusedQP.getRootTransforms());
     PCollectionNode impulseOutput = getOnlyElement(fusedQP.getOutputPCollections(impulseTransform));
     PTransformNode stage =
-        fusedPipeline
-            .getRootTransformIdsList()
-            .stream()
+        fusedPipeline.getRootTransformIdsList().stream()
             .map(
                 id ->
                     PipelineNode.pTransform(
@@ -203,7 +201,7 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
     PTransformNode leftRoot = null;
     PTransformNode rightRoot = null;
     for (PTransformNode root : fusedQP.getRootTransforms()) {
-      if (root.getId().equals("left")) {
+      if ("left".equals(root.getId())) {
         leftRoot = root;
       } else {
         rightRoot = root;
@@ -212,9 +210,7 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
     checkState(leftRoot != null);
     checkState(rightRoot != null);
     PTransformNode stage =
-        fusedPipeline
-            .getRootTransformIdsList()
-            .stream()
+        fusedPipeline.getRootTransformIdsList().stream()
             .map(
                 id ->
                     PipelineNode.pTransform(

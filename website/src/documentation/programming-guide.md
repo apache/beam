@@ -87,7 +87,7 @@ A typical Beam driver program works as follows:
 * **Apply** `PTransforms` to each `PCollection`. Transforms can change, filter,
   group, analyze, or otherwise process the elements in a `PCollection`. A
   transform creates a new output `PCollection` *without modifying the input
-  collection*. A typical pipeline applies subsequent transforms to the each new
+  collection*. A typical pipeline applies subsequent transforms to each new
   output `PCollection` in turn until processing is complete. However, note that
   a pipeline does not have to be a single straight line of transforms applied
   one after another: think of `PCollection`s as variables and `PTransform`s as
@@ -106,7 +106,7 @@ asynchronous "job" (or equivalent) on that back-end.
 
 The `Pipeline` abstraction encapsulates all the data and steps in your data
 processing task. Your Beam driver program typically starts by constructing a
-<span class="language-java">[Pipeline]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/Pipeline.html)</span>
+<span class="language-java">[Pipeline](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/Pipeline.html)</span>
 <span class="language-py">[Pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py)</span>
 object, and then using that object as the basis for creating the pipeline's data
 sets as `PCollection`s and its operations as `Transform`s.
@@ -128,6 +128,10 @@ Pipeline p = Pipeline.create(options);
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipelines_constructing_creating
 %}
+```
+```go
+// In order to start creating the pipeline for execution, a Pipeline object and a Scope object are needed.
+p, s := beam.NewPipelineWithRoot()
 ```
 
 ### 2.1. Configuring pipeline options {#configuring-pipeline-options}
@@ -158,6 +162,10 @@ PipelineOptions options =
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipelines_constructing_creating
 %}
+```
+```go
+// If beamx or Go flags are used, flags must be parsed first.
+flag.Parse()
 ```
 
 This interprets command-line arguments that follow the format:
@@ -192,6 +200,12 @@ public interface MyOptions extends PipelineOptions {
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom
 %}
 ```
+```go
+var (
+  input = flag.String("input", "", "")
+  output = flag.String("output", "", "")
+)
+```
 
 You can also specify a description, which appears when a user passes `--help` as
 a command-line argument, and a default value.
@@ -210,6 +224,13 @@ public interface MyOptions extends PipelineOptions {
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_options_define_custom_with_help_and_default
 %}
 ```
+```go
+var (
+  input = flag.String("input", "gs://my-bucket/input", "File(s) to read.")
+  output = flag.String("output", "gs://my-bucket/output", "Output file.")
+)
+```
+
 
 {:.language-java}
 It's recommended that you register your interface with `PipelineOptionsFactory`
@@ -234,7 +255,7 @@ Now your pipeline can accept `--myCustomOption=value` as a command-line argument
 
 ## 3. PCollections {#pcollections}
 
-The <span class="language-java">[PCollection]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/values/PCollection.html)</span>
+The <span class="language-java">[PCollection](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/values/PCollection.html)</span>
 <span class="language-py">`PCollection`</span> abstraction represents a
 potentially distributed, multi-element data set. You can think of a
 `PCollection` as "pipeline" data; Beam transforms use `PCollection` objects as
@@ -287,6 +308,9 @@ public static void main(String[] args) {
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipelines_constructing_reading
 %}
+```
+```go
+lines := textio.Read(s, "protocol://path/to/some/inputData.txt")
 ```
 
 See the [section on I/O](#pipeline-io) to learn more about how to read from the
@@ -590,6 +614,16 @@ words = ...
 %}
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_apply
 %}```
+```go
+// words is the input PCollection of strings
+var words beam.PCollection = ...
+
+func computeWordLengthFn(word string) int {
+      return len(word)
+}
+
+wordLengths := beam.ParDo(s, computeWordLengthFn, words)
+```
 
 In the example, our input `PCollection` contains `String` values. We apply a
 `ParDo` transform that specifies a function (`ComputeWordLengthFn`) to compute
@@ -704,7 +738,6 @@ PCollection<Integer> wordLengths = words.apply(
       }
     }));
 ```
-
 ```py
 # The input PCollection of strings.
 words = ...
@@ -713,6 +746,14 @@ words = ...
 # Save the result as the PCollection word_lengths.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_using_flatmap
 %}```
+```go
+// words is the input PCollection of strings
+var words beam.PCollection = ...
+
+lengths := beam.ParDo(s, func (word string) int {
+      return len(word)
+}, words)
+```
 
 If your `ParDo` performs a one-to-one mapping of input elements to output
 elements--that is, for each input element, it applies a function that produces
@@ -734,7 +775,6 @@ PCollection<Integer> wordLengths = words.apply(
   MapElements.into(TypeDescriptors.integers())
              .via((String word) -> word.length()));
 ```
-
 ```py
 # The input PCollection of string.
 words = ...
@@ -924,7 +964,7 @@ The formatted data looks like this:
 
 #### 4.2.4. Combine {#combine}
 
-<span class="language-java">[`Combine`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Combine.html)</span>
+<span class="language-java">[`Combine`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Combine.html)</span>
 <span class="language-py">[`Combine`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
 is a Beam transform for combining collections of elements or values in your
 data. `Combine` has variants that work on entire `PCollection`s, and some that
@@ -1153,7 +1193,7 @@ player_accuracies = ...
 
 #### 4.2.5. Flatten {#flatten}
 
-<span class="language-java">[`Flatten`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
+<span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
 <span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span> and
 is a Beam transform for `PCollection` objects that store the same data type.
 `Flatten` merges multiple `PCollection` objects into a single logical
@@ -1202,7 +1242,7 @@ pipeline is constructed.
 
 #### 4.2.6. Partition {#partition}
 
-<span class="language-java">[`Partition`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Partition.html)</span>
+<span class="language-java">[`Partition`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Partition.html)</span>
 <span class="language-py">[`Partition`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
 is a Beam transform for `PCollection` objects that store the same data
 type. `Partition` splits a single `PCollection` into a fixed number of smaller
@@ -1350,6 +1390,7 @@ determined by the input data, or depend on a different branch of your pipeline.
   PCollection<String> wordsBelowCutOff =
   words.apply(ParDo
       .of(new DoFn<String, String>() {
+          @ProcessElement
           public void processElement(@Element String word, OutputReceiver<String> out, ProcessContext c) {
             // In our DoFn, access the side input.
             int lengthCutOff = c.sideInput(maxWordLengthCutOffView);
@@ -1575,6 +1616,8 @@ The `PipelineOptions` for the current pipeline can always be accessed in a proce
 `@OnTimer` methods can also access many of these parameters. Timestamp, window, `PipelineOptions`, `OutputReceiver`, and
 `MultiOutputReceiver` parameters can all be accessed in an `@OnTimer` method. In addition, an `@OnTimer` method can take
 a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time.
+Timers are explained in more detail in the 
+[Timely (and Stateful) Processing with Apache Beam]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html) blog post.
 
 ### 4.6. Composite transforms {#composite-transforms}
 
@@ -1586,8 +1629,8 @@ transform can make your code more modular and easier to understand.
 
 The Beam SDK comes packed with many useful composite transforms. See the API
 reference pages for a list of transforms:
-  * [Pre-written Beam transforms for Java]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/package-summary.html)
-  * [Pre-written Beam transforms for Python]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.transforms.html)
+  * [Pre-written Beam transforms for Java](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/package-summary.html)
+  * [Pre-written Beam transforms for Python](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.transforms.html)
 
 #### 4.6.1. An example composite transform {#composite-transform-example}
 
@@ -1713,7 +1756,7 @@ Beam provides read and write transforms for a [number of common data storage
 types]({{ site.baseurl }}/documentation/io/built-in/). If you want your pipeline
 to read from or write to a data storage format that isn't supported by the
 built-in transforms, you can [implement your own read and write
-transforms]({{site.baseurl }}/documentation/io/io-toc/).
+transforms]({{site.baseurl }}/documentation/io/developing-io-overview/).
 
 ### 5.1. Reading input data {#pipeline-io-reading-data}
 
@@ -2163,7 +2206,7 @@ all the elements are by default part of a single, global window.
 To use windowing with fixed data sets, you can assign your own timestamps to
 each element. To assign timestamps to elements, use a `ParDo` transform with a
 `DoFn` that outputs each element with a new timestamp (for example, the
-[WithTimestamps]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html)
+[WithTimestamps](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html)
 transform in the Beam SDK for Java).
 
 To illustrate how windowing with a bounded `PCollection` can affect how your
@@ -2312,13 +2355,13 @@ into fixed windows, each one minute in length:
 #### 7.3.2. Sliding time windows {#using-sliding-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
-into sliding time windows. Each window is 30 minutes in length, and a new window
+into sliding time windows. Each window is 30 seconds in length, and a new window
 begins every five seconds:
 
 ```java
     PCollection<String> items = ...;
     PCollection<String> slidingWindowedItems = items.apply(
-        Window.<String>into(SlidingWindows.of(Duration.standardMinutes(30)).every(Duration.standardSeconds(5))));
+        Window.<String>into(SlidingWindows.of(Duration.standardSeconds(30)).every(Duration.standardSeconds(5))));
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:setting_sliding_windows

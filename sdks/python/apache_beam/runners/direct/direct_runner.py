@@ -25,6 +25,7 @@ from __future__ import absolute_import
 
 import itertools
 import logging
+import time
 
 from google.protobuf import wrappers_pb2
 
@@ -67,11 +68,11 @@ class SwitchingDirectRunner(PipelineRunner):
   implemented in the FnApiRunner.
   """
 
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     use_fnapi_runner = True
 
     # Streaming mode is not yet supported on the FnApiRunner.
-    if pipeline._options.view_as(StandardOptions).streaming:
+    if options.view_as(StandardOptions).streaming:
       use_fnapi_runner = False
 
     from apache_beam.pipeline import PipelineVisitor
@@ -135,7 +136,7 @@ class SwitchingDirectRunner(PipelineRunner):
     else:
       runner = BundleBasedDirectRunner()
 
-    return runner.run_pipeline(pipeline)
+    return runner.run_pipeline(pipeline, options)
 
 
 # Type variables.
@@ -264,11 +265,12 @@ class _DirectReadFromPubSub(PTransform):
 
 
 class _DirectWriteToPubSubFn(DoFn):
-  _topic = None
+  BUFFER_SIZE_ELEMENTS = 100
+  FLUSH_TIMEOUT_SECS = BUFFER_SIZE_ELEMENTS * 0.5
 
   def __init__(self, sink):
     self.project = sink.project
-    self.topic_name = sink.topic_name
+    self.short_topic_name = sink.topic_name
     self.id_label = sink.id_label
     self.timestamp_attribute = sink.timestamp_attribute
     self.with_attributes = sink.with_attributes
@@ -282,30 +284,33 @@ class _DirectWriteToPubSubFn(DoFn):
                                 'supported for PubSub writes')
 
   def start_bundle(self):
-    from google.cloud import pubsub
-
-    if self._topic is None:
-      self._topic = pubsub.Client(project=self.project).topic(
-          self.topic_name)
     self._buffer = []
 
   def process(self, elem):
     self._buffer.append(elem)
-    if len(self._buffer) >= 100:
+    if len(self._buffer) >= self.BUFFER_SIZE_ELEMENTS:
       self._flush()
 
   def finish_bundle(self):
     self._flush()
 
   def _flush(self):
-    if self._buffer:
-      with self._topic.batch() as batch:
-        for elem in self._buffer:
-          if self.with_attributes:
-            batch.publish(elem.data, **elem.attributes)
-          else:
-            batch.publish(elem)
-      self._buffer = []
+    from google.cloud import pubsub
+    pub_client = pubsub.PublisherClient()
+    topic = pub_client.topic_path(self.project, self.short_topic_name)
+
+    if self.with_attributes:
+      futures = [pub_client.publish(topic, elem.data, **elem.attributes)
+                 for elem in self._buffer]
+    else:
+      futures = [pub_client.publish(topic, elem)
+                 for elem in self._buffer]
+
+    timer_start = time.time()
+    for future in futures:
+      remaining = self.FLUSH_TIMEOUT_SECS - (time.time() - timer_start)
+      future.result(remaining)
+    self._buffer = []
 
 
 def _get_pubsub_transform_overrides(pipeline_options):
@@ -341,7 +346,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
 class BundleBasedDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
 
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
     # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
@@ -357,7 +362,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     from apache_beam.testing.test_stream import TestStream
 
     # Performing configured PTransform overrides.
-    pipeline.replace_all(_get_transform_overrides(pipeline.options))
+    pipeline.replace_all(_get_transform_overrides(options))
 
     # If the TestStream I/O is used, use a mock test clock.
     class _TestStreamUsageVisitor(PipelineVisitor):
@@ -382,8 +387,8 @@ class BundleBasedDirectRunner(PipelineRunner):
     pipeline.visit(self.consumer_tracking_visitor)
 
     evaluation_context = EvaluationContext(
-        pipeline._options,
-        BundleFactory(stacked=pipeline._options.view_as(DirectOptions)
+        options,
+        BundleFactory(stacked=options.view_as(DirectOptions)
                       .direct_runner_use_stacked_bundle),
         self.consumer_tracking_visitor.root_transforms,
         self.consumer_tracking_visitor.value_to_consumers,

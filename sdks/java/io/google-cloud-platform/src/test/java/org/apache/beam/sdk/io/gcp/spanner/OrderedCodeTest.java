@@ -23,13 +23,13 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.BaseEncoding;
-import com.google.common.primitives.Bytes;
-import com.google.common.primitives.UnsignedBytes;
-import com.google.common.primitives.UnsignedInteger;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Bytes;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedInteger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -654,7 +654,7 @@ public class OrderedCodeTest {
     assertEquals(2, orderedCode.getSignedEncodingLength(64));
     assertEquals(2, orderedCode.getSignedEncodingLength(8191));
     assertEquals(3, orderedCode.getSignedEncodingLength(8192));
-    assertEquals(9, orderedCode.getSignedEncodingLength((1L << 62)) - 1);
+    assertEquals(9, orderedCode.getSignedEncodingLength(1L << 62) - 1);
     assertEquals(10, orderedCode.getSignedEncodingLength(1L << 62));
     assertEquals(10, orderedCode.getSignedEncodingLength(Long.MAX_VALUE));
   }

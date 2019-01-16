@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
@@ -35,11 +35,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.value.AutoValue;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -67,6 +62,11 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CharStreams;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -257,7 +257,7 @@ public class CommonCoderTest {
           convertValue(kvMap.get("value"), coderSpec.getComponents().get(0), valueCoder);
       Instant timestamp = new Instant(((Number) kvMap.get("timestamp")).longValue());
       List<BoundedWindow> windows = new ArrayList<>();
-      for (Object window : ((List<Object>) kvMap.get("windows"))) {
+      for (Object window : (List<Object>) kvMap.get("windows")) {
         windows.add(
             (BoundedWindow) convertValue(window, coderSpec.getComponents().get(1), windowCoder));
       }

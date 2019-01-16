@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -69,6 +70,7 @@ public class PipelineOptionsTest {
   public void testDefaults() {
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
     assertThat(options.getParallelism(), is(-1));
+    assertThat(options.getMaxParallelism(), is(-1));
     assertThat(options.getFlinkMaster(), is("[auto]"));
     assertThat(options.getFilesToStage(), is(nullValue()));
     assertThat(options.getLatencyTrackingInterval(), is(0L));
@@ -78,12 +80,16 @@ public class PipelineOptionsTest {
     assertThat(options.getMinPauseBetweenCheckpoints(), is(-1L));
     assertThat(options.getCheckpointingInterval(), is(-1L));
     assertThat(options.getCheckpointTimeoutMillis(), is(-1L));
+    assertThat(options.getFailOnCheckpointingErrors(), is(true));
     assertThat(options.getNumberOfExecutionRetries(), is(-1));
     assertThat(options.getExecutionRetryDelay(), is(-1L));
     assertThat(options.getRetainExternalizedCheckpointsOnCancellation(), is(false));
     assertThat(options.getStateBackend(), is(nullValue()));
     assertThat(options.getMaxBundleSize(), is(1000L));
     assertThat(options.getMaxBundleTimeMills(), is(1000L));
+    assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED));
+    assertThat(options.getSavepointPath(), is(nullValue()));
+    assertThat(options.getAllowNonRestoredState(), is(false));
   }
 
   @Test(expected = Exception.class)

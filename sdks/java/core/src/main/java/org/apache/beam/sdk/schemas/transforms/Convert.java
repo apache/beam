@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.schemas.transforms;
 
 import org.apache.beam.sdk.annotations.Experimental;
@@ -93,10 +92,6 @@ public class Convert {
   private static class ConvertTransform<InputT, OutputT>
       extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
     TypeDescriptor<OutputT> outputTypeDescriptor;
-
-    ConvertTransform(Class<OutputT> outputClass) {
-      this(TypeDescriptor.of(outputClass));
-    }
 
     ConvertTransform(TypeDescriptor<OutputT> outputTypeDescriptor) {
       this.outputTypeDescriptor = outputTypeDescriptor;

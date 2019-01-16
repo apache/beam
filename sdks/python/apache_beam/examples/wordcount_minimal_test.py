@@ -36,7 +36,7 @@ class WordCountMinimalTest(unittest.TestCase):
 
   def create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
+      f.write(contents.encode('utf-8'))
       return f.name
 
   def test_basics(self):
@@ -51,7 +51,7 @@ class WordCountMinimalTest(unittest.TestCase):
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
-        match = re.search(r'([a-z]+): ([0-9]+)', line)
+        match = re.search(r'([a-z]+): ([0-9]+)', line.decode('utf-8'))
         if match is not None:
           results.append((match.group(1), int(match.group(2))))
     self.assertEqual(sorted(results), sorted(expected_words.items()))
