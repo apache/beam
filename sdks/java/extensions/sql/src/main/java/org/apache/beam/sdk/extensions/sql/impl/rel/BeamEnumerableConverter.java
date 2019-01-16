@@ -284,16 +284,16 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       case ARRAY:
         return ((List<?>) beamValue)
             .stream()
-            .map(elem -> fieldToAvatica(type.getCollectionElementType(), elem))
-            .collect(Collectors.toList());
+                .map(elem -> fieldToAvatica(type.getCollectionElementType(), elem))
+                .collect(Collectors.toList());
       case MAP:
         return ((Map<?, ?>) beamValue)
-            .entrySet()
-            .stream()
-            .collect(
-                Collectors.toMap(
-                    entry -> entry.getKey(),
-                    entry -> fieldToAvatica(type.getCollectionElementType(), entry.getValue())));
+            .entrySet().stream()
+                .collect(
+                    Collectors.toMap(
+                        entry -> entry.getKey(),
+                        entry ->
+                            fieldToAvatica(type.getCollectionElementType(), entry.getValue())));
       case ROW:
         // TODO: needs to be a Struct
         return beamValue;

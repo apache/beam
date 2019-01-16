@@ -66,7 +66,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
   public PTransformReplacement<PCollection<? extends InputT>, PCollection<OutputT>>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<? extends InputT>, PCollection<OutputT>,
+                  PCollection<? extends InputT>,
+                  PCollection<OutputT>,
                   SingleOutput<InputT, OutputT>>
               transform) {
     return PTransformReplacement.of(

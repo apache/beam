@@ -148,7 +148,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
         new StatefulParDoEvaluatorFactory<>(mockEvaluationContext, options);
 
     AppliedPTransform<
-            PCollection<? extends KeyedWorkItem<String, KV<String, Integer>>>, PCollectionTuple,
+            PCollection<? extends KeyedWorkItem<String, KV<String, Integer>>>,
+            PCollectionTuple,
             StatefulParDo<String, Integer, Integer>>
         producingTransform = (AppliedPTransform) DirectGraphs.getProducer(produced);
 
@@ -256,7 +257,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
 
     // This will be the stateful ParDo from the expansion
     AppliedPTransform<
-            PCollection<KeyedWorkItem<String, KV<String, Integer>>>, PCollectionTuple,
+            PCollection<KeyedWorkItem<String, KV<String, Integer>>>,
+            PCollectionTuple,
             StatefulParDo<String, Integer, Integer>>
         producingTransform = (AppliedPTransform) DirectGraphs.getProducer(produced);
 

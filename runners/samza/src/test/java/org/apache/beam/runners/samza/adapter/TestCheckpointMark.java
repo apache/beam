@@ -31,7 +31,7 @@ public class TestCheckpointMark implements UnboundedSource.CheckpointMark, Seria
 
   @Override
   public void finalizeCheckpoint() throws IOException {
-    //DO NOTHING
+    // DO NOTHING
   }
 
   static TestCheckpointMark of(int checkpoint) {

@@ -65,8 +65,7 @@ public abstract class FusedPipeline {
     Set<String> executableTransformIds =
         Sets.union(
             executableStageTransforms.keySet(),
-            getRunnerExecutedTransforms()
-                .stream()
+            getRunnerExecutedTransforms().stream()
                 .map(PTransformNode::getId)
                 .collect(Collectors.toSet()));
 

@@ -366,9 +366,7 @@ public class ClickHouseIO {
     @VisibleForTesting
     static String insertSql(TableSchema schema, String table) {
       String columnsStr =
-          schema
-              .columns()
-              .stream()
+          schema.columns().stream()
               .filter(x -> !x.materializedOrAlias())
               .map(x -> quoteIdentifier(x.name()))
               .collect(Collectors.joining(", "));

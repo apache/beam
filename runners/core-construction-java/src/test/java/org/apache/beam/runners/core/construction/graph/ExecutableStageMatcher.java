@@ -105,8 +105,7 @@ public class ExecutableStageMatcher extends TypeSafeMatcher<ExecutableStage> {
     return item.getInputPCollection().getId().equals(inputPCollectionId)
         && containsInAnyOrder(sideInputIds.toArray())
             .matches(
-                item.getSideInputs()
-                    .stream()
+                item.getSideInputs().stream()
                     .map(
                         ref ->
                             SideInputId.newBuilder()
@@ -115,14 +114,12 @@ public class ExecutableStageMatcher extends TypeSafeMatcher<ExecutableStage> {
                                 .build())
                     .collect(Collectors.toSet()))
         && materializedPCollection.matches(
-            item.getOutputPCollections()
-                .stream()
+            item.getOutputPCollections().stream()
                 .map(PCollectionNode::getId)
                 .collect(Collectors.toSet()))
         && containsInAnyOrder(fusedTransforms.toArray(new String[0]))
             .matches(
-                item.getTransforms()
-                    .stream()
+                item.getTransforms().stream()
                     .map(PTransformNode::getId)
                     .collect(Collectors.toSet()));
   }

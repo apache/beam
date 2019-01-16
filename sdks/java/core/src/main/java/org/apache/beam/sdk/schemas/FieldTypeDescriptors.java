@@ -30,6 +30,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
 import org.joda.time.Instant;
+
 /**
  * Utilities for converting between {@link Schema} field types and {@link TypeDescriptor}s that
  * define Java objects which can represent these field types.

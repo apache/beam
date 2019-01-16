@@ -126,9 +126,7 @@ public class RowCoder extends CustomCoder<Row> {
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
 
     List<Coder<?>> coders =
-        schema
-            .getFields()
-            .stream()
+        schema.getFields().stream()
             .map(Field::getType)
             .map(RowCoder::coderForFieldType)
             .collect(Collectors.toList());

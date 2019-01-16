@@ -1165,9 +1165,7 @@ public class GreedyStageFuserTest {
       protected boolean matchesSafely(ExecutableStage executableStage) {
         // NOTE: Transform names must be unique, so it's fine to throw here if this does not hold.
         Set<String> stageTransforms =
-            executableStage
-                .getTransforms()
-                .stream()
+            executableStage.getTransforms().stream()
                 .map(PTransformNode::getId)
                 .collect(Collectors.toSet());
         return stageTransforms.containsAll(expectedTransforms)

@@ -68,8 +68,7 @@ public class JavaBeanUtils {
   public static void validateJavaBean(
       List<FieldValueTypeInformation> getters, List<FieldValueTypeInformation> setters) {
     Map<String, FieldValueTypeInformation> setterMap =
-        setters
-            .stream()
+        setters.stream()
             .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
 
     for (FieldValueTypeInformation type : getters) {

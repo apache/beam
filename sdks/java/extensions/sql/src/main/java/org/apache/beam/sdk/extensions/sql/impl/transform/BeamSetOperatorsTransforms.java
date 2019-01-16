@@ -86,7 +86,8 @@ public abstract class BeamSetOperatorsTransforms {
 
               // Say for Row R, there are m instances on left and n instances on right,
               // INTERSECT ALL outputs MIN(m, n) instances of R.
-              Iterator<Row> iter = (leftCount <= rightCount) ? leftRows.iterator() : rightRows.iterator();
+              Iterator<Row> iter =
+                  (leftCount <= rightCount) ? leftRows.iterator() : rightRows.iterator();
               while (iter.hasNext()) {
                 ctx.output(iter.next());
               }

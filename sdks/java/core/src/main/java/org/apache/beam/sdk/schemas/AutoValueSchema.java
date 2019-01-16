@@ -42,8 +42,7 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
       // If the generated class is passed in, we want to look at the base class to find the getters.
       Class<?> targetClass = AutoValueUtils.getBaseAutoValueClass(clazz);
-      return ReflectUtils.getMethods(targetClass)
-          .stream()
+      return ReflectUtils.getMethods(targetClass).stream()
           .filter(ReflectUtils::isGetter)
           // All AutoValue getters are marked abstract.
           .filter(m -> Modifier.isAbstract(m.getModifiers()))

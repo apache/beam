@@ -242,10 +242,7 @@ public class CoGroup {
       KeyedPCollectionTuple<Row> keyedPCollectionTuple =
           KeyedPCollectionTuple.empty(input.getPipeline());
       List<TupleTag<Row>> sortedTags =
-          input
-              .getAll()
-              .keySet()
-              .stream()
+          input.getAll().keySet().stream()
               .sorted(Comparator.comparing(TupleTag::getId))
               .map(t -> new TupleTag<Row>(t.getId() + "_ROW"))
               .collect(Collectors.toList());

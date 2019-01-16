@@ -581,8 +581,7 @@ public class BigtableIOTest {
     String regex = ".*17.*";
     final KeyMatchesRegex keyPredicate = new KeyMatchesRegex(regex);
     Iterable<Row> filteredRows =
-        testRows
-            .stream()
+        testRows.stream()
             .filter(
                 input -> {
                   verifyNotNull(input, "input");
@@ -710,7 +709,7 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    //Construct few non contiguous key ranges [..1][1..2][3..4][4..5][6..7][8..9]
+    // Construct few non contiguous key ranges [..1][1..2][3..4][4..5][6..7][8..9]
     List<ByteKeyRange> keyRanges =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
@@ -720,7 +719,7 @@ public class BigtableIOTest {
             ByteKeyRange.of(createByteKey(6), createByteKey(7)),
             ByteKeyRange.of(createByteKey(8), createByteKey(9)));
 
-    //Expected ranges after split and reduction by maxSplitCount is [..2][3..5][6..7][8..9]
+    // Expected ranges after split and reduction by maxSplitCount is [..2][3..5][6..7][8..9]
     List<ByteKeyRange> expectedKeyRangesAfterReducedSplits =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(2)),
@@ -770,7 +769,7 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    //Construct non contiguous key ranges [..1][2..3][4..5][6..7][8..9]
+    // Construct non contiguous key ranges [..1][2..3][4..5][6..7][8..9]
     List<ByteKeyRange> keyRanges =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
@@ -846,8 +845,8 @@ public class BigtableIOTest {
       splits.add(source.withSingleRange(range));
     }
 
-    //Splits Source have ranges [..1][1..2][2..3][3..4][4..5][5..6][6..7][7..8][8..9][9..]
-    //expected reduced Split source ranges are [..4][4..8][8..]
+    // Splits Source have ranges [..1][1..2][2..3][3..4][4..5][5..6][6..7][7..8][8..9][9..]
+    // expected reduced Split source ranges are [..4][4..8][8..]
     List<ByteKeyRange> expectedKeyRangesAfterReducedSplits =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(4)),

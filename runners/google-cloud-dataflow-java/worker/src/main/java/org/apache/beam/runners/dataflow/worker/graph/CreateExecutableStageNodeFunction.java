@@ -236,7 +236,8 @@ public class CreateExecutableStageNodeFunction
       nodesToPCollections.put(node, pcollectionId);
       componentsBuilder.putPcollections(pcollectionId, pCollection);
 
-      // Check whether this output collection has consumers from worker side when "use_executable_stage_bundle_execution"
+      // Check whether this output collection has consumers from worker side when
+      // "use_executable_stage_bundle_execution"
       // is set
       if (input.successors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance)) {
         executableStageOutputs.add(PipelineNode.pCollection(pcollectionId, pCollection));

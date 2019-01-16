@@ -54,7 +54,7 @@ public final class UdafImpl<InputT, AccumT, OutputT>
         new FunctionParameter() {
           @Override
           public int getOrdinal() {
-            return 0; //up to one parameter is supported in UDAF.
+            return 0; // up to one parameter is supported in UDAF.
           }
 
           @Override

@@ -75,7 +75,8 @@ public class PubsubJsonClient extends PubsubClient {
                   Transport.getJsonFactory(),
                   chainHttpRequestInitializer(
                       options.getGcpCredential(),
-                      // Do not log 404. It clutters the output and is possibly even required by the caller.
+                      // Do not log 404. It clutters the output and is possibly even required by the
+                      // caller.
                       new RetryHttpRequestInitializer(ImmutableList.of(404))))
               .setRootUrl(options.getPubsubRootUrl())
               .setApplicationName(options.getAppName())

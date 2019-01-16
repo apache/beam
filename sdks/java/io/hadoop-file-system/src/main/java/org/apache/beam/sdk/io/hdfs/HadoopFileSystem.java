@@ -190,7 +190,8 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       boolean success = fileSystem.rename(src, dest);
 
       // If the failure was due to the file already existing, delete and retry (BEAM-5036).
-      // This should be the exceptional case, so handle here rather than incur the overhead of testing first
+      // This should be the exceptional case, so handle here rather than incur the overhead of
+      // testing first
       if (!success && fileSystem.exists(src) && fileSystem.exists(dest)) {
         LOG.debug(
             String.format(LOG_DELETING_EXISTING_FILE, Path.getPathWithoutSchemeAndAuthority(dest)));

@@ -263,9 +263,7 @@ public class BigQueryUtils {
             .collect(toMap(i -> bqFields.get(i).getName(), i -> i));
 
     List<Object> rawJsonValues =
-        rowSchema
-            .getFields()
-            .stream()
+        rowSchema.getFields().stream()
             .map(field -> bqFieldIndices.get(field.getName()))
             .map(index -> jsonBqRow.getF().get(index).getV())
             .collect(toList());
@@ -284,9 +282,9 @@ public class BigQueryUtils {
     if (jsonBQValue instanceof List) {
       return ((List<Object>) jsonBQValue)
           .stream()
-          .map(v -> ((Map<String, Object>) v).get("v"))
-          .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
-          .collect(toList());
+              .map(v -> ((Map<String, Object>) v).get("v"))
+              .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
+              .collect(toList());
     }
 
     throw new UnsupportedOperationException(

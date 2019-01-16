@@ -150,9 +150,7 @@ public class NetworksTest {
     MutableNetwork<String, String> originalNetwork = createNetwork();
     for (String node : originalNetwork.nodes()) {
       assertEquals(
-          originalNetwork
-              .successors(node)
-              .stream()
+          originalNetwork.successors(node).stream()
               .map(function)
               .collect(Collectors.toCollection(HashSet::new)),
           network.successors(function.apply(node)));
@@ -161,9 +159,7 @@ public class NetworksTest {
     }
     assertEquals(
         network.nodes(),
-        originalNetwork
-            .nodes()
-            .stream()
+        originalNetwork.nodes().stream()
             .map(function)
             .collect(Collectors.toCollection(HashSet::new)));
   }

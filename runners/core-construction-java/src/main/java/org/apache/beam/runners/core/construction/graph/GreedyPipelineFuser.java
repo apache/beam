@@ -165,15 +165,13 @@ public class GreedyPipelineFuser {
     // as can compatible producers/consumers if a PCollection is only materialized once.
     return FusedPipeline.of(
         deduplicated.getDeduplicatedComponents(),
-        stages
-            .stream()
+        stages.stream()
             .map(stage -> deduplicated.getDeduplicatedStages().getOrDefault(stage, stage))
             .map(GreedyPipelineFuser::sanitizeDanglingPTransformInputs)
             .collect(Collectors.toSet()),
         Sets.union(
             deduplicated.getIntroducedTransforms(),
-            unfusedTransforms
-                .stream()
+            unfusedTransforms.stream()
                 .map(
                     transform ->
                         deduplicated
@@ -306,8 +304,7 @@ public class GreedyPipelineFuser {
               pipeline.getEnvironment(newConsumer.consumingTransform()).get());
       boolean foundSiblings = false;
       for (Set<CollectionConsumer> existingConsumers : compatibleConsumers.get(key)) {
-        if (existingConsumers
-            .stream()
+        if (existingConsumers.stream()
             .allMatch(
                 // The two consume the same PCollection and can exist in the same stage.
                 collectionConsumer ->
@@ -340,8 +337,7 @@ public class GreedyPipelineFuser {
     return GreedyStageFuser.forGrpcPortRead(
         pipeline,
         rootCollection,
-        mutuallyCompatible
-            .stream()
+        mutuallyCompatible.stream()
             .map(CollectionConsumer::consumingTransform)
             .collect(Collectors.toSet()));
   }
@@ -359,27 +355,19 @@ public class GreedyPipelineFuser {
     Set<String> possibleInputs = new HashSet<>();
     possibleInputs.add(stage.getInputPCollection().getId());
     possibleInputs.addAll(
-        stage
-            .getOutputPCollections()
-            .stream()
+        stage.getOutputPCollections().stream()
             .map(PCollectionNode::getId)
             .collect(Collectors.toSet()));
     possibleInputs.addAll(
-        stage
-            .getSideInputs()
-            .stream()
+        stage.getSideInputs().stream()
             .map(s -> s.collection().getId())
             .collect(Collectors.toSet()));
     possibleInputs.addAll(
-        stage
-            .getTransforms()
-            .stream()
+        stage.getTransforms().stream()
             .flatMap(t -> t.getTransform().getOutputsMap().values().stream())
             .collect(Collectors.toSet()));
     Set<String> danglingInputs =
-        stage
-            .getTransforms()
-            .stream()
+        stage.getTransforms().stream()
             .flatMap(t -> t.getTransform().getInputsMap().values().stream())
             .filter(in -> !possibleInputs.contains(in))
             .collect(Collectors.toSet());
@@ -388,10 +376,7 @@ public class GreedyPipelineFuser {
     for (PTransformNode transformNode : stage.getTransforms()) {
       PTransform transform = transformNode.getTransform();
       Map<String, String> validInputs =
-          transform
-              .getInputsMap()
-              .entrySet()
-              .stream()
+          transform.getInputsMap().entrySet().stream()
               .filter(e -> !danglingInputs.contains(e.getValue()))
               .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
 
@@ -411,15 +396,10 @@ public class GreedyPipelineFuser {
     componentBuilder
         .clearTransforms()
         .putAllTransforms(
-            pTransformNodes
-                .stream()
+            pTransformNodes.stream()
                 .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform)));
     Map<String, PCollection> validPCollectionMap =
-        stage
-            .getComponents()
-            .getPcollectionsMap()
-            .entrySet()
-            .stream()
+        stage.getComponents().getPcollectionsMap().entrySet().stream()
             .filter(e -> !danglingInputs.contains(e.getKey()))
             .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
 

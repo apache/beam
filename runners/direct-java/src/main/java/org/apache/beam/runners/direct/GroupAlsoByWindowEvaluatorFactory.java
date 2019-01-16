@@ -81,7 +81,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
 
   private <K, V> TransformEvaluator<KeyedWorkItem<K, V>> createEvaluator(
       AppliedPTransform<
-              PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
+              PCollection<KeyedWorkItem<K, V>>,
+              PCollection<KV<K, Iterable<V>>>,
               DirectGroupAlsoByWindow<K, V>>
           application,
       CommittedBundle<KeyedWorkItem<K, V>> inputBundle) {
@@ -100,7 +101,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     private final EvaluationContext evaluationContext;
     private final PipelineOptions options;
     private final AppliedPTransform<
-            PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
+            PCollection<KeyedWorkItem<K, V>>,
+            PCollection<KV<K, Iterable<V>>>,
             DirectGroupAlsoByWindow<K, V>>
         application;
 
@@ -120,7 +122,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
         PipelineOptions options,
         CommittedBundle<KeyedWorkItem<K, V>> inputBundle,
         final AppliedPTransform<
-                PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
+                PCollection<KeyedWorkItem<K, V>>,
+                PCollection<KV<K, Iterable<V>>>,
                 DirectGroupAlsoByWindow<K, V>>
             application) {
       this.evaluationContext = evaluationContext;

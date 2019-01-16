@@ -85,7 +85,7 @@ import org.joda.time.Instant;
  *
  * @param <T> The type of the element in this stream.
  */
-//TODO: write a proper Builder enforcing all those rules mentioned.
+// TODO: write a proper Builder enforcing all those rules mentioned.
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   public static final String TRANSFORM_URN = "beam:transform:spark:createstream:v1";
 
@@ -96,7 +96,7 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   private Instant initialSystemTime;
   private final boolean forceWatermarkSync;
 
-  private Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE; //for test purposes.
+  private Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE; // for test purposes.
 
   private CreateStream(
       Duration batchDuration,

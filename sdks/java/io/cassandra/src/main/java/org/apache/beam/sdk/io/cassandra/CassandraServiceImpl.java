@@ -214,21 +214,14 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
 
     SplitGenerator splitGenerator = new SplitGenerator(cluster.getMetadata().getPartitioner());
     List<BigInteger> tokens =
-        cluster
-            .getMetadata()
-            .getTokenRanges()
-            .stream()
+        cluster.getMetadata().getTokenRanges().stream()
             .map(tokenRange -> new BigInteger(tokenRange.getEnd().getValue().toString()))
             .collect(Collectors.toList());
     List<List<RingRange>> splits = splitGenerator.generateSplits(numSplits, tokens);
     LOG.info("{} splits were actually generated", splits.size());
 
     final String partitionKey =
-        cluster
-            .getMetadata()
-            .getKeyspace(spec.keyspace())
-            .getTable(spec.table())
-            .getPartitionKey()
+        cluster.getMetadata().getKeyspace(spec.keyspace()).getTable(spec.table()).getPartitionKey()
             .stream()
             .map(ColumnMetadata::getName)
             .collect(Collectors.joining(","));

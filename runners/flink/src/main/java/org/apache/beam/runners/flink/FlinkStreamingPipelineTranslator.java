@@ -172,7 +172,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   @VisibleForTesting
   static class StreamingShardedWriteFactory<UserT, DestinationT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<UserT>, WriteFilesResult<DestinationT>,
+          PCollection<UserT>,
+          WriteFilesResult<DestinationT>,
           WriteFiles<UserT, DestinationT, OutputT>> {
     FlinkPipelineOptions options;
 
@@ -184,7 +185,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     public PTransformReplacement<PCollection<UserT>, WriteFilesResult<DestinationT>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<UserT>, WriteFilesResult<DestinationT>,
+                    PCollection<UserT>,
+                    WriteFilesResult<DestinationT>,
                     WriteFiles<UserT, DestinationT, OutputT>>
                 transform) {
       // By default, if numShards is not set WriteFiles will produce one file per bundle. In

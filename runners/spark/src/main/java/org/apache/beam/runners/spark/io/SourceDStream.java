@@ -167,7 +167,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     return numPartitions;
   }
 
-  //---- Bound by time.
+  // ---- Bound by time.
 
   // return the largest between the proportional read time (%batchDuration dedicated for read)
   // and the min. read time set.
@@ -184,7 +184,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     return readDuration;
   }
 
-  //---- Bound by records.
+  // ---- Bound by records.
 
   private scala.Option<Long> rateControlledMaxRecords() {
     final scala.Option<RateController> rateControllerOption = rateController();

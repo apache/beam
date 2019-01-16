@@ -34,6 +34,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+
 /** Tests for {@link org.apache.beam.sdk.schemas.transforms.Unnest}. */
 public class UnnestTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -78,16 +79,14 @@ public class UnnestTest implements Serializable {
             .mapToObj(i -> Row.withSchema(SIMPLE_SCHEMA).addValues(i, Integer.toString(i)).build())
             .collect(Collectors.toList());
     List<Row> rows =
-        bottomRow
-            .stream()
+        bottomRow.stream()
             .map(r -> Row.withSchema(NESTED_SCHEMA).addValues(r, r).build())
             .collect(Collectors.toList());
     PCollection<Row> unnested =
         pipeline.apply(Create.of(rows).withRowSchema(NESTED_SCHEMA)).apply(Unnest.create());
     assertEquals(UNNESTED_SCHEMA, unnested.getSchema());
     List<Row> expected =
-        bottomRow
-            .stream()
+        bottomRow.stream()
             .map(
                 r ->
                     Row.withSchema(UNNESTED_SCHEMA)
@@ -116,8 +115,7 @@ public class UnnestTest implements Serializable {
             .mapToObj(i -> Row.withSchema(SIMPLE_SCHEMA).addValues(i, Integer.toString(i)).build())
             .collect(Collectors.toList());
     List<Row> rows =
-        bottomRow
-            .stream()
+        bottomRow.stream()
             .map(r -> Row.withSchema(NESTED_SCHEMA2).addValues(r).build())
             .collect(Collectors.toList());
     PCollection<Row> unnested =
@@ -126,8 +124,7 @@ public class UnnestTest implements Serializable {
             .apply(Unnest.<Row>create().withFieldNameFunction(Unnest.KEEP_NESTED_NAME));
     assertEquals(UNNESTED2_SCHEMA_ALTERNATE, unnested.getSchema());
     List<Row> expected =
-        bottomRow
-            .stream()
+        bottomRow.stream()
             .map(
                 r ->
                     Row.withSchema(UNNESTED2_SCHEMA_ALTERNATE)
@@ -148,8 +145,7 @@ public class UnnestTest implements Serializable {
             .collect(Collectors.toList());
     thrown.expect(IllegalArgumentException.class);
     List<Row> rows =
-        bottomRow
-            .stream()
+        bottomRow.stream()
             .map(r -> Row.withSchema(NESTED_SCHEMA).addValues(r, r).build())
             .collect(Collectors.toList());
     PCollection<Row> unnested =

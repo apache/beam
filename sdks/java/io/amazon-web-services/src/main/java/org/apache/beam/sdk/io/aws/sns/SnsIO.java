@@ -82,7 +82,7 @@ import org.slf4j.LoggerFactory;
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public final class SnsIO {
 
-  //Write data tp SNS
+  // Write data tp SNS
   public static Write write() {
     return new AutoValue_SnsIO_Write.Builder().build();
   }
@@ -283,7 +283,7 @@ public final class SnsIO {
 
       @Setup
       public void setup() throws Exception {
-        //Initialize SnsPublisher
+        // Initialize SnsPublisher
         producer = spec.getAWSClientsProvider().createSnsPublisher();
         checkArgument(
             topicExists(producer, spec.getTopicName()),

@@ -536,9 +536,7 @@ public class GreedyPipelineFuserTest {
                 .withNoOutputs()
                 .withTransforms("pyParDo")));
     Set<String> materializedStageOutputs =
-        fused
-            .getFusedStages()
-            .stream()
+        fused.getFusedStages().stream()
             .flatMap(executableStage -> executableStage.getOutputPCollections().stream())
             .map(PCollectionNode::getId)
             .collect(Collectors.toSet());
@@ -1316,16 +1314,11 @@ public class GreedyPipelineFuserTest {
             ExecutableStageMatcher.withInput(impulse2Output.getUniqueName())
                 .withTransforms(flattenTransform.getUniqueName(), read2Transform.getUniqueName())));
     assertThat(
-        fused
-            .getFusedStages()
-            .stream()
+        fused.getFusedStages().stream()
             .flatMap(
                 s ->
-                    s.getComponents()
-                        .getTransformsOrThrow(flattenTransform.getUniqueName())
-                        .getInputsMap()
-                        .values()
-                        .stream())
+                    s.getComponents().getTransformsOrThrow(flattenTransform.getUniqueName())
+                        .getInputsMap().values().stream())
             .collect(Collectors.toList()),
         containsInAnyOrder(read1Output.getUniqueName(), read2Output.getUniqueName()));
   }

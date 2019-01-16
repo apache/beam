@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+
 /**
  * A {@link PTransform} to unnest nested rows.
  *

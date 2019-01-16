@@ -340,9 +340,8 @@ public class PubsubJsonIT implements Serializable {
     // The actual options are in the "options" field of the converted map
     Map<String, String> argsMap =
         ((Map<String, Object>) MAPPER.convertValue(pipeline.getOptions(), Map.class).get("options"))
-            .entrySet()
-            .stream()
-            .collect(Collectors.toMap(Map.Entry::getKey, entry -> toArg(entry.getValue())));
+            .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> toArg(entry.getValue())));
 
     InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
     for (TableProvider tableProvider : tableProviders) {

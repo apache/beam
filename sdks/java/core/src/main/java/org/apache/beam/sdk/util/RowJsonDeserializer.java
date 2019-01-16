@@ -145,10 +145,7 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
               + "can be parsed to Beam Rows");
     }
 
-    return rowFieldValue
-        .rowSchema()
-        .getFields()
-        .stream()
+    return rowFieldValue.rowSchema().getFields().stream()
         .map(
             schemaField ->
                 extractJsonNodeValue(

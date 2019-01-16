@@ -104,9 +104,7 @@ public class BeamFileSystemArtifactRetrievalService
       ArtifactApi.ProxyManifest proxyManifest = MANIFEST_CACHE.get(request.getRetrievalToken());
       // look for file at URI specified by proxy manifest location
       ArtifactApi.ProxyManifest.Location location =
-          proxyManifest
-              .getLocationList()
-              .stream()
+          proxyManifest.getLocationList().stream()
               .filter(loc -> loc.getName().equals(name))
               .findFirst()
               .orElseThrow(
@@ -117,8 +115,7 @@ public class BeamFileSystemArtifactRetrievalService
 
       List<ArtifactMetadata> existingArtifacts = proxyManifest.getManifest().getArtifactList();
       ArtifactMetadata metadata =
-          existingArtifacts
-              .stream()
+          existingArtifacts.stream()
               .filter(meta -> meta.getName().equals(name))
               .findFirst()
               .orElseThrow(

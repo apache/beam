@@ -129,14 +129,16 @@ public class LeaderBoardTest implements Serializable {
             .addElements(
                 event(TestUser.BLUE_ONE, 3, Duration.standardSeconds(3)),
                 event(TestUser.BLUE_ONE, 2, Duration.standardMinutes(1)))
-            // Some time passes within the runner, which causes a speculative pane containing the blue
+            // Some time passes within the runner, which causes a speculative pane containing the
+            // blue
             // team's score to be emitted
             .advanceProcessingTime(Duration.standardMinutes(10))
             .addElements(event(TestUser.RED_TWO, 5, Duration.standardMinutes(3)))
             // Some additional time passes and we get a speculative pane for the red team
             .advanceProcessingTime(Duration.standardMinutes(12))
             .addElements(event(TestUser.BLUE_TWO, 3, Duration.standardSeconds(22)))
-            // More time passes and a speculative pane containing a refined value for the blue pane is
+            // More time passes and a speculative pane containing a refined value for the blue pane
+            // is
             // emitted
             .advanceProcessingTime(Duration.standardMinutes(10))
             // Some more events occur
@@ -238,7 +240,8 @@ public class LeaderBoardTest implements Serializable {
                 event(TestUser.RED_TWO, 2, Duration.ZERO),
                 event(TestUser.RED_TWO, 5, Duration.standardMinutes(1)),
                 event(TestUser.RED_TWO, 3, Duration.standardMinutes(3)))
-            // A late refinement is emitted due to the advance in processing time, but the window has
+            // A late refinement is emitted due to the advance in processing time, but the window
+            // has
             // not yet closed because the watermark has not advanced
             .advanceProcessingTime(Duration.standardMinutes(12))
             // These elements should appear in the final pane
@@ -303,7 +306,8 @@ public class LeaderBoardTest implements Serializable {
                     .plus(ALLOWED_LATENESS)
                     .plus(TEAM_WINDOW_DURATION)
                     .plus(Duration.standardMinutes(1)))
-            // These elements within the expired window are droppably late, and will not appear in the
+            // These elements within the expired window are droppably late, and will not appear in
+            // the
             // output
             .addElements(
                 event(

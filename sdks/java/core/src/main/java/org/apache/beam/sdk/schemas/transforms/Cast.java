@@ -272,8 +272,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
 
     if (!errors.isEmpty()) {
       String reason =
-          errors
-              .stream()
+          errors.stream()
               .map(x -> Joiner.on('.').join(x.path()) + ": " + x.message())
               .collect(Collectors.joining("\n\t"));
 

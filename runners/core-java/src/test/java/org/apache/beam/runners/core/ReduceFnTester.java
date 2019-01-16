@@ -540,8 +540,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     Iterable<WindowedValue<InputT>> inputs =
-        values
-            .stream()
+        values.stream()
             .map(
                 input -> {
                   try {
