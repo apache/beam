@@ -24,7 +24,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 /** Properties needed when using HadoopFormatIO with the Beam SDK. */
 public interface HadoopFormatIOTestOptions extends TestPipelineOptions {
 
-  //Cassandra test options
+  // Cassandra test options
   @Description("Cassandra Server IP")
   @Default.String("cassandraServerIp")
   String getCassandraServerIp();
@@ -49,7 +49,7 @@ public interface HadoopFormatIOTestOptions extends TestPipelineOptions {
 
   void setCassandraPassword(String cassandraPassword);
 
-  //Elasticsearch test options
+  // Elasticsearch test options
   @Description("Elasticsearch Server IP")
   @Default.String("elasticServerIp")
   String getElasticServerIp();

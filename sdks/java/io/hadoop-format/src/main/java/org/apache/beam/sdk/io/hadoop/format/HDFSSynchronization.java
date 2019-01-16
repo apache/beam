@@ -152,7 +152,7 @@ public class HDFSSynchronization implements ExternalSynchronization {
       } catch (FileAlreadyExistsException | org.apache.hadoop.fs.FileAlreadyExistsException e) {
         return false;
       } catch (RemoteException e) {
-        //remote hdfs exception
+        // remote hdfs exception
         if (e.getClassName().equals(AlreadyBeingCreatedException.class.getName())) {
           return false;
         }

@@ -32,19 +32,17 @@ public class IsNan extends BeamBuiltinFunctionProvider {
   private static final String SQL_FUNCTION_NAME = "IS_NAN";
 
   @UDF(
-    funcName = SQL_FUNCTION_NAME,
-    parameterArray = {Schema.TypeName.FLOAT},
-    returnType = Schema.TypeName.BOOLEAN
-  )
+      funcName = SQL_FUNCTION_NAME,
+      parameterArray = {Schema.TypeName.FLOAT},
+      returnType = Schema.TypeName.BOOLEAN)
   public Boolean isNan(Float value) {
     return Float.isNaN(value);
   }
 
   @UDF(
-    funcName = SQL_FUNCTION_NAME,
-    parameterArray = {Schema.TypeName.DOUBLE},
-    returnType = Schema.TypeName.BOOLEAN
-  )
+      funcName = SQL_FUNCTION_NAME,
+      parameterArray = {Schema.TypeName.DOUBLE},
+      returnType = Schema.TypeName.BOOLEAN)
   public Boolean isNan(Double value) {
     return Double.isNaN(value);
   }

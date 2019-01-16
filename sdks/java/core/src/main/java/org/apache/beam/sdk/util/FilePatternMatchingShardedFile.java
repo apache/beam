@@ -83,8 +83,7 @@ public class FilePatternMatchingShardedFile implements ShardedFile {
         Collection<Metadata> files = FileSystems.match(filePattern).metadata();
         LOG.debug(
             "Found file(s) {} by matching the path: {}",
-            files
-                .stream()
+            files.stream()
                 .map(Metadata::resourceId)
                 .map(ResourceId::getFilename)
                 .collect(Collectors.joining(",")),

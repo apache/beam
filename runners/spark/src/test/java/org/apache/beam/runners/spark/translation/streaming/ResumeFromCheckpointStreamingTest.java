@@ -133,9 +133,8 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     Serializer<String> stringSerializer = new StringSerializer();
     Serializer<Instant> instantSerializer = new InstantSerializer();
 
-    try (
-        KafkaProducer<String, Instant> kafkaProducer =
-            new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
+    try (KafkaProducer<String, Instant> kafkaProducer =
+        new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
       for (Map.Entry<String, Instant> en : messages.entrySet()) {
         kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
       }
@@ -179,12 +178,12 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
                 "EOFShallNotPassFn",
                 4L)));
 
-    //--- between executions:
+    // --- between executions:
 
-    //- clear state.
+    // - clear state.
     clean();
 
-    //- write a bit more.
+    // - write a bit more.
     produce(
         ImmutableMap.of(
             "k5", new Instant(499),

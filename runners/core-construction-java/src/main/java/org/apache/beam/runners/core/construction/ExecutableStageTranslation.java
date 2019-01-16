@@ -112,10 +112,7 @@ public class ExecutableStageTranslation {
       } else {
         // Enumerate the outer stages with their composite structure, if any.
         parts =
-            groupByOuter
-                .asMap()
-                .entrySet()
-                .stream()
+            groupByOuter.asMap().entrySet().stream()
                 .map(
                     outer ->
                         String.format(

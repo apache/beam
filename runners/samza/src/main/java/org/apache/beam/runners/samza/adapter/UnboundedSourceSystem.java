@@ -118,8 +118,7 @@ public class UnboundedSourceSystem {
 
     @Override
     public Map<String, SystemStreamMetadata> getSystemStreamMetadata(Set<String> streamNames) {
-      return streamNames
-          .stream()
+      return streamNames.stream()
           .collect(
               Collectors.toMap(
                   Function.<String>identity(),
@@ -313,7 +312,7 @@ public class UnboundedSourceSystem {
             updateWatermark();
 
             if (!elementAvailable) {
-              //TODO: make poll interval configurable
+              // TODO: make poll interval configurable
               Thread.sleep(50);
             }
           }

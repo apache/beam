@@ -77,9 +77,7 @@ class ParDoTranslator<InputT, OutputT>
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
     Map<TupleTag<?>, Coder<?>> outputCoders =
-        outputs
-            .entrySet()
-            .stream()
+        outputs.entrySet().stream()
             .filter(e -> e.getValue() instanceof PCollection)
             .collect(
                 Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
@@ -138,9 +136,7 @@ class ParDoTranslator<InputT, OutputT>
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
       Map<TupleTag<?>, Coder<?>> outputCoders =
-          outputs
-              .entrySet()
-              .stream()
+          outputs.entrySet().stream()
               .filter(e -> e.getValue() instanceof PCollection)
               .collect(
                   Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
@@ -221,8 +217,8 @@ class ParDoTranslator<InputT, OutputT>
           .getWindowingStrategy()
           .equals(firstSideInput.getWindowingStrategy())) {
         // TODO: check how to handle this in stream codec
-        //String msg = "Multiple side inputs with different window strategies.";
-        //throw new UnsupportedOperationException(msg);
+        // String msg = "Multiple side inputs with different window strategies.";
+        // throw new UnsupportedOperationException(msg);
         LOG.warn(
             "Side inputs union with different windowing strategies {} {}",
             firstSideInput.getWindowingStrategy(),

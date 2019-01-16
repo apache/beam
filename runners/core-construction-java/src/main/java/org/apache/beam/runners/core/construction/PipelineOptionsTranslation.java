@@ -100,7 +100,7 @@ public class PipelineOptionsTranslation {
       Map<String, Object> probingOptionsMap =
           MAPPER.readValue(optionsJson, new TypeReference<Map<String, Object>>() {});
       if (probingOptionsMap.containsKey("options")) {
-        //Legacy options.
+        // Legacy options.
         return MAPPER.readValue(optionsJson, PipelineOptions.class);
       } else {
         // Fn Options with namespace and version.

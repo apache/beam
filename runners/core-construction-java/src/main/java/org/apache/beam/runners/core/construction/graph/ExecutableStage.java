@@ -183,8 +183,7 @@ public interface ExecutableStage {
             .toBuilder()
             .clearTransforms()
             .putAllTransforms(
-                getTransforms()
-                    .stream()
+                getTransforms().stream()
                     .collect(
                         Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform))));
 
@@ -214,33 +213,23 @@ public interface ExecutableStage {
         PipelineNode.pCollection(
             payload.getInput(), components.getPcollectionsOrThrow(payload.getInput()));
     List<SideInputReference> sideInputs =
-        payload
-            .getSideInputsList()
-            .stream()
+        payload.getSideInputsList().stream()
             .map(sideInputId -> SideInputReference.fromSideInputId(sideInputId, components))
             .collect(Collectors.toList());
     List<UserStateReference> userStates =
-        payload
-            .getUserStatesList()
-            .stream()
+        payload.getUserStatesList().stream()
             .map(userStateId -> UserStateReference.fromUserStateId(userStateId, components))
             .collect(Collectors.toList());
     List<TimerReference> timers =
-        payload
-            .getTimersList()
-            .stream()
+        payload.getTimersList().stream()
             .map(timerId -> TimerReference.fromTimerId(timerId, components))
             .collect(Collectors.toList());
     List<PTransformNode> transforms =
-        payload
-            .getTransformsList()
-            .stream()
+        payload.getTransformsList().stream()
             .map(id -> PipelineNode.pTransform(id, components.getTransformsOrThrow(id)))
             .collect(Collectors.toList());
     List<PCollectionNode> outputs =
-        payload
-            .getOutputsList()
-            .stream()
+        payload.getOutputsList().stream()
             .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
             .collect(Collectors.toList());
     return ImmutableExecutableStage.of(

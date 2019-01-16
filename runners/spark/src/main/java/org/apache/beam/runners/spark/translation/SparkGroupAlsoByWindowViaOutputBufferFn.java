@@ -74,7 +74,7 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
     K key = windowedValue.getValue().getKey();
     Iterable<WindowedValue<InputT>> values = windowedValue.getValue().getValue();
 
-    //------ based on GroupAlsoByWindowsViaOutputBufferDoFn ------//
+    // ------ based on GroupAlsoByWindowsViaOutputBufferDoFn ------//
 
     // Used with Batch, we know that all the data is available for this key. We can't use the
     // timer manager from the context because it doesn't exist. So we create one and emulate the

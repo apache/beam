@@ -157,7 +157,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       PCollection<Row> upstream = pinput.get(0);
 
       // There is a need to separate ORDER BY LIMIT and LIMIT:
-      //  - GroupByKey (used in Top) is not allowed on unbounded data in global window so ORDER BY ... LIMIT
+      //  - GroupByKey (used in Top) is not allowed on unbounded data in global window so ORDER BY
+      // ... LIMIT
       //    works only on bounded data.
       //  - Just LIMIT operates on unbounded data, but across windows.
       if (fieldIndices.isEmpty()) {

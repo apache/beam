@@ -530,9 +530,7 @@ public class SpannerIOWriteTest implements Serializable {
 
     // Verify sorted output... first decode it...
     List<MutationGroup> sorted =
-        byteArrayKvListCaptor
-            .getValue()
-            .stream()
+        byteArrayKvListCaptor.getValue().stream()
             .map(kv -> WriteGrouped.decode(kv.getValue()))
             .collect(Collectors.toList());
     assertThat(
@@ -586,8 +584,7 @@ public class SpannerIOWriteTest implements Serializable {
 
     // decode list of lists of KV to a list of lists of MutationGroup.
     List<List<MutationGroup>> mgListGroups =
-        kvGroups
-            .stream()
+        kvGroups.stream()
             .map(
                 l ->
                     l.stream()
@@ -625,8 +622,7 @@ public class SpannerIOWriteTest implements Serializable {
             g(m(2L)));
 
     List<KV<byte[], byte[]>> encodedInput =
-        mutationGroups
-            .stream()
+        mutationGroups.stream()
             .map(mg -> KV.of((byte[]) null, WriteGrouped.encode(mg)))
             .collect(Collectors.toList());
 
@@ -671,8 +667,7 @@ public class SpannerIOWriteTest implements Serializable {
             g(m(2L)));
 
     List<KV<byte[], byte[]>> encodedInput =
-        mutationGroups
-            .stream()
+        mutationGroups.stream()
             .map(mg -> KV.of((byte[]) null, WriteGrouped.encode(mg)))
             .collect(Collectors.toList());
 

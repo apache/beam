@@ -35,8 +35,7 @@ public interface BeamRelNode extends RelNode {
    * @return bounded if and only if all PCollection inputs are bounded
    */
   default PCollection.IsBounded isBounded() {
-    return getPCollectionInputs()
-            .stream()
+    return getPCollectionInputs().stream()
             .allMatch(
                 rel ->
                     BeamSqlRelUtils.getBeamRelInput(rel).isBounded()

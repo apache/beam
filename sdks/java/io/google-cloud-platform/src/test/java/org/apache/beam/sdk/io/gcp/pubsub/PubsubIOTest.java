@@ -354,8 +354,7 @@ public class PubsubIOTest {
 
   private <T> void setupTestClient(List<T> inputs, Coder<T> coder) {
     List<IncomingMessage> messages =
-        inputs
-            .stream()
+        inputs.stream()
             .map(
                 t -> {
                   try {

@@ -226,8 +226,7 @@ public class DoFnSignatures {
 
     /** Indicates whether a {@link RestrictionTrackerParameter} is known in this context. */
     public boolean hasRestrictionTrackerParameter() {
-      return extraParameters
-          .stream()
+      return extraParameters.stream()
           .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
 
@@ -238,8 +237,7 @@ public class DoFnSignatures {
 
     /** Indicates whether a {@link Parameter.PipelineOptionsParameter} is known in this context. */
     public boolean hasPipelineOptionsParamter() {
-      return extraParameters
-          .stream()
+      return extraParameters.stream()
           .anyMatch(Predicates.instanceOf(Parameter.PipelineOptionsParameter.class)::apply);
     }
 

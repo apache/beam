@@ -65,13 +65,15 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
 @VisibleForTesting
 public class ParDoMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
-        PCollection<? extends InputT>, PCollectionTuple,
+        PCollection<? extends InputT>,
+        PCollectionTuple,
         PTransform<PCollection<? extends InputT>, PCollectionTuple>> {
   @Override
   public PTransformReplacement<PCollection<? extends InputT>, PCollectionTuple>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<? extends InputT>, PCollectionTuple,
+                  PCollection<? extends InputT>,
+                  PCollectionTuple,
                   PTransform<PCollection<? extends InputT>, PCollectionTuple>>
               application) {
 
@@ -87,7 +89,8 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
   @SuppressWarnings("unchecked")
   private PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementForApplication(
       AppliedPTransform<
-              PCollection<? extends InputT>, PCollectionTuple,
+              PCollection<? extends InputT>,
+              PCollectionTuple,
               PTransform<PCollection<? extends InputT>, PCollectionTuple>>
           application)
       throws IOException {

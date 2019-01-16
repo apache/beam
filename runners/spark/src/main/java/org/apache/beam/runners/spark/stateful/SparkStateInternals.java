@@ -49,7 +49,7 @@ import org.joda.time.Instant;
 class SparkStateInternals<K> implements StateInternals {
 
   private final K key;
-  //Serializable state for internals (namespace to state tag to coded value).
+  // Serializable state for internals (namespace to state tag to coded value).
   private final Table<String, String, byte[]> stateTable;
 
   private SparkStateInternals(K key) {

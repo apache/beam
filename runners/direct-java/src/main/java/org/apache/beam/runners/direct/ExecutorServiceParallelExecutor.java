@@ -324,8 +324,7 @@ final class ExecutorServiceParallelExecutor
               "Error"
                   + (errors.size() == 1 ? "" : "s")
                   + " during executor shutdown:\n"
-                  + errors
-                      .stream()
+                  + errors.stream()
                       .map(Exception::getMessage)
                       .collect(Collectors.joining("\n- ", "- ", "")));
       visibleUpdates.failed(exception);

@@ -210,10 +210,7 @@ public class QueryablePipelineTest {
     PTransform parDoTransform = components.getTransformsOrThrow("par_do");
     String sideInputLocalName =
         getOnlyElement(
-            parDoTransform
-                .getInputsMap()
-                .entrySet()
-                .stream()
+            parDoTransform.getInputsMap().entrySet().stream()
                 .filter(entry -> !entry.getValue().equals(mainInputName))
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet()));

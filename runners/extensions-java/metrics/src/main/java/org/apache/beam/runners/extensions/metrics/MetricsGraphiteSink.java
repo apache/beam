@@ -128,9 +128,8 @@ public class MetricsGraphiteSink implements MetricsSink {
     }
 
     @SuppressFBWarnings(
-      value = "VA_FORMAT_STRING_USES_NEWLINE",
-      justification = "\\n is part of graphite protocol"
-    )
+        value = "VA_FORMAT_STRING_USES_NEWLINE",
+        justification = "\\n is part of graphite protocol")
     @Override
     protected String createCommittedMessage() {
       String metricMessage =
@@ -145,9 +144,8 @@ public class MetricsGraphiteSink implements MetricsSink {
     }
 
     @SuppressFBWarnings(
-      value = "VA_FORMAT_STRING_USES_NEWLINE",
-      justification = "\\n is part of graphite protocol"
-    )
+        value = "VA_FORMAT_STRING_USES_NEWLINE",
+        justification = "\\n is part of graphite protocol")
     @Override
     protected String createAttemptedMessage() {
       String metricMessage =
@@ -172,9 +170,8 @@ public class MetricsGraphiteSink implements MetricsSink {
     }
 
     @SuppressFBWarnings(
-      value = "VA_FORMAT_STRING_USES_NEWLINE",
-      justification = "\\n is part of graphite protocol"
-    )
+        value = "VA_FORMAT_STRING_USES_NEWLINE",
+        justification = "\\n is part of graphite protocol")
     @Override
     protected String createCommittedMessage() {
       String metricMessage =
@@ -188,9 +185,8 @@ public class MetricsGraphiteSink implements MetricsSink {
     }
 
     @SuppressFBWarnings(
-      value = "VA_FORMAT_STRING_USES_NEWLINE",
-      justification = "\\n is part of graphite protocol"
-    )
+        value = "VA_FORMAT_STRING_USES_NEWLINE",
+        justification = "\\n is part of graphite protocol")
     @Override
     protected String createAttemptedMessage() {
       String metricMessage =
@@ -218,9 +214,8 @@ public class MetricsGraphiteSink implements MetricsSink {
     }
 
     @SuppressFBWarnings(
-      value = "VA_FORMAT_STRING_USES_NEWLINE",
-      justification = "\\n is part of graphite protocol"
-    )
+        value = "VA_FORMAT_STRING_USES_NEWLINE",
+        justification = "\\n is part of graphite protocol")
     @Override
     protected String createCommittedMessage() {
       Number value = null;
@@ -255,9 +250,8 @@ public class MetricsGraphiteSink implements MetricsSink {
     }
 
     @SuppressFBWarnings(
-      value = "VA_FORMAT_STRING_USES_NEWLINE",
-      justification = "\\n is part of graphite protocol"
-    )
+        value = "VA_FORMAT_STRING_USES_NEWLINE",
+        justification = "\\n is part of graphite protocol")
     @Override
     protected String createAttemptedMessage() {
       Number value = null;

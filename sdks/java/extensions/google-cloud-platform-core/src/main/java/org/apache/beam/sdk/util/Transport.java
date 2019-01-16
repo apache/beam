@@ -96,7 +96,8 @@ public class Transport {
                 getJsonFactory(),
                 chainHttpRequestInitializer(
                     options.getGcpCredential(),
-                    // Do not log the code 404. Code up the stack will deal with 404's if needed, and
+                    // Do not log the code 404. Code up the stack will deal with 404's if needed,
+                    // and
                     // logging it by default clutters the output during file staging.
                     new RetryHttpRequestInitializer(
                         ImmutableList.of(404), new UploadIdResponseInterceptor())))
