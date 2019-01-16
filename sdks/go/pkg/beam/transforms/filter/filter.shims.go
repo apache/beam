@@ -211,15 +211,6 @@ func (v *iterNative) Value() interface{} {
 	return v.fn
 }
 
-func convToString(v interface{}) string {
-	switch v.(type) {
-	case []byte:
-		return string(v.([]byte))
-	default:
-		return v.(string)
-	}
-}
-
 func (v *iterNative) Reset() error {
 	if err := v.cur.Close(); err != nil {
 		return err
