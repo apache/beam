@@ -46,8 +46,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.Config;
-import org.apache.samza.operators.TimerRegistry;
-import org.apache.samza.task.TaskContext;
+import org.apache.samza.context.Context;
+import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,8 +97,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
   @Override
   public void open(
       Config config,
-      TaskContext context,
-      TimerRegistry<KeyedTimerData<K>> timerRegistry,
+      Context context,
+      Scheduler<KeyedTimerData<K>> timerRegistry,
       OpEmitter<KV<K, OutputT>> emitter) {
     this.pipelineOptions =
         Base64Serializer.deserializeUnchecked(
@@ -108,7 +108,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            null, context, pipelineOptions, null, mainOutputTag);
+            null, context.getTaskContext(), pipelineOptions, null, mainOutputTag);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
@@ -117,7 +117,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
             mainOutputTag.getId(),
             Collections.singletonMap(
                 SamzaStoreStateInternals.BEAM_STORE,
-                SamzaStoreStateInternals.getBeamStore(context)),
+                SamzaStoreStateInternals.getBeamStore(context.getTaskContext())),
             keyCoder,
             pipelineOptions.getStoreBatchGetSize());
 
@@ -170,7 +170,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
             windowingStrategy,
             DoFnSchemaInformation.create());
 
-    final SamzaExecutionContext executionContext = (SamzaExecutionContext) context.getUserContext();
+    final SamzaExecutionContext executionContext =
+        (SamzaExecutionContext) context.getApplicationContainerContext();
     this.fnRunner =
         DoFnRunnerWithMetrics.wrap(doFnRunner, executionContext.getMetricsContainer(), stepName);
   }

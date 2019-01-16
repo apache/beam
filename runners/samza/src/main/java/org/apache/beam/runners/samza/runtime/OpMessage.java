@@ -21,8 +21,9 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
 /**
- * Actual message type used in Samza {@link org.apache.samza.operators.StreamGraph}. It contains
- * either an element of main inputs or the collection results from a view (used as side input).
+ * Actual message type used in Samza {@link org.apache.samza.application.StreamApplication}. It
+ * contains either an element of main inputs or the collection results from a view (used as side
+ * input).
  */
 public class OpMessage<T> {
   /**

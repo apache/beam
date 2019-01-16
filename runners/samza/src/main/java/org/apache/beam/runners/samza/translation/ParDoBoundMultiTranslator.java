@@ -81,6 +81,14 @@ class ParDoBoundMultiTranslator<InT, OutT>
       ParDo.MultiOutput<InT, OutT> transform,
       TransformHierarchy.Node node,
       TranslationContext ctx) {
+    doTranslate(transform, node, ctx);
+  }
+
+  // static for serializing anonymous functions
+  private static <InT, OutT> void doTranslate(
+      ParDo.MultiOutput<InT, OutT> transform,
+      TransformHierarchy.Node node,
+      TranslationContext ctx) {
     final PCollection<? extends InT> input = ctx.getInput(transform);
     final Map<TupleTag<?>, Coder<?>> outputCoders =
         ctx.getCurrentTransform().getOutputs().entrySet().stream()
@@ -176,6 +184,14 @@ class ParDoBoundMultiTranslator<InT, OutT>
    */
   @Override
   public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    doTranslatePortable(transform, pipeline, ctx);
+  }
+
+  // static for serializing anonymous functions
+  private static <InT, OutT> void doTranslatePortable(
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
@@ -296,7 +312,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     return config;
   }
 
-  private class SideInputWatermarkFn
+  private static class SideInputWatermarkFn<InT>
       implements FlatMapFunction<OpMessage<InT>, OpMessage<InT>>,
           WatermarkFunction<OpMessage<InT>> {
 
