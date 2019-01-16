@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.FileSystems;
 
 /** The result of {@link org.apache.beam.sdk.io.FileSystem#match}. */
@@ -90,6 +91,7 @@ public abstract class MatchResult {
      * <p>Note that this field is not encoded with the default {@link MetadataCoder} due to a need
      * for compatibility with previous versions of the Beam SDK.
      */
+    @Experimental
     public abstract long lastModifiedMillis();
 
     public static Builder builder() {

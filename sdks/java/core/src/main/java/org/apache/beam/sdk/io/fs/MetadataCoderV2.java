@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.fs;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -27,6 +28,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata.Builder;
 
 /** A {@link Coder} for {@link Metadata} that includes {@link Metadata#lastModifiedMillis()}. */
+@Experimental
 public class MetadataCoderV2 extends AtomicCoder<Metadata> {
   private static final MetadataCoder V1_CODER = MetadataCoder.of();
   private static final VarLongCoder LONG_CODER = VarLongCoder.of();
