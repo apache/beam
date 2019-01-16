@@ -322,26 +322,29 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
 
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
 
-#### Run verify_release_build.sh
+#### Run automation script (verify_release_build.sh)
 * Script: [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh)
 
 * Usage
-      
+
+      ```
       ./beam/release/src/main/scripts/verify_release_build.sh
+      ```
 
 * Tasks included
   1. Install ```pip```, ```virtualenv```, ```cython``` and ```/usr/bin/time``` with your agreements.
-  1. Run ```gradle release build``` against release branch.
-  
+  2. Run ```gradle release build``` against release branch.
+
 * Tasks you need to do manually
-  1. Check the build result. 
-  1. If build failed, scan log will contain all failures.
-  1. You should stabilize the release branch until release build succeeded.
+  1. Check the build result.
+  2. If build failed, scan log will contain all failures.
+  3. You should stabilize the release branch until release build succeeded.
+  4. The script will output a set of Jenkins phrases to enter in the created PR
 
 #### Run all commands manually
 * Pre-installation for python build
   1. Install pip
-  
+
       ```
       curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
       python get-pip.py
