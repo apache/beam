@@ -389,7 +389,7 @@ There are 2 ways to perform this verification, either running automation script(
 
 The verify_release_build.sh script may include failing or flaky tests. For each of the failing tests create a JIRA with the following properties:
 
-* Issue Type: Test
+* Issue Type: Bug
 
 * Summary: Either A) name of failing gradle task IF the majority (>50%) of tests under task are failing or B) name of failing test
 
@@ -429,7 +429,7 @@ For all JIRA issues:
 
 * If the issue has been resolved and JIRA was not updated, resolve it accordingly.
 
-For all `Test` JIRA issues:
+For JIRA issues with type "Bug" or labeled "flaky":
 
 * If the issue is a known continuously failing test, it is not acceptable to defer this until the next release. Please work with the Beam community to resolve the issue.
 * If the issue is a known flaky test, make an attempt to fix the issue. However, if the issue may take too long to fix (to the discretion of the release manager):
@@ -461,17 +461,17 @@ Adjust any of the above properties to the improve clarity and presentation of th
 ### Checklist to proceed to the next step
 
 1. Release Manager’s GPG key is published to `dist.apache.org`
-1. Release Manager’s GPG key is configured in `git` configuration
-1. Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus
-1. Release Manager’s Nexus User Token is configured in `settings.xml`
-1. JIRA release item for the subsequent release has been created
-1. All test failures from branch verification have associated JIRA issues
-1. There are no release blocking JIRA issues
-1. Release Notes in JIRA have been audited and adjusted
-1. Combined javadoc has the appropriate contents.
-1. Release branch has been created
-1. Originating branch has the version information updated to the new version
-1. Nightly snapshot is in progress (do revisit it continually)
+2. Release Manager’s GPG key is configured in `git` configuration
+3. Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus
+4. Release Manager’s Nexus User Token is configured in `settings.xml`
+5. JIRA release item for the subsequent release has been created
+6. All test failures from branch verification have associated JIRA issues
+7. There are no release blocking JIRA issues
+8. Release Notes in JIRA have been audited and adjusted
+9. Combined javadoc has the appropriate contents.
+10. Release branch has been created
+11. Originating branch has the version information updated to the new version
+12. Nightly snapshot is in progress (do revisit it continually)
 
 **********
 
