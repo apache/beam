@@ -86,7 +86,8 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Before
-  public void setup() {
+  public void setup() throws IOException {
+    internalCluster().ensureAtMostNumDataNodes(1);
     if (connectionConfiguration == null) {
       connectionConfiguration =
           ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE)
