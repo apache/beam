@@ -38,7 +38,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.samza.operators.TimerRegistry;
+import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +53,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
   private final NavigableSet<KeyedTimerData<K>> eventTimeTimers;
   private final Coder<K> keyCoder;
-  private final TimerRegistry<KeyedTimerData<K>> timerRegistry;
+  private final Scheduler<KeyedTimerData<K>> timerRegistry;
   private final int timerBufferSize;
   private final SamzaTimerState state;
 
@@ -62,7 +62,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
   private SamzaTimerInternalsFactory(
       Coder<K> keyCoder,
-      TimerRegistry<KeyedTimerData<K>> timerRegistry,
+      Scheduler<KeyedTimerData<K>> timerRegistry,
       int timerBufferSize,
       String timerStateId,
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
@@ -76,7 +76,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
   static <K> SamzaTimerInternalsFactory<K> createTimerInternalFactory(
       Coder<K> keyCoder,
-      TimerRegistry<KeyedTimerData<K>> timerRegistry,
+      Scheduler<KeyedTimerData<K>> timerRegistry,
       String timerStateId,
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
@@ -198,7 +198,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
           break;
 
         case PROCESSING_TIME:
-          timerRegistry.register(keyedTimerData, timerData.getTimestamp().getMillis());
+          timerRegistry.schedule(keyedTimerData, timerData.getTimestamp().getMillis());
           break;
 
         default:
@@ -348,7 +348,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         // since the iterator will reach to the end, it will be closed automatically
         while (iter.hasNext()) {
           final KeyedTimerData<K> keyedTimerData = iter.next();
-          timerRegistry.register(
+          timerRegistry.schedule(
               keyedTimerData, keyedTimerData.getTimerData().getTimestamp().getMillis());
         }
       }

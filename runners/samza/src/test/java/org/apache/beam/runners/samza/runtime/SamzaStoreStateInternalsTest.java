@@ -57,7 +57,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.samza.container.SamzaContainerContext;
+import org.apache.samza.context.ContainerContext;
+import org.apache.samza.context.JobContext;
 import org.apache.samza.metrics.MetricsRegistry;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
@@ -195,7 +196,8 @@ public class SamzaStoreStateInternalsTest implements Serializable {
         File storeDir,
         MetricsRegistry registry,
         SystemStreamPartition changeLogSystemStreamPartition,
-        SamzaContainerContext containerContext) {
+        JobContext jobContext,
+        ContainerContext containerContext) {
       KeyValueStoreMetrics metrics = new KeyValueStoreMetrics(storeName, registry);
       return new TestStore(metrics);
     }

@@ -43,6 +43,11 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
   @Override
   public void translate(
       Flatten.PCollections<T> transform, TransformHierarchy.Node node, TranslationContext ctx) {
+    doTranslate(transform, node, ctx);
+  }
+
+  private static <T> void doTranslate(
+      Flatten.PCollections<T> transform, TransformHierarchy.Node node, TranslationContext ctx) {
     final PCollection<T> output = ctx.getOutput(transform);
 
     final List<MessageStream<OpMessage<T>>> inputStreams = new ArrayList<>();
@@ -65,7 +70,12 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       // for some of the validateRunner tests only
       final MessageStream<OpMessage<T>> noOpStream =
           ctx.getDummyStream()
-              .flatMap(OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));
+              .flatMap(
+                  OpAdapter.adapt(
+                      (Op<String, T, Void>)
+                          (inputElement, emitter) -> {
+                            System.out.println(inputElement.toString());
+                          }));
       ctx.registerMessageStream(output, noOpStream);
       return;
     }
@@ -80,6 +90,13 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
 
   @Override
   public void translatePortable(
+      PipelineNode.PTransformNode transform,
+      QueryablePipeline pipeline,
+      PortableTranslationContext ctx) {
+    doTranslatePortable(transform, pipeline, ctx);
+  }
+
+  private static <T> void doTranslatePortable(
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
@@ -102,7 +119,7 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
   }
 
   // Merge multiple input streams into one, as this is what "flatten" is meant to do
-  private MessageStream<OpMessage<T>> mergeInputStreams(
+  private static <T> MessageStream<OpMessage<T>> mergeInputStreams(
       List<MessageStream<OpMessage<T>>> inputStreams) {
     final Set<MessageStream<OpMessage<T>>> streamsToMerge = new HashSet<>();
     inputStreams.forEach(

@@ -42,7 +42,6 @@ import org.apache.samza.config.factories.PropertiesConfigFactory;
 import org.apache.samza.container.grouper.task.SingleContainerGrouperFactory;
 import org.apache.samza.runtime.LocalApplicationRunner;
 import org.apache.samza.serializers.ByteSerdeFactory;
-import org.apache.samza.standalone.PassthroughCoordinationUtilsFactory;
 import org.apache.samza.standalone.PassthroughJobCoordinatorFactory;
 
 /** Builder class to generate configs for BEAM samza runner during runtime. */
@@ -85,6 +84,9 @@ public class ConfigBuilder {
               + "-"
               // use the most significant bits in UUID (8 digits) to avoid collision
               + UUID.randomUUID().toString().substring(0, 8));
+
+      // TODO: remove after we sort out Samza task wrapper
+      config.put("samza.li.task.wrapper.enabled", "false");
 
       return new MapConfig(config);
     } catch (Exception e) {
@@ -137,9 +139,6 @@ public class ConfigBuilder {
         .put(
             JobCoordinatorConfig.JOB_COORDINATOR_FACTORY,
             PassthroughJobCoordinatorFactory.class.getName())
-        .put(
-            JobCoordinatorConfig.JOB_COORDINATION_UTILS_FACTORY,
-            PassthroughCoordinationUtilsFactory.class.getName())
         .put(TaskConfig.GROUPER_FACTORY(), SingleContainerGrouperFactory.class.getName())
         .put(TaskConfig.COMMIT_MS(), "-1")
         .put("processor.id", "1")

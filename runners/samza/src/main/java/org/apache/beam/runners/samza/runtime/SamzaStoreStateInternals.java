@@ -65,10 +65,10 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.samza.context.TaskContext;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
 import org.apache.samza.storage.kv.KeyValueStore;
-import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 
 /** {@link StateInternals} that uses Samza local {@link KeyValueStore} to manage state. */

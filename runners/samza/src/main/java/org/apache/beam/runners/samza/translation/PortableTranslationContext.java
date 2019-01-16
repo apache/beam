@@ -21,9 +21,12 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.samza.application.descriptors.StreamApplicationDescriptor;
+import org.apache.samza.operators.KV;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.OutputStream;
-import org.apache.samza.operators.StreamGraph;
+import org.apache.samza.system.descriptors.InputDescriptor;
+import org.apache.samza.system.descriptors.OutputDescriptor;
 
 /**
  * Helper that keeps the mapping from BEAM PCollection id to Samza {@link MessageStream}. It also
@@ -32,12 +35,13 @@ import org.apache.samza.operators.StreamGraph;
  */
 public class PortableTranslationContext {
   private final Map<String, MessageStream<?>> messsageStreams = new HashMap<>();
-  private final StreamGraph streamGraph;
+  private final StreamApplicationDescriptor streamGraph;
   private final SamzaPipelineOptions options;
   private int topologicalId;
   private final Set<String> registeredInputStreams = new HashSet<>();
 
-  public PortableTranslationContext(StreamGraph streamGraph, SamzaPipelineOptions options) {
+  public PortableTranslationContext(
+      StreamApplicationDescriptor streamGraph, SamzaPipelineOptions options) {
     this.streamGraph = streamGraph;
     this.options = options;
   }
@@ -86,31 +90,21 @@ public class PortableTranslationContext {
     messsageStreams.put(id, stream);
   }
 
-  /** Register an input stream, using the PCollection id as the config id. */
-  public void registerInputMessageStream(String id) {
-    registerInputMessageStreamWithStreamId(id, id);
+  /** Get output stream by output descriptor. */
+  public <OutT> OutputStream<OutT> getOutputStream(OutputDescriptor<OutT, ?> outputDescriptor) {
+    return streamGraph.getOutputStream(outputDescriptor);
   }
 
-  /** Get output stream by stream id. */
-  public <T> OutputStream<T> getOutputStreamById(String outputStreamId) {
-    return streamGraph.getOutputStream(outputStreamId);
-  }
-
-  /**
-   * Register an input stream with certain config id.
-   *
-   * @param id id of the PCollection in the input/output of PTransform
-   * @param streamId samza stream id which user can use to customize the stream level config
-   */
-  public <T> void registerInputMessageStreamWithStreamId(String id, String streamId) {
+  /** Register an input stream with certain config id. */
+  public <T> void registerInputMessageStream(
+      String id, InputDescriptor<KV<?, OpMessage<T>>, ?> inputDescriptor) {
     // we want to register it with the Samza graph only once per i/o stream
+    final String streamId = inputDescriptor.getStreamId();
     if (registeredInputStreams.contains(streamId)) {
       return;
     }
     final MessageStream<OpMessage<T>> stream =
-        streamGraph
-            .<org.apache.samza.operators.KV<?, OpMessage<T>>>getInputStream(streamId)
-            .map(org.apache.samza.operators.KV::getValue);
+        streamGraph.getInputStream(inputDescriptor).map(org.apache.samza.operators.KV::getValue);
 
     registerMessageStream(id, stream);
     registeredInputStreams.add(streamId);
