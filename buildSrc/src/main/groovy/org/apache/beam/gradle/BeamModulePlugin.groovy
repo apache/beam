@@ -1543,7 +1543,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec { commandLine 'virtualenv', "${project.ext.envdir}" }
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
@@ -1575,7 +1575,7 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e ${project.ext.pythonRootDir}/[gcp,test]"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 -e ${project.ext.pythonRootDir}/[gcp,test]"
           }
         }
       }
