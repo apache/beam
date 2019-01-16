@@ -839,7 +839,7 @@ class TupleSequenceCoder(FastCoder):
 
   def __eq__(self, other):
     return (type(self) == type(other)
-            and self._elem_coder == other.value_coder)
+            and self._elem_coder == other.value_coder())
 
   def __hash__(self):
     return hash((type(self), self._elem_coder))
@@ -890,7 +890,7 @@ class IterableCoder(FastCoder):
 
   def __eq__(self, other):
     return (type(self) == type(other)
-            and self._elem_coder == other.value_coder)
+            and self._elem_coder == other.value_coder())
 
   def __hash__(self):
     return hash((type(self), self._elem_coder))
