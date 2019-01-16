@@ -62,13 +62,12 @@ import org.joda.time.Duration;
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
-  reason =
-      "Might be useful to override the default "
-          + "implementation because of performance reasons"
-          + "(e.g. using bloom filters), which might reduce the space complexity",
-  state = StateComplexity.CONSTANT,
-  repartitions = 1
-)
+    reason =
+        "Might be useful to override the default "
+            + "implementation because of performance reasons"
+            + "(e.g. using bloom filters), which might reduce the space complexity",
+    state = StateComplexity.CONSTANT,
+    repartitions = 1)
 public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, OutputT>
     implements CompositeOperator<InputT, OutputT> {
 

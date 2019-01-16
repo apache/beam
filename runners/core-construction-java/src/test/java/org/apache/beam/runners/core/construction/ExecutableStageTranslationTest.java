@@ -69,9 +69,7 @@ public class ExecutableStageTranslationTest implements Serializable {
                 }));
 
     ExecutableStage firstEnvStage =
-        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p))
-            .getFusedStages()
-            .stream()
+        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p)).getFusedStages().stream()
             .findFirst()
             .get();
     RunnerApi.ExecutableStagePayload basePayload =

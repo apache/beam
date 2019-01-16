@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.pubsub.Pubsub;
@@ -39,9 +39,6 @@ import com.google.api.services.pubsub.model.Topic;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +47,9 @@ import java.util.TreeMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /** A Pubsub client using JSON transport. */
 public class PubsubJsonClient extends PubsubClient {
@@ -75,7 +75,8 @@ public class PubsubJsonClient extends PubsubClient {
                   Transport.getJsonFactory(),
                   chainHttpRequestInitializer(
                       options.getGcpCredential(),
-                      // Do not log 404. It clutters the output and is possibly even required by the caller.
+                      // Do not log 404. It clutters the output and is possibly even required by the
+                      // caller.
                       new RetryHttpRequestInitializer(ImmutableList.of(404))))
               .setRootUrl(options.getPubsubRootUrl())
               .setApplicationName(options.getAppName())

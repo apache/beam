@@ -19,8 +19,6 @@ package org.apache.beam.runners.direct.portable;
 
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -33,6 +31,8 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.direct.portable.CommittedResult.OutputType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;

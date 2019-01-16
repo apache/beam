@@ -17,10 +17,8 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -34,6 +32,8 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionN
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -214,9 +214,11 @@ class GreedyPCollectionFusers {
         // upstream of any of the side inputs.
         || (pipeline.getSideInputs(parDo).isEmpty()
             // We purposefully break fusion here to provide runners the opportunity to insert a
-            // grouping operation to simplify implementing support for ParDo's that contain user state.
+            // grouping operation to simplify implementing support for ParDo's that contain user
+            // state.
             // We would not need to do this if we had the ability to mark upstream transforms as
-            // key preserving or if runners could execute ParDos containing user state in a distributed
+            // key preserving or if runners could execute ParDos containing user state in a
+            // distributed
             // fashion for a single key.
             && pipeline.getUserStates(parDo).isEmpty()
             // We purposefully break fusion here to provide runners the opportunity to insert a

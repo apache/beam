@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.io.synthetic;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.io.synthetic.delay.ReaderDelay;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -143,8 +143,7 @@ public class SyntheticBoundedSource extends OffsetBasedSource<KV<byte[], byte[]>
             : sourceOptions.forceNumInitialBundles;
 
     List<SyntheticBoundedSource> res =
-        bundleSplitter
-            .getBundleSizes(desiredNumBundles, this.getStartOffset(), this.getEndOffset())
+        bundleSplitter.getBundleSizes(desiredNumBundles, this.getStartOffset(), this.getEndOffset())
             .stream()
             .map(offsetRange -> createSourceForSubrange(offsetRange.getFrom(), offsetRange.getTo()))
             .collect(Collectors.toList());

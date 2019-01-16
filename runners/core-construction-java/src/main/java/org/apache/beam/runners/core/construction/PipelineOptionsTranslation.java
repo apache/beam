@@ -20,8 +20,6 @@ package org.apache.beam.runners.core.construction;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.CaseFormat;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -31,6 +29,8 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /**
  * Utilities for going to/from Runner API pipeline options.
@@ -100,7 +100,7 @@ public class PipelineOptionsTranslation {
       Map<String, Object> probingOptionsMap =
           MAPPER.readValue(optionsJson, new TypeReference<Map<String, Object>>() {});
       if (probingOptionsMap.containsKey("options")) {
-        //Legacy options.
+        // Legacy options.
         return MAPPER.readValue(optionsJson, PipelineOptions.class);
       } else {
         // Fn Options with namespace and version.

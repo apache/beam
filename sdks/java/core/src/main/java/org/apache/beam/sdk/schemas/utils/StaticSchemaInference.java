@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.ReadableInstant;
 
 /** A set of utilities for inferring a Beam {@link Schema} from static Java types. */
@@ -39,12 +39,9 @@ public class StaticSchemaInference {
   public static List<FieldValueTypeInformation> sortBySchema(
       List<FieldValueTypeInformation> types, Schema schema) {
     Map<String, FieldValueTypeInformation> typeMap =
-        types
-            .stream()
+        types.stream()
             .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
-    return schema
-        .getFields()
-        .stream()
+    return schema.getFields().stream()
         .map(f -> typeMap.get(f.getName()))
         .collect(Collectors.toList());
   }

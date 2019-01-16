@@ -35,8 +35,7 @@ class GetKinesisRecordsResult {
       final String streamName,
       final String shardId) {
     this.records =
-        records
-            .stream()
+        records.stream()
             .map(
                 input -> {
                   assert input != null; // to make FindBugs happy

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import com.google.common.net.HostAndPort;
 import java.io.IOException;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 
 /**
  * Implementation of a WindmillServerStub which communcates with an actual windmill server at the

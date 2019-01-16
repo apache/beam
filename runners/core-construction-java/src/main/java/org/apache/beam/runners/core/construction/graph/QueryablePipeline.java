@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN;
@@ -32,14 +31,8 @@ import static org.apache.beam.runners.core.construction.PTransformTranslation.RE
 import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
-import com.google.common.graph.NetworkBuilder;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
@@ -66,6 +59,13 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
 
 /**
  * A {@link Pipeline} which has additional methods to relate nodes in the graph relative to each
@@ -132,11 +132,15 @@ public class QueryablePipeline {
       PTransform transform = transformEntry.getValue();
       boolean isPrimitive = isPrimitiveTransform(transform);
       if (isPrimitive) {
-        // Sometimes "primitive" transforms have sub-transforms (and even deeper-nested descendents), due to runners
-        // either rewriting them in terms of runner-specific transforms, or SDKs constructing them in terms of other
+        // Sometimes "primitive" transforms have sub-transforms (and even deeper-nested
+        // descendents), due to runners
+        // either rewriting them in terms of runner-specific transforms, or SDKs constructing them
+        // in terms of other
         // underlying transforms (see https://issues.apache.org/jira/browse/BEAM-5441).
-        // We consider any "leaf" descendents of these "primitive" transforms to be the true "primitives" that we
-        // preserve here; in the common case, this is just the "primitive" itself, which has no descendents).
+        // We consider any "leaf" descendents of these "primitive" transforms to be the true
+        // "primitives" that we
+        // preserve here; in the common case, this is just the "primitive" itself, which has no
+        // descendents).
         Deque<String> transforms = new ArrayDeque<>();
         transforms.push(transformEntry.getKey());
         while (!transforms.isEmpty()) {
@@ -229,9 +233,7 @@ public class QueryablePipeline {
   }
 
   public Collection<PTransformNode> getTransforms() {
-    return pipelineNetwork
-        .nodes()
-        .stream()
+    return pipelineNetwork.nodes().stream()
         .filter(PTransformNode.class::isInstance)
         .map(PTransformNode.class::cast)
         .collect(Collectors.toList());
@@ -252,9 +254,7 @@ public class QueryablePipeline {
    * have no input {@link PCollection}.
    */
   public Set<PTransformNode> getRootTransforms() {
-    return pipelineNetwork
-        .nodes()
-        .stream()
+    return pipelineNetwork.nodes().stream()
         .filter(pipelineNode -> pipelineNetwork.inEdges(pipelineNode).isEmpty())
         .map(pipelineNode -> (PTransformNode) pipelineNode)
         .collect(Collectors.toSet());
@@ -276,14 +276,10 @@ public class QueryablePipeline {
    * does consume the {@link PCollectionNode} on a per-element basis.
    */
   public Set<PTransformNode> getPerElementConsumers(PCollectionNode pCollection) {
-    return pipelineNetwork
-        .successors(pCollection)
-        .stream()
+    return pipelineNetwork.successors(pCollection).stream()
         .filter(
             consumer ->
-                pipelineNetwork
-                    .edgesConnecting(pCollection, consumer)
-                    .stream()
+                pipelineNetwork.edgesConnecting(pCollection, consumer).stream()
                     .anyMatch(PipelineEdge::isPerElement))
         .map(pipelineNode -> (PTransformNode) pipelineNode)
         .collect(Collectors.toSet());
@@ -294,14 +290,10 @@ public class QueryablePipeline {
    * the collection as a singleton.
    */
   public Set<PTransformNode> getSingletonConsumers(PCollectionNode pCollection) {
-    return pipelineNetwork
-        .successors(pCollection)
-        .stream()
+    return pipelineNetwork.successors(pCollection).stream()
         .filter(
             consumer ->
-                pipelineNetwork
-                    .edgesConnecting(pCollection, consumer)
-                    .stream()
+                pipelineNetwork.edgesConnecting(pCollection, consumer).stream()
                     .anyMatch(edge -> !edge.isPerElement()))
         .map(pipelineNode -> (PTransformNode) pipelineNode)
         .collect(Collectors.toSet());
@@ -312,18 +304,14 @@ public class QueryablePipeline {
    * per-element basis.
    */
   public Set<PCollectionNode> getPerElementInputPCollections(PTransformNode ptransform) {
-    return pipelineNetwork
-        .inEdges(ptransform)
-        .stream()
+    return pipelineNetwork.inEdges(ptransform).stream()
         .filter(PipelineEdge::isPerElement)
         .map(edge -> (PCollectionNode) pipelineNetwork.incidentNodes(edge).source())
         .collect(Collectors.toSet());
   }
 
   public Set<PCollectionNode> getOutputPCollections(PTransformNode ptransform) {
-    return pipelineNetwork
-        .successors(ptransform)
-        .stream()
+    return pipelineNetwork.successors(ptransform).stream()
         .map(pipelineNode -> (PCollectionNode) pipelineNode)
         .collect(Collectors.toSet());
   }
@@ -337,8 +325,7 @@ public class QueryablePipeline {
    * as side inputs.
    */
   public Collection<SideInputReference> getSideInputs(PTransformNode transform) {
-    return getLocalSideInputNames(transform.getTransform())
-        .stream()
+    return getLocalSideInputNames(transform.getTransform()).stream()
         .map(
             localName -> {
               String transformId = transform.getId();
@@ -354,8 +341,7 @@ public class QueryablePipeline {
   }
 
   public Collection<UserStateReference> getUserStates(PTransformNode transform) {
-    return getLocalUserStateNames(transform.getTransform())
-        .stream()
+    return getLocalUserStateNames(transform.getTransform()).stream()
         .map(
             localName -> {
               String transformId = transform.getId();
@@ -382,8 +368,7 @@ public class QueryablePipeline {
   }
 
   public Collection<TimerReference> getTimers(PTransformNode transform) {
-    return getLocalTimerNames(transform.getTransform())
-        .stream()
+    return getLocalTimerNames(transform.getTransform()).stream()
         .map(
             localName -> {
               String transformId = transform.getId();

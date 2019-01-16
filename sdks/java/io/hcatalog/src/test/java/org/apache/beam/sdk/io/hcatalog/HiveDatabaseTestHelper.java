@@ -22,6 +22,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
+
 /** Helper for creating connection and test tables on hive database via JDBC driver. */
 class HiveDatabaseTestHelper {
   private static Connection con;

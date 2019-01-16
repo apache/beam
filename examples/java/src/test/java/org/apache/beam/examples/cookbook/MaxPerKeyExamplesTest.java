@@ -18,7 +18,6 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.examples.cookbook.MaxPerKeyExamples.ExtractTempFn;
 import org.apache.beam.examples.cookbook.MaxPerKeyExamples.FormatMaxesFn;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;

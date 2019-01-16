@@ -20,7 +20,6 @@ package org.apache.beam.runners.direct;
 import static java.util.Arrays.asList;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /** Implementation of {@link MetricResults} for the Direct Runner. */
 class DirectMetrics extends MetricResults {

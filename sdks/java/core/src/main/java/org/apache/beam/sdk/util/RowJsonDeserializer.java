@@ -44,7 +44,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -54,6 +53,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.RowJsonValueExtractors.ValueExtractor;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /**
  * Jackson deserializer for {@link Row Rows}.
@@ -145,10 +145,7 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
               + "can be parsed to Beam Rows");
     }
 
-    return rowFieldValue
-        .rowSchema()
-        .getFields()
-        .stream()
+    return rowFieldValue.rowSchema().getFields().stream()
         .map(
             schemaField ->
                 extractJsonNodeValue(

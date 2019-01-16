@@ -17,19 +17,9 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
-import com.google.common.graph.ElementOrder;
-import com.google.common.graph.EndpointPair;
-import com.google.common.graph.Graphs;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
-import com.google.common.graph.NetworkBuilder;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -42,6 +32,16 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.ElementOrder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.EndpointPair;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Graphs;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
 
 /** Static utility methods for {@link Network} instances that are directed. */
 public class Networks {
@@ -208,11 +208,14 @@ public class Networks {
     //
     // The only edges that are ignored by the algorithm are back edges.
     // The algorithm (while there are still nodes in the graph):
-    //   1) Removes all sinks from the graph adding them to the beginning of "s2". Continue to do this till there
+    //   1) Removes all sinks from the graph adding them to the beginning of "s2". Continue to do
+    // this till there
     //      are no more sinks.
-    //   2) Removes all source from the graph adding them to the end of "s1". Continue to do this till there
+    //   2) Removes all source from the graph adding them to the end of "s1". Continue to do this
+    // till there
     //      are no more sources.
-    //   3) Remote a single node with the highest delta within the graph and add it to the end of "s1".
+    //   3) Remote a single node with the highest delta within the graph and add it to the end of
+    // "s1".
     //
     // The topological order is then the s1 concatenated with s2.
 

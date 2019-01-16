@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.docs;
 
 import static java.util.Arrays.asList;
 
-import com.google.common.base.Splitter;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -70,6 +69,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Before;
@@ -207,15 +207,15 @@ public class DocumentationExamplesTest {
     final PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline pipeline = Pipeline.create(options);
 
-    //Register `KryoCoderProvider` which attempt to use `KryoCoder` to every non-primitive type
+    // Register `KryoCoderProvider` which attempt to use `KryoCoder` to every non-primitive type
     KryoCoderProvider.of().registerTo(pipeline);
 
-    //Do not allow `KryoCoderProvider` to return `KryoCoder` for unregistered types
+    // Do not allow `KryoCoderProvider` to return `KryoCoder` for unregistered types
     options.as(KryoOptions.class).setKryoRegistrationRequired(true);
 
     KryoCoderProvider.of(
-            kryo -> { //KryoRegistrar of your uwn
-              kryo.register(KryoSerializedElementType.class); //other may follow
+            kryo -> { // KryoRegistrar of your uwn
+              kryo.register(KryoSerializedElementType.class); // other may follow
             })
         .registerTo(pipeline);
 
@@ -510,14 +510,15 @@ public class DocumentationExamplesTest {
                 new SomeEventObject(3),
                 new SomeEventObject(4)));
 
-    // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp
+    // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods
+    // returns time-stamp
     PCollection<SomeEventObject> timeStampedEvents =
         FlatMap.named("extract-event-time")
             .of(events)
             .using((SomeEventObject e, Collector<SomeEventObject> c) -> c.collect(e))
             .eventTimeBy(SomeEventObject::getEventTimeInMillis)
             .output();
-    //Euphoria will now know event time for each event
+    // Euphoria will now know event time for each event
 
     pipeline.run();
   }
@@ -530,7 +531,7 @@ public class DocumentationExamplesTest {
     // suppose nums contains: [0,  1, 2, 3, 4, 5, 6, 7, 8, 9]
     PCollection<Integer> divisibleBythree =
         Filter.named("divisibleByFive").of(nums).by(e -> e % 3 == 0).output();
-    //divisibleBythree will contain: [ 0, 3, 6, 9]
+    // divisibleBythree will contain: [ 0, 3, 6, 9]
 
     PAssert.that(divisibleBythree).containsInAnyOrder(0, 3, 6, 9);
     pipeline.run();
@@ -542,7 +543,7 @@ public class DocumentationExamplesTest {
     PCollection<String> animals =
         pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"));
 
-    //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
+    // suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
     PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
         ReduceByKey.named("to-letters-couts")
             .of(animals)
@@ -551,7 +552,8 @@ public class DocumentationExamplesTest {
             .valueBy(e -> 1)
             .reduceBy(Stream::count)
             .output();
-    // countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]
+    // countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5,
+    // 1L), KV.of(8, 1L) ]
 
     PAssert.that(countOfAnimalNamesByLength)
         .containsInAnyOrder(
@@ -566,7 +568,7 @@ public class DocumentationExamplesTest {
     PCollection<String> animals =
         pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"));
 
-    //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
+    // suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
     PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
         ReduceByKey.named("to-letters-couts")
             .of(animals)
@@ -575,7 +577,8 @@ public class DocumentationExamplesTest {
             .valueBy(e -> 1L)
             .combineBy(s -> s.mapToLong(l -> l).sum())
             .output();
-    // countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]
+    // countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5,
+    // 1L), KV.of(8, 1L) ]
 
     PAssert.that(countOfAnimalNamesByLength)
         .containsInAnyOrder(
@@ -590,7 +593,7 @@ public class DocumentationExamplesTest {
     PCollection<String> animals =
         pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"));
 
-    //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
+    // suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
     PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
         ReduceByKey.named("to-letters-couts")
             .of(animals)
@@ -603,7 +606,8 @@ public class DocumentationExamplesTest {
                   collector.asContext().getCounter("num-of-keys").increment();
                 })
             .output();
-    // countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]
+    // countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5,
+    // 1L), KV.of(8, 1L) ]
 
     PAssert.that(countOfAnimalNamesByLength)
         .containsInAnyOrder(
@@ -659,7 +663,7 @@ public class DocumentationExamplesTest {
     PCollection<String> animals =
         pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"));
 
-    //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
+    // suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
     PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
         ReduceByKey.named("to-letters-couts")
             .of(animals)
@@ -668,7 +672,8 @@ public class DocumentationExamplesTest {
             .valueBy(e -> 1L)
             .combineBy(Fold.of((l1, l2) -> l1 + l2))
             .output();
-    // countOfAnimalNamesByLength will contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]
+    // countOfAnimalNamesByLength will contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5,
+    // 1L), KV.of(8, 1L) ]
 
     PAssert.that(countOfAnimalNamesByLength)
         .containsInAnyOrder(
@@ -681,7 +686,7 @@ public class DocumentationExamplesTest {
   public void testSumByKeyOperator() {
     PCollection<Integer> input = pipeline.apply(Create.of(asList(1, 2, 3, 4, 5, 6, 7, 8, 9)));
 
-    //suppose input contains: [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+    // suppose input contains: [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
     PCollection<KV<Integer, Long>> output =
         SumByKey.named("sum-odd-and-even")
             .of(input)
@@ -707,11 +712,12 @@ public class DocumentationExamplesTest {
             .apply("rodents", Create.of("squirrel", "mouse", "rat", "lemming", "beaver"))
             .setTypeDescriptor(TypeDescriptors.strings());
 
-    //suppose cats contains: [ "cheetah", "cat", "lynx", "jaguar" ]
-    //suppose rodents contains: [ "squirrel", "mouse", "rat", "lemming", "beaver" ]
+    // suppose cats contains: [ "cheetah", "cat", "lynx", "jaguar" ]
+    // suppose rodents contains: [ "squirrel", "mouse", "rat", "lemming", "beaver" ]
     PCollection<String> animals = Union.named("to-animals").of(cats, rodents).output();
 
-    // animal will contain: "cheetah", "cat", "lynx", "jaguar", "squirrel", "mouse", "rat", "lemming", "beaver"
+    // animal will contain: "cheetah", "cat", "lynx", "jaguar", "squirrel", "mouse", "rat",
+    // "lemming", "beaver"
     PAssert.that(animals)
         .containsInAnyOrder(
             "cheetah", "cat", "lynx", "jaguar", "squirrel", "mouse", "rat", "lemming", "beaver");
@@ -732,7 +738,8 @@ public class DocumentationExamplesTest {
                     new SomeEventObject(3),
                     new SomeEventObject(4))));
 
-    // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp
+    // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods
+    // returns time-stamp
     PCollection<SomeEventObject> timeStampedEvents =
         AssignEventTime.named("extract-event-time")
             .of(events)
@@ -795,17 +802,18 @@ public class DocumentationExamplesTest {
                 "duck",
                 "caterpillar"));
 
-    // suppose 'animals contain: [ "mouse", "elk", "rat", "mule", "elephant", "dinosaur", "cat", "duck", "caterpillar" ]
+    // suppose 'animals contain: [ "mouse", "elk", "rat", "mule", "elephant", "dinosaur", "cat",
+    // "duck", "caterpillar" ]
     PCollection<Triple<Character, String, Integer>> longestNamesByLetter =
         TopPerKey.named("longest-animal-names")
             .of(animals)
             .keyBy(name -> name.charAt(0)) // first character is the key
             .valueBy(UnaryFunction.identity()) // value type is the same as input element type
-            .scoreBy(
-                String
-                    ::length) // length defines score, note that Integer implements Comparable<Integer>
+            .scoreBy(String::length) // length defines score, note that Integer implements
+            // Comparable<Integer>
             .output();
-    // longestNamesByLetter will contain: [ ('m', "mouse", 5), ('r', "rat", 3), ('e', "elephant", 8), ('d', "dinosaur", 8), ('c', "caterpillar", 11) ]
+    // longestNamesByLetter will contain: [ ('m', "mouse", 5), ('r', "rat", 3), ('e', "elephant",
+    // 8), ('d', "dinosaur", 8), ('c', "caterpillar", 11) ]
 
     PAssert.that(longestNamesByLetter)
         .containsInAnyOrder(

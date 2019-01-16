@@ -73,7 +73,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public Settings indexSettings() {
     return Settings.builder()
         .put(super.indexSettings())
-        //useful to have updated sizes for getEstimatedSize
+        // useful to have updated sizes for getEstimatedSize
         .put("index.store.stats_refresh_interval", 0)
         .build();
   }
@@ -86,11 +86,12 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Before
-  public void setup() {
+  public void setup() throws IOException {
+    internalCluster().ensureAtMostNumDataNodes(1);
     if (connectionConfiguration == null) {
       connectionConfiguration =
           ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE)
-              .withSocketAndRetryTimeout(90000)
+              .withSocketAndRetryTimeout(120000)
               .withConnectTimeout(5000);
       elasticsearchIOTestCommon =
           new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);

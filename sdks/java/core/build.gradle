@@ -22,13 +22,20 @@ applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     include(dependency(library.java.protobuf_java))
     include(dependency(library.java.byte_buddy))
     include(dependency("org.apache.commons:.*"))
+    include(dependency(library.java.antlr_runtime))
   }
   relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
   relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
   relocate "net.bytebuddy", getJavaRelocatedPath("net.bytebuddy")
   relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
+  relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
 })
 applyAvroNature()
+applyAntlrNature()
+
+generateGrammarSource {
+  arguments += ["-visitor"]
+}
 
 description = "Apache Beam :: SDKs :: Java :: Core"
 ext.summary = """Beam SDK Java All provides a simple, Java-based
@@ -51,9 +58,11 @@ test {
 }
 
 dependencies {
+  antlr library.java.antlr
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
+  compile library.java.antlr_runtime
   compile library.java.protobuf_java
   compile library.java.byte_buddy
   compile library.java.commons_compress

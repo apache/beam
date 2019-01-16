@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Iterables;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -57,6 +56,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /** A {@link Combine} that performs the combine in multiple steps. */
@@ -118,7 +118,8 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
 
   static class Factory<K, InputT, AccumT, OutputT>
       extends SingleInputOutputOverrideFactory<
-          PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>,
+          PCollection<KV<K, InputT>>,
+          PCollection<KV<K, OutputT>>,
           PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
     public static PTransformOverrideFactory create() {
       return new Factory<>();
@@ -130,7 +131,8 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
     public PTransformReplacement<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>,
+                    PCollection<KV<K, InputT>>,
+                    PCollection<KV<K, OutputT>>,
                     PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>>
                 transform) {
       GlobalCombineFn<?, ?, ?> globalFn = ((Combine.PerKey) transform.getTransform()).getFn();
@@ -366,7 +368,8 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
 
     private <K, AccumT, OutputT> TransformEvaluator<KV<K, Iterable<AccumT>>> createEvaluator(
         AppliedPTransform<
-                PCollection<KV<K, Iterable<AccumT>>>, PCollection<KV<K, OutputT>>,
+                PCollection<KV<K, Iterable<AccumT>>>,
+                PCollection<KV<K, OutputT>>,
                 MergeAndExtractAccumulatorOutput<K, AccumT, OutputT>>
             application,
         CommittedBundle<KV<K, Iterable<AccumT>>> inputBundle) {
@@ -380,7 +383,8 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
   private static class MergeAccumulatorsAndExtractOutputEvaluator<K, AccumT, OutputT>
       implements TransformEvaluator<KV<K, Iterable<AccumT>>> {
     private final AppliedPTransform<
-            PCollection<KV<K, Iterable<AccumT>>>, PCollection<KV<K, OutputT>>,
+            PCollection<KV<K, Iterable<AccumT>>>,
+            PCollection<KV<K, OutputT>>,
             MergeAndExtractAccumulatorOutput<K, AccumT, OutputT>>
         application;
     private final CombineFn<?, AccumT, OutputT> combineFn;
@@ -389,7 +393,8 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
     public MergeAccumulatorsAndExtractOutputEvaluator(
         EvaluationContext ctxt,
         AppliedPTransform<
-                PCollection<KV<K, Iterable<AccumT>>>, PCollection<KV<K, OutputT>>,
+                PCollection<KV<K, Iterable<AccumT>>>,
+                PCollection<KV<K, OutputT>>,
                 MergeAndExtractAccumulatorOutput<K, AccumT, OutputT>>
             application) {
       this.application = application;

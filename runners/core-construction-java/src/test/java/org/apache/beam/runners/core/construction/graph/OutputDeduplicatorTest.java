@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
@@ -26,7 +26,6 @@ import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -42,6 +41,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.OutputDeduplicator.DeduplicationResult;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -271,10 +271,7 @@ public class OutputDeduplicatorTest {
 
     assertThat(result.getDeduplicatedStages().keySet(), hasSize(2));
     List<String> stageOutputs =
-        result
-            .getDeduplicatedStages()
-            .values()
-            .stream()
+        result.getDeduplicatedStages().values().stream()
             .flatMap(stage -> stage.getOutputPCollections().stream().map(PCollectionNode::getId))
             .collect(Collectors.toList());
     assertThat(
@@ -398,11 +395,7 @@ public class OutputDeduplicatorTest {
     introducedOutputs.addAll(
         result.getDeduplicatedTransforms().get("shared").getTransform().getOutputsMap().values());
     introducedOutputs.addAll(
-        result
-            .getDeduplicatedStages()
-            .get(oneStage)
-            .getOutputPCollections()
-            .stream()
+        result.getDeduplicatedStages().get(oneStage).getOutputPCollections().stream()
             .map(PCollectionNode::getId)
             .collect(Collectors.toList()));
     assertThat(
@@ -588,16 +581,11 @@ public class OutputDeduplicatorTest {
     assertThat(result.getDeduplicatedTransforms().keySet(), empty());
 
     Collection<String> introducedIds =
-        result
-            .getIntroducedTransforms()
-            .stream()
+        result.getIntroducedTransforms().stream()
             .flatMap(pt -> pt.getTransform().getInputsMap().values().stream())
             .collect(Collectors.toList());
     String[] stageOutputs =
-        result
-            .getDeduplicatedStages()
-            .values()
-            .stream()
+        result.getDeduplicatedStages().values().stream()
             .flatMap(s -> s.getOutputPCollections().stream().map(PCollectionNode::getId))
             .toArray(String[]::new);
     assertThat(introducedIds, containsInAnyOrder(stageOutputs));
@@ -608,9 +596,7 @@ public class OutputDeduplicatorTest {
     assertThat(
         result.getDeduplicatedComponents().getTransformsMap().entrySet(),
         hasItems(
-            result
-                .getIntroducedTransforms()
-                .stream()
+            result.getIntroducedTransforms().stream()
                 .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform))
                 .entrySet()
                 .toArray(new Map.Entry[0])));

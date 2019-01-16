@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.buildMockedS3FileSystem;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.getSSECustomerKeyMd5;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3Options;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithCustomEndpointAndPathStyleAccessEnabled;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSECustomerKey;
 import static org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions.builder;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
@@ -58,7 +58,6 @@ import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.google.common.collect.ImmutableList;
 import io.findify.s3mock.S3Mock;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -71,6 +70,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -696,19 +696,19 @@ public class S3FileSystemTest {
     ByteBuffer bb = ByteBuffer.allocate(writtenArray.length);
     bb.put(writtenArray);
 
-    //First create an object and write data to it
+    // First create an object and write data to it
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/foo/bar.txt");
     WritableByteChannel writableByteChannel =
         s3FileSystem.create(path, builder().setMimeType("application/text").build());
     writableByteChannel.write(bb);
     writableByteChannel.close();
 
-    //Now read the same object
+    // Now read the same object
     ByteBuffer bb2 = ByteBuffer.allocate(writtenArray.length);
     ReadableByteChannel open = s3FileSystem.open(path);
     open.read(bb2);
 
-    //And compare the content with the one that was written
+    // And compare the content with the one that was written
     byte[] readArray = bb2.array();
     assertArrayEquals(readArray, writtenArray);
     open.close();

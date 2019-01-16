@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A {@link SchemaProvider} for Java Bean objects.
@@ -53,8 +53,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
 
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
-      return ReflectUtils.getMethods(clazz)
-          .stream()
+      return ReflectUtils.getMethods(clazz).stream()
           .filter(ReflectUtils::isGetter)
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
           .map(FieldValueTypeInformation::forGetter)
@@ -74,8 +73,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
 
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
-      return ReflectUtils.getMethods(clazz)
-          .stream()
+      return ReflectUtils.getMethods(clazz).stream()
           .filter(ReflectUtils::isSetter)
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
           .map(FieldValueTypeInformation::forSetter)

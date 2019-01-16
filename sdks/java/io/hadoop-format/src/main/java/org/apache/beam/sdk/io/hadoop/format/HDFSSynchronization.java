@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.hadoop.format;
 
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Random;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -152,7 +152,7 @@ public class HDFSSynchronization implements ExternalSynchronization {
       } catch (FileAlreadyExistsException | org.apache.hadoop.fs.FileAlreadyExistsException e) {
         return false;
       } catch (RemoteException e) {
-        //remote hdfs exception
+        // remote hdfs exception
         if (e.getClassName().equals(AlreadyBeingCreatedException.class.getName())) {
           return false;
         }

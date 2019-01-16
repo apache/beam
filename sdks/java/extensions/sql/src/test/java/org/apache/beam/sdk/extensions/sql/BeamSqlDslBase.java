@@ -60,14 +60,14 @@ public class BeamSqlDslBase {
   static List<Row> rowsOfBytes;
   static List<Row> rowsOfBytesPaddingTest;
 
-  //bounded PCollections
+  // bounded PCollections
   protected PCollection<Row> boundedInput1;
   protected PCollection<Row> boundedInput2;
   protected PCollection<Row> boundedInputFloatDouble;
   protected PCollection<Row> boundedInputBytes;
   protected PCollection<Row> boundedInputBytesPaddingTest;
 
-  //unbounded PCollections
+  // unbounded PCollections
   protected PCollection<Row> unboundedInput1;
   protected PCollection<Row> unboundedInput2;
 

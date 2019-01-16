@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -44,6 +41,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /**
  * A transform that performs equijoins across multiple schema {@link PCollection}s.
@@ -242,10 +242,7 @@ public class CoGroup {
       KeyedPCollectionTuple<Row> keyedPCollectionTuple =
           KeyedPCollectionTuple.empty(input.getPipeline());
       List<TupleTag<Row>> sortedTags =
-          input
-              .getAll()
-              .keySet()
-              .stream()
+          input.getAll().keySet().stream()
               .sorted(Comparator.comparing(TupleTag::getId))
               .map(t -> new TupleTag<Row>(t.getId() + "_ROW"))
               .collect(Collectors.toList());

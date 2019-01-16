@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Predicates;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -47,6 +46,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
 
 /**
  * Describes the signature of a {@link DoFn}, in particular, which features it uses, which extra
@@ -679,8 +679,7 @@ public abstract class DoFnSignature {
      * each scoped to a single window.
      */
     public boolean observesWindow() {
-      return extraParameters()
-          .stream()
+      return extraParameters().stream()
           .anyMatch(
               Predicates.or(
                       Predicates.instanceOf(WindowParameter.class),
@@ -696,8 +695,7 @@ public abstract class DoFnSignature {
     @Nullable
     public RowParameter getRowParameter() {
       Optional<Parameter> parameter =
-          extraParameters()
-              .stream()
+          extraParameters().stream()
               .filter(Predicates.instanceOf(RowParameter.class)::apply)
               .findFirst();
       return parameter.isPresent() ? ((RowParameter) parameter.get()) : null;
@@ -707,8 +705,7 @@ public abstract class DoFnSignature {
     @Nullable
     public OutputReceiverParameter getMainOutputReceiver() {
       Optional<Parameter> parameter =
-          extraParameters()
-              .stream()
+          extraParameters().stream()
               .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
               .findFirst();
       return parameter.isPresent() ? ((OutputReceiverParameter) parameter.get()) : null;
@@ -718,8 +715,7 @@ public abstract class DoFnSignature {
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return extraParameters()
-          .stream()
+      return extraParameters().stream()
           .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
   }

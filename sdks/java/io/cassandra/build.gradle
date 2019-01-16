@@ -27,7 +27,7 @@ ext.summary = "IO to read and write with Apache Cassandra database"
 def cassandra_version = "3.5.0"
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow "com.datastax.cassandra:cassandra-driver-core:$cassandra_version"

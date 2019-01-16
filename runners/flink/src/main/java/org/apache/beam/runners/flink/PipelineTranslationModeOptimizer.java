@@ -59,10 +59,7 @@ class PipelineTranslationModeOptimizer extends FlinkPipelineTranslator {
   }
 
   private boolean hasUnboundedOutput(AppliedPTransform<?, ?, ?> transform) {
-    return transform
-        .getOutputs()
-        .values()
-        .stream()
+    return transform.getOutputs().values().stream()
         .filter(value -> value instanceof PCollection)
         .map(value -> (PCollection<?>) value)
         .anyMatch(collection -> collection.isBounded() == IsBounded.UNBOUNDED);

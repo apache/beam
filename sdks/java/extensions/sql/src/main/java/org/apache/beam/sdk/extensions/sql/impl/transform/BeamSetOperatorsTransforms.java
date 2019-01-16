@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 
 /** Collections of {@code PTransform} and {@code DoFn} used to perform Set operations. */
 public abstract class BeamSetOperatorsTransforms {
@@ -80,8 +81,15 @@ public abstract class BeamSetOperatorsTransforms {
         case INTERSECT:
           if (leftRows.iterator().hasNext() && rightRows.iterator().hasNext()) {
             if (all) {
-              for (Row leftRow : leftRows) {
-                ctx.output(leftRow);
+              int leftCount = Iterators.size(leftRows.iterator());
+              int rightCount = Iterators.size(rightRows.iterator());
+
+              // Say for Row R, there are m instances on left and n instances on right,
+              // INTERSECT ALL outputs MIN(m, n) instances of R.
+              Iterator<Row> iter =
+                  (leftCount <= rightCount) ? leftRows.iterator() : rightRows.iterator();
+              while (iter.hasNext()) {
+                ctx.output(iter.next());
               }
             } else {
               ctx.output(ctx.element().getKey());
@@ -89,6 +97,8 @@ public abstract class BeamSetOperatorsTransforms {
           }
           break;
         case MINUS:
+          // Say for Row R, there are m instances on left and n instances on right,
+          // EXCEPT ALL outputs MAX(m - n, 0) instances of R.
           if (leftRows.iterator().hasNext() && !rightRows.iterator().hasNext()) {
             Iterator<Row> iter = leftRows.iterator();
             if (all) {
@@ -99,6 +109,21 @@ public abstract class BeamSetOperatorsTransforms {
             } else {
               // only output one
               ctx.output(iter.next());
+            }
+          } else if (leftRows.iterator().hasNext() && rightRows.iterator().hasNext()) {
+            int leftCount = Iterators.size(leftRows.iterator());
+            int rightCount = Iterators.size(rightRows.iterator());
+
+            int outputCount = leftCount - rightCount;
+            if (outputCount > 0) {
+              if (all) {
+                while (outputCount > 0) {
+                  outputCount--;
+                  ctx.output(ctx.element().getKey());
+                }
+              } else {
+                ctx.output(ctx.element().getKey());
+              }
             }
           }
       }

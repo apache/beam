@@ -32,8 +32,6 @@ import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterators;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -46,6 +44,8 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -214,21 +214,14 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
 
     SplitGenerator splitGenerator = new SplitGenerator(cluster.getMetadata().getPartitioner());
     List<BigInteger> tokens =
-        cluster
-            .getMetadata()
-            .getTokenRanges()
-            .stream()
+        cluster.getMetadata().getTokenRanges().stream()
             .map(tokenRange -> new BigInteger(tokenRange.getEnd().getValue().toString()))
             .collect(Collectors.toList());
     List<List<RingRange>> splits = splitGenerator.generateSplits(numSplits, tokens);
     LOG.info("{} splits were actually generated", splits.size());
 
     final String partitionKey =
-        cluster
-            .getMetadata()
-            .getKeyspace(spec.keyspace())
-            .getTable(spec.table())
-            .getPartitionKey()
+        cluster.getMetadata().getKeyspace(spec.keyspace()).getTable(spec.table()).getPartitionKey()
             .stream()
             .map(ColumnMetadata::getName)
             .collect(Collectors.joining(","));

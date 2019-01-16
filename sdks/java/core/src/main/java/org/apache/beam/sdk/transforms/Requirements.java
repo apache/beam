@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -26,6 +25,7 @@ import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /** Describes the run-time requirements of a {@link Contextful}, such as access to side inputs. */
 @Experimental(Kind.CONTEXTFUL)

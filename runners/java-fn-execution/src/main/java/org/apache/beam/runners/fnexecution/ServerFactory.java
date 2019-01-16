@@ -17,15 +17,15 @@
  */
 package org.apache.beam.runners.fnexecution;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.net.HostAndPort;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
@@ -39,9 +39,13 @@ import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.EpollServerDom
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.epoll.EpollServerSocketChannel;
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.channel.unix.DomainSocketAddress;
 import org.apache.beam.vendor.grpc.v1p13p1.io.netty.util.internal.ThreadLocalRandom;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 
 /** A {@link Server gRPC server} factory. */
 public abstract class ServerFactory {
+
+  private static final int KEEP_ALIVE_TIME_SEC = 20;
+
   /** Create a default {@link InetSocketAddressServerFactory}. */
   public static ServerFactory createDefault() {
     return new InetSocketAddressServerFactory(UrlFactory.createDefault());
@@ -144,9 +148,9 @@ public abstract class ServerFactory {
           NettyServerBuilder.forPort(socket.getPort())
               // Set the message size to max value here. The actual size is governed by the
               // buffer size in the layers above.
-              .maxMessageSize(Integer.MAX_VALUE);
-      services
-          .stream()
+              .maxMessageSize(Integer.MAX_VALUE)
+              .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
+      services.stream()
           .forEach(
               service ->
                   builder.addService(
@@ -200,7 +204,8 @@ public abstract class ServerFactory {
               .channelType(EpollServerDomainSocketChannel.class)
               .workerEventLoopGroup(new EpollEventLoopGroup())
               .bossEventLoopGroup(new EpollEventLoopGroup())
-              .maxMessageSize(Integer.MAX_VALUE);
+              .maxMessageSize(Integer.MAX_VALUE)
+              .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
       for (BindableService service : services) {
         // Wrap the service to extract headers
         builder.addService(
@@ -249,7 +254,8 @@ public abstract class ServerFactory {
               .channelType(EpollServerSocketChannel.class)
               .workerEventLoopGroup(new EpollEventLoopGroup())
               .bossEventLoopGroup(new EpollEventLoopGroup())
-              .maxMessageSize(Integer.MAX_VALUE);
+              .maxMessageSize(Integer.MAX_VALUE)
+              .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
       for (BindableService service : services) {
         // Wrap the service to extract headers
         builder.addService(

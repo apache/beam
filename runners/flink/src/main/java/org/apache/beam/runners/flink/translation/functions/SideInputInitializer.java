@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -86,9 +86,7 @@ public class SideInputInitializer<ViewT>
                   InMemoryMultimapSideInputView.fromIterable(
                       keyCoder,
                       (Iterable)
-                          elements
-                              .getValue()
-                              .stream()
+                          elements.getValue().stream()
                               .map(WindowedValue::getValue)
                               .collect(Collectors.toList()))));
     }

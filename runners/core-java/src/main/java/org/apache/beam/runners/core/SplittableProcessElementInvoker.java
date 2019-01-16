@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;

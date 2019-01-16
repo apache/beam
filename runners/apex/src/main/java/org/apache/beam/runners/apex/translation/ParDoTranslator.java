@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.apex.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.datatorrent.api.Operator;
 import com.datatorrent.api.Operator.OutputPort;
-import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,9 +77,7 @@ class ParDoTranslator<InputT, OutputT>
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
     Map<TupleTag<?>, Coder<?>> outputCoders =
-        outputs
-            .entrySet()
-            .stream()
+        outputs.entrySet().stream()
             .filter(e -> e.getValue() instanceof PCollection)
             .collect(
                 Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
@@ -138,9 +136,7 @@ class ParDoTranslator<InputT, OutputT>
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
       Map<TupleTag<?>, Coder<?>> outputCoders =
-          outputs
-              .entrySet()
-              .stream()
+          outputs.entrySet().stream()
               .filter(e -> e.getValue() instanceof PCollection)
               .collect(
                   Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
@@ -221,8 +217,8 @@ class ParDoTranslator<InputT, OutputT>
           .getWindowingStrategy()
           .equals(firstSideInput.getWindowingStrategy())) {
         // TODO: check how to handle this in stream codec
-        //String msg = "Multiple side inputs with different window strategies.";
-        //throw new UnsupportedOperationException(msg);
+        // String msg = "Multiple side inputs with different window strategies.";
+        // throw new UnsupportedOperationException(msg);
         LOG.warn(
             "Side inputs union with different windowing strategies {} {}",
             firstSideInput.getWindowingStrategy(),

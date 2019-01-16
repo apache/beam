@@ -17,7 +17,6 @@
  */
 package org.apache.beam.fn.harness;
 
-import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 
 /** A factory able to instantiate an appropriate handler for a given PTransform. */
 public interface PTransformRunnerFactory<T> {

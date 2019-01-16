@@ -87,13 +87,12 @@ import org.joda.time.Duration;
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
-  reason =
-      "Is very recommended to override because of performance in "
-          + "a specific area of (mostly) batch calculations where combiners "
-          + "can be efficiently used in the executor-specific implementation",
-  state = StateComplexity.CONSTANT_IF_COMBINABLE,
-  repartitions = 1
-)
+    reason =
+        "Is very recommended to override because of performance in "
+            + "a specific area of (mostly) batch calculations where combiners "
+            + "can be efficiently used in the executor-specific implementation",
+    state = StateComplexity.CONSTANT_IF_COMBINABLE,
+    repartitions = 1)
 public class ReduceByKey<InputT, KeyT, ValueT, OutputT>
     extends ShuffleOperator<InputT, KeyT, KV<KeyT, OutputT>> implements TypeAware.Value<ValueT> {
 

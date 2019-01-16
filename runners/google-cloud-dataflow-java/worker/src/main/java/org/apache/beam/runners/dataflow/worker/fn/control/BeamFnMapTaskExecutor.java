@@ -21,9 +21,6 @@ import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.SpanBuilder;
 import io.opencensus.trace.Tracer;
@@ -72,8 +69,12 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 /**
  * A {@link WorkExecutor} that processes a list of {@link Operation}s.
  *
@@ -489,8 +490,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
               bundleProcessOperation.getPtransformIdToUserStepContext());
 
       counterUpdates =
-          monitoringInfos
-              .stream()
+          monitoringInfos.stream()
               .map(monitoringInfoToCounterUpdateTransformer::monitoringInfoToCounterUpdate)
               .filter(Objects::nonNull)
               .collect(Collectors.toList());

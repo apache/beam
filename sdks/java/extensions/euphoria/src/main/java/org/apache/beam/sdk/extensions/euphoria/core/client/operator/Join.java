@@ -71,13 +71,12 @@ import org.joda.time.Duration;
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
-  reason =
-      "Might be useful to override because of performance reasons in a "
-          + "specific join types (e.g. sort join), which might reduce the space "
-          + "complexity",
-  state = StateComplexity.LINEAR,
-  repartitions = 1
-)
+    reason =
+        "Might be useful to override because of performance reasons in a "
+            + "specific join types (e.g. sort join), which might reduce the space "
+            + "complexity",
+    state = StateComplexity.LINEAR,
+    repartitions = 1)
 public class Join<LeftT, RightT, KeyT, OutputT>
     extends ShuffleOperator<Object, KeyT, KV<KeyT, OutputT>> {
 
