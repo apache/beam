@@ -103,9 +103,7 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
     p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
 
     ExecutableStage stage =
-        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p))
-            .getFusedStages()
-            .stream()
+        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p)).getFusedStages().stream()
             .findFirst()
             .get();
     RemoteEnvironment remoteEnv = mock(RemoteEnvironment.class);
@@ -124,9 +122,7 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
     p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
 
     ExecutableStage firstEnvStage =
-        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p))
-            .getFusedStages()
-            .stream()
+        GreedyPipelineFuser.fuse(PipelineTranslation.toProto(p)).getFusedStages().stream()
             .findFirst()
             .get();
     ExecutableStagePayload basePayload =

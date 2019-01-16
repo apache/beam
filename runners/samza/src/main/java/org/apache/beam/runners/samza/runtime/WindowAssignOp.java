@@ -39,8 +39,7 @@ public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T, Void
       throw new RuntimeException(e);
     }
 
-    windows
-        .stream()
+    windows.stream()
         .map(
             window ->
                 WindowedValue.of(

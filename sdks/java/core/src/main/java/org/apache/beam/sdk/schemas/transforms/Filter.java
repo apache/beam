@@ -125,9 +125,7 @@ public class Filter {
       for (String fieldName :
           Sets.union(
               fieldNameFilters.keySet(),
-              fieldNamesFilters
-                  .keySet()
-                  .stream()
+              fieldNamesFilters.keySet().stream()
                   .flatMap(List::stream)
                   .collect(Collectors.toSet()))) {
         schema.getField(fieldName);
@@ -135,9 +133,7 @@ public class Filter {
       for (int fieldIndex :
           Sets.union(
               fieldIdFilters.keySet(),
-              fieldIdsFilters
-                  .keySet()
-                  .stream()
+              fieldIdsFilters.keySet().stream()
                   .flatMap(List::stream)
                   .collect(Collectors.toSet()))) {
         if (fieldIndex >= schema.getFieldCount() || fieldIndex < 0) {

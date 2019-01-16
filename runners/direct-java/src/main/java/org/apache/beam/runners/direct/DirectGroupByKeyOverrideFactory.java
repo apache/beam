@@ -30,13 +30,15 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 /** A {@link PTransformOverrideFactory} for {@link GroupByKey} PTransforms. */
 final class DirectGroupByKeyOverrideFactory<K, V>
     extends SingleInputOutputOverrideFactory<
-        PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>,
+        PCollection<KV<K, V>>,
+        PCollection<KV<K, Iterable<V>>>,
         PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>> {
   @Override
   public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>,
+                  PCollection<KV<K, V>>,
+                  PCollection<KV<K, Iterable<V>>>,
                   PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>>
               transform) {
 

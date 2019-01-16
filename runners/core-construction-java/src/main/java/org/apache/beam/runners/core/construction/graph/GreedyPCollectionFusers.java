@@ -214,9 +214,11 @@ class GreedyPCollectionFusers {
         // upstream of any of the side inputs.
         || (pipeline.getSideInputs(parDo).isEmpty()
             // We purposefully break fusion here to provide runners the opportunity to insert a
-            // grouping operation to simplify implementing support for ParDo's that contain user state.
+            // grouping operation to simplify implementing support for ParDo's that contain user
+            // state.
             // We would not need to do this if we had the ability to mark upstream transforms as
-            // key preserving or if runners could execute ParDos containing user state in a distributed
+            // key preserving or if runners could execute ParDos containing user state in a
+            // distributed
             // fashion for a single key.
             && pipeline.getUserStates(parDo).isEmpty()
             // We purposefully break fusion here to provide runners the opportunity to insert a

@@ -53,7 +53,7 @@ public class ElasticsearchIOTest implements Serializable {
   private static Node node;
   private static RestClient restClient;
   private static ConnectionConfiguration connectionConfiguration;
-  //cannot use inheritance because ES5 test already extends ESIntegTestCase.
+  // cannot use inheritance because ES5 test already extends ESIntegTestCase.
   private static ElasticsearchIOTestCommon elasticsearchIOTestCommon;
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();

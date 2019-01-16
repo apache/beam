@@ -85,9 +85,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     assertTrue(signature.isSplittable());
     assertTrue(
-        signature
-            .extraParameters()
-            .stream()
+        signature.extraParameters().stream()
             .anyMatch(
                 Predicates.instanceOf(DoFnSignature.Parameter.RestrictionTrackerParameter.class)
                     ::apply));
@@ -310,7 +308,8 @@ public class DoFnSignaturesSplittableDoFnTest {
     DoFnSignature signature =
         DoFnSignatures.getSignature(
             new GoodGenericSplittableDoFn<
-                SomeRestriction, RestrictionTracker<SomeRestriction, ?>,
+                SomeRestriction,
+                RestrictionTracker<SomeRestriction, ?>,
                 SomeRestrictionCoder>() {}.getClass());
     assertEquals(RestrictionTracker.class, signature.processElement().trackerT().getRawType());
     assertTrue(signature.processElement().isSplittable());

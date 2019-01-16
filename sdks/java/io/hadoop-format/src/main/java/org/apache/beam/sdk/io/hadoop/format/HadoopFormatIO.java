@@ -641,8 +641,7 @@ public class HadoopFormatIO {
           "Generated {} splits. Size of first split is {} ",
           inputSplits.size(),
           inputSplits.get(0).getSplit().getLength());
-      return inputSplits
-          .stream()
+      return inputSplits.stream()
           .map(
               serializableInputSplit -> {
                 return new HadoopInputFormatBoundedSource<>(

@@ -51,7 +51,7 @@ class BeamSqlExample {
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
     Pipeline p = Pipeline.create(options);
 
-    //define the input row format
+    // define the input row format
     Schema type =
         Schema.builder().addInt32Field("c1").addStringField("c2").addDoubleField("c3").build();
 
@@ -59,7 +59,7 @@ class BeamSqlExample {
     Row row2 = Row.withSchema(type).addValues(2, "row", 2.0).build();
     Row row3 = Row.withSchema(type).addValues(3, "row", 3.0).build();
 
-    //create a source PCollection with Create.of();
+    // create a source PCollection with Create.of();
     PCollection<Row> inputTable =
         PBegin.in(p)
             .apply(
@@ -67,7 +67,7 @@ class BeamSqlExample {
                     .withSchema(
                         type, SerializableFunctions.identity(), SerializableFunctions.identity()));
 
-    //Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
+    // Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<Row> outputStream =
         inputTable.apply(SqlTransform.query("select c1, c2, c3 from PCOLLECTION where c1 > 1"));
 

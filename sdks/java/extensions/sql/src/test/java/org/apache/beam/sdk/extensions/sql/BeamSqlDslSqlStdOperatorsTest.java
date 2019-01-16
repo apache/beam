@@ -164,9 +164,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     Set<SqlOperatorId> declaredOperators = new HashSet<>();
 
     declaredOperators.addAll(
-        SqlStdOperatorTable.instance()
-            .getOperatorList()
-            .stream()
+        SqlStdOperatorTable.instance().getOperatorList().stream()
             .map(operator -> sqlOperatorId(operator.getName(), operator.getKind()))
             .collect(Collectors.toList()));
 

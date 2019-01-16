@@ -92,8 +92,8 @@ public final class BeamTableUtils {
 
   /**
    * Attempt to cast an object to a specified Schema.Field.Type.
-   * @throws IllegalArgumentException if the value cannot be cast to that type.
    *
+   * @throws IllegalArgumentException if the value cannot be cast to that type.
    * @return The casted object in Schema.Field.Type.
    */
   public static Object autoCastField(Schema.Field field, Object rawObj) {

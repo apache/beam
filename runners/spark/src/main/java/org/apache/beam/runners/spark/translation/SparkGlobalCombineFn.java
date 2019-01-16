@@ -71,7 +71,7 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
     TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
     WindowFn<?, BoundedWindow> windowFn = windowingStrategy.getWindowFn();
 
-    //--- inputs iterator, by window order.
+    // --- inputs iterator, by window order.
     final Iterator<WindowedValue<InputT>> iterator = sortedInputs.iterator();
     WindowedValue<InputT> currentInput = iterator.next();
     BoundedWindow currentWindow = Iterables.getFirst(currentInput.getWindows(), null);
@@ -170,7 +170,7 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
     @SuppressWarnings("unchecked")
     TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
 
-    //--- accumulators iterator, by window order.
+    // --- accumulators iterator, by window order.
     final Iterator<WindowedValue<AccumT>> iterator = sortedAccumulators.iterator();
 
     // get the first accumulator and assign it to the current window's accumulators.

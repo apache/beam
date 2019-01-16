@@ -116,8 +116,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     Schema outputSchema = CalciteUtils.toSchema(getRowType());
     List<FieldAggregation> aggregationAdapters =
-        getNamedAggCalls()
-            .stream()
+        getNamedAggCalls().stream()
             .map(aggCall -> new FieldAggregation(aggCall.getKey(), aggCall.getValue()))
             .collect(toList());
 

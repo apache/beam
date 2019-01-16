@@ -116,9 +116,7 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
           StreamSupport.stream(elements.spliterator(), false)
               .map(
                   input ->
-                      input
-                          .getWindows()
-                          .stream()
+                      input.getWindows().stream()
                           .map(
                               window ->
                                   WindowedValue.of(

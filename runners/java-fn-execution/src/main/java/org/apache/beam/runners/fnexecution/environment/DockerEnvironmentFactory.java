@@ -128,7 +128,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             .addAll(gcsCredentialArgs())
             // NOTE: Host networking does not work on Mac, but the command line flag is accepted.
             .add("--network=host")
-            // We need to pass on the information about Docker-on-Mac environment (due to missing host networking on Mac)
+            // We need to pass on the information about Docker-on-Mac environment (due to missing
+            // host networking on Mac)
             .add("--env=DOCKER_MAC_CONTAINER=" + System.getenv("DOCKER_MAC_CONTAINER"));
 
     if (!retainDockerContainer) {
@@ -206,7 +207,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
    * likely only support the latest version at any time.
    */
   private static class DockerOnMac {
-    // TODO: This host name seems to change with every other Docker release. Do we attempt to keep up
+    // TODO: This host name seems to change with every other Docker release. Do we attempt to keep
+    // up
     // or attempt to document the supported Docker version(s)?
     private static final String DOCKER_FOR_MAC_HOST = "host.docker.internal";
 
@@ -280,7 +282,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       String osName = System.getProperty("os.name").toLowerCase();
       // TODO: Make this more robust?
       // The DOCKER_MAC_CONTAINER environment variable is necessary to detect whether we run on
-      // a container on MacOs. MacOs internally uses a Linux VM which makes it indistinguishable from Linux.
+      // a container on MacOs. MacOs internally uses a Linux VM which makes it indistinguishable
+      // from Linux.
       // We still need to apply port mapping due to missing host networking.
       if (osName.startsWith("mac") || DockerOnMac.RUNNING_INSIDE_DOCKER_ON_MAC) {
         return Platform.MAC;

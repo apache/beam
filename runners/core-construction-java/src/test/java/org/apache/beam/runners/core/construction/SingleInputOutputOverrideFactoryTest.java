@@ -51,13 +51,15 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
           PCollection<? extends Integer>, PCollection<Integer>, MapElements<Integer, Integer>>
       factory =
           new SingleInputOutputOverrideFactory<
-              PCollection<? extends Integer>, PCollection<Integer>,
+              PCollection<? extends Integer>,
+              PCollection<Integer>,
               MapElements<Integer, Integer>>() {
             @Override
             public PTransformReplacement<PCollection<? extends Integer>, PCollection<Integer>>
                 getReplacementTransform(
                     AppliedPTransform<
-                            PCollection<? extends Integer>, PCollection<Integer>,
+                            PCollection<? extends Integer>,
+                            PCollection<Integer>,
                             MapElements<Integer, Integer>>
                         transform) {
               return PTransformReplacement.of(

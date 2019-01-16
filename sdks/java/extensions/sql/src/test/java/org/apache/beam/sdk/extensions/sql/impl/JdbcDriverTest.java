@@ -197,8 +197,7 @@ public class JdbcDriverTest {
         connection.createStatement().executeQuery("SELECT id, name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 
@@ -322,8 +321,7 @@ public class JdbcDriverTest {
             .executeQuery("SELECT person.nestedRow.id, person.nestedRow.name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 
@@ -350,8 +348,7 @@ public class JdbcDriverTest {
         connection.createStatement().executeQuery("SELECT id, name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(resultValues -> resultValues.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 

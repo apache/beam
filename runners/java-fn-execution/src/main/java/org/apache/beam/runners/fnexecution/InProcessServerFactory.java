@@ -45,8 +45,7 @@ public class InProcessServerFactory extends ServerFactory {
     String name = String.format("InProcessServer_%s", serviceNameUniqifier.getAndIncrement());
     builder.setUrl(name);
     InProcessServerBuilder serverBuilder = InProcessServerBuilder.forName(name);
-    services
-        .stream()
+    services.stream()
         .forEach(
             service ->
                 serverBuilder.addService(
@@ -59,8 +58,7 @@ public class InProcessServerFactory extends ServerFactory {
   public Server create(List<BindableService> services, ApiServiceDescriptor serviceDescriptor)
       throws IOException {
     InProcessServerBuilder builder = InProcessServerBuilder.forName(serviceDescriptor.getUrl());
-    services
-        .stream()
+    services.stream()
         .forEach(
             service ->
                 builder.addService(

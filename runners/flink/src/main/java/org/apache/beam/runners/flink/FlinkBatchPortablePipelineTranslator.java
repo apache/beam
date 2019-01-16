@@ -296,7 +296,7 @@ public class FlinkBatchPortablePipelineTranslator
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(e);
     }
-    //TODO: https://issues.apache.org/jira/browse/BEAM-4296
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4296
     // This only works for well known window fns, we should defer this execution to the SDK
     // if the WindowFn can't be parsed or just defer it all the time.
     WindowFn<T, ? extends BoundedWindow> windowFn =

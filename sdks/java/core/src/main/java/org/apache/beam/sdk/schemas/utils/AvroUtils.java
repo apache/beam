@@ -88,8 +88,7 @@ public class AvroUtils {
 
         // don't need recursion because nested unions aren't supported in AVRO
         List<org.apache.avro.Schema> nonNullTypes =
-            types
-                .stream()
+            types.stream()
                 .filter(x -> x.getType() != org.apache.avro.Schema.Type.NULL)
                 .collect(Collectors.toList());
 

@@ -263,17 +263,13 @@ public abstract class FieldAccessDescriptor implements Serializable {
     }
 
     nestedFields.putAll(
-        getNestedFieldsAccessedByName()
-            .entrySet()
-            .stream()
+        getNestedFieldsAccessedByName().entrySet().stream()
             .collect(
                 Collectors.toMap(
                     e -> schema.indexOf(e.getKey()),
                     e -> resolvedNestedFieldsHelper(schema.getField(e.getKey()), e.getValue()))));
     nestedFields.putAll(
-        getNestedFieldsAccessedById()
-            .entrySet()
-            .stream()
+        getNestedFieldsAccessedById().entrySet().stream()
             .collect(
                 Collectors.toMap(
                     e -> validateFieldId(schema, e.getKey()),

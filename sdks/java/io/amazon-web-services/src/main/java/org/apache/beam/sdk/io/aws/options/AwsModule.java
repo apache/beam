@@ -241,10 +241,9 @@ public class AwsModule extends SimpleModule {
   }
 
   @JsonAutoDetect(
-    fieldVisibility = Visibility.NONE,
-    getterVisibility = Visibility.NONE,
-    setterVisibility = Visibility.NONE
-  )
+      fieldVisibility = Visibility.NONE,
+      getterVisibility = Visibility.NONE,
+      setterVisibility = Visibility.NONE)
   interface ClientConfigurationMixin {
     @JsonProperty
     String getProxyHost();

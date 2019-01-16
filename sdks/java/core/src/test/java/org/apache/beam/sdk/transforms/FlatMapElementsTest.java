@@ -63,8 +63,10 @@ public class FlatMapElementsTest implements Serializable {
         pipeline
             .apply(Create.of(1, 2, 3))
 
-            // Note that FlatMapElements takes an InferableFunction<InputT, ? extends Iterable<OutputT>>
-            // so the use of List<Integer> here (as opposed to Iterable<Integer>) deliberately exercises
+            // Note that FlatMapElements takes an InferableFunction<InputT, ? extends
+            // Iterable<OutputT>>
+            // so the use of List<Integer> here (as opposed to Iterable<Integer>) deliberately
+            // exercises
             // the use of an upper bound.
             .apply(
                 FlatMapElements.via(

@@ -145,8 +145,7 @@ class SchemaAggregateFn {
     /** Once the schema is known, this function is called by the {@link Group} transform. */
     Inner<T> withSchema(Schema inputSchema, SerializableFunction<T, Row> toRowFunction) {
       List<FieldAggregation> fieldAggregations =
-          getFieldAggregations()
-              .stream()
+          getFieldAggregations().stream()
               .map(f -> f.resolve(inputSchema))
               .collect(Collectors.toList());
 

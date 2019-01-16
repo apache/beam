@@ -39,12 +39,9 @@ public class StaticSchemaInference {
   public static List<FieldValueTypeInformation> sortBySchema(
       List<FieldValueTypeInformation> types, Schema schema) {
     Map<String, FieldValueTypeInformation> typeMap =
-        types
-            .stream()
+        types.stream()
             .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
-    return schema
-        .getFields()
-        .stream()
+    return schema.getFields().stream()
         .map(f -> typeMap.get(f.getName()))
         .collect(Collectors.toList());
   }

@@ -788,8 +788,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (!isNullOrEmpty(dataflowOptions.getMinCpuPlatform())) {
 
       List<String> minCpuFlags =
-          experiments
-              .stream()
+          experiments.stream()
               .filter(p -> p.startsWith("min_cpu_platform"))
               .collect(Collectors.toList());
 
@@ -1677,13 +1676,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class PrimitiveCombineGroupedValuesOverrideFactory<K, InputT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>,
+          PCollection<KV<K, Iterable<InputT>>>,
+          PCollection<KV<K, OutputT>>,
           Combine.GroupedValues<K, InputT, OutputT>> {
     @Override
     public PTransformReplacement<PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>,
+                    PCollection<KV<K, Iterable<InputT>>>,
+                    PCollection<KV<K, OutputT>>,
                     GroupedValues<K, InputT, OutputT>>
                 transform) {
       return PTransformReplacement.of(
@@ -1726,7 +1727,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static class StreamingShardedWriteFactory<UserT, DestinationT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<UserT>, WriteFilesResult<DestinationT>,
+          PCollection<UserT>,
+          WriteFilesResult<DestinationT>,
           WriteFiles<UserT, DestinationT, OutputT>> {
     // We pick 10 as a a default, as it works well with the default number of workers started
     // by Dataflow.
@@ -1741,7 +1743,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public PTransformReplacement<PCollection<UserT>, WriteFilesResult<DestinationT>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<UserT>, WriteFilesResult<DestinationT>,
+                    PCollection<UserT>,
+                    WriteFilesResult<DestinationT>,
                     WriteFiles<UserT, DestinationT, OutputT>>
                 transform) {
       // By default, if numShards is not set WriteFiles will produce one file per bundle. In

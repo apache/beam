@@ -672,7 +672,8 @@ public class BigQueryServicesImplTest {
     List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
-    // First response is 403 non-{rate-limited, quota-exceeded}, second response has valid payload but should not
+    // First response is 403 non-{rate-limited, quota-exceeded}, second response has valid payload
+    // but should not
     // be invoked.
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
     when(response.getStatusCode()).thenReturn(403).thenReturn(200);

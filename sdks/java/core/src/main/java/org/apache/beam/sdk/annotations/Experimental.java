@@ -40,7 +40,8 @@ import java.lang.annotation.Target;
 })
 
 /**
- * You can indicate a category for the experimental feature. This is unused and serves only as a hint to the reader.
+ * You can indicate a category for the experimental feature. This is unused and serves only as a
+ * hint to the reader.
  */
 @Documented
 public @interface Experimental {
