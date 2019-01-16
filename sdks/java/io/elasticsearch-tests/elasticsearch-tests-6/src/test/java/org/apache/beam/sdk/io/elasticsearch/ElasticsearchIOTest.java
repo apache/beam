@@ -90,7 +90,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     if (connectionConfiguration == null) {
       connectionConfiguration =
           ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE)
-              .withSocketAndRetryTimeout(90000)
+              .withSocketAndRetryTimeout(120000)
               .withConnectTimeout(5000);
       elasticsearchIOTestCommon =
           new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
