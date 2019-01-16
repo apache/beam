@@ -47,6 +47,7 @@ class S3ResourceId implements ResourceId {
 
   private S3ResourceId(String bucket, String key, @Nullable Long size) {
     checkArgument(!Strings.isNullOrEmpty(bucket), "bucket");
+    checkArgument(!bucket.contains("/"), "bucket must not contain '/': [%s]", bucket);
     this.bucket = bucket;
     this.key = checkNotNull(key, "key");
     this.size = size;
