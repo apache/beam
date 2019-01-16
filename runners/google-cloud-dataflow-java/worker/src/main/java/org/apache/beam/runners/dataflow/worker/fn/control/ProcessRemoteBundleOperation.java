@@ -21,6 +21,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.*;
 import java.util.Map;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -92,28 +93,26 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
     this.executableStage = executableStage;
     this.timerIdToKey = new HashMap<>();
     this.outputReceiverMap = outputReceiverMap;
-    timerIdToTimerSpecMap = new HashMap<>();
+    this.timerIdToTimerSpecMap = new HashMap<>();
 
-    for (Map<String, ProcessBundleDescriptors.TimerSpec> transformTimerMap :
-        stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs().values()) {
-      for (ProcessBundleDescriptors.TimerSpec timerSpec : transformTimerMap.values()) {
-        timerIdToTimerSpecMap.put(timerSpec.timerId(), timerSpec);
-      }
-    }
+    ProcessBundleDescriptors.ExecutableProcessBundleDescriptor executableProcessBundleDescriptor =
+        stageBundleFactory.getProcessBundleDescriptor();
 
-    for (Map<String, ProcessBundleDescriptors.TimerSpec> transformTimerMap :
-        stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs().values()) {
-      for (ProcessBundleDescriptors.TimerSpec timerSpec : transformTimerMap.values()) {
-        timerOutputIdToSpecMap.put(timerSpec.outputCollectionId(), timerSpec);
-      }
-    }
+    BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
+        executableProcessBundleDescriptor.getProcessBundleDescriptor();
 
-    for (RunnerApi.PTransform pTransform :
-        stageBundleFactory
-            .getProcessBundleDescriptor()
-            .getProcessBundleDescriptor()
-            .getTransformsMap()
-            .values()) {
+    executableProcessBundleDescriptor
+        .getTimerSpecs()
+        .values()
+        .forEach(
+            transformTimerMap -> {
+              for (ProcessBundleDescriptors.TimerSpec timerSpec : transformTimerMap.values()) {
+                timerIdToTimerSpecMap.put(timerSpec.timerId(), timerSpec);
+                timerOutputIdToSpecMap.put(timerSpec.outputCollectionId(), timerSpec);
+              }
+            });
+
+    for (RunnerApi.PTransform pTransform : processBundleDescriptor.getTransformsMap().values()) {
       for (String timerId : timerIdToTimerSpecMap.keySet()) {
         if (!pTransform.getInputsMap().containsKey(timerId)) {
           continue;
@@ -121,27 +120,15 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
 
         String timerPCollectionId = pTransform.getInputsMap().get(timerId);
         RunnerApi.PCollection timerPCollection =
-            stageBundleFactory
-                .getProcessBundleDescriptor()
-                .getProcessBundleDescriptor()
-                .getPcollectionsMap()
-                .get(timerPCollectionId);
+            processBundleDescriptor.getPcollectionsMap().get(timerPCollectionId);
 
         String windowingStrategyId = timerPCollection.getWindowingStrategyId();
         RunnerApi.WindowingStrategy windowingStrategy =
-            stageBundleFactory
-                .getProcessBundleDescriptor()
-                .getProcessBundleDescriptor()
-                .getWindowingStrategiesMap()
-                .get(windowingStrategyId);
+            processBundleDescriptor.getWindowingStrategiesMap().get(windowingStrategyId);
 
         String windowingCoderId = windowingStrategy.getWindowCoderId();
         RunnerApi.Coder windowingCoder =
-            stageBundleFactory
-                .getProcessBundleDescriptor()
-                .getProcessBundleDescriptor()
-                .getCodersMap()
-                .get(windowingCoderId);
+            processBundleDescriptor.getCodersMap().get(windowingCoderId);
 
         RehydratedComponents components =
             RehydratedComponents.forComponents(executableStage.getComponents());
@@ -200,6 +187,8 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       }
 
       // TODO(BEAM-6274): do we have to put this in the "start" method as well?
+      // The ProcessRemoteBundleOperation has to wait until it has received all elements from the
+      // SDK in case the SDK generated a timer.
       try (RemoteBundle bundle =
           stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler)) {
 
