@@ -54,7 +54,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.joda.time.Duration;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -192,7 +191,6 @@ public class FileIOTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
     final Path basePath = tmpFolder.getRoot().toPath().resolve("watch");
