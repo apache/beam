@@ -24,9 +24,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
-//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
-//go:generate starcgen --package=coderx --identifiers=encUint32,decUint32,encInt32,decInt32,encUint64,decUint64,encInt64,decInt64,encVarIntZ,decVarIntZ,encVarUintZ,decVarUintZ,encFloat,decFloat
-
 // NewVarIntZ returns a varint coder for the given integer type. It uses a zig-zag scheme,
 // which is _different_ from the Beam standard coding scheme.
 func NewVarIntZ(t reflect.Type) (*coder.CustomCoder, error) {
