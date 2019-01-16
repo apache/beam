@@ -882,10 +882,7 @@ public class DataflowPipelineTranslator {
               ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             Map<TupleTag<?>, Coder<?>> outputCoders =
-                context
-                    .getOutputs(transform)
-                    .entrySet()
-                    .stream()
+                context.getOutputs(transform).entrySet().stream()
                     .collect(
                         Collectors.toMap(
                             Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
@@ -920,10 +917,7 @@ public class DataflowPipelineTranslator {
 
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             Map<TupleTag<?>, Coder<?>> outputCoders =
-                context
-                    .getOutputs(transform)
-                    .entrySet()
-                    .stream()
+                context.getOutputs(transform).entrySet().stream()
                     .collect(
                         Collectors.toMap(
                             Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
@@ -991,10 +985,7 @@ public class DataflowPipelineTranslator {
             StepTranslationContext stepContext =
                 context.addStep(transform, "SplittableProcessKeyed");
             Map<TupleTag<?>, Coder<?>> outputCoders =
-                context
-                    .getOutputs(transform)
-                    .entrySet()
-                    .stream()
+                context.getOutputs(transform).entrySet().stream()
                     .collect(
                         Collectors.toMap(
                             Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));

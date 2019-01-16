@@ -56,8 +56,8 @@ public class ApexYarnLauncherTest {
     List<File> deps = ApexYarnLauncher.getYarnDeployDependencies();
     String depsToString = deps.toString();
     // the beam dependencies are not present as jar when running within the Maven build reactor
-    //assertThat(depsToString, containsString("beam-runners-core-"));
-    //assertThat(depsToString, containsString("beam-runners-apex-"));
+    // assertThat(depsToString, containsString("beam-runners-core-"));
+    // assertThat(depsToString, containsString("beam-runners-apex-"));
     assertThat(depsToString, containsString("apex-common-"));
     assertThat(depsToString, not(containsString("hadoop-")));
     assertThat(depsToString, not(containsString("zookeeper-")));

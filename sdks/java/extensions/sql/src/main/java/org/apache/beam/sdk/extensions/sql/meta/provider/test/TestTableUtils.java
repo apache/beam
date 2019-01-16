@@ -75,8 +75,7 @@ public class TestTableUtils {
    * }</pre>
    */
   public static List<Row> buildRows(Schema type, List<?> rowsValues) {
-    return Lists.partition(rowsValues, type.getFieldCount())
-        .stream()
+    return Lists.partition(rowsValues, type.getFieldCount()).stream()
         .map(values -> values.stream().collect(toRow(type)))
         .collect(toList());
   }

@@ -382,7 +382,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     checkState(
         minEventTimeTimer >= currentInputWatermark,
         "Event time timer processing generates new timer(s) behind watermark.");
-    //LOG.info("Processing time timer {} registered behind watermark {}", minProcessingTimeTimer,
+    // LOG.info("Processing time timer {} registered behind watermark {}", minProcessingTimeTimer,
     //    currentInputWatermark);
 
     // TODO: is this the right way to trigger processing time timers?

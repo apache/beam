@@ -57,8 +57,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
       List<FieldValueTypeInformation> types =
-          ReflectUtils.getFields(clazz)
-              .stream()
+          ReflectUtils.getFields(clazz).stream()
               .filter(f -> !f.isAnnotationPresent(SchemaIgnore.class))
               .map(FieldValueTypeInformation::forField)
               .map(
@@ -73,8 +72,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
       if (ReflectUtils.getAnnotatedCreateMethod(clazz) == null
           && ReflectUtils.getAnnotatedConstructor(clazz) == null) {
         Optional<Field> finalField =
-            types
-                .stream()
+            types.stream()
                 .map(FieldValueTypeInformation::getField)
                 .filter(f -> Modifier.isFinal(f.getModifiers()))
                 .findAny();

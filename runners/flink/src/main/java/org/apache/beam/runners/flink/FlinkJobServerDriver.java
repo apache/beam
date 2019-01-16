@@ -58,15 +58,13 @@ public class FlinkJobServerDriver implements Runnable {
     String host = "localhost";
 
     @Option(
-      name = "--job-port",
-      usage = "The job service port. 0 to use a dynamic port. (Default: 8099)"
-    )
+        name = "--job-port",
+        usage = "The job service port. 0 to use a dynamic port. (Default: 8099)")
     int port = 8099;
 
     @Option(
-      name = "--artifact-port",
-      usage = "The artifact service port. 0 to use a dynamic port. (Default: 8098)"
-    )
+        name = "--artifact-port",
+        usage = "The artifact service port. 0 to use a dynamic port. (Default: 8098)")
     int artifactPort = 8098;
 
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
@@ -74,9 +72,8 @@ public class FlinkJobServerDriver implements Runnable {
         Paths.get(System.getProperty("java.io.tmpdir"), "beam-artifact-staging").toString();
 
     @Option(
-      name = "--clean-artifacts-per-job",
-      usage = "When true, remove each job's staged artifacts when it completes"
-    )
+        name = "--clean-artifacts-per-job",
+        usage = "When true, remove each job's staged artifacts when it completes")
     boolean cleanArtifactsPerJob = false;
 
     @Option(name = "--flink-master-url", usage = "Flink master url to submit job.")
@@ -87,9 +84,8 @@ public class FlinkJobServerDriver implements Runnable {
     }
 
     @Option(
-      name = "--sdk-worker-parallelism",
-      usage = "Default parallelism for SDK worker processes (see portable pipeline options)"
-    )
+        name = "--sdk-worker-parallelism",
+        usage = "Default parallelism for SDK worker processes (see portable pipeline options)")
     Long sdkWorkerParallelism = 1L;
 
     Long getSdkWorkerParallelism() {
@@ -97,12 +93,11 @@ public class FlinkJobServerDriver implements Runnable {
     }
 
     @Option(
-      name = "--flink-conf-dir",
-      usage =
-          "Directory containing Flink YAML configuration files. "
-              + "These properties will be set to all jobs submitted to Flink and take precedence "
-              + "over configurations in FLINK_CONF_DIR."
-    )
+        name = "--flink-conf-dir",
+        usage =
+            "Directory containing Flink YAML configuration files. "
+                + "These properties will be set to all jobs submitted to Flink and take precedence "
+                + "over configurations in FLINK_CONF_DIR.")
     String flinkConfDir = null;
 
     @Nullable
@@ -112,7 +107,7 @@ public class FlinkJobServerDriver implements Runnable {
   }
 
   public static void main(String[] args) throws Exception {
-    //TODO: Expose the fileSystem related options.
+    // TODO: Expose the fileSystem related options.
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
     fromParams(args).run();

@@ -293,8 +293,7 @@ public class TextIOWriteTest {
     String[] aElements =
         Iterables.toArray(
             StreamSupport.stream(
-                    elements
-                        .stream()
+                    elements.stream()
                         .filter(
                             Predicates.compose(new StartsWith("a"), new ExtractWriteDestination())
                                 ::apply)
@@ -307,8 +306,7 @@ public class TextIOWriteTest {
     String[] bElements =
         Iterables.toArray(
             StreamSupport.stream(
-                    elements
-                        .stream()
+                    elements.stream()
                         .filter(
                             Predicates.compose(new StartsWith("b"), new ExtractWriteDestination())
                                 ::apply)
@@ -321,8 +319,7 @@ public class TextIOWriteTest {
     String[] cElements =
         Iterables.toArray(
             StreamSupport.stream(
-                    elements
-                        .stream()
+                    elements.stream()
                         .filter(
                             Predicates.compose(new StartsWith("c"), new ExtractWriteDestination())
                                 ::apply)

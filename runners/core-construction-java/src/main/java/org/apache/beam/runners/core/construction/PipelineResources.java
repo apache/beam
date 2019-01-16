@@ -80,8 +80,7 @@ public class PipelineResources {
    */
   public static List<String> prepareFilesForStaging(
       List<String> resourcesToStage, String tmpJarLocation) {
-    return resourcesToStage
-        .stream()
+    return resourcesToStage.stream()
         .map(File::new)
         .filter(File::exists)
         .map(

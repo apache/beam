@@ -110,9 +110,7 @@ public class ProcessBundleDescriptors {
     // Create with all of the processing transforms, and all of the components.
     // TODO: Remove the unreachable subcomponents if the size of the descriptor matters.
     Map<String, PTransform> stageTransforms =
-        stage
-            .getTransforms()
-            .stream()
+        stage.getTransforms().stream()
             .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform));
 
     Components.Builder components =
@@ -388,7 +386,8 @@ public class ProcessBundleDescriptors {
       outputTargetCodersBuilder.put(targetEncoding.getTarget(), targetEncoding.getCoder());
       components.putTransforms(
           timerReference.transform().getId(),
-          // Since a transform can have more then one timer, update the transform inside components and not the original
+          // Since a transform can have more then one timer, update the transform inside components
+          // and not the original
           components
               .getTransformsOrThrow(timerReference.transform().getId())
               .toBuilder()

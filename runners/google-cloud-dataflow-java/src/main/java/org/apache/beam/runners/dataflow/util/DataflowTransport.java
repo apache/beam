@@ -75,7 +75,8 @@ public class DataflowTransport {
             getJsonFactory(),
             chainHttpRequestInitializer(
                 options.getGcpCredential(),
-                // Do not log 404. It clutters the output and is possibly even required by the caller.
+                // Do not log 404. It clutters the output and is possibly even required by the
+                // caller.
                 new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setApplicationName(options.getAppName())
         .setRootUrl(components.rootUrl)

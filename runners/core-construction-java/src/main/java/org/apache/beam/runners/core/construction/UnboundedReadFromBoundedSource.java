@@ -132,8 +132,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
           return ImmutableList.of(this);
         }
         List<? extends BoundedSource<T>> splits = boundedSource.split(desiredBundleSize, options);
-        return splits
-            .stream()
+        return splits.stream()
             .map(input -> new BoundedToUnboundedSourceAdapter<>(input))
             .collect(Collectors.toList());
       } catch (Exception e) {

@@ -151,7 +151,8 @@ public class WriteWithShardingFactoryTest implements Serializable {
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
 
     AppliedPTransform<
-            PCollection<Object>, WriteFilesResult<Void>,
+            PCollection<Object>,
+            WriteFilesResult<Void>,
             PTransform<PCollection<Object>, WriteFilesResult<Void>>>
         originalApplication =
             AppliedPTransform.of("write", objs.expand(), Collections.emptyMap(), original, p);

@@ -93,12 +93,16 @@ public class StateSpecFunctions {
    */
   public static <T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       scala.Function3<
-              Source<T>, Option<CheckpointMarkT>, State<Tuple2<byte[], Instant>>,
+              Source<T>,
+              Option<CheckpointMarkT>,
+              State<Tuple2<byte[], Instant>>,
               Tuple2<Iterable<byte[]>, Metadata>>
           mapSourceFunction(final SerializablePipelineOptions options, final String stepName) {
 
     return new SerializableFunction3<
-        Source<T>, Option<CheckpointMarkT>, State<Tuple2<byte[], Instant>>,
+        Source<T>,
+        Option<CheckpointMarkT>,
+        State<Tuple2<byte[], Instant>>,
         Tuple2<Iterable<byte[]>, Metadata>>() {
 
       @Override

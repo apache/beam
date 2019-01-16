@@ -99,7 +99,8 @@ public class FlinkExecutionEnvironments {
     if (options.getParallelism() != -1 && !(flinkBatchEnv instanceof CollectionEnvironment)) {
       flinkBatchEnv.setParallelism(options.getParallelism());
     }
-    // Set the correct parallelism, required by UnboundedSourceWrapper to generate consistent splits.
+    // Set the correct parallelism, required by UnboundedSourceWrapper to generate consistent
+    // splits.
     final int parallelism;
     if (flinkBatchEnv instanceof CollectionEnvironment) {
       parallelism = 1;
@@ -267,7 +268,8 @@ public class FlinkExecutionEnvironments {
       return pipelineOptionsParallelism;
     }
     if (envParallelism > 0) {
-      // If the user supplies a parallelism on the command-line, this is set on the execution environment during creation
+      // If the user supplies a parallelism on the command-line, this is set on the execution
+      // environment during creation
       return envParallelism;
     }
 

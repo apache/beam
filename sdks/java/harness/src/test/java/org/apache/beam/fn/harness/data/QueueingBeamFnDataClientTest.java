@@ -246,7 +246,7 @@ public class QueueingBeamFnDataClientTest {
   @Test(timeout = 10000)
   public void testBundleProcessorThrowsExecutionExceptionWhenUserCodeThrows() throws Exception {
     CountDownLatch waitForClientToConnect = new CountDownLatch(1);
-    //Collection<WindowedValue<String>> inboundValuesA = new ConcurrentLinkedQueue<>();
+    // Collection<WindowedValue<String>> inboundValuesA = new ConcurrentLinkedQueue<>();
     Collection<WindowedValue<String>> inboundValuesB = new ConcurrentLinkedQueue<>();
     Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.Elements>> outboundServerObserver =

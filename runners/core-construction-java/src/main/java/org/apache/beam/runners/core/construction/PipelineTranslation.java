@@ -152,9 +152,7 @@ public class PipelineTranslation {
               // throws UnsupportedOperationException.
               transformBuilder.clearSubtransforms();
               transformBuilder.addAllSubtransforms(
-                  transform
-                      .getSubtransformsList()
-                      .stream()
+                  transform.getSubtransformsList().stream()
                       .filter(id -> !viewTransforms.contains(id))
                       .collect(Collectors.toList()));
               newTransforms.put(transformId, transformBuilder.build());
@@ -168,9 +166,7 @@ public class PipelineTranslation {
     viewOutputsToInputs.keySet().forEach(newPipeline.getComponentsBuilder()::removePcollections);
     newPipeline.clearRootTransformIds();
     newPipeline.addAllRootTransformIds(
-        pipeline
-            .getRootTransformIdsList()
-            .stream()
+        pipeline.getRootTransformIdsList().stream()
             .filter(id -> !viewTransforms.contains(id))
             .collect(Collectors.toList()));
     return newPipeline.build();

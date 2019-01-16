@@ -43,8 +43,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
             .toBuilder()
             .clearTransforms()
             .putAllTransforms(
-                transforms
-                    .stream()
+                transforms.stream()
                     .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform)))
             .build();
     return of(

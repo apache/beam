@@ -445,9 +445,7 @@ public class BeamFileSystemArtifactServicesTest {
     Assert.assertEquals(
         "Files in locations does not match actual file list.",
         files,
-        proxyManifest
-            .getLocationList()
-            .stream()
+        proxyManifest.getLocationList().stream()
             .map(Location::getName)
             .collect(Collectors.toSet()));
     Assert.assertEquals(

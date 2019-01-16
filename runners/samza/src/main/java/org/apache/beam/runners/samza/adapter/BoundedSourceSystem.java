@@ -105,8 +105,7 @@ public class BoundedSourceSystem {
 
     @Override
     public Map<String, SystemStreamMetadata> getSystemStreamMetadata(Set<String> streamNames) {
-      return streamNames
-          .stream()
+      return streamNames.stream()
           .collect(
               Collectors.toMap(
                   Function.<String>identity(),

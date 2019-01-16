@@ -99,7 +99,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
 
   /** State and Timers wrapper. */
   public static class StateAndTimers implements Serializable {
-    //Serializable state for internals (namespace to state tag to coded value).
+    // Serializable state for internals (namespace to state tag to coded value).
     private final Table<String, String, byte[]> state;
     private final Collection<byte[]> serTimers;
 
@@ -151,7 +151,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       extends AbstractFunction1<
           Iterator<
               Tuple3<
-                  /*K*/ ByteArray, Seq</*Itr<WV<I>>*/ byte[]>,
+                  /*K*/ ByteArray,
+                  Seq</*Itr<WV<I>>*/ byte[]>,
                   Option<Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>>,
           Iterator<
               Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>>
@@ -412,10 +413,11 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         apply(
             final Iterator<
                     Tuple3<
-                        /*K*/ ByteArray, Seq</*Itr<WV<I>>*/ byte[]>,
+                        /*K*/ ByteArray,
+                        Seq</*Itr<WV<I>>*/ byte[]>,
                         Option<Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>>
                 input) {
-      //--- ACTUAL STATEFUL OPERATION:
+      // --- ACTUAL STATEFUL OPERATION:
       //
       // Input Iterator: the partition (~bundle) of a co-grouping of the input
       // and the previous state (if exists).

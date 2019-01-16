@@ -282,8 +282,7 @@ public class FlinkJobInvocation implements JobInvocation {
     Collection<RunnerApi.PCollection> pCollecctions =
         pipeline.getComponents().getPcollectionsMap().values();
     // Assume that all PCollections are consumed at some point in the pipeline.
-    return pCollecctions
-        .stream()
+    return pCollecctions.stream()
         .anyMatch(pc -> pc.getIsBounded() == RunnerApi.IsBounded.Enum.UNBOUNDED);
   }
 }

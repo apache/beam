@@ -150,8 +150,7 @@ public abstract class ServerFactory {
               // buffer size in the layers above.
               .maxMessageSize(Integer.MAX_VALUE)
               .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
-      services
-          .stream()
+      services.stream()
           .forEach(
               service ->
                   builder.addService(

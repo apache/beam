@@ -276,8 +276,8 @@ public class HCatalogIO {
         desiredSplitCount = (int) Math.ceil((double) estimatedSizeBytes / desiredBundleSizeBytes);
       }
       ReaderContext readerContext = getReaderContext(desiredSplitCount);
-      //process the splits returned by native API
-      //this could be different from 'desiredSplitCount' calculated above
+      // process the splits returned by native API
+      // this could be different from 'desiredSplitCount' calculated above
       LOG.info(
           "Splitting into bundles of {} bytes: "
               + "estimated size {}, desired split count {}, actual split count {}",
@@ -486,7 +486,7 @@ public class HCatalogIO {
           masterWriter.commit(writerContext);
         } catch (HCatException e) {
           LOG.error("Exception in flush - write/commit data to Hive", e);
-          //abort on exception
+          // abort on exception
           masterWriter.abort(writerContext);
           throw e;
         } finally {

@@ -106,7 +106,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
   @SuppressWarnings({"unchecked", "rawtypes"})
   private TransformEvaluator<KeyedWorkItem<K, KV<K, InputT>>> createEvaluator(
       AppliedPTransform<
-              PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
+              PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>,
+              PCollectionTuple,
               StatefulParDo<K, InputT, OutputT>>
           application,
       CommittedBundle<KeyedWorkItem<K, KV<K, InputT>>> inputBundle)
@@ -203,7 +204,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
   @AutoValue
   abstract static class AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT> {
     abstract AppliedPTransform<
-            PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
+            PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>,
+            PCollectionTuple,
             StatefulParDo<K, InputT, OutputT>>
         getTransform();
 
@@ -213,7 +215,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
     static <K, InputT, OutputT> AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT> create(
         AppliedPTransform<
-                PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
+                PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>,
+                PCollectionTuple,
                 StatefulParDo<K, InputT, OutputT>>
             transform,
         StructuralKey<K> key,

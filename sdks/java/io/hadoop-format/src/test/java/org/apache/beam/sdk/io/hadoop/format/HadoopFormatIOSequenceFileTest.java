@@ -93,8 +93,7 @@ public class HadoopFormatIOSequenceFileTest {
               KV.of(new Text(element.getKey()), new LongWritable(element.getValue()));
 
   private static Map<String, Long> computeWordCounts(List<String> sentences) {
-    return sentences
-        .stream()
+    return sentences.stream()
         .flatMap(s -> Stream.of(s.split("\\W+")))
         .map(String::toLowerCase)
         .collect(Collectors.toMap(Function.identity(), s -> 1L, Long::sum));
@@ -298,8 +297,7 @@ public class HadoopFormatIOSequenceFileTest {
   }
 
   private Map<String, Long> loadWrittenDataAsMap(String outputDirPath) {
-    return loadWrittenData(outputDirPath)
-        .stream()
+    return loadWrittenData(outputDirPath).stream()
         .collect(
             Collectors.toMap(
                 kv -> kv.getKey().toString(),

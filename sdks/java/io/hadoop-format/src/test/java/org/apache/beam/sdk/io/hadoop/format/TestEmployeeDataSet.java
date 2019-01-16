@@ -68,11 +68,12 @@ public class TestEmployeeDataSet {
   public static List<KV<Text, Employee>> getEmployeeData() {
     return (data.isEmpty() ? populateEmployeeData() : data)
         .stream()
-        .map(
-            input -> {
-              List<String> empData = Splitter.on('_').splitToList(input.getValue());
-              return KV.of(new Text(input.getKey()), new Employee(empData.get(0), empData.get(1)));
-            })
-        .collect(Collectors.toList());
+            .map(
+                input -> {
+                  List<String> empData = Splitter.on('_').splitToList(input.getValue());
+                  return KV.of(
+                      new Text(input.getKey()), new Employee(empData.get(0), empData.get(1)));
+                })
+            .collect(Collectors.toList());
   }
 }

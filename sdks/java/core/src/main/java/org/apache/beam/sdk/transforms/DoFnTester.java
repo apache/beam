@@ -332,8 +332,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public List<OutputT> peekOutputElements() {
-    return peekOutputElementsWithTimestamp()
-        .stream()
+    return peekOutputElementsWithTimestamp().stream()
         .map(TimestampedValue::getValue)
         .collect(Collectors.toList());
   }
@@ -342,8 +341,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   @Deprecated
   public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
-    return getImmutableOutput(mainOutputTag)
-        .stream()
+    return getImmutableOutput(mainOutputTag).stream()
         .map(input -> TimestampedValue.of(input.getValue(), input.getTimestamp()))
         .collect(Collectors.toList());
   }
@@ -394,8 +392,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   @Deprecated
   public <T> List<T> peekOutputElements(TupleTag<T> tag) {
     // TODO: Should we return an unmodifiable list?
-    return getImmutableOutput(tag)
-        .stream()
+    return getImmutableOutput(tag).stream()
         .map(ValueInSingleWindow::getValue)
         .collect(Collectors.toList());
   }

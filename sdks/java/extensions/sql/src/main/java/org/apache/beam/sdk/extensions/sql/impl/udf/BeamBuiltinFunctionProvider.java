@@ -27,8 +27,7 @@ import java.util.stream.Collectors;
 public abstract class BeamBuiltinFunctionProvider {
   public Map<String, List<Method>> getBuiltinMethods() {
     List<Method> methods = Arrays.asList(getClass().getMethods());
-    return methods
-        .stream()
+    return methods.stream()
         .filter(BeamBuiltinFunctionProvider::isUDF)
         .collect(
             Collectors.groupingBy(method -> method.getDeclaredAnnotation(UDF.class).funcName()));

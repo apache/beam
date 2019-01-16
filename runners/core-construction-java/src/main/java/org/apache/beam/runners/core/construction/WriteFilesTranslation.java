@@ -130,7 +130,8 @@ public class WriteFilesTranslation {
 
   public static <UserT, DestinationT, OutputT> FileBasedSink<UserT, DestinationT, OutputT> getSink(
       AppliedPTransform<
-              PCollection<UserT>, WriteFilesResult<DestinationT>,
+              PCollection<UserT>,
+              WriteFilesResult<DestinationT>,
               ? extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
@@ -140,7 +141,8 @@ public class WriteFilesTranslation {
 
   public static <UserT, DestinationT> List<PCollectionView<?>> getDynamicDestinationSideInputs(
       AppliedPTransform<
-              PCollection<UserT>, WriteFilesResult<DestinationT>,
+              PCollection<UserT>,
+              WriteFilesResult<DestinationT>,
               ? extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
@@ -167,7 +169,8 @@ public class WriteFilesTranslation {
 
   public static <T, DestinationT> boolean isWindowedWrites(
       AppliedPTransform<
-              PCollection<T>, WriteFilesResult<DestinationT>,
+              PCollection<T>,
+              WriteFilesResult<DestinationT>,
               ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
@@ -176,7 +179,8 @@ public class WriteFilesTranslation {
 
   public static <T, DestinationT> boolean isRunnerDeterminedSharding(
       AppliedPTransform<
-              PCollection<T>, WriteFilesResult<DestinationT>,
+              PCollection<T>,
+              WriteFilesResult<DestinationT>,
               ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {
@@ -185,7 +189,8 @@ public class WriteFilesTranslation {
 
   private static <T, DestinationT> WriteFilesPayload getWriteFilesPayload(
       AppliedPTransform<
-              PCollection<T>, WriteFilesResult<DestinationT>,
+              PCollection<T>,
+              WriteFilesResult<DestinationT>,
               ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
           transform)
       throws IOException {

@@ -696,19 +696,19 @@ public class S3FileSystemTest {
     ByteBuffer bb = ByteBuffer.allocate(writtenArray.length);
     bb.put(writtenArray);
 
-    //First create an object and write data to it
+    // First create an object and write data to it
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/foo/bar.txt");
     WritableByteChannel writableByteChannel =
         s3FileSystem.create(path, builder().setMimeType("application/text").build());
     writableByteChannel.write(bb);
     writableByteChannel.close();
 
-    //Now read the same object
+    // Now read the same object
     ByteBuffer bb2 = ByteBuffer.allocate(writtenArray.length);
     ReadableByteChannel open = s3FileSystem.open(path);
     open.read(bb2);
 
-    //And compare the content with the one that was written
+    // And compare the content with the one that was written
     byte[] readArray = bb2.array();
     assertArrayEquals(readArray, writtenArray);
     open.close();

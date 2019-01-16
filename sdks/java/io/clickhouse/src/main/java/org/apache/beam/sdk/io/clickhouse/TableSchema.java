@@ -45,9 +45,7 @@ public abstract class TableSchema implements Serializable {
    * @return Beam schema
    */
   public static Schema getEquivalentSchema(TableSchema tableSchema) {
-    return tableSchema
-        .columns()
-        .stream()
+    return tableSchema.columns().stream()
         .map(
             x -> {
               if (x.columnType().nullable()) {

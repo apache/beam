@@ -944,8 +944,7 @@ public class TextIO {
       checkArgument(
           1
               == Iterables.size(
-                  allToArgs
-                      .stream()
+                  allToArgs.stream()
                       .filter(Predicates.notNull()::apply)
                       .collect(Collectors.toList())),
           "Exactly one of filename policy, dynamic destinations, filename prefix, or destination "

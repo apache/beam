@@ -596,8 +596,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @Override
   protected void delete(Collection<S3ResourceId> resourceIds) throws IOException {
     List<S3ResourceId> nonDirectoryPaths =
-        resourceIds
-            .stream()
+        resourceIds.stream()
             .filter(s3ResourceId -> !s3ResourceId.isDirectory())
             .collect(Collectors.toList());
     Multimap<String, String> keysByBucket = ArrayListMultimap.create();

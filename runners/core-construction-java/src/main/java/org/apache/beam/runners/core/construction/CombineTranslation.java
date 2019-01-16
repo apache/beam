@@ -92,7 +92,8 @@ public class CombineTranslation {
   /** Produces a {@link RunnerApi.CombinePayload} from a {@link Combine}. */
   static <K, InputT, OutputT> CombinePayload payloadForCombine(
       final AppliedPTransform<
-              PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>,
+              PCollection<KV<K, InputT>>,
+              PCollection<KV<K, OutputT>>,
               Combine.PerKey<K, InputT, OutputT>>
           combine,
       final SdkComponents components)

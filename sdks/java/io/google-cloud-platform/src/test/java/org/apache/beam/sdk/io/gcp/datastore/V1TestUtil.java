@@ -233,7 +233,7 @@ class V1TestUtil {
     private static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
     // Number of times to retry on update failure
     private static final int MAX_RETRIES = 5;
-    //Initial backoff time for exponential backoff for retry attempts.
+    // Initial backoff time for exponential backoff for retry attempts.
     private static final Duration INITIAL_BACKOFF = Duration.standardSeconds(5);
 
     // Returns true if a Datastore key is complete. A key is complete if its last element

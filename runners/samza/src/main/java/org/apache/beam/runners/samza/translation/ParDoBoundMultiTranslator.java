@@ -71,10 +71,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
       TranslationContext ctx) {
     final PCollection<? extends InT> input = ctx.getInput(transform);
     final Map<TupleTag<?>, Coder<?>> outputCoders =
-        ctx.getCurrentTransform()
-            .getOutputs()
-            .entrySet()
-            .stream()
+        ctx.getCurrentTransform().getOutputs().entrySet().stream()
             .filter(e -> e.getValue() instanceof PCollection)
             .collect(
                 Collectors.toMap(e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
@@ -93,9 +90,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStream(input);
     final List<MessageStream<OpMessage<InT>>> sideInputStreams =
-        transform
-            .getSideInputs()
-            .stream()
+        transform.getSideInputs().stream()
             .map(ctx::<InT>getViewStream)
             .collect(Collectors.toList());
     final Map<TupleTag<?>, Integer> tagToIdMap = new HashMap<>();
