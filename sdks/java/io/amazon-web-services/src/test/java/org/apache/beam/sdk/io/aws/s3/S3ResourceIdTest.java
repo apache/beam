@@ -33,7 +33,6 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdTester;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -279,13 +278,6 @@ public class S3ResourceIdTest {
   public void testInvalidBucket() {
     thrown.expect(IllegalArgumentException.class);
     S3ResourceId.fromComponents("invalid/", "");
-  }
-
-  @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4184")
-  public void testInvalidBucketWithUnderscore() {
-    thrown.expect(IllegalArgumentException.class);
-    S3ResourceId.fromComponents("invalid_bucket", "");
   }
 
   @Test
