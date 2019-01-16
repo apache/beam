@@ -27,13 +27,6 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func init() {
-	RegisterFunction(JSONDec)
-	RegisterFunction(JSONEnc)
-	RegisterFunction(ProtoEnc)
-	RegisterFunction(ProtoDec)
-}
-
 // Coder defines how to encode and decode values of type 'A' into byte streams.
 // Coders are attached to PCollections of the same type. For PCollections
 // consumed by GBK, the attached coders are required to be deterministic.

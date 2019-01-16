@@ -64,8 +64,7 @@ public class BundleSplitterTest {
 
     List<OffsetRange> bundleSizes = splitter.getBundleSizes(4, 0, options.numRecords);
 
-    bundleSizes
-        .stream()
+    bundleSizes.stream()
         .map(range -> range.getTo() - range.getFrom())
         .forEach(size -> assertEquals(expectedBundleSize, size.intValue()));
   }
@@ -79,8 +78,7 @@ public class BundleSplitterTest {
 
     List<OffsetRange> bundleSizes = splitter.getBundleSizes(4, 0, options.numRecords);
 
-    bundleSizes
-        .stream()
+    bundleSizes.stream()
         .map(range -> range.getTo() - range.getFrom())
         .forEach(size -> assertEquals(expectedBundleSize, size.intValue()));
   }

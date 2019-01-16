@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import com.google.common.base.Preconditions;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 
 /**
  * Expand operator to a beam {@link PTransform}.

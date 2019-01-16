@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import com.google.common.collect.Maps;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -62,6 +61,7 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstr
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /** A set of utilities yo generate getter and setter classes for POJOs. */
 @Experimental(Kind.SCHEMAS)

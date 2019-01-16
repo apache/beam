@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static com.alibaba.fastjson.JSON.parseObject;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.calcite.util.Static.RESOURCE;
 
 import com.alibaba.fastjson.JSONObject;

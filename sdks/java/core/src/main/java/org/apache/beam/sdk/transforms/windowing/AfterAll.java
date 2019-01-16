@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Joiner;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.joda.time.Instant;
 
 /** A composite {@link Trigger} that fires when all of its sub-triggers are ready. */

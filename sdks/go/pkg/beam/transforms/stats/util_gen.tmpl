@@ -15,7 +15,12 @@
 
 package stats
 
-{{with $x := .X }}
-//go:generate starcgen --inputs=count.go,mean.go,max_switch.go,min_switch.go,sum_switch.go --identifiers=mapFn,meanFn{{- range $i, $t := $x -}},max{{$t.Name}}Fn,min{{$t.Name}}Fn,sum{{$t.Name}}Fn{{- end -}}
+// This file needs to be *after* all the other generated files in the stats package
+// so that their generated functions exist when this one is run.
+// `go generate` executes go:generate commands in lexical file order, top to bottom.
+
+//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+{{- with $x := .X }}
+//go:generate starcgen --package=stats --identifiers=mapFn,meanFn{{- range $i, $t := $x -}},max{{$t.Name}}Fn,min{{$t.Name}}Fn,sum{{$t.Name}}Fn{{- end -}}
 {{end}}
 

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.apex.translation.operators;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.DefaultInputPort;
@@ -28,8 +28,6 @@ import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.datatorrent.common.util.BaseOperator;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -87,6 +85,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -382,7 +382,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     checkState(
         minEventTimeTimer >= currentInputWatermark,
         "Event time timer processing generates new timer(s) behind watermark.");
-    //LOG.info("Processing time timer {} registered behind watermark {}", minProcessingTimeTimer,
+    // LOG.info("Processing time timer {} registered behind watermark {}", minProcessingTimeTimer,
     //    currentInputWatermark);
 
     // TODO: is this the right way to trigger processing time timers?

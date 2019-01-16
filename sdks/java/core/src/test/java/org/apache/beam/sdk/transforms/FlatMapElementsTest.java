@@ -24,8 +24,6 @@ import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
@@ -40,6 +38,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -63,8 +63,10 @@ public class FlatMapElementsTest implements Serializable {
         pipeline
             .apply(Create.of(1, 2, 3))
 
-            // Note that FlatMapElements takes an InferableFunction<InputT, ? extends Iterable<OutputT>>
-            // so the use of List<Integer> here (as opposed to Iterable<Integer>) deliberately exercises
+            // Note that FlatMapElements takes an InferableFunction<InputT, ? extends
+            // Iterable<OutputT>>
+            // so the use of List<Integer> here (as opposed to Iterable<Integer>) deliberately
+            // exercises
             // the use of an upper bound.
             .apply(
                 FlatMapElements.via(

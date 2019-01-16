@@ -17,11 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.common.hash.Hashing;
-import com.google.common.io.ByteStreams;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -67,6 +62,11 @@ import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -445,9 +445,7 @@ public class BeamFileSystemArtifactServicesTest {
     Assert.assertEquals(
         "Files in locations does not match actual file list.",
         files,
-        proxyManifest
-            .getLocationList()
-            .stream()
+        proxyManifest.getLocationList().stream()
             .map(Location::getName)
             .collect(Collectors.toSet()));
     Assert.assertEquals(

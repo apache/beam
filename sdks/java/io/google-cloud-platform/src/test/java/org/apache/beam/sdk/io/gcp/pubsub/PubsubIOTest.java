@@ -29,8 +29,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import com.google.api.client.util.Clock;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -60,6 +58,8 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -354,8 +354,7 @@ public class PubsubIOTest {
 
   private <T> void setupTestClient(List<T> inputs, Coder<T> coder) {
     List<IncomingMessage> messages =
-        inputs
-            .stream()
+        inputs.stream()
             .map(
                 t -> {
                   try {

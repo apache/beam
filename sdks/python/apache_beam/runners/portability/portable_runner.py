@@ -43,6 +43,8 @@ from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.portability.job_server import DockerizedJobServer
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.runners.worker import sdk_worker_main
+from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 
 __all__ = ['PortableRunner']
 
@@ -151,7 +153,8 @@ class PortableRunner(runner.PipelineRunner):
     # but none is provided.
     if portable_options.environment_type == 'LOOPBACK':
       portable_options.environment_config, server = (
-          BeamFnExternalWorkerPoolServicer.start())
+          BeamFnExternalWorkerPoolServicer.start(
+              sdk_worker_main._get_worker_count(options)))
       cleanup_callbacks = [functools.partial(server.stop, 1)]
     else:
       cleanup_callbacks = []
@@ -186,7 +189,7 @@ class PortableRunner(runner.PipelineRunner):
                  for k, v in options.get_all_options().items()
                  if v is not None}
 
-    channel = grpc.insecure_channel(job_endpoint)
+    channel = GRPCChannelFactory.insecure_channel(job_endpoint)
     grpc.channel_ready_future(channel).result()
     job_service = beam_job_api_pb2_grpc.JobServiceStub(channel)
 
@@ -210,7 +213,8 @@ class PortableRunner(runner.PipelineRunner):
     prepare_response = send_prepare_request()
     if prepare_response.artifact_staging_endpoint.url:
       stager = portable_stager.PortableStager(
-          grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
+          GRPCChannelFactory.insecure_channel(
+              prepare_response.artifact_staging_endpoint.url),
           prepare_response.staging_session_token)
       retrieval_token, _ = stager.stage_job_resources(
           options,
@@ -333,12 +337,15 @@ class PipelineResult(runner.PipelineResult):
 class BeamFnExternalWorkerPoolServicer(
     beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolServicer):
 
+  def __init__(self, worker_threads):
+    self._worker_threads = worker_threads
+
   @classmethod
-  def start(cls):
+  def start(cls, worker_threads=1):
     worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
     beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
-        cls(), worker_server)
+        cls(worker_threads), worker_server)
     worker_server.start()
     return worker_address, worker_server
 
@@ -346,7 +353,7 @@ class BeamFnExternalWorkerPoolServicer(
     try:
       worker = sdk_worker.SdkHarness(
           start_worker_request.control_endpoint.url,
-          worker_count=1,
+          worker_count=self._worker_threads,
           worker_id=start_worker_request.worker_id)
       worker_thread = threading.Thread(
           name='run_worker_%s' % start_worker_request.worker_id,

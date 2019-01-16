@@ -17,12 +17,12 @@
  */
 package org.apache.beam.examples.subprocess.utils;
 
-import com.google.common.collect.Sets;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

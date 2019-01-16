@@ -106,7 +106,7 @@ public class JdbcIOTest implements Serializable {
           derbyServer.ping();
           started = true;
         } catch (Throwable t) {
-          //ignore, still trying to start
+          // ignore, still trying to start
         }
       }
     }

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ComparisonChain;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ComparisonChain;
 import org.joda.time.Instant;
 
 /**

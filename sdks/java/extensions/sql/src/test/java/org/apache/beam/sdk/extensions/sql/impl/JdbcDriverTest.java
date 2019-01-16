@@ -27,7 +27,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableMap;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Driver;
@@ -49,6 +48,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.schema.SchemaPlus;
@@ -197,8 +197,7 @@ public class JdbcDriverTest {
         connection.createStatement().executeQuery("SELECT id, name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 
@@ -322,8 +321,7 @@ public class JdbcDriverTest {
             .executeQuery("SELECT person.nestedRow.id, person.nestedRow.name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(values -> values.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 
@@ -350,8 +348,7 @@ public class JdbcDriverTest {
         connection.createStatement().executeQuery("SELECT id, name FROM person");
 
     List<Row> resultRows =
-        readResultSet(selectResult)
-            .stream()
+        readResultSet(selectResult).stream()
             .map(resultValues -> resultValues.stream().collect(toRow(BASIC_SCHEMA)))
             .collect(Collectors.toList());
 

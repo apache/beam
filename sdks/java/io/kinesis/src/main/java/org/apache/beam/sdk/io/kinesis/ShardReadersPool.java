@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -33,6 +31,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -215,9 +215,7 @@ class ShardReadersPool {
   KinesisReaderCheckpoint getCheckpointMark() {
     ImmutableMap<String, ShardRecordsIterator> currentShardIterators = shardIteratorsMap.get();
     return new KinesisReaderCheckpoint(
-        currentShardIterators
-            .values()
-            .stream()
+        currentShardIterators.values().stream()
             .map(
                 shardRecordsIterator -> {
                   checkArgument(

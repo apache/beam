@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import com.google.common.collect.Iterators;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.functions.FilterFunction;
 import org.apache.samza.operators.functions.FlatMapFunction;
@@ -71,10 +71,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
       TranslationContext ctx) {
     final PCollection<? extends InT> input = ctx.getInput(transform);
     final Map<TupleTag<?>, Coder<?>> outputCoders =
-        ctx.getCurrentTransform()
-            .getOutputs()
-            .entrySet()
-            .stream()
+        ctx.getCurrentTransform().getOutputs().entrySet().stream()
             .filter(e -> e.getValue() instanceof PCollection)
             .collect(
                 Collectors.toMap(e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
@@ -93,9 +90,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStream(input);
     final List<MessageStream<OpMessage<InT>>> sideInputStreams =
-        transform
-            .getSideInputs()
-            .stream()
+        transform.getSideInputs().stream()
             .map(ctx::<InT>getViewStream)
             .collect(Collectors.toList());
     final Map<TupleTag<?>, Integer> tagToIdMap = new HashMap<>();

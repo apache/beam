@@ -57,7 +57,7 @@ public class SamzaPipelineResult implements PipelineResult {
   }
 
   @Override
-  public State waitUntilFinish(@Nullable  Duration duration) {
+  public State waitUntilFinish(@Nullable Duration duration) {
     try {
       if (duration == null) {
         runner.waitForFinish();

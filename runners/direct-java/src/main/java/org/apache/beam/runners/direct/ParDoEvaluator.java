@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
@@ -112,9 +112,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         evaluationContext.createSideInputReader(sideInputs);
 
     Map<TupleTag<?>, Coder<?>> outputCoders =
-        outputs
-            .entrySet()
-            .stream()
+        outputs.entrySet().stream()
             .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().getCoder()));
 
     PushbackSideInputDoFnRunner<InputT, OutputT> runner =

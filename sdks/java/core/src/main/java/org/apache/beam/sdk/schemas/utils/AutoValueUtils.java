@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -60,6 +59,7 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** Utilities for managing AutoValue schemas. */
 public class AutoValueUtils {
@@ -125,8 +125,7 @@ public class AutoValueUtils {
     }
 
     Map<String, FieldValueTypeInformation> typeMap =
-        getterTypes
-            .stream()
+        getterTypes.stream()
             .collect(
                 Collectors.toMap(
                     f -> ReflectUtils.stripGetterPrefix(f.getMethod().getName()),
@@ -151,8 +150,7 @@ public class AutoValueUtils {
     }
 
     Map<String, FieldValueTypeInformation> setterTypes =
-        ReflectUtils.getMethods(builderClass)
-            .stream()
+        ReflectUtils.getMethods(builderClass).stream()
             .filter(ReflectUtils::isSetter)
             .map(FieldValueTypeInformation::forSetter)
             .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
@@ -176,8 +174,7 @@ public class AutoValueUtils {
     }
 
     Method buildMethod =
-        ReflectUtils.getMethods(builderClass)
-            .stream()
+        ReflectUtils.getMethods(builderClass).stream()
             .filter(m -> m.getName().equals("build"))
             .findAny()
             .orElseThrow(() -> new RuntimeException("No build method in builder"));

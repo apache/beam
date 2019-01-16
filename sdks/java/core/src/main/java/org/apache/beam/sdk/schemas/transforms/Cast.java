@@ -18,9 +18,6 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -41,6 +38,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /** Set of utilities for casting rows between schemas. */
 @Experimental(Experimental.Kind.SCHEMAS)
@@ -272,8 +272,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
 
     if (!errors.isEmpty()) {
       String reason =
-          errors
-              .stream()
+          errors.stream()
               .map(x -> Joiner.on('.').join(x.path()) + ": " + x.message())
               .collect(Collectors.joining("\n\t"));
 
@@ -430,6 +429,10 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
         return outputMap;
 
       default:
+        if (inputType.equals(outputType)) {
+          return inputValue;
+        }
+
         if (inputType.isNumericType()) {
           return castNumber((Number) inputValue, inputType, outputType);
         } else {

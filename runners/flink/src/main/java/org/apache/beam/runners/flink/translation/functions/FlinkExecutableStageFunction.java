@@ -331,10 +331,8 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   public void close() throws Exception {
     // close may be called multiple times when an exception is thrown
     if (stageContext != null) {
-      try (@SuppressWarnings("unused")
-              AutoCloseable bundleFactoryCloser = stageBundleFactory;
-          @SuppressWarnings("unused")
-              AutoCloseable closable = stageContext) {
+      try (AutoCloseable bundleFactoryCloser = stageBundleFactory;
+          AutoCloseable closable = stageContext) {
       } catch (Exception e) {
         LOG.error("Error in close: ", e);
         throw e;

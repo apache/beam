@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
@@ -41,6 +38,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.spark.streaming.State;
 import org.apache.spark.streaming.StateSpec;
 import org.joda.time.Instant;
@@ -93,12 +93,16 @@ public class StateSpecFunctions {
    */
   public static <T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       scala.Function3<
-              Source<T>, Option<CheckpointMarkT>, State<Tuple2<byte[], Instant>>,
+              Source<T>,
+              Option<CheckpointMarkT>,
+              State<Tuple2<byte[], Instant>>,
               Tuple2<Iterable<byte[]>, Metadata>>
           mapSourceFunction(final SerializablePipelineOptions options, final String stepName) {
 
     return new SerializableFunction3<
-        Source<T>, Option<CheckpointMarkT>, State<Tuple2<byte[], Instant>>,
+        Source<T>,
+        Option<CheckpointMarkT>,
+        State<Tuple2<byte[], Instant>>,
         Tuple2<Iterable<byte[]>, Metadata>>() {
 
       @Override

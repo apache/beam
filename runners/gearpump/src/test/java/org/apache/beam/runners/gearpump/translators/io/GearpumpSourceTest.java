@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.gearpump.translators.io;
 
-import com.google.common.collect.Lists;
 import io.gearpump.DefaultMessage;
 import io.gearpump.Message;
 import io.gearpump.streaming.source.Watermark;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
 

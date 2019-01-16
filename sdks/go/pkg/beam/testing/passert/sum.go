@@ -17,14 +17,9 @@ package passert
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 )
-
-func init() {
-	beam.RegisterType(reflect.TypeOf((*sumFn)(nil)).Elem())
-}
 
 // Sum validates that the incoming PCollection<int> is a singleton
 // with the given value. Specialized version of Equals that avoids

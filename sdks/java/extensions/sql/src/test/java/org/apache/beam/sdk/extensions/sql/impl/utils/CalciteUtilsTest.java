@@ -45,9 +45,7 @@ public class CalciteUtilsTest {
   Map<String, RelDataType> calciteRowTypeFields(Schema schema) {
     final RelDataType dataType = CalciteUtils.toCalciteRowType(schema, dataTypeFactory);
 
-    return dataType
-        .getFieldNames()
-        .stream()
+    return dataType.getFieldNames().stream()
         .collect(
             Collectors.toMap(
                 x -> x,

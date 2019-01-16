@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -303,9 +303,7 @@ public class UnboundedSourceWrapperTest {
 
       sourceThread.start();
 
-      while (flinkWrapper
-          .getLocalReaders()
-          .stream()
+      while (flinkWrapper.getLocalReaders().stream()
           .anyMatch(reader -> reader.getWatermark().getMillis() == 0)) {
         // readers haven't been initialized
         Thread.sleep(50);
@@ -631,7 +629,8 @@ public class UnboundedSourceWrapperTest {
       SourceFunction.SourceContext sourceContext = Mockito.mock(SourceFunction.SourceContext.class);
       Object checkpointLock = new Object();
       Mockito.when(sourceContext.getCheckpointLock()).thenReturn(checkpointLock);
-      // Initialize source context early to avoid concurrency issues with its initialization in the run
+      // Initialize source context early to avoid concurrency issues with its initialization in the
+      // run
       // method and the onProcessingTime call on the wrapper.
       sourceWrapper.setSourceContext(sourceContext);
 

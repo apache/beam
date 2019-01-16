@@ -19,11 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.WorkItem;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.graph.MutableNetwork;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
@@ -57,6 +52,11 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.WeightedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

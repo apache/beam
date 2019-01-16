@@ -19,9 +19,9 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
-import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 
 /** A retry policy for streaming BigQuery inserts. */
 public abstract class InsertRetryPolicy implements Serializable {

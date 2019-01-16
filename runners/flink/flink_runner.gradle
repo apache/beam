@@ -68,6 +68,10 @@ test {
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
+}.onlyIf {
+  // TODO Running tests of all Flink versions in parallel can be too harsh on Jenkins memory
+  // Skip 1.6/1.7 tests for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
+  project.name != "beam-runners-flink-1.6" && project.name != "beam-runners-flink-1.7"
 }
 
 configurations {
@@ -75,7 +79,7 @@ configurations {
 }
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")

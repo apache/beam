@@ -202,7 +202,8 @@ class SafeFastPrimitivesCoder(coders.Coder):
   # pylint: disable=deprecated-urllib-function
 
   def encode(self, value):
-    return quote(coders.coders.FastPrimitivesCoder().encode(value))
+    return quote(coders.coders.FastPrimitivesCoder().encode(value)).encode(
+        'utf-8')
 
   def decode(self, value):
     return coders.coders.FastPrimitivesCoder().decode(unquote_to_bytes(value))

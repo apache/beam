@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Verify.verifyNotNull;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
@@ -28,6 +25,9 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Verify.verifyNotNull;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
@@ -52,10 +52,6 @@ import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.cloud.bigtable.config.RetryOptions;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
@@ -101,6 +97,10 @@ import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.Before;
@@ -581,8 +581,7 @@ public class BigtableIOTest {
     String regex = ".*17.*";
     final KeyMatchesRegex keyPredicate = new KeyMatchesRegex(regex);
     Iterable<Row> filteredRows =
-        testRows
-            .stream()
+        testRows.stream()
             .filter(
                 input -> {
                   verifyNotNull(input, "input");
@@ -710,7 +709,7 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    //Construct few non contiguous key ranges [..1][1..2][3..4][4..5][6..7][8..9]
+    // Construct few non contiguous key ranges [..1][1..2][3..4][4..5][6..7][8..9]
     List<ByteKeyRange> keyRanges =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
@@ -720,7 +719,7 @@ public class BigtableIOTest {
             ByteKeyRange.of(createByteKey(6), createByteKey(7)),
             ByteKeyRange.of(createByteKey(8), createByteKey(9)));
 
-    //Expected ranges after split and reduction by maxSplitCount is [..2][3..5][6..7][8..9]
+    // Expected ranges after split and reduction by maxSplitCount is [..2][3..5][6..7][8..9]
     List<ByteKeyRange> expectedKeyRangesAfterReducedSplits =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(2)),
@@ -770,7 +769,7 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
-    //Construct non contiguous key ranges [..1][2..3][4..5][6..7][8..9]
+    // Construct non contiguous key ranges [..1][2..3][4..5][6..7][8..9]
     List<ByteKeyRange> keyRanges =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
@@ -846,8 +845,8 @@ public class BigtableIOTest {
       splits.add(source.withSingleRange(range));
     }
 
-    //Splits Source have ranges [..1][1..2][2..3][3..4][4..5][5..6][6..7][7..8][8..9][9..]
-    //expected reduced Split source ranges are [..4][4..8][8..]
+    // Splits Source have ranges [..1][1..2][2..3][3..4][4..5][5..6][6..7][7..8][8..9][9..]
+    // expected reduced Split source ranges are [..4][4..8][8..]
     List<ByteKeyRange> expectedKeyRangesAfterReducedSplits =
         Arrays.asList(
             ByteKeyRange.of(ByteKey.EMPTY, createByteKey(4)),

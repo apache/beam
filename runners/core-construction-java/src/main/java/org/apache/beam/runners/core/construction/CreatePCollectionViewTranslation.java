@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -53,7 +53,8 @@ public class CreatePCollectionViewTranslation {
   @Deprecated
   public static <ElemT, ViewT> PCollectionView<ViewT> getView(
       AppliedPTransform<
-              PCollection<ElemT>, PCollection<ElemT>,
+              PCollection<ElemT>,
+              PCollection<ElemT>,
               PTransform<PCollection<ElemT>, PCollection<ElemT>>>
           application)
       throws IOException {

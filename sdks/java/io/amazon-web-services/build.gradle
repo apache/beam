@@ -27,7 +27,7 @@ ext.summary = "IO library to read and write Amazon Web Services services from Be
 def aws_java_sdk_version = "1.11.319"
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version"
   shadow "com.amazonaws:aws-java-sdk-cloudwatch:$aws_java_sdk_version"

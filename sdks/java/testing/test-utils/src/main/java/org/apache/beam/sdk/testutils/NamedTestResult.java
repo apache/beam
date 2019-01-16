@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.testutils;
 
 import com.google.cloud.bigquery.LegacySQLTypeName;
-import com.google.common.collect.ImmutableMap;
 import java.util.Map;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /**
  * Represents a schema and corresponding test result. Each test may have multiple named results

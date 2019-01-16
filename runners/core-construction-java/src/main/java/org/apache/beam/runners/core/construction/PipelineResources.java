@@ -17,12 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Strings;
-import com.google.common.hash.Funnels;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -34,6 +30,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.util.ZipFiles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnels;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 
 /** Utilities for working with classpath resources for pipelines. */
 public class PipelineResources {
@@ -80,8 +80,7 @@ public class PipelineResources {
    */
   public static List<String> prepareFilesForStaging(
       List<String> resourcesToStage, String tmpJarLocation) {
-    return resourcesToStage
-        .stream()
+    return resourcesToStage.stream()
         .map(File::new)
         .filter(File::exists)
         .map(

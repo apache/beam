@@ -99,9 +99,7 @@ public class SyntheticUnboundedSource
             : desiredNumSplits;
 
     List<SyntheticUnboundedSource> splits =
-        bundleSplitter
-            .getBundleSizes(desiredNumBundles, startOffset, endOffset)
-            .stream()
+        bundleSplitter.getBundleSizes(desiredNumBundles, startOffset, endOffset).stream()
             .map(
                 offsetRange ->
                     new SyntheticUnboundedSource(

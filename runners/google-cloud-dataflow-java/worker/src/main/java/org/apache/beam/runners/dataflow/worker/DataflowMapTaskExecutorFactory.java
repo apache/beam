@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.MapTask;
-import com.google.common.graph.MutableNetwork;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -29,6 +28,7 @@ import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 
 /** Creates a {@link DataflowMapTaskExecutor} from a {@link MapTask} definition. */
 public interface DataflowMapTaskExecutorFactory {

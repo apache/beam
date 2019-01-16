@@ -18,10 +18,6 @@
 package org.apache.beam.sdk.schemas;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -38,6 +34,10 @@ import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
@@ -256,14 +256,11 @@ public class Schema implements Serializable {
     }
 
     List<Field> otherFields =
-        other
-            .getFields()
-            .stream()
+        other.getFields().stream()
             .sorted(Comparator.comparing(Field::getName))
             .collect(Collectors.toList());
     List<Field> actualFields =
-        getFields()
-            .stream()
+        getFields().stream()
             .sorted(Comparator.comparing(Field::getName))
             .collect(Collectors.toList());
 

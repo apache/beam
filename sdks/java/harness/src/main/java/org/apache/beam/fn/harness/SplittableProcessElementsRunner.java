@@ -17,12 +17,9 @@
  */
 package org.apache.beam.fn.harness;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -54,6 +51,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.util.Timestamps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -71,7 +71,9 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
 
   static class Factory<InputT, RestrictionT, OutputT>
       extends DoFnPTransformRunnerFactory<
-          KV<InputT, RestrictionT>, InputT, OutputT,
+          KV<InputT, RestrictionT>,
+          InputT,
+          OutputT,
           SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>> {
 
     @Override

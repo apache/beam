@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.Sets;
-import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.util.function.Predicate;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 
 /**
  * A classloader that intercepts loading of specifically named classes. This classloader copies the

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 
 import java.io.IOException;
@@ -284,16 +284,16 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       case ARRAY:
         return ((List<?>) beamValue)
             .stream()
-            .map(elem -> fieldToAvatica(type.getCollectionElementType(), elem))
-            .collect(Collectors.toList());
+                .map(elem -> fieldToAvatica(type.getCollectionElementType(), elem))
+                .collect(Collectors.toList());
       case MAP:
         return ((Map<?, ?>) beamValue)
-            .entrySet()
-            .stream()
-            .collect(
-                Collectors.toMap(
-                    entry -> entry.getKey(),
-                    entry -> fieldToAvatica(type.getCollectionElementType(), entry.getValue())));
+            .entrySet().stream()
+                .collect(
+                    Collectors.toMap(
+                        entry -> entry.getKey(),
+                        entry ->
+                            fieldToAvatica(type.getCollectionElementType(), entry.getValue())));
       case ROW:
         // TODO: needs to be a Struct
         return beamValue;

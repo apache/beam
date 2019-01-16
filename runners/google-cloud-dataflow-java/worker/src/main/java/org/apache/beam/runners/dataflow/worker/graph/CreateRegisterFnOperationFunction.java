@@ -20,13 +20,6 @@ package org.apache.beam.runners.dataflow.worker.graph;
 import com.google.api.services.dataflow.model.FlattenInstruction;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.ParallelInstruction;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
-import com.google.common.graph.Graphs;
-import com.google.common.graph.ImmutableNetwork;
-import com.google.common.graph.MutableNetwork;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -40,6 +33,13 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Graphs;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.ImmutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 
 /**
  * Splits the instruction graph into SDK and runner harness portions replacing the SDK sub-graphs

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /** A {@link SchemaProvider} for AutoValue classes. */
 public class AutoValueSchema extends GetterBasedSchemaProvider {
@@ -42,8 +42,7 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
       // If the generated class is passed in, we want to look at the base class to find the getters.
       Class<?> targetClass = AutoValueUtils.getBaseAutoValueClass(clazz);
-      return ReflectUtils.getMethods(targetClass)
-          .stream()
+      return ReflectUtils.getMethods(targetClass).stream()
           .filter(ReflectUtils::isGetter)
           // All AutoValue getters are marked abstract.
           .filter(m -> Modifier.isAbstract(m.getModifiers()))

@@ -108,7 +108,7 @@ public class BeamIntersectRelTest extends BaseRelTest {
             + "FROM ORDER_DETAILS2 ";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);
-    PAssert.that(rows).satisfies(new CheckSize(3));
+    PAssert.that(rows).satisfies(new CheckSize(2));
 
     PAssert.that(rows)
         .containsInAnyOrder(
@@ -116,16 +116,7 @@ public class BeamIntersectRelTest extends BaseRelTest {
                     Schema.FieldType.INT64, "order_id",
                     Schema.FieldType.INT32, "site_id",
                     Schema.FieldType.DECIMAL, "price")
-                .addRows(
-                    1L,
-                    1,
-                    new BigDecimal(1.0),
-                    1L,
-                    1,
-                    new BigDecimal(1.0),
-                    2L,
-                    2,
-                    new BigDecimal(2.0))
+                .addRows(1L, 1, new BigDecimal(1.0), 2L, 2, new BigDecimal(2.0))
                 .getRows());
 
     pipeline.run();

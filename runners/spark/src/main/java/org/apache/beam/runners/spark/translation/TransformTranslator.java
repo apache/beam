@@ -17,13 +17,10 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.spark.translation.TranslationUtils.avoidRddSerialization;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Lists;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -65,6 +62,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.spark.Accumulator;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
@@ -241,8 +241,7 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<OutputT>> outRdd;
 
         Optional<Iterable<WindowedValue<AccumT>>> maybeAccumulated =
-            GroupCombineFunctions.combineGlobally(
-                inRdd, sparkCombineFn, iCoder, aCoder, windowingStrategy);
+            GroupCombineFunctions.combineGlobally(inRdd, sparkCombineFn, aCoder, windowingStrategy);
 
         if (maybeAccumulated.isPresent()) {
           Iterable<WindowedValue<OutputT>> output =
@@ -313,12 +312,7 @@ public final class TransformTranslator {
 
         JavaPairRDD<K, Iterable<WindowedValue<KV<K, AccumT>>>> accumulatePerKey =
             GroupCombineFunctions.combinePerKey(
-                inRdd,
-                sparkCombineFn,
-                inputCoder.getKeyCoder(),
-                inputCoder.getValueCoder(),
-                vaCoder,
-                windowingStrategy);
+                inRdd, sparkCombineFn, inputCoder.getKeyCoder(), vaCoder, windowingStrategy);
 
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             accumulatePerKey

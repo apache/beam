@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Ordering;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -33,6 +31,8 @@ import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
 import org.joda.time.Instant;
 
 /** A direct implementation of {@link SessionSideInputJoin}. */
@@ -101,16 +101,14 @@ public class SessionSideInputJoinModel extends NexmarkQueryModel<Bid> {
       Instant sessionStart =
           Ordering.<Instant>natural()
               .min(
-                  session
-                      .stream()
+                  session.stream()
                       .<Instant>map(tsv -> tsv.getTimestamp())
                       .collect(Collectors.toList()));
 
       Instant sessionEnd =
           Ordering.<Instant>natural()
               .max(
-                  session
-                      .stream()
+                  session.stream()
                       .<Instant>map(tsv -> tsv.getTimestamp())
                       .collect(Collectors.toList()))
               .plus(configuration.sessionGap);

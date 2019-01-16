@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.gearpump.translators;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Iterables;
 import io.gearpump.cluster.UserConfig;
 import io.gearpump.streaming.dsl.javaapi.JavaStream;
 import io.gearpump.streaming.dsl.javaapi.JavaStreamApp;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Maintains context data for {@link TransformTranslator}s. */
 @SuppressWarnings({"rawtypes", "unchecked"})

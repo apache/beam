@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-import com.google.common.base.Preconditions;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -77,6 +76,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -354,7 +354,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     try {
       Object key = keySelector.getKey(timerElement);
       sdkHarnessRunner.setCurrentTimerKey(key);
-      // We have to synchronize to ensure the state backend is not concurrently accessed by the state requests
+      // We have to synchronize to ensure the state backend is not concurrently accessed by the
+      // state requests
       try {
         stateBackendLock.lock();
         getKeyedStateBackend().setCurrentKey(key);
@@ -385,7 +386,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
     // Prepare the SdkHarnessRunner with the key for the timer
     sdkHarnessRunner.setCurrentTimerKey(decodedKey);
-    // We have to synchronize to ensure the state backend is not concurrently accessed by the state requests
+    // We have to synchronize to ensure the state backend is not concurrently accessed by the state
+    // requests
     try {
       stateBackendLock.lock();
       getKeyedStateBackend().setCurrentKey(encodedKey);
@@ -399,11 +401,10 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   public void dispose() throws Exception {
     // may be called multiple times when an exception is thrown
     if (stageContext != null) {
-      // Remove the reference to stageContext and make stageContext available for garbage collection.
-      try (@SuppressWarnings("unused")
-              AutoCloseable bundleFactoryCloser = stageBundleFactory;
-          @SuppressWarnings("unused")
-              AutoCloseable closable = stageContext) {
+      // Remove the reference to stageContext and make stageContext available for garbage
+      // collection.
+      try (AutoCloseable bundleFactoryCloser = stageBundleFactory;
+          AutoCloseable closable = stageContext) {
         // DoFnOperator generates another "bundle" for the final watermark
         // https://issues.apache.org/jira/browse/BEAM-5816
         super.dispose();

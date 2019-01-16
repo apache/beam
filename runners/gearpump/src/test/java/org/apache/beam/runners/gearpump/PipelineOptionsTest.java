@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import io.gearpump.cluster.ClusterConfig;
 import java.io.ByteArrayOutputStream;
@@ -29,6 +28,7 @@ import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.junit.Test;
 
 /** Tests for {@link GearpumpPipelineOptions}. */

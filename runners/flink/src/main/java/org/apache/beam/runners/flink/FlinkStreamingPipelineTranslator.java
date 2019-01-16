@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -172,7 +172,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   @VisibleForTesting
   static class StreamingShardedWriteFactory<UserT, DestinationT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<UserT>, WriteFilesResult<DestinationT>,
+          PCollection<UserT>,
+          WriteFilesResult<DestinationT>,
           WriteFiles<UserT, DestinationT, OutputT>> {
     FlinkPipelineOptions options;
 
@@ -184,7 +185,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     public PTransformReplacement<PCollection<UserT>, WriteFilesResult<DestinationT>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<UserT>, WriteFilesResult<DestinationT>,
+                    PCollection<UserT>,
+                    WriteFilesResult<DestinationT>,
                     WriteFiles<UserT, DestinationT, OutputT>>
                 transform) {
       // By default, if numShards is not set WriteFiles will produce one file per bundle. In

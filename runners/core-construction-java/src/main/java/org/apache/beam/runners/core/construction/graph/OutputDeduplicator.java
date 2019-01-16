@@ -17,11 +17,9 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -41,6 +39,8 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 
 /**
  * Utilities to insert synthetic {@link PCollectionNode PCollections} for {@link PCollection
@@ -293,13 +293,10 @@ class OutputDeduplicator {
             .toBuilder()
             .clearTransforms()
             .putAllTransforms(
-                updatedTransforms
-                    .stream()
+                updatedTransforms.stream()
                     .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform)))
             .putAllPcollections(
-                originalToPartial
-                    .values()
-                    .stream()
+                originalToPartial.values().stream()
                     .collect(
                         Collectors.toMap(PCollectionNode::getId, PCollectionNode::getPCollection)))
             .build();

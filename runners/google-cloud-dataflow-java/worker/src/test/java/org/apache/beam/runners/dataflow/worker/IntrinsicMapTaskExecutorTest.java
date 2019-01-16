@@ -38,7 +38,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
-import com.google.common.collect.Lists;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -70,6 +69,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.TestOutputRece
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
