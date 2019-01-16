@@ -1,3 +1,4 @@
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -16,25 +17,20 @@
  * limitations under the License.
  */
 
-import CommonJobProperties as commonJobProperties
-import PostcommitJobBuilder
+import PrecommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_VR_Flink',
-  'Run Python Flink ValidatesRunner', 'Python Flink ValidatesRunner Tests', this) {
-  description('Runs the Python ValidatesRunner suite on the Flink runner.')
-
-  previousNames('beam_PostCommit_Python_PVR_Flink_Gradle')
-
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
-
-  // Execute gradle task to test Python Flink Portable Runner.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-python:flinkValidatesRunner')
-      commonJobProperties.setGradleSwitches(delegate)
-    }
-  }
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+        scope: this,
+        nameBase: 'Python_PVR_Flink',
+        gradleTask: ':beam-sdks-python:flinkValidatesRunner',
+        triggerPathPatterns: [
+                '^model/.*$',
+                '^runners/.*$',
+                '^sdks/python/.*$',
+                '^release/.*$',
+        ]
+)
+builder.build {
+  previousNames('beam_PostCommit_Python_VR_Flink')
 }
