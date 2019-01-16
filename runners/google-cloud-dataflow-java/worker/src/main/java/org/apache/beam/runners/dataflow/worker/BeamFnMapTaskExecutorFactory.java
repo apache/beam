@@ -148,7 +148,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
     Networks.replaceDirectedNetworkNodes(
         network, createOutputReceiversTransform(stageName, counterSet));
 
-    if (DataflowRunner.hasExperiment(
+    if (true || DataflowRunner.hasExperiment(
         options.as(DataflowPipelineDebugOptions.class), "use_executable_stage_bundle_execution")) {
       LOG.debug("Using SingleEnvironmentInstanceJobBundleFactory");
       JobBundleFactory jobBundleFactory =
