@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -787,10 +786,11 @@ public class TestPOJOs {
     }
   }
 
-  /** The schema for {@link POJOWithByteArray}. * */
+  /** The schema for {@link POJOWithByteArray}. */
   public static final Schema POJO_WITH_BYTE_ARRAY_SCHEMA =
       Schema.builder().addByteArrayField("bytes1").addByteArrayField("bytes2").build();
 
+  /** A Pojo containing a doubly-nested array. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class PojoWithNestedArray {
     public final List<List<SimplePOJO>> pojos;
@@ -817,6 +817,8 @@ public class TestPOJOs {
       return Objects.hash(pojos);
     }
   }
+
+  /** The schema for {@link PojoWithNestedArray}. */
   public static final Schema POJO_WITH_NESTED_ARRAY_SCHEMA =
       Schema.builder().addArrayField("pojos",
           FieldType.array(
