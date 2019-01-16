@@ -293,13 +293,10 @@ class OutputDeduplicator {
             .toBuilder()
             .clearTransforms()
             .putAllTransforms(
-                updatedTransforms
-                    .stream()
+                updatedTransforms.stream()
                     .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform)))
             .putAllPcollections(
-                originalToPartial
-                    .values()
-                    .stream()
+                originalToPartial.values().stream()
                     .collect(
                         Collectors.toMap(PCollectionNode::getId, PCollectionNode::getPCollection)))
             .build();

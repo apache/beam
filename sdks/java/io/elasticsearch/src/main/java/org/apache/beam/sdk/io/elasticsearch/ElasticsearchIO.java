@@ -188,7 +188,7 @@ public class ElasticsearchIO {
       StringBuilder errorMessages =
           new StringBuilder("Error writing to Elasticsearch, some elements could not be inserted:");
       JsonNode items = searchResult.path("items");
-      //some items present in bulk might have errors, concatenate error messages
+      // some items present in bulk might have errors, concatenate error messages
       for (JsonNode item : items) {
 
         String errorRootName = "";
@@ -572,7 +572,7 @@ public class ElasticsearchIO {
     @Nullable private final Integer numSlices;
     @Nullable private final Integer sliceId;
 
-    //constructor used in split() when we know the backend version
+    // constructor used in split() when we know the backend version
     private BoundedElasticsearchSource(
         Read spec,
         @Nullable String shardPreference,
@@ -727,7 +727,7 @@ public class ElasticsearchIO {
       if ((source.backendVersion == 5 || source.backendVersion == 6)
           && source.numSlices != null
           && source.numSlices > 1) {
-        //if there is more than one slice, add the slice to the user query
+        // if there is more than one slice, add the slice to the user query
         String sliceQuery =
             String.format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId, source.numSlices);
         query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
@@ -777,7 +777,7 @@ public class ElasticsearchIO {
     }
 
     private boolean readNextBatchAndReturnFirstDocument(JsonNode searchResult) {
-      //stop if no more data
+      // stop if no more data
       JsonNode hits = searchResult.path("hits").path("hits");
       if (hits.size() == 0) {
         current = null;
@@ -1300,12 +1300,12 @@ public class ElasticsearchIO {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = retryBackoff.backoff();
         int attempt = 0;
-        //while retry policy exists
+        // while retry policy exists
         while (BackOffUtils.next(sleeper, backoff)) {
           LOG.warn(String.format(RETRY_ATTEMPT_LOG, ++attempt));
           response = restClient.performRequest(method, endpoint, params, requestBody);
           responseEntity = new BufferedHttpEntity(response.getEntity());
-          //if response has no 429 errors
+          // if response has no 429 errors
           if (!spec.getRetryConfiguration().getRetryPredicate().test(responseEntity)) {
             return responseEntity;
           }

@@ -202,7 +202,7 @@ public class CalciteUtils {
    * @return
    */
   public static RelDataType sqlTypeWithAutoCast(RelDataTypeFactory typeFactory, Type rawType) {
-    //For Joda time types, return SQL type for java.util.Date.
+    // For Joda time types, return SQL type for java.util.Date.
     if (rawType instanceof Class && AbstractInstant.class.isAssignableFrom((Class<?>) rawType)) {
       return typeFactory.createJavaType(Date.class);
     } else if (rawType instanceof Class && ByteString.class.isAssignableFrom((Class<?>) rawType)) {

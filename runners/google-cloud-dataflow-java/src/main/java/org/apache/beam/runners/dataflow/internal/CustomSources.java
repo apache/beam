@@ -49,7 +49,7 @@ public class CustomSources {
   private static final Logger LOG = LoggerFactory.getLogger(CustomSources.class);
 
   private static int getDesiredNumUnboundedSourceSplits(DataflowPipelineOptions options) {
-    int cores = 4; //TODO: decide at runtime?
+    int cores = 4; // TODO: decide at runtime?
     if (options.getMaxNumWorkers() > 0) {
       return options.getMaxNumWorkers() * cores;
     } else if (options.getNumWorkers() > 0) {

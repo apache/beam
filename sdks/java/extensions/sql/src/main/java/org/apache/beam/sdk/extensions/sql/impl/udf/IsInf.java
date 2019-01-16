@@ -33,19 +33,17 @@ public class IsInf extends BeamBuiltinFunctionProvider {
   private static final String SQL_FUNCTION_NAME = "IS_INF";
 
   @UDF(
-    funcName = SQL_FUNCTION_NAME,
-    parameterArray = {Schema.TypeName.DOUBLE},
-    returnType = Schema.TypeName.BOOLEAN
-  )
+      funcName = SQL_FUNCTION_NAME,
+      parameterArray = {Schema.TypeName.DOUBLE},
+      returnType = Schema.TypeName.BOOLEAN)
   public Boolean isInf(Double value) {
     return Double.isInfinite(value);
   }
 
   @UDF(
-    funcName = SQL_FUNCTION_NAME,
-    parameterArray = {Schema.TypeName.FLOAT},
-    returnType = Schema.TypeName.BOOLEAN
-  )
+      funcName = SQL_FUNCTION_NAME,
+      parameterArray = {Schema.TypeName.FLOAT},
+      returnType = Schema.TypeName.BOOLEAN)
   public Boolean isInf(Float value) {
     return Float.isInfinite(value);
   }

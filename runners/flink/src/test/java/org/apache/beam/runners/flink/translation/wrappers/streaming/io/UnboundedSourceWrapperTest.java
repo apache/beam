@@ -303,9 +303,7 @@ public class UnboundedSourceWrapperTest {
 
       sourceThread.start();
 
-      while (flinkWrapper
-          .getLocalReaders()
-          .stream()
+      while (flinkWrapper.getLocalReaders().stream()
           .anyMatch(reader -> reader.getWatermark().getMillis() == 0)) {
         // readers haven't been initialized
         Thread.sleep(50);
@@ -631,7 +629,8 @@ public class UnboundedSourceWrapperTest {
       SourceFunction.SourceContext sourceContext = Mockito.mock(SourceFunction.SourceContext.class);
       Object checkpointLock = new Object();
       Mockito.when(sourceContext.getCheckpointLock()).thenReturn(checkpointLock);
-      // Initialize source context early to avoid concurrency issues with its initialization in the run
+      // Initialize source context early to avoid concurrency issues with its initialization in the
+      // run
       // method and the onProcessingTime call on the wrapper.
       sourceWrapper.setSourceContext(sourceContext);
 

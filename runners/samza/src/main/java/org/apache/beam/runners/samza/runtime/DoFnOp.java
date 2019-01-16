@@ -82,9 +82,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // This is derivable from pushbackValues which is persisted to a store.
   // TODO: eagerly initialize the hold in init
   @edu.umd.cs.findbugs.annotations.SuppressWarnings(
-    justification = "No bug",
-    value = "SE_TRANSIENT_FIELD_NOT_RESTORED"
-  )
+      justification = "No bug",
+      value = "SE_TRANSIENT_FIELD_NOT_RESTORED")
   private transient Instant pushbackWatermarkHold;
 
   // TODO: add this to checkpointable state

@@ -52,8 +52,7 @@ public class TestBoundedSource<T> extends BoundedSource<T> {
   @Override
   public List<? extends BoundedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-    return events
-        .stream()
+    return events.stream()
         .map(ev -> new TestBoundedSource<>(Collections.singletonList(ev)))
         .collect(Collectors.toList());
   }

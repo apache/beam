@@ -157,9 +157,7 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
     PTransformNode impulseTransform = getOnlyElement(fusedQP.getRootTransforms());
     PCollectionNode impulseOutput = getOnlyElement(fusedQP.getOutputPCollections(impulseTransform));
     PTransformNode stage =
-        fusedPipeline
-            .getRootTransformIdsList()
-            .stream()
+        fusedPipeline.getRootTransformIdsList().stream()
             .map(
                 id ->
                     PipelineNode.pTransform(
@@ -212,9 +210,7 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
     checkState(leftRoot != null);
     checkState(rightRoot != null);
     PTransformNode stage =
-        fusedPipeline
-            .getRootTransformIdsList()
-            .stream()
+        fusedPipeline.getRootTransformIdsList().stream()
             .map(
                 id ->
                     PipelineNode.pTransform(

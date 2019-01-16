@@ -746,8 +746,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
       if (rawOptionsNode != null && !rawOptionsNode.isNull()) {
         ObjectNode optionsNode = (ObjectNode) rawOptionsNode;
         for (Iterator<Map.Entry<String, JsonNode>> iterator = optionsNode.fields();
-            iterator != null && iterator.hasNext();
-            ) {
+            iterator != null && iterator.hasNext(); ) {
           Map.Entry<String, JsonNode> field = iterator.next();
           fields.put(field.getKey(), field.getValue());
         }

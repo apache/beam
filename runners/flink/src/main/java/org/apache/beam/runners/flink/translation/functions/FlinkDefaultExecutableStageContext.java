@@ -85,7 +85,8 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
       Preconditions.checkArgument(maxFactories >= 0, "sdk_worker_parallelism must be >= 0");
 
       if (maxFactories == 0) {
-        // if this is 0, use the auto behavior of num_cores - 1 so that we leave some resources available for the java process
+        // if this is 0, use the auto behavior of num_cores - 1 so that we leave some resources
+        // available for the java process
         this.maxFactories = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
       } else {
         this.maxFactories = maxFactories;

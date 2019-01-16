@@ -46,16 +46,10 @@ public class InMemoryMetrics implements Sink {
     // this might fail in case we have multiple aggregators with the same suffix after
     // the last dot, but it should be good enough for tests.
     if (extendedMetricsRegistry != null
-        && extendedMetricsRegistry
-            .getGauges()
-            .keySet()
-            .stream()
+        && extendedMetricsRegistry.getGauges().keySet().stream()
             .anyMatch(Predicates.containsPattern(name + "$")::apply)) {
       String key =
-          extendedMetricsRegistry
-              .getGauges()
-              .keySet()
-              .stream()
+          extendedMetricsRegistry.getGauges().keySet().stream()
               .filter(Predicates.containsPattern(name + "$")::apply)
               .findFirst()
               .get();

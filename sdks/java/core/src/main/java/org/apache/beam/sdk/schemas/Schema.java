@@ -256,14 +256,11 @@ public class Schema implements Serializable {
     }
 
     List<Field> otherFields =
-        other
-            .getFields()
-            .stream()
+        other.getFields().stream()
             .sorted(Comparator.comparing(Field::getName))
             .collect(Collectors.toList());
     List<Field> actualFields =
-        getFields()
-            .stream()
+        getFields().stream()
             .sorted(Comparator.comparing(Field::getName))
             .collect(Collectors.toList());
 

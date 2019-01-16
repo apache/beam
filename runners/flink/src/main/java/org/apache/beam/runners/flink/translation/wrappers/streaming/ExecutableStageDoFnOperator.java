@@ -354,7 +354,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     try {
       Object key = keySelector.getKey(timerElement);
       sdkHarnessRunner.setCurrentTimerKey(key);
-      // We have to synchronize to ensure the state backend is not concurrently accessed by the state requests
+      // We have to synchronize to ensure the state backend is not concurrently accessed by the
+      // state requests
       try {
         stateBackendLock.lock();
         getKeyedStateBackend().setCurrentKey(key);
@@ -385,7 +386,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
     // Prepare the SdkHarnessRunner with the key for the timer
     sdkHarnessRunner.setCurrentTimerKey(decodedKey);
-    // We have to synchronize to ensure the state backend is not concurrently accessed by the state requests
+    // We have to synchronize to ensure the state backend is not concurrently accessed by the state
+    // requests
     try {
       stateBackendLock.lock();
       getKeyedStateBackend().setCurrentKey(encodedKey);
@@ -399,9 +401,10 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   public void dispose() throws Exception {
     // may be called multiple times when an exception is thrown
     if (stageContext != null) {
-      // Remove the reference to stageContext and make stageContext available for garbage collection.
+      // Remove the reference to stageContext and make stageContext available for garbage
+      // collection.
       try (AutoCloseable bundleFactoryCloser = stageBundleFactory;
-           AutoCloseable closable = stageContext) {
+          AutoCloseable closable = stageContext) {
         // DoFnOperator generates another "bundle" for the final watermark
         // https://issues.apache.org/jira/browse/BEAM-5816
         super.dispose();

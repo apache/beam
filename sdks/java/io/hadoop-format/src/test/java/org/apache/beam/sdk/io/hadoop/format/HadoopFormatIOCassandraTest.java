@@ -177,7 +177,7 @@ public class HadoopFormatIOCassandraTest implements Serializable {
 
   @BeforeClass
   public static void startCassandra() throws Exception {
-    //Start the Embedded Cassandra Service
+    // Start the Embedded Cassandra Service
     cassandra.start();
     final SocketOptions socketOptions = new SocketOptions();
     // Setting this to 0 disables read timeouts.

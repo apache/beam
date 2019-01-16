@@ -173,7 +173,7 @@ public class GroupIntoBatches<K, InputT>
       numElementsInBatch.add(1L);
       Long num = numElementsInBatch.read();
       if (num % prefetchFrequency == 0) {
-        //prefetch data and modify batch state (readLater() modifies this)
+        // prefetch data and modify batch state (readLater() modifies this)
         batch.readLater();
       }
       if (num >= batchSize) {

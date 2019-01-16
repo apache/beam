@@ -339,8 +339,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             Iterables.filter(network.successors(input), OutputReceiverNode.class);
 
         Map<String, OutputReceiver> outputReceiverMap = new HashMap<>();
-        Lists.newArrayList(outputReceiverNodes)
-            .stream()
+        Lists.newArrayList(outputReceiverNodes).stream()
             .forEach(
                 outputReceiverNode ->
                     outputReceiverMap.put(

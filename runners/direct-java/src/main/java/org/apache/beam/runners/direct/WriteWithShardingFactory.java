@@ -51,7 +51,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
  */
 class WriteWithShardingFactory<InputT, DestinationT>
     implements PTransformOverrideFactory<
-        PCollection<InputT>, WriteFilesResult<DestinationT>,
+        PCollection<InputT>,
+        WriteFilesResult<DestinationT>,
         PTransform<PCollection<InputT>, WriteFilesResult<DestinationT>>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
@@ -60,7 +61,8 @@ class WriteWithShardingFactory<InputT, DestinationT>
   public PTransformReplacement<PCollection<InputT>, WriteFilesResult<DestinationT>>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<InputT>, WriteFilesResult<DestinationT>,
+                  PCollection<InputT>,
+                  WriteFilesResult<DestinationT>,
                   PTransform<PCollection<InputT>, WriteFilesResult<DestinationT>>>
               transform) {
     try {

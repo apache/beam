@@ -185,9 +185,9 @@ class ElasticsearchIOTestCommon implements Serializable {
         pipeline.apply(
             ElasticsearchIO.read()
                 .withConnectionConfiguration(connectionConfiguration)
-                //set to default value, useful just to test parameter passing.
+                // set to default value, useful just to test parameter passing.
                 .withScrollKeepalive("5m")
-                //set to default value, useful just to test parameter passing.
+                // set to default value, useful just to test parameter passing.
                 .withBatchSize(100L));
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(numDocs);
     pipeline.run();
@@ -594,7 +594,8 @@ class ElasticsearchIOTestCommon implements Serializable {
    */
   void testWriteRetry() throws Throwable {
     expectedException.expectCause(isA(IOException.class));
-    // max attempt is 3, but retry is 2 which excludes 1st attempt when error was identified and retry started.
+    // max attempt is 3, but retry is 2 which excludes 1st attempt when error was identified and
+    // retry started.
     expectedException.expectMessage(
         String.format(ElasticsearchIO.Write.WriteFn.RETRY_FAILED_LOG, EXPECTED_RETRIES));
 

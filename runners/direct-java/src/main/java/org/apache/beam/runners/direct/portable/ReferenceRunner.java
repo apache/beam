@@ -479,8 +479,7 @@ public class ReferenceRunner {
     QueryablePipeline q = QueryablePipeline.forPipeline(p);
     String feedSdfUrn = SplittableRemoteStageEvaluatorFactory.FEED_SDF_URN;
     List<PTransformNode> feedSDFNodes =
-        q.getTransforms()
-            .stream()
+        q.getTransforms().stream()
             .filter(node -> node.getTransform().getSpec().getUrn().equals(feedSdfUrn))
             .collect(Collectors.toList());
     Map<String, PTransformNode> stageToFeeder = Maps.newHashMap();

@@ -113,7 +113,7 @@ public class SparkAbstractCombineFn implements Serializable {
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
       checkNotNull(input, "Input in SparkCombineContext must not be null!");
-      //validate element window.
+      // validate element window.
       final Collection<? extends BoundedWindow> elementWindows = input.getWindows();
       checkState(
           elementWindows.size() == 1,

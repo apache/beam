@@ -109,9 +109,7 @@ class ThreadzServlet extends BaseStatusServlet implements Capturable {
 
     // Then, print out each stack along with the threads that share it. Stacks with more threads
     // are printed first.
-    stacks
-        .entrySet()
-        .stream()
+    stacks.entrySet().stream()
         .sorted(Comparator.comparingInt(e -> -e.getValue().size()))
         .forEachOrdered(
             entry -> {

@@ -679,8 +679,7 @@ public abstract class DoFnSignature {
      * each scoped to a single window.
      */
     public boolean observesWindow() {
-      return extraParameters()
-          .stream()
+      return extraParameters().stream()
           .anyMatch(
               Predicates.or(
                       Predicates.instanceOf(WindowParameter.class),
@@ -696,8 +695,7 @@ public abstract class DoFnSignature {
     @Nullable
     public RowParameter getRowParameter() {
       Optional<Parameter> parameter =
-          extraParameters()
-              .stream()
+          extraParameters().stream()
               .filter(Predicates.instanceOf(RowParameter.class)::apply)
               .findFirst();
       return parameter.isPresent() ? ((RowParameter) parameter.get()) : null;
@@ -707,8 +705,7 @@ public abstract class DoFnSignature {
     @Nullable
     public OutputReceiverParameter getMainOutputReceiver() {
       Optional<Parameter> parameter =
-          extraParameters()
-              .stream()
+          extraParameters().stream()
               .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
               .findFirst();
       return parameter.isPresent() ? ((OutputReceiverParameter) parameter.get()) : null;
@@ -718,8 +715,7 @@ public abstract class DoFnSignature {
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return extraParameters()
-          .stream()
+      return extraParameters().stream()
           .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
   }

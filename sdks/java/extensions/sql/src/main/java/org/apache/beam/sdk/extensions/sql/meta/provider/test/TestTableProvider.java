@@ -82,9 +82,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
   @Override
   public Map<String, Table> getTables() {
-    return tables()
-        .entrySet()
-        .stream()
+    return tables().entrySet().stream()
         .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().table));
   }
 

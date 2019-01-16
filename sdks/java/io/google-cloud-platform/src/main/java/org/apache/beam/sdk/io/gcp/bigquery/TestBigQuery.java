@@ -228,8 +228,7 @@ public class TestBigQuery implements TestRule {
       return Collections.emptyList();
     }
 
-    return bqRows
-        .stream()
+    return bqRows.stream()
         .map(bqRow -> toBeamRow(rowSchema, bqSchema, bqRow))
         .collect(Collectors.toList());
   }

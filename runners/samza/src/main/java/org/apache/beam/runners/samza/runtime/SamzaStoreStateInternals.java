@@ -536,7 +536,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   private class SamzaMapStateImpl<KeyT, ValueT> extends AbstractSamzaState<ValueT>
       implements SamzaMapState<KeyT, ValueT>, KeyValueIteratorState {
 
-    private static final int MAX_KEY_SIZE = 100000; //100K bytes
+    private static final int MAX_KEY_SIZE = 100000; // 100K bytes
     private final Coder<KeyT> keyCoder;
     private final byte[] maxKey;
     private final int storeKeySize;

@@ -75,10 +75,7 @@ public class JdbcConnection extends CalciteConnectionWrapper {
    * to a map of pipeline options.
    */
   private static Map<String, String> extractPipelineOptions(CalciteConnection calciteConnection) {
-    return calciteConnection
-        .getProperties()
-        .entrySet()
-        .stream()
+    return calciteConnection.getProperties().entrySet().stream()
         .map(entry -> KV.of(entry.getKey().toString(), entry.getValue().toString()))
         .filter(kv -> kv.getKey().startsWith(PIPELINE_OPTION_PREFIX))
         .map(kv -> KV.of(kv.getKey().substring(PIPELINE_OPTION_PREFIX.length()), kv.getValue()))

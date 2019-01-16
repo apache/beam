@@ -354,8 +354,7 @@ public class PipelineOptionsFactory {
       } catch (ClassNotFoundException e) {
         // If we didn't find an exact match, look for any that match the class name.
         Iterable<Class<? extends PipelineOptions>> matches =
-            getRegisteredOptions()
-                .stream()
+            getRegisteredOptions().stream()
                 .filter(
                     input -> {
                       if (helpOption.contains(".")) {
