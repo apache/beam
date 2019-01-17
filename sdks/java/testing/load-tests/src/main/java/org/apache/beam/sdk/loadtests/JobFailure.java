@@ -38,8 +38,23 @@ class JobFailure {
     this.requiresCancelling = requiresCancelling;
   }
 
-  static Optional<JobFailure> assertFailure(PipelineResult pipelineResult,
-      LoadTestResult testResult) {
+  static void handleFailure(final PipelineResult pipelineResult, final LoadTestResult testResult)
+      throws IOException {
+    Optional<JobFailure> failure = lookForFailure(pipelineResult, testResult);
+
+    if (failure.isPresent()) {
+      JobFailure jobFailure = failure.get();
+
+      if (jobFailure.requiresCancelling) {
+        pipelineResult.cancel();
+      }
+
+      throw new RuntimeException(jobFailure.cause);
+    }
+  }
+
+  private static Optional<JobFailure> lookForFailure(
+      PipelineResult pipelineResult, LoadTestResult testResult) {
     PipelineResult.State state = pipelineResult.getState();
 
     Optional<JobFailure> stateRelatedFailure = lookForInvalidState(state);
@@ -59,7 +74,7 @@ class JobFailure {
     }
   }
 
-  static Optional<JobFailure> lookForInvalidState(PipelineResult.State state) {
+  private static Optional<JobFailure> lookForInvalidState(PipelineResult.State state) {
     switch (state) {
       case RUNNING:
       case UNKNOWN:
@@ -74,14 +89,5 @@ class JobFailure {
       default:
         return empty();
     }
-  }
-
-  static PipelineResult handleFailure(PipelineResult pipelineResult, JobFailure failure)
-      throws IOException {
-
-    if(failure.requiresCancelling) {
-      pipelineResult.cancel();
-    }
-    throw new RuntimeException(failure.cause);
   }
 }
