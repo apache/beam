@@ -157,7 +157,7 @@
   <span class="section-nav-list-title">Technical Docs</span>
 
   <ul class="section-nav-list">
-    <li><a href="/contribute/testing/">Testing guide</a></li>
+    <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide">Testing guide</a></li>
     <li><a href="/contribute/precommit-triage-guide/">Pre-commit Slowness Triage</a></li>
     <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
     <li><a href="/contribute/runner-guide/">Runner authoring guide</a></li>
@@ -502,7 +502,7 @@ E.g. when expanding a filepattern into files, log what the filepattern was and h
   <li>To unit test <code class="highlighter-rouge">DoFn</code>s, <code class="highlighter-rouge">CombineFn</code>s, and <code class="highlighter-rouge">BoundedSource</code>s, consider using <code class="highlighter-rouge">DoFnTester</code>, <code class="highlighter-rouge">CombineFnTester</code>, and <code class="highlighter-rouge">SourceTestUtils</code> respectively which can exercise the code in non-trivial ways to flesh out potential bugs.</li>
   <li>For transforms that work over unbounded collections, test their behavior in the presence of late or out-of-order data using <code class="highlighter-rouge">TestStream</code>.</li>
   <li>Tests must pass 100% of the time, including in hostile, CPU- or network-constrained environments (continuous integration servers). Never put timing-dependent code (e.g. sleeps) into tests. Experience shows that no reasonable amount of sleeping is enough - code can be suspended for more than several seconds.</li>
-  <li>For detailed instructions on test code organization, see the <a href="/contribute/testing/">Beam Testing Guide</a>.</li>
+  <li>For detailed instructions on test code organization, see the <a href="https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide">Beam Testing Guide</a>.</li>
 </ul>
 
 <h4 id="testing-transform-construction-and-validation">Testing transform construction and validation</h4>
