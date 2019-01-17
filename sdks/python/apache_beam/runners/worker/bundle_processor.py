@@ -116,13 +116,20 @@ class DataInputOperation(RunnerIOOperation):
             self.counter_factory, self.name_context.step_name, 0,
             next(iter(itervalues(consumers))), self.windowed_coder)]
 
+  def start(self):
+    super(DataInputOperation, self).start()
+    self.index = 0
+
   def process(self, windowed_value):
     primary, residual = self.receivers[0].receive_splittable(windowed_value)
     print("HERE", primary, residual)
     while residual:
       element, _ = windowed_value.value
+      # TODO(SDF): Does this mess with output counters?
+      # Do we even ever call bare process()?
       primary, residual = self.receivers[0].receive_splittable(
           windowed_value.with_value((element, residual)))
+#    self.index += 1
 
   def process_encoded(self, encoded_windowed_values):
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
@@ -130,7 +137,22 @@ class DataInputOperation(RunnerIOOperation):
       decoded_value = self.windowed_coder_impl.decode_from_stream(
           input_stream, True)
       # TODO(SDF): Perf regresssion
-      self.process(decoded_value)
+      primary, residual = self.receivers[0].receive_splittable(decoded_value)
+      if residual:
+        element, _ = decoded_value.value
+        # TODO(SDF): Here we switch from primary + residual to applications.
+        # Push up or down?
+        yield decoded_value.with_value((element, residual))
+      self.index += 1
+
+#  def process_splittable(self, windowed_value):
+#    # TODO(SDF): Perf for for returning tuple everywhere.
+#    primary, residual = self.receivers[0].receive_splittable(windowed_value)
+#    if residual is not None:
+#      return (self.index, primary), (self.index, residual)
+#    else:
+#      self.index += 1
+#      return None, None
 
 
 class _StateBackedIterable(object):
@@ -491,9 +513,11 @@ class BundleProcessor(object):
       for data_channel, expected_targets in data_channels.items():
         for data in data_channel.input_elements(
             instruction_id, expected_targets):
-          input_op_by_target[
+          for deferred_application in input_op_by_target[
               data.target.primitive_transform_reference
-          ].process_encoded(data.data)
+          ].process_encoded(data.data):
+            op = input_op_by_target[data.target.primitive_transform_reference]
+            op.process(deferred_application)
 
       # Finish all operations.
       for op in self.ops.values():
