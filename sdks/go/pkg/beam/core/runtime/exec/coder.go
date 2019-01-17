@@ -120,7 +120,7 @@ func (*bytesEncoder) Encode(val FullValue, w io.Writer) error {
 	var data []byte
 	data, ok := val.Elm.([]byte)
 	if !ok {
-		return fmt.Errorf("received unknown value type: want []byte or string, got %T", val.Elm)
+		return fmt.Errorf("received unknown value type: want []byte, got %T", val.Elm)
 	}
 	size := len(data)
 
