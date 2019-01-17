@@ -357,6 +357,7 @@ class FnApiRunnerTest(unittest.TestCase):
             restriction_tracker,
             restriction_trackers.OffsetRestrictionTracker), restriction_tracker
         for k in range(*restriction_tracker.current_restriction()):
+          time.sleep(.2)
           restriction_tracker.try_claim(k)
           yield element[k]
           if k % 2 == 1:

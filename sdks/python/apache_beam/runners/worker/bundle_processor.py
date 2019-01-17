@@ -27,6 +27,7 @@ import json
 import logging
 import random
 import re
+import threading
 from builtins import next
 from builtins import object
 
@@ -115,10 +116,12 @@ class DataInputOperation(RunnerIOOperation):
         operations.ConsumerSet.create(
             self.counter_factory, self.name_context.step_name, 0,
             next(iter(itervalues(consumers))), self.windowed_coder)]
+    self.splitting_lock = threading.Lock()
 
   def start(self):
     super(DataInputOperation, self).start()
-    self.index = 0
+    self.index = -1
+    self.stop = None
 
   def process(self, windowed_value):
     primary, residual = self.receivers[0].receive_splittable(windowed_value)
@@ -132,6 +135,10 @@ class DataInputOperation(RunnerIOOperation):
   def process_encoded(self, encoded_windowed_values):
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
     while input_stream.size() > 0:
+      with self.splitting_lock:
+        self.index += 1
+        if self.index == self.stop:
+          return
       decoded_value = self.windowed_coder_impl.decode_from_stream(
           input_stream, True)
       # TODO(SDF): Perf regresssion
@@ -141,7 +148,23 @@ class DataInputOperation(RunnerIOOperation):
         # TODO(SDF): Here we switch from primary + residual to applications.
         # Push up or down?
         yield decoded_value.with_value((element, residual))
-      self.index += 1
+
+  def try_split(self, fraction_of_remainder, total_buffer_size=None):
+    with self.splitting_lock:
+      if not total_buffer_size:
+        total_buffer_size = self.index + 1
+      elif self.stop and total_buffer_size > self.stop:
+        total_buffer_size = self.stop
+      target = (total_buffer_size - self.index) * fraction_of_remainder
+      if int(target) == self.index:
+        target = int(target) + 1
+      else:
+        target = int(target)
+      if target == self.stop:
+        # Already split as much as we can.
+        return
+      self.stop = target
+      return [], self.stop - 1, self.stop, []
 
 
 class _StateBackedIterable(object):
@@ -422,6 +445,7 @@ class BundleProcessor(object):
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
     for op in self.ops.values():
       op.setup()
+    self.splitting_lock = threading.Lock()
 
   def create_execution_tree(self, descriptor):
 
@@ -513,7 +537,7 @@ class BundleProcessor(object):
             deferred_applications.append(
                 beam_fn_api_pb2.BundleApplication(
                     ptransform_id=data.target.primitive_transform_reference,
-                    input_id='ignored',
+                    input_id=data.target.name,
                     element=op.windowed_coder_impl.encode(deferred_element)))
 
       # Finish all operations.
@@ -524,7 +548,44 @@ class BundleProcessor(object):
       return deferred_applications
 
     finally:
+      # Ensure any in-flight split attempts complete.
+      with self.splitting_lock:
+        pass
       self.state_sampler.stop_if_still_running()
+
+  def try_split(self, split_request):
+    split_response = beam_fn_api_pb2.ProcessBundleSplitResponse()
+    with self.splitting_lock:
+      for op in self.ops.values():
+        if isinstance(op, DataInputOperation):
+          split = op.try_split(split_request.fraction_of_remainder,
+                               split_request.total_buffer_size.get(
+                                   op.target.primitive_transform_reference))
+          if split:
+            (primary_elements, primary_end, residual_start, residual_elements
+             ) = split
+            encode = op.windowed_coder_impl.encode
+            ptransform_id = op.target.primitive_transform_reference
+            def application(element):
+              return beam_fn_api_pb2.BundleApplication(
+                  ptransform_id=op.target.primitive_transform_reference,
+                  input_id=data.target.name,
+                  element=encode(element))
+            split_response.primary_roots.extend(
+                application(element) for element in primary_elements)
+            split_response.residual_roots.extend(
+                beam_fn_api_pb2.DelayedBundleApplication(
+                    application=application(element))
+                for element in residual_elements)
+            split_response.buffer_splits.extend([
+                beam_fn_api_pb2.BufferSplit(
+                    ptransform_id=op.target.primitive_transform_reference,
+                    input_id=op.target.name,
+                    last_primary_element=primary_end,
+                    first_residual_element=residual_start)])
+
+    return split_response
+
 
   def metrics(self):
     # DEPRECATED

@@ -755,6 +755,20 @@ message ProcessBundleSplitRequest {
   // If the backlog is unspecified for a PTransform, the runner would like
   // the SDK to process all data received for that PTransform.
   map<string, bytes> backlog_remaining = 2;
+
+  // TODO(SDF): Unclear what the backlog refers to.  A backlog of the
+  // (ever changing) current element?
+
+  // TODO(SDF): Document.
+  // Note, if this was with respect to the "current" element, there would
+  // be discontinuities when the current element changed.
+  float fraction_of_remainder = 101;
+
+  // The GRPC reader doesn't know the end of the buffer to do a reasonable
+  // estimate of what the reaminder is, so we provide it here, for each
+  // buffer indexed by ptransform_id.
+  // TODO(SDF) Weight.
+  map<string, float> total_buffer_size = 102;
 }
 
 // Represents a partition of the bundle: a "primary" and
@@ -774,7 +788,27 @@ message ProcessBundleSplitResponse {
   // have to be executed in a separate bundle (e.g. in parallel on a different
   // worker, or after the current bundle completes, etc.)
   repeated DelayedBundleApplication residual_roots = 2;
+
+  // TODO(SDF): We could probably come up with a formulation that represents
+  // these as BundleApplications more efficiently than enumerating the
+  // elements, but for now making this explicit adds clarity.
+  repeated BufferSplit buffer_splits = 101;
 }
+
+
+message BufferSplit {
+  // (Required) The primitive read transform reading this buffer.
+  string ptransform_id = 1;
+
+  // (Required) Name of the transform's input to which to pass the element.
+  string input_id = 2;
+
+  // One could support arbitrary intervals, but the goal is to keep this
+  // simple for now and still cover the base usecase.
+  int32 last_primary_element = 3;
+  int32 first_residual_element = 4;
+}
+
 
 message FinalizeBundleRequest {
   // (Required) A reference to a completed process bundle request with the given

@@ -797,6 +797,7 @@ def greedily_fuse(stages, pipeline_context):
         fuse(producer, consumer)
       else:
         # If we can't fuse, do a read + write.
+        pipeline_context.length_prefix_pcoll_coders(pcoll)
         buffer_id = create_buffer_id(pcoll)
         if write_pcoll is None:
           write_pcoll = Stage(
