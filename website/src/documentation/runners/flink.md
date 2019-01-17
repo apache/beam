@@ -51,46 +51,92 @@ To use the Flink Runner for executing on a cluster, you have to setup a Flink cl
 
 ### Version Compatibility
 
-The Flink cluster version has to match the version used by the FlinkRunner. To find out which version of Flink please see the table below:
+The Flink cluster version has to match the minor version used by the FlinkRunner.
+The minor version is the first two numbers in the version string, e.g. in `1.7.0` the
+minor version is `1.7`.
+
+We try to track the latest version of Apache Flink at the time of the Beam release.
+A Flink version is supported by Beam for the time it is supported by the Flink community.
+The Flink community typially supports the last two minor versions. When support for a Flink
+version is dropped, it may be deprecated and removed also from Beam, with the exception of
+Beam LTS releases. LTS releases continue to receive bug fixes for long as the LTS support
+period.
+
+To find out which version of Flink is compatible with Beam please see the table below:
 
 <table class="table table-bordered">
 <tr>
-  <th>Beam version</th>
-  <th>Flink version</th>
+  <th>Beam Version</th>
+  <th>Flink Version</th>
+  <th>Artifact Id</th>
 </tr>
 <tr>
-  <td>2.8.0, 2.7.0, 2.6.0</td>
+  <td rowspan="3">2.10.0</td>
   <td>1.5.x</td>
+  <td>beam-runners-flink_2.11</td>
 </tr>
 <tr>
-  <td>2.5.0, 2.4.0, 2.3.0</td>
-  <td>1.4.x</td>
+  <td>1.6.x</td>
+  <td>beam-runners-flink-1.6</td>
+</tr>
+<tr>
+  <td>1.7.x</td>
+  <td>beam-runners-flink-1.7</td>
+</tr>
+<tr>
+  <td>2.9.0</td>
+  <td rowspan="4">1.5.x</td>
+  <td rowspan="4">beam-runners-flink_2.11</td>
+</tr>
+<tr>
+  <td>2.8.0</td>
+</tr>
+<tr>
+  <td>2.7.0</td>
+</tr>
+<tr>
+  <td>2.6.0</td>
+</tr>
+<tr>
+  <td>2.5.0</td>
+  <td rowspan="3">1.4.x with Scala 2.11</td>
+  <td rowspan="3">beam-runners-flink_2.11</td>
+</tr>
+<tr>
+  <td>2.4.0</td>
+</tr>
+<tr>
+  <td>2.3.0</td>
 </tr>
 <tr>
   <td>2.2.0</td>
-  <td>1.3.x with Scala 2.10</td>
+  <td rowspan="2">1.3.x with Scala 2.10</td>
+  <td rowspan="2">beam-runners-flink_2.10</td>
 </tr>
 <tr>
-  <td>2.2.0, 2.1.x</td>
-  <td>1.3.x with Scala 2.10</td>
+  <td>2.1.x</td>
 </tr>
 <tr>
   <td>2.0.0</td>
   <td>1.2.x with Scala 2.10</td>
+  <td>beam-runners-flink_2.10</td>
 </tr>
 </table>
 
-For retrieving the right version, see the [Flink downloads page](https://flink.apache.org/downloads.html).
+For retrieving the right Flink version, see the [Flink downloads page](https://flink.apache.org/downloads.html).
 
 For more information, the [Flink Documentation](https://ci.apache.org/projects/flink/flink-docs-stable/) can be helpful.
 
 ### Specify your dependency
 
 <span class="language-java">When using Java, you must specify your dependency on the Flink Runner in your `pom.xml`.</span>
+
+Use the Beam version and the artifact id from the above table. For example:
+
 ```java
 <dependency>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-flink_2.11</artifactId>
+  <artifactId>beam-runners-flink-1.6</artifactId>
   <version>{{ site.release_latest }}</version>
 </dependency>
 ```
