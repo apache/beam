@@ -466,11 +466,10 @@ public class JavaFieldSchemaTest {
 
     SimplePOJO simplePojo = createSimple("string");
     List<SimplePOJO> simplePojoList = ImmutableList.of(simplePojo, simplePojo);
-    List<List<SimplePOJO>> simplePojoListOfList =
-        ImmutableList.of(simplePojoList, simplePojoList);
+    List<List<SimplePOJO>> simplePojoListOfList = ImmutableList.of(simplePojoList, simplePojoList);
 
-    PojoWithNestedArray converted = registry.getFromRowFunction(PojoWithNestedArray.class)
-        .apply(nestedRow);
+    PojoWithNestedArray converted =
+        registry.getFromRowFunction(PojoWithNestedArray.class).apply(nestedRow);
     assertEquals(simplePojoListOfList, converted.pojos);
   }
 
@@ -487,11 +486,12 @@ public class JavaFieldSchemaTest {
 
     SimplePOJO simplePojo = createSimple("string");
     List<SimplePOJO> simplePojoList = ImmutableList.of(simplePojo, simplePojo);
-    List<List<SimplePOJO>> simplePojoListOfList =
-        ImmutableList.of(simplePojoList, simplePojoList);
+    List<List<SimplePOJO>> simplePojoListOfList = ImmutableList.of(simplePojoList, simplePojoList);
 
-    Row converted = registry.getToRowFunction(PojoWithNestedArray.class)
-        .apply(new PojoWithNestedArray(simplePojoListOfList));
+    Row converted =
+        registry
+            .getToRowFunction(PojoWithNestedArray.class)
+            .apply(new PojoWithNestedArray(simplePojoListOfList));
     assertEquals(nestedRow, converted);
   }
 }
