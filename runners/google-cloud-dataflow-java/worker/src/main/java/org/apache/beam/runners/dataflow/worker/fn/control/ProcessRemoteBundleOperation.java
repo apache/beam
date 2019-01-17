@@ -69,12 +69,15 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private final StateRequestHandler stateRequestHandler;
   private final BundleProgressHandler progressHandler;
   private RemoteBundle remoteBundle;
+  private RemoteBundle timerRemoteBundle;
   private final DataflowExecutionContext<?> executionContext;
   private final Map<String, ProcessBundleDescriptors.TimerSpec> timerOutputIdToSpecMap;
   private final Map<String, Coder<BoundedWindow>> timerWindowCodersMap;
   private final Map<String, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap;
   private final Map<String, Object> timerIdToKey;
+  private final Map<String, Object> timerIdToPayload;
   private ExecutableStage executableStage;
+  private String loggingName;
 
   public ProcessRemoteBundleOperation(
       ExecutableStage executableStage,
@@ -84,6 +87,9 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       Map<String, OutputReceiver> outputReceiverMap) {
     super(EMPTY_RECEIVER_ARRAY, operationContext);
 
+    // TODO: Remove this
+    loggingName = executionContext.getStepContext(operationContext).getNameContext().toString();
+
     this.stageBundleFactory = stageBundleFactory;
     this.stateRequestHandler = StateRequestHandler.unsupported();
     this.progressHandler = BundleProgressHandler.ignored();
@@ -92,6 +98,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
     this.timerWindowCodersMap = new HashMap<>();
     this.executableStage = executableStage;
     this.timerIdToKey = new HashMap<>();
+    this.timerIdToPayload = new HashMap<>();
     this.outputReceiverMap = outputReceiverMap;
     this.timerIdToTimerSpecMap = new HashMap<>();
 
@@ -153,22 +160,30 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       } catch (Exception e) {
         throw new RuntimeException("Failed to start remote bundle", e);
       }
+
+      try {
+        timerRemoteBundle =
+            stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to start timer remote bundle", e);
+      }
     }
   }
 
   @Override
   public void process(Object inputElement) throws Exception {
-    LOG.debug(String.format("Sending element: %s", inputElement));
+    LOG.error("[{}] Sending element: {}", loggingName, inputElement);
     String mainInputPCollectionId = executableStage.getInputPCollection().getId();
     FnDataReceiver<WindowedValue<?>> mainInputReceiver =
         remoteBundle.getInputReceivers().get(mainInputPCollectionId);
 
     // TODO(BEAM-6274): Is this always true? Do we always send the input element to the main input receiver?
     try (Closeable scope = context.enterProcess()) {
-      mainInputReceiver.accept((WindowedValue<InputT>) inputElement);
+      mainInputReceiver.accept((WindowedValue<?>) inputElement);
     } catch (Exception e) {
       LOG.error(
-          "Could not process element {} to receiver {} for pcollection {} with error {}",
+          "[{}] Could not process element {} to receiver {} for pcollection {} with error {}",
+          loggingName,
           inputElement,
           mainInputReceiver,
           mainInputPCollectionId,
@@ -186,6 +201,13 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
         throw new RuntimeException("Failed to finish remote bundle", e);
       }
 
+      try {
+        // close blocks until all results are received
+        timerRemoteBundle.close();
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to finish remote bundle", e);
+      }
+/*
       // TODO(BEAM-6274): do we have to put this in the "start" method as well?
       // The ProcessRemoteBundleOperation has to wait until it has received all elements from the
       // SDK in case the SDK generated a timer.
@@ -226,12 +248,49 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
           // TODO(BEAM-6274): investigate if this is the correct window
           timerData = stepContext.getNextFiredTimer(GlobalWindow.Coder.INSTANCE);
         }
-      }
+      }*/
+    }
+  }
+
+  private void fireTimers() throws Exception {
+    // TODO(BEAM-6274): Why do we need to namespace this to "user"?
+    DataflowExecutionContext.DataflowStepContext stepContext =
+        executionContext
+            .getStepContext((DataflowOperationContext) this.context)
+            .namespacedToUser();
+
+    // TODO(BEAM-6274): investigate if this is the correct window
+    TimerInternals.TimerData timerData =
+        stepContext.getNextFiredTimer(GlobalWindow.Coder.INSTANCE);
+    while (timerData != null) {
+      LOG.error("[{}] Found fired timer in 'receive' {}", loggingName, timerData);
+
+      // TODO(BEAM-6274): get the correct payload and payload coder
+      StateNamespaces.WindowNamespace windowNamespace =
+          (StateNamespaces.WindowNamespace) timerData.getNamespace();
+      BoundedWindow window = windowNamespace.getWindow();
+
+      WindowedValue<KV<Object, Timer>> timerValue =
+          WindowedValue.of(
+              KV.of(
+                  timerIdToKey.get(timerData.getTimerId()),
+                  Timer.of(timerData.getTimestamp(), timerIdToPayload.get(timerData.getTimerId()))),
+              timerData.getTimestamp(),
+              Collections.singleton(window),
+              PaneInfo.NO_FIRING);
+
+      String mainInputId =
+          timerIdToTimerSpecMap.get(timerData.getTimerId()).inputCollectionId();
+
+      timerRemoteBundle.getInputReceivers().get(mainInputId).accept(timerValue);
+
+      // TODO(BEAM-6274): investigate if this is the correct window
+      timerData = stepContext.getNextFiredTimer(GlobalWindow.Coder.INSTANCE);
     }
   }
 
   private void receive(String pCollectionId, Object receivedElement) throws Exception {
-    LOG.debug("Received element {} for pcollection {}", receivedElement, pCollectionId);
+    LOG.error("[{}] Received element {} for pcollection {}", loggingName, receivedElement, pCollectionId);
     // TODO(BEAM-6274): move this out into its own receiver class
     if (timerOutputIdToSpecMap.containsKey(pCollectionId)) {
       WindowedValue<KV<Object, Timer>> windowedValue =
@@ -253,6 +312,9 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
         timerData.setTimer(namespace, timerId, timer.getTimestamp(), timeDomain);
 
         timerIdToKey.put(timerId, windowedValue.getValue().getKey());
+        timerIdToPayload.put(timerId, timer.getPayload());
+
+        fireTimers();
       }
     } else {
       outputReceiverMap.get(pCollectionId).process((WindowedValue<?>) receivedElement);
