@@ -34,8 +34,6 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
  * MetadataCoderV2} for retaining timestamp information.
  */
 public class MetadataCoder extends AtomicCoder<Metadata> {
-  public static final long UNKNOWN_LAST_MODIFIED_MILLIS = -1L;
-
   private static final MetadataCoder INSTANCE = new MetadataCoder();
   private static final ResourceIdCoder RESOURCE_ID_CODER = ResourceIdCoder.of();
   private static final VarIntCoder INT_CODER = VarIntCoder.of();
@@ -67,8 +65,7 @@ public class MetadataCoder extends AtomicCoder<Metadata> {
     return Metadata.builder()
         .setResourceId(resourceId)
         .setIsReadSeekEfficient(isReadSeekEfficient)
-        .setSizeBytes(sizeBytes)
-        .setLastModifiedMillis(UNKNOWN_LAST_MODIFIED_MILLIS);
+        .setSizeBytes(sizeBytes);
   }
 
   @Override
