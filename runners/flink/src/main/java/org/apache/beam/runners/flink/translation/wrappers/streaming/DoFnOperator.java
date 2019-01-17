@@ -59,6 +59,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkKeyGroupStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkSplitStateInternals;
@@ -387,6 +388,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       super.dispose();
       checkFinishBundleTimer.cancel(true);
     } finally {
+      FlinkClassloading.deleteStaticCaches();
       if (bundleStarted) {
         invokeFinishBundle();
       }
