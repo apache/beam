@@ -45,9 +45,11 @@ The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability
 
 ## Flink Runner prerequisites and setup
 
-If you want to use the local execution mode with the Flink runner to don't have to complete any setup.
+If you want to use the local execution mode with the Flink Runner you don't have to complete any setup.
+You can simply run your Beam pipeline. Be sure to set the Runner to `FlinkRunner`.
 
-To use the Flink Runner for executing on a cluster, you have to setup a Flink cluster by following the Flink [setup quickstart](https://ci.apache.org/projects/flink/flink-docs-stable/quickstart/setup_quickstart.html).
+To use the Flink Runner for executing on a cluster, you have to setup a Flink cluster by following the
+Flink [Setup Quickstart](https://ci.apache.org/projects/flink/flink-docs-stable/quickstart/setup_quickstart.html#setup-download-and-start-flink).
 
 ### Version Compatibility
 
@@ -195,16 +197,47 @@ When executing your pipeline with the Flink Runner, you can set these pipeline o
   <td>Jar Files to send to all workers and put on the classpath. Here you have to put the fat jar that contains your program along with all dependencies.</td>
   <td>empty</td>
 </tr>
-
 <tr>
   <td><code>parallelism</code></td>
   <td>The degree of parallelism to be used when distributing operations onto workers.</td>
-  <td><code>1</code></td>
+  <td><For local execution: <code>Number of available CPU cores</code>
+            For remote execution: <code>Default parallelism configuerd at remote cluster</code>
+            Otherwise: <code>1</code>
+            </td>
+</tr>
+<tr>
+  <td><code>maxParallelism</code></td>
+  <td>The pipeline wide maximum degree of parallelism to be used. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state.</td>
+  <td><code>-1L</code>, meaning same as the parallelism</td>
 </tr>
 <tr>
   <td><code>checkpointingInterval</code></td>
   <td>The interval between consecutive checkpoints (i.e. snapshots of the current pipeline state used for fault tolerance).</td>
   <td><code>-1L</code>, i.e. disabled</td>
+</tr>
+<tr>
+  <td><code>checkpointMode</code></td>
+  <td>The checkpointing mode that defines consistency guarantee.</td>
+  <td><code>EXACTLY_ONCE</code></td>
+</tr>
+<tr>
+  <td><code>checkpointTimeoutMillis</code></td>
+  <td>The maximum time in milliseconds that a checkpoint may take before being discarded</td>
+  <td><code>-1</code>, the cluster default</td>
+</tr>
+<tr>
+  <td><code>minPauseBetweenCheckpoints</code></td>
+  <td>The minimal pause in milliseconds before the next checkpoint is triggered.</td>
+  <td><code>-1</code>, the cluster default</td>
+</tr>
+<tr>
+  <td><code>failOnCheckpointingErrors</code></td>
+  <td>
+  Sets the expected behaviour for tasks in case that they encounter an error in their
+            checkpointing procedure. If this is set to true, the task will fail on checkpointing error.
+            If this is set to false, the task will only decline a the checkpoint and continue running.
+  </td>
+  <td><code>-1</code>, the cluster default</td>
 </tr>
 <tr>
   <td><code>numberOfExecutionRetries</code></td>
@@ -217,9 +250,68 @@ When executing your pipeline with the Flink Runner, you can set these pipeline o
   <td><code>-1</code></td>
 </tr>
 <tr>
+  <td><code>objectReuse</code></td>
+  <td>Sets the behavior of reusing objects.</td>
+  <td><code>false</code>, no Object reuse</td>
+</tr>
+<tr>
   <td><code>stateBackend</code></td>
   <td>Sets the state backend to use in streaming mode. The default is to read this setting from the Flink config.</td>
   <td><code>empty</code>, i.e. read from Flink config</td>
+</tr>
+<tr>
+  <td><code>enableMetrics</code></td>
+  <td>Enable/disable Beam metrics in Flink Runner</td>
+  <td>Default: <code>true</code></td>
+</tr>
+<tr>
+  <td><code>externalizedCheckpointsEnabled</code></td>
+  <td>Enables or disables externalized checkpoints. Works in conjunction with CheckpointingInterval</td>
+  <td>Default: <code>false</code></td>
+</tr>
+<tr>
+  <td><code>retainExternalizedCheckpointsOnCancellation</code></td>
+  <td>Sets the behavior of externalized checkpoints on cancellation.</td>
+  <td>Default: <code>false</code></td>
+</tr>
+<tr>
+  <td><code>maxBundleSize</code></td>
+  <td>The maximum number of elements in a bundle.</td>
+  <td>Default: <code>1000</code></td>
+</tr>
+<tr>
+  <td><code>maxBundleTimeMills</code></td>
+  <td>The maximum time to wait before finalising a bundle (in milliseconds).</td>
+  <td>Default: <code>1000</code></td>
+</tr>
+<tr>
+  <td><code>shutdownSourcesOnFinalWatermark</code></td>
+  <td>If set, shutdown sources when their watermark reaches +Inf.</td>
+  <td>Default: <code>false</code></td>
+</tr>
+<tr>
+  <td><code>latencyTrackingInterval</code></td>
+  <td>Interval in milliseconds for sending latency tracking marks from the sources to the sinks. Interval value <= 0 disables the feature.</td>
+  <td>Default: <code>0</code></td>
+</tr>
+<tr>
+  <td><code>autoWatermarkInterval</code></td>
+  <td>The interval in milliseconds for automatic watermark emission.</td>
+</tr>
+<tr>
+  <td><code>executionModeForBatch</code></td>
+  <td>Flink mode for data exchange of batch pipelines. Reference {@link org.apache.flink.api.common.ExecutionMode}. Set this to BATCH_FORCED if pipelines get blocked, see https://issues.apache.org/jira/browse/FLINK-10672</td>
+  <td>Default: <code>PIPELINED</code></td>
+</tr>
+<tr>
+  <td><code>savepointPath</code></td>
+  <td>Savepoint restore path. If specified, restores the streaming pipeline from the provided path.</td>
+  <td>Default: None</td>
+</tr>
+<tr>
+  <td><code>allowNonRestoredState</code></td>
+  <td>Flag indicating whether non restored state is allowed if the savepoint contains state for an operator that is no longer part of the pipeline.</td>
+  <td>Default: <code>false</code></td>
 </tr>
 </table>
 
