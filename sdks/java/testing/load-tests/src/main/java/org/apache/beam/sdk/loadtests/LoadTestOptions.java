@@ -56,7 +56,7 @@ public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions
   void setBigQueryTable(String tableName);
 
   @Description("Timeout for a load test expressed in minutes")
-  @Default.Integer(60)
+  @Default.Integer(240)
   Integer getLoadTestTimeout();
 
   void setLoadTestTimeout(Integer timeout);
