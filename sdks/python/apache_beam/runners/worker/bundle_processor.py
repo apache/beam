@@ -122,14 +122,12 @@ class DataInputOperation(RunnerIOOperation):
 
   def process(self, windowed_value):
     primary, residual = self.receivers[0].receive_splittable(windowed_value)
-    print("HERE", primary, residual)
     while residual:
       element, _ = windowed_value.value
       # TODO(SDF): Does this mess with output counters?
       # Do we even ever call bare process()?
       primary, residual = self.receivers[0].receive_splittable(
           windowed_value.with_value((element, residual)))
-#    self.index += 1
 
   def process_encoded(self, encoded_windowed_values):
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
@@ -144,15 +142,6 @@ class DataInputOperation(RunnerIOOperation):
         # Push up or down?
         yield decoded_value.with_value((element, residual))
       self.index += 1
-
-#  def process_splittable(self, windowed_value):
-#    # TODO(SDF): Perf for for returning tuple everywhere.
-#    primary, residual = self.receivers[0].receive_splittable(windowed_value)
-#    if residual is not None:
-#      return (self.index, primary), (self.index, residual)
-#    else:
-#      self.index += 1
-#      return None, None
 
 
 class _StateBackedIterable(object):
@@ -502,6 +491,10 @@ class BundleProcessor(object):
         logging.debug('start %s', op)
         op.start()
 
+      # These are the elements that were (partially) deferred due to
+      # process-initiated checkpointing.
+      deferred_applications = []
+
       # Inject inputs from data plane.
       data_channels = collections.defaultdict(list)
       input_op_by_target = {}
@@ -513,16 +506,23 @@ class BundleProcessor(object):
       for data_channel, expected_targets in data_channels.items():
         for data in data_channel.input_elements(
             instruction_id, expected_targets):
-          for deferred_application in input_op_by_target[
+          for deferred_element in input_op_by_target[
               data.target.primitive_transform_reference
           ].process_encoded(data.data):
             op = input_op_by_target[data.target.primitive_transform_reference]
-            op.process(deferred_application)
+            deferred_applications.append(
+                beam_fn_api_pb2.BundleApplication(
+                    ptransform_id=data.target.primitive_transform_reference,
+                    input_id='ignored',
+                    element=op.windowed_coder_impl.encode(deferred_element)))
 
       # Finish all operations.
       for op in self.ops.values():
         logging.debug('finish %s', op)
         op.finish()
+
+      return deferred_applications
+
     finally:
       self.state_sampler.stop_if_still_running()
 

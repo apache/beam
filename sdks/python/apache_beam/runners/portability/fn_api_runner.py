@@ -502,6 +502,7 @@ class FnApiRunner(runner.PipelineRunner):
         controller, get_buffer, process_bundle_descriptor,
         self._progress_frequency).process_bundle(data_input, data_output)
 
+    last_result = result
     while True:
       timer_inputs = {}
       for transform_id, timer_writes in stage.timer_pcollections:
@@ -528,13 +529,21 @@ class FnApiRunner(runner.PipelineRunner):
                 windowed_key_timer, out, True)
           timer_inputs[transform_id, 'out'] = [out.get()]
           written_timers[:] = []
+
+      for delayed_application in last_result.process_bundle.residual_roots:
+        application = delayed_application.application
+        target = (application.ptransform_id, application.input_id)
+        if target not in timer_inputs:
+          timer_inputs[target] = []
+        timer_inputs[target].append(application.element)
+
       if timer_inputs:
         # The worker will be waiting on these inputs as well.
         for other_input in data_input:
           if other_input not in timer_inputs:
             timer_inputs[other_input] = []
         # TODO(robertwb): merge results
-        BundleManager(
+        last_result = BundleManager(
             controller,
             get_buffer,
             process_bundle_descriptor,
@@ -977,6 +986,7 @@ class BundleManager(object):
 
     if result.error:
       raise RuntimeError(result.error)
+
     return result
 
 
