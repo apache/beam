@@ -36,13 +36,16 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 public class MetadataCoder extends AtomicCoder<Metadata> {
   public static final long UNKNOWN_LAST_MODIFIED_MILLIS = -1L;
 
+  private static final MetadataCoder INSTANCE = new MetadataCoder();
   private static final ResourceIdCoder RESOURCE_ID_CODER = ResourceIdCoder.of();
   private static final VarIntCoder INT_CODER = VarIntCoder.of();
   private static final VarLongCoder LONG_CODER = VarLongCoder.of();
 
-  /** Creates a {@link MetadataCoder}. */
+  private MetadataCoder() {}
+
+  /** Returns the singleton {@link MetadataCoder} instance. */
   public static MetadataCoder of() {
-    return new MetadataCoder();
+    return INSTANCE;
   }
 
   @Override

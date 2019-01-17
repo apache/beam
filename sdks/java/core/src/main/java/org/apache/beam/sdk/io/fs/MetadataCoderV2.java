@@ -30,12 +30,15 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata.Builder;
 /** A {@link Coder} for {@link Metadata} that includes {@link Metadata#lastModifiedMillis()}. */
 @Experimental
 public class MetadataCoderV2 extends AtomicCoder<Metadata> {
+  private static final MetadataCoderV2 INSTANCE = new MetadataCoderV2();
   private static final MetadataCoder V1_CODER = MetadataCoder.of();
   private static final VarLongCoder LONG_CODER = VarLongCoder.of();
 
-  /** Creates a {@link MetadataCoder}. */
-  public static MetadataCoder of() {
-    return new MetadataCoder();
+  private MetadataCoderV2() {}
+
+  /** Returns the singleton {@link MetadataCoderV2} instance. */
+  public static MetadataCoderV2 of() {
+    return INSTANCE;
   }
 
   @Override
