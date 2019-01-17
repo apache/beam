@@ -820,8 +820,7 @@ public class TestPOJOs {
 
   /** The schema for {@link PojoWithNestedArray}. */
   public static final Schema POJO_WITH_NESTED_ARRAY_SCHEMA =
-      Schema.builder().addArrayField("pojos",
-          FieldType.array(
-              FieldType.row(SIMPLE_POJO_SCHEMA)))
-      .build();
+      Schema.builder()
+          .addArrayField("pojos", FieldType.array(FieldType.row(SIMPLE_POJO_SCHEMA)))
+          .build();
 }
