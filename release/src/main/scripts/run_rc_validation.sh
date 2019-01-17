@@ -49,6 +49,8 @@ LOCAL_CLONE_DIR=rc_validations
 BEAM_ROOT_DIR=beam
 GIT_REPO_URL=https://github.com/apache/beam.git
 PYTHON_RC_DOWNLOAD_URL=https://dist.apache.org/repos/dist/dev/beam
+HUB_VERSION=2.5.0
+HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 
 echo "[Input Required] Please enter the release version: "
 read RELEASE
@@ -69,6 +71,25 @@ if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right inputs."
   exit
 fi
+
+echo "=================Checking hub========================"
+if [[ -z `which hub` ]]; then
+  echo "There is no hub installed on your machine."
+  echo "Would you like to install hub with root permission? [y|N]"
+  read confirmation
+  if [[ $confirmation != "y"  ]]; then
+    echo "Refused to install hub. Cannot proceed into next setp."
+    exit
+  fi
+  echo "=================Installing hub======================="
+  wget https://github.com/github/hub/releases/download/v${HUB_VERSION}/${HUB_ARTIFACTS_NAME}.tgz
+  tar zvxvf ${HUB_ARTIFACTS_NAME}.tgz
+  sudo ./${HUB_ARTIFACTS_NAME}/install
+  echo "eval "$(hub alias -s)"" >> ~/.bashrc
+  rm -rf ${HUB_ARTIFACTS_NAME}*
+fi
+hub version
+
 
 echo "====================Cloning Beam Release Branch===================="
 cd ~
