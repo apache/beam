@@ -27,7 +27,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoTypeUrns;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns;
 import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

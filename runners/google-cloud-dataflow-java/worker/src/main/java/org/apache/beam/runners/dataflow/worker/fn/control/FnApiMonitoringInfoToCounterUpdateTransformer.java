@@ -28,7 +28,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.Dataflow
 /**
  * Generic MonitoringInfo to CounterUpdate transformer for FnApi.
  *
- * Delegates work to other transformers implementations for relevant counter types.
+ * <p>Delegates work to other transformers implementations for relevant counter types.
  */
 public class FnApiMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
