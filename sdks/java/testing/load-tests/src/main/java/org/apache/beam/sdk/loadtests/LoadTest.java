@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.loadtests;
 
 import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
+import static org.apache.beam.sdk.loadtests.JobFailure.handleFailure;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.joda.time.Duration;
 
 /**
  * Base class for all load tests. Provides common operations such as initializing source/step
@@ -85,17 +87,20 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
     loadTest();
 
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    PipelineResult pipelineResult = pipeline.run();
+    pipelineResult.waitUntilFinish(Duration.standardMinutes(options.getLoadTestTimeout()));
 
-    LoadTestResult testResult = LoadTestResult.create(result, metricsNamespace, testStartTime);
-
+    LoadTestResult testResult =
+        LoadTestResult.create(pipelineResult, metricsNamespace, testStartTime);
     ConsoleResultPublisher.publish(testResult);
+
+    handleFailure(pipelineResult, testResult);
 
     if (options.getPublishToBigQuery()) {
       publishResultToBigQuery(testResult);
     }
-    return result;
+
+    return pipelineResult;
   }
 
   private void publishResultToBigQuery(LoadTestResult testResult) {
