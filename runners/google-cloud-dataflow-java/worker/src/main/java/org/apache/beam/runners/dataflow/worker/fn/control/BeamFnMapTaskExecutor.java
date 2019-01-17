@@ -404,8 +404,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
               bundleProcessOperation.getPtransformIdToUserStepContext());
 
       counterUpdates =
-          monitoringInfos
-              .stream()
+          monitoringInfos.stream()
               .map(monitoringInfoToCounterUpdateTransformer::transform)
               .filter(Objects::nonNull)
               .collect(Collectors.toList());
