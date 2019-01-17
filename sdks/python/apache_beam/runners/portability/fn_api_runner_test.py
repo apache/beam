@@ -27,6 +27,7 @@ import unittest
 from builtins import range
 
 import apache_beam as beam
+from apache_beam.io import restriction_trackers
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
@@ -336,6 +337,40 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.ParDo(BufferDoFn()))
 
       assert_that(actual, is_buffered_correctly)
+
+  def test_sdf(self):
+
+    class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
+      def initial_restriction(self, element):
+        return (0, len(element))
+
+      def create_tracker(self, restriction):
+        return restriction_trackers.OffsetRestrictionTracker(
+            restriction[0], restriction[1])
+
+      def split(self, element, restriction):
+        return [restriction,]
+
+    class ExpandStringsDoFn(beam.DoFn):
+      def process(self, element, restriction_tracker=ExpandStringsProvider()):
+        assert isinstance(
+            restriction_tracker,
+            restriction_trackers.OffsetRestrictionTracker), restriction_tracker
+        for k in range(*restriction_tracker.current_restriction()):
+          restriction_tracker.try_claim(k)
+          yield element[k]
+          if k % 2 == 1:
+            restriction_tracker.checkpoint_from_process()
+            break
+
+    with self.create_pipeline() as p:
+      actual = (
+          p
+          | beam.Create(['abc', 'xyz'])
+          | beam.ParDo(ExpandStringsDoFn()))
+
+      assert_that(actual, equal_to(list('abcxyz')))
+
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:

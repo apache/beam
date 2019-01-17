@@ -484,6 +484,8 @@ class PerWindowInvoker(DoFnInvoker):
         args_with_placeholders.append(ArgPlaceholder(d))
       elif isinstance(d, core.DoFn.TimerParam):
         args_with_placeholders.append(ArgPlaceholder(d))
+      elif isinstance(d, core.RestrictionProvider):
+        args_with_placeholders.append(ArgPlaceholder(d))
       else:
         # If no more args are present then the value must be passed via kwarg
         try:
@@ -572,6 +574,7 @@ class PerWindowInvoker(DoFnInvoker):
             ('Input value to a stateful DoFn must be a KV tuple; instead, '
              'got %s.') % (windowed_value.value,))
 
+    restriction_tracker2 = None
     # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
     for i, p in self.placeholders:
       if p == core.DoFn.ElementParam:
@@ -586,6 +589,11 @@ class PerWindowInvoker(DoFnInvoker):
       elif isinstance(p, core.DoFn.TimerParam):
         args_for_process[i] = (
             self.user_state_context.get_timer(p.timer_spec, key, window))
+      elif isinstance(p, core.RestrictionProvider):
+        restriction_provider = p
+        restriction_provider_index = i
+        args_for_process[i] = restriction_tracker2 = p.create_tracker(
+            p.initial_restriction(windowed_value.value))
 
     if additional_kwargs:
       if kwargs_for_process is None:
@@ -601,6 +609,16 @@ class PerWindowInvoker(DoFnInvoker):
     else:
       output_processor.process_outputs(
           windowed_value, self.process_method(*args_for_process))
+
+    if restriction_tracker2 and restriction_tracker2._checkpointed:
+      while restriction_tracker2._checkpointed:
+        restriction_tracker2 = restriction_provider.create_tracker(
+            restriction_tracker2._checkpoint_residual)
+        args_for_process[restriction_provider_index] = restriction_tracker2
+        output_processor.process_outputs(
+            windowed_value,
+            self.process_method(*args_for_process, **kwargs_for_process))
+
 
 
 class DoFnRunner(Receiver):

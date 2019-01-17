@@ -80,8 +80,9 @@ class OffsetRestrictionTracker(RestrictionTracker):
     self._range = OffsetRange(start_position, stop_position)
     self._current_position = None
     self._last_claim_attempt = None
+    self._checkpoint_residual = None
     self._checkpointed = False
-    self._lock = threading.Lock()
+    self._lock = threading.RLock()
 
   def check_done(self):
     with self._lock:
@@ -139,3 +140,9 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
       self._range = OffsetRange(self._range.start, end_position)
       return residual_range
+
+  def checkpoint_from_process(self):
+    with self._lock:
+      self._checkpoint_residual = self.checkpoint()
+      self._checkpointed = True
+
