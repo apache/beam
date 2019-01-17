@@ -323,7 +323,6 @@ class DoFnInvoker(object):
                             Stateful DoFn.
     """
     side_inputs = side_inputs or []
-    print(signature.process_method.method_value.func_code)
     default_arg_values = signature.process_method.defaults
     use_simple_invoker = not process_invocation or (
         not side_inputs and not input_args and not input_kwargs and
@@ -676,7 +675,6 @@ class DoFnRunner(Receiver):
     self.do_fn_invoker = DoFnInvoker.create_invoker(
         do_fn_signature, output_processor, self.context, side_inputs, args,
         kwargs, user_state_context=user_state_context)
-    print(self.do_fn_invoker)
 
   def receive(self, windowed_value):
     self.process(windowed_value)
@@ -697,6 +695,7 @@ class DoFnRunner(Receiver):
             self.do_fn_invoker.invoke_process(
                 windowed_value, restriction_tracker=restriction_tracker)
             if restriction_tracker._checkpointed:
+              raise RuntimeError
               restriction = restriction_tracker._checkpoint_residual
               print("Re-invoking with restriction", restriction)
             else:
@@ -706,16 +705,22 @@ class DoFnRunner(Receiver):
     except BaseException as exn:
       self._reraise_augmented(exn)
 
-  # TODD(SDF): Creating a separate method to be explicit about when a residual
-  # may be returned.
-  def process_splittable(self, windowed_value, restriction):
+  # TODD(SDF): Is it bset to create a separate method to be explicit about
+  # when a residual may be returned.
+  def process_splittable(self, windowed_value):
     # TODO(SDF): Pre-explode?
     assert len(windowed_value.windows) == 1
+    element, restriction = windowed_value.value
+    windowed_element = windowed_value.with_value(element)
     restriction_tracker = self.do_fn_invoker.invoke_create_tracker(restriction)
     self.do_fn_invoker.invoke_process(
-        windowed_value, restriction_tracker=restriction_tracker)
+        windowed_element, restriction_tracker=restriction_tracker)
     if restriction_tracker._checkpointed:
-      return restriction_tracker._checkpoint_residual
+      return (
+          restriction_tracker.current_restriction(),
+          restriction_tracker._checkpoint_residual)
+    else:
+      return None, None
 
   def process_user_timer(self, timer_spec, key, window, timestamp):
     try:

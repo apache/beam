@@ -94,11 +94,12 @@ class ConsumerSet(Receiver):
   def receive(self, windowed_value):
     self.update_counters_start(windowed_value)
     for consumer in self.consumers:
-      res = cython.cast(Operation, consumer).process(windowed_value)
-      # TODO(SDF): Better error.
-      # Ensure no attempt to return a checkpoint residual.
-      assert res is None
+      cython.cast(Operation, consumer).process(windowed_value)
     self.update_counters_finish()
+
+  def receive_splittable(self, windowed_value):
+    self.receive(windowed_value)
+    return None, None
 
   def update_counters_start(self, windowed_value):
     self.opcounter.update_from(windowed_value)
@@ -115,10 +116,17 @@ class ConsumerSet(Receiver):
 class SingletonConsumerSet(ConsumerSet):
   def __init__(
       self, counter_factory, step_name, output_index, consumers, coder):
-    super(self, counter_factory, step_name, output_index, [consumer], coder)
+    assert len(consumers) == 1
+    super(SingletonConsumerSet, self).__init__(
+        counter_factory, step_name, output_index, consumers, coder)
+    self.consumer = consumers[0]
 
   def receive(self, windowed_value):
-    return self.consumer.process(windowed_value)
+    self.consumer.process(windowed_value)
+
+  # TODO(SDF): Consider merging with recieve.
+  def receive_splittable(self, windowed_value):
+    return self.consumer.process_splittable(windowed_value)
 
 
 class Operation(object):
@@ -191,6 +199,10 @@ class Operation(object):
   def process(self, o):
     """Process element in operation."""
     pass
+
+  def process_splittable(self, o):
+    self.process(o)
+    return None, None
 
   def finish(self):
     """Finish operation."""
@@ -561,7 +573,7 @@ class DoOperation(Operation):
 
 
 class SdfProcessElements(DoOperation):
-  def process(self, o):
+  def process_splittable(self, o):
     with self.scoped_process_state:
       return self.dofn_runner.process_splittable(o)
 

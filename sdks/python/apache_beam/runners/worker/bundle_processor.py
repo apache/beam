@@ -112,19 +112,25 @@ class DataInputOperation(RunnerIOOperation):
         windowed_coder, target=input_target, data_channel=data_channel)
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
-        operations.ConsumerSet(
+        operations.ConsumerSet.create(
             self.counter_factory, self.name_context.step_name, 0,
             next(iter(itervalues(consumers))), self.windowed_coder)]
 
   def process(self, windowed_value):
-    self.output(windowed_value)
+    primary, residual = self.receivers[0].receive_splittable(windowed_value)
+    print("HERE", primary, residual)
+    while residual:
+      element, _ = windowed_value.value
+      primary, residual = self.receivers[0].receive_splittable(
+          windowed_value.with_value((element, residual)))
 
   def process_encoded(self, encoded_windowed_values):
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
     while input_stream.size() > 0:
       decoded_value = self.windowed_coder_impl.decode_from_stream(
           input_stream, True)
-      self.output(decoded_value)
+      # TODO(SDF): Perf regresssion
+      self.process(decoded_value)
 
 
 class _StateBackedIterable(object):
@@ -800,7 +806,16 @@ def create(*args):
 @BeamTransformFactory.register_urn(
     common_urns.sdf_components.PROCESS_ELEMENTS.urn,
     beam_runner_api_pb2.ParDoPayload)
-def create(*args):
+def create(factory, transform_id, transform_proto, parameter, consumers):
+  assert parameter.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
+  serialized_fn = parameter.do_fn.spec.payload
+  return _create_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      serialized_fn, parameter,
+      operation_cls=operations.SdfProcessElements)
+
+
+
 
   class ProxyDoFn(beam.DoFn):
     def __init__(self, fn, restriction_provider):
@@ -864,7 +879,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 
 def _create_pardo_operation(
     factory, transform_id, transform_proto, consumers,
-    serialized_fn, pardo_proto=None):
+    serialized_fn, pardo_proto=None, operation_cls=operations.DoOperation):
 
   if pardo_proto and pardo_proto.side_inputs:
     input_tags_to_coders = factory.get_input_coders(transform_proto)
@@ -944,7 +959,7 @@ def _create_pardo_operation(
       output_coders=[output_coders[tag] for tag in output_tags])
 
   return factory.augment_oldstyle_op(
-      operations.DoOperation(
+      operation_cls(
           transform_proto.unique_name,
           spec,
           factory.counter_factory,

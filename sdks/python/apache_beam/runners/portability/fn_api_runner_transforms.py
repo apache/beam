@@ -562,13 +562,13 @@ def expand_sdf(stages, context):
           return new_id
 
 
-        def make_stage(transform_id):
+        def make_stage(transform_id, extra_must_follow=()):
           transform = context.components.transforms[transform_id]
           return Stage(
               transform.unique_name,
               [transform],
               stage.downstream_side_inputs,
-              stage.must_follow,
+              union(stage.must_follow, frozenset(extra_must_follow)),
               parent=stage,
               environment=stage.environment)
 
@@ -617,13 +617,10 @@ def expand_sdf(stages, context):
             urn=common_urns.sdf_components.PROCESS_ELEMENTS.urn,
             inputs=dict(transform.inputs, **{main_input_tag: split_pcoll_id}))
 
-        print(context.components.transforms[pair_transform_id])
-        print(context.components.transforms[split_transform_id])
-        print(context.components.transforms[process_transform_id])
-
         yield make_stage(pair_transform_id)
-        yield make_stage(split_transform_id)
-        yield make_stage(process_transform_id)
+        split_stage = make_stage(split_transform_id)
+        yield split_stage
+        yield make_stage(process_transform_id, extra_must_follow=[split_stage])
 
       else:
         yield stage
