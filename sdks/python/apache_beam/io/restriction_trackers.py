@@ -78,7 +78,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def __init__(self, start_position, stop_position):
     self._range = OffsetRange(start_position, stop_position)
-    self._current_position = None
+    self._current_position = None  # start_position - 1?
     self._last_claim_attempt = None
     self._checkpoint_residual = None
     self._checkpointed = False
@@ -107,6 +107,11 @@ class OffsetRestrictionTracker(RestrictionTracker):
       return self._range.stop
 
   def try_claim(self, position):
+    res = self.try_claim0(position)
+    print("try_claim", position, self._current_position, "range", self._range.start, self._range.stop, res)
+    return res
+
+  def try_claim0(self, position):
     with self._lock:
       if self._last_claim_attempt and position <= self._last_claim_attempt:
         raise ValueError(
@@ -146,3 +151,17 @@ class OffsetRestrictionTracker(RestrictionTracker):
       self._checkpoint_residual = self.checkpoint()
       self._checkpointed = True
 
+  def try_split(self, fraction):
+    with self._lock:
+      if not self._checkpointed:
+        if self._current_position is None:
+          cur = self._range.start - 1
+        else:
+          cur = self._current_position
+        if cur < self._range.stop - 1:
+          split_point = cur + int(max(1, (self._range.stop - cur) * fraction))
+          print("cur", cur, "self._range", self._range.start, self._range.stop, "fraction", fraction, "split_point", split_point)
+          if split_point < self._range.stop:
+            prev_stop, self._range.stop = self._range.stop, split_point
+            return (self._range.start, split_point), (split_point, prev_stop)
+      return None, None

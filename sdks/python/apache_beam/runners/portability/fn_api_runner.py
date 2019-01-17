@@ -539,7 +539,9 @@ class FnApiRunner(runner.PipelineRunner):
       for delayed_application in last_result.process_bundle.residual_roots:
         add_application(delayed_application.application)
 
+      prev_stops = collections.defaultdict(lambda: sys.maxint)
       for split in splits:
+        print("SPLIT", split)
         for delayed_application in split.residual_roots:
           add_application(delayed_application.application)
         for buffer_split in split.buffer_splits:
@@ -553,7 +555,10 @@ class FnApiRunner(runner.PipelineRunner):
           input_stream = create_InputStream(''.join(buffer))
           output_stream = create_OutputStream()
           index = 0
+          prev_stop = prev_stops[buffer_split.ptransform_id]
           while input_stream.size() > 0:
+            if index > prev_stop:
+              break
             element = coder_impl.decode_from_stream(input_stream, True)
             print(element, index, index >= buffer_split.first_residual_element)
             if index >= buffer_split.first_residual_element:
@@ -561,6 +566,8 @@ class FnApiRunner(runner.PipelineRunner):
             index += 1
           timer_inputs[buffer_split.ptransform_id, buffer_split.input_id].append(
               output_stream.get())
+          prev_stops[buffer_split.ptransform_id] = buffer_split.last_primary_element
+
 
       if timer_inputs:
         # The worker will be waiting on these inputs as well.

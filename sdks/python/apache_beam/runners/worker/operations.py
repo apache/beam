@@ -101,6 +101,9 @@ class ConsumerSet(Receiver):
     self.receive(windowed_value)
     return None, None
 
+  def try_split(self, fraction_of_remainder):
+    return None, None
+
   def update_counters_start(self, windowed_value):
     self.opcounter.update_from(windowed_value)
 
@@ -127,6 +130,9 @@ class SingletonConsumerSet(ConsumerSet):
   # TODO(SDF): Consider merging with recieve.
   def receive_splittable(self, windowed_value):
     return self.consumer.process_splittable(windowed_value)
+
+  def try_split(self, fraction_of_remainder):
+    return self.consumer.try_split(fraction_of_remainder)
 
 
 class Operation(object):
@@ -202,6 +208,9 @@ class Operation(object):
 
   def process_splittable(self, o):
     self.process(o)
+    return None, None
+
+  def try_split(self, fraction_of_remainder):
     return None, None
 
   def finish(self):
@@ -573,9 +582,13 @@ class DoOperation(Operation):
 
 
 class SdfProcessElements(DoOperation):
+
   def process_splittable(self, o):
     with self.scoped_process_state:
       return self.dofn_runner.process_splittable(o)
+
+  def try_split(self, fraction_of_remainder):
+    return self.dofn_runner.try_split(fraction_of_remainder)
 
 
 class DoFnRunnerReceiver(Receiver):

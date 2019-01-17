@@ -357,20 +357,24 @@ class FnApiRunnerTest(unittest.TestCase):
             restriction_tracker,
             restriction_trackers.OffsetRestrictionTracker), restriction_tracker
         for k in range(*restriction_tracker.current_restriction()):
-          time.sleep(.2)
-          restriction_tracker.try_claim(k)
+          time.sleep(.03)
+          if not restriction_tracker.try_claim(k):
+            return
           yield element[k]
-          if k % 2 == 1:
+          if k % 2 == 1 and False:
             restriction_tracker.checkpoint_from_process()
             break
 
     with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
       actual = (
           p
-          | beam.Create(['abc', 'xyz'])
+          | beam.Create(data)
           | beam.ParDo(ExpandStringsDoFn()))
 
-      assert_that(actual, equal_to(list('abcxyz')))
+      import logging
+      actual | beam.Map(logging.warn)
+      assert_that(actual, equal_to(list(''.join(data))))
 
 
   def test_group_by_key(self):

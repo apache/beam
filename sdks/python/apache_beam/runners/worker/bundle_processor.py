@@ -143,6 +143,7 @@ class DataInputOperation(RunnerIOOperation):
           input_stream, True)
       # TODO(SDF): Perf regresssion
       primary, residual = self.receivers[0].receive_splittable(decoded_value)
+      # TODO(SDF): Unused primary.
       if residual:
         element, _ = decoded_value.value
         # TODO(SDF): Here we switch from primary + residual to applications.
@@ -150,21 +151,26 @@ class DataInputOperation(RunnerIOOperation):
         yield decoded_value.with_value((element, residual))
 
   def try_split(self, fraction_of_remainder, total_buffer_size=None):
+    print("TRY_SPLIT", fraction_of_remainder)
     with self.splitting_lock:
       if not total_buffer_size:
-        total_buffer_size = self.index + 1
+        total_buffer_size = 4 #self.index + 1
       elif self.stop and total_buffer_size > self.stop:
         total_buffer_size = self.stop
-      target = (total_buffer_size - self.index) * fraction_of_remainder
-      if int(target) == self.index:
-        target = int(target) + 1
-      else:
-        target = int(target)
-      if target == self.stop:
+      stop_offset = (total_buffer_size - self.index) * fraction_of_remainder
+      if int(stop_offset) == 0:
+        element_primary, element_residual = self.receivers[0].try_split(
+            stop_offset)
+        if element_primary:
+          self.stop = self.index + 1
+          return self.stop - 2, [element_primary], [element_residual], self.stop
+
+      desired_stop = max(int(stop_offset), 1) + self.index
+      if desired_stop == self.stop:
         # Already split as much as we can.
         return
-      self.stop = target
-      return [], self.stop - 1, self.stop, []
+      self.stop = desired_stop
+      return self.stop - 1, [], [], self.stop
 
 
 class _StateBackedIterable(object):
@@ -562,14 +568,16 @@ class BundleProcessor(object):
                                split_request.total_buffer_size.get(
                                    op.target.primitive_transform_reference))
           if split:
-            (primary_elements, primary_end, residual_start, residual_elements
+            import pprint
+            pprint.pprint(split)
+            (primary_end, primary_elements, residual_elements, residual_start,
              ) = split
             encode = op.windowed_coder_impl.encode
             ptransform_id = op.target.primitive_transform_reference
             def application(element):
               return beam_fn_api_pb2.BundleApplication(
                   ptransform_id=op.target.primitive_transform_reference,
-                  input_id=data.target.name,
+                  input_id=op.target.name,
                   element=encode(element))
             split_response.primary_roots.extend(
                 application(element) for element in primary_elements)

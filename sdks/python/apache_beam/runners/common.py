@@ -24,6 +24,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
+import threading
 import traceback
 from builtins import next
 from builtins import object
@@ -648,6 +649,7 @@ class DoFnRunner(Receiver):
 
     do_fn_signature = DoFnSignature(fn)
     self.is_splittable = do_fn_signature.is_splittable_dofn()
+    self.splitting_lock = threading.Lock()
 
     # Optimize for the common case.
     main_receivers = tagged_receivers[None]
@@ -705,21 +707,42 @@ class DoFnRunner(Receiver):
     except BaseException as exn:
       self._reraise_augmented(exn)
 
-  # TODD(SDF): Is it bset to create a separate method to be explicit about
+  # TODD(SDF): Is it best to create a separate method to be explicit about
   # when a residual may be returned.
   def process_splittable(self, windowed_value):
     # TODO(SDF): Pre-explode?
     assert len(windowed_value.windows) == 1
     element, restriction = windowed_value.value
     windowed_element = windowed_value.with_value(element)
-    restriction_tracker = self.do_fn_invoker.invoke_create_tracker(restriction)
+    # TODO(SDF): Do we want to allow mutation of the element?
+    # (E.g. it could be nice to shift bulky description to the portion
+    # that can be distributed.)
+    self.restriction_tracker = self.do_fn_invoker.invoke_create_tracker(
+        restriction)
+    self.current_windowed_value = windowed_value
     self.do_fn_invoker.invoke_process(
-        windowed_element, restriction_tracker=restriction_tracker)
-    if restriction_tracker._checkpointed:
-      return (
-          restriction_tracker.current_restriction(),
-          restriction_tracker._checkpoint_residual)
-    else:
+        windowed_element, restriction_tracker=self.restriction_tracker)
+    with self.splitting_lock:
+      self.current_windowed_value = None
+      if self.restriction_tracker._checkpointed:
+        # TODO(SDF): Pair with element here?
+        return (
+            self.restriction_tracker.current_restriction(),
+            self.restriction_tracker._checkpoint_residual)
+      else:
+        return None, None
+
+  def try_split(self, fraction):
+    with self.splitting_lock:
+      if self.current_windowed_value:
+        primary, residual = self.restriction_tracker.try_split(fraction)
+        element, _ = self.current_windowed_value.value
+        # TODO(SDF): Both or none
+        assert (primary is None) == (residual is None)
+        if primary:
+            return (
+                self.current_windowed_value.with_value((element, primary)),
+                self.current_windowed_value.with_value((element, residual)))
       return None, None
 
   def process_user_timer(self, timer_spec, key, window, timestamp):
