@@ -322,6 +322,7 @@ class FnApiRunner(runner.PipelineRunner):
         phases=[fn_api_runner_transforms.annotate_downstream_side_inputs,
                 fn_api_runner_transforms.fix_side_input_pcoll_coders,
                 fn_api_runner_transforms.lift_combiners,
+                fn_api_runner_transforms.expand_sdf,
                 fn_api_runner_transforms.expand_gbk,
                 fn_api_runner_transforms.sink_flattens,
                 fn_api_runner_transforms.greedily_fuse,
@@ -413,7 +414,7 @@ class FnApiRunner(runner.PipelineRunner):
             data_spec.api_service_descriptor.url = (
                 data_api_service_descriptor.url)
           transform.spec.payload = data_spec.SerializeToString()
-        elif transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+        elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           for tag, si in payload.side_inputs.items():
@@ -496,11 +497,15 @@ class FnApiRunner(runner.PipelineRunner):
 
     result = BundleManager(
         controller, get_buffer, process_bundle_descriptor,
-        self._progress_frequency).process_bundle(data_input, data_output)
+        self._progress_frequency).process_bundle(
+            data_input, data_output)
 
+    last_result = result
     while True:
-      timer_inputs = {}
+      deferred_inputs = collections.defaultdict(list)
       for transform_id, timer_writes in stage.timer_pcollections:
+
+        # Queue any set timers as new inputs.
         windowed_timer_coder_impl = context.coders[
             pipeline_components.pcollections[timer_writes].coder_id].get_impl()
         written_timers = get_buffer(
@@ -522,20 +527,37 @@ class FnApiRunner(runner.PipelineRunner):
           for windowed_key_timer in timers_by_key_and_window.values():
             windowed_timer_coder_impl.encode_to_stream(
                 windowed_key_timer, out, True)
-          timer_inputs[transform_id, 'out'] = [out.get()]
+          deferred_inputs[transform_id, 'out'] = [out.get()]
           written_timers[:] = []
-      if timer_inputs:
+
+      # Queue any delayed bundle applications.
+      for delayed_application in last_result.process_bundle.residual_roots:
+        # Find the io transform that feeds this transform.
+        # TODO(SDF): Memoize?
+        application = delayed_application.application
+        input_pcoll = process_bundle_descriptor.transforms[
+            application.ptransform_id].inputs[application.input_id]
+        for input_id, proto in process_bundle_descriptor.transforms.items():
+          if (proto.spec.urn == bundle_processor.DATA_INPUT_URN
+              and input_pcoll in proto.outputs.values()):
+            deferred_inputs[input_id, 'out'].append(application.element)
+            break
+        else:
+          raise RuntimeError(
+              'No IO transform feeds %s' % application.ptransform_id)
+
+      if deferred_inputs:
         # The worker will be waiting on these inputs as well.
         for other_input in data_input:
-          if other_input not in timer_inputs:
-            timer_inputs[other_input] = []
+          if other_input not in deferred_inputs:
+            deferred_inputs[other_input] = []
         # TODO(robertwb): merge results
-        BundleManager(
+        last_result = BundleManager(
             controller,
             get_buffer,
             process_bundle_descriptor,
             self._progress_frequency,
-            True).process_bundle(timer_inputs, data_output)
+            True).process_bundle(deferred_inputs, data_output)
       else:
         break
 

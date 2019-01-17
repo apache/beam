@@ -30,6 +30,7 @@ from tenacity import retry
 from tenacity import stop_after_attempt
 
 import apache_beam as beam
+from apache_beam.io import restriction_trackers
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
@@ -350,6 +351,43 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.ParDo(BufferDoFn()))
 
       assert_that(actual, is_buffered_correctly)
+
+  def test_sdf(self):
+
+    class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
+      def initial_restriction(self, element):
+        return (0, len(element))
+
+      def create_tracker(self, restriction):
+        return restriction_trackers.OffsetRestrictionTracker(
+            restriction[0], restriction[1])
+
+      def split(self, element, restriction):
+        start, end = restriction
+        middle = (end - start) // 2
+        return [(start, middle), (middle, end)]
+
+    class ExpandStringsDoFn(beam.DoFn):
+      def process(self, element, restriction_tracker=ExpandStringsProvider()):
+        assert isinstance(
+            restriction_tracker,
+            restriction_trackers.OffsetRestrictionTracker), restriction_tracker
+        for k in range(*restriction_tracker.current_restriction()):
+          if not restriction_tracker.try_claim(k):
+            return
+          yield element[k]
+          if k % 2 == 1:
+            restriction_tracker.defer_remainder()
+            break
+
+    with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+      actual = (
+          p
+          | beam.Create(data)
+          | beam.ParDo(ExpandStringsDoFn()))
+
+      assert_that(actual, equal_to(list(''.join(data))))
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:

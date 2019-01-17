@@ -45,6 +45,7 @@ cdef class Operation(object):
   cdef object consumers
   cdef readonly counter_factory
   cdef public metrics_container
+  cdef public execution_context
   # Public for access by Fn harness operations.
   # TODO(robertwb): Cythonize FnHarness.
   cdef public list receivers
@@ -89,6 +90,7 @@ cdef class DoOperation(Operation):
   cdef object user_state_context
   cdef public dict timer_inputs
   cdef dict timer_specs
+  cdef public object input_info
 
 
 cdef class CombineOperation(Operation):

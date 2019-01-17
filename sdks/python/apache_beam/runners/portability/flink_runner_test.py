@@ -211,6 +211,9 @@ if __name__ == '__main__':
                 counter_name, line)
         )
 
+    def test_sdf(self):
+      raise unittest.SkipTest("BEAM-2939")
+
     # Inherits all other tests.
 
   # Run the tests.

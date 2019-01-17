@@ -24,6 +24,7 @@ import collections
 import functools
 import logging
 from builtins import object
+from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam.portability import common_urns
@@ -35,9 +36,21 @@ from apache_beam.utils import proto_utils
 # This module is experimental. No backwards-compatibility guarantees.
 
 
-KNOWN_COMPOSITES = frozenset(
-    [common_urns.primitives.GROUP_BY_KEY.urn,
-     common_urns.composites.COMBINE_PER_KEY.urn])
+KNOWN_COMPOSITES = frozenset([
+    common_urns.primitives.GROUP_BY_KEY.urn,
+    common_urns.composites.COMBINE_PER_KEY.urn])
+
+COMBINE_URNS = frozenset([
+    common_urns.composites.COMBINE_PER_KEY.urn,
+    common_urns.combine_components.COMBINE_PGBKCV.urn,
+    common_urns.combine_components.COMBINE_MERGE_ACCUMULATORS.urn,
+    common_urns.combine_components.COMBINE_EXTRACT_OUTPUTS.urn])
+
+PAR_DO_URNS = frozenset([
+    common_urns.primitives.PAR_DO.urn,
+    common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
+    common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+    common_urns.sdf_components.PROCESS_ELEMENTS.urn])
 
 IMPULSE_BUFFER = b'impulse'
 
@@ -76,15 +89,11 @@ class Stage(object):
 
   @staticmethod
   def _extract_environment(transform):
-    if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+    if transform.spec.urn in PAR_DO_URNS:
       pardo_payload = proto_utils.parse_Bytes(
           transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
       return pardo_payload.do_fn.environment_id
-    elif transform.spec.urn in (
-        common_urns.composites.COMBINE_PER_KEY.urn,
-        common_urns.combine_components.COMBINE_PGBKCV.urn,
-        common_urns.combine_components.COMBINE_MERGE_ACCUMULATORS.urn,
-        common_urns.combine_components.COMBINE_EXTRACT_OUTPUTS.urn):
+    elif transform.spec.urn in COMBINE_URNS:
       combine_payload = proto_utils.parse_Bytes(
           transform.spec.payload, beam_runner_api_pb2.CombinePayload)
       return combine_payload.combine_fn.environment_id
@@ -137,7 +146,7 @@ class Stage(object):
 
   def side_inputs(self):
     for transform in self.transforms:
-      if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+      if transform.spec.urn in PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
         for side_input in payload.side_inputs:
@@ -145,7 +154,7 @@ class Stage(object):
 
   def has_as_main_input(self, pcoll):
     for transform in self.transforms:
-      if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+      if transform.spec.urn in PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
         local_side_inputs = payload.side_inputs
@@ -681,6 +690,108 @@ def lift_combiners(stages, context):
       yield stage
 
 
+def expand_sdf(stages, context):
+  """Transforms splitable DoFns into pair+split+read."""
+  for stage in stages:
+    assert len(stage.transforms) == 1
+    transform = stage.transforms[0]
+    if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+
+      pardo_payload = proto_utils.parse_Bytes(
+          transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+
+      if pardo_payload.splittable:
+
+        def copy_like(protos, original, suffix='_copy', **kwargs):
+          if isinstance(original, (str, unicode)):
+            key = original
+            original = protos[original]
+          else:
+            key = 'component'
+          new_id = unique_name(protos, key + suffix)
+          protos[new_id].CopyFrom(original)
+          proto = protos[new_id]
+          for name, value in kwargs.items():
+            if isinstance(value, dict):
+              getattr(proto, name).clear()
+              getattr(proto, name).update(value)
+            elif isinstance(value, list):
+              del getattr(proto, name)[:]
+              getattr(proto, name).extend(value)
+            elif name == 'urn':
+              proto.spec.urn = value
+            else:
+              setattr(proto, name, value)
+          return new_id
+
+        def make_stage(base_stage, transform_id, extra_must_follow=()):
+          transform = context.components.transforms[transform_id]
+          return Stage(
+              transform.unique_name,
+              [transform],
+              base_stage.downstream_side_inputs,
+              union(base_stage.must_follow, frozenset(extra_must_follow)),
+              parent=base_stage,
+              environment=base_stage.environment)
+
+        main_input_tag = only_element(tag for tag in transform.inputs.keys()
+                                      if tag not in pardo_payload.side_inputs)
+        main_input_id = transform.inputs[main_input_tag]
+        element_coder_id = context.components.pcollections[
+            main_input_id].coder_id
+        paired_coder_id = context.add_or_get_coder_id(
+            beam_runner_api_pb2.Coder(
+                spec=beam_runner_api_pb2.SdkFunctionSpec(
+                    spec=beam_runner_api_pb2.FunctionSpec(
+                        urn=common_urns.coders.KV.urn)),
+                component_coder_ids=[element_coder_id,
+                                     pardo_payload.restriction_coder_id]))
+
+        paired_pcoll_id = copy_like(
+            context.components.pcollections,
+            main_input_id,
+            '_paired',
+            coder_id=paired_coder_id)
+        pair_transform_id = copy_like(
+            context.components.transforms,
+            transform,
+            unique_name=transform.unique_name + '/PairWithRestriction',
+            urn=common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
+            outputs={'out': paired_pcoll_id})
+
+        split_pcoll_id = copy_like(
+            context.components.pcollections,
+            main_input_id,
+            '_split',
+            coder_id=paired_coder_id)
+        split_transform_id = copy_like(
+            context.components.transforms,
+            transform,
+            unique_name=transform.unique_name + '/SplitRestriction',
+            urn=common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+            inputs=dict(transform.inputs, **{main_input_tag: paired_pcoll_id}),
+            outputs={'out': split_pcoll_id})
+
+        process_transform_id = copy_like(
+            context.components.transforms,
+            transform,
+            unique_name=transform.unique_name + '/Process',
+            urn=common_urns.sdf_components.PROCESS_ELEMENTS.urn,
+            inputs=dict(transform.inputs, **{main_input_tag: split_pcoll_id}))
+
+        yield make_stage(stage, pair_transform_id)
+        split_stage = make_stage(stage, split_transform_id)
+        yield split_stage
+        yield make_stage(
+            stage, process_transform_id, extra_must_follow=[split_stage])
+
+      else:
+        yield stage
+
+    else:
+      yield stage
+
+
 def expand_gbk(stages, pipeline_context):
   """Transforms each GBK into a write followed by a read.
   """
@@ -861,6 +972,7 @@ def greedily_fuse(stages, pipeline_context):
         fuse(producer, consumer)
       else:
         # If we can't fuse, do a read + write.
+        pipeline_context.length_prefix_pcoll_coders(pcoll)
         buffer_id = create_buffer_id(pcoll)
         if write_pcoll is None:
           write_pcoll = Stage(
@@ -994,7 +1106,7 @@ def inject_timer_pcollections(stages, pipeline_context):
   """
   for stage in stages:
     for transform in list(stage.transforms):
-      if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+      if transform.spec.urn in PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
         for tag, spec in payload.timer_specs.items():
