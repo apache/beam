@@ -323,6 +323,7 @@ class FnApiRunner(runner.PipelineRunner):
         fn_api_runner_transforms.annotate_downstream_side_inputs,
         fn_api_runner_transforms.fix_side_input_pcoll_coders,
         fn_api_runner_transforms.lift_combiners,
+        fn_api_runner_transforms.expand_sdf,
         fn_api_runner_transforms.expand_gbk,
         fn_api_runner_transforms.sink_flattens,
         fn_api_runner_transforms.greedily_fuse,

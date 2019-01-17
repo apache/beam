@@ -82,6 +82,7 @@ cdef class ImpulseReadOperation(Operation):
 
 
 cdef class DoOperation(Operation):
+  # TODO(SDF): type dofn_runner
   cdef object dofn_runner
   cdef Receiver dofn_receiver
   cdef object tagged_receivers

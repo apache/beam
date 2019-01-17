@@ -323,6 +323,7 @@ class DoFnInvoker(object):
                             Stateful DoFn.
     """
     side_inputs = side_inputs or []
+    print(signature.process_method.method_value.func_code)
     default_arg_values = signature.process_method.defaults
     use_simple_invoker = not process_invocation or (
         not side_inputs and not input_args and not input_kwargs and
@@ -484,8 +485,6 @@ class PerWindowInvoker(DoFnInvoker):
         args_with_placeholders.append(ArgPlaceholder(d))
       elif isinstance(d, core.DoFn.TimerParam):
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif isinstance(d, core.RestrictionProvider):
-        args_with_placeholders.append(ArgPlaceholder(d))
       else:
         # If no more args are present then the value must be passed via kwarg
         try:
@@ -525,6 +524,7 @@ class PerWindowInvoker(DoFnInvoker):
         raise ValueError(
             'A RestrictionTracker %r was provided but DoFn does not have a '
             'RestrictionTrackerParam defined' % restriction_tracker)
+      # TODO(SDF): Positional argument supported?
       additional_kwargs[restriction_tracker_param] = restriction_tracker
     if self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:
@@ -574,7 +574,6 @@ class PerWindowInvoker(DoFnInvoker):
             ('Input value to a stateful DoFn must be a KV tuple; instead, '
              'got %s.') % (windowed_value.value,))
 
-    restriction_tracker2 = None
     # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
     for i, p in self.placeholders:
       if p == core.DoFn.ElementParam:
@@ -589,11 +588,6 @@ class PerWindowInvoker(DoFnInvoker):
       elif isinstance(p, core.DoFn.TimerParam):
         args_for_process[i] = (
             self.user_state_context.get_timer(p.timer_spec, key, window))
-      elif isinstance(p, core.RestrictionProvider):
-        restriction_provider = p
-        restriction_provider_index = i
-        args_for_process[i] = restriction_tracker2 = p.create_tracker(
-            p.initial_restriction(windowed_value.value))
 
     if additional_kwargs:
       if kwargs_for_process is None:
@@ -609,16 +603,6 @@ class PerWindowInvoker(DoFnInvoker):
     else:
       output_processor.process_outputs(
           windowed_value, self.process_method(*args_for_process))
-
-    if restriction_tracker2 and restriction_tracker2._checkpointed:
-      while restriction_tracker2._checkpointed:
-        restriction_tracker2 = restriction_provider.create_tracker(
-            restriction_tracker2._checkpoint_residual)
-        args_for_process[restriction_provider_index] = restriction_tracker2
-        output_processor.process_outputs(
-            windowed_value,
-            self.process_method(*args_for_process, **kwargs_for_process))
-
 
 
 class DoFnRunner(Receiver):
@@ -664,6 +648,7 @@ class DoFnRunner(Receiver):
     self.context = DoFnContext(step_name, state=state)
 
     do_fn_signature = DoFnSignature(fn)
+    self.is_splittable = do_fn_signature.is_splittable_dofn()
 
     # Optimize for the common case.
     main_receivers = tagged_receivers[None]
@@ -691,15 +676,46 @@ class DoFnRunner(Receiver):
     self.do_fn_invoker = DoFnInvoker.create_invoker(
         do_fn_signature, output_processor, self.context, side_inputs, args,
         kwargs, user_state_context=user_state_context)
+    print(self.do_fn_invoker)
 
   def receive(self, windowed_value):
     self.process(windowed_value)
 
   def process(self, windowed_value):
     try:
-      self.do_fn_invoker.invoke_process(windowed_value)
+      if self.is_splittable:
+          # TODO(SDF): Pre-explode?
+          assert len(windowed_value.windows) == 1
+          # We're not is a position to return residuals, keep invoking
+          # process until the SDF is exhausted.
+          # TODO(SDF): Should this be supported?
+          restriction = self.do_fn_invoker.invoke_initial_restriction(
+              windowed_value.value)
+          while True:
+            restriction_tracker = self.do_fn_invoker.invoke_create_tracker(
+                restriction)
+            self.do_fn_invoker.invoke_process(
+                windowed_value, restriction_tracker=restriction_tracker)
+            if restriction_tracker._checkpointed:
+              restriction = restriction_tracker._checkpoint_residual
+              print("Re-invoking with restriction", restriction)
+            else:
+              break
+      else:
+          self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
       self._reraise_augmented(exn)
+
+  # TODD(SDF): Creating a separate method to be explicit about when a residual
+  # may be returned.
+  def process_splittable(self, windowed_value, restriction):
+    # TODO(SDF): Pre-explode?
+    assert len(windowed_value.windows) == 1
+    restriction_tracker = self.do_fn_invoker.invoke_create_tracker(restriction)
+    self.do_fn_invoker.invoke_process(
+        windowed_value, restriction_tracker=restriction_tracker)
+    if restriction_tracker._checkpointed:
+      return restriction_tracker._checkpoint_residual
 
   def process_user_timer(self, timer_spec, key, window, timestamp):
     try:

@@ -72,6 +72,14 @@ class ConsumerSet(Receiver):
   the other edge.
   ConsumerSet are attached to the outputting Operation.
   """
+  @staticmethod
+  def create(counter_factory, step_name, output_index, consumers, coder):
+    if len(consumers) == 1:
+      return SingletonConsumerSet(
+          counter_factory, step_name, output_index, consumers, coder)
+    else:
+      return ConsumerSet(
+          counter_factory, step_name, output_index, consumers, coder)
 
   def __init__(
       self, counter_factory, step_name, output_index, consumers, coder):
@@ -86,7 +94,10 @@ class ConsumerSet(Receiver):
   def receive(self, windowed_value):
     self.update_counters_start(windowed_value)
     for consumer in self.consumers:
-      cython.cast(Operation, consumer).process(windowed_value)
+      res = cython.cast(Operation, consumer).process(windowed_value)
+      # TODO(SDF): Better error.
+      # Ensure no attempt to return a checkpoint residual.
+      assert res is None
     self.update_counters_finish()
 
   def update_counters_start(self, windowed_value):
@@ -99,6 +110,15 @@ class ConsumerSet(Receiver):
     return '%s[%s.out%s, coder=%s, len(consumers)=%s]' % (
         self.__class__.__name__, self.step_name, self.output_index, self.coder,
         len(self.consumers))
+
+
+class SingletonConsumerSet(ConsumerSet):
+  def __init__(
+      self, counter_factory, step_name, output_index, consumers, coder):
+    super(self, counter_factory, step_name, output_index, [consumer], coder)
+
+  def receive(self, windowed_value):
+    return self.consumer.process(windowed_value)
 
 
 class Operation(object):
@@ -180,7 +200,8 @@ class Operation(object):
     self.metrics_container.reset()
 
   def output(self, windowed_value, output_index=0):
-    cython.cast(Receiver, self.receivers[output_index]).receive(windowed_value)
+    return cython.cast(
+        Receiver, self.receivers[output_index]).receive(windowed_value)
 
   def add_receiver(self, operation, output_index=0):
     """Adds a receiver operation for the specified output."""
@@ -537,6 +558,12 @@ class DoOperation(Operation):
         )
         infos[monitoring_infos.to_key(mi)] = mi
     return infos
+
+
+class SdfProcessElements(DoOperation):
+  def process(self, o):
+    with self.scoped_process_state:
+      return self.dofn_runner.process_splittable(o)
 
 
 class DoFnRunnerReceiver(Receiver):

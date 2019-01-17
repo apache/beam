@@ -43,6 +43,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners import common
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.worker import operation_specs
@@ -584,6 +585,7 @@ class BeamTransformFactory(object):
     return creator(self, transform_id, transform_proto, payload, consumers)
 
   def get_coder(self, coder_id):
+   try:
     if coder_id not in self.descriptor.coders:
       raise KeyError("No such coder: %s" % coder_id)
     coder_proto = self.descriptor.coders[coder_id]
@@ -593,6 +595,10 @@ class BeamTransformFactory(object):
       # No URN, assume cloud object encoding json bytes.
       return operation_specs.get_coder_from_spec(
           json.loads(coder_proto.spec.spec.payload))
+   except:
+    print("CODER_ID", coder_id)
+    print(dict(self.descriptor.coders))
+    raise
 
   def get_windowed_coder(self, pcoll_id):
     coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
@@ -756,6 +762,94 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 def create(factory, transform_id, transform_proto, serialized_fn, consumers):
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers, serialized_fn)
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
+    beam_runner_api_pb2.ParDoPayload)
+def create(*args):
+
+  class CreateRestriction(beam.DoFn):
+    def __init__(self, fn, restriction_provider):
+      self.restriction_provider = restriction_provider
+
+    def process(self, element, *args, **kwargs):
+      yield element, self.restriction_provider.initial_restriction(element)
+
+  return _create_sdf_operation(CreateRestriction, *args)
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+    beam_runner_api_pb2.ParDoPayload)
+def create(*args):
+
+  class SplitRestriction(beam.DoFn):
+    def __init__(self, fn, restriction_provider):
+      self.restriction_provider = restriction_provider
+
+    def process(self, element_restriction, *args, **kwargs):
+      element, restriction = element_restriction
+      # TODO: parts?
+      for part in self.restriction_provider.split(element, restriction):
+        yield element, part
+
+  return _create_sdf_operation(SplitRestriction, *args)
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.sdf_components.PROCESS_ELEMENTS.urn,
+    beam_runner_api_pb2.ParDoPayload)
+def create(*args):
+
+  class ProxyDoFn(beam.DoFn):
+    def __init__(self, fn, restriction_provider):
+      self.fn = fn
+      self.restriction_provider = restriction_provider
+
+    def start_bundle(self):
+      return self.fn.start_bundle()
+
+    def process(self, element_restriction, *args, **kwargs):
+      element, restriction = element_restriction
+      tracker = self.restriction_provider.create_tracker(restriction)
+      print(args, kwargs)
+      def swap(value):
+        if isinstance(value, beam.transforms.core.RestrictionProvider):
+          return tracker
+        else:
+          return value
+      args = [swap(arg) for arg in args]
+      kwargs = {key: swap(value) for key, value in kwargs}
+
+      # TODO: Not in args or kwargs.
+      results = self.fn.process(element, *args, restriction_tracker=tracker, **kwargs)
+      if results:
+        for output in results:
+          yield output
+
+    def finish_bundle(self):
+      return self.fn.finish_bundle()
+
+  return _create_sdf_operation(ProxyDoFn, *args)
+
+
+def _create_sdf_operation(
+    proxy_dofn,
+    factory, transform_id, transform_proto, parameter, consumers):
+
+  dofn_data = pickler.loads(parameter.do_fn.spec.payload)
+  dofn = dofn_data[0]
+  restriction_provider = common.DoFnSignature(dofn)._get_restriction_provider(
+      dofn)
+  serialized_fn = pickler.dumps(
+      (proxy_dofn(dofn, restriction_provider),) + dofn_data[1:])
+  parameter.splittable = False
+  return _create_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      serialized_fn, parameter)
+
+
 
 
 @BeamTransformFactory.register_urn(

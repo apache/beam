@@ -111,10 +111,11 @@ class ExpandStrings(DoFn):
       restriction_tracker=ExpandStringsProvider(),
       *args, **kwargs):
     side = []
-    side.extend(side1)
-    side.extend(side2)
-    side.extend(side3)
-    assert isinstance(restriction_tracker, OffsetRestrictionTracker)
+#    side.extend(side1)
+#    side.extend(side2)
+#    side.extend(side3)
+    assert isinstance(restriction_tracker, OffsetRestrictionTracker), (
+        restriction_tracker)
     side = list(side)
     for i in range(restriction_tracker.start_position(),
                    restriction_tracker.stop_position()):
