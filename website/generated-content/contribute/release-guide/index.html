@@ -214,12 +214,12 @@
     <ul>
       <li><a href="#one-time-setup-instructions">One-time setup instructions</a></li>
       <li><a href="#create-a-new-version-in-jira">Create a new version in JIRA</a></li>
-      <li><a href="#triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</a></li>
-      <li><a href="#review-release-notes-in-jira">Review Release Notes in JIRA</a></li>
       <li><a href="#create-a-release-branch-in-apachebeam-repository">Create a release branch in apache/beam repository</a></li>
       <li><a href="#start-a-snapshot-build">Start a snapshot build</a></li>
-      <li><a href="#verify-that-a-release-build-works">Verify that a Release Build Works</a></li>
+      <li><a href="#verify-release-branch">Verify release branch</a></li>
       <li><a href="#update-and-verify-javadoc">Update and Verify Javadoc</a></li>
+      <li><a href="#triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</a></li>
+      <li><a href="#review-release-notes-in-jira">Review Release Notes in JIRA</a></li>
       <li><a href="#checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</a></li>
     </ul>
   </li>
@@ -303,8 +303,6 @@ limitations under the License.
         </ul>
       </li>
       <li><a href="#create-a-new-version-in-jira" id="markdown-toc-create-a-new-version-in-jira">Create a new version in JIRA</a></li>
-      <li><a href="#triage-release-blocking-issues-in-jira" id="markdown-toc-triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</a></li>
-      <li><a href="#review-release-notes-in-jira" id="markdown-toc-review-release-notes-in-jira">Review Release Notes in JIRA</a></li>
       <li><a href="#create-a-release-branch-in-apachebeam-repository" id="markdown-toc-create-a-release-branch-in-apachebeam-repository">Create a release branch in apache/beam repository</a>        <ul>
           <li><a href="#use-cut_release_branchsh-to-cut-a-release-branch" id="markdown-toc-use-cut_release_branchsh-to-cut-a-release-branch">Use cut_release_branch.sh to cut a release branch</a></li>
           <li><a href="#run-all-steps-manually" id="markdown-toc-run-all-steps-manually">Run all steps manually</a></li>
@@ -315,12 +313,15 @@ limitations under the License.
           <li><a href="#do-all-operations-manually" id="markdown-toc-do-all-operations-manually">Do all operations manually</a></li>
         </ul>
       </li>
-      <li><a href="#verify-that-a-release-build-works" id="markdown-toc-verify-that-a-release-build-works">Verify that a Release Build Works</a>        <ul>
-          <li><a href="#run-verify_release_buildsh-to-verity-a-release-build" id="markdown-toc-run-verify_release_buildsh-to-verity-a-release-build">Run verify_release_build.sh to verity a release build</a></li>
+      <li><a href="#verify-release-branch" id="markdown-toc-verify-release-branch">Verify release branch</a>        <ul>
+          <li><a href="#run-automation-script-verify_release_buildsh" id="markdown-toc-run-automation-script-verify_release_buildsh">Run automation script (verify_release_build.sh)</a></li>
           <li><a href="#run-all-commands-manually-1" id="markdown-toc-run-all-commands-manually-1">Run all commands manually</a></li>
+          <li><a href="#create-release-blocking-issues-in-jira" id="markdown-toc-create-release-blocking-issues-in-jira">Create release-blocking issues in JIRA</a></li>
         </ul>
       </li>
       <li><a href="#update-and-verify-javadoc" id="markdown-toc-update-and-verify-javadoc">Update and Verify Javadoc</a></li>
+      <li><a href="#triage-release-blocking-issues-in-jira" id="markdown-toc-triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</a></li>
+      <li><a href="#review-release-notes-in-jira" id="markdown-toc-review-release-notes-in-jira">Review Release Notes in JIRA</a></li>
       <li><a href="#checklist-to-proceed-to-the-next-step-1" id="markdown-toc-checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</a></li>
     </ul>
   </li>
@@ -594,37 +595,6 @@ Automation Reliability</a>.</p>
   <li>At the end of the release, go to the same page and mark the recently released version as released. Use the <code class="highlighter-rouge">...</code> menu and choose <code class="highlighter-rouge">Release</code>.</li>
 </ol>
 
-<h3 id="triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</h3>
-
-<p>There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate. We track them by assigning a specific <code class="highlighter-rouge">Fix version</code> field even before the issue resolved.</p>
-
-<p>The list of release-blocking issues is available at the <a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel">version status page</a>. Triage each unresolved issue with one of the following resolutions:</p>
-
-<ul>
-  <li>If the issue has been resolved and JIRA was not updated, resolve it accordingly.</li>
-  <li>If the issue has not been resolved and it is acceptable to defer this until the next release, update the <code class="highlighter-rouge">Fix Version</code> field to the new version you just created. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.</li>
-  <li>If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed. Instead, work with the Beam community to resolve the issue.</li>
-</ul>
-
-<p>If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.</p>
-
-<h3 id="review-release-notes-in-jira">Review Release Notes in JIRA</h3>
-
-<p>JIRA automatically generates Release Notes based on the <code class="highlighter-rouge">Fix Version</code> field applied to issues. Release Notes are intended for Beam users (not Beam committers/contributors). You should ensure that Release Notes are informative and useful.</p>
-
-<p>Open the release notes from the <a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel">version status page</a> by choosing the release underway and clicking Release Notes.</p>
-
-<p>You should verify that the issues listed automatically by JIRA are appropriate to appear in the Release Notes. Specifically, issues should:</p>
-
-<ul>
-  <li>Be appropriately classified as <code class="highlighter-rouge">Bug</code>, <code class="highlighter-rouge">New Feature</code>, <code class="highlighter-rouge">Improvement</code>, etc.</li>
-  <li>Represent noteworthy user-facing changes, such as new functionality, backward-incompatible API changes, or performance improvements.</li>
-  <li>Have occurred since the previous release; an issue that was introduced and fixed between releases should not appear in the Release Notes.</li>
-  <li>Have an issue title that makes sense when read on its own.</li>
-</ul>
-
-<p>Adjust any of the above properties to the improve clarity and presentation of the Release Notes.</p>
-
 <h3 id="create-a-release-branch-in-apachebeam-repository">Create a release branch in apache/beam repository</h3>
 
 <p>Attention: Only committer has permission to create release branch in apache/beam.</p>
@@ -784,14 +754,14 @@ so builds will be broken until a new snapshot is available.</p>
 <ul>
   <li>Find one PR against apache:master in beam.</li>
   <li>Comment  <code class="highlighter-rouge">Run Gradle Publish</code> in this pull request to trigger build.</li>
-  <li>Verify that build successes.</li>
+  <li>Verify that build succeeds.</li>
 </ul>
 
-<h3 id="verify-that-a-release-build-works">Verify that a Release Build Works</h3>
+<h3 id="verify-release-branch">Verify release branch</h3>
 
 <p>There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.</p>
 
-<h4 id="run-verify_release_buildsh-to-verity-a-release-build">Run verify_release_build.sh to verity a release build</h4>
+<h4 id="run-automation-script-verify_release_buildsh">Run automation script (verify_release_build.sh)</h4>
 <ul>
   <li>
     <p>Script: <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh">verify_release_build.sh</a></p>
@@ -799,7 +769,9 @@ so builds will be broken until a new snapshot is available.</p>
   <li>
     <p>Usage</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code>./beam/release/src/main/scripts/verify_release_build.sh
+    <div class="highlighter-rouge"><pre class="highlight"><code>```
+./beam/release/src/main/scripts/verify_release_build.sh
+```
 </code></pre>
     </div>
   </li>
@@ -814,6 +786,7 @@ so builds will be broken until a new snapshot is available.</p>
       <li>Check the build result.</li>
       <li>If build failed, scan log will contain all failures.</li>
       <li>You should stabilize the release branch until release build succeeded.</li>
+      <li>The script will output a set of Jenkins phrases to enter in the created PR</li>
     </ol>
   </li>
 </ul>
@@ -882,6 +855,31 @@ so builds will be broken until a new snapshot is available.</p>
   </li>
 </ul>
 
+<h4 id="create-release-blocking-issues-in-jira">Create release-blocking issues in JIRA</h4>
+
+<p>The verify_release_build.sh script may include failing or flaky tests. For each of the failing tests create a JIRA with the following properties:</p>
+
+<ul>
+  <li>
+    <p>Issue Type: Bug</p>
+  </li>
+  <li>
+    <p>Summary: Name of failing gradle task and name of failing test (where applicable) in form of :MyGradleProject:SomeGradleTask NameOfFailedTest: Short description of failure</p>
+  </li>
+  <li>
+    <p>Priority: Major</p>
+  </li>
+  <li>
+    <p>Component: “test-failures”</p>
+  </li>
+  <li>
+    <p>Fix Version: Release number of verified release branch</p>
+  </li>
+  <li>
+    <p>Description: Description of failure</p>
+  </li>
+</ul>
+
 <h3 id="update-and-verify-javadoc">Update and Verify Javadoc</h3>
 
 <p>The build with <code class="highlighter-rouge">-PisRelease</code> creates the combined Javadoc for the release in <code class="highlighter-rouge">sdks/java/javadoc</code>.</p>
@@ -905,6 +903,56 @@ the version number has changed, download a new version of the corresponding
   </li>
 </ul>
 
+<h3 id="triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</h3>
+
+<p>There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate. We track them by assigning a specific <code class="highlighter-rouge">Fix version</code> field even before the issue resolved.</p>
+
+<p>The list of release-blocking issues is available at the <a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel">version status page</a>. Triage each unresolved issue with one of the following resolutions:</p>
+
+<p>For all JIRA issues:</p>
+
+<ul>
+  <li>If the issue has been resolved and JIRA was not updated, resolve it accordingly.</li>
+</ul>
+
+<p>For JIRA issues with type “Bug” or labeled “flaky”:</p>
+
+<ul>
+  <li>If the issue is a known continuously failing test, it is not acceptable to defer this until the next release. Please work with the Beam community to resolve the issue.</li>
+  <li>If the issue is a known flaky test, make an attempt to delegate a fix. However, if the issue may take too long to fix (to the discretion of the release manager):
+    <ul>
+      <li>Delegate manual testing of the flaky issue to ensure no release blocking issues.</li>
+      <li>Update the <code class="highlighter-rouge">Fix Version</code> field to the version of the next release. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.</li>
+    </ul>
+  </li>
+</ul>
+
+<p>For all other JIRA issues:</p>
+
+<ul>
+  <li>If the issue has not been resolved and it is acceptable to defer this until the next release, update the <code class="highlighter-rouge">Fix Version</code> field to the new version you just created. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.</li>
+  <li>If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed. Instead, work with the Beam community to resolve the issue.</li>
+</ul>
+
+<p>If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.</p>
+
+<h3 id="review-release-notes-in-jira">Review Release Notes in JIRA</h3>
+
+<p>JIRA automatically generates Release Notes based on the <code class="highlighter-rouge">Fix Version</code> field applied to issues. Release Notes are intended for Beam users (not Beam committers/contributors). You should ensure that Release Notes are informative and useful.</p>
+
+<p>Open the release notes from the <a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel">version status page</a> by choosing the release underway and clicking Release Notes.</p>
+
+<p>You should verify that the issues listed automatically by JIRA are appropriate to appear in the Release Notes. Specifically, issues should:</p>
+
+<ul>
+  <li>Be appropriately classified as <code class="highlighter-rouge">Bug</code>, <code class="highlighter-rouge">New Feature</code>, <code class="highlighter-rouge">Improvement</code>, etc.</li>
+  <li>Represent noteworthy user-facing changes, such as new functionality, backward-incompatible API changes, or performance improvements.</li>
+  <li>Have occurred since the previous release; an issue that was introduced and fixed between releases should not appear in the Release Notes.</li>
+  <li>Have an issue title that makes sense when read on its own.</li>
+</ul>
+
+<p>Adjust any of the above properties to the improve clarity and presentation of the Release Notes.</p>
+
 <h3 id="checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</h3>
 
 <ol>
@@ -913,6 +961,7 @@ the version number has changed, download a new version of the corresponding
   <li>Release Manager has <code class="highlighter-rouge">org.apache.beam</code> listed under <code class="highlighter-rouge">Staging Profiles</code> in Nexus</li>
   <li>Release Manager’s Nexus User Token is configured in <code class="highlighter-rouge">settings.xml</code></li>
   <li>JIRA release item for the subsequent release has been created</li>
+  <li>All test failures from branch verification have associated JIRA issues</li>
   <li>There are no release blocking JIRA issues</li>
   <li>Release Notes in JIRA have been audited and adjusted</li>
   <li>Combined javadoc has the appropriate contents.</li>
@@ -1547,7 +1596,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
 
 <h2 id="fix-any-issues">Fix any issues</h2>
 
-<p>Any issues identified during the community review and vote should be fixed in this step.</p>
+<p>Any issues identified during the community review and vote should be fixed in this step. Additionally, any JIRA issues created from the initial branch verification should be fixed.</p>
 
 <p>Code changes should be proposed as standard pull requests to the <code class="highlighter-rouge">master</code> branch and reviewed using the normal contributing process. Then, relevant changes should be cherry-picked into the release branch. The cherry-pick commits should then be proposed as the pull requests against the release branch, again reviewed and merged using the normal contributing process.</p>
 
@@ -1557,6 +1606,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
 
 <ol>
   <li>Issues identified during vote have been resolved, with fixes committed to the release branch.</li>
+  <li>All issues tagged with <code class="highlighter-rouge">Fix-Version</code> for the current release should be closed.</li>
 </ol>
 
 <hr />
