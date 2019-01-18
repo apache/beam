@@ -20,6 +20,8 @@ package org.apache.beam.sdk.testutils.publishing;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.testutils.TestResult;
 import org.apache.beam.sdk.testutils.fakes.FakeBigQueryClient;
@@ -78,6 +80,16 @@ public class BigQueryResultsPublisherTest {
 
     Map<String, ?> rowInTable = bigQueryClient.getRows(TABLE_NAME).get(0);
     assertNull(rowInTable.get("field2"));
+  }
+
+  @Test
+  public void testPublishCollectionOfRecords() {
+    List<SampleTestResult> results =
+        Arrays.asList(new SampleTestResult("a", "b"), new SampleTestResult("a", "b"));
+
+    publisher.publish(results, TABLE_NAME);
+
+    assertEquals(2, bigQueryClient.getRows(TABLE_NAME).size());
   }
 
   private static class SampleTestResult implements TestResult {

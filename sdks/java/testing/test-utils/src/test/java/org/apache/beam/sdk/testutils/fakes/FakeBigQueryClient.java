@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.testutils.fakes;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,11 @@ public class FakeBigQueryClient extends BigQueryClient {
   @Override
   public void createTableIfNotExists(String tableName, Map<String, String> schema) {
     // do nothing. Assume the table exists.
+  }
+
+  @Override
+  public void insertAll(Collection<Map<String, ?>> rows, Map<String, String> schema, String table) {
+    rows.forEach(row -> insertRow(row, table));
   }
 
   @Override
