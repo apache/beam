@@ -45,7 +45,7 @@ TERMINAL_STATES = [
 
 # A message sent to each log queue indicating that no more messages will be
 # sent.
-END_OF_STREAM_MESSAGE = 'SECRET_END_OF_STREAM_MESSAGE'
+END_OF_STREAM_MESSAGE = '__END_OF_STREAM__'
 
 
 class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
@@ -237,11 +237,11 @@ class BeamJob(threading.Thread):
     self._log_queues.append(log_queue)
     self._state_queues.append(log_queue)
 
-    msg = None
     while True:
       msg = log_queue.get(block=True)
       if (isinstance(msg, beam_job_api_pb2.JobMessage) and
-          msg.message_text == END_OF_STREAM_MESSAGE):
+          msg.message_text == END_OF_STREAM_MESSAGE and
+          self._state in TERMINAL_STATES):
         return
       yield msg
 
