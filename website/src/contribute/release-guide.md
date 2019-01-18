@@ -435,8 +435,8 @@ For all JIRA issues:
 For JIRA issues with type "Bug" or labeled "flaky":
 
 * If the issue is a known continuously failing test, it is not acceptable to defer this until the next release. Please work with the Beam community to resolve the issue.
-* If the issue is a known flaky test, make an attempt to fix the issue. However, if the issue may take too long to fix (to the discretion of the release manager):
-  * Perform or delegate manual testing of flaky issue to ensure no release blocking issues.
+* If the issue is a known flaky test, make an attempt to delegate a fix. However, if the issue may take too long to fix (to the discretion of the release manager):
+  * Delegate manual testing of the flaky issue to ensure no release blocking issues.
   * Update the `Fix Version` field to the version of the next release. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.
 
 For all other JIRA issues:
@@ -986,7 +986,7 @@ Once all issues have been resolved, you should go back and build a new release c
 ### Checklist to proceed to the next step
 
 1. Issues identified during vote have been resolved, with fixes committed to the release branch.
-1. All issues tagged with `Fix-Version` for the current release should be closed.
+2. All issues tagged with `Fix-Version` for the current release should be closed.
 
 **********
 
