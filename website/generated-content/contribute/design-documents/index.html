@@ -261,6 +261,7 @@ limitations under the License.
       <li>Reimplementing Beam API classes on top of Splittable DoFn on top of Source API [<a href="https://s.apache.org/sdf-via-source">doc</a>]</li>
       <li>New TextIO features based on SDF [<a href="http://s.apache.org/textio-sdf">doc</a>]</li>
       <li>Watch transform [<a href="http://s.apache.org/beam-watch-transform">doc</a>]</li>
+      <li>Bundles w/ SplittableDoFns [<a href="https://s.apache.org/beam-bundles-backlog-splitting">doc</a>]</li>
     </ul>
   </li>
   <li>State and Timers for DoFn [<a href="https://s.apache.org/beam-state">doc</a>]</li>
@@ -281,6 +282,7 @@ limitations under the License.
   <li>Requiring PTransform to set a coder on its resulting collections [<a href="https://lists.apache.org/thread.html/1dde0b5a93c2983cbab5f68ce7c74580102f5bb2baaa816585d7eabb@%3Cdev.beam.apache.org%3E">mail</a>]</li>
   <li>Support of @RequiresStableInput annotation [<a href="https://docs.google.com/document/d/117yRKbbcEdm3eIKB_26BHOJGmHSZl1YNoF0RqWGtqAM">doc</a>], [<a href="https://lists.apache.org/thread.html/ae3c838df060e47148439d1dad818d5e927b2a25ff00cc4153221dff@%3Cdev.beam.apache.org%3E">mail</a>]</li>
   <li>[PROPOSAL] @onwindowexpiration [<a href="https://lists.apache.org/thread.html/1dab7f17c97378e665928b11116cbd887dc7be93390ab26c593ee49a@%3Cdev.beam.apache.org%3E">mail</a>]</li>
+  <li>AutoValue Coding and Row Support [<a href="https://docs.google.com/document/d/1ucoik4WzUDfilqIz3I1AuMHc1J8DE6iv7gaUCDI42BI">doc</a>]</li>
 </ul>
 
 <h3 id="io--filesystem">IO / Filesystem</h3>
@@ -350,6 +352,9 @@ limitations under the License.
   <li>Portability Prototype [<a href="https://s.apache.org/beam-portability-team-doc">doc</a>]</li>
   <li>Portable Artifact Staging [<a href="https://docs.google.com/document/d/12zNk3O2nhTB8Zmxw5U78qXrvlk5r42X8tqF248IDlpI">doc</a>]</li>
   <li>Portable Beam on Flink [<a href="https://s.apache.org/portable-beam-on-flink">doc</a>]</li>
+  <li>Portability API: How to Checkpoint and Split Bundles [<a href="https://s.apache.org/beam-checkpoint-and-split-bundles">doc</a>]</li>
+  <li>Portability API: How to Finalize Bundles [<a href="https://s.apache.org/beam-finalizing-bundles">doc</a>]</li>
+  <li>Side Input in Universal Reference Runner [<a href="https://docs.google.com/document/d/13N0OJ7QJm81wcgu13pi9GuN29UUxN2iIFn_H8lKpDks">doc</a>]</li>
 </ul>
 
 <h3 id="build--testing">Build / Testing</h3>
@@ -366,6 +371,8 @@ limitations under the License.
   <li>Beam-Site Automation Reliability [<a href="https://s.apache.org/beam-site-automation">doc</a>]</li>
   <li>Managing outdated dependencies [<a href="https://docs.google.com/document/d/15m1MziZ5TNd9rh_XN0YYBJfYkt0Oj-Ou9g0KFDPL2aA">doc</a>]</li>
   <li>Automation For Beam Dependency Check [<a href="https://docs.google.com/document/d/1rqr_8a9NYZCgeiXpTIwWLCL7X8amPAVfRXsO72BpBwA">doc</a>]</li>
+  <li>Test performance of core Apache Beam operations [<a href="https://s.apache.org/load-test-basic-operations">doc</a>]</li>
+  <li>Add static code analysis quality gates to Beam [<a href="https://docs.google.com/document/d/1YbV18mrHujmiLBtadS1WzCVeiI3Lo7W6awWJDA4A98o">doc</a>]</li>
 </ul>
 
 <h3 id="python">Python</h3>
@@ -373,6 +380,9 @@ limitations under the License.
   <li>Beam Python User State and Timer APIs [<a href="https://s.apache.org/beam-python-user-state-and-timers">doc</a>]</li>
   <li>Python Kafka connector [<a href="https://docs.google.com/document/d/1ogRS-e-HYYTHsXi_l2zDUUOnvfzEbub3BFkPrYIOawU">doc</a>]</li>
   <li>Python 3 support [<a href="https://s.apache.org/beam-python-3">doc</a>]</li>
+  <li>Splittable DoFn for Python SDK [<a href="http://s.apache.org/splittable-do-fn-python-sdk">doc</a>]</li>
+  <li>Parquet IO for Python SDK [<a href="https://docs.google.com/document/d/1-FT6zmjYhYFWXL8aDM5mNeiUnZdKnnB021zTo4S-0Wg">doc</a>]</li>
+  <li>Building Python Wheels [<a href="https://docs.google.com/document/d/1MRVFs48e6g7wORshr2UpuOVD_yTSJTbmR65_j8XbGek">doc</a>]</li>
 </ul>
 
 <h3 id="go">Go</h3>
@@ -383,6 +393,11 @@ limitations under the License.
 </ul>
 
 <h2 id="other">Other</h2>
+<ul>
+  <li>Euphoria - High-Level Java 8 DSL [<a href="https://s.apache.org/beam-euphoria">doc</a>]</li>
+  <li>Apache Beam Code Review Guide [<a href="https://docs.google.com/document/d/1ZgAsSqEX9CaiTycrcR-tdc3X7MWlyT-F32jfMl89kDQ">doc</a>]</li>
+</ul>
+
 <p>Some of documents are available on this <a href="https://drive.google.com/corp/drive/folders/0B-IhJZh9Ab52OFBVZHpsNjc4eXc">google drive</a></p>
 
 <p>To add new design document it is recommended to use this <a href="https://docs.google.com/document/d/1kVePqjt2daZd0bQHGUwghlcLbhvrny7VpflAzk9sjUg">design document template</a></p>
