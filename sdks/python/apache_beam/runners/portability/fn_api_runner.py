@@ -551,6 +551,18 @@ class FnApiRunner(runner.PipelineRunner):
               transform.spec.payload).coder_id
           coder_impl = context.coders[safe_coders[coder_id]].get_impl()
           # TODO(SDF): This assumes determanistic ordering of buffer iteration.
+          # TODO(SDF): The return split is in terms of indices.  Ideally,
+          # a runner could map these back to actual positions to effectively
+          # describe the two "halves" of the now-split range.  Even if we have
+          # to buffer each element we send (or at the very least a bit of
+          # metadata, like position, about each of them) this should be doable
+          # if they're already in memory and we are bounding the buffer size
+          # (e.g. to 10mb plus whatever is eagerly read from the SDK).  In the
+          # case of non-split-points, we can either immediately replay the
+          # "non-split-position" elements or record them as we do the other
+          # delayed applications.
+
+          # Decode and recode to split the encoded buffer by element count.
           buffer = data_input[buffer_split.ptransform_id, buffer_split.input_id]
           input_stream = create_InputStream(''.join(buffer))
           output_stream = create_OutputStream()

@@ -688,7 +688,11 @@ class DoFnRunner(Receiver):
           assert len(windowed_value.windows) == 1
           # We're not is a position to return residuals, keep invoking
           # process until the SDF is exhausted.
-          # TODO(SDF): Should this be supported?
+          # TODO(SDF): Perhaps looping forever is bad.
+          # TODO(SDF): It wouldn't be *that* hard to return fully-qualified
+          # residuals here; we just need the transform name and a place
+          # to stick them (and the ability to arbitrarily inject them
+          # back).
           restriction = self.do_fn_invoker.invoke_initial_restriction(
               windowed_value.value)
           while True:
