@@ -48,7 +48,7 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
@@ -81,8 +81,7 @@ public class SplittableDoFnTest implements Serializable {
 
   static class PairStringWithIndexToLengthBase extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
-    public ProcessContinuation process(
-        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+    public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {
       for (long i = tracker.currentRestriction().getFrom(), numIterations = 0;
           tracker.tryClaim(i);
           ++i, ++numIterations) {
@@ -240,8 +239,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public ProcessContinuation processElement(
-        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
       for (int i = trueStart, numIterations = 1;
@@ -320,7 +318,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
       checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
       String side = c.sideInput(sideInput);
       c.output(side + ":" + c.element());
@@ -452,8 +450,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public ProcessContinuation processElement(
-        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
       for (int i = trueStart, numIterations = 1;
@@ -575,7 +572,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
       checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
       c.output("main:" + c.element());
       c.output(additionalOutput, "additional:" + c.element());
@@ -716,7 +713,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
       assertEquals(State.INSIDE_BUNDLE, state);
       assertTrue(tracker.tryClaim(0L));
       c.output(c.element());
@@ -778,8 +775,7 @@ public class SplittableDoFnTest implements Serializable {
               ParDo.of(
                   new DoFn<String, String>() {
                     @ProcessElement
-                    public void process(
-                        @Element String element, RestrictionTracker<OffsetRange, Long> tracker) {
+                    public void process(@Element String element, OffsetRangeTracker tracker) {
                       // Doesn't matter
                     }
 
@@ -797,7 +793,7 @@ public class SplittableDoFnTest implements Serializable {
                   new DoFn<String, String>() {
                     @ProcessElement
                     public ProcessContinuation process(
-                        @Element String element, RestrictionTracker<OffsetRange, Long> tracker) {
+                        @Element String element, OffsetRangeTracker tracker) {
                       return stop();
                     }
 
