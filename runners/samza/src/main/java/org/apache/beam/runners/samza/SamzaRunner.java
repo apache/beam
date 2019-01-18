@@ -149,8 +149,10 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
             fnDataServer = null;
             closeAutoClosable(fnStateServer);
             fnStateServer = null;
-            dataExecutor.shutdown();
-            dataExecutor = null;
+            if (dataExecutor != null) {
+              dataExecutor.shutdown();
+              dataExecutor = null;
+            }
             controlClientPool = null;
             closeAutoClosable(jobBundleFactory);
             jobBundleFactory = null;
