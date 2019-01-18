@@ -789,7 +789,7 @@ class TupleCoder(FastCoder):
 
   def __eq__(self, other):
     return (type(self) == type(other)
-            and self._coders == other.coders)
+            and self._coders == other.coders())
 
   def __hash__(self):
     return hash(self._coders)
