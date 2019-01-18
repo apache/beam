@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,6 +37,7 @@ import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.runtime.SamzaDoFnInvokerRegistrar;
+import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -212,7 +212,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             });
 
     WindowedValue.WindowedValueCoder<InT> windowedInputCoder =
-        ctx.instantiateCoder(inputId, pipeline.getComponents());
+        SamzaPipelineTranslatorUtils.instantiateCoder(inputId, pipeline.getComponents());
     final String nodeFullname = transform.getTransform().getUniqueName();
 
     final DoFnOp<InT, OutT, RawUnionValue> op =
@@ -224,7 +224,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             Collections.emptyMap(), // output coders not in use
             Collections.emptyList(), // sideInputs not in use until side input support
             new ArrayList<>(idToTupleTagMap.values()), // used by java runner only
-            ctx.getPortableWindowStrategy(transform, pipeline),
+            SamzaPipelineTranslatorUtils.getPortableWindowStrategy(transform, pipeline),
             Collections.emptyMap(), // idToViewMap not in use until side input support
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             nodeFullname,

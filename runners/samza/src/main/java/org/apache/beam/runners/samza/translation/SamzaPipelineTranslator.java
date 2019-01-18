@@ -33,7 +33,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.samza.operators.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
