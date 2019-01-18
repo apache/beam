@@ -43,6 +43,9 @@ TERMINAL_STATES = [
     beam_job_api_pb2.JobState.CANCELLED,
 ]
 
+# A message sent to each log queue indicating that no more messages will be
+# sent.
+END_OF_STREAM_MESSAGE = 'SECRET_END_OF_STREAM_MESSAGE'
 
 class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   """Manages one or more pipelines, possibly concurrently.
@@ -205,12 +208,15 @@ class BeamJob(threading.Thread):
         logging.exception(traceback)
         self.state = beam_job_api_pb2.JobState.FAILED
         raise
+      finally:
+        self._cleanup()
 
   def cancel(self):
     if self.state not in TERMINAL_STATES:
       self.state = beam_job_api_pb2.JobState.CANCELLING
       # TODO(robertwb): Actually cancel...
       self.state = beam_job_api_pb2.JobState.CANCELLED
+      self._cleanup()
 
   def get_state_stream(self):
     # Register for any new state changes.
@@ -232,11 +238,18 @@ class BeamJob(threading.Thread):
 
     current_state = self.state
     yield current_state
-    while current_state not in TERMINAL_STATES:
+    while True:
       msg = log_queue.get(block=True)
+      if msg == END_OF_STREAM_MESSAGE:
+        return
+
       yield msg
       if isinstance(msg, int):
         current_state = msg
+
+  def _cleanup(self):
+    for queue in self._log_queues:
+      queue.put(END_OF_STREAM_MESSAGE)
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
