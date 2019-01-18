@@ -45,8 +45,9 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, S
       char[] delimiter,
       @Nullable String header,
       @Nullable String footer,
-      WritableByteChannelFactory writableByteChannelFactory) {
-    super(baseOutputFilename, dynamicDestinations, writableByteChannelFactory);
+      WritableByteChannelFactory writableByteChannelFactory,
+      String kmsKey) {
+    super(baseOutputFilename, dynamicDestinations, writableByteChannelFactory, kmsKey);
     this.header = header;
     this.footer = footer;
     this.delimiter = delimiter;

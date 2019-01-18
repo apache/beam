@@ -894,6 +894,9 @@ public class FileIO {
 
     abstract boolean getIgnoreWindowing();
 
+    @Nullable
+    abstract String getKmsKey();
+
     abstract Builder<DestinationT, UserT> toBuilder();
 
     @AutoValue.Builder
@@ -937,6 +940,8 @@ public class FileIO {
           PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding);
 
       abstract Builder<DestinationT, UserT> setIgnoreWindowing(boolean ignoreWindowing);
+
+      abstract Builder<DestinationT, UserT> setKmsKey(@Nullable String kmsKey);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1159,6 +1164,14 @@ public class FileIO {
       return toBuilder().setIgnoreWindowing(true).build();
     }
 
+    /**
+     * Specifies a Key Management System key name to use for encrypting writes. Possible values and
+     * behavior of this feature are filesystem dependent.
+     */
+    public Write<DestinationT, UserT> withKmsKey(String kmsKey) {
+      return toBuilder().setKmsKey(kmsKey).build();
+    }
+
     @VisibleForTesting
     Contextful<Fn<DestinationT, FileNaming>> resolveFileNamingFn() {
       if (getDynamic()) {
@@ -1243,6 +1256,7 @@ public class FileIO {
       resolvedSpec.setNumShards(getNumShards());
       resolvedSpec.setSharding(getSharding());
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
+      resolvedSpec.setKmsKey(getKmsKey());
 
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
       WriteFiles<UserT, DestinationT, ?> writeFiles =
@@ -1293,7 +1307,8 @@ public class FileIO {
                 spec.getTempDirectory(),
                 input -> FileSystems.matchNewResource(input, true /* isDirectory */)),
             new DynamicDestinationsAdapter<>(spec),
-            spec.getCompression());
+            spec.getCompression(),
+            spec.getKmsKey());
         this.spec = spec;
       }
 

@@ -18,15 +18,26 @@
 package org.apache.beam.sdk.io.fs;
 
 import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 
 /** An abstract class that contains common configuration options for creating resources. */
 public abstract class CreateOptions {
   /** The file-like resource mime type. */
   public abstract String mimeType();
 
+  /**
+   * Specifies the Key Management System key name to use to encrypt the new file with.
+   *
+   * <p>Only relevant to filesystems that support KMS features.
+   */
+  @Nullable
+  public abstract String kmsKey();
+
   /** An abstract builder for {@link CreateOptions}. */
   public abstract static class Builder<BuilderT extends CreateOptions.Builder<BuilderT>> {
     public abstract BuilderT setMimeType(String value);
+
+    public abstract BuilderT setKmsKey(@Nullable String value);
   }
 
   /** A standard configuration options with builder. */

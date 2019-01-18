@@ -842,17 +842,20 @@ public class GcsUtilTest {
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 
     // Small number of files fits in 1 batch
-    List<BatchRequest> batches = gcsUtil.makeCopyBatches(makeStrings("s", 3), makeStrings("d", 3));
+    String destKmsKey = null;
+    List<BatchRequest> batches =
+        gcsUtil.makeCopyBatches(makeStrings("s", 3), makeStrings("d", 3), destKmsKey);
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(3));
 
     // 1 batch of files fits in 1 batch
-    batches = gcsUtil.makeCopyBatches(makeStrings("s", 100), makeStrings("d", 100));
+    destKmsKey = "test_kms_key";
+    batches = gcsUtil.makeCopyBatches(makeStrings("s", 100), makeStrings("d", 100), destKmsKey);
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(100));
 
     // A little more than 5 batches of files fits in 6 batches
-    batches = gcsUtil.makeCopyBatches(makeStrings("s", 501), makeStrings("d", 501));
+    batches = gcsUtil.makeCopyBatches(makeStrings("s", 501), makeStrings("d", 501), destKmsKey);
     assertThat(batches.size(), equalTo(6));
     assertThat(sumBatchSizes(batches), equalTo(501));
   }
@@ -863,7 +866,7 @@ public class GcsUtilTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Number of source files 3");
 
-    gcsUtil.makeCopyBatches(makeStrings("s", 3), makeStrings("d", 1));
+    gcsUtil.makeCopyBatches(makeStrings("s", 3), makeStrings("d", 1), null);
   }
 
   @Test

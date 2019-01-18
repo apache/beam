@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.util.GcsUtil;
@@ -116,16 +117,17 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   @Override
   protected WritableByteChannel create(GcsResourceId resourceId, CreateOptions createOptions)
       throws IOException {
+    Integer uploadBufferSizeBytes = null;
     if (createOptions instanceof GcsCreateOptions) {
-      return options
-          .getGcsUtil()
-          .create(
-              resourceId.getGcsPath(),
-              createOptions.mimeType(),
-              ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes());
-    } else {
-      return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType());
+      uploadBufferSizeBytes = ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes();
     }
+    return options
+        .getGcsUtil()
+        .create(
+            resourceId.getGcsPath(),
+            createOptions.mimeType(),
+            uploadBufferSizeBytes,
+            createOptions.kmsKey());
   }
 
   @Override
@@ -134,14 +136,18 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   @Override
-  protected void rename(List<GcsResourceId> srcResourceIds, List<GcsResourceId> destResourceIds)
+  protected void rename(
+      List<GcsResourceId> srcResourceIds,
+      List<GcsResourceId> destResourceIds,
+      MoveOptions moveOptions)
       throws IOException {
-    copy(srcResourceIds, destResourceIds);
-    delete(srcResourceIds);
+    copy(srcResourceIds, destResourceIds, moveOptions);
+    delete(srcResourceIds, moveOptions);
   }
 
   @Override
-  protected void delete(Collection<GcsResourceId> resourceIds) throws IOException {
+  protected void delete(Collection<GcsResourceId> resourceIds, MoveOptions moveOptions)
+      throws IOException {
     options.getGcsUtil().remove(toFilenames(resourceIds));
   }
 
@@ -162,10 +168,16 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   @Override
-  protected void copy(List<GcsResourceId> srcResourceIds, List<GcsResourceId> destResourceIds)
+  protected void copy(
+      List<GcsResourceId> srcResourceIds,
+      List<GcsResourceId> destResourceIds,
+      MoveOptions moveOptions)
       throws IOException {
     Stopwatch stopwatch = Stopwatch.createStarted();
-    options.getGcsUtil().copy(toFilenames(srcResourceIds), toFilenames(destResourceIds));
+    options
+        .getGcsUtil()
+        .copy(
+            toFilenames(srcResourceIds), toFilenames(destResourceIds), moveOptions.getDestKmsKey());
     stopwatch.stop();
     if (options.getGcsPerformanceMetrics()) {
       numCopies.inc(srcResourceIds.size());

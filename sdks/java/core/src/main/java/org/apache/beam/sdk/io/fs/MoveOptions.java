@@ -17,16 +17,56 @@
  */
 package org.apache.beam.sdk.io.fs;
 
+import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
 
 /**
  * An object that configures {@link FileSystems#copy}, {@link FileSystems#rename}, and {@link
  * FileSystems#delete}.
  */
-public interface MoveOptions {
+public abstract class MoveOptions {
+
+  /**
+   * If false, operations will abort on errors arising from missing files. Otherwise, operations
+   * will ignore such errors.
+   */
+  public abstract boolean getIgnoreMissingFiles();
+
+  /**
+   * Specifies the Key Management System key name to use to encrypt new files with.
+   *
+   * <p>Only relevant to operations that create new files and filesystems that support KMS features.
+   */
+  @Nullable
+  public abstract String getDestKmsKey();
 
   /** Defines the standard {@link MoveOptions}. */
-  enum StandardMoveOptions implements MoveOptions {
-    IGNORE_MISSING_FILES,
+  @AutoValue
+  public abstract static class StandardMoveOptions extends MoveOptions {
+    // This is a convenience member for backwards compatibility.
+    public static final MoveOptions IGNORE_MISSING_FILES =
+        StandardMoveOptions.builder().setIgnoreMissingFiles(true).build();
+
+    @Override
+    public abstract boolean getIgnoreMissingFiles();
+
+    @Override
+    @Nullable
+    public abstract String getDestKmsKey();
+
+    public static Builder builder() {
+      return new AutoValue_MoveOptions_StandardMoveOptions.Builder().setIgnoreMissingFiles(false);
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+
+      public abstract Builder setIgnoreMissingFiles(boolean ignoreMissingFiles);
+
+      public abstract Builder setDestKmsKey(String kmsKey);
+
+      public abstract StandardMoveOptions build();
+    }
   }
 }

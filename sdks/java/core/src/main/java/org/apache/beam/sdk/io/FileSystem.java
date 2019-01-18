@@ -27,7 +27,10 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * File system interface in Beam.
@@ -39,6 +42,8 @@ import org.apache.beam.sdk.io.fs.ResourceId;
  */
 @Experimental(Kind.FILESYSTEM)
 public abstract class FileSystem<ResourceIdT extends ResourceId> {
+  private static final Logger LOG = LoggerFactory.getLogger(FileSystem.class);
+
   /**
    * This is the entry point to convert user-provided specs to {@link ResourceIdT ResourceIds}.
    * Callers should use {@link #match} to resolve users specs ambiguities before calling other
@@ -102,8 +107,31 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    *     resource might or might not be copied. In such scenarios, callers can use {@code match()}
    *     to determine the state of the resources.
    */
-  protected abstract void copy(List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds)
-      throws IOException;
+  @Deprecated
+  protected void copy(List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds)
+      throws IOException {
+    throw new UnsupportedOperationException("deprecated");
+  }
+
+  /**
+   * Copies a {@link List} of file-like resources from one location to another.
+   *
+   * <p>The number of source resources must equal the number of destination resources. Destination
+   * resources will be created recursively.
+   *
+   * @param srcResourceIds the references of the source resources
+   * @param destResourceIds the references of the destination resources
+   * @param moveOptions additional settings passed to the underlying implementation
+   * @throws FileNotFoundException if the source resources are missing. When copy throws, each
+   *     resource might or might not be copied. In such scenarios, callers can use {@code match()}
+   *     to determine the state of the resources.
+   */
+  protected void copy(
+      List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds, MoveOptions moveOptions)
+      throws IOException {
+    LOG.warn("Using deprecated copy");
+    copy(srcResourceIds, destResourceIds);
+  }
 
   /**
    * Renames a {@link List} of file-like resources from one location to another.
@@ -120,8 +148,35 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    *     possible. In such scenarios, callers can use {@code match()} to determine the state of the
    *     resource.
    */
-  protected abstract void rename(
-      List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds) throws IOException;
+  @Deprecated
+  protected void rename(List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds)
+      throws IOException {
+    throw new UnsupportedOperationException("deprecated");
+  }
+
+  /**
+   * Renames a {@link List} of file-like resources from one location to another.
+   *
+   * <p>The number of source resources must equal the number of destination resources. Destination
+   * resources will be created recursively.
+   *
+   * @param srcResourceIds the references of the source resources
+   * @param destResourceIds the references of the destination resources
+   * @param moveOptions additional settings passed to the underlying implementation
+   * @throws FileNotFoundException if the source resources are missing. When rename throws, the
+   *     state of the resources is unknown but safe: for every (source, destination) pair of
+   *     resources, the following are possible: a) source exists, b) destination exists, c) source
+   *     and destination both exist. Thus no data is lost, however, duplicated resource are
+   *     possible. In such scenarios, callers can use {@code match()} to determine the state of the
+   *     resource.
+   * @throws IOException
+   */
+  protected void rename(
+      List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds, MoveOptions moveOptions)
+      throws IOException {
+    LOG.warn("Using deprecated rename");
+    rename(srcResourceIds, destResourceIds);
+  }
 
   /**
    * Deletes a collection of resources.
@@ -131,7 +186,25 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    *     or might not be deleted. In such scenarios, callers can use {@code match()} to determine
    *     the state of the resources.
    */
-  protected abstract void delete(Collection<ResourceIdT> resourceIds) throws IOException;
+  @Deprecated
+  protected void delete(Collection<ResourceIdT> resourceIds) throws IOException {
+    throw new UnsupportedOperationException("deprecated");
+  }
+
+  /**
+   * Deletes a collection of resources.
+   *
+   * @param resourceIds the references of the resources to delete.
+   * @param moveOptions additional settings passed to the underlying implementation
+   * @throws FileNotFoundException if resources are missing. When delete throws, each resource might
+   *     or might not be deleted. In such scenarios, callers can use {@code match()} to determine
+   *     the state of the resources.
+   */
+  protected void delete(Collection<ResourceIdT> resourceIds, MoveOptions moveOptions)
+      throws IOException {
+    LOG.warn("Using deprecated delete");
+    delete(resourceIds);
+  }
 
   /**
    * Returns a new {@link ResourceId} for this filesystem that represents the named resource. The

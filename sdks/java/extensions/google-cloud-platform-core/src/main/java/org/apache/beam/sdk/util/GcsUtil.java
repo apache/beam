@@ -31,6 +31,7 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
+import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
@@ -279,12 +280,21 @@ public class GcsUtil {
   private static BackOff createBackOff() {
     return BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
   }
+
   /**
    * Returns the file size from GCS or throws {@link FileNotFoundException} if the resource does not
    * exist.
    */
   public long fileSize(GcsPath path) throws IOException {
     return getObject(path).getSize().longValue();
+  }
+
+  /**
+   * Returns the KMS key from GCS or throws {@link FileNotFoundException} if the resource does not
+   * exist. May return null if no KMS key is in use.
+   */
+  public String kmsKey(GcsPath path) throws IOException {
+    return getObject(path).getKmsKeyName();
   }
 
   /** Returns the {@link StorageObject} for the given {@link GcsPath}. */
@@ -404,15 +414,21 @@ public class GcsUtil {
    * @return a Callable object that encloses the operation.
    */
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
-    return create(path, type, uploadBufferSizeBytes);
+    return create(path, type, uploadBufferSizeBytes, null);
   }
 
   /**
    * Same as {@link GcsUtil#create(GcsPath, String)} but allows overriding {code
    * uploadBufferSizeBytes}.
+   *
+   * @param kmsKey Optional name of KMS key used in encrypting object data. TODO(BEAM-5959): Not yet
+   *     supported.
    */
-  public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
+  public WritableByteChannel create(
+      GcsPath path, String type, @Nullable Integer uploadBufferSizeBytes, @Nullable String kmsKey)
       throws IOException {
+    // TODO(BEAM-5959): Add support for setting kmsKeyName on the underlying GCS Insert request in
+    // bigdataoss_gcsio.
     GoogleCloudStorageWriteChannel channel =
         new GoogleCloudStorageWriteChannel(
             executorService,
@@ -597,12 +613,14 @@ public class GcsUtil {
     return batches;
   }
 
-  public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
+  // TODO: make an overloaded version without destKmsKey since this is a public method
+  public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames, String destKmsKey)
       throws IOException {
-    executeBatches(makeCopyBatches(srcFilenames, destFilenames));
+    executeBatches(makeCopyBatches(srcFilenames, destFilenames, destKmsKey));
   }
 
-  List<BatchRequest> makeCopyBatches(Iterable<String> srcFilenames, Iterable<String> destFilenames)
+  List<BatchRequest> makeCopyBatches(
+      Iterable<String> srcFilenames, Iterable<String> destFilenames, String destKmsKey)
       throws IOException {
     List<String> srcList = Lists.newArrayList(srcFilenames);
     List<String> destList = Lists.newArrayList(destFilenames);
@@ -617,7 +635,7 @@ public class GcsUtil {
     for (int i = 0; i < srcList.size(); i++) {
       final GcsPath sourcePath = GcsPath.fromUri(srcList.get(i));
       final GcsPath destPath = GcsPath.fromUri(destList.get(i));
-      enqueueCopy(sourcePath, destPath, batch);
+      enqueueCopy(sourcePath, destPath, destKmsKey, batch);
       if (batch.size() >= MAX_REQUESTS_PER_BATCH) {
         batches.add(batch);
         batch = createBatchRequest();
@@ -700,23 +718,49 @@ public class GcsUtil {
     }
   }
 
-  private void enqueueCopy(final GcsPath from, final GcsPath to, BatchRequest batch)
+  // TODO: integration test multi-part rewrites
+  // TODO: integration test with kms key
+  // TODO: integration test with numShards=1000
+  // TODO: go over new LOG lines and reduce to debug or remove if necessary.
+  private void enqueueCopy(
+      final GcsPath from, final GcsPath to, final String destKmsKey, BatchRequest batch)
       throws IOException {
-    Storage.Objects.Copy copyRequest =
+    Storage.Objects.Rewrite rewriteRequest =
         storageClient
             .objects()
-            .copy(from.getBucket(), from.getObject(), to.getBucket(), to.getObject(), null);
-    copyRequest.queue(
+            .rewrite(from.getBucket(), from.getObject(), to.getBucket(), to.getObject(), null);
+    if (destKmsKey != null) {
+      // TODO: remove
+      //LOG.info("destKmsKey: {}", destKmsKey);
+      rewriteRequest.setDestinationKmsKeyName(destKmsKey);
+    }
+
+    rewriteRequest.queue(
         batch,
-        new JsonBatchCallback<StorageObject>() {
+        new JsonBatchCallback<RewriteResponse>() {
           @Override
-          public void onSuccess(StorageObject obj, HttpHeaders responseHeaders) {
-            LOG.debug("Successfully copied {} to {}", from, to);
+          public void onSuccess(RewriteResponse rewriteResponse, HttpHeaders responseHeaders)
+              throws IOException {
+            if (rewriteResponse.getDone()) {
+              // TODO: debug
+              LOG.info("Rewrite done: {} to {}", from, to);
+            } else {
+              // TODO: debug
+              LOG.info(
+                  "Rewrite progress: {} of {} bytes, {} to {}",
+                  rewriteResponse.getTotalBytesRewritten(),
+                  rewriteResponse.getObjectSize(),
+                  from,
+                  to);
+              rewriteRequest.setRewriteToken(rewriteResponse.getRewriteToken());
+              rewriteRequest.queue(batch, this);
+            }
           }
 
           @Override
           public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-            throw new IOException(String.format("Error trying to copy %s to %s: %s", from, to, e));
+            throw new IOException(
+                String.format("Error trying to rewrite %s to %s: %s", from, to, e));
           }
         });
   }

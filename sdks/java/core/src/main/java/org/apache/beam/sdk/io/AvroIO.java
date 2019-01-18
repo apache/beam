@@ -431,7 +431,8 @@ public class AvroIO {
         .setNumShards(0)
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .setMetadata(ImmutableMap.of())
-        .setWindowedWrites(false);
+        .setWindowedWrites(false)
+        .setKmsKey(null);
   }
 
   private static <T> PCollection<T> setBeamSchema(
@@ -960,6 +961,9 @@ public class AvroIO {
     @Nullable
     abstract DynamicAvroDestinations<UserT, DestinationT, OutputT> getDynamicDestinations();
 
+    @Nullable
+    abstract String getKmsKey();
+
     /**
      * The codec used to encode the blocks in the Avro file. String value drawn from those in
      * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
@@ -1005,6 +1009,8 @@ public class AvroIO {
 
       abstract Builder<UserT, DestinationT, OutputT> setDynamicDestinations(
           DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations);
+
+      abstract Builder<UserT, DestinationT, OutputT> setKmsKey(@Nullable String kmsKey);
 
       abstract TypedWrite<UserT, DestinationT, OutputT> build();
     }
@@ -1214,6 +1220,14 @@ public class AvroIO {
       return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }
 
+    /**
+     * Sets Key Management System key name for use in creating new files on filesystems that support
+     * it.
+     */
+    public TypedWrite<UserT, DestinationT, OutputT> withKmsKey(String kmsKey) {
+      return toBuilder().setKmsKey(kmsKey).build();
+    }
+
     DynamicAvroDestinations<UserT, DestinationT, OutputT> resolveDynamicDestinations() {
       DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations =
           getDynamicDestinations();
@@ -1268,7 +1282,8 @@ public class AvroIO {
       }
       WriteFiles<UserT, DestinationT, OutputT> write =
           WriteFiles.to(
-              new AvroSink<>(tempDirectory, resolveDynamicDestinations(), getGenericRecords()));
+              new AvroSink<>(
+                  tempDirectory, resolveDynamicDestinations(), getGenericRecords(), getKmsKey()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -1411,6 +1426,11 @@ public class AvroIO {
     /** See {@link TypedWrite#withMetadata} . */
     public Write<T> withMetadata(Map<String, Object> metadata) {
       return new Write<>(inner.withMetadata(metadata));
+    }
+
+    /** See {@link TypedWrite#withKmsKey} . */
+    public Write<T> withKmsKey(String kmsKey) {
+      return new Write<>(inner.withKmsKey(kmsKey));
     }
 
     @Override

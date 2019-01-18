@@ -71,6 +71,8 @@ public class FileSystems {
   private static final Pattern FILE_SCHEME_PATTERN =
       Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):/.*");
   private static final Pattern GLOB_PATTERN = Pattern.compile("[*?{}]");
+  private static final MoveOptions defaultMoveOptions =
+      MoveOptions.StandardMoveOptions.builder().build();
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
       new AtomicReference<>(ImmutableMap.of(DEFAULT_SCHEME, new LocalFileSystem()));
@@ -264,8 +266,27 @@ public class FileSystems {
    * @param srcResourceIds the references of the source resources
    * @param destResourceIds the references of the destination resources
    */
+  public static void copy(List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds)
+      throws IOException {
+    copy(srcResourceIds, destResourceIds, defaultMoveOptions);
+  }
+
+  /**
+   * Copies a {@link List} of file-like resources from one location to another.
+   *
+   * <p>The number of source resources must equal the number of destination resources. Destination
+   * resources will be created recursively.
+   *
+   * <p>{@code srcResourceIds} and {@code destResourceIds} must have the same scheme.
+   *
+   * <p>It doesn't support copying globs.
+   *
+   * @param srcResourceIds the references of the source resources
+   * @param destResourceIds the references of the destination resources
+   * @param moveOptions additional settings for this operation.
+   */
   public static void copy(
-      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
+      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions moveOptions)
       throws IOException {
     validateSrcDestLists(srcResourceIds, destResourceIds);
     if (srcResourceIds.isEmpty()) {
@@ -275,6 +296,7 @@ public class FileSystems {
 
     List<ResourceId> srcToCopy = srcResourceIds;
     List<ResourceId> destToCopy = destResourceIds;
+    // TODO: search for all uses of IGNORE_MISSING_FILES and remove Sets usage.
     if (Sets.newHashSet(moveOptions)
         .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
       KV<List<ResourceId>, List<ResourceId>> existings =
@@ -285,7 +307,8 @@ public class FileSystems {
     if (srcToCopy.isEmpty()) {
       return;
     }
-    getFileSystemInternal(srcToCopy.iterator().next().getScheme()).copy(srcToCopy, destToCopy);
+    getFileSystemInternal(srcToCopy.iterator().next().getScheme())
+        .copy(srcToCopy, destToCopy, moveOptions);
   }
 
   /**
@@ -301,8 +324,27 @@ public class FileSystems {
    * @param srcResourceIds the references of the source resources
    * @param destResourceIds the references of the destination resources
    */
+  public static void rename(List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds)
+      throws IOException {
+    rename(srcResourceIds, destResourceIds, defaultMoveOptions);
+  }
+
+  /**
+   * Renames a {@link List} of file-like resources from one location to another.
+   *
+   * <p>The number of source resources must equal the number of destination resources. Destination
+   * resources will be created recursively.
+   *
+   * <p>{@code srcResourceIds} and {@code destResourceIds} must have the same scheme.
+   *
+   * <p>It doesn't support renaming globs.
+   *
+   * @param srcResourceIds the references of the source resources
+   * @param destResourceIds the references of the destination resources
+   * @param moveOptions additional settings for this operation.
+   */
   public static void rename(
-      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
+      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions moveOptions)
       throws IOException {
     validateSrcDestLists(srcResourceIds, destResourceIds);
     if (srcResourceIds.isEmpty()) {
@@ -312,8 +354,7 @@ public class FileSystems {
 
     List<ResourceId> srcToRename = srcResourceIds;
     List<ResourceId> destToRename = destResourceIds;
-    if (Sets.newHashSet(moveOptions)
-        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
+    if (moveOptions.getIgnoreMissingFiles()) {
       KV<List<ResourceId>, List<ResourceId>> existings =
           filterMissingFiles(srcResourceIds, destResourceIds);
       srcToRename = existings.getKey();
@@ -323,7 +364,7 @@ public class FileSystems {
       return;
     }
     getFileSystemInternal(srcToRename.iterator().next().getScheme())
-        .rename(srcToRename, destToRename);
+        .rename(srcToRename, destToRename, moveOptions);
   }
 
   /**
@@ -333,7 +374,19 @@ public class FileSystems {
    *
    * @param resourceIds the references of the resources to delete.
    */
-  public static void delete(Collection<ResourceId> resourceIds, MoveOptions... moveOptions)
+  public static void delete(Collection<ResourceId> resourceIds) throws IOException {
+    delete(resourceIds, defaultMoveOptions);
+  }
+
+  /**
+   * Deletes a collection of resources.
+   *
+   * <p>{@code resourceIds} must have the same scheme.
+   *
+   * @param resourceIds the references of the resources to delete.
+   * @param moveOptions additional settings for this operation.
+   */
+  public static void delete(Collection<ResourceId> resourceIds, MoveOptions moveOptions)
       throws IOException {
     if (resourceIds.isEmpty()) {
       // Short-circuit.
@@ -376,7 +429,7 @@ public class FileSystems {
       return;
     }
     getFileSystemInternal(resourceIdsToDelete.iterator().next().getScheme())
-        .delete(resourceIdsToDelete);
+        .delete(resourceIdsToDelete, moveOptions);
   }
 
   private static KV<List<ResourceId>, List<ResourceId>> filterMissingFiles(

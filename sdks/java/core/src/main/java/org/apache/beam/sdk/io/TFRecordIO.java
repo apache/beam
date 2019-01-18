@@ -231,6 +231,12 @@ public class TFRecordIO {
     /** Option to indicate the output sink's compression type. Default is NONE. */
     abstract Compression getCompression();
 
+    /**
+     * Key Management System key name for use in creating new files on filesystems that support it.
+     */
+    @Nullable
+    abstract String getKmsKey();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -244,6 +250,8 @@ public class TFRecordIO {
       abstract Builder setNumShards(int numShards);
 
       abstract Builder setCompression(Compression compression);
+
+      abstract Builder setKmsKey(String kmsKey);
 
       abstract Write build();
     }
@@ -340,6 +348,14 @@ public class TFRecordIO {
       return toBuilder().setCompression(compression).build();
     }
 
+    /**
+     * Sets Key Management System key name for use in creating new files on filesystems that support
+     * it.
+     */
+    public Write withKmsKey(String kmsKey) {
+      return toBuilder().setKmsKey(kmsKey).build();
+    }
+
     @Override
     public PDone expand(PCollection<byte[]> input) {
       checkState(
@@ -348,7 +364,11 @@ public class TFRecordIO {
       WriteFiles<byte[], Void, byte[]> write =
           WriteFiles.to(
               new TFRecordSink(
-                  getOutputPrefix(), getShardTemplate(), getFilenameSuffix(), getCompression()));
+                  getOutputPrefix(),
+                  getShardTemplate(),
+                  getFilenameSuffix(),
+                  getCompression(),
+                  getKmsKey()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -534,13 +554,15 @@ public class TFRecordIO {
         ValueProvider<ResourceId> outputPrefix,
         @Nullable String shardTemplate,
         @Nullable String suffix,
-        Compression compression) {
+        Compression compression,
+        @Nullable String kmsKey) {
       super(
           outputPrefix,
           DynamicFileDestinations.constant(
               DefaultFilenamePolicy.fromStandardParameters(
                   outputPrefix, shardTemplate, suffix, false)),
-          compression);
+          compression,
+          kmsKey);
     }
 
     @Override

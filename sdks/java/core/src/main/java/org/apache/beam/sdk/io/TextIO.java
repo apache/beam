@@ -251,6 +251,7 @@ public class TextIO {
         .setDelimiter(new char[] {'\n'})
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
+        .setKmsKey(null)
         .setNumShards(0)
         .build();
   }
@@ -629,6 +630,10 @@ public class TextIO {
     /** Whether to write windowed output files. */
     abstract boolean getWindowedWrites();
 
+    /** Optional Key Management System encryption key. */
+    @Nullable
+    abstract String getKmsKey();
+
     /**
      * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
      * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
@@ -672,6 +677,8 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setNumShards(int numShards);
 
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
+
+      abstract Builder<UserT, DestinationT> setKmsKey(@Nullable String kmsKey);
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
@@ -899,6 +906,15 @@ public class TextIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    /**
+     * Sets a Key Management System key for each created file.
+     *
+     * <p>Files will be encrypted using the given KMS key on supported filesystems.
+     */
+    public TypedWrite<UserT, DestinationT> withKmsKey(@Nullable String kmsKey) {
+      return toBuilder().setKmsKey(kmsKey).build();
+    }
+
     private DynamicDestinations<UserT, DestinationT, String> resolveDynamicDestinations() {
       DynamicDestinations<UserT, DestinationT, String> dynamicDestinations =
           getDynamicDestinations();
@@ -974,13 +990,17 @@ public class TextIO {
                   getDelimiter(),
                   getHeader(),
                   getFooter(),
-                  getWritableByteChannelFactory()));
+                  getWritableByteChannelFactory(),
+                  getKmsKey()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
       }
+      // TODO: remove
+      //System.err.println("kmsKey: "+getKmsKey());
+      //write = write.withKmsKey(getKmsKey());
       return input.apply("WriteFiles", write);
     }
 
@@ -1143,6 +1163,14 @@ public class TextIO {
     /** See {@link TypedWrite#withWindowedWrites}. */
     public Write withWindowedWrites() {
       return new Write(inner.withWindowedWrites());
+    }
+
+    /** See {@link TypedWrite#withKmsKey}. */
+    // TODO: mark new public interfaces as experimental
+    @Experimental(Kind.FILESYSTEM)
+    public Write withKmsKey(@Nullable String kmsKey) {
+      // TODO: check if FileIO kmsKey is in use
+      return new Write(inner.withKmsKey(kmsKey));
     }
 
     /**

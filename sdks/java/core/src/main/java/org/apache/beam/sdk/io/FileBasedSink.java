@@ -52,8 +52,10 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -387,6 +389,12 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     }
   }
 
+  /** KMS key used to create new files. */
+  @Experimental(Kind.FILESYSTEM)
+  // TODO: Intellij warning?
+  @Nullable
+  protected String kmsKey;
+
   /**
    * Construct a {@link FileBasedSink} with the given temp directory, producing uncompressed files.
    */
@@ -403,10 +411,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       ValueProvider<ResourceId> tempDirectoryProvider,
       DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations,
       WritableByteChannelFactory writableByteChannelFactory) {
-    this.tempDirectoryProvider =
-        NestedValueProvider.of(tempDirectoryProvider, new ExtractDirectory());
-    this.dynamicDestinations = checkNotNull(dynamicDestinations);
-    this.writableByteChannelFactory = writableByteChannelFactory;
+    this(tempDirectoryProvider, dynamicDestinations, writableByteChannelFactory, null);
   }
 
   /** Construct a {@link FileBasedSink} with the given temp directory and output channel type. */
@@ -416,6 +421,34 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations,
       Compression compression) {
     this(tempDirectoryProvider, dynamicDestinations, CompressionType.fromCanonical(compression));
+  }
+
+  /** Construct a {@link FileBasedSink} with the given temp directory and output channel type. */
+  @Experimental(Kind.FILESYSTEM)
+  public FileBasedSink(
+      ValueProvider<ResourceId> tempDirectoryProvider,
+      DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations,
+      Compression compression,
+      String kmsKey) {
+    this(
+        tempDirectoryProvider,
+        dynamicDestinations,
+        CompressionType.fromCanonical(compression),
+        kmsKey);
+  }
+
+  /** Construct a {@link FileBasedSink} with the given temp directory and output channel type. */
+  @Experimental(Kind.FILESYSTEM)
+  public FileBasedSink(
+      ValueProvider<ResourceId> tempDirectoryProvider,
+      DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations,
+      WritableByteChannelFactory writableByteChannelFactory,
+      String kmsKey) {
+    this.tempDirectoryProvider =
+        NestedValueProvider.of(tempDirectoryProvider, new ExtractDirectory());
+    this.dynamicDestinations = checkNotNull(dynamicDestinations);
+    this.writableByteChannelFactory = writableByteChannelFactory;
+    this.kmsKey = kmsKey;
   }
 
   /** Return the {@link DynamicDestinations} used. */
@@ -758,7 +791,12 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       }
       // During a failure case, files may have been deleted in an earlier step. Thus
       // we ignore missing files here.
-      FileSystems.rename(srcFiles, dstFiles, StandardMoveOptions.IGNORE_MISSING_FILES);
+      MoveOptions moveOptions =
+          MoveOptions.StandardMoveOptions.builder()
+              .setIgnoreMissingFiles(true)
+              .setDestKmsKey(getSink().kmsKey)
+              .build();
+      FileSystems.rename(srcFiles, dstFiles, moveOptions);
       removeTemporaryFiles(srcFiles);
     }
 
@@ -924,9 +962,14 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
       final WritableByteChannelFactory factory =
           getWriteOperation().getSink().writableByteChannelFactory;
-      // The factory may force a MIME type or it may return null, indicating to use the sink's MIME.
-      String channelMimeType = firstNonNull(factory.getMimeType(), mimeType);
-      WritableByteChannel tempChannel = FileSystems.create(outputFile, channelMimeType);
+
+      CreateOptions createOptions =
+          CreateOptions.StandardCreateOptions.builder()
+              // The factory may force a MIME type or it may return null, indicating to use the sink's MIME.
+              .setMimeType(firstNonNull(factory.getMimeType(), mimeType))
+              .setKmsKey(getWriteOperation().getSink().kmsKey)
+              .build();
+      WritableByteChannel tempChannel = FileSystems.create(outputFile, createOptions);
       try {
         channel = factory.create(tempChannel);
       } catch (Exception e) {
