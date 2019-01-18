@@ -30,7 +30,6 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.testing.DataflowPortabilityExecutableStageUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -470,7 +469,7 @@ public class CoGroupByKeyTest implements Serializable {
   /** Tests the pipeline end-to-end with FixedWindows. */
   @SuppressWarnings("unchecked")
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
+  @Category(ValidatesRunner.class)
   public void testCoGroupByKeyWithWindowing() {
     TupleTag<String> clicksTag = new TupleTag<>();
     TupleTag<String> purchasesTag = new TupleTag<>();
