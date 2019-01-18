@@ -272,6 +272,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         .setResourceId(LocalResourceId.fromPath(file.toPath(), file.isDirectory()))
         .setIsReadSeekEfficient(true)
         .setSizeBytes(file.length())
+        .setLastModifiedMillis(file.lastModified())
         .build();
   }
 }
