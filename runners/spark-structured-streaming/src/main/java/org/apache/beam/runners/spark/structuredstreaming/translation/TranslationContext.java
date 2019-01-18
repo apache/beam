@@ -109,6 +109,10 @@ public class TranslationContext {
     return (Dataset<WindowedValue<T>>) dataset;
   }
 
+  /**
+   * TODO: All these 3 methods (putDataset*) are temporary and they are used only for generics type
+   * checking. We should unify them in the future.
+   */
   public void putDatasetWildcard(PValue value, Dataset<WindowedValue<?>> dataset) {
     if (!datasets.containsKey(value)) {
       datasets.put(value, dataset);

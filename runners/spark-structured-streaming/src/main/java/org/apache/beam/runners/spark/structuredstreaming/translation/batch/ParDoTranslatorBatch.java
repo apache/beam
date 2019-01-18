@@ -69,19 +69,19 @@ class ParDoTranslatorBatch<InputT, OutputT>
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     TupleTag<?> mainOutputTag = getTupleTag(context);
 
-    Map<TupleTag<?>, Integer> outputMap = Maps.newHashMap();
+    Map<TupleTag<?>, Integer> outputTags = Maps.newHashMap();
 
-    outputMap.put(mainOutputTag, 0);
+    outputTags.put(mainOutputTag, 0);
     int count = 1;
     for (TupleTag<?> tag : outputs.keySet()) {
-      if (!outputMap.containsKey(tag)) {
-        outputMap.put(tag, count++);
+      if (!outputTags.containsKey(tag)) {
+        outputTags.put(tag, count++);
       }
     }
 
     // Union coder elements must match the order of the output tags.
     Map<Integer, TupleTag<?>> indexMap = Maps.newTreeMap();
-    for (Map.Entry<TupleTag<?>, Integer> entry : outputMap.entrySet()) {
+    for (Map.Entry<TupleTag<?>, Integer> entry : outputTags.entrySet()) {
       indexMap.put(entry.getValue(), entry.getKey());
     }
 
@@ -126,7 +126,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
             windowingStrategy,
             sideInputStrategies,
             context.getOptions(),
-            outputMap,
+            outputTags,
             mainOutputTag,
             context.getInput(transform).getCoder(),
             outputCoderMap);
