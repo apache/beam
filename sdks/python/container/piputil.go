@@ -29,9 +29,16 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 )
 
-const (
-	pip = "/usr/local/bin/pip"
+var (
+	pip = pipLocation()
 )
+
+func pipLocation() string {
+  if v, ok := os.LookupEnv("pip"); ok {
+    return v
+  }
+  return "/usr/local/bin/pip"
+}
 
 // pipInstallRequirements installs the given requirement, if present.
 func pipInstallRequirements(files []string, dir, name string) error {
