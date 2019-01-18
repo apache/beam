@@ -158,6 +158,7 @@ public class HadoopFileSystemTest {
                         .setResourceId(testPath("testFileB"))
                         .setIsReadSeekEfficient(true)
                         .setSizeBytes("testDataB".getBytes(StandardCharsets.UTF_8).length)
+                        .setLastModifiedMillis(lastModified("testFileB"))
                         .build()))));
   }
 
@@ -188,11 +189,13 @@ public class HadoopFileSystemTest {
                 .setResourceId(testPath("testFileAA"))
                 .setIsReadSeekEfficient(true)
                 .setSizeBytes("testDataAA".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("testFileAA"))
                 .build(),
             Metadata.builder()
                 .setResourceId(testPath("testFileA"))
                 .setIsReadSeekEfficient(true)
                 .setSizeBytes("testDataA".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("testFileA"))
                 .build()));
   }
 
@@ -223,6 +226,7 @@ public class HadoopFileSystemTest {
                         .setResourceId(testPath("testFileAA"))
                         .setIsReadSeekEfficient(true)
                         .setSizeBytes("testDataAA".getBytes(StandardCharsets.UTF_8).length)
+                        .setLastModifiedMillis(lastModified("testFileAA"))
                         .build())),
             MatchResult.create(Status.NOT_FOUND, ImmutableList.of()),
             MatchResult.create(
@@ -232,6 +236,7 @@ public class HadoopFileSystemTest {
                         .setResourceId(testPath("testFileBB"))
                         .setIsReadSeekEfficient(true)
                         .setSizeBytes("testDataBB".getBytes(StandardCharsets.UTF_8).length)
+                        .setLastModifiedMillis(lastModified("testFileBB"))
                         .build())));
     assertThat(matchResults, equalTo(expected));
   }
@@ -258,11 +263,13 @@ public class HadoopFileSystemTest {
                 .setResourceId(testPath("renameFileA"))
                 .setIsReadSeekEfficient(true)
                 .setSizeBytes("testDataA".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("renameFileA"))
                 .build(),
             Metadata.builder()
                 .setResourceId(testPath("renameFileB"))
                 .setIsReadSeekEfficient(true)
                 .setSizeBytes("testDataB".getBytes(StandardCharsets.UTF_8).length)
+                .setLastModifiedMillis(lastModified("renameFileB"))
                 .build()));
 
     // ensure files exist
@@ -375,6 +382,13 @@ public class HadoopFileSystemTest {
       }
       return ByteStreams.toByteArray(inputStream);
     }
+  }
+
+  private long lastModified(String relativePath) throws Exception {
+    return fileSystem
+        .fileSystem
+        .getFileStatus(testPath(relativePath).toPath())
+        .getModificationTime();
   }
 
   private HadoopResourceId testPath(String relativePath) {

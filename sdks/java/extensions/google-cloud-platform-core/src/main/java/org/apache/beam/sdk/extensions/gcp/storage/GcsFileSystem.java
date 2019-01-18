@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.util.DateTime;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import java.io.FileNotFoundException;
@@ -268,6 +269,8 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
             .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
     BigInteger size = firstNonNull(storageObject.getSize(), BigInteger.ZERO);
     ret.setSizeBytes(size.longValue());
+    DateTime lastModified = firstNonNull(storageObject.getUpdated(), new DateTime(0L));
+    ret.setLastModifiedMillis(lastModified.getValue());
     return ret.build();
   }
 
