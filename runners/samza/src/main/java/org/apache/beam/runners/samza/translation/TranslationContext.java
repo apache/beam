@@ -67,7 +67,7 @@ import org.slf4j.LoggerFactory;
  */
 public class TranslationContext {
   public static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
-  private final StreamApplicationDescriptor streamGraph;
+  private final StreamApplicationDescriptor appDescriptor;
   private final Map<PValue, MessageStream<?>> messsageStreams = new HashMap<>();
   private final Map<PCollectionView<?>, MessageStream<?>> viewStreams = new HashMap<>();
   private final Map<PValue, String> idMap;
@@ -79,10 +79,10 @@ public class TranslationContext {
   private int topologicalId;
 
   public TranslationContext(
-      StreamApplicationDescriptor streamGraph,
+      StreamApplicationDescriptor appDescriptor,
       Map<PValue, String> idMap,
       SamzaPipelineOptions options) {
-    this.streamGraph = streamGraph;
+    this.appDescriptor = appDescriptor;
     this.idMap = idMap;
     this.options = options;
   }
@@ -104,7 +104,7 @@ public class TranslationContext {
     }
     @SuppressWarnings("unchecked")
     final MessageStream<OpMessage<OutT>> typedStream =
-        getValueStream(streamGraph.getInputStream(inputDescriptor));
+        getValueStream(appDescriptor.getInputStream(inputDescriptor));
 
     registerMessageStream(pvalue, typedStream);
     registeredInputStreams.put(streamId, typedStream);
@@ -121,7 +121,7 @@ public class TranslationContext {
   public MessageStream<OpMessage<String>> getDummyStream() {
     InputDescriptor<OpMessage<String>, ?> dummyInput =
         createDummyStreamDescriptor(UUID.randomUUID().toString());
-    return streamGraph.getInputStream(dummyInput);
+    return appDescriptor.getInputStream(dummyInput);
   }
 
   public <OutT> MessageStream<OpMessage<OutT>> getMessageStream(PValue pvalue) {
@@ -204,13 +204,13 @@ public class TranslationContext {
   }
 
   public <OutT> OutputStream<OutT> getOutputStream(OutputDescriptor<OutT, ?> outputDescriptor) {
-    return streamGraph.getOutputStream(outputDescriptor);
+    return appDescriptor.getOutputStream(outputDescriptor);
   }
 
   @SuppressWarnings("unchecked")
   public <K, V> Table<KV<K, V>> getTable(TableDescriptor<K, V, ?> tableDesc) {
     return registeredTables.computeIfAbsent(
-        tableDesc.getTableId(), id -> streamGraph.getTable(tableDesc));
+        tableDesc.getTableId(), id -> appDescriptor.getTable(tableDesc));
   }
 
   private static <T> MessageStream<T> getValueStream(

@@ -59,18 +59,28 @@ public class BeamContainerRunner implements ApplicationRunner {
   }
 
   @Override
-  public void kill() {}
-
-  @Override
-  public ApplicationStatus status() {
-    return null;
+  public void kill() {
+    // Do nothing. Yarn will kill the container.
   }
 
   @Override
-  public void waitForFinish() {}
+  public ApplicationStatus status() {
+    // The container is running during the life span of this object.
+    return ApplicationStatus.Running;
+  }
+
+  @Override
+  public void waitForFinish() {
+    // Container run is synchronous
+    // so calling waitForFinish() after run() should return immediately
+    LOG.info("Container has stopped");
+  }
 
   @Override
   public boolean waitForFinish(Duration timeout) {
-    return false;
+    // Container run is synchronous
+    // so calling waitForFinish() after run() should return immediately
+    LOG.info("Container has stopped");
+    return true;
   }
 }

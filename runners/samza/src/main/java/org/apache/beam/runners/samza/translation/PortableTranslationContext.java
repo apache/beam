@@ -35,14 +35,14 @@ import org.apache.samza.system.descriptors.OutputDescriptor;
  */
 public class PortableTranslationContext {
   private final Map<String, MessageStream<?>> messsageStreams = new HashMap<>();
-  private final StreamApplicationDescriptor streamGraph;
+  private final StreamApplicationDescriptor appDescriptor;
   private final SamzaPipelineOptions options;
   private int topologicalId;
   private final Set<String> registeredInputStreams = new HashSet<>();
 
   public PortableTranslationContext(
-      StreamApplicationDescriptor streamGraph, SamzaPipelineOptions options) {
-    this.streamGraph = streamGraph;
+      StreamApplicationDescriptor appDescriptor, SamzaPipelineOptions options) {
+    this.appDescriptor = appDescriptor;
     this.options = options;
   }
 
@@ -92,7 +92,7 @@ public class PortableTranslationContext {
 
   /** Get output stream by output descriptor. */
   public <OutT> OutputStream<OutT> getOutputStream(OutputDescriptor<OutT, ?> outputDescriptor) {
-    return streamGraph.getOutputStream(outputDescriptor);
+    return appDescriptor.getOutputStream(outputDescriptor);
   }
 
   /** Register an input stream with certain config id. */
@@ -104,7 +104,7 @@ public class PortableTranslationContext {
       return;
     }
     final MessageStream<OpMessage<T>> stream =
-        streamGraph.getInputStream(inputDescriptor).map(org.apache.samza.operators.KV::getValue);
+        appDescriptor.getInputStream(inputDescriptor).map(org.apache.samza.operators.KV::getValue);
 
     registerMessageStream(id, stream);
     registeredInputStreams.add(streamId);

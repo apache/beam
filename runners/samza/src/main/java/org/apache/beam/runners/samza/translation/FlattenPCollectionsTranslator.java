@@ -70,12 +70,7 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       // for some of the validateRunner tests only
       final MessageStream<OpMessage<T>> noOpStream =
           ctx.getDummyStream()
-              .flatMap(
-                  OpAdapter.adapt(
-                      (Op<String, T, Void>)
-                          (inputElement, emitter) -> {
-                            System.out.println(inputElement.toString());
-                          }));
+              .flatMap(OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));
       ctx.registerMessageStream(output, noOpStream);
       return;
     }
