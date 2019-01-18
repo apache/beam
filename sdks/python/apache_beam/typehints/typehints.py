@@ -1082,8 +1082,11 @@ WindowedValue = WindowedTypeConstraint
 _KNOWN_PRIMITIVE_TYPES = {}
 
 
-def normalize(x):
-  if x in _KNOWN_PRIMITIVE_TYPES:
+def normalize(x, none_as_type=False):
+    # None is inconsistantly used for Any, unknown, or NoneType.
+  if none_as_type and x is None:
+    return type(None)
+  elif x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
   elif getattr(x, '__module__', None) == 'typing':
     # Avoid circular imports
@@ -1103,8 +1106,6 @@ _KNOWN_PRIMITIVE_TYPES.update({
     list: List[Any],
     tuple: Tuple[Any, ...],
     set: Set[Any],
-    # Using None for the NoneType is a common convention.
-    None: type(None),
 })
 
 
@@ -1122,8 +1123,8 @@ def is_consistent_with(sub, base):
     return True
   if isinstance(sub, AnyTypeConstraint) or isinstance(base, AnyTypeConstraint):
     return True
-  sub = normalize(sub)
-  base = normalize(base)
+  sub = normalize(sub, none_as_type=True)
+  base = normalize(base, none_as_type=True)
   if isinstance(base, TypeConstraint):
     if isinstance(sub, UnionConstraint):
       return all(is_consistent_with(c, base) for c in sub.union_types)
