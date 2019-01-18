@@ -47,6 +47,7 @@ TERMINAL_STATES = [
 # sent.
 END_OF_STREAM_MESSAGE = 'SECRET_END_OF_STREAM_MESSAGE'
 
+
 class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   """Manages one or more pipelines, possibly concurrently.
     Experimental: No backward compatibility guaranteed.
@@ -236,20 +237,16 @@ class BeamJob(threading.Thread):
     self._log_queues.append(log_queue)
     self._state_queues.append(log_queue)
 
-    current_state = self.state
-    yield current_state
+    msg = None
     while True:
       msg = log_queue.get(block=True)
-      if msg == END_OF_STREAM_MESSAGE:
+      if (isinstance(msg, beam_job_api_pb2.JobMessage) and
+          msg.message_text == END_OF_STREAM_MESSAGE):
         return
-
       yield msg
-      if isinstance(msg, int):
-        current_state = msg
 
   def _cleanup(self):
-    for queue in self._log_queues:
-      queue.put(END_OF_STREAM_MESSAGE)
+    logging.debug(END_OF_STREAM_MESSAGE)
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
