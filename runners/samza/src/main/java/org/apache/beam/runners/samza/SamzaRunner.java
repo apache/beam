@@ -45,6 +45,7 @@ import org.apache.beam.runners.samza.translation.TranslationContext;
 import org.apache.beam.runners.samza.util.PipelineDotRenderer;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -74,6 +75,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   private GrpcFnServer<GrpcStateService> fnStateServer;
   private ControlClientPool controlClientPool;
   private JobBundleFactory jobBundleFactory;
+  private ExecutorService dataExecutor;
 
   public static SamzaRunner fromOptions(PipelineOptions opts) {
     final SamzaPipelineOptions samzaOptions = SamzaPipelineOptionsValidator.validate(opts);
@@ -86,11 +88,14 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     this.options = options;
   }
 
-  private void closeFnServer(GrpcFnServer<?> fnServer) {
-    try (AutoCloseable closer = fnServer) {
+  private static void closeAutoClosable(AutoCloseable closeable) {
+    try (AutoCloseable closer = closeable) {
       // do nothing
     } catch (Exception e) {
-      LOG.error("Failed to close fn api servers. Ignore since this is shutdown process...", e);
+      LOG.error(
+          "Failed to close {}. Ignore since this is shutdown process...",
+          closeable.getClass().getSimpleName(),
+          e);
     }
   }
 
@@ -120,7 +125,10 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
                   // TODO: use JobBundleFactoryBase.WrappedSdkHarnessClient.wrapping
                   jobBundleFactory =
                       SingleEnvironmentInstanceJobBundleFactory.create(
-                          environmentFactory, fnDataServer, fnStateServer);
+                          environmentFactory,
+                          fnDataServer,
+                          fnStateServer,
+                          IdGenerators.incrementingLongs());
                 } catch (Exception e) {
                   throw new RuntimeException(
                       "Running samza in Beam portable mode but failed to create job bundle factory",
@@ -135,19 +143,24 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
           @Override
           public void close() {
-            closeFnServer(fnControlServer);
+            closeAutoClosable(fnControlServer);
             fnControlServer = null;
-            closeFnServer(fnDataServer);
+            closeAutoClosable(fnDataServer);
             fnDataServer = null;
-            closeFnServer(fnStateServer);
+            closeAutoClosable(fnStateServer);
             fnStateServer = null;
+            dataExecutor.shutdown();
+            dataExecutor = null;
+            controlClientPool = null;
+            closeAutoClosable(jobBundleFactory);
+            jobBundleFactory = null;
           }
         });
   }
 
   private void setUpFnApiServer() {
     controlClientPool = MapControlClientPool.create();
-    ExecutorService dataExecutor = Executors.newCachedThreadPool();
+    dataExecutor = Executors.newCachedThreadPool();
     try {
       fnControlServer =
           GrpcFnServer.allocatePortAndCreateFor(
@@ -172,6 +185,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
   SamzaPipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline) {
     final SamzaExecutionContext executionContext = new SamzaExecutionContext();
+    // TODO: this will be moved to setUpContextManager in samza 1.0 migration
     setUpFnApiServer();
     ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPortablePipelineTranslator.createConfig(pipeline, configBuilder);

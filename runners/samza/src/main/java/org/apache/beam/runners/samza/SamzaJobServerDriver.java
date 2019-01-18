@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
@@ -30,7 +31,7 @@ import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagin
 import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -57,8 +58,8 @@ public class SamzaJobServerDriver {
   }
 
   public static void main(String[] args) throws Exception {
-    ServerConfiguration configuration = new ServerConfiguration();
-    CmdLineParser parser = new CmdLineParser(configuration);
+    final ServerConfiguration configuration = new ServerConfiguration();
+    final CmdLineParser parser = new CmdLineParser(configuration);
     try {
       parser.parseArgument(args);
       fromConfig(configuration).run();
@@ -75,7 +76,7 @@ public class SamzaJobServerDriver {
     return new SamzaJobServerDriver(config);
   }
 
-  private InMemoryJobService createJobService() throws IOException {
+  private static InMemoryJobService createJobService(int controlPort) throws IOException {
     JobInvoker jobInvoker =
         new JobInvoker() {
           @Override
@@ -90,9 +91,12 @@ public class SamzaJobServerDriver {
                     : new HashMap<>();
             overrideConfig.put(SamzaRunnerOverrideConfigs.IS_PORTABLE_MODE, String.valueOf(true));
             overrideConfig.put(
-                SamzaRunnerOverrideConfigs.FN_CONTROL_PORT, String.valueOf(config.controlPort));
+                SamzaRunnerOverrideConfigs.FN_CONTROL_PORT, String.valueOf(controlPort));
             samzaPipelineOptions.setConfigOverride(overrideConfig);
-            return new SamzaJobInvocation(pipeline, samzaPipelineOptions);
+            String invocationId =
+                String.format(
+                    "%s_%s", samzaPipelineOptions.getJobName(), UUID.randomUUID().toString());
+            return new SamzaJobInvocation(pipeline, samzaPipelineOptions, invocationId);
           }
         };
     return InMemoryJobService.create(
@@ -110,8 +114,8 @@ public class SamzaJobServerDriver {
   }
 
   private void run() throws Exception {
-    InMemoryJobService service = createJobService();
-    GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer =
+    final InMemoryJobService service = createJobService(config.controlPort);
+    final GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer =
         GrpcFnServer.allocatePortAndCreateFor(
             service, ServerFactory.createWithPortSupplier(() -> config.jobPort));
     LOG.info("JobServer started on {}", jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl());

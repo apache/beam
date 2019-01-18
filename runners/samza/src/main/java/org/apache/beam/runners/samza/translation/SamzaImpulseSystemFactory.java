@@ -69,16 +69,13 @@ public class SamzaImpulseSystemFactory implements SystemFactory {
     @Override
     public Map<SystemStreamPartition, String> getOffsetsAfter(
         Map<SystemStreamPartition, String> offset) {
-      return offset
-          .keySet()
-          .stream()
+      return offset.keySet().stream()
           .collect(Collectors.toMap(Function.identity(), k -> DUMMY_OFFSET));
     }
 
     @Override
     public Map<String, SystemStreamMetadata> getSystemStreamMetadata(Set<String> streamNames) {
-      return streamNames
-          .stream()
+      return streamNames.stream()
           .collect(
               Collectors.toMap(
                   Function.identity(),

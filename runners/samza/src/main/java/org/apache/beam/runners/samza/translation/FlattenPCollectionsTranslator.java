@@ -17,12 +17,16 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
@@ -67,11 +71,6 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       return;
     }
 
-    if (inputStreams.size() == 1) {
-      ctx.registerMessageStream(output, Iterables.getOnlyElement(inputStreams));
-      return;
-    }
-
     ctx.registerMessageStream(output, mergeInputStreams(inputStreams));
   }
 
@@ -83,17 +82,10 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
     final List<MessageStream<OpMessage<T>>> inputStreams = ctx.getAllInputMessageStreams(transform);
     final String outputId = ctx.getOutputId(transform);
 
-    if (inputStreams.isEmpty()) {
-      // For portable api there should be at least the impulse as a dummy input
-      // We will know once validateRunner tests are available for portable runners
-      throw new IllegalArgumentException(
-          String.format("no input streams defined for Flatten: %s", transform.getId()));
-    }
-
-    if (inputStreams.size() == 1) {
-      ctx.registerMessageStream(outputId, Iterables.getOnlyElement(inputStreams));
-      return;
-    }
+    // For portable api there should be at least the impulse as a dummy input
+    // We will know once validateRunner tests are available for portable runners
+    checkState(
+        !inputStreams.isEmpty(), "no input streams defined for Flatten: %s", transform.getId());
 
     ctx.registerMessageStream(outputId, mergeInputStreams(inputStreams));
   }
@@ -101,6 +93,9 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
   // Merge multiple input streams into one, as this is what "flatten" is meant to do
   private MessageStream<OpMessage<T>> mergeInputStreams(
       List<MessageStream<OpMessage<T>>> inputStreams) {
+    if (inputStreams.size() == 1) {
+      return Iterables.getOnlyElement(inputStreams);
+    }
     final Set<MessageStream<OpMessage<T>>> streamsToMerge = new HashSet<>();
     inputStreams.forEach(
         stream -> {

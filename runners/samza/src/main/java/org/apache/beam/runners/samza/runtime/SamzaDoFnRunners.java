@@ -208,7 +208,7 @@ public class SamzaDoFnRunners {
             stageBundleFactory.getBundle(
                 receiverFactory,
                 StateRequestHandler.unsupported(),
-                BundleProgressHandler.unsupported())) {
+                BundleProgressHandler.ignored())) {
           Iterables.getOnlyElement(bundle.getInputReceivers().values()).accept(elem);
         }
 

@@ -21,6 +21,8 @@ import com.google.common.collect.Iterables;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
 import org.apache.beam.runners.samza.runtime.GroupByKeyOp;
 import org.apache.beam.runners.samza.runtime.KvToKeyedWorkItemOp;
@@ -28,6 +30,7 @@ import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.transforms.GroupWithoutRepartition;
 import org.apache.beam.runners.samza.util.SamzaCoders;
+import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -97,12 +100,12 @@ class GroupByKeyTranslator<K, InputT, OutputT>
         ctx.getOneInputMessageStream(transform);
     final boolean needRepartition = ctx.getSamzaPipelineOptions().getMaxSourceParallelism() > 1;
     final WindowingStrategy<?, BoundedWindow> windowingStrategy =
-        ctx.getPortableWindowStrategy(transform, pipeline);
+        SamzaPipelineTranslatorUtils.getPortableWindowStrategy(transform, pipeline);
     Coder<BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
 
     String inputId = ctx.getInputId(transform);
     WindowedValue.WindowedValueCoder<KV<K, InputT>> windowedInputCoder =
-        ctx.instantiateCoder(inputId, pipeline.getComponents());
+        SamzaPipelineTranslatorUtils.instantiateCoder(inputId, pipeline.getComponents());
     final KvCoder<K, InputT> kvInputCoder = (KvCoder<K, InputT>) windowedInputCoder.getValueCoder();
     final Coder<WindowedValue<KV<K, InputT>>> elementCoder =
         WindowedValue.FullWindowedValueCoder.of(kvInputCoder, windowCoder);
