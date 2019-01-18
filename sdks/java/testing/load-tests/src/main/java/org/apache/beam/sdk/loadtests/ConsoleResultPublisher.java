@@ -17,11 +17,23 @@
  */
 package org.apache.beam.sdk.loadtests;
 
-/** Writes {@link LoadTestResult} to console. */
-public class ConsoleResultPublisher {
+import static java.lang.String.format;
 
-  static void publish(LoadTestResult result) {
-    System.out.println(String.format("Total bytes: %s", result.getTotalBytesCount()));
-    System.out.println(String.format("Total time (sec): %s", result.getRuntime()));
+import java.util.List;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+
+/** Writes load test metrics results to console. */
+class ConsoleResultPublisher {
+
+  static void publish(List<NamedTestResult> results, String testId, String timestamp) {
+    final String textTemplate = "%24s  %24s";
+
+    System.out.println(
+        format("Load test results for test (ID): %s and timestamp: %s:", testId, timestamp));
+    System.out.println(format(textTemplate, "Metric:", "Value:"));
+
+    results.forEach(
+        (result) ->
+            System.out.println(format(textTemplate, result.getMetric(), result.getValue())));
   }
 }
