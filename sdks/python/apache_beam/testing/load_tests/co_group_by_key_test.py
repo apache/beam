@@ -84,24 +84,23 @@ from __future__ import absolute_import
 
 import json
 import logging
+import os
 import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
+from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
 from apache_beam.testing.test_pipeline import TestPipeline
-
-try:
-  from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-  from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
-  from google.cloud import bigquery as bq
-except ImportError:
-  bq = None
 
 INPUT_TAG = 'pc1'
 CO_INPUT_TAG = 'pc2'
+load_test_enabled = False
+if os.environ.get('LOAD_TEST_ENABLED') == 'true':
+  load_test_enabled = True
 
 
-@unittest.skipIf(bq is None, 'BigQuery for storing metrics not installed')
+@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class CoGroupByKeyTest(unittest.TestCase):
 
   def parseTestPipelineOptions(self, options):
@@ -121,7 +120,7 @@ class CoGroupByKeyTest(unittest.TestCase):
     }
 
   def setUp(self):
-    self.pipeline = TestPipeline(is_integration_test=True)
+    self.pipeline = TestPipeline()
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
     self.co_input_options = json.loads(
         self.pipeline.get_option('co_input_options'))

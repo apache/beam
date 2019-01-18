@@ -92,7 +92,7 @@ if os.environ.get('LOAD_TEST_ENABLED') == 'true':
   load_test_enabled = True
 
 
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phase triggering.')
+@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class SideInputTest(unittest.TestCase):
   def _parseTestPipelineOptions(self):
     return {

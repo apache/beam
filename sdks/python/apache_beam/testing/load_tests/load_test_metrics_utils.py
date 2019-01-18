@@ -59,21 +59,20 @@ SCHEMA = [
     {'name': ID_LABEL,
      'type': 'STRING',
      'mode': 'REQUIRED'
-     },
+    },
     {'name': SUBMIT_TIMESTAMP_LABEL,
      'type': 'TIMESTAMP',
      'mode': 'REQUIRED'
-     },
+    },
     {'name': METRICS_TYPE_LABEL,
      'type': 'STRING',
      'mode': 'REQUIRED'
-     },
+    },
     {'name': VALUE_LABEL,
      'type': 'FLOAT',
      'mode': 'REQUIRED'
-     }
+    }
 ]
-
 
 
 def get_schema_field(schema_field):
@@ -130,7 +129,7 @@ class BigQueryClient(object):
       raise ValueError(
           'Dataset {} does not exist in your project. '
           'You have to create table first.'
-            .format(dataset_name))
+          .format(dataset_name))
     return bq_dataset
 
   def _get_or_create_table(self, bq_schemas, dataset):
