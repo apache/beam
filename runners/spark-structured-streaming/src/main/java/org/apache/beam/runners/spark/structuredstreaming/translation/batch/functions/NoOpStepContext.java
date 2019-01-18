@@ -22,7 +22,7 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 
 /** A {@link StepContext} for Spark Batch Runner execution. */
-public class SparkNoOpStepContext implements StepContext {
+public class NoOpStepContext implements StepContext {
 
   @Override
   public StateInternals stateInternals() {

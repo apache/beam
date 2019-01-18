@@ -26,7 +26,7 @@ import com.google.common.collect.Multimap;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkNoOpStepContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpStepContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -45,6 +45,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Encapsulates a {@link DoFn} inside a Spark {@link
+ * org.apache.spark.api.java.function.MapPartitionsFunction}.
+ *
+ * <p>We get a mapping from {@link org.apache.beam.sdk.values.TupleTag} to output index and must tag
+ * all outputs with the output number. Afterwards a filter will filter out those elements that are
+ * not to be in a specific output.
+ */
 public class DoFnFunction<InputT, OutputT>
     implements MapPartitionsFunction<WindowedValue<InputT>, Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
@@ -98,18 +106,18 @@ public class DoFnFunction<InputT, OutputT>
             outputManager,
             mainOutputTag,
             additionalOutputTags,
-            new SparkNoOpStepContext(),
+            new NoOpStepContext(),
             inputCoder,
             outputCoderMap,
             windowingStrategy);
 
-    return new SparkProcessContext<>(doFn, doFnRunner, outputManager, Collections.emptyIterator())
+    return new ProcessContext<>(doFn, doFnRunner, outputManager, Collections.emptyIterator())
         .processPartition(iter)
         .iterator();
   }
 
   private class DoFnOutputManager
-      implements SparkProcessContext.SparkOutputManager<Tuple2<TupleTag<?>, WindowedValue<?>>> {
+      implements ProcessContext.SparkOutputManager<Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
     private final Multimap<TupleTag<?>, WindowedValue<?>> outputs = LinkedListMultimap.create();
 
