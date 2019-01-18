@@ -163,8 +163,7 @@ public class PTransformMatchersTest implements Serializable {
   private DoFn<KV<String, Integer>, Integer> splittableDoFn =
       new DoFn<KV<String, Integer>, Integer>() {
         @ProcessElement
-        public void processElement(
-            ProcessContext context, RestrictionTracker<Void, Void> tracker) {}
+        public void processElement(ProcessContext context, SomeTracker tracker) {}
 
         @GetInitialRestriction
         public Void getInitialRestriction(KV<String, Integer> element) {
