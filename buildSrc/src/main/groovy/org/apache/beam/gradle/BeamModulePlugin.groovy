@@ -1443,10 +1443,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.applyAntlrNature = {
       project.apply plugin: 'antlr'
-      def generatedDir = "${project.buildDir}/generated/source-src/antlr/main/java/"
-      project.sourceSets {
-        generated { java.srcDir generatedDir }
-      }
+      def generatedDir = "${project.buildDir}/generated-src/antlr/main/java/"
       project.idea {
         module {
           sourceDirs += project.file(generatedDir)
