@@ -92,7 +92,7 @@ public interface DoFnInvoker<InputT, OutputT> {
 
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> invokeNewTracker(
+  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> TrackerT invokeNewTracker(
       RestrictionT restriction);
 
   /** Get the bound {@link DoFn}. */

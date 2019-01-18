@@ -109,7 +109,8 @@ public class SplittableParDoNaiveBounded {
     }
   }
 
-  static class NaiveProcessFn<InputT, OutputT, RestrictionT, PositionT>
+  static class NaiveProcessFn<
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
       extends DoFn<KV<InputT, RestrictionT>, OutputT> {
     private final DoFn<InputT, OutputT> fn;
 
@@ -141,7 +142,7 @@ public class SplittableParDoNaiveBounded {
       InputT element = c.element().getKey();
       RestrictionT restriction = c.element().getValue();
       while (true) {
-        RestrictionTracker<RestrictionT, PositionT> tracker = invoker.invokeNewTracker(restriction);
+        TrackerT tracker = invoker.invokeNewTracker(restriction);
         ProcessContinuation continuation =
             invoker.invokeProcessElement(new NestedProcessContext<>(fn, c, element, w, tracker));
         if (continuation.shouldResume()) {
