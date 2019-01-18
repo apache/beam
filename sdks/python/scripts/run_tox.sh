@@ -41,7 +41,12 @@ if [[ "*sdks/python" != $PWD ]]; then
   cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
 fi
 
-tox -c tox.ini --recreate -e $1
+# check if multiple envs are provided. Then we can run them in parallel.
+if [[ $1 == *","* ]]; then
+  parallel='-p all -o'
+fi
+
+tox -c tox.ini --recreate -e $1 $parallel
 exit_code=$?
 # Retry once for the specific exit code 245.
 if [[ $exit_code == 245 ]]; then

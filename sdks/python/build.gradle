@@ -100,13 +100,11 @@ assemble.dependsOn docs
 
 toxTask "cover", "cover"
 
+toxTask "testsInParallel", "py27,py3,py27-gcp,py27-lint,py27-lint3,py3-lint,docs"
+
 task preCommit() {
-  dependsOn "docs"
+  dependsOn "testsInParallel"
   dependsOn "testCython"
-  dependsOn "testPython2"
-  dependsOn "testPython3"
-  dependsOn "testGcp"
-  dependsOn "lint"
 }
 
 task portablePreCommit() {

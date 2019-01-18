@@ -1556,7 +1556,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec { commandLine 'virtualenv', "${project.ext.envdir}" }
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.7.0 grpcio-tools==1.3.5"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
