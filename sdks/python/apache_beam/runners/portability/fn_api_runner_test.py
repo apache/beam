@@ -26,9 +26,6 @@ import traceback
 import unittest
 from builtins import range
 
-from tenacity import retry
-from tenacity import stop_after_attempt
-
 import apache_beam as beam
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
@@ -43,6 +40,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
+from apache_beam.utils import retry
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -558,7 +556,9 @@ class FnApiRunnerTest(unittest.TestCase):
   # this test is flaky when state duration is low.
   # Since increasing state duration significantly would also slow down
   # the test suite, we are retrying twice on failure as a mitigation.
-  @retry(reraise=True, stop=stop_after_attempt(3))
+  @retry.with_exponential_backoff(num_retries=2, factor=1,
+                                  initial_delay_secs=0.1, max_delay_secs=0.1,
+                                  retry_filter=(lambda e: e is not None))
   def test_progress_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
