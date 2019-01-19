@@ -416,7 +416,7 @@ project.task('createProcessWorker') {
   if (Os.isFamily(Os.FAMILY_MAC))
     osType = 'darwin'
   def workerScript = "${project(":beam-sdks-python-container:").buildDir.absolutePath}/target/launcher/${osType}_amd64/boot"
-  def sdkWorkerFileCode = "sh -c \". ${project.ext.envdir}/bin/activate && ${workerScript} \$* \""
+  def sdkWorkerFileCode = "sh -c \"pip=`which pip` . ${project.ext.envdir}/bin/activate && ${workerScript} \$* \""
   outputs.file sdkWorkerFile
   doLast {
     sdkWorkerFile.write sdkWorkerFileCode
