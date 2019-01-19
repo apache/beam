@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.schemas.parser.generated.FieldSpecifierNotationParser
 import org.apache.beam.sdk.schemas.parser.generated.FieldSpecifierNotationParser.WildcardContext;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
+/** Parser for textual field-access selector. */
 public class FieldAccessDescriptorParser {
   public static FieldAccessDescriptor parse(String expr) {
     CharStream charStream = CharStreams.fromString(expr);
@@ -52,7 +54,7 @@ public class FieldAccessDescriptorParser {
     return new BuildFieldAccessDescriptor().visit(parser.dotExpression());
   }
 
-  public static class BuildFieldAccessDescriptor
+  private static class BuildFieldAccessDescriptor
       extends FieldSpecifierNotationBaseVisitor<FieldAccessDescriptor> {
 
     @Override
@@ -120,11 +122,12 @@ public class FieldAccessDescriptorParser {
     }
   }
 
-  public static class QualifierVisitor
+  private static class QualifierVisitor
       extends FieldSpecifierNotationBaseVisitor<FieldAccessDescriptor> {
     private final List<Qualifier> qualifiers = Lists.newArrayList();
 
     @Override
+    @Nullable
     public FieldAccessDescriptor visitArrayQualifierList(ArrayQualifierListContext ctx) {
       // TODO: Change once we support slices and selectors.
       qualifiers.add(Qualifier.of(ListQualifier.ALL));
@@ -133,6 +136,7 @@ public class FieldAccessDescriptorParser {
     }
 
     @Override
+    @Nullable
     public FieldAccessDescriptor visitMapQualifierList(MapQualifierListContext ctx) {
       // TODO: Change once we support slices and selectors.
       qualifiers.add(Qualifier.of(MapQualifier.ALL));
