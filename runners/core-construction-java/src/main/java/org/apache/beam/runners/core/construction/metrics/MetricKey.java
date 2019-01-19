@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -28,7 +29,8 @@ import org.apache.beam.sdk.metrics.MetricName;
 @AutoValue
 public abstract class MetricKey implements Serializable {
 
-  /** The step name that is associated with this metric. */
+  /** The step name that is associated with this metric or Null if none is associated. */
+  @Nullable
   public abstract String stepName();
 
   /** The name of the metric. */

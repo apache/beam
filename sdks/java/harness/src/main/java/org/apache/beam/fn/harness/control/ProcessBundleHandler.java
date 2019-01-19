@@ -54,6 +54,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -224,11 +225,15 @@ public class ProcessBundleHandler {
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
-    PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry pCollectionConsumerRegistry =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -293,12 +298,11 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
-      // TODO(ajamato): A MetricsContainerImpl should be created and used for each PTransform
-      // or the metric should be registered in some other way with the ptransform name context,
-      // not for the instruction. This fails to associate each user counter with an appropriate
-      // ptransform.
-      MetricsContainerImpl metricsContainer = new MetricsContainerImpl(request.getInstructionId());
-      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
+      // There always needs to be a metricContainer in scope, not everything is calculated in the
+      // context of a PTransform. For example, element count metrics are calculated before entering
+      // a pTransform's context.
+      MetricsContainerImpl rootMetricsContainer = metricsContainerRegistry.getUnboundContainer();
+      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(rootMetricsContainer)) {
 
         // Already in reverse topological order so we don't need to do anything.
         for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
@@ -317,10 +321,10 @@ public class ProcessBundleHandler {
         if (!allResiduals.isEmpty()) {
           response.addAllResidualRoots(allResiduals.values());
         }
+      }
 
-        for (MonitoringInfo mi : metricsContainer.getMonitoringInfos()) {
-          response.addMonitoringInfos(mi);
-        }
+      for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
       }
     }
 
