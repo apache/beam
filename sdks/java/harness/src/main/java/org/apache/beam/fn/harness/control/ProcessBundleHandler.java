@@ -53,7 +53,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.dataflow.worker.MetricsContainerRegistry;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -227,8 +229,11 @@ public class ProcessBundleHandler {
     PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
     HashSet<String> processedPTransformIds = new HashSet<>();
 
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry(
+        metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry(
+        metricsContainerRegistry);
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -293,34 +298,26 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
-      // TODO(ajamato): A MetricsContainerImpl should be created and used for each PTransform
-      // or the metric should be registered in some other way with the ptransform name context,
-      // not for the instruction. This fails to associate each user counter with an appropriate
-      // ptransform.
-      MetricsContainerImpl metricsContainer = new MetricsContainerImpl(request.getInstructionId());
-      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
+      // Already in reverse topological order so we don't need to do anything.
+      for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
+        LOG.debug("Starting function {}", startFunction);
+        startFunction.run();
+      }
 
-        // Already in reverse topological order so we don't need to do anything.
-        for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
-          LOG.debug("Starting function {}", startFunction);
-          startFunction.run();
-        }
+      queueingClient.drainAndBlock();
 
-        queueingClient.drainAndBlock();
+      // Need to reverse this since we want to call finish in topological order.
+      for (ThrowingRunnable finishFunction :
+          Lists.reverse(finishFunctionRegistry.getFunctions())) {
+        LOG.debug("Finishing function {}", finishFunction);
+        finishFunction.run();
+      }
+      if (!allResiduals.isEmpty()) {
+        response.addAllResidualRoots(allResiduals.values());
+      }
 
-        // Need to reverse this since we want to call finish in topological order.
-        for (ThrowingRunnable finishFunction :
-            Lists.reverse(finishFunctionRegistry.getFunctions())) {
-          LOG.debug("Finishing function {}", finishFunction);
-          finishFunction.run();
-        }
-        if (!allResiduals.isEmpty()) {
-          response.addAllResidualRoots(allResiduals.values());
-        }
-
-        for (MonitoringInfo mi : metricsContainer.getMonitoringInfos()) {
-          response.addMonitoringInfos(mi);
-        }
+      for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
       }
     }
 

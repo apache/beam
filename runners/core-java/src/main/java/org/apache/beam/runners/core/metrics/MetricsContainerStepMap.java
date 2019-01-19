@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.metrics;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -105,6 +106,19 @@ public class MetricsContainerStepMap implements Serializable {
     return new MetricsContainerStepMapMetricResults(
         attemptedMetricsContainers, committedMetricsContainers);
   }
+
+  /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  public Iterable<MonitoringInfo> getMonitoringInfos() {
+    // Extract user metrics and store as MonitoringInfos.
+    ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
+    for (MetricsContainerImpl container : metricsContainers.values()) {
+      for  (MonitoringInfo mi : container.getMonitoringInfos()) {
+        monitoringInfos.add(mi);
+      }
+    }
+    return monitoringInfos;
+  }
+
 
   /**
    * Returns {@link MetricResults} based on given {@link MetricsContainerStepMap} of attempted
