@@ -360,7 +360,7 @@ message GetConfigResponse {
   // Map of computation id to ComputationConfig.
   message ComputationConfigMapEntry {
     optional string computation_id = 1;
-    optional ComputationConfig computation_config = 1;
+    optional ComputationConfig computation_config = 2;
   }
   repeated ComputationConfigMapEntry computation_config_map = 4;
 }
