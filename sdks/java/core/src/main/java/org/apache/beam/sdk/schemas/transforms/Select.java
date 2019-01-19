@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -37,6 +37,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /**
  * A {@link PTransform} for selecting a subset of fields from a schema type.
@@ -144,7 +146,7 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     for (Map.Entry<FieldDescriptor, FieldAccessDescriptor> nested :
         fieldAccessDescriptor.getNestedFieldsAccessed().entrySet()) {
       FieldDescriptor fieldDescriptor = nested.getKey();
-      Field field = inputSchema.getField(Preconditions.checkNotNull(fieldDescriptor.getFieldId()));
+      Field field = inputSchema.getField(checkNotNull(fieldDescriptor.getFieldId()));
       FieldType outputType =
           getOutputSchemaHelper(
               field.getType(), nested.getValue(), fieldDescriptor.getQualifiers(), 0);
@@ -161,7 +163,7 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     if (qualifierPosition >= qualifiers.size()) {
       // We have walked through any containers, and are at a row type. Extract the subschema
       // for the row, preserving nullable attributes.
-      Preconditions.checkArgument(inputFieldType.getTypeName().isCompositeType());
+      checkArgument(inputFieldType.getTypeName().isCompositeType());
       return FieldType.row(getOutputSchema(inputFieldType.getRowSchema(), fieldAccessDescriptor))
           .withNullable(inputFieldType.getNullable());
     }
@@ -169,18 +171,17 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     Qualifier qualifier = qualifiers.get(qualifierPosition);
     switch (qualifier.getKind()) {
       case LIST:
-        Preconditions.checkArgument(qualifier.getList().equals(ListQualifier.ALL));
-        FieldType componentType =
-            Preconditions.checkNotNull(inputFieldType.getCollectionElementType());
+        checkArgument(qualifier.getList().equals(ListQualifier.ALL));
+        FieldType componentType = checkNotNull(inputFieldType.getCollectionElementType());
         FieldType outputComponent =
             getOutputSchemaHelper(
                     componentType, fieldAccessDescriptor, qualifiers, qualifierPosition + 1)
                 .withNullable(componentType.getNullable());
         return FieldType.array(outputComponent).withNullable(inputFieldType.getNullable());
       case MAP:
-        Preconditions.checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
-        FieldType keyType = Preconditions.checkNotNull(inputFieldType.getMapKeyType());
-        FieldType valueType = Preconditions.checkNotNull(inputFieldType.getMapValueType());
+        checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
+        FieldType keyType = checkNotNull(inputFieldType.getMapKeyType());
+        FieldType valueType = checkNotNull(inputFieldType.getMapValueType());
         FieldType outputValueType =
             getOutputSchemaHelper(
                     valueType, fieldAccessDescriptor, qualifiers, qualifierPosition + 1)
@@ -209,7 +210,7 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     for (Map.Entry<FieldDescriptor, FieldAccessDescriptor> nested :
         fieldAccessDescriptor.getNestedFieldsAccessed().entrySet()) {
       FieldDescriptor field = nested.getKey();
-      String fieldName = inputSchema.nameOf(Preconditions.checkNotNull(field.getFieldId()));
+      String fieldName = inputSchema.nameOf(checkNotNull(field.getFieldId()));
       FieldType nestedInputType = inputSchema.getField(field.getFieldId()).getType();
       FieldType nestedOutputType = outputSchema.getField(fieldName).getType();
       Object value =
@@ -248,10 +249,8 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     switch (qualifier.getKind()) {
       case LIST:
         {
-          FieldType nestedInputType =
-              Preconditions.checkNotNull(inputType.getCollectionElementType());
-          FieldType nestedOutputType =
-              Preconditions.checkNotNull(outputType.getCollectionElementType());
+          FieldType nestedInputType = checkNotNull(inputType.getCollectionElementType());
+          FieldType nestedOutputType = checkNotNull(outputType.getCollectionElementType());
           List<Object> list = (List) value;
           List selectedList = Lists.newArrayListWithCapacity(list.size());
           for (Object o : list) {
@@ -269,8 +268,8 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
         }
       case MAP:
         {
-          FieldType nestedInputType = Preconditions.checkNotNull(inputType.getMapValueType());
-          FieldType nestedOutputType = Preconditions.checkNotNull(outputType.getMapValueType());
+          FieldType nestedInputType = checkNotNull(inputType.getMapValueType());
+          FieldType nestedOutputType = checkNotNull(outputType.getMapValueType());
           Map<Object, Object> map = (Map) value;
           Map selectedMap = Maps.newHashMapWithExpectedSize(map.size());
           for (Map.Entry<Object, Object> entry : map.entrySet()) {

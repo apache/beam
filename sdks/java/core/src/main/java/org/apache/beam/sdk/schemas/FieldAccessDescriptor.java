@@ -17,19 +17,11 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoOneOf;
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
-import google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -52,6 +44,13 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.parser.FieldAccessDescriptorParser;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /**
  * Used inside of a {@link org.apache.beam.sdk.transforms.DoFn} to describe which fields in a schema
@@ -440,14 +439,14 @@ public abstract class FieldAccessDescriptor implements Serializable {
       Qualifier qualifier = qualifierIt.hasNext() ? qualifierIt.next() : null;
       if (fieldType.getTypeName().isCollectionType()) {
         qualifier = (qualifier == null) ? Qualifier.of(ListQualifier.ALL) : qualifier;
-        Preconditions.checkArgument(qualifier.getKind().equals(Qualifier.Kind.LIST));
-        Preconditions.checkArgument(qualifier.getList().equals(ListQualifier.ALL));
+        checkArgument(qualifier.getKind().equals(Qualifier.Kind.LIST));
+        checkArgument(qualifier.getList().equals(ListQualifier.ALL));
         qualifiers.add(qualifier);
         fieldType = fieldType.getCollectionElementType();
       } else if (fieldType.getTypeName().isMapType()) {
         qualifier = (qualifier == null) ? Qualifier.of(MapQualifier.ALL) : qualifier;
-        Preconditions.checkArgument(qualifier.getKind().equals(Qualifier.Kind.MAP));
-        Preconditions.checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
+        checkArgument(qualifier.getKind().equals(Qualifier.Kind.MAP));
+        checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
         qualifiers.add(qualifier);
         fieldType = fieldType.getMapValueType();
       }
@@ -499,12 +498,12 @@ public abstract class FieldAccessDescriptor implements Serializable {
     for (Qualifier qualifier : fieldDescriptor.getQualifiers()) {
       switch (qualifier.getKind()) {
         case LIST:
-          Preconditions.checkArgument(qualifier.getList().equals(ListQualifier.ALL));
+          checkArgument(qualifier.getList().equals(ListQualifier.ALL));
           checkArgument(fieldType.getTypeName().equals(TypeName.ARRAY));
           fieldType = fieldType.getCollectionElementType();
           break;
         case MAP:
-          Preconditions.checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
+          checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
           checkArgument(fieldType.getTypeName().equals(TypeName.MAP));
           fieldType = fieldType.getMapValueType();
           break;

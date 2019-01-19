@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.parser;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.antlr.v4.runtime.CharStream;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.schemas.parser.generated.FieldSpecifierNotationParser
 import org.apache.beam.sdk.schemas.parser.generated.FieldSpecifierNotationParser.QualifyComponentContext;
 import org.apache.beam.sdk.schemas.parser.generated.FieldSpecifierNotationParser.SimpleIdentifierContext;
 import org.apache.beam.sdk.schemas.parser.generated.FieldSpecifierNotationParser.WildcardContext;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 public class FieldAccessDescriptorParser {
   public static FieldAccessDescriptor parse(String expr) {
