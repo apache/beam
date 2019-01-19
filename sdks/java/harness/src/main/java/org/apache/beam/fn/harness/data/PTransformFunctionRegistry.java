@@ -17,11 +17,13 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 
 /**
  * A class to to register and retrieve functions for bundle processing (i.e. the start, or finish
@@ -48,9 +50,17 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 public class PTransformFunctionRegistry {
-  private static final Logger LOG = LoggerFactory.getLogger(PTransformFunctionRegistry.class);
 
   private List<ThrowingRunnable> runnables = new ArrayList<>();
+  private MetricsContainerStepMap metricsContainerRegistry;
+
+  /**
+   * @param metricsContainerRegistry Used to get the appropriate metrics container for the
+   *     pTransform in order to set its context before invoking the pTransform specific function.
+   */
+  public PTransformFunctionRegistry(MetricsContainerStepMap metricsContainerRegistry) {
+    this.metricsContainerRegistry = metricsContainerRegistry;
+  }
 
   /**
    * Register the runnable to process the specific pTransformId.
@@ -61,9 +71,11 @@ public class PTransformFunctionRegistry {
   public void register(String pTransformId, ThrowingRunnable runnable) {
     ThrowingRunnable wrapped =
         () -> {
-          // TODO(ajamato): Setup the proper pTransform context for Metrics to use.
-          // TODO(ajamato): Set the proper state sampler state for ExecutionTime Metrics to use.
-          runnable.run();
+          MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
+          try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
+            // TODO(ajamato): Set the proper state sampler state for ExecutionTime Metrics to use.
+            runnable.run();
+          }
         };
     runnables.add(wrapped);
   }

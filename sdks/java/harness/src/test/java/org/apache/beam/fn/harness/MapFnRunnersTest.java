@@ -32,6 +32,7 @@ import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -59,11 +60,15 @@ public class MapFnRunnersTest {
   @Test
   public void testValueOnlyMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.register("outputPC", outputConsumer::add);
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
+    consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     ValueMapFnFactory<String, String> factory = (ptId, pt) -> String::toUpperCase;
     MapFnRunners.forValueMapFnFactory(factory)
@@ -95,11 +100,15 @@ public class MapFnRunnersTest {
   @Test
   public void testFullWindowedValueMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.register("outputPC", outputConsumer::add);
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
+    consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(
@@ -130,11 +139,15 @@ public class MapFnRunnersTest {
   @Test
   public void testFullWindowedValueMappingWithCompressedWindow() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.register("outputPC", outputConsumer::add);
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
+    consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(

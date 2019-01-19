@@ -110,6 +110,7 @@ public class BeamFnDataWriteRunner<InputT> {
       startFunctionRegistry.register(pTransformId, runner::registerForOutput);
       pCollectionConsumerRegistry.register(
           getOnlyElement(pTransform.getInputsMap().values()),
+          pTransformId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume);
 
       finishFunctionRegistry.register(pTransformId, runner::close);

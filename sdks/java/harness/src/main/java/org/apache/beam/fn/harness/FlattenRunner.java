@@ -77,7 +77,8 @@ public class FlattenRunner<InputT> {
 
       // TODO make the receiver aware of its transform context as well.
       for (String pCollectionId : pTransform.getInputsMap().values()) {
-        pCollectionConsumerRegistry.register(pCollectionId, (FnDataReceiver) receiver);
+        pCollectionConsumerRegistry.register(
+            pCollectionId, pTransformId, (FnDataReceiver) receiver);
       }
 
       return runner;

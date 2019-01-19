@@ -50,7 +50,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 @Experimental(Kind.METRICS)
 public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
-  private final String stepName;
+  @Nullable private final String stepName;
 
   private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
 
@@ -60,7 +60,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
   /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
-  public MetricsContainerImpl(String stepName) {
+  public MetricsContainerImpl(@Nullable String stepName) {
     this.stepName = stepName;
   }
 
@@ -158,6 +158,11 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       builder.setUrnForUserMetric(
           metricUpdate.getKey().metricName().getNamespace(),
           metricUpdate.getKey().metricName().getName());
+      String stepName = "";
+      if (metricUpdate.getKey().stepName() != null) {
+        stepName = metricUpdate.getKey().stepName();
+      }
+      builder.setPTransformLabel(stepName);
     }
     builder.setInt64Value(metricUpdate.getUpdate());
     builder.setTimestampToNow();

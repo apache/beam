@@ -33,6 +33,7 @@ import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -120,15 +121,20 @@ public class CombineRunnersTest {
   @Test
   public void testPrecombine() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        TEST_COMBINE_ID,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     // Create runner.
     new CombineRunners.PrecombineFactory<>()
@@ -186,15 +192,20 @@ public class CombineRunnersTest {
   @Test
   public void testMergeAccumulators() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        TEST_COMBINE_ID,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
@@ -240,15 +251,20 @@ public class CombineRunnersTest {
   @Test
   public void testExtractOutputs() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        TEST_COMBINE_ID,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
@@ -294,15 +310,20 @@ public class CombineRunnersTest {
   @Test
   public void testCombineGroupedValues() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        TEST_COMBINE_ID,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)

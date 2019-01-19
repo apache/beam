@@ -46,6 +46,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
@@ -114,9 +115,13 @@ public class BeamFnDataWriteRunnerTest {
   public void testCreatingAndProcessingBeamFnDataWriteRunner() throws Exception {
     String bundleId = "57L";
 
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     String localInputId = "inputPC";
     RunnerApi.PTransform pTransform =
