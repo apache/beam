@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -60,6 +61,7 @@ public class MetricsContainerStepMap implements Serializable {
   /**
    * Update this {@link MetricsContainerStepMap} with all values from given {@link
    * MetricsContainerStepMap}.
+   *
    */
   public void updateAll(MetricsContainerStepMap other) {
     for (Map.Entry<String, MetricsContainerImpl> container : other.metricsContainers.entrySet()) {

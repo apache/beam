@@ -75,8 +75,8 @@ public class PTransformFunctionRegistry {
   public void register(String pTransformId, ThrowingRunnable runnable) {
     ThrowingRunnable wrapped =
         () -> {
-          MetricsContainerImpl baseContainer = metricsContainerRegistry.getContainer(pTransformId);
-          try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
+          MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
+          try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
             // TODO(ajamato): Setup the proper pTransform context for Metrics to use.
             // TODO(ajamato): Set the proper state sampler state for ExecutionTime Metrics to use.
             runnable.run();
