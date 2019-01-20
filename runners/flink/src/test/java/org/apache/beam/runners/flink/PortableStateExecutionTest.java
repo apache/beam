@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
@@ -42,13 +43,15 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests the State server integration of {@link
@@ -57,6 +60,8 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class PortableStateExecutionTest implements Serializable {
 
+  private static final Logger LOG = LoggerFactory.getLogger(PortableStateExecutionTest.class);
+
   @Parameters(name = "streaming: {0}")
   public static Object[] data() {
     return new Object[] {true, false};
@@ -64,16 +69,23 @@ public class PortableStateExecutionTest implements Serializable {
 
   @Parameter public boolean isStreaming;
 
-  private transient ListeningExecutorService flinkJobExecutor;
+  private static ListeningExecutorService flinkJobExecutor;
 
-  @Before
-  public void setup() {
-    flinkJobExecutor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
+  @BeforeClass
+  public static void setup() {
+    // Restrict this to only one thread to avoid multiple Flink clusters up at the same time
+    // which is not suitable for memory-constraint environments, i.e. Jenkins.
+    flinkJobExecutor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
   }
 
-  @After
-  public void tearDown() {
+  @AfterClass
+  public static void tearDown() throws InterruptedException {
     flinkJobExecutor.shutdown();
+    flinkJobExecutor.awaitTermination(10, TimeUnit.SECONDS);
+    if (!flinkJobExecutor.isShutdown()) {
+      LOG.warn("Could not shutdown Flink job executor");
+    }
+    flinkJobExecutor = null;
   }
 
   // Special values which clear / write out state
