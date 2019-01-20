@@ -57,17 +57,20 @@ public class JdbcConnection extends CalciteConnectionWrapper {
    * <p>Sets the pipeline options, replaces the initial non-functional top-level schema with schema
    * created by {@link BeamCalciteSchemaFactory}.
    */
-  static @Nullable JdbcConnection initialize(CalciteConnection connection) throws SQLException {
-    if (connection == null) {
-      return null;
-    }
+  static @Nullable JdbcConnection initialize(CalciteConnection connection) {
+    try {
+      if (connection == null) {
+        return null;
+      }
 
-    JdbcConnection jdbcConnection = new JdbcConnection(connection);
-    jdbcConnection.setPipelineOptionsMap(extractPipelineOptions(connection));
-    jdbcConnection.getRootSchema().setCacheEnabled(false);
-    jdbcConnection.setSchema(
-        connection.getSchema(), BeamCalciteSchemaFactory.fromInitialEmptySchema(jdbcConnection));
-    return jdbcConnection;
+      JdbcConnection jdbcConnection = new JdbcConnection(connection);
+      jdbcConnection.setPipelineOptionsMap(extractPipelineOptions(connection));
+      jdbcConnection.setSchema(
+          connection.getSchema(), BeamCalciteSchemaFactory.fromInitialEmptySchema(jdbcConnection));
+      return jdbcConnection;
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -120,7 +123,6 @@ public class JdbcConnection extends CalciteConnectionWrapper {
    */
   void setSchema(String name, TableProvider tableProvider) {
     BeamCalciteSchema beamCalciteSchema = new BeamCalciteSchema(this, tableProvider);
-    SchemaPlus addedSchemaPlus = getRootSchema().add(name, beamCalciteSchema);
-    addedSchemaPlus.setCacheEnabled(false);
+    getRootSchema().add(name, beamCalciteSchema);
   }
 }

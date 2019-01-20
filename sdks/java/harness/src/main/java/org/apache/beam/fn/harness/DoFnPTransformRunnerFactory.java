@@ -21,10 +21,10 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.SideInputSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -39,7 +39,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -83,21 +82,21 @@ abstract class DoFnPTransformRunnerFactory<
       PipelineOptions pipelineOptions,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateClient beamFnStateClient,
-      String ptransformId,
+      String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
       Map<String, PCollection> pCollections,
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
       ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-      Consumer<ThrowingRunnable> addStartFunction,
-      Consumer<ThrowingRunnable> addFinishFunction,
+      PTransformFunctionRegistry startFunctionRegistry,
+      PTransformFunctionRegistry finishFunctionRegistry,
       BundleSplitListener splitListener) {
     Context<FnInputT, OutputT> context =
         new Context<>(
             pipelineOptions,
             beamFnStateClient,
-            ptransformId,
+            pTransformId,
             pTransform,
             processBundleInstructionId,
             pCollections,
@@ -109,7 +108,7 @@ abstract class DoFnPTransformRunnerFactory<
     RunnerT runner = createRunner(context);
 
     // Register the appropriate handlers.
-    addStartFunction.accept(runner::startBundle);
+    startFunctionRegistry.register(pTransformId, runner::startBundle);
     Iterable<String> mainInput =
         Sets.difference(
             pTransform.getInputsMap().keySet(),
@@ -134,7 +133,7 @@ abstract class DoFnPTransformRunnerFactory<
               runner.processTimer(localName, timeDomain, (WindowedValue<KV<Object, Timer>>) timer));
     }
 
-    addFinishFunction.accept(runner::finishBundle);
+    finishFunctionRegistry.register(pTransformId, runner::finishBundle);
     return runner;
   }
 

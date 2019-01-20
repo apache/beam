@@ -312,15 +312,6 @@ func (v *iterNative) Value() interface{} {
 	return v.fn
 }
 
-func convToString(v interface{}) string {
-	switch v.(type) {
-	case []byte:
-		return string(v.([]byte))
-	default:
-		return v.(string)
-	}
-}
-
 func (v *iterNative) Reset() error {
 	if err := v.cur.Close(); err != nil {
 		return err
@@ -361,7 +352,7 @@ func (v *iterNative) readString(value *string) bool {
 		}
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
-	*value = convToString(elm.Elm)
+	*value = elm.Elm.(string)
 	return true
 }
 

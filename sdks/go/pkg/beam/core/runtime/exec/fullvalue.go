@@ -57,11 +57,12 @@ type ReStream interface {
 	Open() (Stream, error)
 }
 
-// FixedReStream is a simple in-memory ReSteam.
+// FixedReStream is a simple in-memory ReStream.
 type FixedReStream struct {
 	Buf []FullValue
 }
 
+// Open returns the a Stream from the start of the in-memory ReStream.
 func (n *FixedReStream) Open() (Stream, error) {
 	return &FixedStream{Buf: n.Buf}, nil
 }
@@ -72,7 +73,7 @@ type FixedStream struct {
 	next int
 }
 
-// Closed releases the buffer, closing the stream.
+// Close releases the buffer, closing the stream.
 func (s *FixedStream) Close() error {
 	s.Buf = nil
 	return nil
@@ -116,20 +117,13 @@ func Convert(v interface{}, to reflect.Type) interface{} {
 		return ret.Interface()
 
 	default:
-		switch {
-		// Perform conservative type conversions.
-		case from == reflectx.ByteSlice && to == reflectx.String:
-			return string(v.([]byte))
-
-		default:
-			// Arguably this should be:
-			//   reflect.ValueOf(v).Convert(to).Interface()
-			// but this isn't desirable as it would add avoidable overhead to
-			// functions where it applies. A user will have better performance
-			// by explicitly doing the type conversion in their code, which
-			// the error will indicate. Slow Magic vs Fast & Explicit.
-			return v
-		}
+		// Arguably this should be:
+		//   reflect.ValueOf(v).Convert(to).Interface()
+		// but this isn't desirable as it would add avoidable overhead to
+		// functions where it applies. A user will have better performance
+		// by explicitly doing the type conversion in their code, which
+		// the error will indicate. Slow Magic vs Fast & Explicit.
+		return v
 	}
 }
 
@@ -158,13 +152,7 @@ func ConvertFn(from, to reflect.Type) func(interface{}) interface{} {
 			return ret.Interface()
 		}
 	default:
-		switch {
-		// Perform conservative type conversions.
-		case from == reflectx.ByteSlice && to == reflectx.String:
-			return bts
-		default:
-			return identity
-		}
+		return identity
 	}
 }
 
@@ -176,11 +164,6 @@ func identity(v interface{}) interface{} {
 // universal drops the universal type and re-interfaces it to the actual one.
 func universal(v interface{}) interface{} {
 	return reflectx.UnderlyingType(reflect.ValueOf(v)).Interface()
-}
-
-// bts converts []byte to string
-func bts(v interface{}) interface{} {
-	return string(v.([]byte))
 }
 
 // ReadAll read a full restream and returns the result.

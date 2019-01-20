@@ -277,8 +277,6 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
         // TODO(BEAM-6233): Support timer and state.
         excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
-        // TODO(BEAM-6231): Triage failures.
-        excludeCategories 'org.apache.beam.sdk.testing.DataflowPortabilityExecutableStageUnsupported'
     }
 }
 

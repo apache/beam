@@ -26,6 +26,9 @@ import traceback
 import unittest
 from builtins import range
 
+from tenacity import retry
+from tenacity import stop_after_attempt
+
 import apache_beam as beam
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
@@ -190,10 +193,16 @@ class FnApiRunnerTest(unittest.TestCase):
       main = p | 'main' >> beam.Create([None])
       side1 = p | 'side1' >> beam.Create([('a', 1)])
       side2 = p | 'side2' >> beam.Create([('b', 2)])
+      side3 = p | 'side3' >> beam.Create(['another type'])
       side = (side1, side2) | beam.Flatten()
       assert_that(
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
-          equal_to([(None, {'a': 1, 'b': 2})]))
+          equal_to([(None, {'a': 1, 'b': 2})]),
+          label='CheckFlattenAsSideInput')
+      assert_that(
+          (side, side3) | 'FlattenAfter' >> beam.Flatten(),
+          equal_to([('a', 1), ('b', 2), ('another type')]),
+          label='CheckFlattenOfSideInput')
 
   def test_gbk_side_input(self):
     with self.create_pipeline() as p:
@@ -544,6 +553,11 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_counter_exists(
           all_metrics_via_montoring_infos, namespace, name, step='MyStep')
 
+  # Due to somewhat non-deterministic nature of state sampling and sleep,
+  # this test is flaky when state duration is low.
+  # Since increasing state duration significantly would also slow down
+  # the test suite, we are retrying twice on failure as a mitigation.
+  @retry(reraise=True, stop=stop_after_attempt(3))
   def test_progress_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):

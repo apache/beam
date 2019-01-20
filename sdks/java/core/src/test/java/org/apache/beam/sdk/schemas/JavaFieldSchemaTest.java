@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_MAP_POJO_SCHEMA
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_NULLABLE_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NULLABLES_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_NESTED_ARRAY_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
 import static org.junit.Assert.assertArrayEquals;
@@ -44,6 +45,7 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNestedNullable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithNestedArray;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.StaticCreationSimplePojo;
@@ -449,5 +451,47 @@ public class JavaFieldSchemaTest {
     StaticCreationSimplePojo pojo2 =
         registry.getFromRowFunction(StaticCreationSimplePojo.class).apply(simpleRow);
     assertEquals(pojo, pojo2);
+  }
+
+  @Test
+  public void testNestedArraysFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(PojoWithNestedArray.class);
+    SchemaTestUtils.assertSchemaEquivalent(POJO_WITH_NESTED_ARRAY_SCHEMA, schema);
+
+    Row simpleRow = createSimpleRow("string");
+    List<Row> list = ImmutableList.of(simpleRow, simpleRow);
+    List<List<Row>> listOfList = ImmutableList.of(list, list);
+    Row nestedRow = Row.withSchema(POJO_WITH_NESTED_ARRAY_SCHEMA).addValue(listOfList).build();
+
+    SimplePOJO simplePojo = createSimple("string");
+    List<SimplePOJO> simplePojoList = ImmutableList.of(simplePojo, simplePojo);
+    List<List<SimplePOJO>> simplePojoListOfList = ImmutableList.of(simplePojoList, simplePojoList);
+
+    PojoWithNestedArray converted =
+        registry.getFromRowFunction(PojoWithNestedArray.class).apply(nestedRow);
+    assertEquals(simplePojoListOfList, converted.pojos);
+  }
+
+  @Test
+  public void testNestedArraysToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(PojoWithNestedArray.class);
+    SchemaTestUtils.assertSchemaEquivalent(POJO_WITH_NESTED_ARRAY_SCHEMA, schema);
+
+    Row simpleRow = createSimpleRow("string");
+    List<Row> list = ImmutableList.of(simpleRow, simpleRow);
+    List<List<Row>> listOfList = ImmutableList.of(list, list);
+    Row nestedRow = Row.withSchema(POJO_WITH_NESTED_ARRAY_SCHEMA).addValue(listOfList).build();
+
+    SimplePOJO simplePojo = createSimple("string");
+    List<SimplePOJO> simplePojoList = ImmutableList.of(simplePojo, simplePojo);
+    List<List<SimplePOJO>> simplePojoListOfList = ImmutableList.of(simplePojoList, simplePojoList);
+
+    Row converted =
+        registry
+            .getToRowFunction(PojoWithNestedArray.class)
+            .apply(new PojoWithNestedArray(simplePojoListOfList));
+    assertEquals(nestedRow, converted);
   }
 }

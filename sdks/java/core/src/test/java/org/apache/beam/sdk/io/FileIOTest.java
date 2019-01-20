@@ -32,22 +32,29 @@ import java.io.Serializable;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.zip.GZIPOutputStream;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Requirements;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.joda.time.Duration;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -72,24 +79,30 @@ public class FileIOTest implements Serializable {
     Path secondPath = tmpFolder.newFile("second").toPath();
     int firstSize = 37;
     int secondSize = 42;
+    long firstModified = 1541097000L;
+    long secondModified = 1541098000L;
     Files.write(firstPath, new byte[firstSize]);
     Files.write(secondPath, new byte[secondSize]);
+    Files.setLastModifiedTime(firstPath, FileTime.fromMillis(firstModified));
+    Files.setLastModifiedTime(secondPath, FileTime.fromMillis(secondModified));
+    MatchResult.Metadata firstMetadata = metadata(firstPath, firstSize, firstModified);
+    MatchResult.Metadata secondMetadata = metadata(secondPath, secondSize, secondModified);
 
     PAssert.that(
             p.apply(
                 "Match existing",
                 FileIO.match().filepattern(tmpFolder.getRoot().getAbsolutePath() + "/*")))
-        .containsInAnyOrder(metadata(firstPath, firstSize), metadata(secondPath, secondSize));
+        .containsInAnyOrder(firstMetadata, secondMetadata);
     PAssert.that(
             p.apply(
                 "Match existing with provider",
                 FileIO.match()
                     .filepattern(p.newProvider(tmpFolder.getRoot().getAbsolutePath() + "/*"))))
-        .containsInAnyOrder(metadata(firstPath, firstSize), metadata(secondPath, secondSize));
+        .containsInAnyOrder(firstMetadata, secondMetadata);
     PAssert.that(
             p.apply("Create existing", Create.of(tmpFolder.getRoot().getAbsolutePath() + "/*"))
                 .apply("MatchAll existing", FileIO.matchAll()))
-        .containsInAnyOrder(metadata(firstPath, firstSize), metadata(secondPath, secondSize));
+        .containsInAnyOrder(firstMetadata, secondMetadata);
 
     PAssert.that(
             p.apply(
@@ -185,7 +198,6 @@ public class FileIOTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
     final Path basePath = tmpFolder.getRoot().toPath().resolve("watch");
@@ -225,9 +237,18 @@ public class FileIOTest implements Serializable {
 
     List<MatchResult.Metadata> expected =
         Arrays.asList(
-            metadata(basePath.resolve("first"), 42),
-            metadata(basePath.resolve("second"), 37),
-            metadata(basePath.resolve("third"), 99));
+            metadata(
+                basePath.resolve("first"),
+                42,
+                Files.getLastModifiedTime(basePath.resolve("first")).toMillis()),
+            metadata(
+                basePath.resolve("second"),
+                37,
+                Files.getLastModifiedTime(basePath.resolve("second")).toMillis()),
+            metadata(
+                basePath.resolve("third"),
+                99,
+                Files.getLastModifiedTime(basePath.resolve("third")).toMillis()));
     PAssert.that(matchMetadata).containsInAnyOrder(expected);
     PAssert.that(matchAllMetadata).containsInAnyOrder(expected);
     p.run();
@@ -302,11 +323,12 @@ public class FileIOTest implements Serializable {
     p.run();
   }
 
-  private static MatchResult.Metadata metadata(Path path, int size) {
+  private static MatchResult.Metadata metadata(Path path, int size, long lastModifiedMillis) {
     return MatchResult.Metadata.builder()
         .setResourceId(FileSystems.matchNewResource(path.toString(), false /* isDirectory */))
         .setIsReadSeekEfficient(true)
         .setSizeBytes(size)
+        .setLastModifiedMillis(lastModifiedMillis)
         .build();
   }
 
@@ -380,5 +402,38 @@ public class FileIOTest implements Serializable {
                 0,
                 0,
                 Compression.UNCOMPRESSED));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFileIoDynamicNaming() throws IOException {
+    // Test for BEAM-6407.
+
+    String outputFileName = tmpFolder.newFile().getAbsolutePath();
+    PCollectionView<String> outputFileNameView =
+        p.apply("outputFileName", Create.of(outputFileName)).apply(View.asSingleton());
+
+    Contextful.Fn<String, FileIO.Write.FileNaming> fileNaming =
+        (element, c) ->
+            (window, pane, numShards, shardIndex, compression) ->
+                c.sideInput(outputFileNameView) + "-" + shardIndex;
+
+    p.apply(Create.of(""))
+        .apply(
+            "WriteDynamicFilename",
+            FileIO.<String, String>writeDynamic()
+                .by(SerializableFunctions.constant(""))
+                .withDestinationCoder(StringUtf8Coder.of())
+                .via(TextIO.sink())
+                .withTempDirectory(tmpFolder.newFolder().getAbsolutePath())
+                .withNaming(
+                    Contextful.of(
+                        fileNaming, Requirements.requiresSideInputs(outputFileNameView))));
+
+    // We need to run the TestPipeline with the default options.
+    p.run(PipelineOptionsFactory.create()).waitUntilFinish();
+    assertTrue(
+        "Output file shard 0 exists after pipeline completes",
+        new File(outputFileName + "-0").exists());
   }
 }

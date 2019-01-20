@@ -85,8 +85,8 @@ public class FlattenRunnerTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            null /* addStartFunction */,
-            null, /* addFinishFunction */
+            null /* startFunctionRegistry */,
+            null, /* finishFunctionRegistry */
             null /* splitListener */);
 
     mainOutputValues.clear();
@@ -148,8 +148,8 @@ public class FlattenRunnerTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            null /* addStartFunction */,
-            null, /* addFinishFunction */
+            null /* startFunctionRegistry */,
+            null, /* finishFunctionRegistry */
             null /* splitListener */);
 
     mainOutputValues.clear();
