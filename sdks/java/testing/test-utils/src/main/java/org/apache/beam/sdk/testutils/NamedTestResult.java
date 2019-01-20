@@ -27,10 +27,14 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  */
 public class NamedTestResult implements TestResult {
 
-  private final String testID;
+  private final String testId;
+
   private final String timestamp;
+
   private final String metric;
+
   private final double value;
+
   private static final Map<String, String> schema =
       ImmutableMap.<String, String>builder()
           .put("test_id", LegacySQLTypeName.STRING.name())
@@ -39,8 +43,8 @@ public class NamedTestResult implements TestResult {
           .put("value", LegacySQLTypeName.FLOAT.name())
           .build();
 
-  private NamedTestResult(String testID, String timestamp, String metric, double value) {
-    this.testID = testID;
+  private NamedTestResult(String testId, String timestamp, String metric, double value) {
+    this.testId = testId;
     this.timestamp = timestamp;
     this.metric = metric;
     this.value = value;
@@ -49,21 +53,21 @@ public class NamedTestResult implements TestResult {
   /**
    * Creates a NamedTestResult.
    *
-   * @param testID Unique identifier for the test run this result belongs to.
+   * @param testId Unique identifier for the test run this result belongs to.
    * @param timestamp Time at which this result was sampled. Should be in a BigQuery supported
    *     timestamp format.
    * @param metric Name of this result's value.
    * @param value The actual sampled value.
    */
   public static NamedTestResult create(
-      String testID, String timestamp, String metric, double value) {
-    return new NamedTestResult(testID, timestamp, metric, value);
+      String testId, String timestamp, String metric, double value) {
+    return new NamedTestResult(testId, timestamp, metric, value);
   }
 
   @Override
   public Map<String, Object> toMap() {
     return ImmutableMap.<String, Object>builder()
-        .put("test_id", testID)
+        .put("test_id", testId)
         .put("timestamp", timestamp)
         .put("metric", metric)
         .put("value", value)
@@ -72,5 +76,13 @@ public class NamedTestResult implements TestResult {
 
   public static Map<String, String> getSchema() {
     return schema;
+  }
+
+  public String getMetric() {
+    return metric;
+  }
+
+  public double getValue() {
+    return value;
   }
 }

@@ -94,7 +94,7 @@ If the bug is not in your code, here is how to "create a fix":
 
 ## Useful links
 
-*   [Best practices for writing tests]({{ site.baseurl }}/contribute/testing/index.html#best_practices)
+*   [Best practices for writing tests](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Bestpracticesforwritingtests)
 
 ## References
 

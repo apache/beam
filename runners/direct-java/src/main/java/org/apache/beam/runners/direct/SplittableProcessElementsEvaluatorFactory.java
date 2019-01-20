@@ -32,6 +32,7 @@ import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElem
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -45,7 +46,12 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Thre
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-class SplittableProcessElementsEvaluatorFactory<InputT, OutputT, RestrictionT, PositionT>
+class SplittableProcessElementsEvaluatorFactory<
+        InputT,
+        OutputT,
+        RestrictionT,
+        PositionT,
+        TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
     implements TransformEvaluatorFactory {
   private final ParDoEvaluatorFactory<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>
       delegateFactory;
@@ -68,8 +74,8 @@ class SplittableProcessElementsEvaluatorFactory<InputT, OutputT, RestrictionT, P
                 checkArgument(
                     ProcessElements.class.isInstance(application.getTransform()),
                     "No know extraction of the fn from " + application);
-                final ProcessElements<InputT, OutputT, RestrictionT, PositionT> transform =
-                    (ProcessElements<InputT, OutputT, RestrictionT, PositionT>)
+                final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
+                    (ProcessElements<InputT, OutputT, RestrictionT, TrackerT>)
                         application.getTransform();
                 return DoFnLifecycleManager.of(transform.newProcessFn(transform.getFn()));
               }
@@ -105,11 +111,11 @@ class SplittableProcessElementsEvaluatorFactory<InputT, OutputT, RestrictionT, P
       AppliedPTransform<
               PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>,
               PCollectionTuple,
-              ProcessElements<InputT, OutputT, RestrictionT, PositionT>>
+              ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
           application,
       CommittedBundle<InputT> inputBundle)
       throws Exception {
-    final ProcessElements<InputT, OutputT, RestrictionT, PositionT> transform =
+    final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
         application.getTransform();
 
     final DoFnLifecycleManagerRemovingTransformEvaluator<
@@ -125,8 +131,8 @@ class SplittableProcessElementsEvaluatorFactory<InputT, OutputT, RestrictionT, P
                 application.getTransform().getAdditionalOutputTags().getAll());
     final ParDoEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> pde =
         evaluator.getParDoEvaluator();
-    final ProcessFn<InputT, OutputT, RestrictionT, PositionT> processFn =
-        (ProcessFn<InputT, OutputT, RestrictionT, PositionT>)
+    final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
+        (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
             ProcessFnRunner.class.cast(pde.getFnRunner()).getFn();
 
     final DirectExecutionContext.DirectStepContext stepContext = pde.getStepContext();

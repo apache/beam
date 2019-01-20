@@ -17,12 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import static org.apache.calcite.avatica.BuiltInConnectionProperty.TIME_ZONE;
-import static org.apache.calcite.config.CalciteConnectionProperty.LEX;
-import static org.apache.calcite.config.CalciteConnectionProperty.PARSER_FACTORY;
-import static org.apache.calcite.config.CalciteConnectionProperty.SCHEMA;
 import static org.apache.calcite.config.CalciteConnectionProperty.SCHEMA_FACTORY;
-import static org.apache.calcite.config.CalciteConnectionProperty.TYPE_SYSTEM;
 import static org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCompilerFactory;
 
 import com.google.auto.service.AutoService;
@@ -33,15 +28,12 @@ import java.util.List;
 import java.util.Properties;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
-import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.ReleaseInfo;
-import org.apache.calcite.avatica.ConnectionProperty;
-import org.apache.calcite.config.Lex;
+import org.apache.calcite.avatica.AvaticaFactory;
 import org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.calcite.jdbc.CalciteFactory;
 import org.apache.calcite.jdbc.Driver;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
@@ -109,6 +101,11 @@ public class JdbcDriver extends Driver {
   }
 
   @Override
+  protected AvaticaFactory createFactory() {
+    return JdbcFactory.wrap((CalciteFactory) super.createFactory());
+  }
+
+  @Override
   protected String getConnectStringPrefix() {
     return CONNECT_STRING_PREFIX;
   }
@@ -127,54 +124,10 @@ public class JdbcDriver extends Driver {
    * CalciteConnection}.
    */
   @Override
-  public Connection connect(String url, Properties originalConnectionProperties)
-      throws SQLException {
-
-    // do this check before even looking into properties
-    // do not remove this, please
-    if (!acceptsURL(url)) {
-      return null;
-    }
-
-    Properties connectionProps = ensureDefaultProperties(originalConnectionProperties);
-    CalciteConnection calciteConnection = (CalciteConnection) super.connect(url, connectionProps);
-
+  public Connection connect(String url, Properties info) throws SQLException {
     // calciteConnection is initialized with an empty Beam schema,
     // we need to populate it with pipeline options, load table providers, etc
-    return JdbcConnection.initialize(calciteConnection);
-  }
-
-  /**
-   * Make sure required default properties are set.
-   *
-   * <p>Among other things sets up the parser class name, rel data type system and default schema
-   * factory.
-   *
-   * <p>The specified Beam schema factory will be used by Calcite to create the initial top level
-   * Beam schema. It can be later overridden by setting the schema via {@link
-   * JdbcConnection#setSchema(String, TableProvider)}.
-   */
-  private Properties ensureDefaultProperties(Properties originalInfo) {
-    Properties info = new Properties();
-    info.putAll(originalInfo);
-
-    setIfNull(info, TIME_ZONE, "UTC");
-    setIfNull(info, LEX, Lex.JAVA.name());
-    setIfNull(info, PARSER_FACTORY, BeamSqlParserImpl.class.getName() + "#FACTORY");
-    setIfNull(info, TYPE_SYSTEM, BeamRelDataTypeSystem.class.getName());
-    setIfNull(info, SCHEMA, TOP_LEVEL_BEAM_SCHEMA);
-    setIfNull(info, SCHEMA_FACTORY, BeamCalciteSchemaFactory.AllProviders.class.getName());
-
-    info.put("beam.userAgent", "BeamSQL/" + ReleaseInfo.getReleaseInfo().getVersion());
-
-    return info;
-  }
-
-  private static void setIfNull(Properties info, ConnectionProperty key, String value) {
-    // A null value indicates the default. We want to override defaults only.
-    if (info.getProperty(key.camelName()) == null) {
-      info.setProperty(key.camelName(), value);
-    }
+    return JdbcConnection.initialize((CalciteConnection) super.connect(url, info));
   }
 
   /**
@@ -191,7 +144,8 @@ public class JdbcDriver extends Driver {
   public static JdbcConnection connect(TableProvider tableProvider) {
     try {
       Properties properties = new Properties();
-      setIfNull(properties, SCHEMA_FACTORY, BeamCalciteSchemaFactory.Empty.class.getName());
+      properties.setProperty(
+          SCHEMA_FACTORY.camelName(), BeamCalciteSchemaFactory.Empty.class.getName());
       JdbcConnection connection =
           (JdbcConnection) INSTANCE.connect(CONNECT_STRING_PREFIX, properties);
       connection.setSchema(TOP_LEVEL_BEAM_SCHEMA, tableProvider);

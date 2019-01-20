@@ -312,8 +312,7 @@ public class PAssertTest implements Serializable {
   @Test
   @Category({
     ValidatesRunner.class,
-    UsesStatefulParDo.class, // This test fails if State is unsupported despite no direct usage.
-    DataflowPortabilityExecutableStageUnsupported.class
+    UsesStatefulParDo.class // This test fails if State is unsupported despite no direct usage.
   })
   public void testWindowedIsEqualTo() throws Exception {
     PCollection<Integer> pcollection =
@@ -408,7 +407,7 @@ public class PAssertTest implements Serializable {
 
   /** Tests that windowed {@code containsInAnyOrder} is actually order-independent. */
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
+  @Category(ValidatesRunner.class)
   public void testWindowedContainsInAnyOrder() throws Exception {
     PCollection<Integer> pcollection =
         pipeline

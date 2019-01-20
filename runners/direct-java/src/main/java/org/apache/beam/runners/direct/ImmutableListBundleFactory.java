@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.MoreObjects;
 import java.util.Iterator;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -110,6 +111,15 @@ class ImmutableListBundleFactory implements BundleFactory {
       final Iterable<WindowedValue<T>> committedElements = elements.build();
       return CommittedImmutableListBundle.create(
           pcollection, key, committedElements, minSoFar, synchronizedCompletionTime);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("Key", key.toString())
+          .add("PCollection", pcollection)
+          .add("Elements", elements.build())
+          .toString();
     }
   }
 

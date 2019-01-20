@@ -23,11 +23,11 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
@@ -43,7 +43,6 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
@@ -87,8 +86,8 @@ public class BeamFnDataReadRunner<OutputT> {
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-        Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
         BundleSplitListener splitListener)
         throws IOException {
 
@@ -108,6 +107,7 @@ public class BeamFnDataReadRunner<OutputT> {
       } else {
         coderSpec = null;
       }
+      // TODO make the receiver aware of its transform context as well.
       Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =
           (Collection)
               pCollectionIdsToConsumers.get(getOnlyElement(pTransform.getOutputsMap().values()));
@@ -121,8 +121,8 @@ public class BeamFnDataReadRunner<OutputT> {
               coders,
               beamFnDataClient,
               consumers);
-      addStartFunction.accept(runner::registerInputLocation);
-      addFinishFunction.accept(runner::blockTillReadFinishes);
+      startFunctionRegistry.register(pTransformId, runner::registerInputLocation);
+      finishFunctionRegistry.register(pTransformId, runner::blockTillReadFinishes);
       return runner;
     }
   }

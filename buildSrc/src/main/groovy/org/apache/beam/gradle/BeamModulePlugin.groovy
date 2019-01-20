@@ -730,9 +730,6 @@ class BeamModulePlugin implements Plugin<Project> {
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.7')
-
-          // Details see: https://github.com/diffplug/spotless/blob/master/PADDEDCELL.md
-          paddedCell()
         }
       }
 
@@ -1446,10 +1443,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.applyAntlrNature = {
       project.apply plugin: 'antlr'
-      def generatedDir = "${project.buildDir}/generated/source-src/antlr/main/java/"
-      project.sourceSets {
-        generated { java.srcDir generatedDir }
-      }
+      def generatedDir = "${project.buildDir}/generated-src/antlr/main/java/"
       project.idea {
         module {
           sourceDirs += project.file(generatedDir)

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.testutils.publishing;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.testutils.TestResult;
@@ -47,6 +49,12 @@ public class BigQueryResultsPublisher {
 
   public void publish(TestResult result, String tableName) {
     client.insertRow(getRowOfSchema(result), schema, tableName);
+  }
+
+  public void publish(Collection<? extends TestResult> results, String tableName) {
+    List<Map<String, ?>> records =
+        results.stream().map(this::getRowOfSchema).collect(Collectors.toList());
+    client.insertAll(records, schema, tableName);
   }
 
   private Map<String, Object> getRowOfSchema(TestResult result) {

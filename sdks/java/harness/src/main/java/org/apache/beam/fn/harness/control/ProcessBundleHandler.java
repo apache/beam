@@ -19,7 +19,6 @@ package org.apache.beam.fn.harness.control;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -27,12 +26,12 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Phaser;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
@@ -151,8 +150,8 @@ public class ProcessBundleHandler {
       SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
       ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
       Set<String> processedPTransformIds,
-      Consumer<ThrowingRunnable> addStartFunction,
-      Consumer<ThrowingRunnable> addFinishFunction,
+      PTransformFunctionRegistry startFunctionRegistry,
+      PTransformFunctionRegistry finishFunctionRegistry,
       BundleSplitListener splitListener)
       throws IOException {
 
@@ -172,8 +171,8 @@ public class ProcessBundleHandler {
             pCollectionIdsToConsumingPTransforms,
             pCollectionIdsToConsumers,
             processedPTransformIds,
-            addStartFunction,
-            addFinishFunction,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             splitListener);
       }
     }
@@ -204,8 +203,8 @@ public class ProcessBundleHandler {
               processBundleDescriptor.getCodersMap(),
               processBundleDescriptor.getWindowingStrategiesMap(),
               pCollectionIdsToConsumers,
-              addStartFunction,
-              addFinishFunction,
+              startFunctionRegistry,
+              finishFunctionRegistry,
               splitListener);
       processedPTransformIds.add(pTransformId);
     }
@@ -230,8 +229,9 @@ public class ProcessBundleHandler {
     ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers =
         ArrayListMultimap.create();
     HashSet<String> processedPTransformIds = new HashSet<>();
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -291,8 +291,8 @@ public class ProcessBundleHandler {
             pCollectionIdsToConsumingPTransforms,
             pCollectionIdsToConsumers,
             processedPTransformIds,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             splitListener);
       }
 
@@ -300,7 +300,7 @@ public class ProcessBundleHandler {
       try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
 
         // Already in reverse topological order so we don't need to do anything.
-        for (ThrowingRunnable startFunction : startFunctions) {
+        for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
           LOG.debug("Starting function {}", startFunction);
           startFunction.run();
         }
@@ -308,7 +308,8 @@ public class ProcessBundleHandler {
         queueingClient.drainAndBlock();
 
         // Need to reverse this since we want to call finish in topological order.
-        for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
+        for (ThrowingRunnable finishFunction :
+            Lists.reverse(finishFunctionRegistry.getFunctions())) {
           LOG.debug("Finishing function {}", finishFunction);
           finishFunction.run();
         }
@@ -413,8 +414,8 @@ public class ProcessBundleHandler {
         Map<String, Coder> coders,
         Map<String, WindowingStrategy> windowingStrategies,
         ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-        Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
         BundleSplitListener splitListener) {
       String message =
           String.format(

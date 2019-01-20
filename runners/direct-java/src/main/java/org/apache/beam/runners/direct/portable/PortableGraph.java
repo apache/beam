@@ -66,4 +66,8 @@ class PortableGraph implements ExecutableGraph<PTransformNode, PCollectionNode> 
   public Collection<PTransformNode> getPerElementConsumers(PCollectionNode pCollection) {
     return queryablePipeline.getPerElementConsumers(pCollection);
   }
+
+  public QueryablePipeline getQueryablePipeline() {
+    return this.queryablePipeline;
+  }
 }

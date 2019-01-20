@@ -471,7 +471,8 @@ def lift_combiners(stages, context):
             [transform],
             downstream_side_inputs=base_stage.downstream_side_inputs,
             must_follow=base_stage.must_follow,
-            parent=base_stage.name)
+            parent=base_stage.name,
+            environment=base_stage.environment)
 
       yield make_stage(
           stage,
@@ -589,9 +590,9 @@ def sink_flattens(stages, pipeline_context):
       for local_in, pcoll_in in transform.inputs.items():
 
         if pcollections[pcoll_in].coder_id != output_coder_id:
-          # Flatten inputs must all be written with the same coder as is
-          # used to read them.
-          pcollections[pcoll_in].coder_id = output_coder_id
+          # Flatten requires that all its inputs be materialized with the
+          # same coder as its output.  Add stages to transcode flatten
+          # inputs that use different coders.
           transcoded_pcollection = (
               transform.unique_name + '/Transcode/' + local_in + '/out')
           yield Stage(
@@ -890,18 +891,14 @@ def window_pcollection_coders(stages, pipeline_context):
   for pcoll in pipeline_context.components.pcollections.values():
     if (pipeline_context.components.coders[pcoll.coder_id].spec.spec.urn
         != common_urns.coders.WINDOWED_VALUE.urn):
-      original_coder_id = pcoll.coder_id
-      pcoll.coder_id = windowed_coder_id(
+      new_coder_id = windowed_coder_id(
           pcoll.coder_id,
           pipeline_context.components.windowing_strategies[
               pcoll.windowing_strategy_id].window_coder_id)
-      if (original_coder_id in pipeline_context.safe_coders
-          and pcoll.coder_id not in pipeline_context.safe_coders):
-        # TODO: This assumes the window coder is safe.
-        pipeline_context.safe_coders[pcoll.coder_id] = windowed_coder_id(
-            pipeline_context.safe_coders[original_coder_id],
-            pipeline_context.components.windowing_strategies[
-                pcoll.windowing_strategy_id].window_coder_id)
+      if pcoll.coder_id in pipeline_context.safe_coders:
+        new_coder_id = pipeline_context.length_prefixed_coder(
+            new_coder_id)
+      pcoll.coder_id = new_coder_id
 
   return stages
 

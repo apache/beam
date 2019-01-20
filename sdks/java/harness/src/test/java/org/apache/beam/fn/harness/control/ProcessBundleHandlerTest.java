@@ -31,10 +31,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -48,7 +48,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingConsumer;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -118,14 +117,16 @@ public class ProcessBundleHandlerTest {
             coders,
             windowingStrategies,
             pCollectionIdsToConsumers,
-            addStartFunction,
-            addFinishFunction,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             splitListener) -> {
           assertThat(processBundleInstructionId.get(), equalTo("999L"));
 
           transformsProcessed.add(pTransform);
-          addStartFunction.accept(() -> orderOfOperations.add("Start" + pTransformId));
-          addFinishFunction.accept(() -> orderOfOperations.add("Finish" + pTransformId));
+          startFunctionRegistry.register(
+              pTransformId, () -> orderOfOperations.add("Start" + pTransformId));
+          finishFunctionRegistry.register(
+              pTransformId, () -> orderOfOperations.add("Finish" + pTransformId));
           return null;
         };
 
@@ -187,8 +188,8 @@ public class ProcessBundleHandlerTest {
                     coders,
                     windowingStrategies,
                     pCollectionIdsToConsumers,
-                    addStartFunction,
-                    addFinishFunction,
+                    startFunctionRegistry,
+                    finishFunctionRegistry,
                     splitListener) -> {
                   thrown.expect(IllegalStateException.class);
                   thrown.expectMessage("TestException");
@@ -233,12 +234,13 @@ public class ProcessBundleHandlerTest {
                         coders,
                         windowingStrategies,
                         pCollectionIdsToConsumers,
-                        addStartFunction,
-                        addFinishFunction,
+                        startFunctionRegistry,
+                        finishFunctionRegistry,
                         splitListener) -> {
                       thrown.expect(IllegalStateException.class);
                       thrown.expectMessage("TestException");
-                      addStartFunction.accept(ProcessBundleHandlerTest::throwException);
+                      startFunctionRegistry.register(
+                          pTransformId, ProcessBundleHandlerTest::throwException);
                       return null;
                     }));
     handler.processBundle(
@@ -280,12 +282,13 @@ public class ProcessBundleHandlerTest {
                         coders,
                         windowingStrategies,
                         pCollectionIdsToConsumers,
-                        addStartFunction,
-                        addFinishFunction,
+                        startFunctionRegistry,
+                        finishFunctionRegistry,
                         splitListener) -> {
                       thrown.expect(IllegalStateException.class);
                       thrown.expectMessage("TestException");
-                      addFinishFunction.accept(ProcessBundleHandlerTest::throwException);
+                      finishFunctionRegistry.register(
+                          pTransformId, ProcessBundleHandlerTest::throwException);
                       return null;
                     }));
     handler.processBundle(
@@ -366,11 +369,12 @@ public class ProcessBundleHandlerTest {
                       Map<String, WindowingStrategy> windowingStrategies,
                       ListMultimap<String, FnDataReceiver<WindowedValue<?>>>
                           pCollectionIdsToConsumers,
-                      Consumer<ThrowingRunnable> addStartFunction,
-                      Consumer<ThrowingRunnable> addFinishFunction,
+                      PTransformFunctionRegistry startFunctionRegistry,
+                      PTransformFunctionRegistry finishFunctionRegistry,
                       BundleSplitListener splitListener)
                       throws IOException {
-                    addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
+                    startFunctionRegistry.register(
+                        pTransformId, () -> doStateCalls(beamFnStateClient));
                     return null;
                   }
 
@@ -428,11 +432,12 @@ public class ProcessBundleHandlerTest {
                       Map<String, WindowingStrategy> windowingStrategies,
                       ListMultimap<String, FnDataReceiver<WindowedValue<?>>>
                           pCollectionIdsToConsumers,
-                      Consumer<ThrowingRunnable> addStartFunction,
-                      Consumer<ThrowingRunnable> addFinishFunction,
+                      PTransformFunctionRegistry startFunctionRegistry,
+                      PTransformFunctionRegistry finishFunctionRegistry,
                       BundleSplitListener splitListener)
                       throws IOException {
-                    addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
+                    startFunctionRegistry.register(
+                        pTransformId, () -> doStateCalls(beamFnStateClient));
                     return null;
                   }
 

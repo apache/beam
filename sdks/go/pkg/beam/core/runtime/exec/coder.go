@@ -118,13 +118,9 @@ type bytesEncoder struct{}
 func (*bytesEncoder) Encode(val FullValue, w io.Writer) error {
 	// Encoding: size (varint) + raw data
 	var data []byte
-	switch v := val.Elm.(type) {
-	case []byte:
-		data = v
-	case string:
-		data = []byte(v)
-	default:
-		return fmt.Errorf("received unknown value type: want []byte or string, got %T", v)
+	data, ok := val.Elm.([]byte)
+	if !ok {
+		return fmt.Errorf("received unknown value type: want []byte, got %T", val.Elm)
 	}
 	size := len(data)
 
