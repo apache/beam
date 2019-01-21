@@ -19,10 +19,12 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.runners.core.construction.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
@@ -120,5 +122,15 @@ class FlinkPipelineExecutionEnvironment {
     } else {
       throw new IllegalStateException("The Pipeline has not yet been translated.");
     }
+  }
+
+  /**
+   * Retrieves the generated JobGraph which can be submitted against the cluster. For testing
+   * purposes.
+   */
+  @VisibleForTesting
+  JobGraph getJobGraph(Pipeline p) {
+    translate(p);
+    return flinkStreamEnv.getStreamGraph().getJobGraph();
   }
 }

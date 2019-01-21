@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.DetachedEnvironment;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +63,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
    * @return The newly created runner.
    */
   public static FlinkRunner fromOptions(PipelineOptions options) {
+    options.setRunner(FlinkRunner.class);
     FlinkPipelineOptions flinkOptions =
         PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
     ArrayList<String> missing = new ArrayList<>();
@@ -143,6 +146,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   }
 
   /** For testing. */
+  @VisibleForTesting
   public FlinkPipelineOptions getPipelineOptions() {
     return options;
   }
@@ -193,5 +197,11 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
               + "versions of the Flink runner will require deterministic key coders.",
           ptransformViewNamesWithNonDeterministicKeyCoders);
     }
+  }
+
+  @VisibleForTesting
+  JobGraph getJobGraph(Pipeline p) {
+    FlinkPipelineExecutionEnvironment env = new FlinkPipelineExecutionEnvironment(options);
+    return env.getJobGraph(p);
   }
 }
