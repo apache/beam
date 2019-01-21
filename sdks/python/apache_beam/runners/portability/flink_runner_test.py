@@ -130,6 +130,7 @@ if __name__ == '__main__':
       options = super(FlinkRunnerTest, self).create_options()
       options.view_as(DebugOptions).experiments = ['beam_fn_api']
       options.view_as(FlinkOptions).parallelism = 1
+      options.view_as(FlinkOptions).shutdown_sources_on_final_watermark = True
       options.view_as(PortableOptions).environment_type = (
           environment_type.upper())
       if environment_config:

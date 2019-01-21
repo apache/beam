@@ -157,6 +157,7 @@ public class SplittableDoFnOperator<
 
   @Override
   public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
+    timerInternals.cleanupPendingTimer(timer.getNamespace());
     if (timer.getNamespace().getDomain().equals(TimeDomain.EVENT_TIME)) {
       // ignore this, it can only be a state cleanup timers from StatefulDoFnRunner and ProcessFn
       // does its own state cleanup and should never set event-time timers.
