@@ -701,6 +701,10 @@ class PortableOptions(PipelineOptions):
               '"<process to execute>", "env":{"<Environment variables 1>": '
               '"<ENV_VAL>"} }. All fields in the json are optional except '
               'command.'))
+    parser.add_argument(
+        '--environment_cache_millis', default=0,
+        help=('Duration in milliseconds for environment cache within a job. '
+              '0 means no caching.'))
 
 
 class FlinkOptions(PipelineOptions):
