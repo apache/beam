@@ -228,9 +228,9 @@ class _AvroUtils(object):
     if datafile.CODEC_KEY in meta:
       codec = meta[datafile.CODEC_KEY]
     else:
-      codec = 'null'
+      codec = b'null'
 
-    schema_string = meta[datafile.SCHEMA_KEY]
+    schema_string = meta[datafile.SCHEMA_KEY].decode('utf-8')
     sync_marker = header['sync']
 
     return codec, schema_string, sync_marker
@@ -290,7 +290,7 @@ class _AvroUtils(object):
 
 
 def _create_avro_source(file_pattern=None,
-                        min_bundle_size=None,
+                        min_bundle_size=0,
                         validate=False,
                         use_fastavro=False):
   return \
