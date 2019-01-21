@@ -416,9 +416,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
     if (context.isRestored()) {
       isRestored = true;
-      LOG.info("Having restore state in the UnbounedSourceWrapper.");
+      LOG.info("Restoring state in the UnboundedSourceWrapper.");
     } else {
-      LOG.info("No restore state for UnbounedSourceWrapper.");
+      LOG.info("No restore state for UnboundedSourceWrapper.");
     }
   }
 

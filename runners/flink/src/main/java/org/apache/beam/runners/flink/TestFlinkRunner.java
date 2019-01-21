@@ -37,6 +37,7 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
   }
 
   public static TestFlinkRunner fromOptions(PipelineOptions options) {
+    options.setRunner(TestFlinkRunner.class);
     FlinkPipelineOptions flinkOptions =
         PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
     return new TestFlinkRunner(flinkOptions);

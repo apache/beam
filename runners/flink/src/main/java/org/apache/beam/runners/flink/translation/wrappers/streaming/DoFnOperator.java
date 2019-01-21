@@ -698,14 +698,12 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   public void onEventTime(InternalTimer<Object, TimerData> timer) throws Exception {
     // We don't have to cal checkInvokeStartBundle() because it's already called in
     // processWatermark*().
-    timerInternals.cleanupPendingTimer(timer.getNamespace());
     fireTimer(timer);
   }
 
   @Override
   public void onProcessingTime(InternalTimer<Object, TimerData> timer) throws Exception {
     checkInvokeStartBundle();
-    timerInternals.cleanupPendingTimer(timer.getNamespace());
     fireTimer(timer);
   }
 
@@ -716,6 +714,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     // This is a user timer, so namespace must be WindowNamespace
     checkArgument(namespace instanceof WindowNamespace);
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
+    timerInternals.cleanupPendingTimer(timer.getNamespace());
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
   }
