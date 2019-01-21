@@ -178,9 +178,7 @@ public class TranslationContext {
 
   public void startPipeline(boolean testMode) {
     try {
-      // to start a pipeline we need a DatastreamWriter to start
       for (Dataset<?> dataset : leaves) {
-
         if (options.isStreaming()) {
           dataset.writeStream().foreach(new NoOpForeachWriter<>()).start().awaitTermination();
         } else {
