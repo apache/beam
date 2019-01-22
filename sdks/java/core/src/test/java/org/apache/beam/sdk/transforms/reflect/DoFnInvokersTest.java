@@ -323,8 +323,8 @@ public class DoFnInvokersTest {
 
     class MockFn extends DoFn<String, String> {
       @DoFn.ProcessElement
-      public ProcessContinuation processElement(
-          ProcessContext c, RestrictionTracker<SomeRestriction, Void> tracker) throws Exception {
+      public ProcessContinuation processElement(ProcessContext c, SomeRestrictionTracker tracker)
+          throws Exception {
         return null;
       }
 
@@ -400,8 +400,7 @@ public class DoFnInvokersTest {
   /** Public so Mockito can do "delegatesTo()" in the test below. */
   public static class MockFn extends DoFn<String, String> {
     @ProcessElement
-    public ProcessContinuation processElement(
-        ProcessContext c, RestrictionTracker<SomeRestriction, Void> tracker) {
+    public ProcessContinuation processElement(ProcessContext c, SomeRestrictionTracker tracker) {
       return null;
     }
 
@@ -511,7 +510,7 @@ public class DoFnInvokersTest {
   private static class DefaultTracker
       extends RestrictionTracker<RestrictionWithDefaultTracker, Void> {
     @Override
-    public boolean tryClaim(Void position) {
+    protected boolean tryClaimImpl(Void position) {
       throw new UnsupportedOperationException();
     }
 
@@ -547,8 +546,7 @@ public class DoFnInvokersTest {
   public void testSplittableDoFnDefaultMethods() throws Exception {
     class MockFn extends DoFn<String, String> {
       @ProcessElement
-      public void processElement(
-          ProcessContext c, RestrictionTracker<RestrictionWithDefaultTracker, Void> tracker) {}
+      public void processElement(ProcessContext c, DefaultTracker tracker) {}
 
       @GetInitialRestriction
       public RestrictionWithDefaultTracker getInitialRestriction(String element) {
@@ -758,8 +756,7 @@ public class DoFnInvokersTest {
             new DoFn<Integer, Integer>() {
               @ProcessElement
               public ProcessContinuation processElement(
-                  @SuppressWarnings("unused") ProcessContext c,
-                  RestrictionTracker<SomeRestriction, Void> tracker) {
+                  @SuppressWarnings("unused") ProcessContext c, SomeRestrictionTracker tracker) {
                 throw new IllegalArgumentException("bogus");
               }
 
