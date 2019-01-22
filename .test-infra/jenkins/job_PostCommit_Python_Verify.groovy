@@ -29,6 +29,16 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Verify', 'Run Python 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
+  def machine = "beam1"
+  parameters {
+    nodeParam('TEST_HOST') {
+      description("Select test host ${machine}")
+      defaultNodes([machine])
+      allowedNodes([machine])
+      trigger('multiSelectionDisallowed')
+      eligibility('IgnoreOfflineNodeEligibility')
+    }
+  }
   // Execute shell command to test Python SDK.
   steps {
     gradle {
