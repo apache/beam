@@ -188,7 +188,7 @@ class FnApiRunnerTest(unittest.TestCase):
               (9, list(range(7, 10)))]),
           label='windowed')
 
-  def test_flattened_side_input(self):
+  def test_flattened_side_input(self, extended=True):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
       side1 = p | 'side1' >> beam.Create([('a', 1)])
@@ -199,10 +199,11 @@ class FnApiRunnerTest(unittest.TestCase):
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': 1, 'b': 2})]),
           label='CheckFlattenAsSideInput')
-      assert_that(
-          (side, side3) | 'FlattenAfter' >> beam.Flatten(),
-          equal_to([('a', 1), ('b', 2), ('another type')]),
-          label='CheckFlattenOfSideInput')
+      if extended:
+        assert_that(
+            (side, side3) | 'FlattenAfter' >> beam.Flatten(),
+            equal_to([('a', 1), ('b', 2), ('another type')]),
+            label='CheckFlattenOfSideInput')
 
   def test_gbk_side_input(self):
     with self.create_pipeline() as p:
