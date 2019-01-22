@@ -17,19 +17,23 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import org.apache.beam.runners.core.construction.PipelineOptionsSerializationUtils;
 import org.apache.beam.runners.core.construction.ReadTranslation;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
+import org.apache.beam.runners.spark.structuredstreaming.translation.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
@@ -55,20 +59,30 @@ class ReadSourceTranslatorStreaming<T>
     }
     SparkSession sparkSession = context.getSparkSession();
 
-    Dataset<Row> rowDataset = sparkSession.readStream().format(sourceProviderClass).load();
+    String serializedSource = Base64Serializer.serializeUnchecked(source);
+    Dataset<Row> rowDataset = sparkSession.readStream().format(sourceProviderClass)
+        .option(DatasetSourceStreaming.BEAM_SOURCE_OPTION, serializedSource)
+        .option(DatasetSourceStreaming.DEFAULT_PARALLELISM,
+            String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
+        .option(DatasetSourceStreaming.PIPELINE_OPTIONS,
+            PipelineOptionsSerializationUtils.serializeToJson(context.getOptions())).load();
 
-    //TODO pass the source and the translation context serialized as string to the DatasetSource
-    MapFunction<Row, WindowedValue> func = new MapFunction<Row, WindowedValue>() {
-      @Override public WindowedValue call(Row value) throws Exception {
+    // extract windowedValue from Row
+    MapFunction<Row, WindowedValue<T>> func = new MapFunction<Row, WindowedValue<T>>() {
+      @Override public WindowedValue<T> call(Row value) throws Exception {
         //there is only one value put in each Row by the InputPartitionReader
-        return value.<WindowedValue>getAs(0);
+        byte[] bytes = (byte[]) value.get(0);
+        WindowedValue.FullWindowedValueCoder<T> windowedValueCoder = WindowedValue.FullWindowedValueCoder
+            // there is no windowing on the input collection from of the initial read,
+            // so GlobalWindow is ok
+            .of(source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
+        WindowedValue<T> windowedValue = windowedValueCoder.decode(new ByteArrayInputStream(bytes));
+        return windowedValue;
       }
     };
-    //TODO: is there a better way than using the raw WindowedValue? Can an Encoder<WindowedVAlue<T>>
-    // be created ?
-    Dataset<WindowedValue> dataset = rowDataset.map(func, Encoders.kryo(WindowedValue.class));
+    Dataset<WindowedValue<T>> dataset = rowDataset.map(func, EncoderHelpers.encoder());
 
     PCollection<T> output = (PCollection<T>) context.getOutput();
-    context.putDatasetRaw(output, dataset);
+    context.putDataset(output, dataset);
   }
 }
