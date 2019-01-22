@@ -41,20 +41,24 @@ class GroupByKeyTranslatorBatch<K, V>
 
     Dataset<WindowedValue<KV<K, V>>> input = context.getDataset(context.getInput());
 
-    // group by key only.
     KeyValueGroupedDataset<K, KV<K, V>> grouped =
         input
+            // extact KV from WindowedValue
             .map(
                 (MapFunction<WindowedValue<KV<K, V>>, KV<K, V>>) WindowedValue::getValue,
                 EncoderHelpers.encoder())
+            // apply the actual GBK providing a way to extract the K
             .groupByKey((MapFunction<KV<K, V>, K>) KV::getKey, EncoderHelpers.<K>encoder());
 
     Dataset<KV<K, Iterable<V>>> materialized =
+        // create KV<K, Iterable<V>>
         grouped.mapGroups(
             (MapGroupsFunction<K, KV<K, V>, KV<K, Iterable<V>>>)
                 (key, iterator) -> KV.of(key, () -> Iterators.transform(iterator, KV::getValue)),
             EncoderHelpers.encoder());
 
+    // wrap inside a WindowedValue
+    //TODO fix: serialization issue
     Dataset<WindowedValue<KV<K, Iterable<V>>>> output =
         materialized.map(
             (MapFunction<KV<K, Iterable<V>>, WindowedValue<KV<K, Iterable<V>>>>)
