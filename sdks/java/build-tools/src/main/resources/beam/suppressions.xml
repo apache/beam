@@ -41,7 +41,7 @@
   <!-- sdk -->
   <suppress checks="JavadocMethod" files=".*sdk.*Experimental\.java" lines="48,112"/>
   <suppress checks="JavadocMethod" files=".*sdk.*DefaultCoder\.java" lines="54"/>
-  <suppress checks="JavadocMethod" files=".*sdk.*FileIO\.java" lines="800"/>
+  <suppress checks="JavadocMethod" files=".*sdk.*FileIO\.java" lines="801"/>
   <suppress checks="JavadocMethod" files=".*sdk.*OffsetRangeTracker\.java" lines="83"/>
   <suppress checks="JavadocMethod" files=".*sdk.*Default\.java" lines="40"/>
   <suppress checks="JavadocMethod" files=".*sdk.*Description\.java" lines="34"/>
@@ -61,6 +61,7 @@
   <suppress checks="JavadocMethod" files=".*sdk.*gcp.*AvroUtils\.java" lines="28"/>
   <suppress checks="JavadocMethod" files=".*sdk.*testing.*BigqueryClient\.java" lines="277,357,454"/>
   <suppress checks="JavadocMethod" files=".*sdk.*gcp.*BigQueryUtils\.java" lines="212"/>
+  <suppress checks="JavadocMethod" files=".*sdk.*transforms.*DoFn\.java" lines="443"/>
 
   <!--  runner/core  -->
   <suppress checks="JavadocMethod" files=".*runners.*core.*ParDoTranslation\.java" lines="163,368"/>
@@ -73,6 +74,7 @@
   <suppress checks="JavadocMethod" files=".*runners.*core.*MetricsTranslation\.java" lines="39,76"/>
   <suppress checks="JavadocMethod" files=".*runners.*core.*TriggerStateMachines\.java" lines="76"/>
   <suppress checks="JavadocMethod" files=".*runners.*core.*TriggerStateMachines\.java" lines="32"/>
+  <suppress checks="JavadocMethod" files=".*runners.*core.*SplittableParDoViaKeyedWorkItems\.java" lines="329"/>
 
   <!-- Fn harness -->
   <suppress checks="JavadocMethod" files=".*harness.*FnHarness\.java" lines="126"/>

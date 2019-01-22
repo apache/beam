@@ -161,9 +161,10 @@ public class ReferenceRunner {
     return res;
   }
 
-  /** First starts all the services needed, then configures and
-   *  starts the {@link ExecutorServiceParallelExecutor}.
-   * */
+  /**
+   * First starts all the services needed, then configures and starts the {@link
+   * ExecutorServiceParallelExecutor}.
+   */
   public void execute() throws Exception {
     ExecutableGraph<PTransformNode, PCollectionNode> graph = PortableGraph.forPipeline(pipeline);
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
