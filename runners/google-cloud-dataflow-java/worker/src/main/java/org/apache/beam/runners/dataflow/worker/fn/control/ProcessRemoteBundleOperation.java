@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -177,7 +176,8 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
     FnDataReceiver<WindowedValue<?>> mainInputReceiver =
         remoteBundle.getInputReceivers().get(mainInputPCollectionId);
 
-    // TODO(BEAM-6274): Is this always true? Do we always send the input element to the main input receiver?
+    // TODO(BEAM-6274): Is this always true? Do we always send the input element to the main input
+    // receiver?
     try (Closeable scope = context.enterProcess()) {
       mainInputReceiver.accept((WindowedValue<?>) inputElement);
     } catch (Exception e) {
@@ -207,7 +207,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       } catch (Exception e) {
         throw new RuntimeException("Failed to finish remote bundle", e);
       }
-/*
+      /*
       // TODO(BEAM-6274): do we have to put this in the "start" method as well?
       // The ProcessRemoteBundleOperation has to wait until it has received all elements from the
       // SDK in case the SDK generated a timer.
@@ -255,13 +255,10 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private void fireTimers() throws Exception {
     // TODO(BEAM-6274): Why do we need to namespace this to "user"?
     DataflowExecutionContext.DataflowStepContext stepContext =
-        executionContext
-            .getStepContext((DataflowOperationContext) this.context)
-            .namespacedToUser();
+        executionContext.getStepContext((DataflowOperationContext) this.context).namespacedToUser();
 
     // TODO(BEAM-6274): investigate if this is the correct window
-    TimerInternals.TimerData timerData =
-        stepContext.getNextFiredTimer(GlobalWindow.Coder.INSTANCE);
+    TimerInternals.TimerData timerData = stepContext.getNextFiredTimer(GlobalWindow.Coder.INSTANCE);
     while (timerData != null) {
       LOG.error("[{}] Found fired timer in 'receive' {}", loggingName, timerData);
 
@@ -279,8 +276,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
               Collections.singleton(window),
               PaneInfo.NO_FIRING);
 
-      String mainInputId =
-          timerIdToTimerSpecMap.get(timerData.getTimerId()).inputCollectionId();
+      String mainInputId = timerIdToTimerSpecMap.get(timerData.getTimerId()).inputCollectionId();
 
       timerRemoteBundle.getInputReceivers().get(mainInputId).accept(timerValue);
 
@@ -290,7 +286,8 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   }
 
   private void receive(String pCollectionId, Object receivedElement) throws Exception {
-    LOG.error("[{}] Received element {} for pcollection {}", loggingName, receivedElement, pCollectionId);
+    LOG.error(
+        "[{}] Received element {} for pcollection {}", loggingName, receivedElement, pCollectionId);
     // TODO(BEAM-6274): move this out into its own receiver class
     if (timerOutputIdToSpecMap.containsKey(pCollectionId)) {
       WindowedValue<KV<Object, Timer>> windowedValue =
