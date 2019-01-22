@@ -2580,8 +2580,7 @@ public class ParDoTest implements Serializable {
     @Test
     @Category({
       ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
+      UsesTimersInParDo.class
     })
     public void testEventTimeTimerAlignBounded() throws Exception {
       final String timerId = "foo";
@@ -2613,15 +2612,14 @@ public class ParDoTest implements Serializable {
       PAssert.that(output)
           .containsInAnyOrder(
               KV.of(3, BoundedWindow.TIMESTAMP_MIN_VALUE),
-              KV.of(42, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1774)));
+              KV.of(42, BoundedWindow.TIMESTAMP_MIN_VALUE));
       pipeline.run();
     }
 
     @Test
     @Category({
       ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
+      UsesTimersInParDo.class
     })
     public void testTimerReceivedInOriginalWindow() throws Exception {
       final String timerId = "foo";
@@ -2758,8 +2756,7 @@ public class ParDoTest implements Serializable {
     @Test
     @Category({
       ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
+      UsesTimersInParDo.class
     })
     public void testEventTimeTimerMultipleKeys() throws Exception {
       final String timerId = "foo";
