@@ -48,16 +48,16 @@ public class SpecMonitoringInfoValidatorTest {
   public void validateReturnsNoErrorOnValidMonitoringInfo() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:user:someCounter")
-            .setType("beam:metrics:sum_int_64")
+            .setUrn(SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "someCounter")
+            .setType(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN)
             .putLabels("dummy", "value")
             .build();
     assertFalse(testObject.validate(testInput).isPresent());
 
     testInput =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:element_count:v1")
-            .setType("beam:metrics:sum_int_64")
+            .setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN)
+            .setType(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN)
             .putLabels("PTRANSFORM", "value")
             .putLabels("PCOLLECTION", "anotherValue")
             .build();
@@ -68,8 +68,8 @@ public class SpecMonitoringInfoValidatorTest {
   public void validateReturnsErrorOnInvalidMonitoringInfoLabels() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:element_count:v1")
-            .setType("beam:metrics:sum_int_64")
+            .setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN)
+            .setType(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN)
             .putLabels("PCOLLECTION", "anotherValue")
             .build();
     assertTrue(testObject.validate(testInput).isPresent());
