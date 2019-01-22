@@ -36,6 +36,10 @@ import org.apache.spark.sql.types.StructType;
  */
 public class DatasetSourceStreaming<T> implements DataSourceV2, MicroBatchReadSupport {
 
+  static final String BEAM_SOURCE_OPTION = "beam-source";
+  static final String DEFAULT_PARALLELISM = "default-parallelism";
+  static final String PIPELINE_OPTIONS = "pipeline-options";
+
   @Override public MicroBatchReader createMicroBatchReader(Optional<StructType> schema,
       String checkpointLocation, DataSourceOptions options) {
     return new DatasetMicroBatchReader(checkpointLocation, options);
