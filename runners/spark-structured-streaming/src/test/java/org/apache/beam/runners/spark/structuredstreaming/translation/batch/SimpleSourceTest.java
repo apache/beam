@@ -29,7 +29,7 @@ import org.junit.runners.JUnit4;
  * Test class for beam to spark source translation.
  */
 @RunWith(JUnit4.class)
-public class SourceTest implements Serializable {
+public class SimpleSourceTest implements Serializable {
   private static Pipeline pipeline;
   @ClassRule
   public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
