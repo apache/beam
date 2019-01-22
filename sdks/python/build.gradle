@@ -40,33 +40,6 @@ build.dependsOn buildPython
 /*************************************************************************************************/
 // Unit testing
 
-def pythonSdkDeps = files(
-    fileTree(dir: 'apache_beam', includes: ['**/*.py', '**/*.pyx', '**/*.pxd']),
-    fileTree(dir: 'apache_beam/testing/data'),
-    fileTree(dir: "${project.rootDir}/model"),
-    fileTree(dir: 'scripts'),
-    ".pylintrc",
-    "MANIFEST.in",
-    "gen_protos.py",
-    "setup.cfg",
-    "setup.py",
-    "test_config.py",
-    "tox.ini")
-
-def toxTask = {
-  name, tox_env -> tasks.create(name) {
-    dependsOn = ['setupVirtualenv']
-    doLast {
-      exec {
-        executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_tox.sh $tox_env"
-      }
-    }
-    inputs.files pythonSdkDeps
-    outputs.files fileTree(dir: "${project.rootDir}/sdks/python/target/.tox/${tox_env}/log/")
-  }
-}
-
 task lint {}
 check.dependsOn lint
 
@@ -76,17 +49,11 @@ lint.dependsOn lintPy27
 toxTask "lintPy27_3", "py27-lint3"
 lint.dependsOn lintPy27_3
 
-toxTask "lintPy3", "py3-lint"
-lint.dependsOn lintPy3
-
 toxTask "testGcp", "py27-gcp"
 test.dependsOn testGcp
 
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
-
-toxTask "testPython3", "py3"
-test.dependsOn testPython3
 
 toxTask "testCython", "py27-cython"
 test.dependsOn testCython
@@ -102,9 +69,7 @@ toxTask "cover", "cover"
 
 task preCommit() {
   dependsOn "docs"
-  dependsOn "testCython"
   dependsOn "testPython2"
-  dependsOn "testPython3"
   dependsOn "testGcp"
   dependsOn "lint"
 }

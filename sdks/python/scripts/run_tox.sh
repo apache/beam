@@ -24,8 +24,8 @@
 
 ###########################################################################
 # Usage check.
-if [[ $# != 1 ]]; then
-  printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment>"
+if [[ $# < 1 || $# > 3 ]]; then
+  printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment> [<tox.ini path>]"
   printf "\n\ttox_environment: [required] Tox environment to run the test in.\n"
   exit 1
 fi
@@ -41,7 +41,9 @@ if [[ "*sdks/python" != $PWD ]]; then
   cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
 fi
 
-tox -c tox.ini --recreate -e $1
+ini_path=${2:-'tox.ini'}
+
+tox -c $ini_path --recreate -e $1
 exit_code=$?
 # Retry once for the specific exit code 245.
 if [[ $exit_code == 245 ]]; then
