@@ -167,7 +167,7 @@ public class RedisIO {
 
     public Read withEndpoint(String host, int port) {
       checkArgument(host != null, "host can not be null");
-      checkArgument(port > 0, "port can not be negative or 0");
+      checkArgument(0 < port && port < 65536, "port must be a positive integer less than 65536");
       return builder()
           .setConnectionConfiguration(connectionConfiguration().withHost(host).withPort(port))
           .build();
@@ -320,7 +320,7 @@ public class RedisIO {
           processContext.output(k);
         }
         cursor = scanResult.getStringCursor();
-        if ("0".equals(cursor)) {
+        if (cursor.equals(ScanParams.SCAN_POINTER_START)) {
           finished = true;
         }
       }
@@ -446,6 +446,9 @@ public class RedisIO {
        */
       RPUSH,
 
+      /** Use SADD command. Insert value in a set. Duplicated values are ignored. */
+      SADD,
+
       /** Use PFADD command. Insert value in a HLL structure. Create key if it doesn't exist */
       PFADD
     }
@@ -570,8 +573,10 @@ public class RedisIO {
           writeUsingSetCommand(record, expireTime);
         } else if (Method.LPUSH == method || Method.RPUSH == method) {
           writeUsingListCommand(record, method, expireTime);
+        } else if (Method.SADD == method) {
+          writeUsingSaddCommand(record, expireTime);
         } else if (Method.PFADD == method) {
-          writeUsingHLLCommand(record, method, expireTime);
+          writeUsingHLLCommand(record, expireTime);
         }
       }
 
@@ -610,7 +615,14 @@ public class RedisIO {
         setExpireTimeWhenRequired(key, expireTime);
       }
 
-      private void writeUsingHLLCommand(KV<String, String> record, Method method, Long expireTime) {
+      private void writeUsingSaddCommand(KV<String, String> record, Long expireTime) {
+        String key = record.getKey();
+        String value = record.getValue();
+
+        pipeline.sadd(key, value);
+      }
+
+      private void writeUsingHLLCommand(KV<String, String> record, Long expireTime) {
         String key = record.getKey();
         String value = record.getValue();
 
