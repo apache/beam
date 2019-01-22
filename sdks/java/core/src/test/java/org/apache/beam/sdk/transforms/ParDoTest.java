@@ -2578,10 +2578,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testEventTimeTimerAlignBounded() throws Exception {
       final String timerId = "foo";
 
@@ -2617,10 +2614,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testTimerReceivedInOriginalWindow() throws Exception {
       final String timerId = "foo";
 
@@ -2754,10 +2748,7 @@ public class ParDoTest implements Serializable {
      * implementations that may GC in ways not simply governed by the watermark.
      */
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testEventTimeTimerMultipleKeys() throws Exception {
       final String timerId = "foo";
       final String stateId = "sizzle";
