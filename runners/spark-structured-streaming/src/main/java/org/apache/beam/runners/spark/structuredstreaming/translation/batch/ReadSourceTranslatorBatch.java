@@ -22,6 +22,7 @@ import java.io.IOException;
 import org.apache.beam.runners.core.construction.PipelineOptionsSerializationUtils;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
+import org.apache.beam.runners.spark.structuredstreaming.translation.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -67,8 +68,8 @@ class ReadSourceTranslatorBatch<T>
             PipelineOptionsSerializationUtils.serializeToJson(context.getOptions())).load();
 
     // extract windowedValue from Row
-    MapFunction<Row, WindowedValue> func = new MapFunction<Row, WindowedValue>() {
-      @Override public WindowedValue call(Row value) throws Exception {
+    MapFunction<Row, WindowedValue<T>> func = new MapFunction<Row, WindowedValue<T>>() {
+      @Override public WindowedValue<T> call(Row value) throws Exception {
         //there is only one value put in each Row by the InputPartitionReader
         byte[] bytes = (byte[]) value.get(0);
         WindowedValue.FullWindowedValueCoder<T> windowedValueCoder = WindowedValue.FullWindowedValueCoder
@@ -77,11 +78,9 @@ class ReadSourceTranslatorBatch<T>
         return windowedValue;
       }
     };
-    //TODO: is there a better way than using the raw WindowedValue? Can an Encoder<WindowedValue<T>>
-    // be created ?
-    Dataset<WindowedValue> dataset = rowDataset.map(func, Encoders.kryo(WindowedValue.class));
+    Dataset<WindowedValue<T>> dataset = rowDataset.map(func, EncoderHelpers.encoder());
 
     PCollection<T> output = (PCollection<T>) context.getOutput();
-    context.putDatasetRaw(output, dataset);
+    context.putDataset(output, dataset);
   }
 }
