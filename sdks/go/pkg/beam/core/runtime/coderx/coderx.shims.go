@@ -31,6 +31,7 @@ func init() {
 	runtime.RegisterFunction(decFloat)
 	runtime.RegisterFunction(decInt32)
 	runtime.RegisterFunction(decInt64)
+	runtime.RegisterFunction(decString)
 	runtime.RegisterFunction(decUint32)
 	runtime.RegisterFunction(decUint64)
 	runtime.RegisterFunction(decVarIntZ)
@@ -38,6 +39,7 @@ func init() {
 	runtime.RegisterFunction(encFloat)
 	runtime.RegisterFunction(encInt32)
 	runtime.RegisterFunction(encInt64)
+	runtime.RegisterFunction(encString)
 	runtime.RegisterFunction(encUint32)
 	runtime.RegisterFunction(encUint64)
 	runtime.RegisterFunction(encVarIntZ)
@@ -49,6 +51,7 @@ func init() {
 	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type,[]byte) (typex.T,error))(nil)).Elem(), funcMakerReflect۰TypeSliceofByteГTypex۰TError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) (int32))(nil)).Elem(), funcMakerSliceofByteГInt32)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) (int64))(nil)).Elem(), funcMakerSliceofByteГInt64)
+	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) (typex.T))(nil)).Elem(), funcMakerSliceofByteГTypex۰T)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) (uint32))(nil)).Elem(), funcMakerSliceofByteГUint32)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte) (uint64))(nil)).Elem(), funcMakerSliceofByteГUint64)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) ([]byte))(nil)).Elem(), funcMakerTypex۰TГSliceofByte)
@@ -183,6 +186,32 @@ func (c *callerSliceofByteГInt64) Call(args []interface{}) []interface{} {
 }
 
 func (c *callerSliceofByteГInt64) Call1x1(arg0 interface{}) (interface{}) {
+	return c.fn(arg0.([]byte))
+}
+
+type callerSliceofByteГTypex۰T struct {
+	fn func([]byte) (typex.T)
+}
+
+func funcMakerSliceofByteГTypex۰T(fn interface{}) reflectx.Func {
+	f := fn.(func([]byte) (typex.T))
+	return &callerSliceofByteГTypex۰T{fn: f}
+}
+
+func (c *callerSliceofByteГTypex۰T) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerSliceofByteГTypex۰T) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerSliceofByteГTypex۰T) Call(args []interface{}) []interface{} {
+	out0 := c.fn(args[0].([]byte))
+	return []interface{}{out0}
+}
+
+func (c *callerSliceofByteГTypex۰T) Call1x1(arg0 interface{}) (interface{}) {
 	return c.fn(arg0.([]byte))
 }
 

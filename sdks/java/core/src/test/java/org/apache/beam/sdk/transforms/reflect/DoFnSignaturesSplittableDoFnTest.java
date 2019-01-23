@@ -30,7 +30,6 @@ import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.AnonymousMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
-import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -112,8 +111,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testInfersBoundednessFromAnnotation() throws Exception {
     class BaseSplittableFn extends DoFn<Integer, String> {
       @ProcessElement
-      public void processElement(
-          ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
+      public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
 
       @GetInitialRestriction
       public SomeRestriction getInitialRestriction(Integer element) {
@@ -140,8 +138,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
   private static class BaseFnWithoutContinuation extends DoFn<Integer, String> {
     @ProcessElement
-    public void processElement(
-        ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
+    public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
 
     @GetInitialRestriction
     public SomeRestriction getInitialRestriction(Integer element) {
@@ -152,7 +149,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   private static class BaseFnWithContinuation extends DoFn<Integer, String> {
     @ProcessElement
     public ProcessContinuation processElement(
-        ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {
+        ProcessContext context, SomeRestrictionTracker tracker) {
       return null;
     }
 
@@ -231,7 +228,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     class GoodSplittableDoFn extends DoFn<Integer, String> {
       @ProcessElement
       public ProcessContinuation processElement(
-          ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {
+          ProcessContext context, SomeRestrictionTracker tracker) {
         return null;
       }
 
@@ -242,10 +239,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
       @SplitRestriction
       public void splitRestriction(
-          Integer element,
-          SomeRestriction restriction,
-          Backlog backlog,
-          OutputReceiver<SomeRestriction> receiver) {}
+          Integer element, SomeRestriction restriction, OutputReceiver<SomeRestriction> receiver) {}
 
       @NewTracker
       public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
@@ -259,7 +253,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     DoFnSignature signature = DoFnSignatures.getSignature(GoodSplittableDoFn.class);
-    assertEquals(RestrictionTracker.class, signature.processElement().trackerT().getRawType());
+    assertEquals(SomeRestrictionTracker.class, signature.processElement().trackerT().getRawType());
     assertTrue(signature.processElement().isSplittable());
     assertTrue(signature.processElement().hasReturnValue());
     assertEquals(
@@ -289,10 +283,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
       @SplitRestriction
       public void splitRestriction(
-          Integer element,
-          RestrictionT restriction,
-          Backlog backlog,
-          OutputReceiver<RestrictionT> receiver) {}
+          Integer element, RestrictionT restriction, OutputReceiver<RestrictionT> receiver) {}
 
       @NewTracker
       public TrackerT newTracker(RestrictionT restriction) {
@@ -308,16 +299,14 @@ public class DoFnSignaturesSplittableDoFnTest {
     DoFnSignature signature =
         DoFnSignatures.getSignature(
             new GoodGenericSplittableDoFn<
-                SomeRestriction,
-                RestrictionTracker<SomeRestriction, ?>,
-                SomeRestrictionCoder>() {}.getClass());
-    assertEquals(RestrictionTracker.class, signature.processElement().trackerT().getRawType());
+                SomeRestriction, SomeRestrictionTracker, SomeRestrictionCoder>() {}.getClass());
+    assertEquals(SomeRestrictionTracker.class, signature.processElement().trackerT().getRawType());
     assertTrue(signature.processElement().isSplittable());
     assertTrue(signature.processElement().hasReturnValue());
     assertEquals(
         SomeRestriction.class, signature.getInitialRestriction().restrictionT().getRawType());
     assertEquals(SomeRestriction.class, signature.splitRestriction().restrictionT().getRawType());
-    assertEquals(RestrictionTracker.class, signature.newTracker().trackerT().getRawType());
+    assertEquals(SomeRestrictionTracker.class, signature.newTracker().trackerT().getRawType());
     assertEquals(SomeRestriction.class, signature.newTracker().restrictionT().getRawType());
     assertEquals(SomeRestrictionCoder.class, signature.getRestrictionCoder().coderT().getRawType());
   }
@@ -326,8 +315,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testSplittableMissingRequiredMethods() throws Exception {
     class BadFn extends DoFn<Integer, String> {
       @ProcessElement
-      public void process(
-          ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
+      public void process(ProcessContext context, SomeRestrictionTracker tracker) {}
     }
 
     thrown.expectMessage(
@@ -346,8 +334,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testHasDefaultTracker() throws Exception {
     class Fn extends DoFn<Integer, String> {
       @ProcessElement
-      public void process(
-          ProcessContext c, RestrictionTracker<RestrictionWithDefaultTracker, Void> tracker) {}
+      public void process(ProcessContext c, SomeDefaultTracker tracker) {}
 
       @GetInitialRestriction
       public RestrictionWithDefaultTracker getInitialRestriction(Integer element) {
@@ -356,7 +343,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     DoFnSignature signature = DoFnSignatures.getSignature(Fn.class);
-    assertEquals(RestrictionTracker.class, signature.processElement().trackerT().getRawType());
+    assertEquals(SomeDefaultTracker.class, signature.processElement().trackerT().getRawType());
   }
 
   @Test
@@ -372,8 +359,11 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     thrown.expectMessage(
-        "Has tracker type SomeRestrictionTracker, "
-            + "but the DoFn's tracker type must be of type RestrictionTracker.");
+        "Has tracker type SomeRestrictionTracker, but the DoFn's tracker type was inferred as ");
+    thrown.expectMessage("SomeDefaultTracker");
+    thrown.expectMessage(
+        "from restriction type RestrictionWithDefaultTracker "
+            + "of @GetInitialRestriction method getInitialRestriction(Integer)");
     DoFnSignatures.getSignature(Fn.class);
   }
 
@@ -381,8 +371,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testNewTrackerReturnsWrongType() throws Exception {
     class BadFn extends DoFn<Integer, String> {
       @ProcessElement
-      public void process(
-          ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
+      public void process(ProcessContext context, SomeRestrictionTracker tracker) {}
 
       @NewTracker
       public void newTracker(SomeRestriction restriction) {}
@@ -402,8 +391,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testGetInitialRestrictionMismatchesNewTracker() throws Exception {
     class BadFn extends DoFn<Integer, String> {
       @ProcessElement
-      public void process(
-          ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
+      public void process(ProcessContext context, SomeRestrictionTracker tracker) {}
 
       @NewTracker
       public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
@@ -426,8 +414,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testGetRestrictionCoderReturnsWrongType() throws Exception {
     class BadFn extends DoFn<Integer, String> {
       @ProcessElement
-      public void process(
-          ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
+      public void process(ProcessContext context, SomeRestrictionTracker tracker) {}
 
       @NewTracker
       public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
@@ -453,39 +440,14 @@ public class DoFnSignaturesSplittableDoFnTest {
   @Test
   public void testSplitRestrictionReturnsWrongType() throws Exception {
     thrown.expectMessage(
-        "Fourth argument must be DoFn.OutputReceiver<SomeRestriction>, "
+        "Third argument must be DoFn.OutputReceiver<SomeRestriction>, "
             + "but is DoFn.OutputReceiver<String>");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           void method(
-              Integer element,
-              SomeRestriction restriction,
-              Backlog backlog,
-              DoFn.OutputReceiver<String> receiver) {}
-        }.getMethod(),
-        TypeDescriptor.of(Integer.class));
-  }
-
-  @Test
-  public void testSplitRestrictionWrongBacklogArgument() throws Exception {
-    class BadFn {
-      private List<SomeRestriction> splitRestriction(String element, SomeRestriction restriction) {
-        return null;
-      }
-    }
-
-    thrown.expectMessage("Third argument must be Backlog, but is String");
-    DoFnSignatures.analyzeSplitRestrictionMethod(
-        errors(),
-        TypeDescriptor.of(FakeDoFn.class),
-        new AnonymousMethod() {
-          void method(
-              Integer element,
-              SomeRestriction restriction,
-              String notBacklog,
-              DoFn.OutputReceiver<SomeRestriction> receiver) {}
+              Integer element, SomeRestriction restriction, DoFn.OutputReceiver<String> receiver) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class));
   }
@@ -506,7 +468,6 @@ public class DoFnSignaturesSplittableDoFnTest {
           void method(
               String element,
               SomeRestriction restriction,
-              Backlog backlog,
               DoFn.OutputReceiver<SomeRestriction> receiver) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class));
@@ -514,7 +475,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
   @Test
   public void testSplitRestrictionWrongNumArguments() throws Exception {
-    thrown.expectMessage("Must have 4 arguments");
+    thrown.expectMessage("Must have exactly 3 arguments");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
@@ -522,7 +483,6 @@ public class DoFnSignaturesSplittableDoFnTest {
           private void method(
               Integer element,
               SomeRestriction restriction,
-              Backlog backlog,
               DoFn.OutputReceiver<SomeRestriction> receiver,
               Object extra) {}
         }.getMethod(),
@@ -535,8 +495,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     class BadFn extends DoFn<Integer, String> {
       @ProcessElement
-      public void process(
-          ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
+      public void process(ProcessContext context, SomeRestrictionTracker tracker) {}
 
       @NewTracker
       public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
@@ -552,7 +511,6 @@ public class DoFnSignaturesSplittableDoFnTest {
       public void splitRestriction(
           Integer element,
           OtherRestriction restriction,
-          Backlog backlog,
           OutputReceiver<OtherRestriction> receiver) {}
     }
 
@@ -560,7 +518,7 @@ public class DoFnSignaturesSplittableDoFnTest {
         "getInitialRestriction(Integer): Uses restriction type SomeRestriction, "
             + "but @SplitRestriction method ");
     thrown.expectMessage(
-        "splitRestriction(Integer, OtherRestriction, Backlog, OutputReceiver) "
+        "splitRestriction(Integer, OtherRestriction, OutputReceiver) "
             + "uses restriction type OtherRestriction");
     DoFnSignatures.getSignature(BadFn.class);
   }
@@ -578,10 +536,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
       @SplitRestriction
       public void splitRestriction(
-          Integer element,
-          SomeRestriction restriction,
-          Backlog backlog,
-          OutputReceiver<SomeRestriction> receiver) {}
+          Integer element, SomeRestriction restriction, OutputReceiver<SomeRestriction> receiver) {}
 
       @NewTracker
       public SomeRestrictionTracker newTracker(SomeRestriction restriction) {

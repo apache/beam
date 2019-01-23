@@ -221,6 +221,8 @@ def portableWordCountTask(name, streaming) {
               "--output=/tmp/py-wordcount-direct",
               "--runner=PortableRunner",
               "--experiments=worker_threads=100",
+              "--parallelism=2",
+              "--shutdown_sources_on_final_watermark",
       ]
       if (streaming)
         options += ["--streaming"]
@@ -346,7 +348,7 @@ def flinkCompatibilityMatrix = {
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''}"
+        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''}"
       }
     }
   }
@@ -416,7 +418,7 @@ project.task('createProcessWorker') {
   if (Os.isFamily(Os.FAMILY_MAC))
     osType = 'darwin'
   def workerScript = "${project(":beam-sdks-python-container:").buildDir.absolutePath}/target/launcher/${osType}_amd64/boot"
-  def sdkWorkerFileCode = "sh -c \". ${project.ext.envdir}/bin/activate && ${workerScript} \$* \""
+  def sdkWorkerFileCode = "sh -c \"pip=`which pip` . ${project.ext.envdir}/bin/activate && ${workerScript} \$* \""
   outputs.file sdkWorkerFile
   doLast {
     sdkWorkerFile.write sdkWorkerFileCode

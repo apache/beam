@@ -85,6 +85,17 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
   @unittest.skipIf(sys.version_info[0] == 3 and
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
                    'This test still needs to be fixed on Python 3.')
+  def test_convert_nested_to_beam_type(self):
+    self.assertEqual(
+        typehints.List[typing.Any],
+        typehints.List[typehints.Any])
+    self.assertEqual(
+        typehints.List[typing.Dict[int, str]],
+        typehints.List[typehints.Dict[int, str]])
+
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.')
   def test_convert_to_beam_types(self):
     typing_types = [bytes, typing.List[bytes],
                     typing.List[typing.Tuple[bytes, int]],

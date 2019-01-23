@@ -56,6 +56,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkKeyGroupStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkSplitStateInternals;
@@ -391,6 +392,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       super.dispose();
       checkFinishBundleTimer.cancel(true);
     } finally {
+      FlinkClassloading.deleteStaticCaches();
       if (bundleStarted) {
         invokeFinishBundle();
       }
@@ -698,14 +700,12 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   public void onEventTime(InternalTimer<Object, TimerData> timer) throws Exception {
     // We don't have to cal checkInvokeStartBundle() because it's already called in
     // processWatermark*().
-    timerInternals.cleanupPendingTimer(timer.getNamespace());
     fireTimer(timer);
   }
 
   @Override
   public void onProcessingTime(InternalTimer<Object, TimerData> timer) throws Exception {
     checkInvokeStartBundle();
-    timerInternals.cleanupPendingTimer(timer.getNamespace());
     fireTimer(timer);
   }
 
@@ -716,6 +716,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     // This is a user timer, so namespace must be WindowNamespace
     checkArgument(namespace instanceof WindowNamespace);
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
+    timerInternals.cleanupPendingTimer(timer.getNamespace());
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
   }

@@ -1,3 +1,4 @@
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -16,13 +17,20 @@
  * limitations under the License.
  */
 
-/**
- * Defines utilities related to executing <a
- * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link
- * org.apache.beam.sdk.transforms.DoFn}.
- */
-@DefaultAnnotation(NonNull.class)
-package org.apache.beam.sdk.fn.splittabledofn;
+import PrecommitJobBuilder
 
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.NonNull;
+// This job runs the suite of ValidatesRunner tests against the Flink runner.
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+        scope: this,
+        nameBase: 'Python_PVR_Flink',
+        gradleTask: ':beam-sdks-python:flinkValidatesRunner',
+        triggerPathPatterns: [
+                '^model/.*$',
+                '^runners/.*$',
+                '^sdks/python/.*$',
+                '^release/.*$',
+        ]
+)
+builder.build {
+  previousNames('beam_PostCommit_Python_VR_Flink')
+}

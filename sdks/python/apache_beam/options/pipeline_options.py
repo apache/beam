@@ -749,6 +749,15 @@ class FlinkOptions(PipelineOptions):
                         help=
                         ('The degree of parallelism to be used when '
                          'distributing operations onto workers.'))
+    parser.add_argument('--shutdown_sources_on_final_watermark',
+                        default=False,
+                        action='store_true',
+                        help=
+                        ('If set to true, allows sources to shutdown '
+                         'after emitting the final Watermark. '
+                         'Note: Checkpoints/Savepoints can only be '
+                         'taken when all operators, including sources, '
+                         'are running.'))
 
 
 class TestOptions(PipelineOptions):

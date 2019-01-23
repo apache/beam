@@ -47,6 +47,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.jdbc.CalciteConnection;
@@ -118,6 +119,17 @@ public class JdbcDriverTest {
         (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
     Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
     assertThat(pipelineOptions.get("userAgent"), containsString("BeamSQL"));
+  }
+
+  /** Tests that userAgent is set. */
+  @Test
+  public void testDriverManager_hasUserAgent() throws Exception {
+    JdbcConnection connection =
+        (JdbcConnection) DriverManager.getConnection(JdbcDriver.CONNECT_STRING_PREFIX);
+    BeamCalciteSchema schema = connection.getCurrentBeamSchema();
+    assertThat(
+        schema.getPipelineOptions().get("userAgent"),
+        equalTo("BeamSQL/" + ReleaseInfo.getReleaseInfo().getVersion()));
   }
 
   /** Tests that userAgent can be overridden on the querystring. */

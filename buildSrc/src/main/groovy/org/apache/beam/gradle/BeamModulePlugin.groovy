@@ -730,6 +730,13 @@ class BeamModulePlugin implements Plugin<Project> {
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.7')
+          target project.fileTree(project.projectDir) {
+            include '**/*.java'
+            exclude '**/archetype-resources/src/**'
+            exclude '**/build/generated/**'
+            exclude '**/build/generated-src/**'
+            exclude '**/build/generated-*-avro-*/**'
+          }
         }
       }
 
@@ -1443,10 +1450,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.applyAntlrNature = {
       project.apply plugin: 'antlr'
-      def generatedDir = "${project.buildDir}/generated/source-src/antlr/main/java/"
-      project.sourceSets {
-        generated { java.srcDir generatedDir }
-      }
+      def generatedDir = "${project.buildDir}/generated-src/antlr/main/java/"
       project.idea {
         module {
           sourceDirs += project.file(generatedDir)

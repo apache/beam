@@ -15,15 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms.splittabledofn;
+package org.apache.beam.runners.dataflow.worker.fn.control;
 
-/** Definitions and convenience methods for working with restrictions. */
-public final class Restrictions {
+import com.google.api.services.dataflow.model.CounterUpdate;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+
+interface MonitoringInfoToCounterUpdateTransformer {
 
   /**
-   * By default all restrictions are assumed to be unbounded and it is expected that SplittableDoFn
-   * authors mark their restriction type with this interface if the restriction produces a bounded
-   * amount of output.
+   * Method should transform MonitoringInfo to relevant CounterUpdate class as required for
+   * DataflowRunner.
+   *
+   * @param src
+   * @return CounterUpdate or null if MonitoringInfo is invalid/unsupported.
    */
-  public interface IsBounded {}
+  CounterUpdate transform(MonitoringInfo src);
 }

@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import com.google.api.services.dataflow.model.CounterMetadata;
-import com.google.api.services.dataflow.model.CounterStructuredName;
-import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.SpanBuilder;
@@ -54,12 +51,9 @@ import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsTranslation;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter;
-import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitRequest;
@@ -152,6 +146,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
   @Override
   public Iterable<CounterUpdate> extractMetricUpdates() {
     List<CounterUpdate> result = progressTracker.extractCounterUpdates();
+
     if ((result != null) && (result.size() > 0)) {
       return result;
     }
@@ -357,6 +352,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         updateMetricsDeprecated(metrics);
 
         // todo(migryz): utilize monitoringInfos here.
+        // Requires Element Count metrics to be implemented.
         double elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
 
         grpcWriteOperationElementsProcessed.accept((int) elementsConsumed);
@@ -397,88 +393,6 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       }
     }
 
-    // Will extract to separate file and generalize when more counter types are added.
-    // todo(migryz): define counter transformer factory
-    // that can provide respective counter transformer for different type of counters.
-    // (ie RowCountCounterTranformer, MSecCounterTransformer, UserCounterTransformer, etc)
-    private static class MonitoringInfoToCounterUpdateTransformer {
-
-      private final Map<String, DataflowStepContext> transformIdMapping;
-
-      public MonitoringInfoToCounterUpdateTransformer(
-          final Map<String, DataflowStepContext> transformIdMapping) {
-        this.transformIdMapping = transformIdMapping;
-      }
-
-      // todo: search code for "beam:metrics"... and replace them with relevant enums from
-      // proto after rebasing above https://github.com/apache/beam/pull/6799 that
-      // introduces relevant proto entries.
-      final String BEAM_METRICS_USER_PREFIX = "beam:metric:user";
-
-      private CounterUpdate monitoringInfoToCounterUpdate(MonitoringInfo monitoringInfo) {
-        long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
-        String urn = monitoringInfo.getUrn();
-
-        String type = monitoringInfo.getType();
-
-        // todo(migryz): run MonitoringInfo through Proto validation process.
-        // Requires https://github.com/apache/beam/pull/6799 to be merged.
-        if (urn.startsWith(BEAM_METRICS_USER_PREFIX)) {
-          if (!type.equals("beam:metrics:sum_int_64")) {
-            LOG.info(
-                "Encountered user-counter MonitoringInfo with unexpected type."
-                    + "Expected: beam:metrics:sum_int_64. Received: "
-                    + monitoringInfo.toString());
-            return null;
-          }
-
-          final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");
-          if (ptransform == null) {
-            LOG.info(
-                "Encountered user-counter MonitoringInfo with missing ptransformId: "
-                    + monitoringInfo.toString());
-            return null;
-          }
-
-          DataflowStepContext stepContext = transformIdMapping.get(ptransform);
-          if (stepContext == null) {
-            LOG.info(
-                "Encountered user-counter MonitoringInfo with unknown ptransformId: "
-                    + monitoringInfo.toString());
-            return null;
-          }
-
-          CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
-
-          String nameWithNamespace =
-              monitoringInfo
-                  .getUrn()
-                  .substring(BEAM_METRICS_USER_PREFIX.length())
-                  .replace("^:", "");
-
-          final int lastColonIndex = nameWithNamespace.lastIndexOf(':');
-          String counterName = nameWithNamespace.substring(lastColonIndex + 1);
-          String counterNamespace = nameWithNamespace.substring(0, lastColonIndex);
-
-          name.setName(
-                  new CounterStructuredName()
-                      .setOrigin(Origin.USER.toString())
-                      // Workaround for bug in python sdk that missed colon after ...metric:user.
-                      .setName(counterName)
-                      .setOriginalStepName(stepContext.getNameContext().originalName())
-                      .setExecutionStepName(stepContext.getNameContext().systemName())
-                      .setOriginNamespace(counterNamespace))
-              .setMetadata(new CounterMetadata().setKind("SUM"));
-
-          return new CounterUpdate()
-              .setStructuredNameAndMetadata(name)
-              .setCumulative(false)
-              .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(value));
-        }
-        return null;
-      }
-    }
-
     /**
      * Updates internal metrics state from provided monitoringInfos list.
      *
@@ -486,12 +400,12 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
      */
     private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
       final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
-          new MonitoringInfoToCounterUpdateTransformer(
+          new FnApiMonitoringInfoToCounterUpdateTransformer(
               bundleProcessOperation.getPtransformIdToUserStepContext());
 
       counterUpdates =
           monitoringInfos.stream()
-              .map(monitoringInfoToCounterUpdateTransformer::monitoringInfoToCounterUpdate)
+              .map(monitoringInfoToCounterUpdateTransformer::transform)
               .filter(Objects::nonNull)
               .collect(Collectors.toList());
     }
@@ -589,6 +503,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
       // Set final metrics to precisely the values in this update. This should overwrite, not
       // be combined with, all prior updates.
+      counterUpdates.clear();
       deprecatedCounterUpdates.clear();
       deprecatedDistributionUpdates.clear();
       deprecatedGaugeUpdates.clear();
