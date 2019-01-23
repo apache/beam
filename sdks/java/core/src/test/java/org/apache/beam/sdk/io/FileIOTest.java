@@ -199,6 +199,7 @@ public class FileIOTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-6491")
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
     final Path basePath = tmpFolder.getRoot().toPath().resolve("watch");
     basePath.toFile().mkdir();
