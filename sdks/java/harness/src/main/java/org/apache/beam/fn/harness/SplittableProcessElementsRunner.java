@@ -248,7 +248,9 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
               DelayedBundleApplication.newBuilder()
                   .setApplication(residualApplication)
                   .setRequestedExecutionTime(
-                      Timestamps.fromMillis(result.getContinuation().resumeTime().getMillis()))
+                      Timestamps.fromMillis(
+                          System.currentTimeMillis()
+                              + result.getContinuation().resumeDelay().getMillis()))
                   .build()));
     }
   }
