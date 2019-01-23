@@ -136,11 +136,6 @@ public class TranslationContext {
   }
 
   @SuppressWarnings("unchecked")
-  public <T extends PValue> T getInput(PTransform<T, ?> transform) {
-    return (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
-  }
-
-  @SuppressWarnings("unchecked")
   public Map<TupleTag<?>, PValue> getInputs() {
     return currentTransform.getInputs();
   }
