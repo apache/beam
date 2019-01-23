@@ -30,8 +30,10 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
 import java.io.Writer;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.util.Arrays;
 import java.util.List;
@@ -227,17 +229,19 @@ public class FileIOTest implements Serializable {
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchMetadata.isBounded());
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllMetadata.isBounded());
 
-    // Copy the files to the "watch" directory, preserving the lastModifiedTime.
+    // Copy the files to the "watch" directory, preserving the lastModifiedTime;
+    // the COPY_ATTRIBUTES option ensures that we will at a minimum copy lastModifiedTime.
+    CopyOption[] copyOptions = {StandardCopyOption.COPY_ATTRIBUTES};
     Thread writer =
         new Thread(
             () -> {
               try {
                 Thread.sleep(1000);
-                Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"));
+                Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), copyOptions);
                 Thread.sleep(300);
-                Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"));
+                Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), copyOptions);
                 Thread.sleep(300);
-                Files.copy(sourcePath.resolve("third"), watchPath.resolve("third"));
+                Files.copy(sourcePath.resolve("third"), watchPath.resolve("third"), copyOptions);
               } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
               }
