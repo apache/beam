@@ -1,3 +1,4 @@
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -15,15 +16,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms.splittabledofn;
 
-/** Definitions and convenience methods for working with restrictions. */
-public final class Restrictions {
+import PrecommitJobBuilder
 
-  /**
-   * By default all restrictions are assumed to be unbounded and it is expected that SplittableDoFn
-   * authors mark their restriction type with this interface if the restriction produces a bounded
-   * amount of output.
-   */
-  public interface IsBounded {}
+// This job runs the suite of ValidatesRunner tests against the Flink runner.
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+        scope: this,
+        nameBase: 'Python_PVR_Flink',
+        gradleTask: ':beam-sdks-python:flinkValidatesRunner',
+        triggerPathPatterns: [
+                '^model/.*$',
+                '^runners/.*$',
+                '^sdks/python/.*$',
+                '^release/.*$',
+        ]
+)
+builder.build {
+  previousNames('beam_PostCommit_Python_VR_Flink')
 }

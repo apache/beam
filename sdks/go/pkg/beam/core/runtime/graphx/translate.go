@@ -158,9 +158,6 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pb.PTrans
 	}
 
 	edge := s.Edges[1].Edge
-	if !tryAddingCoder(edge.AccumCoder) {
-		return
-	}
 	acID := m.coders.Add(edge.AccumCoder)
 	payload := &pb.CombinePayload{
 		CombineFn: &pb.SdkFunctionSpec{
@@ -173,21 +170,6 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pb.PTrans
 		AccumulatorCoderId: acID,
 	}
 	transform.Spec = &pb.FunctionSpec{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}
-}
-
-// If the accumulator type is unencodable (eg. contains raw interface{})
-// Try encoding the AccumCoder. If the marshaller doesn't panic, it's
-// encodable.
-func tryAddingCoder(c *coder.Coder) (ok bool) {
-	defer func() {
-		if p := recover(); p != nil {
-			ok = false
-			fmt.Printf("Unable to encode combiner for lifting: %v", p)
-		}
-	}()
-	// Try in a new Marshaller to not corrupt state.
-	NewCoderMarshaller().Add(c)
-	return true
 }
 
 func (m *marshaller) addMultiEdge(edge NamedEdge) string {
