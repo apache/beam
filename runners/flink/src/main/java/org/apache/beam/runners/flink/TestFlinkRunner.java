@@ -33,10 +33,15 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
 
   private TestFlinkRunner(FlinkPipelineOptions options) {
     options.setShutdownSourcesOnFinalWatermark(true);
+    if (options.getParallelism() == -1) {
+      // Limit parallelism to avoid too much memory consumption during local execution
+      options.setParallelism(1);
+    }
     this.delegate = FlinkRunner.fromOptions(options);
   }
 
   public static TestFlinkRunner fromOptions(PipelineOptions options) {
+    options.setRunner(TestFlinkRunner.class);
     FlinkPipelineOptions flinkOptions =
         PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
     return new TestFlinkRunner(flinkOptions);

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.MoreObjects;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -58,4 +59,12 @@ public abstract class SideInputReference {
   public abstract String localName();
   /** The PCollection that backs this side input. */
   public abstract PCollectionNode collection();
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("Transform", transform().toString())
+        .add("PCollection", collection().toString())
+        .toString();
+  }
 }

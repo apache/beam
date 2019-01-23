@@ -694,7 +694,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Row asRow(@Nullable String id) {
-      checkState(fieldAccessDescriptor.allFields());
+      checkState(fieldAccessDescriptor.getAllFields());
       return schemaCoder.getToRowFunction().apply(element());
     }
 

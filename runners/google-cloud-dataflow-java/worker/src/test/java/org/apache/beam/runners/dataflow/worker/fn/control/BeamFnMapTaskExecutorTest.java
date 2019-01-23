@@ -19,7 +19,9 @@ package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
@@ -434,7 +436,7 @@ public class BeamFnMapTaskExecutorTest {
         contains(new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(finalCounterValue)));
   }
 
-  @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 10)
+  @Test(timeout = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS * 60)
   public void testExtractCounterUpdatesReturnsValidProgressTrackerCounterUpdatesIfPresent()
       throws Exception {
     final String stepName = "fakeStepNameWithUserMetrics";
@@ -554,11 +556,13 @@ public class BeamFnMapTaskExecutorTest {
     metricsCounterUpdates = mapTaskExecutor.extractMetricUpdates();
 
     assertThat(Iterables.size(metricsCounterUpdates), equalTo(1));
+    CounterUpdate resultCounter = metricsCounterUpdates.iterator().next();
 
-    assertThat(
-        metricsCounterUpdates,
-        contains(
-            new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(expectedCounterValue)));
+    assertTrue(
+        new CounterHamcrestMatchers.CounterUpdateIntegerValueMatcher(expectedCounterValue)
+            .matches(resultCounter));
+    assertEquals(
+        "ExpectedCounter", resultCounter.getStructuredNameAndMetadata().getName().getName());
   }
 
   /**

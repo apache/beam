@@ -19,17 +19,16 @@ package org.apache.beam.fn.harness;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
@@ -56,8 +55,8 @@ public interface PTransformRunnerFactory<T> {
    *     under the appropriate PCollection ids. Also note that all output consumers needed by this
    *     PTransform (based on the values of the {@link PTransform#getOutputsMap()} will have already
    *     registered within this multimap.
-   * @param addStartFunction A consumer to register a start bundle handler with.
-   * @param addFinishFunction A consumer to register a finish bundle handler with.
+   * @param startFunctionRegistry A class to register a start bundle handler with.
+   * @param finishFunctionRegistry A class to register a finish bundle handler with.
    * @param splitListener A listener to be invoked when the PTransform splits itself.
    */
   T createRunnerForPTransform(
@@ -71,8 +70,8 @@ public interface PTransformRunnerFactory<T> {
       Map<String, Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
       ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-      Consumer<ThrowingRunnable> addStartFunction,
-      Consumer<ThrowingRunnable> addFinishFunction,
+      PTransformFunctionRegistry startFunctionRegistry,
+      PTransformFunctionRegistry finishFunctionRegistry,
       BundleSplitListener splitListener)
       throws IOException;
 

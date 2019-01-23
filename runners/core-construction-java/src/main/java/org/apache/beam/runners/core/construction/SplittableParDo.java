@@ -52,7 +52,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -481,7 +480,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       invoker.invokeSplitRestriction(
           element,
           c.element().getValue(),
-          Backlog.unknown(),
           new OutputReceiver<RestrictionT>() {
             @Override
             public void output(RestrictionT part) {

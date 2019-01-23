@@ -151,6 +151,10 @@ class _StateBackedIterable(object):
     return list, (list(self),)
 
 
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
+    _StateBackedIterable)
+
+
 class StateBackedSideInputMap(object):
   def __init__(self, state_handler, transform_id, tag, side_input_data, coder):
     self._state_handler = state_handler
@@ -267,6 +271,9 @@ class _ConcatIterable(object):
       yield elem
     for elem in self.second:
       yield elem
+
+
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 
 
 # TODO(BEAM-5428): Implement cross-bundle state caching.

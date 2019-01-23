@@ -45,7 +45,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -76,7 +75,6 @@ import org.junit.runners.JUnit4;
 public class SplittableParDoProcessFnTest {
   private static final int MAX_OUTPUTS_PER_BUNDLE = 10000;
   private static final Duration MAX_BUNDLE_DURATION = Duration.standardSeconds(5);
-  @Rule public final ResetDateTimeProvider dateTimeProvider = new ResetDateTimeProvider();
 
   // ----------------- Tests for whether the transform sets boundedness correctly --------------
   private static class SomeRestriction
@@ -95,7 +93,7 @@ public class SplittableParDoProcessFnTest {
     }
 
     @Override
-    public boolean tryClaim(Void position) {
+    protected boolean tryClaimImpl(Void position) {
       return true;
     }
 
@@ -119,7 +117,12 @@ public class SplittableParDoProcessFnTest {
    * A helper for testing {@link ProcessFn} on 1 element (but possibly over multiple {@link
    * DoFn.ProcessElement} calls).
    */
-  private static class ProcessFnTester<InputT, OutputT, RestrictionT, PositionT>
+  private static class ProcessFnTester<
+          InputT,
+          OutputT,
+          RestrictionT,
+          PositionT,
+          TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
       implements AutoCloseable {
     private final DoFnTester<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> tester;
     private Instant currentProcessingTime;
@@ -139,7 +142,7 @@ public class SplittableParDoProcessFnTest {
       // encode IntervalWindow's because that's what all tests here use.
       WindowingStrategy<InputT, BoundedWindow> windowingStrategy =
           (WindowingStrategy) WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1)));
-      final ProcessFn<InputT, OutputT, RestrictionT, PositionT> processFn =
+      final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
           new ProcessFn<>(fn, inputCoder, restrictionCoder, windowingStrategy);
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
@@ -267,7 +270,7 @@ public class SplittableParDoProcessFnTest {
   /** A simple splittable {@link DoFn} that's actually monolithic. */
   private static class ToStringFn extends DoFn<Integer, String> {
     @ProcessElement
-    public void process(ProcessContext c, RestrictionTracker<SomeRestriction, Void> tracker) {
+    public void process(ProcessContext c, SomeRestrictionTracker tracker) {
       checkState(tracker.tryClaim(null));
       c.output(c.element().toString() + "a");
       c.output(c.element().toString() + "b");
@@ -293,7 +296,7 @@ public class SplittableParDoProcessFnTest {
         new IntervalWindow(
             base.minus(Duration.standardMinutes(1)), base.plus(Duration.standardMinutes(1)));
 
-    ProcessFnTester<Integer, String, SomeRestriction, Void> tester =
+    ProcessFnTester<Integer, String, SomeRestriction, Void, SomeRestrictionTracker> tester =
         new ProcessFnTester<>(
             base,
             fn,
@@ -318,7 +321,7 @@ public class SplittableParDoProcessFnTest {
 
   private static class WatermarkUpdateFn extends DoFn<Instant, String> {
     @ProcessElement
-    public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
       for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
         c.updateWatermark(c.element().plus(Duration.standardSeconds(i)));
         c.output(String.valueOf(i));
@@ -340,9 +343,8 @@ public class SplittableParDoProcessFnTest {
   public void testUpdatesWatermark() throws Exception {
     DoFn<Instant, String> fn = new WatermarkUpdateFn();
     Instant base = Instant.now();
-    dateTimeProvider.setDateTimeFixed(base.getMillis());
 
-    ProcessFnTester<Instant, String, OffsetRange, Long> tester =
+    ProcessFnTester<Instant, String, OffsetRange, Long, OffsetRangeTracker> tester =
         new ProcessFnTester<>(
             base,
             fn,
@@ -355,12 +357,10 @@ public class SplittableParDoProcessFnTest {
     assertThat(tester.takeOutputElements(), hasItems("0", "1", "2"));
     assertEquals(base.plus(Duration.standardSeconds(2)), tester.getWatermarkHold());
 
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(1).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     assertThat(tester.takeOutputElements(), hasItems("3", "4", "5"));
     assertEquals(base.plus(Duration.standardSeconds(5)), tester.getWatermarkHold());
 
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(2).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     assertThat(tester.takeOutputElements(), hasItems("6", "7"));
     assertEquals(null, tester.getWatermarkHold());
@@ -369,8 +369,7 @@ public class SplittableParDoProcessFnTest {
   /** A simple splittable {@link DoFn} that outputs the given element every 5 seconds forever. */
   private static class SelfInitiatedResumeFn extends DoFn<Integer, String> {
     @ProcessElement
-    public ProcessContinuation process(
-        ProcessContext c, RestrictionTracker<SomeRestriction, Void> tracker) {
+    public ProcessContinuation process(ProcessContext c, SomeRestrictionTracker tracker) {
       checkState(tracker.tryClaim(null));
       c.output(c.element().toString());
       return resume().withResumeDelay(Duration.standardSeconds(5));
@@ -386,8 +385,7 @@ public class SplittableParDoProcessFnTest {
   public void testResumeSetsTimer() throws Exception {
     DoFn<Integer, String> fn = new SelfInitiatedResumeFn();
     Instant base = Instant.now();
-    dateTimeProvider.setDateTimeFixed(base.getMillis());
-    ProcessFnTester<Integer, String, SomeRestriction, Void> tester =
+    ProcessFnTester<Integer, String, SomeRestriction, Void, SomeRestrictionTracker> tester =
         new ProcessFnTester<>(
             base,
             fn,
@@ -400,22 +398,18 @@ public class SplittableParDoProcessFnTest {
     assertThat(tester.takeOutputElements(), contains("42"));
 
     // Should resume after 5 seconds: advancing by 3 seconds should have no effect.
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(3).getMillis());
     assertFalse(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
     assertTrue(tester.takeOutputElements().isEmpty());
 
     // 6 seconds should be enough  should invoke the fn again.
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(6).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
     assertThat(tester.takeOutputElements(), contains("42"));
 
     // Should again resume after 5 seconds: advancing by 3 seconds should again have no effect.
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(9).getMillis());
     assertFalse(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
     assertTrue(tester.takeOutputElements().isEmpty());
 
     // 6 seconds should again be enough.
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(12).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
     assertThat(tester.takeOutputElements(), contains("42"));
   }
@@ -429,8 +423,7 @@ public class SplittableParDoProcessFnTest {
     }
 
     @ProcessElement
-    public ProcessContinuation process(
-        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+    public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {
       for (long i = tracker.currentRestriction().getFrom(), numIterations = 0;
           tracker.tryClaim(i);
           ++i, ++numIterations) {
@@ -452,8 +445,7 @@ public class SplittableParDoProcessFnTest {
   public void testResumeCarriesOverState() throws Exception {
     DoFn<Integer, String> fn = new CounterFn(1);
     Instant base = Instant.now();
-    dateTimeProvider.setDateTimeFixed(base.getMillis());
-    ProcessFnTester<Integer, String, OffsetRange, Long> tester =
+    ProcessFnTester<Integer, String, OffsetRange, Long, OffsetRangeTracker> tester =
         new ProcessFnTester<>(
             base,
             fn,
@@ -464,18 +456,14 @@ public class SplittableParDoProcessFnTest {
 
     tester.startElement(42, new OffsetRange(0, 3));
     assertThat(tester.takeOutputElements(), contains("42"));
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(1).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     assertThat(tester.takeOutputElements(), contains("43"));
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(2).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     assertThat(tester.takeOutputElements(), contains("44"));
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(3).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     // After outputting all 3 items, should not output anything more.
     assertEquals(0, tester.takeOutputElements().size());
     // Should also not ask to resume.
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(4).getMillis());
     assertFalse(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
   }
 
@@ -484,10 +472,9 @@ public class SplittableParDoProcessFnTest {
     int max = 100;
     DoFn<Integer, String> fn = new CounterFn(Integer.MAX_VALUE);
     Instant base = Instant.now();
-    dateTimeProvider.setDateTimeFixed(base.getMillis());
     int baseIndex = 42;
 
-    ProcessFnTester<Integer, String, OffsetRange, Long> tester =
+    ProcessFnTester<Integer, String, OffsetRange, Long, OffsetRangeTracker> tester =
         new ProcessFnTester<>(
             base,
             fn,
@@ -506,7 +493,6 @@ public class SplittableParDoProcessFnTest {
     assertThat(elements, hasItem(String.valueOf(baseIndex)));
     assertThat(elements, hasItem(String.valueOf(baseIndex + max - 1)));
 
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(1).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     elements = tester.takeOutputElements();
     assertEquals(max, elements.size());
@@ -514,7 +500,6 @@ public class SplittableParDoProcessFnTest {
     assertThat(elements, hasItem(String.valueOf(baseIndex + max)));
     assertThat(elements, hasItem(String.valueOf(baseIndex + 2 * max - 1)));
 
-    dateTimeProvider.setDateTimeFixed(base.getMillis() + Duration.standardSeconds(2).getMillis());
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     elements = tester.takeOutputElements();
     assertEquals(max / 2, elements.size());
@@ -535,7 +520,7 @@ public class SplittableParDoProcessFnTest {
     Instant base = Instant.now();
     int baseIndex = 42;
 
-    ProcessFnTester<Integer, String, OffsetRange, Long> tester =
+    ProcessFnTester<Integer, String, OffsetRange, Long, OffsetRangeTracker> tester =
         new ProcessFnTester<>(
             base,
             fn,
@@ -567,7 +552,7 @@ public class SplittableParDoProcessFnTest {
     private State state = State.BEFORE_SETUP;
 
     @ProcessElement
-    public void process(ProcessContext c, RestrictionTracker<SomeRestriction, Void> tracker) {
+    public void process(ProcessContext c, SomeRestrictionTracker tracker) {
       assertEquals(State.INSIDE_BUNDLE, state);
     }
 
@@ -604,7 +589,7 @@ public class SplittableParDoProcessFnTest {
   @Test
   public void testInvokesLifecycleMethods() throws Exception {
     DoFn<Integer, String> fn = new LifecycleVerifyingFn();
-    try (ProcessFnTester<Integer, String, SomeRestriction, Void> tester =
+    try (ProcessFnTester<Integer, String, SomeRestriction, Void, SomeRestrictionTracker> tester =
         new ProcessFnTester<>(
             Instant.now(),
             fn,

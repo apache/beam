@@ -179,12 +179,6 @@ func TestConvert(t *testing.T) {
 			want: int(42),
 		},
 		{
-			name: "byte_to_string",
-			to:   reflectx.String,
-			v:    []byte("basketball"),
-			want: "basketball",
-		},
-		{
 			name: "[]typexT_to_[]int",
 			to:   reflect.TypeOf([]int{}),
 			v:    []typex.T{1, 2, 3},

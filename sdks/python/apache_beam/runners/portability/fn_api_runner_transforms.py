@@ -471,7 +471,8 @@ def lift_combiners(stages, context):
             [transform],
             downstream_side_inputs=base_stage.downstream_side_inputs,
             must_follow=base_stage.must_follow,
-            parent=base_stage.name)
+            parent=base_stage.name,
+            environment=base_stage.environment)
 
       yield make_stage(
           stage,
