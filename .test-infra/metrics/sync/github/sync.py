@@ -46,7 +46,7 @@ DB_NAME = os.environ['DB_DBNAME']
 DB_USER_NAME = os.environ['DB_DBUSERNAME']
 DB_PASSWORD = os.environ['DB_DBPWD']
 
-GH_ACCESS_TOKEN = os.environ['GH_ACCESSTOKEN']
+GH_ACCESS_TOKEN = os.environ['GH_ACCESS_TOKEN']
 
 GH_PRS_TABLE_NAME = 'gh_pull_requests'
 
