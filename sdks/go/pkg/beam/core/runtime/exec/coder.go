@@ -250,13 +250,14 @@ func (c *kvDecoder) Decode(r io.Reader) (FullValue, error) {
 type WindowEncoder interface {
 	// Encode serializes the given value to the writer.
 	Encode([]typex.Window, io.Writer) error
+	EncodeSingle(typex.Window, io.Writer) error
 }
 
 // EncodeWindow is a convenience function for encoding a single window into a
 // byte slice.
 func EncodeWindow(c WindowEncoder, w typex.Window) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := c.Encode([]typex.Window{w}, &buf); err != nil {
+	if err := c.EncodeSingle(w, &buf); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -304,6 +305,10 @@ func (*globalWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
 	return coder.EncodeInt32(1, w) // #windows
 }
 
+func (*globalWindowEncoder) EncodeSingle(ws typex.Window, w io.Writer) error {
+	return nil
+}
+
 type globalWindowDecoder struct{}
 
 func (*globalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
@@ -313,21 +318,27 @@ func (*globalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
 
 type intervalWindowEncoder struct{}
 
-func (*intervalWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
-	// Encoding: upper bound and duration
-
+func (enc *intervalWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
 	if err := coder.EncodeInt32(int32(len(ws)), w); err != nil { // #windows
 		return err
 	}
 	for _, elm := range ws {
-		iw := elm.(window.IntervalWindow)
-		if err := coder.EncodeEventTime(iw.End, w); err != nil {
-			return err
+		if err := enc.EncodeSingle(elm, w); err != nil {
+			return nil
 		}
-		duration := iw.End.Milliseconds() - iw.Start.Milliseconds()
-		if err := coder.EncodeVarUint64(uint64(duration), w); err != nil {
-			return err
-		}
+	}
+	return nil
+}
+
+func (*intervalWindowEncoder) EncodeSingle(elm typex.Window, w io.Writer) error {
+	// Encoding: upper bound and duration
+	iw := elm.(window.IntervalWindow)
+	if err := coder.EncodeEventTime(iw.End, w); err != nil {
+		return err
+	}
+	duration := iw.End.Milliseconds() - iw.Start.Milliseconds()
+	if err := coder.EncodeVarUint64(uint64(duration), w); err != nil {
+		return err
 	}
 	return nil
 }
