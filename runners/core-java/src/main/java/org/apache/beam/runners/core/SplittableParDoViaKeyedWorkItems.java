@@ -388,13 +388,8 @@ public class SplittableParDoViaKeyedWorkItems {
       if (futureOutputWatermark == null) {
         futureOutputWatermark = elementAndRestriction.getKey().getTimestamp();
       }
-
-      // TODO(BEAM-6157): When we are getting a ProcessContinuation#STOP, why are we setting another
-      // timer?
       Instant wakeupTime =
-          timerInternals.currentProcessingTime().isBefore(result.getContinuation().resumeTime())
-              ? result.getContinuation().resumeTime()
-              : timerInternals.currentProcessingTime();
+          timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
       timerInternals.setTimer(

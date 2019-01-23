@@ -100,7 +100,7 @@ public class SplittableDoFnTest implements Serializable {
 
     @SplitRestriction
     public void splitRange(
-        String element, OffsetRange range, Backlog backlog, OutputReceiver<OffsetRange> receiver) {
+        String element, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
       receiver.output(new OffsetRange(range.getFrom(), (range.getFrom() + range.getTo()) / 2));
       receiver.output(new OffsetRange((range.getFrom() + range.getTo()) / 2, range.getTo()));
     }
@@ -695,7 +695,7 @@ public class SplittableDoFnTest implements Serializable {
 
     @SplitRestriction
     public void splitRestriction(
-        String value, OffsetRange range, Backlog backlog, OutputReceiver<OffsetRange> receiver) {
+        String value, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
       assertEquals(State.OUTSIDE_BUNDLE, state);
       receiver.output(range);
     }
