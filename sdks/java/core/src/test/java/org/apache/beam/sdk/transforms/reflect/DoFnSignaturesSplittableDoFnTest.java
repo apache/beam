@@ -30,7 +30,6 @@ import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.AnonymousMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
-import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -240,10 +239,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
       @SplitRestriction
       public void splitRestriction(
-          Integer element,
-          SomeRestriction restriction,
-          Backlog backlog,
-          OutputReceiver<SomeRestriction> receiver) {}
+          Integer element, SomeRestriction restriction, OutputReceiver<SomeRestriction> receiver) {}
 
       @NewTracker
       public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
@@ -287,10 +283,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
       @SplitRestriction
       public void splitRestriction(
-          Integer element,
-          RestrictionT restriction,
-          Backlog backlog,
-          OutputReceiver<RestrictionT> receiver) {}
+          Integer element, RestrictionT restriction, OutputReceiver<RestrictionT> receiver) {}
 
       @NewTracker
       public TrackerT newTracker(RestrictionT restriction) {
@@ -447,39 +440,14 @@ public class DoFnSignaturesSplittableDoFnTest {
   @Test
   public void testSplitRestrictionReturnsWrongType() throws Exception {
     thrown.expectMessage(
-        "Fourth argument must be DoFn.OutputReceiver<SomeRestriction>, "
+        "Third argument must be DoFn.OutputReceiver<SomeRestriction>, "
             + "but is DoFn.OutputReceiver<String>");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           void method(
-              Integer element,
-              SomeRestriction restriction,
-              Backlog backlog,
-              DoFn.OutputReceiver<String> receiver) {}
-        }.getMethod(),
-        TypeDescriptor.of(Integer.class));
-  }
-
-  @Test
-  public void testSplitRestrictionWrongBacklogArgument() throws Exception {
-    class BadFn {
-      private List<SomeRestriction> splitRestriction(String element, SomeRestriction restriction) {
-        return null;
-      }
-    }
-
-    thrown.expectMessage("Third argument must be Backlog, but is String");
-    DoFnSignatures.analyzeSplitRestrictionMethod(
-        errors(),
-        TypeDescriptor.of(FakeDoFn.class),
-        new AnonymousMethod() {
-          void method(
-              Integer element,
-              SomeRestriction restriction,
-              String notBacklog,
-              DoFn.OutputReceiver<SomeRestriction> receiver) {}
+              Integer element, SomeRestriction restriction, DoFn.OutputReceiver<String> receiver) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class));
   }
@@ -500,7 +468,6 @@ public class DoFnSignaturesSplittableDoFnTest {
           void method(
               String element,
               SomeRestriction restriction,
-              Backlog backlog,
               DoFn.OutputReceiver<SomeRestriction> receiver) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class));
@@ -508,7 +475,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
   @Test
   public void testSplitRestrictionWrongNumArguments() throws Exception {
-    thrown.expectMessage("Must have 4 arguments");
+    thrown.expectMessage("Must have exactly 3 arguments");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
@@ -516,7 +483,6 @@ public class DoFnSignaturesSplittableDoFnTest {
           private void method(
               Integer element,
               SomeRestriction restriction,
-              Backlog backlog,
               DoFn.OutputReceiver<SomeRestriction> receiver,
               Object extra) {}
         }.getMethod(),
@@ -545,7 +511,6 @@ public class DoFnSignaturesSplittableDoFnTest {
       public void splitRestriction(
           Integer element,
           OtherRestriction restriction,
-          Backlog backlog,
           OutputReceiver<OtherRestriction> receiver) {}
     }
 
@@ -553,7 +518,7 @@ public class DoFnSignaturesSplittableDoFnTest {
         "getInitialRestriction(Integer): Uses restriction type SomeRestriction, "
             + "but @SplitRestriction method ");
     thrown.expectMessage(
-        "splitRestriction(Integer, OtherRestriction, Backlog, OutputReceiver) "
+        "splitRestriction(Integer, OtherRestriction, OutputReceiver) "
             + "uses restriction type OtherRestriction");
     DoFnSignatures.getSignature(BadFn.class);
   }
@@ -571,10 +536,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
       @SplitRestriction
       public void splitRestriction(
-          Integer element,
-          SomeRestriction restriction,
-          Backlog backlog,
-          OutputReceiver<SomeRestriction> receiver) {}
+          Integer element, SomeRestriction restriction, OutputReceiver<SomeRestriction> receiver) {}
 
       @NewTracker
       public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
