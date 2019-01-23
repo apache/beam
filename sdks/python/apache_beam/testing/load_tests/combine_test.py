@@ -105,21 +105,23 @@ class CombineTest(unittest.TestCase):
     self.pipeline = TestPipeline(is_integration_test=True)
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
 
+    self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
     metrics_project_id = self.pipeline.get_option('project')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')
     metrics_dataset = self.pipeline.get_option('metrics_dataset')
-    self.metrics_monitor = None
     check = metrics_project_id and self.metrics_namespace and metrics_dataset \
             is not None
-    if check:
+    if not self.metrics_monitor:
+      logging.info('Metrics will not be collected')
+    elif check:
       self.metrics_monitor = MetricsMonitor(
-          project_name=metrics_project_id,
-          table=self.metrics_namespace,
-          dataset=metrics_dataset
+        project_name=metrics_project_id,
+        table=self.metrics_namespace,
+        dataset=metrics_dataset,
       )
     else:
-      logging.error('One or more of parameters for collecting metrics '
-                    'are empty. Metrics will not be collected')
+      raise ValueError('One or more of parameters for collecting metrics '
+                       'are empty.')
 
   class _GetElement(beam.DoFn):
     def process(self, element):

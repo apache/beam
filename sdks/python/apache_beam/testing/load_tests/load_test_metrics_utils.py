@@ -56,22 +56,22 @@ METRICS_TYPE_LABEL = 'metric'
 VALUE_LABEL = 'value'
 
 SCHEMA = [
-  {'name': ID_LABEL,
-   'type': 'STRING',
-   'mode': 'REQUIRED'
-   },
-  {'name': SUBMIT_TIMESTAMP_LABEL,
-   'type': 'TIMESTAMP',
-   'mode': 'REQUIRED'
-   },
-  {'name': METRICS_TYPE_LABEL,
-   'type': 'STRING',
-   'mode': 'REQUIRED'
-   },
-  {'name': VALUE_LABEL,
-   'type': 'FLOAT',
-   'mode': 'REQUIRED'
-   }
+    {'name': ID_LABEL,
+     'type': 'STRING',
+     'mode': 'REQUIRED'
+     },
+    {'name': SUBMIT_TIMESTAMP_LABEL,
+     'type': 'TIMESTAMP',
+     'mode': 'REQUIRED'
+     },
+    {'name': METRICS_TYPE_LABEL,
+     'type': 'STRING',
+     'mode': 'REQUIRED'
+     },
+    {'name': VALUE_LABEL,
+     'type': 'FLOAT',
+     'mode': 'REQUIRED'
+     }
 ]
 
 
