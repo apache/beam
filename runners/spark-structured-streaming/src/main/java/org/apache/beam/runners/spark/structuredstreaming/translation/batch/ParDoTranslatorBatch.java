@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.*;
@@ -47,7 +48,8 @@ import java.util.Map;
 import static com.google.common.base.Preconditions.checkState;
 
 /**
- * TODO: Add support of state and timers TODO: Add support of side inputs
+ * TODO: Add support of state and timers
+ * TODO: Add support of side inputs
  *
  * @param <InputT>
  * @param <OutputT>
@@ -59,11 +61,18 @@ class ParDoTranslatorBatch<InputT, OutputT>
   public void translateTransform(
       PTransform<PCollection<InputT>, PCollectionTuple> transform, TranslationContext context) {
 
+    // TODO: add support of Splittable DoFn
     DoFn<InputT, OutputT> doFn = getDoFn(context);
     checkState(
         !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
         "Not expected to directly translate splittable DoFn, should have been overridden: %s",
         doFn);
+
+    // TODO: add support of states and timers
+    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+    boolean stateful =
+        signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
+    checkState(!stateful, "States and timers are not supported for the moment.");
 
     Dataset<WindowedValue<InputT>> inputDataSet = context.getDataset(context.getInput());
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
@@ -109,6 +118,9 @@ class ParDoTranslatorBatch<InputT, OutputT>
     UnionCoder unionCoder = UnionCoder.of(outputCoders);
 
     List<PCollectionView<?>> sideInputs = getSideInputs(context);
+    final boolean hasSideInputs = sideInputs != null && sideInputs.size() > 0;
+    // TODO: add support of SideInputs
+    checkState(!hasSideInputs, "SideInputs are not supported for the moment.");
 
     // construct a map from side input to WindowingStrategy so that
     // the DoFn runner can map main-input windows to side input windows
@@ -128,7 +140,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
             context.getOptions(),
             outputTags,
             mainOutputTag,
-            context.getInput(transform).getCoder(),
+            ((PCollection<InputT>)context.getInput()).getCoder(),
             outputCoderMap);
 
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputsDataset =
