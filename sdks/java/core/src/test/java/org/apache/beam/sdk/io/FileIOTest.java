@@ -55,7 +55,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.joda.time.Duration;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -200,19 +199,26 @@ public class FileIOTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6491")
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
-    final Path basePath = tmpFolder.getRoot().toPath().resolve("watch");
-    basePath.toFile().mkdir();
+    // Write some files to a "source" directory.
+    final Path sourcePath = tmpFolder.getRoot().toPath().resolve("source");
+    sourcePath.toFile().mkdir();
+    Files.write(sourcePath.resolve("first"), new byte[42]);
+    Files.write(sourcePath.resolve("second"), new byte[37]);
+    Files.write(sourcePath.resolve("third"), new byte[99]);
+
+    // Create a "watch" directory that the pipeline will copy files into.
+    final Path watchPath = tmpFolder.getRoot().toPath().resolve("watch");
+    watchPath.toFile().mkdir();
     PCollection<MatchResult.Metadata> matchMetadata =
         p.apply(
             FileIO.match()
-                .filepattern(basePath.resolve("*").toString())
+                .filepattern(watchPath.resolve("*").toString())
                 .continuously(
                     Duration.millis(100),
                     Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
-        p.apply(Create.of(basePath.resolve("*").toString()))
+        p.apply(Create.of(watchPath.resolve("*").toString()))
             .apply(
                 FileIO.matchAll()
                     .continuously(
@@ -221,36 +227,33 @@ public class FileIOTest implements Serializable {
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchMetadata.isBounded());
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllMetadata.isBounded());
 
+    // Copy the files to the "watch" directory, preserving the lastModifiedTime.
     Thread writer =
         new Thread(
             () -> {
               try {
                 Thread.sleep(1000);
-                Files.write(basePath.resolve("first"), new byte[42]);
+                Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"));
                 Thread.sleep(300);
-                Files.write(basePath.resolve("second"), new byte[37]);
+                Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"));
                 Thread.sleep(300);
-                Files.write(basePath.resolve("third"), new byte[99]);
+                Files.copy(sourcePath.resolve("third"), watchPath.resolve("third"));
               } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
               }
             });
     writer.start();
 
+    // We fetch lastModifiedTime from the files in the "source" directory to avoid a race condition
+    // with the writer thread.
     List<MatchResult.Metadata> expected =
         Arrays.asList(
             metadata(
-                basePath.resolve("first"),
-                42,
-                Files.getLastModifiedTime(basePath.resolve("first")).toMillis()),
+                watchPath.resolve("first"), 42, lastModifiedMillis(sourcePath.resolve("first"))),
             metadata(
-                basePath.resolve("second"),
-                37,
-                Files.getLastModifiedTime(basePath.resolve("second")).toMillis()),
+                watchPath.resolve("second"), 37, lastModifiedMillis(sourcePath.resolve("second"))),
             metadata(
-                basePath.resolve("third"),
-                99,
-                Files.getLastModifiedTime(basePath.resolve("third")).toMillis()));
+                watchPath.resolve("third"), 99, lastModifiedMillis(sourcePath.resolve("third"))));
     PAssert.that(matchMetadata).containsInAnyOrder(expected);
     PAssert.that(matchAllMetadata).containsInAnyOrder(expected);
     p.run();
@@ -332,6 +335,10 @@ public class FileIOTest implements Serializable {
         .setSizeBytes(size)
         .setLastModifiedMillis(lastModifiedMillis)
         .build();
+  }
+
+  private static long lastModifiedMillis(Path path) throws IOException {
+    return Files.getLastModifiedTime(path).toMillis();
   }
 
   private static FileIO.Write.FileNaming resolveFileNaming(FileIO.Write<?, ?> write)
