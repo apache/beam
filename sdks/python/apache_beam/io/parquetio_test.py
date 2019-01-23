@@ -72,29 +72,33 @@ class TestParquet(unittest.TestCase):
 
     self.RECORDS = [{'name': 'Thomas',
                      'favorite_number': 1,
-                     'favorite_color': 'blue'}, {'name': 'Henry',
-                                                 'favorite_number': 3,
-                                                 'favorite_color': 'green'},
+                     'favorite_color': 'blue'},
+                    {'name': 'Henry',
+                     'favorite_number': 3,
+                     'favorite_color': 'green'},
                     {'name': 'Toby',
                      'favorite_number': 7,
-                     'favorite_color': 'brown'}, {'name': 'Gordon',
-                                                  'favorite_number': 4,
-                                                  'favorite_color': 'blue'},
+                     'favorite_color': 'brown'},
+                    {'name': 'Gordon',
+                     'favorite_number': 4,
+                     'favorite_color': 'blue'},
                     {'name': 'Emily',
                      'favorite_number': -1,
-                     'favorite_color': 'Red'}, {'name': 'Percy',
-                                                'favorite_number': 6,
-                                                'favorite_color': 'Green'}]
+                     'favorite_color': 'Red'},
+                    {'name': 'Percy',
+                     'favorite_number': 6,
+                     'favorite_color': 'Green'}]
+
     self.SCHEMA = pa.schema([
-        ('name', pa.binary()),
+        ('name', pa.string()),
         ('favorite_number', pa.int64()),
-        ('favorite_color', pa.binary())
+        ('favorite_color', pa.string())
     ])
 
     self.SCHEMA96 = pa.schema([
-        ('name', pa.binary()),
+        ('name', pa.string()),
         ('favorite_number', pa.timestamp('ns')),
-        ('favorite_color', pa.binary())
+        ('favorite_color', pa.string())
     ])
 
   def tearDown(self):
