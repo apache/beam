@@ -47,24 +47,16 @@ class PipelineOptionsTest(unittest.TestCase):
        'display_data': [DisplayDataItemMatcher('num_workers', 5)]},
       {
           'flags': [
-              '--profile_cpu', '--profile_location', 'gs://bucket/',
-              'ignored', '-invalid=arg', '--unknown_arg', 'unknown_value',
-              '--unknown_flag'
-          ],
+              '--profile_cpu', '--profile_location', 'gs://bucket/', 'ignored'],
           'expected': {
               'profile_cpu': True, 'profile_location': 'gs://bucket/',
               'mock_flag': False, 'mock_option': None,
-              'mock_multi_option': None,
-              'unknown_arg': 'unknown_value',
-              'unknown_flag': None},
+              'mock_multi_option': None},
           'display_data': [
               DisplayDataItemMatcher('profile_cpu',
                                      True),
               DisplayDataItemMatcher('profile_location',
-                                     'gs://bucket/'),
-              DisplayDataItemMatcher('unknown_arg',
-                                     'unknown_value')
-          ]
+                                     'gs://bucket/')]
       },
       {'flags': ['--num_workers', '5', '--mock_flag'],
        'expected': {'num_workers': 5,
@@ -113,16 +105,6 @@ class PipelineOptionsTest(unittest.TestCase):
                     'mock_multi_option': ['op1', 'op2']},
        'display_data': [
            DisplayDataItemMatcher('mock_multi_option', ['op1', 'op2'])]
-      },
-      {'flags': ['--flink_master=testmaster:8081', '--parallelism=42'],
-       'expected': {'flink_master': 'testmaster:8081',
-                    'parallelism': 42,
-                    'mock_flag': False,
-                    'mock_option': None,
-                    'mock_multi_option': None},
-       'display_data': [
-           DisplayDataItemMatcher('flink_master', 'testmaster:8081'),
-           DisplayDataItemMatcher('parallelism', 42)]
       },
   ]
 
@@ -291,14 +273,20 @@ class PipelineOptionsTest(unittest.TestCase):
     with self.assertRaises(RuntimeError):
       options.pot_non_vp_arg1.get()
 
-  # Converts duplicate unknown argument values to a single argument
-  # with a list value.
-  def test_unknown_duplicate_args_converted_to_list(self):
-    options = PipelineOptions(['--dup_arg', 'val1',
-                               '--dup_arg', 'val2',
-                               '--dup_arg=val3'])
-    self.assertEqual(options.get_all_options()['dup_arg'],
-                     ['val1', 'val2', 'val3'])
+  # Converts extra arguments to list value.
+  def test_extra_args(self):
+    options = PipelineOptions([
+        '--extra_arg', 'val1',
+        '--extra_arg', 'val2',
+        '--extra_arg=val3',
+        '--unknown_arg', 'val4'])
+
+    def add_extra_options(parser):
+      parser.add_argument("--extra_arg", action='append')
+
+    self.assertEqual(options.get_all_options(
+        add_extra_args_fn=add_extra_options)
+                     ['extra_arg'], ['val1', 'val2', 'val3'])
 
   # The argparse package by default tries to autocomplete option names. This
   # results in an "ambiguous option" error from argparse when an unknown option

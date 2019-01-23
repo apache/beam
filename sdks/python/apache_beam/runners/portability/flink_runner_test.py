@@ -30,7 +30,6 @@ from tempfile import mkdtemp
 import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import FlinkOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.portability import portable_runner
@@ -129,8 +128,8 @@ if __name__ == '__main__':
     def create_options(self):
       options = super(FlinkRunnerTest, self).create_options()
       options.view_as(DebugOptions).experiments = ['beam_fn_api']
-      options.view_as(FlinkOptions).parallelism = 1
-      options.view_as(FlinkOptions).shutdown_sources_on_final_watermark = True
+      options._all_options['parallelism'] = 1
+      options._all_options['shutdown_sources_on_final_watermark'] = True
       options.view_as(PortableOptions).environment_type = (
           environment_type.upper())
       if environment_config:
