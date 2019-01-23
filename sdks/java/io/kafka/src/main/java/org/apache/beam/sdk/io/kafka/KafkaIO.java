@@ -345,6 +345,9 @@ public class KafkaIO {
 
     abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
+    @Nullable
+    abstract Map<String, Object> getOffsetConsumerConfig();
+
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -379,6 +382,8 @@ public class KafkaIO {
 
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
+
+      abstract Builder<K, V> setOffsetConsumerConfig(Map<String, Object> offsetConsumerConfig);
 
       abstract Read<K, V> build();
     }
@@ -654,6 +659,28 @@ public class KafkaIO {
      */
     public Read<K, V> commitOffsetsInFinalize() {
       return toBuilder().setCommitOffsetsInFinalizeEnabled(true).build();
+    }
+
+    /**
+     * Set additional parameters for KafkaUnboundedReader.offsetConsumer, added by BEAM-6285.
+     *
+     * <p>In KafkaIO.read(), there're two consumers running in the backend actually:<br>
+     * 1. KafkaUnboundedReader.consumer, which is the main consumer to read data from kafka
+     * topic(s);<br>
+     * 2. KafkaUnboundedReader.offsetConsumer, which is used to estimate backlog, by fetching the
+     * latest offset;<br>
+     *
+     * <p>By default, KafkaUnboundedReader.offsetConsumer shares the same parameters as
+     * KafkaUnboundedReader.consumer, with a generated ConsumerConfig.GROUP_ID_CONFIG(value is
+     * "%topicname_offset_consumer_%randonNumber_%groupId"). This may not work when the topic is
+     * secured in Kafka.
+     *
+     * <p>In this case with secured topics, you can add specific parameters for
+     * KafkaUnboundedReader.offsetConsumer, to overwrite parameters from
+     * KafkaUnboundedReader.consumer.
+     */
+    public Read<K, V> withOffsetConsumerConfig(Map<String, Object> offsetConsumerConfig) {
+      return toBuilder().setOffsetConsumerConfig(offsetConsumerConfig).build();
     }
 
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
