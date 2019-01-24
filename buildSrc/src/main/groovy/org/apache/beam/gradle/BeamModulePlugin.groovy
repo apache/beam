@@ -657,6 +657,8 @@ class BeamModulePlugin implements Plugin<Project> {
       // Configures annotation processing for commonly used annotation processors
       // across all Java projects.
       project.apply plugin: "net.ltgt.apt"
+      // let idea apt plugin handle the ide integration
+      project.apply plugin: "net.ltgt.apt-idea"
       project.dependencies {
         // Note that these plugins specifically use the compileOnly and testCompileOnly
         // configurations because they are never required to be shaded or become a
@@ -667,13 +669,13 @@ class BeamModulePlugin implements Plugin<Project> {
 
         compileOnly auto_value_annotations
         testCompileOnly auto_value_annotations
-        apt auto_value
-        testApt auto_value
+        annotationProcessor auto_value
+        testAnnotationProcessor auto_value
 
         compileOnly auto_service
         testCompileOnly auto_service
-        apt auto_service
-        testApt auto_service
+        annotationProcessor auto_service
+        testAnnotationProcessor auto_service
 
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
@@ -684,8 +686,8 @@ class BeamModulePlugin implements Plugin<Project> {
         def findbugs_annotations = "com.google.code.findbugs:annotations:3.0.1"
         compileOnly findbugs_annotations
         testCompileOnly findbugs_annotations
-        apt findbugs_annotations
-        testApt findbugs_annotations
+        annotationProcessor findbugs_annotations
+        testAnnotationProcessor findbugs_annotations
       }
 
       // Add the optional and provided configurations for dependencies
@@ -1087,34 +1089,6 @@ class BeamModulePlugin implements Plugin<Project> {
           config.resolutionStrategy {
             force project.library.java.values()
           }
-        }
-      }
-
-      // These directories for when build actions are delegated to Gradle
-      def gradleAptGeneratedMain = "${project.buildDir}/generated/source/apt/main"
-      def gradleAptGeneratedTest = "${project.buildDir}/generated/source/apt/test"
-
-      // These directories for when build actions are executed by Idea
-      // IntelliJ does not add these source roots (that it owns!) unless hinted
-      def ideaRoot = "${project.projectDir}/out"
-      def ideaAptGeneratedMain = "${ideaRoot}/production/classes/generated"
-      def ideaAptGeneratedTest = "${ideaRoot}/test/classes/generated_test"
-
-      project.idea {
-        module {
-          sourceDirs += project.file(gradleAptGeneratedMain)
-          testSourceDirs += project.file(gradleAptGeneratedTest)
-
-          sourceDirs += project.file(ideaAptGeneratedMain)
-          testSourceDirs += project.file(ideaAptGeneratedTest)
-
-          generatedSourceDirs += [
-            project.file(gradleAptGeneratedMain),
-            project.file(gradleAptGeneratedTest),
-            project.file(ideaAptGeneratedMain),
-            project.file(ideaAptGeneratedTest)
-          ]
-
         }
       }
     }
