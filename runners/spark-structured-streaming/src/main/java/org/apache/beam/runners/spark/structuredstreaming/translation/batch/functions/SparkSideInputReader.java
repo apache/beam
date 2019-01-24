@@ -17,30 +17,24 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions;
 
+import java.util.HashMap;
+import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
-import javax.annotation.Nullable;
-import java.util.HashMap;
-import java.util.Map;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
 /**
  * TODO: Need to be implemented
  *
- * A {@link SideInputReader} for the Spark Batch Runner.
+ * <p>A {@link SideInputReader} for the Spark Batch Runner.
  */
 public class SparkSideInputReader implements SideInputReader {
   private final Map<TupleTag<?>, WindowingStrategy<?, ?>> sideInputs;
 
-
-  public SparkSideInputReader(
-      Map<PCollectionView<?>, WindowingStrategy<?, ?>> indexByView) {
+  public SparkSideInputReader(Map<PCollectionView<?>, WindowingStrategy<?, ?>> indexByView) {
     sideInputs = new HashMap<>();
   }
 

@@ -50,7 +50,7 @@ class ReadSourceTranslatorBatch<T>
         (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>)
             context.getCurrentTransform();
 
-        BoundedSource<T> source;
+    BoundedSource<T> source;
     try {
       source = ReadTranslation.boundedSourceFromTransform(rootTransform);
     } catch (IOException e) {
@@ -59,24 +59,34 @@ class ReadSourceTranslatorBatch<T>
     SparkSession sparkSession = context.getSparkSession();
 
     String serializedSource = Base64Serializer.serializeUnchecked(source);
-    Dataset<Row> rowDataset = sparkSession.read().format(sourceProviderClass)
-        .option(DatasetSourceBatch.BEAM_SOURCE_OPTION, serializedSource)
-        .option(DatasetSourceBatch.DEFAULT_PARALLELISM,
-            String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
-        .option(DatasetSourceBatch.PIPELINE_OPTIONS,
-            PipelineOptionsSerializationUtils.serializeToJson(context.getOptions())).load();
+    Dataset<Row> rowDataset =
+        sparkSession
+            .read()
+            .format(sourceProviderClass)
+            .option(DatasetSourceBatch.BEAM_SOURCE_OPTION, serializedSource)
+            .option(
+                DatasetSourceBatch.DEFAULT_PARALLELISM,
+                String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
+            .option(
+                DatasetSourceBatch.PIPELINE_OPTIONS,
+                PipelineOptionsSerializationUtils.serializeToJson(context.getOptions()))
+            .load();
 
     // extract windowedValue from Row
-    MapFunction<Row, WindowedValue<T>> func = new MapFunction<Row, WindowedValue<T>>() {
-      @Override public WindowedValue<T> call(Row value) throws Exception {
-        //there is only one value put in each Row by the InputPartitionReader
-        byte[] bytes = (byte[]) value.get(0);
-        WindowedValue.FullWindowedValueCoder<T> windowedValueCoder = WindowedValue.FullWindowedValueCoder
-            .of(source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
-        WindowedValue<T> windowedValue = windowedValueCoder.decode(new ByteArrayInputStream(bytes));
-        return windowedValue;
-      }
-    };
+    MapFunction<Row, WindowedValue<T>> func =
+        new MapFunction<Row, WindowedValue<T>>() {
+          @Override
+          public WindowedValue<T> call(Row value) throws Exception {
+            //there is only one value put in each Row by the InputPartitionReader
+            byte[] bytes = (byte[]) value.get(0);
+            WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
+                WindowedValue.FullWindowedValueCoder.of(
+                    source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
+            WindowedValue<T> windowedValue =
+                windowedValueCoder.decode(new ByteArrayInputStream(bytes));
+            return windowedValue;
+          }
+        };
     Dataset<WindowedValue<T>> dataset = rowDataset.map(func, EncoderHelpers.windowedValueEncoder());
 
     PCollection<T> output = (PCollection<T>) context.getOutput();
