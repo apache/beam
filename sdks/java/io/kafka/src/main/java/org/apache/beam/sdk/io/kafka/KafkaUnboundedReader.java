@@ -156,17 +156,15 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     // since CPU consumed on the workers would be low and will likely avoid unnecessary upscale.
     offsetConsumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted");
 
-    if (spec.getOffsetConsumerConfig() == null) {
-      Object groupId = spec.getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG);
-      // override group_id and disable auto_commit so that it does not interfere with main consumer
-      String offsetGroupId =
-          String.format(
-              "%s_offset_consumer_%d_%s",
-              name,
-              (new Random()).nextInt(Integer.MAX_VALUE),
-              (groupId == null ? "none" : groupId));
-      offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
-    } else {
+    Object groupId = spec.getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG);
+    // override group_id and disable auto_commit so that it does not interfere with main consumer
+    String offsetGroupId =
+        String.format(
+            "%s_offset_consumer_%d_%s",
+            name, (new Random()).nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
+    offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
+
+    if (spec.getOffsetConsumerConfig() != null) {
       offsetConsumerConfig.putAll(spec.getOffsetConsumerConfig());
     }
 

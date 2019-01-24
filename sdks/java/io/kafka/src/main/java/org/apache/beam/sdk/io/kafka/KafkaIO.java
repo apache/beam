@@ -679,7 +679,7 @@ public class KafkaIO {
      * KafkaUnboundedReader.offsetConsumer, to overwrite parameters from
      * KafkaUnboundedReader.consumer.
      */
-    public Read<K, V> withOffsetConsumerConfig(Map<String, Object> offsetConsumerConfig) {
+    public Read<K, V> withOffsetConsumerConfigOverrides(Map<String, Object> offsetConsumerConfig) {
       return toBuilder().setOffsetConsumerConfig(offsetConsumerConfig).build();
     }
 
