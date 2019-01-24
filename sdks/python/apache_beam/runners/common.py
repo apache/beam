@@ -435,6 +435,9 @@ class PerWindowInvoker(DoFnInvoker):
         (core.DoFn.WindowParam in default_arg_values) or
         signature.is_stateful_dofn())
     self.user_state_context = user_state_context
+    self.is_splittable = signature.is_splittable_dofn()
+    self.restriction_tracker = None
+    self.current_windowed_value = None
 
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
@@ -516,7 +519,13 @@ class PerWindowInvoker(DoFnInvoker):
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
 
+    if self.is_splittable and not restriction_tracker:
+      restriction = self.invoke_initial_restriction(windowed_value.value)
+      restriction_tracker = self.invoke_create_tracker(restriction)
+
     if restriction_tracker:
+      # TODO(SDF): Pre-explode?
+      assert len(windowed_value.windows) == 1 or not self.has_windowed_inputs
       restriction_tracker_param = _find_param_with_default(
           self.signature.process_method,
           default_as_type=core.RestrictionProvider)[0]
@@ -524,9 +533,18 @@ class PerWindowInvoker(DoFnInvoker):
         raise ValueError(
             'A RestrictionTracker %r was provided but DoFn does not have a '
             'RestrictionTrackerParam defined' % restriction_tracker)
-      # TODO(SDF): Positional argument supported?
       additional_kwargs[restriction_tracker_param] = restriction_tracker
-    if self.has_windowed_inputs and len(windowed_value.windows) != 1:
+      try:
+        self.current_windowed_value = windowed_value
+        self.restriction_tracker = restriction_tracker
+        return self._invoke_per_window(
+            windowed_value, additional_args, additional_kwargs,
+            output_processor)
+      finally:
+        self.restriction_tracker = None
+        self.current_windowed_value = windowed_value
+
+    elif self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:
         self._invoke_per_window(
             WindowedValue(windowed_value.value, windowed_value.timestamp, (w,)),
@@ -603,6 +621,26 @@ class PerWindowInvoker(DoFnInvoker):
     else:
       output_processor.process_outputs(
           windowed_value, self.process_method(*args_for_process))
+
+    if self.is_splittable:
+      if self.restriction_tracker._checkpointed:
+        return windowed_value.with_value((
+            windowed_value.value,
+            self.restriction_tracker._checkpoint_residual))
+
+  def try_split(self, fraction):
+    restriction_tracker = self.restriction_tracker
+    current_windowed_value = self.current_windowed_value
+    if restriction_tracker and current_windowed_value:
+      primary, residual = self.restriction_tracker.try_split(fraction)
+      # TODO(SDF): Both or none
+      assert (primary is None) == (residual is None)
+      if primary:
+          element = self.current_windowed_value.value
+          return (
+              self.current_windowed_value.with_value((element, primary)),
+              self.current_windowed_value.with_value((element, residual)))
+    return None, None
 
 
 class DoFnRunner(Receiver):
@@ -683,71 +721,19 @@ class DoFnRunner(Receiver):
 
   def process(self, windowed_value):
     try:
-      if self.is_splittable:
-          # TODO(SDF): Pre-explode?
-          assert len(windowed_value.windows) == 1
-          # We're not is a position to return residuals, keep invoking
-          # process until the SDF is exhausted.
-          # TODO(SDF): Perhaps looping forever is bad.
-          # TODO(SDF): It wouldn't be *that* hard to return fully-qualified
-          # residuals here; we just need the transform name and a place
-          # to stick them (and the ability to arbitrarily inject them
-          # back).
-          restriction = self.do_fn_invoker.invoke_initial_restriction(
-              windowed_value.value)
-          while True:
-            restriction_tracker = self.do_fn_invoker.invoke_create_tracker(
-                restriction)
-            self.do_fn_invoker.invoke_process(
-                windowed_value, restriction_tracker=restriction_tracker)
-            if restriction_tracker._checkpointed:
-              raise RuntimeError
-              restriction = restriction_tracker._checkpoint_residual
-              print("Re-invoking with restriction", restriction)
-            else:
-              break
-      else:
-          self.do_fn_invoker.invoke_process(windowed_value)
+      return self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
       self._reraise_augmented(exn)
 
-  # TODD(SDF): Is it best to create a separate method to be explicit about
-  # when a residual may be returned.
-  def process_splittable(self, windowed_value):
-    # TODO(SDF): Pre-explode?
-    assert len(windowed_value.windows) == 1
+  def process_with_restriction(self, windowed_value):
     element, restriction = windowed_value.value
-    windowed_element = windowed_value.with_value(element)
-    # TODO(SDF): Do we want to allow mutation of the element?
-    # (E.g. it could be nice to shift bulky description to the portion
-    # that can be distributed.)
-    self.restriction_tracker = self.do_fn_invoker.invoke_create_tracker(
-        restriction)
-    self.current_windowed_value = windowed_value
-    self.do_fn_invoker.invoke_process(
-        windowed_element, restriction_tracker=self.restriction_tracker)
-    with self.splitting_lock:
-      self.current_windowed_value = None
-      if self.restriction_tracker._checkpointed:
-        # TODO(SDF): Pair with element here?
-        return (
-            self.restriction_tracker.current_restriction(),
-            self.restriction_tracker._checkpoint_residual)
-      else:
-        return None, None
+    return self.do_fn_invoker.invoke_process(
+        windowed_value.with_value(element),
+        restriction_tracker=self.do_fn_invoker.invoke_create_tracker(
+            restriction))
 
   def try_split(self, fraction):
-    with self.splitting_lock:
-      if self.current_windowed_value:
-        primary, residual = self.restriction_tracker.try_split(fraction)
-        element, _ = self.current_windowed_value.value
-        # TODO(SDF): Both or none
-        assert (primary is None) == (residual is None)
-        if primary:
-            return (
-                self.current_windowed_value.with_value((element, primary)),
-                self.current_windowed_value.with_value((element, residual)))
-      return None, None
+    return self.do_fn_invoker.try_split(fraction)
 
   def process_user_timer(self, timer_spec, key, window, timestamp):
     try:

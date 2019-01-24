@@ -282,9 +282,7 @@ class SdkWorker(object):
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
           process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
-              residual_roots=[
-                  beam_fn_api_pb2.DelayedBundleApplication(application=a)
-                  for a in delayed_applications],
+              residual_roots=delayed_applications,
               metrics=bundle_processor.metrics(),
               monitoring_infos=bundle_processor.monitoring_infos()))
 

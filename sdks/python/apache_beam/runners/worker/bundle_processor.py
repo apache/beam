@@ -141,14 +141,7 @@ class DataInputOperation(RunnerIOOperation):
           return
       decoded_value = self.windowed_coder_impl.decode_from_stream(
           input_stream, True)
-      # TODO(SDF): Perf regresssion
-      primary, residual = self.receivers[0].receive_splittable(decoded_value)
-      # TODO(SDF): Unused primary.
-      if residual:
-        element, _ = decoded_value.value
-        # TODO(SDF): Here we switch from primary + residual to applications.
-        # Push up or down?
-        yield decoded_value.with_value((element, residual))
+      self.output(decoded_value)
 
   def try_split(self, fraction_of_remainder, total_buffer_size=None):
     print("TRY_SPLIT", fraction_of_remainder)
@@ -515,15 +508,13 @@ class BundleProcessor(object):
         expected_inputs.append(op)
 
     try:
+      execution_context = ExecutionContext()
       self.state_sampler.start()
       # Start all operations.
       for op in reversed(self.ops.values()):
         logging.debug('start %s', op)
+        op.execution_context = execution_context
         op.start()
-
-      # These are the elements that were (partially) deferred due to
-      # process-initiated checkpointing.
-      deferred_applications = []
 
       # Inject inputs from data plane.
       data_channels = collections.defaultdict(list)
@@ -536,22 +527,26 @@ class BundleProcessor(object):
       for data_channel, expected_targets in data_channels.items():
         for data in data_channel.input_elements(
             instruction_id, expected_targets):
-          for deferred_element in input_op_by_target[
-              data.target.primitive_transform_reference
-          ].process_encoded(data.data):
-            op = input_op_by_target[data.target.primitive_transform_reference]
-            deferred_applications.append(
-                beam_fn_api_pb2.BundleApplication(
-                    ptransform_id=data.target.primitive_transform_reference,
-                    input_id=data.target.name,
-                    element=op.windowed_coder_impl.encode(deferred_element)))
+          input_op_by_target[data.target.primitive_transform_reference
+              ].process_encoded(data.data)
 
       # Finish all operations.
       for op in self.ops.values():
         logging.debug('finish %s', op)
         op.finish()
 
-      return deferred_applications
+      delayed_applications = []
+      for op, element_and_residual in execution_context.delayed_applications:
+        ptransform_id, main_input_tag, main_input_coder, = op.input_info
+        # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
+        delayed_applications.append(beam_fn_api_pb2.DelayedBundleApplication(
+            application=beam_fn_api_pb2.BundleApplication(
+                ptransform_id=ptransform_id,
+                input_id=main_input_tag,
+                element=main_input_coder.get_impl().encode_nested(
+                    element_and_residual))))
+
+      return delayed_applications
 
     finally:
       # Ensure any in-flight split attempts complete.
@@ -644,6 +639,11 @@ class BundleProcessor(object):
       if len(actual_output_tags) == 1:
         monitoring_info.labels['TAG'] = actual_output_tags[0]
     return monitoring_info
+
+
+class ExecutionContext(object):
+  def __init__(self):
+    self.delayed_applications = []
 
 
 class BeamTransformFactory(object):
@@ -873,6 +873,9 @@ def create(*args):
       self.restriction_provider = restriction_provider
 
     def process(self, element, *args, **kwargs):
+      # TODO(SDF): Do we want to allow mutation of the element?
+      # (E.g. it could be nice to shift bulky description to the portion
+      # that can be distributed.)
       yield element, self.restriction_provider.initial_restriction(element)
 
   return _create_sdf_operation(CreateRestriction, *args)
@@ -907,9 +910,6 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       serialized_fn, parameter,
       operation_cls=operations.SdfProcessElements)
 
-
-
-
   class ProxyDoFn(beam.DoFn):
     def __init__(self, fn, restriction_provider):
       self.fn = fn
@@ -921,7 +921,6 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
     def process(self, element_restriction, *args, **kwargs):
       element, restriction = element_restriction
       tracker = self.restriction_provider.create_tracker(restriction)
-      print(args, kwargs)
       def swap(value):
         if isinstance(value, beam.transforms.core.RestrictionProvider):
           return tracker
@@ -952,12 +951,10 @@ def _create_sdf_operation(
       dofn)
   serialized_fn = pickler.dumps(
       (proxy_dofn(dofn, restriction_provider),) + dofn_data[1:])
-  parameter.splittable = False
+#  parameter.splittable = False
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
       serialized_fn, parameter)
-
-
 
 
 @BeamTransformFactory.register_urn(
@@ -1019,7 +1016,8 @@ def _create_pardo_operation(
         factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
     serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))
 
-  if pardo_proto and (pardo_proto.timer_specs or pardo_proto.state_specs):
+  if pardo_proto and (pardo_proto.timer_specs or pardo_proto.state_specs
+                      or pardo_proto.splittable):
     main_input_coder = None
     timer_inputs = {}
     for tag, pcoll_id in transform_proto.inputs.items():
@@ -1030,15 +1028,19 @@ def _create_pardo_operation(
       else:
         # Must be the main input
         assert main_input_coder is None
+        main_input_tag = tag
         main_input_coder = factory.get_windowed_coder(pcoll_id)
     assert main_input_coder is not None
 
-    user_state_context = FnApiUserStateContext(
-        factory.state_handler,
-        transform_id,
-        main_input_coder.key_coder(),
-        main_input_coder.window_coder,
-        timer_specs=pardo_proto.timer_specs)
+    if pardo_proto.timer_specs or pardo_proto.state_specs:
+      user_state_context = FnApiUserStateContext(
+          factory.state_handler,
+          transform_id,
+          main_input_coder.key_coder(),
+          main_input_coder.window_coder,
+          timer_specs=pardo_proto.timer_specs)
+    else:
+      user_state_context = None
   else:
     user_state_context = None
     timer_inputs = None
@@ -1051,7 +1053,7 @@ def _create_pardo_operation(
       side_inputs=None,  # Fn API uses proto definitions and the Fn State API
       output_coders=[output_coders[tag] for tag in output_tags])
 
-  return factory.augment_oldstyle_op(
+  result = factory.augment_oldstyle_op(
       operation_cls(
           transform_proto.unique_name,
           spec,
@@ -1063,6 +1065,9 @@ def _create_pardo_operation(
       transform_proto.unique_name,
       consumers,
       output_tags)
+  if pardo_proto and pardo_proto.splittable:
+    result.input_info = transform_id, main_input_tag, main_input_coder
+  return result
 
 
 def _create_simple_pardo_operation(

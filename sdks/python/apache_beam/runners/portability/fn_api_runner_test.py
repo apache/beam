@@ -361,7 +361,7 @@ class FnApiRunnerTest(unittest.TestCase):
           if not restriction_tracker.try_claim(k):
             return
           yield element[k]
-          if k % 2 == 1 and False:
+          if k % 2 == 1:
             restriction_tracker.checkpoint_from_process()
             break
 

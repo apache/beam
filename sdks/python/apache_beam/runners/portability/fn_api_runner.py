@@ -533,8 +533,18 @@ class FnApiRunner(runner.PipelineRunner):
           written_timers[:] = []
 
       def add_application(application):
-        timer_inputs[application.ptransform_id, application.input_id].append(
-            application.element)
+        # Find the io transform that feeds this transform.
+        # TODO(SDF): Memoize?
+        input_pcoll = process_bundle_descriptor.transforms[
+            application.ptransform_id].inputs[application.input_id]
+        for input_id, proto in process_bundle_descriptor.transforms.items():
+          if (proto.spec.urn == bundle_processor.DATA_INPUT_URN
+              and input_pcoll in proto.outputs.values()):
+            break
+        else:
+          raise RuntimeError(
+              'No IO transform feeds %s' % application.ptransform_id)
+        timer_inputs[input_id, 'out'].append(application.element)
 
       for delayed_application in last_result.process_bundle.residual_roots:
         add_application(delayed_application.application)

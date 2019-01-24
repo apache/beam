@@ -97,10 +97,6 @@ class ConsumerSet(Receiver):
       cython.cast(Operation, consumer).process(windowed_value)
     self.update_counters_finish()
 
-  def receive_splittable(self, windowed_value):
-    self.receive(windowed_value)
-    return None, None
-
   def try_split(self, fraction_of_remainder):
     return None, None
 
@@ -126,10 +122,6 @@ class SingletonConsumerSet(ConsumerSet):
 
   def receive(self, windowed_value):
     self.consumer.process(windowed_value)
-
-  # TODO(SDF): Consider merging with recieve.
-  def receive_splittable(self, windowed_value):
-    return self.consumer.process_splittable(windowed_value)
 
   def try_split(self, fraction_of_remainder):
     return self.consumer.try_split(fraction_of_remainder)
@@ -162,6 +154,7 @@ class Operation(object):
 
     self.spec = spec
     self.counter_factory = counter_factory
+    self.execution_context = None
     self.consumers = collections.defaultdict(list)
 
     # These are overwritten in the legacy harness.
@@ -205,10 +198,6 @@ class Operation(object):
   def process(self, o):
     """Process element in operation."""
     pass
-
-  def process_splittable(self, o):
-    self.process(o)
-    return None, None
 
   def try_split(self, fraction_of_remainder):
     return None, None
@@ -537,7 +526,10 @@ class DoOperation(Operation):
 
   def process(self, o):
     with self.scoped_process_state:
-      self.dofn_receiver.receive(o)
+      delayed_application = self.dofn_receiver.receive(o)
+      if delayed_application:
+        self.execution_context.delayed_applications.append(
+            (self, delayed_application))
 
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value
@@ -583,9 +575,12 @@ class DoOperation(Operation):
 
 class SdfProcessElements(DoOperation):
 
-  def process_splittable(self, o):
+  def process(self, o):
     with self.scoped_process_state:
-      return self.dofn_runner.process_splittable(o)
+      delayed_application = self.dofn_runner.process_with_restriction(o)
+      if delayed_application:
+        self.execution_context.delayed_applications.append(
+            (self, delayed_application))
 
   def try_split(self, fraction_of_remainder):
     return self.dofn_runner.try_split(fraction_of_remainder)
