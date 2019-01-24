@@ -34,7 +34,7 @@ def check_compiled(module):
   Args:
     module: string, module name
   """
-  check_module = __import__(module, globals(), locals(), -1)
+  check_module = __import__(module, globals(), locals())
   ext = os.path.splitext(check_module.__file__)[-1]
   if ext in ('.py', '.pyc'):
     raise RuntimeError(
