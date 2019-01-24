@@ -31,8 +31,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * {@link PipelineTranslator} for executing a {@link Pipeline} in Spark in batch mode. This contains
- * only the components specific to batch: registry of batch {@link
- * TransformTranslator} and registry lookup code.
+ * only the components specific to batch: registry of batch {@link TransformTranslator} and registry
+ * lookup code.
  */
 public class PipelineTranslatorBatch extends PipelineTranslator {
 
