@@ -21,7 +21,10 @@ import com.fasterxml.jackson.annotation.JsonFilter;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/** The results of a single current metric. */
+/**
+ * The results of a single current metric. TODO(BEAM-6265): Decouple wire formats from internal
+ * formats, remove usage of MetricName.
+ */
 @Experimental(Kind.METRICS)
 @JsonFilter("committedMetrics")
 public interface MetricResult<T> {

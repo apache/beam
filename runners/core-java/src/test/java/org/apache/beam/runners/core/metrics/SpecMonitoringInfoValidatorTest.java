@@ -70,7 +70,7 @@ public class SpecMonitoringInfoValidatorTest {
         MonitoringInfo.newBuilder()
             .setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN)
             .setType(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN)
-            .putLabels("PCOLLECTION", "anotherValue")
+            .putLabels("PTRANSFORM", "unexpectedLabel")
             .build();
     assertTrue(testObject.validate(testInput).isPresent());
   }

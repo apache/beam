@@ -68,6 +68,7 @@ public class SpecMonitoringInfoValidator {
               monitoringInfo.getUrn(), spec.getTypeUrn(), monitoringInfo.getType()));
     }
 
+    // TODO(ajamato): Tighten this restriction to use set equality, to catch unused
     Set<String> requiredLabels = new HashSet<>(spec.getRequiredLabelsList());
     if (!monitoringInfo.getLabelsMap().keySet().containsAll(requiredLabels)) {
       return Optional.of(
