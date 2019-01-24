@@ -52,34 +52,43 @@ class ReadSourceTranslatorStreaming<T>
 
     UnboundedSource<T, UnboundedSource.CheckpointMark> source;
     try {
-       source = ReadTranslation
-          .unboundedSourceFromTransform(rootTransform);
+      source = ReadTranslation.unboundedSourceFromTransform(rootTransform);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
     SparkSession sparkSession = context.getSparkSession();
 
     String serializedSource = Base64Serializer.serializeUnchecked(source);
-    Dataset<Row> rowDataset = sparkSession.readStream().format(sourceProviderClass)
-        .option(DatasetSourceStreaming.BEAM_SOURCE_OPTION, serializedSource)
-        .option(DatasetSourceStreaming.DEFAULT_PARALLELISM,
-            String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
-        .option(DatasetSourceStreaming.PIPELINE_OPTIONS,
-            PipelineOptionsSerializationUtils.serializeToJson(context.getOptions())).load();
+    Dataset<Row> rowDataset =
+        sparkSession
+            .readStream()
+            .format(sourceProviderClass)
+            .option(DatasetSourceStreaming.BEAM_SOURCE_OPTION, serializedSource)
+            .option(
+                DatasetSourceStreaming.DEFAULT_PARALLELISM,
+                String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
+            .option(
+                DatasetSourceStreaming.PIPELINE_OPTIONS,
+                PipelineOptionsSerializationUtils.serializeToJson(context.getOptions()))
+            .load();
 
     // extract windowedValue from Row
-    MapFunction<Row, WindowedValue<T>> func = new MapFunction<Row, WindowedValue<T>>() {
-      @Override public WindowedValue<T> call(Row value) throws Exception {
-        //there is only one value put in each Row by the InputPartitionReader
-        byte[] bytes = (byte[]) value.get(0);
-        WindowedValue.FullWindowedValueCoder<T> windowedValueCoder = WindowedValue.FullWindowedValueCoder
-            // there is no windowing on the input collection from of the initial read,
-            // so GlobalWindow is ok
-            .of(source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
-        WindowedValue<T> windowedValue = windowedValueCoder.decode(new ByteArrayInputStream(bytes));
-        return windowedValue;
-      }
-    };
+    MapFunction<Row, WindowedValue<T>> func =
+        new MapFunction<Row, WindowedValue<T>>() {
+          @Override
+          public WindowedValue<T> call(Row value) throws Exception {
+            //there is only one value put in each Row by the InputPartitionReader
+            byte[] bytes = (byte[]) value.get(0);
+            WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
+                WindowedValue.FullWindowedValueCoder
+                    // there is no windowing on the input collection from of the initial read,
+                    // so GlobalWindow is ok
+                    .of(source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
+            WindowedValue<T> windowedValue =
+                windowedValueCoder.decode(new ByteArrayInputStream(bytes));
+            return windowedValue;
+          }
+        };
     Dataset<WindowedValue<T>> dataset = rowDataset.map(func, EncoderHelpers.windowedValueEncoder());
 
     PCollection<T> output = (PCollection<T>) context.getOutput();

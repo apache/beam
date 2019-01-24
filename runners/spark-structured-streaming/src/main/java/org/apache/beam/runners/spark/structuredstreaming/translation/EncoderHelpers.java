@@ -38,28 +38,21 @@ public class EncoderHelpers {
     return Encoders.kryo((Class<T>) WindowedValue.class);
   }
 
-  /**
-   * Get a bytes {@link Encoder} for {@link KV}. Bytes serialisation is issued by Kryo
-   */
+  /** Get a bytes {@link Encoder} for {@link KV}. Bytes serialisation is issued by Kryo */
   @SuppressWarnings("unchecked")
   public static <T> Encoder<T> kvEncoder() {
     return Encoders.kryo((Class<T>) KV.class);
   }
 
-  /**
-   * Get a bytes {@link Encoder} for {@code T}. Bytes serialisation is issued by Kryo
-   */
+  /** Get a bytes {@link Encoder} for {@code T}. Bytes serialisation is issued by Kryo */
   @SuppressWarnings("unchecked")
   public static <T> Encoder<T> genericEncoder() {
     return Encoders.kryo((Class<T>) Object.class);
   }
 
-  /**
-   * Get a bytes {@link Encoder} for {@link Tuple2}. Bytes serialisation is issued by Kryo
-   */
+  /** Get a bytes {@link Encoder} for {@link Tuple2}. Bytes serialisation is issued by Kryo */
   @SuppressWarnings("unchecked")
   public static <T> Encoder<T> tuple2Encoder() {
     return Encoders.kryo((Class<T>) Tuple2.class);
   }
-
 }

@@ -56,8 +56,7 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
   static final String DEFAULT_PARALLELISM = "default-parallelism";
   static final String PIPELINE_OPTIONS = "pipeline-options";
 
-  public DatasetSourceBatch() {
-  }
+  public DatasetSourceBatch() {}
 
   @SuppressWarnings("unchecked")
   @Override
@@ -73,23 +72,25 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
     private SerializablePipelineOptions serializablePipelineOptions;
 
     private DatasetReader(DataSourceOptions options) {
-      if (!options.get(BEAM_SOURCE_OPTION).isPresent()){
+      if (!options.get(BEAM_SOURCE_OPTION).isPresent()) {
         throw new RuntimeException("Beam source was not set in DataSource options");
       }
-      this.source = Base64Serializer
-          .deserializeUnchecked(options.get(BEAM_SOURCE_OPTION).get(), BoundedSource.class);
+      this.source =
+          Base64Serializer.deserializeUnchecked(
+              options.get(BEAM_SOURCE_OPTION).get(), BoundedSource.class);
 
-      if (!options.get(DEFAULT_PARALLELISM).isPresent()){
+      if (!options.get(DEFAULT_PARALLELISM).isPresent()) {
         throw new RuntimeException("Spark default parallelism was not set in DataSource options");
       }
       this.numPartitions = Integer.parseInt(options.get(DEFAULT_PARALLELISM).get());
       checkArgument(numPartitions > 0, "Number of partitions must be greater than zero.");
 
-      if (!options.get(PIPELINE_OPTIONS).isPresent()){
+      if (!options.get(PIPELINE_OPTIONS).isPresent()) {
         throw new RuntimeException("Beam pipelineOptions were not set in DataSource options");
       }
-      SparkPipelineOptions sparkPipelineOptions = PipelineOptionsSerializationUtils
-          .deserializeFromJson(options.get(PIPELINE_OPTIONS).get()).as(SparkPipelineOptions.class);
+      SparkPipelineOptions sparkPipelineOptions =
+          PipelineOptionsSerializationUtils.deserializeFromJson(options.get(PIPELINE_OPTIONS).get())
+              .as(SparkPipelineOptions.class);
       this.serializablePipelineOptions = new SerializablePipelineOptions(sparkPipelineOptions);
     }
 
@@ -97,24 +98,25 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
     public StructType readSchema() {
       // TODO: find a way to extend schema with a WindowedValue schema
       // we use a binary schema for now because:
-        // using a empty schema raises a indexOutOfBoundsException
-        // using a NullType schema stores null in the elements
+      // using a empty schema raises a indexOutOfBoundsException
+      // using a NullType schema stores null in the elements
       StructField[] array = new StructField[1];
-      StructField binaryStructField = StructField
-          .apply("binaryStructField", DataTypes.BinaryType, true, Metadata.empty());
+      StructField binaryStructField =
+          StructField.apply("binaryStructField", DataTypes.BinaryType, true, Metadata.empty());
       array[0] = binaryStructField;
       return new StructType(array);
     }
 
     @Override
     public List<InputPartition<InternalRow>> planInputPartitions() {
-      SparkPipelineOptions sparkPipelineOptions = serializablePipelineOptions.get()
-          .as(SparkPipelineOptions.class);
+      SparkPipelineOptions sparkPipelineOptions =
+          serializablePipelineOptions.get().as(SparkPipelineOptions.class);
       List<InputPartition<InternalRow>> result = new ArrayList<>();
       long desiredSizeBytes;
       try {
         desiredSizeBytes = source.getEstimatedSizeBytes(sparkPipelineOptions) / numPartitions;
-        List<? extends BoundedSource<T>> splits = source.split(desiredSizeBytes, sparkPipelineOptions);
+        List<? extends BoundedSource<T>> splits =
+            source.split(desiredSizeBytes, sparkPipelineOptions);
         for (BoundedSource<T> split : splits) {
           result.add(
               new InputPartition<InternalRow>() {
@@ -141,14 +143,15 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
     private BoundedSource<T> source;
     private BoundedReader<T> reader;
 
-    DatasetPartitionReader(BoundedSource<T> source, SerializablePipelineOptions serializablePipelineOptions) {
+    DatasetPartitionReader(
+        BoundedSource<T> source, SerializablePipelineOptions serializablePipelineOptions) {
       this.started = false;
       this.closed = false;
       this.source = source;
       // reader is not serializable so lazy initialize it
       try {
-        reader = source
-            .createReader(serializablePipelineOptions.get().as(SparkPipelineOptions.class));
+        reader =
+            source.createReader(serializablePipelineOptions.get().as(SparkPipelineOptions.class));
       } catch (IOException e) {
         throw new RuntimeException("Error creating BoundedReader ", e);
       }
@@ -167,11 +170,13 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
     @Override
     public InternalRow get() {
       List<Object> list = new ArrayList<>();
-      WindowedValue<T> windowedValue = WindowedValue
-          .timestampedValueInGlobalWindow(reader.getCurrent(), reader.getCurrentTimestamp());
+      WindowedValue<T> windowedValue =
+          WindowedValue.timestampedValueInGlobalWindow(
+              reader.getCurrent(), reader.getCurrentTimestamp());
       //serialize the windowedValue to bytes array to comply with dataset binary schema
-      WindowedValue.FullWindowedValueCoder<T> windowedValueCoder = WindowedValue.FullWindowedValueCoder
-          .of(source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
+      WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
+          WindowedValue.FullWindowedValueCoder.of(
+              source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
       ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
       try {
         windowedValueCoder.encode(windowedValue, byteArrayOutputStream);

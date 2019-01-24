@@ -15,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/** Testing utils for spark structured streaming runner. */
 package org.apache.beam.runners.spark.structuredstreaming.utils;
 
 import java.io.File;
@@ -31,19 +29,15 @@ import java.util.List;
 public class SerializationDebugger {
 
   public static void testSerialization(Object object, File to) throws IOException {
-    DebuggingObjectOutputStream out =
-        new DebuggingObjectOutputStream(new FileOutputStream(to));
+    DebuggingObjectOutputStream out = new DebuggingObjectOutputStream(new FileOutputStream(to));
     try {
       out.writeObject(object);
     } catch (Exception e) {
-      throw new RuntimeException(
-          "Serialization error. Path to bad object: "
-              + out.getStack(), e);
+      throw new RuntimeException("Serialization error. Path to bad object: " + out.getStack(), e);
     }
   }
 
   private static class DebuggingObjectOutputStream extends ObjectOutputStream {
-
 
     private static final Field DEPTH_FIELD;
 
@@ -59,10 +53,8 @@ public class SerializationDebugger {
     final List<Object> stack = new ArrayList<>();
 
     /**
-     * Indicates whether or not OOS has tried to
-     * write an IOException (presumably as the
-     * result of a serialization error) to the
-     * stream.
+     * Indicates whether or not OOS has tried to write an IOException (presumably as the result of a
+     * serialization error) to the stream.
      */
     boolean broken = false;
 
@@ -71,10 +63,7 @@ public class SerializationDebugger {
       enableReplaceObject(true);
     }
 
-    /**
-     * Abuse {@code replaceObject()} as a hook to
-     * maintain our stack.
-     */
+    /** Abuse {@code replaceObject()} as a hook to maintain our stack. */
     @Override
     protected Object replaceObject(Object o) {
       // ObjectOutputStream writes serialization
@@ -104,11 +93,7 @@ public class SerializationDebugger {
       return stack.remove(stack.size() - 1);
     }
 
-    /**
-     * Returns a 0-based depth within the object
-     * graph of the current object being
-     * serialized.
-     */
+    /** Returns a 0-based depth within the object graph of the current object being serialized. */
     private int currentDepth() {
       try {
         Integer oneBased = ((Integer) DEPTH_FIELD.get(this));
@@ -119,10 +104,8 @@ public class SerializationDebugger {
     }
 
     /**
-     * Returns the path to the last object
-     * serialized. If an exception occurred, this
-     * should be the path to the non-serializable
-     * object.
+     * Returns the path to the last object serialized. If an exception occurred, this should be the
+     * path to the non-serializable object.
      */
     public List<Object> getStack() {
       return stack;

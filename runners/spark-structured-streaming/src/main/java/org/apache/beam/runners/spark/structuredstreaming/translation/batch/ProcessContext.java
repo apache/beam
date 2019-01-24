@@ -18,17 +18,13 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import com.google.common.collect.AbstractIterator;
+import java.util.ArrayList;
+import java.util.Iterator;
 import org.apache.beam.runners.core.*;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-
-import java.util.ArrayList;
-import java.util.Iterator;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 /** Spark runner process context processes Spark partitions using Beam's {@link DoFnRunner}. */
 class ProcessContext<FnInputT, FnOutputT, OutputT> {

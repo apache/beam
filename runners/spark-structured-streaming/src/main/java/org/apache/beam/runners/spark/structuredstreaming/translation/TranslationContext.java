@@ -170,10 +170,10 @@ public class TranslationContext {
         if (options.isStreaming()) {
           dataset.writeStream().foreach(new NoOpForeachWriter<>()).start().awaitTermination();
         } else {
-          if (testMode){
+          if (testMode) {
             // cannot use dataset.show because dataset schema is binary so it will print binary code.
-            List<WindowedValue> windowedValues = ((Dataset<WindowedValue>)dataset).collectAsList();
-            for (WindowedValue windowedValue : windowedValues){
+            List<WindowedValue> windowedValues = ((Dataset<WindowedValue>) dataset).collectAsList();
+            for (WindowedValue windowedValue : windowedValues) {
               System.out.println(windowedValue);
             }
           } else {

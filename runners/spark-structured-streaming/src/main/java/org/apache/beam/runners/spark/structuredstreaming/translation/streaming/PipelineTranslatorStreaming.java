@@ -25,8 +25,8 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 
 /**
  * {@link PipelineTranslator} for executing a {@link Pipeline} in Spark in streaming mode. This
- * contains only the components specific to streaming: registry
- * of batch {@link TransformTranslator} and registry lookup code.
+ * contains only the components specific to streaming: registry of batch {@link TransformTranslator}
+ * and registry lookup code.
  */
 public class PipelineTranslatorStreaming extends PipelineTranslator {
 

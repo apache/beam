@@ -40,8 +40,9 @@ public class DatasetSourceStreaming<T> implements DataSourceV2, MicroBatchReadSu
   static final String DEFAULT_PARALLELISM = "default-parallelism";
   static final String PIPELINE_OPTIONS = "pipeline-options";
 
-  @Override public MicroBatchReader createMicroBatchReader(Optional<StructType> schema,
-      String checkpointLocation, DataSourceOptions options) {
+  @Override
+  public MicroBatchReader createMicroBatchReader(
+      Optional<StructType> schema, String checkpointLocation, DataSourceOptions options) {
     return new DatasetMicroBatchReader(checkpointLocation, options);
   }
 
@@ -52,39 +53,45 @@ public class DatasetSourceStreaming<T> implements DataSourceV2, MicroBatchReadSu
       //TODO deal with schema and options
     }
 
-    @Override public void setOffsetRange(Optional<Offset> start, Optional<Offset> end) {
+    @Override
+    public void setOffsetRange(Optional<Offset> start, Optional<Offset> end) {
       //TODO extension point for SDF
     }
 
-    @Override public Offset getStartOffset() {
-      //TODO extension point for SDF
-      return null;
-    }
-
-    @Override public Offset getEndOffset() {
+    @Override
+    public Offset getStartOffset() {
       //TODO extension point for SDF
       return null;
     }
 
-    @Override public Offset deserializeOffset(String json) {
+    @Override
+    public Offset getEndOffset() {
       //TODO extension point for SDF
       return null;
     }
 
-    @Override public void commit(Offset end) {
+    @Override
+    public Offset deserializeOffset(String json) {
+      //TODO extension point for SDF
+      return null;
+    }
+
+    @Override
+    public void commit(Offset end) {
       //TODO no more to read after end Offset
     }
 
-    @Override public void stop() {
-    }
+    @Override
+    public void stop() {}
 
-    @Override public StructType readSchema() {
+    @Override
+    public StructType readSchema() {
       return null;
     }
 
-    @Override public List<InputPartition<InternalRow>> planInputPartitions() {
+    @Override
+    public List<InputPartition<InternalRow>> planInputPartitions() {
       return null;
     }
   }
-
 }
