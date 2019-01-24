@@ -17,14 +17,49 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
+import scala.Tuple2;
 
 /** {@link Encoders} utility class. */
 public class EncoderHelpers {
 
+  // 1. use actual classes and not object avoid Spark fallback to GenericRowWithSchema.
+  // 2. use raw objects because only raw classes can be used with kryo. Cast to Class<T> to allow
+  // the type inference mechanism to infer Encoder<WindowedValue<T>> to get back the type checking
+
+  /**
+   * Get a bytes {@link Encoder} for {@link WindowedValue<T>}. Bytes serialisation is issued by Kryo
+   */
   @SuppressWarnings("unchecked")
-  public static <T> Encoder<T> encoder() {
+  public static <T> Encoder<T> windowedValueEncoder() {
+    return Encoders.kryo((Class<T>) WindowedValue.class);
+  }
+
+  /**
+   * Get a bytes {@link Encoder} for {@link KV}. Bytes serialisation is issued by Kryo
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> Encoder<T> kvEncoder() {
+    return Encoders.kryo((Class<T>) KV.class);
+  }
+
+  /**
+   * Get a bytes {@link Encoder} for {@code T}. Bytes serialisation is issued by Kryo
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> Encoder<T> genericEncoder() {
     return Encoders.kryo((Class<T>) Object.class);
   }
+
+  /**
+   * Get a bytes {@link Encoder} for {@link Tuple2}. Bytes serialisation is issued by Kryo
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> Encoder<T> tuple2Encoder() {
+    return Encoders.kryo((Class<T>) Tuple2.class);
+  }
+
 }

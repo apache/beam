@@ -17,35 +17,35 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.api.java.function.FilterFunction;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
 import scala.Tuple2;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import static com.google.common.base.Preconditions.checkState;
 
 /**
  * TODO: Add support of state and timers
@@ -144,7 +144,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
             outputCoderMap);
 
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputsDataset =
-        inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.encoder());
+        inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.tuple2Encoder());
 
     for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
       pruneOutput(context, allOutputsDataset, output);
@@ -192,7 +192,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
         filteredDataset.map(
             (MapFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, WindowedValue<?>>)
                 value -> value._2,
-            EncoderHelpers.encoder());
+            EncoderHelpers.windowedValueEncoder());
     context.putDatasetWildcard(output.getValue(), outputDataset);
   }
 

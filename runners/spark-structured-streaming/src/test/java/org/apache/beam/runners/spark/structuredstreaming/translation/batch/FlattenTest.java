@@ -31,7 +31,7 @@ public class FlattenTest implements Serializable {
 
 
   @Test
-  public void testFlatted(){
+  public void testFlatten(){
     PCollection<Integer> input1 = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
     PCollection<Integer> input2 = pipeline.apply(Create.of(11, 12, 13, 14, 15, 16, 17, 18, 19, 20));
     PCollectionList<Integer> pcs = PCollectionList.of(input1).and(input2);

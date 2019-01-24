@@ -34,7 +34,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
@@ -78,7 +77,7 @@ class ReadSourceTranslatorBatch<T>
         return windowedValue;
       }
     };
-    Dataset<WindowedValue<T>> dataset = rowDataset.map(func, EncoderHelpers.encoder());
+    Dataset<WindowedValue<T>> dataset = rowDataset.map(func, EncoderHelpers.windowedValueEncoder());
 
     PCollection<T> output = (PCollection<T>) context.getOutput();
     context.putDataset(output, dataset);
