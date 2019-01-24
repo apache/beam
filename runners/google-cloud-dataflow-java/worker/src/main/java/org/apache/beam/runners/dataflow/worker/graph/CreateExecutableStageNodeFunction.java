@@ -74,8 +74,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into a
