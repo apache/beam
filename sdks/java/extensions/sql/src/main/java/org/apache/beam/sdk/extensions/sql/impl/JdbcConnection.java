@@ -108,7 +108,7 @@ public class JdbcConnection extends CalciteConnectionWrapper {
   }
 
   /** Calcite-created {@link SchemaPlus} wrapper for the current schema. */
-  SchemaPlus getCurrentSchemaPlus() {
+  public SchemaPlus getCurrentSchemaPlus() {
     try {
       return getRootSchema().getSubSchema(getSchema());
     } catch (SQLException e) {
