@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
@@ -138,19 +139,39 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         extractUpdates(counters), extractUpdates(distributions), extractUpdates(gauges));
   }
 
+  /**
+   * @param metricUpdate
+   * @return The MonitoringInfo generated from the metricUpdate.
+   */
+  private MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
+    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+    MetricName metricName = metricUpdate.getKey().metricName();
+    if (metricName instanceof MonitoringInfoMetricName) {
+      MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
+      // Represents a specific MonitoringInfo for a specific URN.
+      builder.setUrn(monitoringInfoName.getUrn());
+      for (Entry<String, String> e : monitoringInfoName.getLabels().entrySet()) {
+        builder.setLabel(e.getKey(), e.getValue());
+      }
+    } else {
+      // Represents a user counter.
+      builder.setUrnForUserMetric(
+          metricUpdate.getKey().metricName().getNamespace(),
+          metricUpdate.getKey().metricName().getName());
+    }
+    builder.setInt64Value(metricUpdate.getUpdate());
+    builder.setTimestampToNow();
+    return builder.build();
+  }
+
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
   public Iterable<MonitoringInfo> getMonitoringInfos() {
     // Extract user metrics and store as MonitoringInfos.
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
-    MetricUpdates mus = this.getUpdates();
+    MetricUpdates metricUpdates = this.getUpdates();
 
-    for (MetricUpdate<Long> mu : mus.counterUpdates()) {
-      SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
-      builder.setUrnForUserMetric(
-          mu.getKey().metricName().getNamespace(), mu.getKey().metricName().getName());
-      builder.setInt64Value(mu.getUpdate());
-      builder.setTimestampToNow();
-      monitoringInfos.add(builder.build());
+    for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
+      monitoringInfos.add(counterUpdateToMonitoringInfo(metricUpdate));
     }
     return monitoringInfos;
   }

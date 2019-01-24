@@ -25,6 +25,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -43,7 +44,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 
 /**
  * A runner which creates {@link Reader}s for each {@link BoundedSource} sent as an input and
@@ -77,15 +77,13 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         Map<String, PCollection> pCollections,
         Map<String, Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         BundleSplitListener splitListener) {
-
-      // TODO make the receiver aware of its transform context as well.
       ImmutableList.Builder<FnDataReceiver<WindowedValue<?>>> consumers = ImmutableList.builder();
       for (String pCollectionId : pTransform.getOutputsMap().values()) {
-        consumers.addAll(pCollectionIdsToConsumers.get(pCollectionId));
+        consumers.add(pCollectionConsumerRegistry.getMultiplexingConsumer(pCollectionId));
       }
 
       @SuppressWarnings({"rawtypes", "unchecked"})
@@ -97,7 +95,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
 
       FnDataReceiver runReadLoop = (FnDataReceiver<WindowedValue<InputT>>) runner::runReadLoop;
       for (String pCollectionId : pTransform.getInputsMap().values()) {
-        pCollectionIdsToConsumers.put(pCollectionId, runReadLoop);
+        pCollectionConsumerRegistry.register(pCollectionId, runReadLoop);
       }
 
       return runner;

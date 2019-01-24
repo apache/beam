@@ -31,6 +31,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -53,11 +54,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
@@ -65,7 +64,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.SetMultimap;
@@ -148,7 +146,7 @@ public class ProcessBundleHandler {
       Supplier<String> processBundleInstructionId,
       ProcessBundleDescriptor processBundleDescriptor,
       SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
-      ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+      PCollectionConsumerRegistry pCollectionConsumerRegistry,
       Set<String> processedPTransformIds,
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
@@ -169,7 +167,7 @@ public class ProcessBundleHandler {
             processBundleInstructionId,
             processBundleDescriptor,
             pCollectionIdsToConsumingPTransforms,
-            pCollectionIdsToConsumers,
+            pCollectionConsumerRegistry,
             processedPTransformIds,
             startFunctionRegistry,
             finishFunctionRegistry,
@@ -202,7 +200,7 @@ public class ProcessBundleHandler {
               processBundleDescriptor.getPcollectionsMap(),
               processBundleDescriptor.getCodersMap(),
               processBundleDescriptor.getWindowingStrategiesMap(),
-              pCollectionIdsToConsumers,
+              pCollectionConsumerRegistry,
               startFunctionRegistry,
               finishFunctionRegistry,
               splitListener);
@@ -226,8 +224,7 @@ public class ProcessBundleHandler {
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers =
-        ArrayListMultimap.create();
+    PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
@@ -289,13 +286,17 @@ public class ProcessBundleHandler {
             request::getInstructionId,
             bundleDescriptor,
             pCollectionIdsToConsumingPTransforms,
-            pCollectionIdsToConsumers,
+            pCollectionConsumerRegistry,
             processedPTransformIds,
             startFunctionRegistry,
             finishFunctionRegistry,
             splitListener);
       }
 
+      // TODO(ajamato): A MetricsContainerImpl should be created and used for each PTransform
+      // or the metric should be registered in some other way with the ptransform name context,
+      // not for the instruction. This fails to associate each user counter with an appropriate
+      // ptransform.
       MetricsContainerImpl metricsContainer = new MetricsContainerImpl(request.getInstructionId());
       try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
 
@@ -413,7 +414,7 @@ public class ProcessBundleHandler {
         Map<String, PCollection> pCollections,
         Map<String, Coder> coders,
         Map<String, WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         BundleSplitListener splitListener) {

@@ -322,11 +322,6 @@ message MonitoringInfoSpec {
   repeated Annotation annotations = 4;
 }
 
-extend google.protobuf.EnumValueOptions {
-  // Enum extension to store the MonitoringInfoSpecs.
-  MonitoringInfoSpec monitoring_info_spec = 207174266;
-}
-
 // The key name and value string of MonitoringInfo annotations.
 message Annotation {
   string key = 1;
@@ -348,7 +343,7 @@ message MonitoringInfoSpecs {
     ELEMENT_COUNT = 1 [(monitoring_info_spec) = {
       urn: "beam:metric:element_count:v1",
       type_urn: "beam:metrics:sum_int_64",
-      required_labels: [ "PTRANSFORM", "PCOLLECTION" ],
+      required_labels: [ "PCOLLECTION" ],
       annotations: [ {
         key: "description",
         value: "The total elements output to a Pcollection by a PTransform."
@@ -411,6 +406,9 @@ message MonitoringInfoLabelProps {
 // specifications, constants, etc.
 extend google.protobuf.EnumValueOptions {
   MonitoringInfoLabelProps label_props = 127337796;  // From: commit 0x7970544.
+
+  // Enum extension to store the MonitoringInfoSpecs.
+  MonitoringInfoSpec monitoring_info_spec = 207174266;
 }
 
 message MonitoringInfo {
