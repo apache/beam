@@ -68,14 +68,14 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private final StateRequestHandler stateRequestHandler;
   private final BundleProgressHandler progressHandler;
   private RemoteBundle remoteBundle;
-  private RemoteBundle timerRemoteBundle;
   private final DataflowExecutionContext<?> executionContext;
+  private ExecutableStage executableStage;
+
   private final Map<String, ProcessBundleDescriptors.TimerSpec> timerOutputIdToSpecMap;
   private final Map<String, Coder<BoundedWindow>> timerWindowCodersMap;
   private final Map<String, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap;
   private final Map<String, Object> timerIdToKey;
   private final Map<String, Object> timerIdToPayload;
-  private ExecutableStage executableStage;
 
   public ProcessRemoteBundleOperation(
       ExecutableStage executableStage,
@@ -89,12 +89,12 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
     this.stateRequestHandler = StateRequestHandler.unsupported();
     this.progressHandler = BundleProgressHandler.ignored();
     this.executionContext = executionContext;
-    this.timerOutputIdToSpecMap = new HashMap<>();
-    this.timerWindowCodersMap = new HashMap<>();
     this.executableStage = executableStage;
+    this.outputReceiverMap = outputReceiverMap;
+
+    this.timerOutputIdToSpecMap = new HashMap<>();
     this.timerIdToKey = new HashMap<>();
     this.timerIdToPayload = new HashMap<>();
-    this.outputReceiverMap = outputReceiverMap;
     this.timerIdToTimerSpecMap = new HashMap<>();
 
     ProcessBundleDescriptors.ExecutableProcessBundleDescriptor executableProcessBundleDescriptor =
@@ -103,7 +103,21 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         executableProcessBundleDescriptor.getProcessBundleDescriptor();
 
-    executableProcessBundleDescriptor
+    // Create and cache lookups so that we don't have to dive into the ProcessBundleDescriptor
+    // later.
+    fillTimerSpecMaps(
+        executableProcessBundleDescriptor, this.timerIdToTimerSpecMap, this.timerOutputIdToSpecMap);
+    this.timerWindowCodersMap =
+        fillTimerWindowCodersMap(
+            processBundleDescriptor, this.timerIdToTimerSpecMap, this.executableStage);
+  }
+
+  // Fills the given maps from timer the TimerSpec definitions in the process bundle descriptor.
+  private void fillTimerSpecMaps(
+      ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor,
+      Map<String, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap,
+      Map<String, ProcessBundleDescriptors.TimerSpec> timerOutputIdToSpecMap) {
+    processBundleDescriptor
         .getTimerSpecs()
         .values()
         .forEach(
@@ -113,25 +127,22 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
                 timerOutputIdToSpecMap.put(timerSpec.outputCollectionId(), timerSpec);
               }
             });
+  }
 
+  // Retrieves all window coders for all TimerSpecs.
+  private Map<String, Coder<BoundedWindow>> fillTimerWindowCodersMap(
+      BeamFnApi.ProcessBundleDescriptor processBundleDescriptor,
+      Map<String, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap,
+      ExecutableStage executableStage) {
+    Map<String, Coder<BoundedWindow>> timerWindowCodersMap = new HashMap<>();
     for (RunnerApi.PTransform pTransform : processBundleDescriptor.getTransformsMap().values()) {
       for (String timerId : timerIdToTimerSpecMap.keySet()) {
         if (!pTransform.getInputsMap().containsKey(timerId)) {
           continue;
         }
 
-        String timerPCollectionId = pTransform.getInputsMap().get(timerId);
-        RunnerApi.PCollection timerPCollection =
-            processBundleDescriptor.getPcollectionsMap().get(timerPCollectionId);
-
-        String windowingStrategyId = timerPCollection.getWindowingStrategyId();
-        RunnerApi.WindowingStrategy windowingStrategy =
-            processBundleDescriptor.getWindowingStrategiesMap().get(windowingStrategyId);
-
-        String windowingCoderId = windowingStrategy.getWindowCoderId();
         RunnerApi.Coder windowingCoder =
-            processBundleDescriptor.getCodersMap().get(windowingCoderId);
-
+            getTimerWindowingCoder(pTransform, timerId, processBundleDescriptor);
         RehydratedComponents components =
             RehydratedComponents.forComponents(executableStage.getComponents());
         try {
@@ -139,11 +150,31 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
               timerId,
               (Coder<BoundedWindow>) CoderTranslation.fromProto(windowingCoder, components));
         } catch (IOException e) {
-          LOG.error("Could not retrieve coder for timerId {}. Failed with error: {}", timerId,
+          LOG.error(
+              "Failed to retrieve window coder for timerId {}. Failed with error: {}",
+              timerId,
               e.getMessage());
         }
       }
     }
+    return timerWindowCodersMap;
+  }
+
+  // Retrieves the window coder for the given timer.
+  private RunnerApi.Coder getTimerWindowingCoder(
+      RunnerApi.PTransform pTransform,
+      String timerId,
+      BeamFnApi.ProcessBundleDescriptor processBundleDescriptor) {
+    String timerPCollectionId = pTransform.getInputsMap().get(timerId);
+    RunnerApi.PCollection timerPCollection =
+        processBundleDescriptor.getPcollectionsMap().get(timerPCollectionId);
+
+    String windowingStrategyId = timerPCollection.getWindowingStrategyId();
+    RunnerApi.WindowingStrategy windowingStrategy =
+        processBundleDescriptor.getWindowingStrategiesMap().get(windowingStrategyId);
+
+    String windowingCoderId = windowingStrategy.getWindowCoderId();
+    return processBundleDescriptor.getCodersMap().get(windowingCoderId);
   }
 
   @Override
@@ -156,27 +187,18 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       } catch (Exception e) {
         throw new RuntimeException("Failed to start remote bundle", e);
       }
-
-      try {
-        timerRemoteBundle =
-            stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler);
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to start timer remote bundle", e);
-      }
     }
   }
 
   @Override
   public void process(Object inputElement) throws Exception {
-    LOG.debug("Sending element: {}", inputElement);
+    LOG.error("Sending element: {}", inputElement);
     String mainInputPCollectionId = executableStage.getInputPCollection().getId();
     FnDataReceiver<WindowedValue<?>> mainInputReceiver =
         remoteBundle.getInputReceivers().get(mainInputPCollectionId);
 
-    // TODO(BEAM-6274): Is this always true? Do we always send the input element to the main input
-    // receiver?
     try (Closeable scope = context.enterProcess()) {
-      mainInputReceiver.accept((WindowedValue<?>) inputElement);
+      mainInputReceiver.accept((WindowedValue<InputT>) inputElement);
     } catch (Exception e) {
       LOG.error(
           "Could not process element {} to receiver {} for pcollection {} with error {}",
@@ -198,23 +220,22 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       }
 
       try {
-        // close blocks until all results are received
-        timerRemoteBundle.close();
+        // In Batch, the input watermark advances from -inf to +inf once all elements are processed.
+        // For timers, this means we only fire them at the end of the bundle.
+        fireTimers();
       } catch (Exception e) {
         throw new RuntimeException("Failed to finish remote bundle", e);
       }
     }
   }
 
+  // Recursively fires all scheduled timers from the SDK Harness.
   private void fireTimers() throws Exception {
-    // TODO(BEAM-6274): Why do we need to namespace this to "user"?
     DataflowExecutionContext.DataflowStepContext stepContext =
         executionContext.getStepContext((DataflowOperationContext) this.context).namespacedToUser();
 
-    // TODO(BEAM-6274): investigate if this is the correct window
     TimerInternals.TimerData timerData = stepContext.getNextFiredTimer(GlobalWindow.Coder.INSTANCE);
     while (timerData != null) {
-      // TODO(BEAM-6274): get the correct payload and payload coder
       StateNamespaces.WindowNamespace windowNamespace =
           (StateNamespaces.WindowNamespace) timerData.getNamespace();
       BoundedWindow window = windowNamespace.getWindow();
@@ -228,17 +249,24 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
               Collections.singleton(window),
               PaneInfo.NO_FIRING);
 
-      String mainInputId = timerIdToTimerSpecMap.get(timerData.getTimerId()).inputCollectionId();
+      String timerInputPCollection =
+          timerIdToTimerSpecMap.get(timerData.getTimerId()).inputCollectionId();
 
-      timerRemoteBundle.getInputReceivers().get(mainInputId).accept(timerValue);
+      // TODO(BEAM-6274): check this for performance considerations.
+      // Timers are allowed to A) fire other timers, and B) fire themselves. To implement this,
+      // we send the timer to the SDK Harness, wait for any elements, then check if any additional
+      // timers were fired.
+      RemoteBundle timerRemoteBundle =
+          stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler);
+      timerRemoteBundle.getInputReceivers().get(timerInputPCollection).accept(timerValue);
+      timerRemoteBundle.close();
 
-      // TODO(BEAM-6274): investigate if this is the correct window
       timerData = stepContext.getNextFiredTimer(GlobalWindow.Coder.INSTANCE);
     }
   }
 
   private void receive(String pCollectionId, Object receivedElement) throws Exception {
-    LOG.debug("Received element {} for pcollection {}", receivedElement, pCollectionId);
+    LOG.error("Received element {} for pcollection {}", receivedElement, pCollectionId);
     // TODO(BEAM-6274): move this out into its own receiver class
     if (timerOutputIdToSpecMap.containsKey(pCollectionId)) {
       WindowedValue<KV<Object, Timer>> windowedValue =
@@ -256,13 +284,11 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
         DataflowExecutionContext.DataflowStepContext stepContext =
             executionContext.getStepContext((DataflowOperationContext) this.context);
 
-        TimerInternals timerData = stepContext.namespacedToUser().timerInternals();
-        timerData.setTimer(namespace, timerId, timer.getTimestamp(), timeDomain);
+        TimerInternals timerInternals = stepContext.namespacedToUser().timerInternals();
+        timerInternals.setTimer(namespace, timerId, timer.getTimestamp(), timeDomain);
 
         timerIdToKey.put(timerId, windowedValue.getValue().getKey());
         timerIdToPayload.put(timerId, timer.getPayload());
-
-        fireTimers();
       }
     } else {
       outputReceiverMap.get(pCollectionId).process((WindowedValue<?>) receivedElement);
