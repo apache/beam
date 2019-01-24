@@ -24,7 +24,6 @@ import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
-import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.TableName;
@@ -84,7 +83,7 @@ class HBaseReadSplittableDoFn extends DoFn<HBaseQuery, Result> {
 
   @SplitRestriction
   public void splitRestriction(
-      HBaseQuery query, ByteKeyRange range, Backlog backlog, OutputReceiver<ByteKeyRange> receiver)
+      HBaseQuery query, ByteKeyRange range, OutputReceiver<ByteKeyRange> receiver)
       throws Exception {
     List<HRegionLocation> regionLocations =
         HBaseUtils.getRegionLocations(connection, query.getTableId(), query.getScan());
