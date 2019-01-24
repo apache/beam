@@ -30,6 +30,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 from builtins import object
 from concurrent import futures
 
@@ -47,12 +48,16 @@ from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
+from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.portability.api import beam_provision_api_pb2
+from apache_beam.portability.api import beam_provision_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
+from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability.fn_api_runner_transforms import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner_transforms import only_element
@@ -226,7 +231,8 @@ class FnApiRunner(runner.PipelineRunner):
       self,
       default_environment=None,
       bundle_repeat=0,
-      use_state_iterables=False):
+      use_state_iterables=False,
+      provision_info=None):
     """Creates a new Fn API Runner.
 
     Args:
@@ -235,6 +241,7 @@ class FnApiRunner(runner.PipelineRunner):
           and debugging
       use_state_iterables: Intentionally split gbk iterables over state API
           (for testing)
+      provision_info: provisioning info to make available to workers, or None
     """
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
@@ -245,6 +252,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._progress_frequency = None
     self._profiler_factory = None
     self._use_state_iterables = use_state_iterables
+    self._provision_info = provision_info
 
   def _next_uid(self):
     self._last_uid += 1
@@ -340,7 +348,7 @@ class FnApiRunner(runner.PipelineRunner):
 
   def run_stages(self, pipeline_components, stages, safe_coders):
     worker_handler_manager = WorkerHandlerManager(
-        pipeline_components.environments)
+        pipeline_components.environments, self._provision_info)
     metrics_by_stage = {}
     monitoring_infos_by_stage = {}
 
@@ -690,10 +698,12 @@ class WorkerHandler(object):
 
   _registered_environments = {}
 
-  def __init__(self, control_handler, data_plane_handler, state):
+  def __init__(
+      self, control_handler, data_plane_handler, state, provision_info):
     self.control_handler = control_handler
     self.data_plane_handler = data_plane_handler
     self.state = state
+    self.provision_info = provision_info
 
   def close(self):
     self.stop_worker()
@@ -710,6 +720,9 @@ class WorkerHandler(object):
   def state_api_service_descriptor(self):
     raise NotImplementedError
 
+  def logging_api_service_descriptor(self):
+    raise NotImplementedError
+
   @classmethod
   def register_environment(cls, urn, payload_type):
     def wrapper(constructor):
@@ -718,19 +731,21 @@ class WorkerHandler(object):
     return wrapper
 
   @classmethod
-  def create(cls, environment, state):
+  def create(cls, environment, state, provision_info):
     constructor, payload_type = cls._registered_environments[environment.urn]
     return constructor(
-        proto_utils.parse_Bytes(environment.payload, payload_type), state)
+        proto_utils.parse_Bytes(environment.payload, payload_type),
+        state,
+        provision_info)
 
 
 @WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON, None)
 class EmbeddedWorkerHandler(WorkerHandler):
   """An in-memory controller for fn API control, state and data planes."""
 
-  def __init__(self, unused_payload, state):
+  def __init__(self, unused_payload, state, provision_info):
     super(EmbeddedWorkerHandler, self).__init__(
-        self, data_plane.InMemoryDataChannel(), state)
+        self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.worker = sdk_worker.SdkWorker(
         FnApiRunner.SingletonStateHandlerFactory(self.state),
         data_plane.InMemoryDataChannelFactory(
@@ -761,11 +776,49 @@ class EmbeddedWorkerHandler(WorkerHandler):
   def state_api_service_descriptor(self):
     return None
 
+  def logging_api_service_descriptor(self):
+    return None
+
+
+class BasicLoggingService(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
+
+  LOG_LEVEL_MAP = {
+      beam_fn_api_pb2.LogEntry.Severity.CRITICAL: logging.CRITICAL,
+      beam_fn_api_pb2.LogEntry.Severity.ERROR: logging.ERROR,
+      beam_fn_api_pb2.LogEntry.Severity.WARN: logging.WARNING,
+      beam_fn_api_pb2.LogEntry.Severity.NOTICE: logging.INFO + 1,
+      beam_fn_api_pb2.LogEntry.Severity.INFO: logging.INFO,
+      beam_fn_api_pb2.LogEntry.Severity.DEBUG: logging.DEBUG,
+      beam_fn_api_pb2.LogEntry.Severity.TRACE: logging.DEBUG - 1,
+      beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED: logging.NOTSET,
+  }
+
+  def Logging(self, log_messages, context=None):
+    yield beam_fn_api_pb2.LogControl()
+    for log_message in log_messages:
+      for log in log_message.log_entries:
+        logging.log(self.LOG_LEVEL_MAP[log.severity], str(log))
+
+
+class BasicProvisionService(
+    beam_provision_api_pb2_grpc.ProvisionServiceServicer):
+
+  def __init__(self, info):
+    self._info = info
+
+  def GetProvisionInfo(self, request, context=None):
+    return beam_provision_api_pb2.GetProvisionInfoResponse(
+        info=self._info)
+
 
 class GrpcWorkerHandler(WorkerHandler):
   """An grpc based controller for fn API control, state and data planes."""
 
-  def __init__(self, state=None):
+  _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
+
+  def __init__(self, state, provision_info):
+    self.state = state
+    self.provision_info = provision_info
     self.control_server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=10))
     self.control_port = self.control_server.add_insecure_port('[::]:0')
@@ -790,17 +843,45 @@ class GrpcWorkerHandler(WorkerHandler):
     beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
         self.control_handler, self.control_server)
 
+    # If we have provision info, serve these off the control port as well.
+    if self.provision_info:
+      if self.provision_info.provision_info:
+        provision_info = self.provision_info.provision_info
+        if not provision_info.worker_id:
+          provision_info = copy.copy(provision_info)
+          provision_info.worker_id = str(uuid.uuid4())
+        beam_provision_api_pb2_grpc.add_ProvisionServiceServicer_to_server(
+            BasicProvisionService(self.provision_info.provision_info),
+            self.control_server)
+
+      if self.provision_info.artifact_staging_dir:
+        m = beam_artifact_api_pb2_grpc
+        m.add_ArtifactRetrievalServiceServicer_to_server(
+            artifact_service.BeamFilesystemArtifactService(
+                self.provision_info.artifact_staging_dir),
+            self.control_server)
+
     self.data_plane_handler = data_plane.GrpcServerDataChannel()
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
         self.data_plane_handler, self.data_server)
 
-    self.state = state
     beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server(
         FnApiRunner.GrpcStateServicer(state),
         self.state_server)
 
+    self.logging_server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=2),
+        options=no_max_message_sizes)
+    self.logging_port = self.logging_server.add_insecure_port('[::]:0')
+    beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
+        BasicLoggingService(),
+        self.logging_server)
+
     logging.info('starting control server on port %s', self.control_port)
     logging.info('starting data server on port %s', self.data_port)
+    logging.info('starting state server on port %s', self.state_port)
+    logging.info('starting logging server on port %s', self.logging_port)
+    self.logging_server.start()
     self.state_server.start()
     self.data_server.start()
     self.control_server.start()
@@ -813,20 +894,29 @@ class GrpcWorkerHandler(WorkerHandler):
     return endpoints_pb2.ApiServiceDescriptor(
         url='localhost:%s' % self.state_port)
 
+  def logging_api_service_descriptor(self):
+    return endpoints_pb2.ApiServiceDescriptor(
+        url='localhost:%s' % self.logging_port)
+
   def close(self):
     self.control_handler.done()
     self.data_plane_handler.close()
-    self.control_server.stop(5).wait()
-    self.data_server.stop(5).wait()
-    self.state_server.stop(5).wait()
+    to_wait = [
+        self.control_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS),
+        self.data_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS),
+        self.state_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS),
+        self.logging_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS)
+    ]
+    for w in to_wait:
+      w.wait()
     super(GrpcWorkerHandler, self).close()
 
 
 @WorkerHandler.register_environment(
     common_urns.environments.EXTERNAL.urn, beam_runner_api_pb2.ExternalPayload)
 class ExternalWorkerHandler(GrpcWorkerHandler):
-  def __init__(self, external_payload, state):
-    super(ExternalWorkerHandler, self).__init__(state)
+  def __init__(self, external_payload, state, provision_info):
+    super(ExternalWorkerHandler, self).__init__(state, provision_info)
     self._external_payload = external_payload
 
   def start_worker(self):
@@ -835,8 +925,10 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
             self._external_payload.endpoint.url))
     response = stub.NotifyRunnerAvailable(
         beam_fn_api_pb2.NotifyRunnerAvailableRequest(
+            worker_id='worker_%s' % uuid.uuid4(),
             control_endpoint=endpoints_pb2.ApiServiceDescriptor(
                 url=self.control_address),
+            logging_endpoint=self.logging_api_service_descriptor(),
             params=self._external_payload.params))
     if response.error:
       raise RuntimeError("Error starting worker: %s" % response.error)
@@ -847,8 +939,8 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
 @WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
-  def __init__(self, num_workers_payload, state):
-    super(EmbeddedGrpcWorkerHandler, self).__init__(state)
+  def __init__(self, num_workers_payload, state, provision_info):
+    super(EmbeddedGrpcWorkerHandler, self).__init__(state, provision_info)
     self._num_threads = int(num_workers_payload) if num_workers_payload else 1
 
   def start_worker(self):
@@ -864,8 +956,8 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
 
 @WorkerHandler.register_environment(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
-  def __init__(self, worker_command_line, state):
-    super(SubprocessSdkWorkerHandler, self).__init__(state)
+  def __init__(self, worker_command_line, state, provision_info):
+    super(SubprocessSdkWorkerHandler, self).__init__(state, provision_info)
     self._worker_command_line = worker_command_line
 
   def start_worker(self):
@@ -880,9 +972,63 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
     self.worker_thread.join()
 
 
+@WorkerHandler.register_environment(common_urns.environments.DOCKER.urn,
+                                    beam_runner_api_pb2.DockerPayload)
+class DockerSdkWorkerHandler(GrpcWorkerHandler):
+  def __init__(self, payload, state, provision_info):
+    super(DockerSdkWorkerHandler, self).__init__(state, provision_info)
+    self._container_image = payload.container_image
+    self._container_id = None
+
+  def start_worker(self):
+    try:
+      subprocess.check_call(['docker', 'pull', self._container_image])
+    except Exception:
+      logging.info('Unable to pull image %s' % self._container_image)
+    self._container_id = subprocess.check_output(
+        ['docker',
+         'run',
+         '-d',
+         # TODO:  credentials
+         '--network=host',
+         self._container_image,
+         '--id=%s' % uuid.uuid4(),
+         '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
+         '--control_endpoint=%s' % self.control_address,
+         '--artifact_endpoint=%s' % self.control_address,
+         '--provision_endpoint=%s' % self.control_address,
+        ]).strip()
+    while True:
+      logging.info('Waiting for docker to start up...')
+      status = subprocess.check_output([
+          'docker',
+          'inspect',
+          '-f',
+          '{{.State.Status}}',
+          self._container_id]).strip()
+      if status == 'running':
+        break
+      elif status in ('dead', 'exited'):
+        subprocess.call([
+            'docker',
+            'container',
+            'logs',
+            self._container_id])
+        raise RuntimeError('SDK failed to start.')
+      time.sleep(1)
+
+  def stop_worker(self):
+    if self._container_id:
+      subprocess.call([
+          'docker',
+          'kill',
+          self._container_id])
+
+
 class WorkerHandlerManager(object):
-  def __init__(self, environments):
+  def __init__(self, environments, job_provision_info=None):
     self._environments = environments
+    self._job_provision_info = job_provision_info
     self._cached_handlers = {}
     self._state = FnApiRunner.StateServicer() # rename?
 
@@ -896,7 +1042,7 @@ class WorkerHandlerManager(object):
     if worker_handler is None:
       worker_handler = self._cached_handlers[
           environment_id] = WorkerHandler.create(
-              environment, self._state)
+              environment, self._state, self._job_provision_info)
       worker_handler.start_worker()
     return worker_handler
 
@@ -904,6 +1050,13 @@ class WorkerHandlerManager(object):
     for controller in set(self._cached_handlers.values()):
       controller.close()
     self._cached_handlers = {}
+
+
+class ExtendedProvisionInfo(object):
+  def __init__(self, provision_info=None, artifact_staging_dir=None):
+    self.provision_info = (
+        provision_info or beam_provision_api_pb2.ProvisionInfo())
+    self.artifact_staging_dir = artifact_staging_dir
 
 
 class BundleManager(object):
