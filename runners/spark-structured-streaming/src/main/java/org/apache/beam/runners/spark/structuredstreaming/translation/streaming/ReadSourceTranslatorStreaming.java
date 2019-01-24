@@ -80,7 +80,7 @@ class ReadSourceTranslatorStreaming<T>
         return windowedValue;
       }
     };
-    Dataset<WindowedValue<T>> dataset = rowDataset.map(func, EncoderHelpers.encoder());
+    Dataset<WindowedValue<T>> dataset = rowDataset.map(func, EncoderHelpers.windowedValueEncoder());
 
     PCollection<T> output = (PCollection<T>) context.getOutput();
     context.putDataset(output, dataset);
