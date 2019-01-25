@@ -160,7 +160,7 @@ def parse_table_schema_from_json(schema_string):
   import warnings
   warnings.warn("This function is deprecated and will be permanently moved "
                 "to the bigquery_tools module in a future version of beam")
-  return bigquery_tools.parse_table_schema_from_json(obj)
+  return bigquery_tools.parse_table_schema_from_json(schema_string)
 
 
 def default_encoder(obj):
