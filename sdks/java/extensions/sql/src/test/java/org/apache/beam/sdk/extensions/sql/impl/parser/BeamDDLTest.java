@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -171,10 +170,10 @@ public class BeamDDLTest {
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(rootProvider);
     env.addSchema("test", testProvider);
 
+    assertNull(testProvider.getTables().get("person"));
     env.executeDdl("CREATE EXTERNAL TABLE test.person (id INT) TYPE text");
-    env.parseQuery("SELECT COUNT(*) FROM test.person");
 
-    assertTrue(testProvider.getTables().containsKey("person"));
+    assertNotNull(testProvider.getTables().get("person"));
   }
 
   @Test
