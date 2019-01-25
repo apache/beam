@@ -147,7 +147,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
         inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.tuple2Encoder());
 
     for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
-      pruneOutput(context, allOutputsDataset, output);
+      pruneOutputFilteredByTag(context, allOutputsDataset, output);
     }
   }
 
@@ -182,7 +182,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     return doFn;
   }
 
-  private <T> void pruneOutput(
+  private void pruneOutputFilteredByTag(
       TranslationContext context,
       Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> tmpDataset,
       Map.Entry<TupleTag<?>, PValue> output) {
