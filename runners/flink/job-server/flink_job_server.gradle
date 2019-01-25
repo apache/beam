@@ -25,6 +25,10 @@ import org.apache.beam.gradle.BeamModulePlugin
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
+apply plugin: "application"
+// we need to set mainClassName before applying shadow plugin
+mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
+
 applyJavaNature(
   validateShadowJar: false,
   exportJavadoc: false,
@@ -32,7 +36,6 @@ applyJavaNature(
     append "reference.conf"
   },
 )
-apply plugin: "application"
 
 // Resolve the Flink project name (and version) the job-server is based on
 def flinkRunnerProject = ":${project.name.replace("-job-server", "")}"
@@ -61,8 +64,6 @@ sourceSets {
         }
     }
 }
-
-mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
 
 configurations {
   validatesPortableRunner
