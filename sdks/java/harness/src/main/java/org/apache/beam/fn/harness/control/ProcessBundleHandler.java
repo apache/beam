@@ -53,8 +53,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -225,14 +225,15 @@ public class ProcessBundleHandler {
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
-    PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry pCollectionConsumerRegistry =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry(
-        metricsContainerRegistry);
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry(
-        metricsContainerRegistry);
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -297,27 +298,39 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
-      // Already in reverse topological order so we don't need to do anything.
-      for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
-        LOG.debug("Starting function {}", startFunction);
-        startFunction.run();
+      // There always needs to be a metricContainer in scope, not everything is calculated in the
+      // context of a PTransform. For example, element count metrics are calculated before entering
+      // a pTransform's context.
+      MetricsContainerImpl rootMetricsContainer = new MetricsContainerImpl("");
+      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(rootMetricsContainer)) {
+
+        // Already in reverse topological order so we don't need to do anything.
+        for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
+          LOG.debug("Starting function {}", startFunction);
+          startFunction.run();
+        }
+
+        queueingClient.drainAndBlock();
+
+        // Need to reverse this since we want to call finish in topological order.
+        for (ThrowingRunnable finishFunction :
+            Lists.reverse(finishFunctionRegistry.getFunctions())) {
+          LOG.debug("Finishing function {}", finishFunction);
+          finishFunction.run();
+        }
+        if (!allResiduals.isEmpty()) {
+          response.addAllResidualRoots(allResiduals.values());
+        }
+
+        for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
+          response.addMonitoringInfos(mi);
+        }
       }
 
-      queueingClient.drainAndBlock();
-
-      // Need to reverse this since we want to call finish in topological order.
-      for (ThrowingRunnable finishFunction :
-          Lists.reverse(finishFunctionRegistry.getFunctions())) {
-        LOG.debug("Finishing function {}", finishFunction);
-        finishFunction.run();
-      }
-      if (!allResiduals.isEmpty()) {
-        response.addAllResidualRoots(allResiduals.values());
-      }
-
-      for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
+      /*
+      for (MonitoringInfo mi : rootMetricsContainer.getMonitoringInfos()) {
         response.addMonitoringInfos(mi);
-      }
+      }*/
     }
 
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);

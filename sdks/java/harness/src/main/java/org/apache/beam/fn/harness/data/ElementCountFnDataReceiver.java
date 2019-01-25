@@ -42,6 +42,14 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
     labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, pCollection);
     MonitoringInfoMetricName metricName =
         MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
+    // TODO(BEAM-6505): Introducing a way for system counters to be instantiated on a consisntent
+    // metrics container. rather than using the currently scoped metrics container.
+    // There is a risk of accidentally creating the same metric under different metric containers
+    // which would create separate monitoringInfos for the same metrics.
+    // This will not happen for ElementCount because the producing pTransform for the pCollection
+    // always invokes the consumer, so it will always be instantiated under the same
+    // metric container scope. The use of the currently scoped MetricContainer is to use the
+    // pTransform of the current scope and attach it to the counter.
     this.counter = LabeledMetrics.counter(metricName);
   }
 

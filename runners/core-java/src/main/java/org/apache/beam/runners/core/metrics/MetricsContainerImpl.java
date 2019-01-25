@@ -158,6 +158,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       builder.setUrnForUserMetric(
           metricUpdate.getKey().metricName().getNamespace(),
           metricUpdate.getKey().metricName().getName());
+      builder.setPTransformLabel(metricUpdate.getKey().stepName());
     }
     builder.setInt64Value(metricUpdate.getUpdate());
     builder.setTimestampToNow();

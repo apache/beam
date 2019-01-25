@@ -24,8 +24,6 @@ import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A class to to register and retrieve functions for bundle processing (i.e. the start, or finish
@@ -52,18 +50,16 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 public class PTransformFunctionRegistry {
-  private static final Logger LOG = LoggerFactory.getLogger(PTransformFunctionRegistry.class);
 
   private List<ThrowingRunnable> runnables = new ArrayList<>();
   private MetricsContainerStepMap metricsContainerRegistry;
 
   /**
-   *
    * @param metricsContainerRegistry Used to get the appropriate metrics container for the
    *     pTransform in order to set its context before invoking the pTransform specific function.
    */
   public PTransformFunctionRegistry(MetricsContainerStepMap metricsContainerRegistry) {
-    this.metricsContainerRegistry =  metricsContainerRegistry;
+    this.metricsContainerRegistry = metricsContainerRegistry;
   }
 
   /**

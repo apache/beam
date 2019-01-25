@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import static junit.framework.TestCase.assertEquals;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -80,6 +79,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
@@ -489,6 +489,7 @@ public class RemoteExecutionTest implements Serializable {
     }
   }
 
+  // TODO(ajamato): Test creating the metric in the ctor/object field.
   @Test
   public void testMetrics() throws Exception {
     final String processUserCounterName = "processUserCounter";
@@ -499,35 +500,37 @@ public class RemoteExecutionTest implements Serializable {
         p.apply("impulse", Impulse.create())
             .apply(
                 "create",
-                ParDo.of(new DoFn<byte[], String>() {
-                  private boolean emitted = false;
+                ParDo.of(
+                    new DoFn<byte[], String>() {
+                      private boolean emitted = false;
+                      Counter startCounter =
+                          Metrics.counter(RemoteExecutionTest.class, startUserCounterName);
 
-                  @StartBundle
-                  public void startBundle() throws InterruptedException {
-                    //Thread.sleep(2000); // TODO smarter test without sleeps???
-                    Metrics.counter(RemoteExecutionTest.class, startUserCounterName).inc(10);
-                  }
+                      @StartBundle
+                      public void startBundle() throws InterruptedException {
+                        startCounter.inc(10);
+                      }
 
-                  @SuppressWarnings("unused")
-                  @ProcessElement
-                  public void processElement(ProcessContext ctxt) {
-                    // TODO(BEAM-6467): Impulse is producing two elements instead of one.
-                    // So add this check to only emit these three elemenets.
-                    if (!emitted) {
-                      ctxt.output("zero");
-                      ctxt.output("one");
-                      ctxt.output("two");
-                      Metrics.counter(RemoteExecutionTest.class, processUserCounterName).inc();
-                    }
-                    emitted = true;
-                  }
+                      @SuppressWarnings("unused")
+                      @ProcessElement
+                      public void processElement(ProcessContext ctxt) {
+                        // TODO(BEAM-6467): Impulse is producing two elements instead of one.
+                        // So add this check to only emit these three elemenets.
+                        if (!emitted) {
+                          ctxt.output("zero");
+                          ctxt.output("one");
+                          ctxt.output("two");
+                          Metrics.counter(RemoteExecutionTest.class, processUserCounterName).inc();
+                        }
+                        emitted = true;
+                      }
 
-                  @DoFn.FinishBundle
-                  public void finishBundle() throws InterruptedException {
-                    //Thread.sleep(2000); // TODO smarter test without sleeps???
-                    Metrics.counter(RemoteExecutionTest.class, finishUserCounterName).inc(100);
-                  }
-                }))
+                      @DoFn.FinishBundle
+                      public void finishBundle() throws InterruptedException {
+                        // Thread.sleep(2000); // TODO smarter test without sleeps???
+                        Metrics.counter(RemoteExecutionTest.class, finishUserCounterName).inc(100);
+                      }
+                    }))
             .setCoder(StringUtf8Coder.of());
 
     SingleOutput<String, String> pardo =
@@ -626,15 +629,21 @@ public class RemoteExecutionTest implements Serializable {
             // separate ptransforms, should be labelled differnetly. Currently this does not work
             // because the MetricContainer is not being seeded properly with the step name.
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), processUserCounterName);
-            builder.setInt64Value(2);
+            builder.setUrnForUserMetric(
+                RemoteExecutionTest.class.getName(), processUserCounterName);
+            builder.setPTransformLabel("create/ParMultiDo(Anonymous)");
+            builder.setInt64Value(1);
             expected.add(builder.build());
 
+            builder = new SimpleMonitoringInfoBuilder();
             builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), startUserCounterName);
+            builder.setPTransformLabel("create/ParMultiDo(Anonymous)");
             builder.setInt64Value(10);
             expected.add(builder.build());
 
+            builder = new SimpleMonitoringInfoBuilder();
             builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), finishUserCounterName);
+            builder.setPTransformLabel("create/ParMultiDo(Anonymous)");
             builder.setInt64Value(100);
             expected.add(builder.build());
 
@@ -665,7 +674,7 @@ public class RemoteExecutionTest implements Serializable {
             builder.setInt64Value(6);
             expected.add(builder.build());
 
-            assertEquals(7, result.size());
+            // assertEquals(expected.size(), result.size());
             assertThat(result, containsInAnyOrder(expected.toArray()));
           }
         };
@@ -682,6 +691,9 @@ public class RemoteExecutionTest implements Serializable {
                   CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
     }
   }
+
+  // TODO(ajamato): Write a test where the ElementCount counters may be under
+  // different metrics containers.
 
   @Test
   public void testExecutionWithUserState() throws Exception {

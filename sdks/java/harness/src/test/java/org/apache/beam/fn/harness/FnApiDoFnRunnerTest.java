@@ -47,6 +47,7 @@ import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
@@ -198,12 +199,17 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 bagUserStateKey("combine", "X"), encode("X0")));
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
     consumers.register(
         outputPCollectionId,
+        TEST_PTRANSFORM_ID,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -357,15 +363,21 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
     consumers.register(
         outputPCollectionId,
+        TEST_PTRANSFORM_ID,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
     consumers.register(
         additionalPCollectionId,
+        TEST_PTRANSFORM_ID,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -489,12 +501,17 @@ public class FnApiDoFnRunnerTest implements Serializable {
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
 
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        TEST_PTRANSFORM_ID,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -589,12 +606,17 @@ public class FnApiDoFnRunnerTest implements Serializable {
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
 
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        TEST_PTRANSFORM_ID,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -748,21 +770,28 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     List<WindowedValue<KV<String, Timer>>> eventTimerOutputValues = new ArrayList<>();
     List<WindowedValue<KV<String, Timer>>> processingTimerOutputValues = new ArrayList<>();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
     consumers.register(
         outputPCollectionId,
+        TEST_PTRANSFORM_ID,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
     consumers.register(
         eventTimerOutputPCollectionId,
+        TEST_PTRANSFORM_ID,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Timer>>>) eventTimerOutputValues::add);
     consumers.register(
         processingTimerOutputPCollectionId,
+        TEST_PTRANSFORM_ID,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Timer>>>) processingTimerOutputValues::add);
 
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(metricsContainerRegistry);
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(

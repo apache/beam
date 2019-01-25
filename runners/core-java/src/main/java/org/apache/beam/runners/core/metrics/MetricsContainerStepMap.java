@@ -61,7 +61,6 @@ public class MetricsContainerStepMap implements Serializable {
   /**
    * Update this {@link MetricsContainerStepMap} with all values from given {@link
    * MetricsContainerStepMap}.
-   *
    */
   public void updateAll(MetricsContainerStepMap other) {
     for (Map.Entry<String, MetricsContainerImpl> container : other.metricsContainers.entrySet()) {
@@ -114,13 +113,12 @@ public class MetricsContainerStepMap implements Serializable {
     // Extract user metrics and store as MonitoringInfos.
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
     for (MetricsContainerImpl container : metricsContainers.values()) {
-      for  (MonitoringInfo mi : container.getMonitoringInfos()) {
+      for (MonitoringInfo mi : container.getMonitoringInfos()) {
         monitoringInfos.add(mi);
       }
     }
     return monitoringInfos;
   }
-
 
   /**
    * Returns {@link MetricResults} based on given {@link MetricsContainerStepMap} of attempted
