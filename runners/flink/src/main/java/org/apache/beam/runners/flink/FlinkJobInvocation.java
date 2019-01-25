@@ -76,6 +76,7 @@ public class FlinkJobInvocation implements JobInvocation {
   private JobState.Enum jobState;
   private List<Consumer<JobState.Enum>> stateObservers;
   private List<Consumer<JobMessage>> messageObservers;
+  private MetricResults metrics;
 
   @Nullable private ListenableFuture<PipelineResult> invocationFuture;
 
@@ -192,6 +193,10 @@ public class FlinkJobInvocation implements JobInvocation {
                   pipelineResult.getState() == PipelineResult.State.DONE,
                   "Success on non-Done state: " + pipelineResult.getState());
               setState(JobState.Enum.DONE);
+              try {
+                metrics = pipelineResult.metrics();
+              } catch (UnsupportedOperationException e) {
+              }
             } else {
               setState(JobState.Enum.UNSPECIFIED);
             }
@@ -255,7 +260,7 @@ public class FlinkJobInvocation implements JobInvocation {
 
   @Override
   public MetricResults getMetrics() {
-    throw new UnsupportedOperationException();
+    return metrics;
   }
 
   @Override
