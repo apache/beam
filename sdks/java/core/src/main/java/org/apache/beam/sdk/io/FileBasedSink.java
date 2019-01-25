@@ -391,8 +391,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
   /** KMS key used to create new files. */
   @Experimental(Kind.FILESYSTEM)
-  // TODO: Intellij warning?
-  @Nullable
   protected String kmsKey;
 
   /**
@@ -965,7 +963,8 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
       CreateOptions createOptions =
           CreateOptions.StandardCreateOptions.builder()
-              // The factory may force a MIME type or it may return null, indicating to use the sink's MIME.
+              // The factory may force a MIME type or it may return null, indicating to use the
+              // sink's MIME.
               .setMimeType(firstNonNull(factory.getMimeType(), mimeType))
               .setKmsKey(getWriteOperation().getSink().kmsKey)
               .build();

@@ -61,6 +61,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -424,11 +426,16 @@ public class GcsUtil {
    * @param kmsKey Optional name of KMS key used in encrypting object data. TODO(BEAM-5959): Not yet
    *     supported.
    */
+  @Experimental(Kind.FILESYSTEM)
   public WritableByteChannel create(
       GcsPath path, String type, @Nullable Integer uploadBufferSizeBytes, @Nullable String kmsKey)
       throws IOException {
-    // TODO(BEAM-5959): Add support for setting kmsKeyName on the underlying GCS Insert request in
-    // bigdataoss_gcsio.
+    // TODO(BEAM-5959): Use new GoogleCloudStorageWriteChannel constructor that supports setting
+    //  kmsKey, which should be in google_cloud_bigdataoss_version = "1.9.12" or later.
+    // TODO: uncomment
+    /*if (kmsKey != null) {
+      throw new UnsupportedOperationException(String.format("kmsKey is unsupported, got: %s", kmsKey));
+    }*/
     GoogleCloudStorageWriteChannel channel =
         new GoogleCloudStorageWriteChannel(
             executorService,
@@ -436,12 +443,13 @@ public class GcsUtil {
             new ClientRequestHelper<>(),
             path.getBucket(),
             path.getObject(),
+            type,
+            kmsKey,
             AsyncWriteChannelOptions.newBuilder().build(),
             new ObjectWriteConditions(),
-            Collections.emptyMap(),
-            type);
+            Collections.emptyMap());
     if (uploadBufferSizeBytes != null) {
-      channel.setUploadBufferSize(uploadBufferSizeBytes);
+      channel.setUploadChunkSize(uploadBufferSizeBytes);
     }
     channel.initialize();
     return channel;
@@ -613,7 +621,12 @@ public class GcsUtil {
     return batches;
   }
 
-  // TODO: make an overloaded version without destKmsKey since this is a public method
+  public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
+      throws IOException {
+    copy(srcFilenames, destFilenames, null);
+  }
+
+  @Experimental(Kind.FILESYSTEM)
   public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames, String destKmsKey)
       throws IOException {
     executeBatches(makeCopyBatches(srcFilenames, destFilenames, destKmsKey));
@@ -719,7 +732,6 @@ public class GcsUtil {
   }
 
   // TODO: integration test multi-part rewrites
-  // TODO: integration test with kms key
   // TODO: integration test with numShards=1000
   // TODO: go over new LOG lines and reduce to debug or remove if necessary.
   private void enqueueCopy(
@@ -730,8 +742,6 @@ public class GcsUtil {
             .objects()
             .rewrite(from.getBucket(), from.getObject(), to.getBucket(), to.getObject(), null);
     if (destKmsKey != null) {
-      // TODO: remove
-      //LOG.info("destKmsKey: {}", destKmsKey);
       rewriteRequest.setDestinationKmsKeyName(destKmsKey);
     }
 

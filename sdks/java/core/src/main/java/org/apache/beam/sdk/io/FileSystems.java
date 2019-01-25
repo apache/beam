@@ -296,9 +296,7 @@ public class FileSystems {
 
     List<ResourceId> srcToCopy = srcResourceIds;
     List<ResourceId> destToCopy = destResourceIds;
-    // TODO: search for all uses of IGNORE_MISSING_FILES and remove Sets usage.
-    if (Sets.newHashSet(moveOptions)
-        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
+    if (moveOptions.getIgnoreMissingFiles()) {
       KV<List<ResourceId>, List<ResourceId>> existings =
           filterMissingFiles(srcResourceIds, destResourceIds);
       srcToCopy = existings.getKey();
@@ -394,8 +392,7 @@ public class FileSystems {
     }
 
     Collection<ResourceId> resourceIdsToDelete;
-    if (Sets.newHashSet(moveOptions)
-        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
+    if (moveOptions.getIgnoreMissingFiles()) {
       resourceIdsToDelete =
           FluentIterable.from(matchResources(Lists.newArrayList(resourceIds)))
               .filter(matchResult -> !matchResult.status().equals(Status.NOT_FOUND))

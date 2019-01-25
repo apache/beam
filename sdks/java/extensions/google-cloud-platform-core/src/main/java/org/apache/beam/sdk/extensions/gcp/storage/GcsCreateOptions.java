@@ -28,7 +28,7 @@ public abstract class GcsCreateOptions extends CreateOptions {
 
   /**
    * The buffer size (in bytes) to use when uploading files to GCS. Please see the documentation for
-   * {@link AbstractGoogleAsyncWriteChannel#setUploadBufferSize} for more information on the
+   * {@link AbstractGoogleAsyncWriteChannel#setUploadChunkSize} for more information on the
    * restrictions and performance implications of this value.
    */
   @Nullable

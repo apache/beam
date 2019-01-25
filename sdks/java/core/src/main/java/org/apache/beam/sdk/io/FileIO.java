@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -1167,7 +1168,10 @@ public class FileIO {
     /**
      * Specifies a Key Management System key name to use for encrypting writes. Possible values and
      * behavior of this feature are filesystem dependent.
+     *
+     * <p>TODO(BEAM-5959): Not yet supported.
      */
+    @Experimental(Kind.FILESYSTEM)
     public Write<DestinationT, UserT> withKmsKey(String kmsKey) {
       return toBuilder().setKmsKey(kmsKey).build();
     }

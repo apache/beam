@@ -116,6 +116,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     return inputStream.getChannel();
   }
 
+  // TODO: update to undeprecated version, in this and other FileSystems
   @Override
   protected void copy(List<LocalResourceId> srcResourceIds, List<LocalResourceId> destResourceIds)
       throws IOException {
@@ -147,6 +148,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     }
   }
 
+  // TODO: update to undeprecated version, in this and other FileSystems
   @Override
   protected void rename(List<LocalResourceId> srcResourceIds, List<LocalResourceId> destResourceIds)
       throws IOException {
@@ -177,6 +179,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     }
   }
 
+  // TODO: update to undeprecated version, in this and other FileSystems
   @Override
   protected void delete(Collection<LocalResourceId> resourceIds) throws IOException {
     for (LocalResourceId resourceId : resourceIds) {

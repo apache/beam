@@ -1288,5 +1288,14 @@ public class AvroIOTest implements Serializable {
           displayData,
           hasItem(hasDisplayItem("filePattern")));
     }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testKmsKey() throws Exception {
+      writePipeline
+          .apply(Create.of("element"))
+          .apply(AvroIO.write(String.class).to("testkmskey://").withKmsKey("test_kms_key"));
+      writePipeline.run();
+    }
   }
 }

@@ -28,8 +28,12 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.Writer;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,6 +43,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.zip.GZIPOutputStream;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.FileIO.Sink;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -448,5 +453,39 @@ public class FileIOTest implements Serializable {
     assertTrue(
         "Output file shard 0 exists after pipeline completes",
         new File(outputFileName + "-0").exists());
+  }
+
+  // TODO: deduplicate? remove?
+  private static class TextSink implements Sink<String> {
+    private PrintWriter writer;
+
+    @Override
+    public void open(WritableByteChannel channel) throws IOException {
+      writer = new PrintWriter(Channels.newWriter(channel, StandardCharsets.UTF_8.name()));
+    }
+
+    @Override
+    public void write(String element) throws IOException {
+      writer.println(element);
+    }
+
+    @Override
+    public void flush() throws IOException {
+      writer.flush();
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testKmsKey() throws Exception {
+    // TODO: test that creating File/Text/Avro/TFRecordIO writers with kmsKey passes it down to
+    // FileSystem.create and rename.
+    p.apply(Create.of("element"))
+        .apply(
+            FileIO.<String>write()
+                .via(new TextSink())
+                .to("testkmskey://")
+                .withKmsKey("test_kms_key"));
+    p.run();
   }
 }

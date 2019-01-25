@@ -110,7 +110,7 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
   @Deprecated
   protected void copy(List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds)
       throws IOException {
-    throw new UnsupportedOperationException("deprecated");
+    throw new UnsupportedOperationException("deprecated - do not implement this method");
   }
 
   /**
@@ -151,7 +151,7 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
   @Deprecated
   protected void rename(List<ResourceIdT> srcResourceIds, List<ResourceIdT> destResourceIds)
       throws IOException {
-    throw new UnsupportedOperationException("deprecated");
+    throw new UnsupportedOperationException("deprecated - do not implement this method");
   }
 
   /**
@@ -188,7 +188,7 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    */
   @Deprecated
   protected void delete(Collection<ResourceIdT> resourceIds) throws IOException {
-    throw new UnsupportedOperationException("deprecated");
+    throw new UnsupportedOperationException("deprecated - do not implement this method");
   }
 
   /**

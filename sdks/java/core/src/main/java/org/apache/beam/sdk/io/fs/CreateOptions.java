@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.fs;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /** An abstract class that contains common configuration options for creating resources. */
 public abstract class CreateOptions {
@@ -30,6 +32,7 @@ public abstract class CreateOptions {
    *
    * <p>Only relevant to filesystems that support KMS features.
    */
+  @Experimental(Kind.FILESYSTEM)
   @Nullable
   public abstract String kmsKey();
 
@@ -37,6 +40,7 @@ public abstract class CreateOptions {
   public abstract static class Builder<BuilderT extends CreateOptions.Builder<BuilderT>> {
     public abstract BuilderT setMimeType(String value);
 
+    @Experimental(Kind.FILESYSTEM)
     public abstract BuilderT setKmsKey(@Nullable String value);
   }
 

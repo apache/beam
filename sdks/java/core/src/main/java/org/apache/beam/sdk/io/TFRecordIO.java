@@ -234,6 +234,7 @@ public class TFRecordIO {
     /**
      * Key Management System key name for use in creating new files on filesystems that support it.
      */
+    @Experimental(Kind.FILESYSTEM)
     @Nullable
     abstract String getKmsKey();
 
@@ -251,6 +252,7 @@ public class TFRecordIO {
 
       abstract Builder setCompression(Compression compression);
 
+      @Experimental(Kind.FILESYSTEM)
       abstract Builder setKmsKey(String kmsKey);
 
       abstract Write build();
@@ -351,7 +353,10 @@ public class TFRecordIO {
     /**
      * Sets Key Management System key name for use in creating new files on filesystems that support
      * it.
+     *
+     * <p>TODO(BEAM-5959): Not yet supported.
      */
+    @Experimental(Kind.FILESYSTEM)
     public Write withKmsKey(String kmsKey) {
       return toBuilder().setKmsKey(kmsKey).build();
     }

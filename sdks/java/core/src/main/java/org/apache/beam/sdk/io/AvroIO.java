@@ -1223,7 +1223,10 @@ public class AvroIO {
     /**
      * Sets Key Management System key name for use in creating new files on filesystems that support
      * it.
+     *
+     * <p>TODO(BEAM-5959): Not yet supported.
      */
+    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT, OutputT> withKmsKey(String kmsKey) {
       return toBuilder().setKmsKey(kmsKey).build();
     }
@@ -1429,6 +1432,7 @@ public class AvroIO {
     }
 
     /** See {@link TypedWrite#withKmsKey} . */
+    @Experimental(Kind.FILESYSTEM)
     public Write<T> withKmsKey(String kmsKey) {
       return new Write<>(inner.withKmsKey(kmsKey));
     }

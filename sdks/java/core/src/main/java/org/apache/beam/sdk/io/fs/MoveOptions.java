@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.fs;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystems;
 
 /**
@@ -38,6 +40,7 @@ public abstract class MoveOptions {
    *
    * <p>Only relevant to operations that create new files and filesystems that support KMS features.
    */
+  @Experimental(Kind.FILESYSTEM)
   @Nullable
   public abstract String getDestKmsKey();
 
@@ -51,6 +54,7 @@ public abstract class MoveOptions {
     @Override
     public abstract boolean getIgnoreMissingFiles();
 
+    @Experimental(Kind.FILESYSTEM)
     @Override
     @Nullable
     public abstract String getDestKmsKey();
@@ -64,6 +68,7 @@ public abstract class MoveOptions {
 
       public abstract Builder setIgnoreMissingFiles(boolean ignoreMissingFiles);
 
+      @Experimental(Kind.FILESYSTEM)
       public abstract Builder setDestKmsKey(String kmsKey);
 
       public abstract StandardMoveOptions build();

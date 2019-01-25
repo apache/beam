@@ -57,7 +57,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 // Run a specific test using:
-//   ./gradlew :beam-sdks-java-io-google-cloud-platform:integrationTest --tests GcsKmsKeyIT.testFileIOWithKmsKey --info
+//   ./gradlew :beam-sdks-java-io-google-cloud-platform:integrationTest --tests
+// GcsKmsKeyIT.testFileIOWithKmsKey --info
 
 /** Integration test for GCS CMEK support. */
 @RunWith(JUnit4.class)
@@ -66,6 +67,9 @@ public class GcsKmsKeyIT {
   private static final String INPUT_FILE = "gs://dataflow-samples/shakespeare/kinglear.txt";
   private static final String EXPECTED_CHECKSUM = "b9778bfac7fa8b934e42a322ef4bd4706b538fd0";
   private static final String KMS_KEY =
+      "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test";
+  // The key used has key rotation disabled such that the current version is always 1.
+  private static final String KMS_KEY_WITH_VERSION =
       "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test/cryptoKeyVersions/1";
 
   @BeforeClass
@@ -107,7 +111,7 @@ public class GcsKmsKeyIT {
       GcsUtil gcsUtil = gcsOptions.getGcsUtil();
       for (Metadata metadata : matchResult.metadata()) {
         String kmsKey = gcsUtil.kmsKey(GcsPath.fromUri(metadata.resourceId().toString()));
-        assertThat(metadata.resourceId().toString(), kmsKey, equalTo(KMS_KEY));
+        assertThat(metadata.resourceId().toString(), kmsKey, equalTo(KMS_KEY_WITH_VERSION));
       }
     } catch (IOException e) {
       throw new AssertionError(e);
@@ -170,7 +174,7 @@ public class GcsKmsKeyIT {
       GcsUtil gcsUtil = gcsOptions.getGcsUtil();
       for (Metadata metadata : matchResult.metadata()) {
         String kmsKey = gcsUtil.kmsKey(GcsPath.fromUri(metadata.resourceId().toString()));
-        assertThat(metadata.resourceId().toString(), kmsKey, equalTo(KMS_KEY));
+        assertThat(metadata.resourceId().toString(), kmsKey, equalTo(KMS_KEY_WITH_VERSION));
       }
     } catch (IOException e) {
       throw new AssertionError(e);
@@ -211,7 +215,7 @@ public class GcsKmsKeyIT {
         GcsPath gcsPath = GcsPath.fromUri(metadata.resourceId().toString());
         assertThat(gcsUtil.fileSize(gcsPath), greaterThan(0L));
         String kmsKey = gcsUtil.kmsKey(gcsPath);
-        assertThat(metadata.resourceId().toString(), kmsKey, equalTo(KMS_KEY));
+        assertThat(metadata.resourceId().toString(), kmsKey, equalTo(KMS_KEY_WITH_VERSION));
       }
     } catch (IOException e) {
       throw new AssertionError(e);
@@ -260,7 +264,7 @@ public class GcsKmsKeyIT {
         GcsPath gcsPath = GcsPath.fromUri(metadata.resourceId().toString());
         assertThat(gcsUtil.fileSize(gcsPath), greaterThan(0L));
         String kmsKey = gcsUtil.kmsKey(gcsPath);
-        assertThat(metadata.resourceId().toString(), kmsKey, equalTo(KMS_KEY));
+        assertThat(metadata.resourceId().toString(), kmsKey, equalTo(KMS_KEY_WITH_VERSION));
       }
     } catch (IOException e) {
       throw new AssertionError(e);

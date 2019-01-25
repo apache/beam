@@ -386,4 +386,14 @@ public class TFRecordIOTest {
       c.output(c.element().getBytes(Charsets.UTF_8));
     }
   }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testKmsKey() throws Exception {
+    writePipeline
+        .apply(Create.of("element"))
+        .apply(ParDo.of(new StringToByteArray()))
+        .apply(TFRecordIO.write().to("testkmskey://").withKmsKey("test_kms_key"));
+    writePipeline.run();
+  }
 }

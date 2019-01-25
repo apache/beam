@@ -631,6 +631,7 @@ public class TextIO {
     abstract boolean getWindowedWrites();
 
     /** Optional Key Management System encryption key. */
+    @Experimental(Kind.FILESYSTEM)
     @Nullable
     abstract String getKmsKey();
 
@@ -678,6 +679,7 @@ public class TextIO {
 
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
 
+      @Experimental(Kind.FILESYSTEM)
       abstract Builder<UserT, DestinationT> setKmsKey(@Nullable String kmsKey);
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
@@ -910,7 +912,10 @@ public class TextIO {
      * Sets a Key Management System key for each created file.
      *
      * <p>Files will be encrypted using the given KMS key on supported filesystems.
+     *
+     * <p>TODO(BEAM-5959): Not yet supported.
      */
+    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT> withKmsKey(@Nullable String kmsKey) {
       return toBuilder().setKmsKey(kmsKey).build();
     }
@@ -998,9 +1003,6 @@ public class TextIO {
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
       }
-      // TODO: remove
-      //System.err.println("kmsKey: "+getKmsKey());
-      //write = write.withKmsKey(getKmsKey());
       return input.apply("WriteFiles", write);
     }
 
@@ -1166,7 +1168,6 @@ public class TextIO {
     }
 
     /** See {@link TypedWrite#withKmsKey}. */
-    // TODO: mark new public interfaces as experimental
     @Experimental(Kind.FILESYSTEM)
     public Write withKmsKey(@Nullable String kmsKey) {
       // TODO: check if FileIO kmsKey is in use

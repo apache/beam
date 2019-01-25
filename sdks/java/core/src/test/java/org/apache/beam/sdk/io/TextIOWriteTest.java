@@ -700,4 +700,12 @@ public class TextIOWriteTest {
 
     assertEquals(Arrays.asList("header", "a", "b", "c", "footer"), readLinesFromFile(f));
   }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testKmsKey() throws Exception {
+    p.apply(Create.of("element"))
+        .apply(TextIO.write().to("testkmskey://").withKmsKey("test_kms_key"));
+    p.run();
+  }
 }

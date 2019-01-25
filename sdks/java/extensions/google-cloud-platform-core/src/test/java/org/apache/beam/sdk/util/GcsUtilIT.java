@@ -21,7 +21,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-// TODO: Multi-part rerwrite test: read wikipedia set file (see Python test), write to GCS using GcsUtil low-level code
+// TODO: Multi-part rerwrite test: read wikipedia set file (see Python test), write to GCS using
+// GcsUtil low-level code
 
 /**
  * Integration tests for {@link GcsUtil}. These tests are designed to run against production Google
