@@ -109,6 +109,10 @@ public class FlinkMetricContainer {
     return MetricName.named(pieces[0], pieces[1]);
   }
 
+  /**
+   * Update this container with metrics from the passed {@link MonitoringInfo}s, and send updates
+   * along to Flink's internal metrics framework.
+   */
   public void updateMetrics(String stepName, List<BeamFnApi.MonitoringInfo> monitoringInfos) {
     MetricsContainer metricsContainer = getMetricsContainer(stepName);
     monitoringInfos.forEach(
@@ -149,6 +153,10 @@ public class FlinkMetricContainer {
     updateMetrics(stepName);
   }
 
+  /**
+   * Update Flink's internal metrics ({@link this#flinkCounterCache}) with the latest metrics for a
+   * given step.
+   */
   void updateMetrics(String stepName) {
     MetricResults metricResults = asAttemptedOnlyMetricResults(metricsAccumulator.getLocalValue());
     MetricQueryResults metricQueryResults =
