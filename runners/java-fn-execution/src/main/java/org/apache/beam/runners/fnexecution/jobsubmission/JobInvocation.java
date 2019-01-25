@@ -52,6 +52,8 @@ public class JobInvocation {
   private List<Consumer<Enum>> stateObservers;
   private List<Consumer<JobMessage>> messageObservers;
   private JobState.Enum jobState;
+  private MetricResults metrics;
+
   @Nullable private ListenableFuture<PipelineResult> invocationFuture;
 
   public JobInvocation(
@@ -93,6 +95,7 @@ public class JobInvocation {
                   pipelineResult.getState() == PipelineResult.State.DONE,
                   "Success on non-Done state: " + pipelineResult.getState());
               setState(JobState.Enum.DONE);
+              metrics = pipelineResult.metrics();
             } else {
               setState(JobState.Enum.UNSPECIFIED);
             }
@@ -155,7 +158,7 @@ public class JobInvocation {
   }
 
   public MetricResults getMetrics() {
-    throw new UnsupportedOperationException();
+    return metrics;
   }
 
   /** Listen for job state changes with a {@link Consumer}. */
