@@ -198,6 +198,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
       UpdateT update = checkNotNull(cell.getValue().getCumulative());
+      // TODO copy the old MetricKey instead of creating a new one, with a null stepName.
       updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update));
     }
     return updates.build();

@@ -301,7 +301,7 @@ public class ProcessBundleHandler {
       // There always needs to be a metricContainer in scope, not everything is calculated in the
       // context of a PTransform. For example, element count metrics are calculated before entering
       // a pTransform's context.
-      MetricsContainerImpl rootMetricsContainer = new MetricsContainerImpl("");
+      MetricsContainerImpl rootMetricsContainer = metricsContainerRegistry.getUnboundContainer();
       try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(rootMetricsContainer)) {
 
         // Already in reverse topological order so we don't need to do anything.
@@ -321,13 +321,9 @@ public class ProcessBundleHandler {
         if (!allResiduals.isEmpty()) {
           response.addAllResidualRoots(allResiduals.values());
         }
-
-        for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
-          response.addMonitoringInfos(mi);
-        }
       }
 
-      for (MonitoringInfo mi : rootMetricsContainer.getMonitoringInfos()) {
+      for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
         response.addMonitoringInfos(mi);
       }
     }

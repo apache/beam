@@ -17,10 +17,14 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
@@ -36,6 +40,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
 
 /**
@@ -44,18 +49,68 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterab
  * <p>This class is not thread-safe.
  */
 public class MetricsContainerStepMap implements Serializable {
-  private Map<String, MetricsContainerImpl> metricsContainers;
+
+  /** Key class to lookup the metric container for a step or unbound to any step.
+   *  This is preferable to using null(which can't be used as a key).
+   *  Additonally, this class could be extended to allow containers for other non pTransform
+   *  contexts.
+   */
+  @AutoValue
+  abstract static class MetricsContainerKey {
+    public static MetricsContainerKey unBounded() {
+      return new AutoValue_MetricsContainerStepMap_MetricsContainerKey(null);
+    }
+
+    public static MetricsContainerKey forStep(String step) {
+      return new AutoValue_MetricsContainerStepMap_MetricsContainerKey(step);
+    }
+
+    @Nullable
+    public abstract String getStepName();
+
+    @Override
+    public int hashCode() {
+      // Don't include name and namespace, since they are lazily set.
+      return Objects.hash(getStepName());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      // If the object is compared with itself then return true
+      if (o == this) {
+        return true;
+      }
+      if (!(o instanceof MetricsContainerKey)) {
+        return false;
+      }
+      MetricsContainerKey other = (MetricsContainerKey) o;
+      return Objects.equals(this.getStepName(), other.getStepName());
+    }
+  }
+
+  private Map<MetricsContainerKey, MetricsContainerImpl> metricsContainers;
 
   public MetricsContainerStepMap() {
     this.metricsContainers = new ConcurrentHashMap<>();
   }
 
+  /* Returns the container that is not bound to any step name. */
+  public MetricsContainerImpl getUnboundContainer() {
+    return getContainerForKey(MetricsContainerKey.unBounded());
+  }
+
   /** Returns the container for the given step name. */
   public MetricsContainerImpl getContainer(String stepName) {
-    if (!metricsContainers.containsKey(stepName)) {
-      metricsContainers.put(stepName, new MetricsContainerImpl(stepName));
+    checkArgument(!Strings.isNullOrEmpty(stepName), "stepName must be non-empty");
+    return getContainerForKey(MetricsContainerKey.unBounded());
+  }
+
+  /** @return the container for the given key */
+  private MetricsContainerImpl getContainerForKey(MetricsContainerKey key) {
+    if (!metricsContainers.containsKey(key)) {
+      metricsContainers.put(key, new MetricsContainerImpl(key.getStepName()));
     }
-    return metricsContainers.get(stepName);
+    return metricsContainers.get(key);
   }
 
   /**
@@ -63,8 +118,8 @@ public class MetricsContainerStepMap implements Serializable {
    * MetricsContainerStepMap}.
    */
   public void updateAll(MetricsContainerStepMap other) {
-    for (Map.Entry<String, MetricsContainerImpl> container : other.metricsContainers.entrySet()) {
-      getContainer(container.getKey()).update(container.getValue());
+    for (Map.Entry<MetricsContainerKey, MetricsContainerImpl> container : other.metricsContainers.entrySet()) {
+      getContainerForKey(container.getKey()).update(container.getValue());
     }
   }
 
@@ -133,7 +188,7 @@ public class MetricsContainerStepMap implements Serializable {
     return new MetricsContainerStepMapMetricResults(attemptedMetricsContainers);
   }
 
-  private Map<String, MetricsContainerImpl> getMetricsContainers() {
+  private Map<MetricsContainerKey, MetricsContainerImpl> getMetricsContainers() {
     return metricsContainers;
   }
 
