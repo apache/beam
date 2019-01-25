@@ -310,6 +310,12 @@ class BeamModulePlugin implements Plugin<Project> {
     // when attempting to resolve dependency issues.
     project.apply plugin: "project-report"
 
+    // Adds a taskTree task that prints task dependency tree report to the console.
+    // Useful for investigating build issues.
+    // See: https://github.com/dorongold/gradle-task-tree
+    project.apply plugin: "com.dorongold.task-tree"
+    project.taskTree { noRepeat = true }
+
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
