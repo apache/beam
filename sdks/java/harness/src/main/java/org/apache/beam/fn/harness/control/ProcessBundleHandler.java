@@ -327,10 +327,9 @@ public class ProcessBundleHandler {
         }
       }
 
-      /*
       for (MonitoringInfo mi : rootMetricsContainer.getMonitoringInfos()) {
         response.addMonitoringInfos(mi);
-      }*/
+      }
     }
 
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
