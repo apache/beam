@@ -398,8 +398,6 @@ public class StreamingDataflowWorker {
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
 
-  private final boolean useStreamingRpcs;
-
   private final WorkerStatusPages statusPages;
   // Periodic sender of debug information to the debug capture service.
   private DebugCapture.Manager debugCaptureManager = null;
@@ -585,7 +583,7 @@ public class StreamingDataflowWorker {
               @Override
               public void run() {
                 LOG.info("Dispatch starting");
-                if (useStreamingRpcs) {
+                if (windmillServiceEnabled) {
                   streamingDispatchLoop();
                 } else {
                   dispatchLoop();
@@ -601,7 +599,7 @@ public class StreamingDataflowWorker {
             new Runnable() {
               @Override
               public void run() {
-                if (useStreamingRpcs) {
+                if (windmillServiceEnabled) {
                   streamingCommitLoop();
                 } else {
                   commitLoop();
@@ -611,11 +609,10 @@ public class StreamingDataflowWorker {
     commitThread.setPriority(Thread.MAX_PRIORITY);
     commitThread.setName("CommitThread");
 
-    this.useStreamingRpcs = options.getWindmillServiceUseStreamingRpcs();
     this.publishCounters = publishCounters;
     this.windmillServer = options.getWindmillServerStub();
     this.metricTrackingWindmillServer =
-        new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, useStreamingRpcs);
+        new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, windmillServiceEnabled);
     this.stateFetcher = new StateFetcher(metricTrackingWindmillServer);
     this.clientId = new Random().nextLong();
 
@@ -660,7 +657,6 @@ public class StreamingDataflowWorker {
     }
 
     LOG.debug("windmillServiceEnabled: {}", windmillServiceEnabled);
-    LOG.debug("useStreamingRpcs: {}", useStreamingRpcs);
     LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());
     LOG.debug("WindmillServicePort: {}", options.getWindmillServicePort());
     LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
