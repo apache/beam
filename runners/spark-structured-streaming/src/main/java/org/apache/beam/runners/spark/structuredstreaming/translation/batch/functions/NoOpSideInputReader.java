@@ -31,10 +31,10 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  *
  * <p>A {@link SideInputReader} for the Spark Batch Runner.
  */
-public class SparkSideInputReader implements SideInputReader {
+public class NoOpSideInputReader implements SideInputReader {
   private final Map<TupleTag<?>, WindowingStrategy<?, ?>> sideInputs;
 
-  public SparkSideInputReader(Map<PCollectionView<?>, WindowingStrategy<?, ?>> indexByView) {
+  public NoOpSideInputReader(Map<PCollectionView<?>, WindowingStrategy<?, ?>> indexByView) {
     sideInputs = new HashMap<>();
   }
 
