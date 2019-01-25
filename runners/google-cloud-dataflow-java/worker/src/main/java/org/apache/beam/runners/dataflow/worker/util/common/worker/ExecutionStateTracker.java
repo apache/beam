@@ -25,7 +25,6 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
@@ -50,14 +49,12 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
 
   /** An {@link ExecutionState} represents the current state of an execution thread. */
   public abstract static class ExecutionState {
-    private final NameContext stepName;
     private final String stateName;
 
     /** Whether the current state represents the element processing state. */
-    private final boolean isProcessElementState;
+    public final boolean isProcessElementState;
 
-    public ExecutionState(NameContext stepName, String stateName) {
-      this.stepName = stepName;
+    public ExecutionState(String stateName) {
       this.stateName = stateName;
       this.isProcessElementState = Objects.equals(stateName, PROCESS_STATE_NAME);
     }
@@ -69,13 +66,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
      *     approximation, all of that time should be associated with this state.
      */
     public abstract void takeSample(long millisSinceLastSample);
-
-    /**
-     * Returns the {@link NameContext} identifying the executing step associated with this state.
-     */
-    public NameContext getStepName() {
-      return stepName;
-    }
 
     /** Returns the name of this state within the executing step. */
     public String getStateName() {
@@ -101,19 +91,15 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(getClass())
-          .add("stepName", stepName)
-          .add("stateName", stateName)
-          .toString();
+      return MoreObjects.toStringHelper(getClass()).add("stateName", stateName).toString();
     }
 
     public String getDescription() {
-      return String.format("%s-%s-%s", stepName.stageName(), stepName.userName(), stateName);
+      return stateName;
     }
   }
 
   private final ExecutionStateSampler sampler;
-  private final ElementExecutionTracker elementExecutionTracker;
 
   /** The thread being managed by this {@link ExecutionStateTracker}. */
   private Thread trackedThread = null;
@@ -145,16 +131,13 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private long transitionsAtLastSample = 0;
   private long nextLullReportMs = LULL_REPORT_MS;
 
-  public ExecutionStateTracker(
-      ExecutionStateSampler sampler, ElementExecutionTracker elementExecutionTracker) {
+  public ExecutionStateTracker(ExecutionStateSampler sampler) {
     this.sampler = sampler;
-    this.elementExecutionTracker = elementExecutionTracker;
   }
 
   @VisibleForTesting
   public static ExecutionStateTracker newForTest() {
-    return new ExecutionStateTracker(
-        ExecutionStateSampler.newForTest(), ElementExecutionTracker.newForTest());
+    return new ExecutionStateTracker(ExecutionStateSampler.newForTest());
   }
 
   @Override
@@ -239,16 +222,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     currentState = newState;
     newState.onActivate(true);
     numTransitions++;
-
-    final boolean isProcessElementState = newState.isProcessElementState;
-    if (isProcessElementState) {
-      elementExecutionTracker.enter(newState.getStepName());
-    }
-
     return () -> {
-      if (isProcessElementState) {
-        elementExecutionTracker.exit();
-      }
       currentState = previous;
       numTransitions++;
       if (previous != null) {
@@ -267,9 +241,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     return millisSinceLastTransition;
   }
 
-  void takeSample(long millisSinceLastSample) {
-    elementExecutionTracker.takeSample(millisSinceLastSample);
-
+  protected void takeSample(long millisSinceLastSample) {
     // These variables are read by Sampler thread, and written by Execution and Progress Reporting
     // threads.
     // Because there is no read/modify/write cycle in the Sampler thread, making them volatile

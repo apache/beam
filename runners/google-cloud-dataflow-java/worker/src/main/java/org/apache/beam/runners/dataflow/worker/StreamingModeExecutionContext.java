@@ -188,8 +188,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
   }
 
-  /** Implementation of ExecutionStateRegistry that creates Streaming versions of ExecutionState. */
-  public static class StreamingModeExecutionStateRegistry extends ExecutionStateRegistry {
+  /**
+   * Implementation of DataflowExecutionStateRegistry that creates Streaming versions of
+   * ExecutionState.
+   */
+  public static class StreamingModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
     private final StreamingDataflowWorker worker;
 
     public StreamingModeExecutionStateRegistry(StreamingDataflowWorker worker) {

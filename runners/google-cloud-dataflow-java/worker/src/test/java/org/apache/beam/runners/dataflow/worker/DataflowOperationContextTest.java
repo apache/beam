@@ -72,7 +72,7 @@ public class DataflowOperationContextTest {
     @Mock private CounterFactory counterFactory;
     @Mock private MetricsContainer metricsContainer;
 
-    private ExecutionStateRegistry stateRegistry = new BatchModeExecutionStateRegistry();
+    private DataflowExecutionStateRegistry stateRegistry = new BatchModeExecutionStateRegistry();
 
     @Mock private ScopedProfiler scopedProfiler;
 

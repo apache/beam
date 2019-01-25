@@ -74,7 +74,7 @@ public class BatchModeExecutionContext
       ReaderFactory readerFactory,
       PipelineOptions options,
       DataflowExecutionStateTracker executionStateTracker,
-      ExecutionStateRegistry executionStateRegistry) {
+      DataflowExecutionStateRegistry executionStateRegistry) {
     super(
         counterFactory,
         createMetricsContainerRegistry(),
@@ -192,9 +192,11 @@ public class BatchModeExecutionContext
     }
   }
 
-  /** {@link ExecutionStateRegistry} that creates {@link BatchModeExecutionState} instances. */
+  /**
+   * {@link DataflowExecutionStateRegistry} that creates {@link BatchModeExecutionState} instances.
+   */
   @VisibleForTesting
-  public static class BatchModeExecutionStateRegistry extends ExecutionStateRegistry {
+  public static class BatchModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
 
     @Override
     protected DataflowOperationContext.DataflowExecutionState createState(
