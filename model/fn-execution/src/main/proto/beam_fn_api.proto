@@ -330,7 +330,7 @@ message Annotation {
 
 // Populated MonitoringInfoSpecs for specific URNs.
 // Indicating the required fields to be set.
-// SDKS and RunnerHarnesses can load these instances into memory and write a
+// SDKs and RunnerHarnesses can load these instances into memory and write a
 // validator or code generator to assist with populating and validating
 // MonitoringInfo protos.
 message MonitoringInfoSpecs {
