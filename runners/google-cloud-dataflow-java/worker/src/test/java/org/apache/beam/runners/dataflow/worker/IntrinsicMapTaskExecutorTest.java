@@ -45,7 +45,7 @@ import java.util.List;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestExecutionState;
+import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
@@ -231,7 +231,7 @@ public class IntrinsicMapTaskExecutorTest {
     DataflowExecutionStateTracker stateTracker =
         new DataflowExecutionStateTracker(
             ExecutionStateSampler.newForTest(),
-            new TestExecutionState(
+            new TestDataflowExecutionState(
                 NameContext.forStage("test-stage"),
                 "other",
                 null /* requestingStepName */,
@@ -286,7 +286,7 @@ public class IntrinsicMapTaskExecutorTest {
     ExecutionStateTracker stateTracker =
         new DataflowExecutionStateTracker(
             ExecutionStateSampler.newForTest(),
-            new TestExecutionState(
+            new TestDataflowExecutionState(
                 NameContext.forStage("testStage"),
                 "other",
                 null /* requestingStepName */,

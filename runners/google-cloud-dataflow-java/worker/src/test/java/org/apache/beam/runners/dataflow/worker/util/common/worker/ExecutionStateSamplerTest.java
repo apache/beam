@@ -17,42 +17,27 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import static junit.framework.TestCase.assertNotNull;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
-import org.apache.beam.runners.dataflow.worker.DataflowElementExecutionTracker;
-import org.apache.beam.runners.dataflow.worker.counters.Counter;
-import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
-import org.apache.beam.runners.dataflow.worker.counters.CounterName;
-import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.junit.Before;
 import org.junit.Test;
 
 /** Tests for {@link ExecutionStateSampler}. */
 public class ExecutionStateSamplerTest {
-  private PipelineOptions options;
+
   private MillisProvider clock;
   private ExecutionStateSampler sampler;
-  private CounterSet counterSet;
 
   @Before
   public void setUp() {
-    options = PipelineOptionsFactory.create();
     clock = mock(MillisProvider.class);
     sampler = ExecutionStateSampler.newForTest(clock);
-    counterSet = new CounterSet();
   }
 
   private static class TestExecutionState extends ExecutionState {
@@ -60,8 +45,8 @@ public class ExecutionStateSamplerTest {
     private long totalMillis = 0;
     private boolean lullReported = false;
 
-    public TestExecutionState(NameContext stepName, String stateName) {
-      super(stepName, stateName);
+    public TestExecutionState(String stateName) {
+      super(stateName);
     }
 
     @Override
@@ -75,16 +60,9 @@ public class ExecutionStateSamplerTest {
     }
   }
 
-  private final NameContext step1 =
-      NameContext.create("stage", "originalStep1", "systemStep1", "userStep1");
-  private final NameContext step2 =
-      NameContext.create("stage", "originalStep2", "systemStep2", "userStep2");
-
-  private final TestExecutionState step1act1 = new TestExecutionState(step1, "activity1");
-  private final TestExecutionState step1act2 = new TestExecutionState(step1, "activity2");
-  private final TestExecutionState step1Process =
-      new TestExecutionState(step1, ExecutionStateTracker.PROCESS_STATE_NAME);
-  private final TestExecutionState step2act1 = new TestExecutionState(step2, "activity1");
+  private final TestExecutionState step1act1 = new TestExecutionState("activity1");
+  private final TestExecutionState step1act2 = new TestExecutionState("activity2");
+  private final TestExecutionState step2act1 = new TestExecutionState("activity1");
 
   @Test
   public void testOneThreadSampling() throws Exception {
@@ -145,64 +123,7 @@ public class ExecutionStateSamplerTest {
     assertThat(step1act1.lullReported, equalTo(true));
   }
 
-  @Test
-  public void testReportsElementExecutionTime() throws IOException {
-    enableTimePerElementExperiment();
-    ExecutionStateTracker tracker = createTracker();
-
-    try (Closeable c1 = tracker.activate(new Thread())) {
-      try (Closeable c2 = tracker.enterState(step1Process)) {}
-      sampler.doSampling(30);
-      // Execution time split evenly between executions: IDLE, step1, IDLE
-    }
-    assertProcessingTimeCounter(step1, 10, 4);
-  }
-
-  /** {@link ExecutionStateSampler} should take one last sample when a tracker is deactivated. */
-  @Test
-  public void testTakesSampleOnDeactivate() throws IOException {
-    enableTimePerElementExperiment();
-    ExecutionStateTracker tracker = createTracker();
-
-    try (Closeable c1 = tracker.activate(new Thread())) {
-      try (Closeable c2 = tracker.enterState(step1Process)) {
-        sampler.doSampling(100);
-        assertThat(step1Process.totalMillis, equalTo(100L));
-      }
-    }
-
-    sampler.doSampling(100);
-    assertThat(step1Process.totalMillis, equalTo(100L));
-  }
-
-  private void enableTimePerElementExperiment() {
-    options
-        .as(DataflowPipelineDebugOptions.class)
-        .setExperiments(
-            Lists.newArrayList(DataflowElementExecutionTracker.TIME_PER_ELEMENT_EXPERIMENT));
-  }
-
-  private void assertProcessingTimeCounter(NameContext step, int millis, int bucketOffset) {
-    CounterName counterName = ElementExecutionTracker.COUNTER_NAME.withOriginalName(step);
-    Counter<?, CounterFactory.CounterDistribution> counter =
-        (Counter<?, CounterFactory.CounterDistribution>) counterSet.getExistingCounter(counterName);
-    assertNotNull(counter);
-
-    CounterFactory.CounterDistribution distribution = counter.getAggregate();
-    assertThat(
-        distribution,
-        equalTo(
-            CounterFactory.CounterDistribution.builder()
-                .minMax(millis, millis)
-                .count(1)
-                .sum(millis)
-                .sumOfSquares(millis * millis)
-                .buckets(bucketOffset, Lists.newArrayList(1L))
-                .build()));
-  }
-
   private ExecutionStateTracker createTracker() {
-    return new ExecutionStateTracker(
-        sampler, DataflowElementExecutionTracker.create(counterSet, options));
+    return new ExecutionStateTracker(sampler);
   }
 }
