@@ -31,7 +31,7 @@ public class EncoderHelpers {
   // the type inference mechanism to infer Encoder<WindowedValue<T>> to get back the type checking
 
   /**
-   * Get a bytes {@link Encoder} for {@link WindowedValue<T>}. Bytes serialisation is issued by Kryo
+   * Get a bytes {@link Encoder} for {@link WindowedValue}. Bytes serialisation is issued by Kryo
    */
   @SuppressWarnings("unchecked")
   public static <T> Encoder<T> windowedValueEncoder() {
