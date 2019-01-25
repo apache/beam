@@ -93,7 +93,9 @@ public class TestBoundedTable extends TestTable {
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     return begin
-        .apply("MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(), Create.of(rows))
+        .apply(
+            "MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(),
+            Create.of(rows).withRowSchema(schema))
         .setRowSchema(getSchema());
   }
 
