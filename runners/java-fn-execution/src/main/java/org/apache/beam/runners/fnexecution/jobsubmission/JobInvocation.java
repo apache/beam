@@ -32,6 +32,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListenableFuture;
@@ -151,6 +152,10 @@ public class JobInvocation {
   /** Retrieve the job's current state. */
   public JobState.Enum getState() {
     return this.jobState;
+  }
+
+  public MetricResults getMetrics() {
+    throw new UnsupportedOperationException();
   }
 
   /** Listen for job state changes with a {@link Consumer}. */
