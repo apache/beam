@@ -1303,7 +1303,7 @@ class JobConfigurationExtract(_messages.Message):
 
 
 class JobConfigurationLoad(_messages.Message):
-  """A JobConfigurationLoad object.
+  r"""A JobConfigurationLoad object.
 
   Fields:
     allowJaggedRows: [Optional] Accept rows that are missing trailing optional
