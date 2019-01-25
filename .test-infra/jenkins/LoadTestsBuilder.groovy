@@ -21,7 +21,7 @@ import CommonTestProperties.Runner
 
 class LoadTestsBuilder {
 
-    static void loadTest(context, String title, Runner runner, Map<String, Object> options, String mainClass) {
+    static void loadTest(context, String title, Runner runner, Map<String, ?> options, String mainClass) {
         options.put('runner', runner.option)
 
         context.steps {
@@ -37,7 +37,22 @@ class LoadTestsBuilder {
         }
     }
 
-    private static String parseOptions(Map<String, Object> options) {
-        options.collect { "--${it.key}=${it.value.toString()}".replace('\"', '\\"') }.join(' ')
+    static void loadTestPython(context, String title, Runner runner, Map<String, ?> options, String mainClass) {
+        options.put('runner', runner.option)
+        context.steps {
+            shell("echo *** ${title} ***")
+            gradle {
+                rootBuildScriptDir(commonJobProperties.checkoutDir)
+                tasks(':beam-sdks-python-load-tests:run')
+                commonJobProperties.setGradleSwitches(delegate)
+                switches("-PloadTest.args=\'${parseOptions(options)}\'")
+                switches("-PloadTest.mainClass=\"${mainClass}\"")
+                switches("-Prunner=\"${runner.dependency}\"")
+            }
+        }
+    }
+
+    private static String parseOptions(Map<String, ?> options) {
+        options.collect { "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'') }.join(' ')
     }
 }
