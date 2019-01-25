@@ -19,6 +19,8 @@ package org.apache.beam.runners.flink.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricUrns.parseUrn;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL;
 
 import java.util.HashMap;
 import java.util.List;
@@ -94,16 +96,39 @@ public class FlinkMetricContainer {
         : null;
   }
 
+  public MetricsContainer getUnboundMetricsContainer() {
+    return metricsAccumulator != null
+        ? metricsAccumulator.getLocalValue().getUnboundContainer()
+        : null;
+  }
+
   /**
    * Update this container with metrics from the passed {@link MonitoringInfo}s, and send updates
    * along to Flink's internal metrics framework.
    */
-  public void updateMetrics(String stepName, List<MonitoringInfo> monitoringInfos) {
-    MetricsContainer metricsContainer = getMetricsContainer(stepName);
+  public void updateMetrics(List<MonitoringInfo> monitoringInfos) {
     monitoringInfos.forEach(
         monitoringInfo -> {
           if (monitoringInfo.hasMetric()) {
             String urn = monitoringInfo.getUrn();
+            Map<String, String> labels = monitoringInfo.getLabelsMap();
+
+            MetricsContainer metricsContainer;
+
+            String ptransform = labels.get(PTRANSFORM_LABEL);
+            if (ptransform != null) {
+              metricsContainer = getMetricsContainer(ptransform);
+            } else {
+              String pcollection = labels.get(PCOLLECTION_LABEL);
+              if (pcollection == null) {
+                throw new IllegalStateException(
+                    String.format(
+                        "No ptransform or pcollection label found on monitoringinfo %s",
+                        monitoringInfo));
+              }
+              metricsContainer = getUnboundMetricsContainer();
+            }
+
             MetricName metricName = parseUrn(urn);
             Metric metric = monitoringInfo.getMetric();
             if (metric.hasCounterData()) {
@@ -134,17 +159,17 @@ public class FlinkMetricContainer {
             }
           }
         });
-    updateMetrics(stepName);
+    updateMetrics();
   }
 
   /**
    * Update Flink's internal metrics ({@link this#flinkCounterCache}) with the latest metrics for a
    * given step.
    */
-  void updateMetrics(String stepName) {
+  void updateMetrics() {
     MetricResults metricResults = asAttemptedOnlyMetricResults(metricsAccumulator.getLocalValue());
     MetricQueryResults metricQueryResults =
-        metricResults.queryMetrics(MetricsFilter.builder().addStep(stepName).build());
+        metricResults.queryMetrics(MetricsFilter.builder().build());
     updateCounters(metricQueryResults.getCounters());
     updateDistributions(metricQueryResults.getDistributions());
     updateGauge(metricQueryResults.getGauges());
