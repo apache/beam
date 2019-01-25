@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
+import static org.apache.beam.runners.core.metrics.Protos.counterToProto;
+import static org.apache.beam.runners.core.metrics.Protos.distributionToProto;
+import static org.apache.beam.runners.core.metrics.Protos.keyFromProto;
+
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -26,6 +30,8 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.DescribePipelineOptionsRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.DescribePipelineOptionsResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobMetricsRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobMetricsResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
@@ -36,12 +42,17 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApiMetrics.MetricResult;
+import org.apache.beam.model.jobmanagement.v1.JobApiMetrics.MetricStatus;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.fn.function.ThrowingConsumer;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
@@ -326,6 +337,51 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       LOG.error("Error describing pipeline options", e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
+  }
+
+  @Override
+  public void getJobMetrics(
+      GetJobMetricsRequest request, StreamObserver<GetJobMetricsResponse> responseObserver) {
+    String invocationId = request.getJobId();
+    LOG.info("Running getJobMetrics for {}", invocationId);
+    try {
+      JobInvocation invocation = getInvocation(invocationId);
+      LOG.info("Found job invocation for metrics: {}", invocation);
+      MetricResults metrics = invocation.getMetrics();
+      LOG.info("Got metrics: {}", metrics);
+      GetJobMetricsResponse.Builder builder = GetJobMetricsResponse.newBuilder();
+      if (metrics != null) {
+        MetricQueryResults results = metrics.queryMetrics(MetricsFilter.builder().build());
+        results
+            .getCounters()
+            .forEach(
+                counter ->
+                    builder.addMetricStatuses(
+                        MetricStatus.newBuilder()
+                            .setMetricKey(keyFromProto(counter))
+                            .setMetricResult(
+                                MetricResult.newBuilder()
+                                    .setCounterResult(counterToProto(counter)))));
+        results
+            .getDistributions()
+            .forEach(
+                distribution ->
+                    builder.addMetricStatuses(
+                        MetricStatus.newBuilder()
+                            .setMetricKey(keyFromProto(distribution))
+                            .setMetricResult(
+                                MetricResult.newBuilder()
+                                    .setDistributionResult(distributionToProto(distribution)))));
+      }
+      responseObserver.onNext(builder.build());
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      String errMessage =
+          String.format("Encountered unexpected Exception for Invocation %s", invocationId);
+      LOG.error(errMessage, e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+    LOG.info("Finished getJobMetrics for {}", invocationId);
   }
 
   @Override
