@@ -98,47 +98,6 @@ public class Metrics {
     return new DelegatingGauge(MetricName.named(namespace, name));
   }
 
-  /** Implementation of {@link Counter} that delegates to the instance for the current context. */
-  private static class DelegatingCounter implements Metric, Counter, Serializable {
-    private final MetricName name;
-
-    private DelegatingCounter(MetricName name) {
-      this.name = name;
-    }
-
-    /** Increment the counter. */
-    @Override
-    public void inc() {
-      inc(1);
-    }
-
-    /** Increment the counter by the given amount. */
-    @Override
-    public void inc(long n) {
-      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
-      if (container != null) {
-        container.getCounter(name).inc(n);
-      }
-    }
-
-    /* Decrement the counter. */
-    @Override
-    public void dec() {
-      inc(-1);
-    }
-
-    /* Decrement the counter by the given amount. */
-    @Override
-    public void dec(long n) {
-      inc(-1 * n);
-    }
-
-    @Override
-    public MetricName getName() {
-      return name;
-    }
-  }
-
   /**
    * Implementation of {@link Distribution} that delegates to the instance for the current context.
    */

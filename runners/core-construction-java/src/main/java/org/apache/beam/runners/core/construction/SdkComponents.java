@@ -36,7 +36,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
@@ -50,8 +49,7 @@ public class SdkComponents {
   private final BiMap<WindowingStrategy<?, ?>, String> windowingStrategyIds = HashBiMap.create();
 
   /** A map of Coder to IDs. Coders are stored here with identity equivalence. */
-  private final BiMap<Equivalence.Wrapper<? extends Coder<?>>, String> coderIds =
-      HashBiMap.create();
+  private final BiMap<Coder<?>, String> coderIds = HashBiMap.create();
 
   private final BiMap<Environment, String> environmentIds = HashBiMap.create();
 
@@ -205,13 +203,13 @@ public class SdkComponents {
    * same coder.
    */
   public String registerCoder(Coder<?> coder) throws IOException {
-    String existing = coderIds.get(Equivalence.identity().wrap(coder));
+    String existing = coderIds.get(coder);
     if (existing != null) {
       return existing;
     }
     String baseName = NameUtils.approximateSimpleName(coder);
     String name = uniqify(baseName, coderIds.values());
-    coderIds.put(Equivalence.identity().wrap(coder), name);
+    coderIds.put(coder, name);
     RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, this);
     componentsBuilder.putCoders(name, coderProto);
     return name;

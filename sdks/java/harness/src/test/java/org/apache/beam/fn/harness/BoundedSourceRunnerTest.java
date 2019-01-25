@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -41,10 +42,8 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
@@ -125,8 +124,8 @@ public class BoundedSourceRunnerTest {
   public void testCreatingAndProcessingSourceFromFactory() throws Exception {
     List<WindowedValue<String>> outputValues = new ArrayList<>();
 
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put(
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    consumers.register(
         "outputPC", (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
     PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
     PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
@@ -171,7 +170,8 @@ public class BoundedSourceRunnerTest {
 
     // Check that when passing a source along as an input, the source is processed.
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
-    Iterables.getOnlyElement(consumers.get("inputPC"))
+    consumers
+        .getMultiplexingConsumer("inputPC")
         .accept(valueInGlobalWindow(CountingSource.upTo(2)));
     assertThat(outputValues, contains(valueInGlobalWindow(0L), valueInGlobalWindow(1L)));
 

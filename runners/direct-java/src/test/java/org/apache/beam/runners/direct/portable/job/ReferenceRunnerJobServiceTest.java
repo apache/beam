@@ -26,6 +26,7 @@ import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -67,9 +68,11 @@ public class ReferenceRunnerJobServiceTest {
 
   @Before
   public void setup() throws Exception {
-    service =
-        ReferenceRunnerJobService.create(serverFactory)
-            .withStagingPathSupplier(() -> runnerTemp.getRoot().toPath());
+    ReferenceRunnerJobService.Configuration configuration =
+        new ReferenceRunnerJobService.Configuration();
+    configuration.artifactStagingPath =
+        Paths.get(runnerTemp.getRoot().toString(), "beam-artifact-staging").toString();
+    service = ReferenceRunnerJobService.create(serverFactory, configuration);
     server = GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
     stub =
         JobServiceGrpc.newBlockingStub(
@@ -95,7 +98,7 @@ public class ReferenceRunnerJobServiceTest {
     ArtifactServiceStager stager =
         ArtifactServiceStager.overChannel(
             InProcessChannelBuilder.forName(stagingEndpoint.getUrl()).build());
-    String stagingSessionToken = "token";
+    String stagingSessionToken = response.getStagingSessionToken();
     File foo = writeTempFile("foo", "foo, bar, baz".getBytes(UTF_8));
     File bar = writeTempFile("spam", "spam, ham, eggs".getBytes(UTF_8));
     stager.stage(

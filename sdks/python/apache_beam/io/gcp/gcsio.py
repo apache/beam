@@ -219,7 +219,8 @@ class GcsIO(object):
       return []
     batch_request = BatchApiRequest(
         batch_url=GCS_BATCH_ENDPOINT,
-        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
+        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES,
+        response_encoding='utf-8')
     for path in paths:
       bucket, object_path = parse_gcs_path(path)
       request = storage.StorageObjectsDeleteRequest(
@@ -320,7 +321,8 @@ class GcsIO(object):
         break
       batch_request = BatchApiRequest(
           batch_url=GCS_BATCH_ENDPOINT,
-          retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
+          retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES,
+          response_encoding='utf-8')
       for pair in pairs_in_batch:
         batch_request.Add(self.client.objects, 'Rewrite', pair_to_request[pair])
       api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access

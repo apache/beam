@@ -22,14 +22,12 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
 
-import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -56,13 +54,12 @@ import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides.TransformReplacement;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.direct.ExecutableGraph;
-import org.apache.beam.runners.direct.portable.artifact.LocalFileSystemArtifactRetrievalService;
-import org.apache.beam.runners.direct.portable.artifact.UnsupportedArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -90,31 +87,42 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/** The "ReferenceRunner" engine implementation. */
+/**
+ * The "ReferenceRunner" engine implementation. The ReferenceRunner uses the portability framework
+ * to execute a Pipeline on a single machine.
+ */
 public class ReferenceRunner {
   private final RunnerApi.Pipeline pipeline;
   private final Struct options;
-  @Nullable private final File artifactsDir;
+  private final String artifactRetrievalToken;
 
   private final EnvironmentType environmentType;
 
   private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
 
+  /** @param environmentType The environment to use for the SDK Harness. */
   private ReferenceRunner(
-      Pipeline p, Struct options, @Nullable File artifactsDir, EnvironmentType environmentType) {
+      Pipeline p, Struct options, String artifactRetrievalToken, EnvironmentType environmentType) {
     this.pipeline = executable(p);
     this.options = options;
-    this.artifactsDir = artifactsDir;
     this.environmentType = environmentType;
+    this.artifactRetrievalToken = artifactRetrievalToken;
   }
 
+  /**
+   * Creates a "ReferenceRunner" engine for a single pipeline with a Dockerized SDK harness.
+   *
+   * @param p Pipeline being executed for this job.
+   * @param options PipelineOptions for this job.
+   * @param artifactRetrievalToken Token to retrieve artifacts that have been staged.
+   */
   public static ReferenceRunner forPipeline(
-      RunnerApi.Pipeline p, Struct options, File artifactsDir) {
-    return new ReferenceRunner(p, options, artifactsDir, EnvironmentType.DOCKER);
+      RunnerApi.Pipeline p, Struct options, String artifactRetrievalToken) {
+    return new ReferenceRunner(p, options, artifactRetrievalToken, EnvironmentType.DOCKER);
   }
 
   static ReferenceRunner forInProcessPipeline(RunnerApi.Pipeline p, Struct options) {
-    return new ReferenceRunner(p, options, null, EnvironmentType.IN_PROCESS);
+    return new ReferenceRunner(p, options, "", EnvironmentType.IN_PROCESS);
   }
 
   private RunnerApi.Pipeline executable(RunnerApi.Pipeline original) {
@@ -153,6 +161,10 @@ public class ReferenceRunner {
     return res;
   }
 
+  /**
+   * First starts all the services needed, then configures and starts the {@link
+   * ExecutorServiceParallelExecutor}.
+   */
   public void execute() throws Exception {
     ExecutableGraph<PTransformNode, PCollectionNode> graph = PortableGraph.forPipeline(pipeline);
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
@@ -170,17 +182,14 @@ public class ReferenceRunner {
             .setPipelineOptions(options)
             .setWorkerId("foo")
             .setResourceLimits(Resources.getDefaultInstance())
+            .setRetrievalToken(artifactRetrievalToken)
             .build();
     try (GrpcFnServer<GrpcLoggingService> logging =
             GrpcFnServer.allocatePortAndCreateFor(
                 GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
         GrpcFnServer<ArtifactRetrievalService> artifact =
-            artifactsDir == null
-                ? GrpcFnServer.allocatePortAndCreateFor(
-                    UnsupportedArtifactRetrievalService.create(), serverFactory)
-                : GrpcFnServer.allocatePortAndCreateFor(
-                    LocalFileSystemArtifactRetrievalService.forRootDirectory(artifactsDir),
-                    serverFactory);
+            GrpcFnServer.allocatePortAndCreateFor(
+                BeamFileSystemArtifactRetrievalService.create(), serverFactory);
         GrpcFnServer<StaticGrpcProvisionService> provisioning =
             GrpcFnServer.allocatePortAndCreateFor(
                 StaticGrpcProvisionService.create(provisionInfo), serverFactory);

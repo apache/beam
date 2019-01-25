@@ -62,11 +62,17 @@ func CreateList2(a, b interface{}) (*beam.Pipeline, beam.Scope, beam.PCollection
 //
 // The test file must have a TestMain that calls Main or MainWithDefault
 // to function.
-var Runner = flag.String("runner", "direct", "Pipeline runner.")
+var (
+	Runner        = flag.String("runner", "", "Pipeline runner.")
+	defaultRunner = "direct"
+)
 
 // Run runs a pipeline for testing. The semantics of the pipeline is expected
 // to be verified through passert.
 func Run(p *beam.Pipeline) error {
+	if *Runner == "" {
+		*Runner = defaultRunner
+	}
 	return beam.Run(context.Background(), *Runner, p)
 }
 
@@ -87,12 +93,9 @@ func Main(m *testing.M) {
 // pipelines on runners other than the direct runner, while setting the default
 // runner to use.
 func MainWithDefault(m *testing.M, runner string) {
+	defaultRunner = runner
 	if !flag.Parsed() {
 		flag.Parse()
-	}
-	// Override if not otherwise set.
-	if *Runner == "direct" {
-		*Runner = runner
 	}
 	beam.Init()
 	os.Exit(m.Run())

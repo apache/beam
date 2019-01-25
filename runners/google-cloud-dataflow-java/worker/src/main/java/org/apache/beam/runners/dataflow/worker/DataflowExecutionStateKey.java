@@ -28,7 +28,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
  * representing IO operations, also their requesting step name, and input index.
  */
 @AutoValue
-public abstract class ExecutionStateKey implements Comparable<ExecutionStateKey> {
+public abstract class DataflowExecutionStateKey implements Comparable<DataflowExecutionStateKey> {
 
   /** Return the {@link NameContext} identifying the step associated with this key. */
   public abstract NameContext getStepName();
@@ -50,7 +50,7 @@ public abstract class ExecutionStateKey implements Comparable<ExecutionStateKey>
   public abstract Integer getInputIndex();
 
   /**
-   * Create a new {@link ExecutionStateKey} representing the given step and activity.
+   * Create a new {@link DataflowExecutionStateKey} representing the given step and activity.
    *
    * @param nameContext names describing the step associated with this state key.
    * @param stateName additional string identifying the activity within that step.
@@ -60,16 +60,17 @@ public abstract class ExecutionStateKey implements Comparable<ExecutionStateKey>
    *     index of the PCollection that they represent. This is mainly used to represent side inputs
    *     (e.g. index 1, 2, etc).
    */
-  public static ExecutionStateKey create(
+  public static DataflowExecutionStateKey create(
       NameContext nameContext,
       String stateName,
       @Nullable String requestingStepName,
       @Nullable Integer inputIndex) {
-    return new AutoValue_ExecutionStateKey(nameContext, stateName, requestingStepName, inputIndex);
+    return new AutoValue_DataflowExecutionStateKey(
+        nameContext, stateName, requestingStepName, inputIndex);
   }
 
   @Override
-  public int compareTo(ExecutionStateKey o) {
+  public int compareTo(DataflowExecutionStateKey o) {
     return ComparisonChain.start()
         .compare(getStateName(), o.getStateName())
         .compare(

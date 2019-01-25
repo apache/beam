@@ -313,7 +313,6 @@ public class WorkItemStatusClientTest {
     BatchModeExecutionContext executionContext = mock(BatchModeExecutionContext.class);
     ExecutionStateTracker executionStateTracker = mock(ExecutionStateTracker.class);
     ExecutionState executionState = mock(ExecutionState.class);
-    when(executionState.getStepName()).thenReturn(NameContextsForTests.nameContextForTest());
     when(executionState.getDescription()).thenReturn("stageName-systemName-some-state");
     when(executionContext.getExecutionStateTracker()).thenReturn(executionStateTracker);
     when(executionStateTracker.getMillisSinceLastTransition()).thenReturn(20L);

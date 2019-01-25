@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
-import static org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns.Enum.USER_COUNTER_URN_PREFIX;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
 
 import java.util.HashMap;
 import java.util.List;
@@ -98,8 +98,8 @@ public class FlinkMetricContainer {
    * <p>TODO: not flink-specific; where should it live?
    */
   public static MetricName parseUrn(String urn) {
-    if (urn.startsWith(USER_COUNTER_URN_PREFIX.toString())) {
-      urn = urn.substring(USER_COUNTER_URN_PREFIX.toString().length());
+    if (urn.startsWith(USER_COUNTER_URN_PREFIX)) {
+      urn = urn.substring(USER_COUNTER_URN_PREFIX.length());
     }
     // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
     String[] pieces = urn.split(":", 2);
@@ -119,16 +119,17 @@ public class FlinkMetricContainer {
             BeamFnApi.Metric metric = monitoringInfo.getMetric();
             if (metric.hasCounterData()) {
               BeamFnApi.CounterData counterData = metric.getCounterData();
-              org.apache.beam.sdk.metrics.Counter counter = metricsContainer.getCounter(metricName);
               if (counterData.getValueCase() == BeamFnApi.CounterData.ValueCase.INT64_VALUE) {
+                org.apache.beam.sdk.metrics.Counter counter =
+                    metricsContainer.getCounter(metricName);
                 counter.inc(counterData.getInt64Value());
               } else {
-                throw new IllegalArgumentException("Unsupported CounterData type: " + counterData);
+                LOG.warn("Unsupported CounterData type: {}", counterData);
               }
             } else if (metric.hasDistributionData()) {
               BeamFnApi.DistributionData distributionData = metric.getDistributionData();
-              Distribution distribution = metricsContainer.getDistribution(metricName);
               if (distributionData.hasIntDistributionData()) {
+                Distribution distribution = metricsContainer.getDistribution(metricName);
                 BeamFnApi.IntDistributionData intDistributionData =
                     distributionData.getIntDistributionData();
                 distribution.update(
@@ -137,12 +138,11 @@ public class FlinkMetricContainer {
                     intDistributionData.getMin(),
                     intDistributionData.getMax());
               } else {
-                throw new IllegalArgumentException(
-                    "Unsupported DistributionData type: " + distributionData);
+                LOG.warn("Unsupported DistributionData type: {}", distributionData);
               }
             } else if (metric.hasExtremaData()) {
               BeamFnApi.ExtremaData extremaData = metric.getExtremaData();
-              throw new IllegalArgumentException("Extrema metric unsupported: " + extremaData);
+              LOG.warn("Extrema metric unsupported: {}", extremaData);
             }
           }
         });
