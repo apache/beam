@@ -40,6 +40,7 @@ import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
@@ -257,6 +258,11 @@ public class FlinkJobInvocation implements JobInvocation {
   @Override
   public JobState.Enum getState() {
     return this.jobState;
+  }
+
+  @Override
+  public MetricResults getMetrics() {
+    throw new UnsupportedOperationException();
   }
 
   @Override

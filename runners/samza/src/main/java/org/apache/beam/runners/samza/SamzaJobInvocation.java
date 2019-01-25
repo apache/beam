@@ -34,6 +34,7 @@ import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.samza.util.PortablePipelineDotRenderer;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +76,11 @@ public class SamzaJobInvocation implements JobInvocation {
   public void start() {
     LOG.info("Starting job invocation {}", getId());
     pipelineResult = invokeSamzaJob();
+  }
+
+  @Override
+  public MetricResults getMetrics() {
+    throw new UnsupportedOperationException();
   }
 
   @Override
