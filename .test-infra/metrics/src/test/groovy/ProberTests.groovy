@@ -45,7 +45,7 @@ class ProberTests {
     def alerts = new JsonSlurper().parseText(alertsJson)
     assert alerts.size > 0
     alerts.each { alert ->
-      assert alert.state == 'ok' : "Input data is stale! ${grafanaEndpoint}/d/data-freshness"
+      assert alert.state == 'ok' : "Input data is stale! ${alert}\n   See: ${grafanaEndpoint}/d/data-freshness"
     }
   }
 }
