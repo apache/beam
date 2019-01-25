@@ -28,6 +28,11 @@ from concurrent import futures
 import grpc
 
 from apache_beam import metrics
+from apache_beam.metrics.cells import DistributionResult
+from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.metric import MetricResults
+from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -292,13 +297,53 @@ class PortableRunner(runner.PipelineRunner):
 
 
 class PortableMetrics(metrics.metric.MetricResults):
-  def __init__(self):
-    pass
+  def __init__(self, metric_statuses):
+    self.counters = {}
+    self.distributions = {}
+    self.gauges = {}
+    for metric_status in metric_statuses:
+      metric_key_pb = metric_status.metric_key
+      metric_name = metric_key_pb.metric_name
+      metric_key = MetricKey(
+          metric_key_pb.step,
+          MetricName(metric_name.namespace, metric_name.name))
+
+      metric_result = metric_status.metric_result
+      if metric_result.HasField('counter_result'):
+        counter_result = metric_result.counter_result
+        self.counters[metric_key] = MetricResult(
+            metric_key,
+            counter_result.committed,
+            counter_result.attempted
+        )
+      elif metric_result.HasField('distribution_result'):
+        distribution_result = metric_result.distribution_result
+        committed = \
+          DistributionResult(distribution_result.committed) \
+            if distribution_result.HasField('committed') else None
+        attempted = \
+          DistributionResult(distribution_result.attempted) \
+            if distribution_result.HasField('attempted') else None
+        self.distributions[metric_key] = \
+          MetricResult(metric_key, committed, attempted)
+      else:
+        raise Exception(
+            'MetricResult without counter or distribution: %s' % metric_result)
+
+  @staticmethod
+  def _query_type(filter, metrics):
+    return [
+        data
+        for key, data in metrics.items()
+        if MetricResults.matches(filter, key)
+    ]
 
   def query(self, filter=None):
-    return {'counters': [],
-            'distributions': [],
-            'gauges': []}
+    return {
+        'counters': self._query_type(filter, self.counters),
+        'distributions': self._query_type(filter, self.distributions),
+        'gauges': self._query_type(filter, self.gauges)
+    }
 
 
 class PipelineResult(runner.PipelineResult):
@@ -312,6 +357,7 @@ class PipelineResult(runner.PipelineResult):
     self._message_stream = message_stream
     self._state_stream = state_stream
     self._cleanup_callbacks = cleanup_callbacks
+    self._metrics = None
 
   def cancel(self):
     try:
@@ -337,7 +383,11 @@ class PipelineResult(runner.PipelineResult):
     return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
 
   def metrics(self):
-    return PortableMetrics()
+    if not self._metrics:
+      job_metrics_response = self._job_service.GetJobMetrics(
+          beam_job_api_pb2.GetJobMetricsRequest(job_id=self._job_id))
+      self._metrics = PortableMetrics(job_metrics_response.metric_statuses)
+    return self._metrics
 
   def _last_error_message(self):
     # Filter only messages with the "message_response" and error messages.
