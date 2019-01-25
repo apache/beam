@@ -21,6 +21,7 @@ import java.util.function.Consumer;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
+import org.apache.beam.sdk.metrics.MetricResults;
 
 /** Internal representation of a Job which has been invoked (prepared and run) by a client. */
 public interface JobInvocation {
@@ -36,6 +37,8 @@ public interface JobInvocation {
 
   /** Retrieve the job's current state. */
   JobState.Enum getState();
+
+  MetricResults getMetrics();
 
   /** Listen for job state changes with a {@link Consumer}. */
   void addStateListener(Consumer<Enum> stateStreamObserver);
