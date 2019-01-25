@@ -148,11 +148,54 @@ __all__ = [
     'WriteToBigQuery',
     ]
 
+
+def _parse_table_reference(table, dataset=None, project=None):
+  import warnings
+  warnings.warn("This function is deprecated and will be permanently moved "
+                "to the bigquery_tools module in a future version of beam")
+  return bigquery_tools._parse_table_reference(table, dataset, project)
+
+
+def parse_table_schema_from_json(schema_string):
+  import warnings
+  warnings.warn("This function is deprecated and will be permanently moved "
+                "to the bigquery_tools module in a future version of beam")
+  return bigquery_tools.parse_table_schema_from_json(obj)
+
+
+def default_encoder(obj):
+  import warnings
+  warnings.warn("This function is deprecated and will be permanently moved "
+                "to the bigquery_tools module in a future version of beam")
+  return bigquery_tools.default_encoder(obj)
+
+
 def RowAsDictJsonCoder(*args, **kwargs):
   import warnings
-  warnings.warn("This class is deprecated and will be removed"
-                " in a future version of beam")
+  warnings.warn("This class is deprecated and will be permanently moved "
+                "to the bigquery_tools module in a future version of beam")
   return bigquery_tools.RowAsDictJsonCoder(*args, **kwargs)
+
+
+def BigQueryReader(*args, **kwargs):
+  import warnings
+  warnings.warn("This class is deprecated and will be permanently moved "
+                "to the bigquery_tools module in a future version of beam")
+  return bigquery_tools.BigQueryReader(*args, **kwargs)
+
+
+def BigQueryWriter(*args, **kwargs):
+  import warnings
+  warnings.warn("This class is deprecated and will be permanently moved "
+                "to the bigquery_tools module in a future version of beam")
+  return bigquery_tools.BigQueryWriter(*args, **kwargs)
+
+
+def BigQueryWrapper(*args, **kwargs):
+  import warnings
+  warnings.warn("This class is deprecated and will be permanently moved "
+                "to the bigquery_tools module in a future version of beam")
+  return bigquery_tools.BigQueryWrapper(*args, **kwargs)
 
 
 class TableRowJsonCoder(coders.Coder):
