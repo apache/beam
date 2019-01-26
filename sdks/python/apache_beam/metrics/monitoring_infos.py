@@ -231,7 +231,7 @@ def parse_namespace_and_name(monitoring_info_proto):
   if is_user_monitoring_info(monitoring_info_proto):
     # Remove the URN prefix which indicates that it is a user counter.
     to_split = monitoring_info_proto.urn[len(USER_COUNTER_URN_PREFIX):]
-  # If it is not a user counter, just use the first part fo the URN, i.e. 'beam'
+  # If it is not a user counter, just use the first part of the URN, i.e. 'beam'
   split = to_split.split(':')
   return split[0], ':'.join(split[1:])
 
