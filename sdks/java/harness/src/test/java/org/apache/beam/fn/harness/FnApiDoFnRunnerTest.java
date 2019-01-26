@@ -37,6 +37,7 @@ import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -559,7 +560,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
   @Test
   public void testUsingMetrics() throws Exception {
-    MetricsContainerImpl metricsContainer = new MetricsContainerImpl("testUsingMetrics");
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    MetricsContainerImpl metricsContainer = metricsContainerRegistry.getUnboundContainer();
     Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer);
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1L));
     IntervalWindow windowA = windowFn.assignWindow(new Instant(1L));
@@ -606,7 +608,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
 
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(metricsContainerRegistry);
     consumers.register(
@@ -648,30 +650,34 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     MetricsContainer mc = MetricsEnvironment.getCurrentContainer();
 
-    List<MetricUpdate> expectedMetrics = new ArrayList<MetricUpdate>();
-    MetricName metricName =
-        MetricName.named(
-            TestSideInputIsAccessibleForDownstreamCallersDoFn.class,
-            TestSideInputIsAccessibleForDownstreamCallersDoFn.USER_COUNTER_NAME);
-    expectedMetrics.add(create("testUsingMetrics", metricName, 2));
+    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder.setPCollectionLabel("Window.Into()/Window.Assign.out");
+    builder.setInt64Value(2);
+    expected.add(builder.build());
 
-    HashMap<String, String> labels = new HashMap<String, String>();
-
-    labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, "Window.Into()/Window.Assign.out");
-    metricName =
-        MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
-    expectedMetrics.add(create("testUsingMetrics", metricName, 2));
-
-    labels.put(
-        SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL,
+    builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder.setPCollectionLabel(
         "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
-    metricName =
-        MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
-    expectedMetrics.add(create("testUsingMetrics", metricName, 2));
+    builder.setInt64Value(2);
+    expected.add(builder.build());
+
+    builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrnForUserMetric(
+        TestSideInputIsAccessibleForDownstreamCallersDoFn.class.getName(),
+        TestSideInputIsAccessibleForDownstreamCallersDoFn.USER_COUNTER_NAME);
+    builder.setPTransformLabel(TEST_PTRANSFORM_ID);
+    builder.setInt64Value(2);
+    expected.add(builder.build());
 
     closeable.close();
-    MetricUpdates updates = metricsContainer.getUpdates();
-    assertThat(updates.counterUpdates(), containsInAnyOrder(expectedMetrics.toArray()));
+    List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
+    for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
+      result.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+    }
+    assertThat(result, containsInAnyOrder(expected.toArray()));
   }
 
   private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {

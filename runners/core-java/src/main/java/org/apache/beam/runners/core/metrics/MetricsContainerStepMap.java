@@ -102,7 +102,7 @@ public class MetricsContainerStepMap implements Serializable {
   /** Returns the container for the given step name. */
   public MetricsContainerImpl getContainer(String stepName) {
     checkArgument(!Strings.isNullOrEmpty(stepName), "stepName must be non-empty");
-    return getContainerForKey(MetricsContainerKey.unBounded());
+    return getContainerForKey(MetricsContainerKey.forStep(stepName));
   }
 
   /** @return the container for the given key */
