@@ -143,7 +143,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       PipelineOptions options,
       BeamRelNode node,
       DoFn<Row, Void> doFn,
-      Queue<Object> values,
+      Queue<Object[]> values,
       int limitCount) {
     options.as(DirectOptions.class).setBlockOnRun(false);
     Pipeline pipeline = Pipeline.create(options);
@@ -176,7 +176,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static Enumerable<Object> collect(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
-    Queue<Object> values = new ConcurrentLinkedQueue<>();
+    Queue<Object[]> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
         options
@@ -195,12 +195,12 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     Collector.globalValues.remove(id);
 
-    return Linq4j.asEnumerable(values);
+    return Linq4j.asEnumerable(unboxValues(values));
   }
 
   private static Enumerable<Object> limitCollect(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
-    Queue<Object> values = new ConcurrentLinkedQueue<>();
+    ConcurrentLinkedQueue<Object[]> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
         options
@@ -220,15 +220,15 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       values.remove();
     }
 
-    return Linq4j.asEnumerable(values);
+    return Linq4j.asEnumerable(unboxValues(values));
   }
 
   private static class Collector extends DoFn<Row, Void> {
 
     // This will only work on the direct runner.
-    private static final Map<Long, Queue<Object>> globalValues = new ConcurrentHashMap<>();
+    private static final Map<Long, Queue<Object[]>> globalValues = new ConcurrentHashMap<>();
 
-    @Nullable private volatile Queue<Object> values;
+    @Nullable private volatile Queue<Object[]> values;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {
@@ -238,13 +238,24 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     @ProcessElement
     public void processElement(ProcessContext context) {
-      Object[] avaticaRow = rowToAvatica(context.element());
-      if (avaticaRow.length == 1) {
-        values.add(avaticaRow[0]);
-      } else {
-        values.add(avaticaRow);
-      }
+      values.add(rowToAvatica(context.element()));
     }
+  }
+
+  private static List<Object> unboxValues(Queue<Object[]> values) {
+    return values.stream()
+        .map(
+            objects -> {
+              if (objects.length == 1) {
+                // if objects.length == 1, that means input Row contains only 1 column/element,
+                // then an Object instead of Object[] should be returned because of
+                // CalciteResultSet's behaviour that tries to convert one column row to an Object.
+                return objects[0];
+              } else {
+                return objects;
+              }
+            })
+        .collect(Collectors.toList());
   }
 
   private static Object[] rowToAvatica(Row row) {
