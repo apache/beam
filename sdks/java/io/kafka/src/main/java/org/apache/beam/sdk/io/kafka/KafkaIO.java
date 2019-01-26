@@ -662,22 +662,18 @@ public class KafkaIO {
     }
 
     /**
-     * Set additional parameters for KafkaUnboundedReader.offsetConsumer, added by BEAM-6285.
+     * Set additional configuration for the backend offset consumer. It may be required for a
+     * secured Kafka cluster, especially when you see similar WARN log message 'exception while
+     * fetching latest offset for partition {}. will be retried'.
      *
-     * <p>In KafkaIO.read(), there're two consumers running in the backend actually:<br>
-     * 1. KafkaUnboundedReader.consumer, which is the main consumer to read data from kafka
-     * topic(s);<br>
-     * 2. KafkaUnboundedReader.offsetConsumer, which is used to estimate backlog, by fetching the
-     * latest offset;<br>
+     * <p>In {@link KafkaIO#read()}, there're two consumers running in the backend actually:<br>
+     * 1. the main consumer, which reads data from kafka;<br>
+     * 2. the secondary offset consumer, which is used to estimate backlog, by fetching latest
+     * offset;<br>
      *
-     * <p>By default, KafkaUnboundedReader.offsetConsumer shares the same parameters as
-     * KafkaUnboundedReader.consumer, with a generated ConsumerConfig.GROUP_ID_CONFIG(value is
-     * "%topicname_offset_consumer_%randonNumber_%groupId"). This may not work when the topic is
-     * secured in Kafka.
-     *
-     * <p>In this case with secured topics, you can add specific parameters for
-     * KafkaUnboundedReader.offsetConsumer, to overwrite parameters from
-     * KafkaUnboundedReader.consumer.
+     * <p>By default, offset consumer inherits the configuration from main consumer, with an
+     * auto-generated {@link ConsumerConfig#GROUP_ID_CONFIG}. This may not work in a secured Kafka
+     * which requires more configurations.
      */
     public Read<K, V> withOffsetConsumerConfigOverrides(Map<String, Object> offsetConsumerConfig) {
       return toBuilder().setOffsetConsumerConfig(offsetConsumerConfig).build();
