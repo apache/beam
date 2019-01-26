@@ -42,7 +42,8 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
   private MetricsContainer unboundMetricContainer;
 
   public ElementCountFnDataReceiver(
-      FnDataReceiver<WindowedValue<T>> original, String pCollection,
+      FnDataReceiver<WindowedValue<T>> original,
+      String pCollection,
       MetricsContainerStepMap metricsContainerStepMap) {
     this.original = original;
     HashMap<String, String> labels = new HashMap<String, String>();
