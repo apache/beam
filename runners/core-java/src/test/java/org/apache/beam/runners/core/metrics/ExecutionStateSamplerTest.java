@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.util.common.worker;
+package org.apache.beam.runners.core.metrics;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -23,12 +23,12 @@ import static org.mockito.Mockito.mock;
 
 import java.io.Closeable;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.junit.Before;
 import org.junit.Test;
 
-/** Tests for {@link ExecutionStateSampler}. */
+/** Tests for {@link org.apache.beam.runners.core.metrics.ExecutionStateSampler}. */
 public class ExecutionStateSamplerTest {
 
   private MillisProvider clock;
