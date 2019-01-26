@@ -50,13 +50,13 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterab
  */
 public class MetricsContainerStepMap implements Serializable {
 
-  /** Key class to lookup the metric container for a step or unbound to any step.
-   *  This is preferable to using null(which can't be used as a key).
-   *  Additonally, this class could be extended to allow containers for other non pTransform
-   *  contexts.
+  /**
+   * Key class to lookup the metric container for a step or unbound to any step. This is preferable
+   * to using null(which can't be used as a key). Additonally, this class could be extended to allow
+   * containers for other non pTransform contexts.
    */
   @AutoValue
-  abstract static class MetricsContainerKey {
+  abstract static class MetricsContainerKey implements Serializable {
     public static MetricsContainerKey unBounded() {
       return new AutoValue_MetricsContainerStepMap_MetricsContainerKey(null);
     }
@@ -118,7 +118,8 @@ public class MetricsContainerStepMap implements Serializable {
    * MetricsContainerStepMap}.
    */
   public void updateAll(MetricsContainerStepMap other) {
-    for (Map.Entry<MetricsContainerKey, MetricsContainerImpl> container : other.metricsContainers.entrySet()) {
+    for (Map.Entry<MetricsContainerKey, MetricsContainerImpl> container :
+        other.metricsContainers.entrySet()) {
       getContainerForKey(container.getKey()).update(container.getValue());
     }
   }

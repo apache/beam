@@ -73,7 +73,6 @@ public class PTransformFunctionRegistry {
         () -> {
           MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
           try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
-            // TODO(ajamato): Setup the proper pTransform context for Metrics to use.
             // TODO(ajamato): Set the proper state sampler state for ExecutionTime Metrics to use.
             runnable.run();
           }

@@ -106,7 +106,8 @@ public class PCollectionConsumerRegistry {
           pCollectionIdsToConsumers.get(pCollectionId);
       FnDataReceiver<WindowedValue<?>> consumer =
           MultiplexingFnDataReceiver.forConsumers(consumers);
-      wrappedConsumer = new ElementCountFnDataReceiver(consumer, pCollectionId);
+      wrappedConsumer = new ElementCountFnDataReceiver(
+          consumer, pCollectionId, metricsContainerRegistry);
       pCollectionIdsToWrappedConsumer.put(pCollectionId, wrappedConsumer);
     }
     return wrappedConsumer;

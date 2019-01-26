@@ -17,12 +17,16 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import java.io.Closeable;
 import java.util.HashMap;
 import org.apache.beam.runners.core.metrics.LabeledMetrics;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
@@ -35,28 +39,29 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
 
   private FnDataReceiver<WindowedValue<T>> original;
   private Counter counter;
+  private MetricsContainer unboundMetricContainer;
 
-  public ElementCountFnDataReceiver(FnDataReceiver<WindowedValue<T>> original, String pCollection) {
+  public ElementCountFnDataReceiver(
+      FnDataReceiver<WindowedValue<T>> original, String pCollection,
+      MetricsContainerStepMap metricsContainerStepMap) {
     this.original = original;
     HashMap<String, String> labels = new HashMap<String, String>();
     labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, pCollection);
     MonitoringInfoMetricName metricName =
         MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
-    // TODO(BEAM-6505): Introducing a way for system counters to be instantiated on a consisntent
-    // metrics container. rather than using the currently scoped metrics container.
-    // There is a risk of accidentally creating the same metric under different metric containers
-    // which would create separate monitoringInfos for the same metrics.
-    // This will not happen for ElementCount because the producing pTransform for the pCollection
-    // always invokes the consumer, so it will always be instantiated under the same
-    // metric container scope. The use of the currently scoped MetricContainer is to use the
-    // pTransform of the current scope and attach it to the counter.
     this.counter = LabeledMetrics.counter(metricName);
+    // Place it in a metric container which is not bound to the step name.
+    // Though, this is not likely to happen for ElementCount because the producing pTransform for
+    // the pCollection always invokes the consumer.
+    this.unboundMetricContainer = metricsContainerStepMap.getUnboundContainer();
   }
 
   @Override
   public void accept(WindowedValue<T> input) throws Exception {
-    // Increment the counter for each window the element occurs in.
-    this.counter.inc(input.getWindows().size());
-    this.original.accept(input);
+    try (Closeable close = MetricsEnvironment.scopedMetricsContainer(this.unboundMetricContainer)) {
+      // Increment the counter for each window the element occurs in.
+      this.counter.inc(input.getWindows().size());
+      this.original.accept(input);
+    }
   }
 }

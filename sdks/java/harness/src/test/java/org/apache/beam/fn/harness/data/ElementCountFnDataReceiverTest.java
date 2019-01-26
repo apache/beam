@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import java.io.Closeable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -41,30 +42,27 @@ public class ElementCountFnDataReceiverTest {
   @Test
   public void testCountsElements() throws Exception {
     final String pCollectionA = "pCollectionA";
-    final String stepA = "stepA";
 
-    MetricsContainerImpl metricsContainer = new MetricsContainerImpl(stepA);
-    try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
+    MetricsContainerStepMap metricContainerRegistry = new MetricsContainerStepMap();
 
-      FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
-      ElementCountFnDataReceiver<String> wrapperConsumer =
-          new ElementCountFnDataReceiver(consumer, pCollectionA);
-      WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
-      int numElements = 20;
-      for (int i = 0; i < numElements; i++) {
-        wrapperConsumer.accept(element);
-      }
-
-      SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-      builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
-      builder.setPCollectionLabel(pCollectionA);
-      builder.setInt64Value(numElements);
-      MonitoringInfo expected = builder.build();
-
-      // Clear the timestamp before compairison.
-      MonitoringInfo first = metricsContainer.getMonitoringInfos().iterator().next();
-      MonitoringInfo result = SimpleMonitoringInfoBuilder.clearTimestamp(first);
-      assertEquals(expected, result);
+    FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
+    ElementCountFnDataReceiver<String> wrapperConsumer =
+        new ElementCountFnDataReceiver(consumer, pCollectionA, metricContainerRegistry);
+    WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
+    int numElements = 20;
+    for (int i = 0; i < numElements; i++) {
+      wrapperConsumer.accept(element);
     }
+
+    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder.setPCollectionLabel(pCollectionA);
+    builder.setInt64Value(numElements);
+    MonitoringInfo expected = builder.build();
+
+    // Clear the timestamp before compairison.
+    MonitoringInfo first = metricContainerRegistry.getMonitoringInfos().iterator().next();
+    MonitoringInfo result = SimpleMonitoringInfoBuilder.clearTimestamp(first);
+    assertEquals(expected, result);
   }
 }

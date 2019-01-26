@@ -29,7 +29,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 @AutoValue
 public abstract class MetricKey implements Serializable {
 
-  /** The step name that is associated with this metric or Null if none is associated */
+  /** The step name that is associated with this metric or Null if none is associated. */
   @Nullable
   public abstract String stepName();
 
