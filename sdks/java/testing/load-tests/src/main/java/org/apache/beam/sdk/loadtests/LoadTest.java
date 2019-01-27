@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Read;
@@ -39,6 +40,9 @@ import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -164,6 +168,18 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
       return input.apply(name, ParDo.of(syntheticStep.get()));
     } else {
       return input;
+    }
+  }
+
+  <T> PCollection<T> applyWindowing(PCollection<T> input) {
+    return applyWindowing(input, options.getInputWindowDurationSec());
+  }
+
+  <T> PCollection<T> applyWindowing(PCollection<T> input, @Nullable Long windowDuration) {
+    if (windowDuration == null) {
+      return input.apply(Window.into(new GlobalWindows()));
+    } else {
+      return input.apply(Window.into(FixedWindows.of(Duration.standardSeconds(windowDuration))));
     }
   }
 }
