@@ -38,6 +38,7 @@ option go_package = "fnexecution_v1";
 option java_package = "org.apache.beam.model.fnexecution.v1";
 option java_outer_classname = "BeamFnApi";
 
+import "beam_pipeline_metrics.proto";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/descriptor.proto";
@@ -428,7 +429,7 @@ message MonitoringInfo {
   // The Metric or monitored state.
   oneof data {
     MonitoringTableData monitoring_table_data = 3;
-    Metric metric = 4;
+    org.apache.beam.model.pipeline.v1.Metric metric = 4;
   }
 
   enum MonitoringInfoLabels {
@@ -492,68 +493,6 @@ message MonitoringInfoTypeUrns {
     LATEST_INT64_TYPE = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
                                "beam:metrics:latest_int_64"];
   }
-}
-
-message Metric {
-  // (Required) The data for this metric.
-  oneof data {
-    CounterData counter_data = 1;
-    DistributionData distribution_data = 2;
-    ExtremaData extrema_data = 3;
-  }
-}
-
-// Data associated with a Counter or Gauge metric.
-// This is designed to be compatible with metric collection
-// systems such as DropWizard.
-message CounterData {
-  oneof value {
-    int64 int64_value = 1;
-    double double_value = 2;
-    string string_value = 3;
-  }
-}
-
-// Extrema messages are used for calculating
-// Top-N/Bottom-N metrics.
-message ExtremaData {
-  oneof extrema {
-    IntExtremaData int_extrema_data = 1;
-    DoubleExtremaData double_extrema_data = 2;
-  }
-}
-
-message IntExtremaData {
-  repeated int64 int_values = 1;
-}
-
-message DoubleExtremaData {
-  repeated double double_values = 2;
-}
-
-// Data associated with a distribution metric.
-// This is based off of the current DistributionData metric.
-// This is not a stackdriver or dropwizard compatible
-// style of distribution metric.
-message DistributionData {
-  oneof distribution {
-    IntDistributionData int_distribution_data = 1;
-    DoubleDistributionData double_distribution_data = 2;
-  }
-}
-
-message IntDistributionData {
-  int64 count = 1;
-  int64 sum = 2;
-  int64 min = 3;
-  int64 max = 4;
-}
-
-message DoubleDistributionData {
-  int64 count = 1;
-  double sum = 2;
-  double min = 3;
-  double max = 4;
 }
 
 // General MonitoredState information which contains

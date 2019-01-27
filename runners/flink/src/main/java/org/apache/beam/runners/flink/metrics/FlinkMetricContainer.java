@@ -23,12 +23,12 @@ import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAtt
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.CounterData;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.DistributionData;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.ExtremaData;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.IntDistributionData;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.PipelineMetrics.CounterData;
+import org.apache.beam.model.pipeline.v1.PipelineMetrics.DistributionData;
+import org.apache.beam.model.pipeline.v1.PipelineMetrics.ExtremaData;
+import org.apache.beam.model.pipeline.v1.PipelineMetrics.IntDistributionData;
+import org.apache.beam.model.pipeline.v1.PipelineMetrics.Metric;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.Distribution;

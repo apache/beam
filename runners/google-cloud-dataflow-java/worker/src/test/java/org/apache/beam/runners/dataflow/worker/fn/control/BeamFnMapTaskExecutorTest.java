@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.pipeline.v1.PipelineMetrics;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.TimerInternals;
@@ -475,9 +476,9 @@ public class BeamFnMapTaskExecutorTest {
             .setType("beam:metrics:sum_int_64")
             .putLabels("PTRANSFORM", "ExpectedPTransform")
             .setMetric(
-                BeamFnApi.Metric.newBuilder()
+                PipelineMetrics.Metric.newBuilder()
                     .setCounterData(
-                        BeamFnApi.CounterData.newBuilder()
+                        PipelineMetrics.CounterData.newBuilder()
                             .setInt64Value(expectedCounterValue)
                             .build())
                     .build())
