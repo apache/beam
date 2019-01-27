@@ -227,7 +227,7 @@ def portableWordCountTask(name, streaming) {
       if (streaming)
         options += ["--streaming"]
       else
-      // workaround for local file output in docker container
+        // workaround for local file output in docker container
         options += ["--environment_cache_millis=10000"]
       if (project.hasProperty("jobEndpoint"))
         options += ["--job_endpoint=${project.property('jobEndpoint')}"]
