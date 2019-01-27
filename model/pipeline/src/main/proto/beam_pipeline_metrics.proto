@@ -29,6 +29,16 @@ option go_package = "pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "PipelineMetrics";
 
+message MetricKey {
+    string step = 1;
+    MetricName metric_name = 2;
+}
+
+message MetricName {
+    string namespace = 1;
+    string name = 2;
+}
+
 message Metric {
     // (Required) The data for this metric.
     oneof data {
