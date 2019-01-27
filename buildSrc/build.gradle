@@ -32,7 +32,7 @@ repositories { jcenter() }
 dependencies {
   compile gradleApi()
   compile localGroovy()
-  compile 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
+  compile 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
 }
 
 // Because buildSrc is built and tested automatically _before_ gradle

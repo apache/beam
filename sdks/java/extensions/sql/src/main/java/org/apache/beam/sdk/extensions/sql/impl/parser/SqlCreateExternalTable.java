@@ -151,7 +151,7 @@ public class SqlCreateExternalTable extends SqlCreate implements SqlExecutableSt
   private Table toTable() {
     return Table.builder()
         .type(SqlDdlNodes.getString(type))
-        .name(name.getSimple())
+        .name(SqlDdlNodes.name(name))
         .schema(columnList.stream().collect(toSchema()))
         .comment(SqlDdlNodes.getString(comment))
         .location(SqlDdlNodes.getString(location))
