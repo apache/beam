@@ -40,6 +40,7 @@ public class MetricFiltering {
   public static boolean matches(MetricsFilter filter, MetricKey key) {
     return filter == null
         || (matchesName(key.metricName(), filter.names())
+            && key.stepName() != null
             && matchesScope(key.stepName(), filter.steps()));
   }
 
