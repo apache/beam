@@ -119,6 +119,8 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
                 "Collect metrics",
                 ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
+    input = applyWindowing(input);
+
     for (int i = 0; i < options.getFanout(); i++) {
       applyStepIfPresent(input, format("Step: %d", i), syntheticStep)
           .apply(format("Convert to Long: %d", i), MapElements.via(new ByteValueToLong()))
