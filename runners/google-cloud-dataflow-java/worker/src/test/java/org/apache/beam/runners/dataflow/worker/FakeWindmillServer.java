@@ -195,22 +195,31 @@ class FakeWindmillServer extends WindmillServerStub {
           }
           for (Windmill.ComputationWorkItems computationWork : response.getWorkList()) {
             Instant inputDataWatermark =
-                    WindmillTimeUtils.windmillToHarnessWatermark(computationWork.getInputDataWatermark());
+                WindmillTimeUtils.windmillToHarnessWatermark(
+                    computationWork.getInputDataWatermark());
             for (Windmill.WorkItem workItem : computationWork.getWorkList()) {
-              receiver.receiveWork(computationWork.getComputationId(), inputDataWatermark, Instant.now(), workItem);
+              receiver.receiveWork(
+                  computationWork.getComputationId(), inputDataWatermark, Instant.now(), workItem);
             }
           }
         }
       }
 
       @Override
-      public void close() { }
+      public void close() {}
+
       @Override
-      public void awaitTermination() { }
+      public void awaitTermination() {}
+
       @Override
-      public boolean awaitTermination(int time, TimeUnit unit) { return false; }
+      public boolean awaitTermination(int time, TimeUnit unit) {
+        return false;
+      }
+
       @Override
-      public Instant startTime() { return startTime; }
+      public Instant startTime() {
+        return startTime;
+      }
     };
   }
 
@@ -223,31 +232,43 @@ class FakeWindmillServer extends WindmillServerStub {
   public CommitWorkStream commitWorkStream() {
     Instant startTime = Instant.now();
     return new CommitWorkStream() {
-        @Override
-        public boolean commitWorkItem(
-                String computation, WorkItemCommitRequest request, Consumer<Windmill.CommitStatus> onDone) {
-          LOG.debug("commitWorkStream::commitWorkItem: {}", request);
-          errorCollector.checkThat(request.hasWorkToken(), equalTo(true));
-          errorCollector.checkThat(request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
-          errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
-          commitsReceived.put(request.getWorkToken(), request);
-          onDone.accept(Windmill.CommitStatus.OK);
-          return true;  // The request was accepted.
-        }
+      @Override
+      public boolean commitWorkItem(
+          String computation,
+          WorkItemCommitRequest request,
+          Consumer<Windmill.CommitStatus> onDone) {
+        LOG.debug("commitWorkStream::commitWorkItem: {}", request);
+        errorCollector.checkThat(request.hasWorkToken(), equalTo(true));
+        errorCollector.checkThat(
+            request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
+        errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
+        commitsReceived.put(request.getWorkToken(), request);
+        onDone.accept(Windmill.CommitStatus.OK);
+        return true; // The request was accepted.
+      }
 
-        @Override
-        public void flush() { }
-        @Override
-        public void close() { }
-        @Override
-        public void awaitTermination() { }
-        @Override
-        public boolean awaitTermination(int time, TimeUnit unit) { return false; }
-        @Override
-        public void closeAfterDefaultTimeout() { }
-        @Override
-        public Instant startTime() { return startTime; }
-      };
+      @Override
+      public void flush() {}
+
+      @Override
+      public void close() {}
+
+      @Override
+      public void awaitTermination() {}
+
+      @Override
+      public boolean awaitTermination(int time, TimeUnit unit) {
+        return false;
+      }
+
+      @Override
+      public void closeAfterDefaultTimeout() {}
+
+      @Override
+      public Instant startTime() {
+        return startTime;
+      }
+    };
   }
 
   public void waitForEmptyWorkQueue() {
