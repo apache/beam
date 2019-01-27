@@ -138,10 +138,21 @@ build.dependsOn buildWebsite
 createBuildTask( name:'Gcs', useTestConfig: true, baseUrl: getBaseUrl(), dockerWorkDir: dockerWorkDir)
 createBuildTask( name:'Apache', dockerWorkDir: dockerWorkDir)
 
+/**
+ * Use the pull request ID in the URL path, or the git branch when building locally.
+ * This allows staging multiple work trees without clobbering eachother, i.e.
+ * for shared GCS staging, or for locally comparing the differences between
+ * branches.
+ */
 def getBaseUrl() {
-  System.getenv('ghprbPullId')?.trim() ?:
-    "${System.getProperty('user.name')}-${grgit.branch.current().getName()}"
+  def pullRequestId = System.getenv('ghprbPullId')?.trim()
+  if (pullRequestId) { return pullRequestId }
+
+  // grgit is null if building outside of git (i.e. from source archive)
+  def buildContext = grgit ? grgit.branch.current().getName() : 'archive'
+  return "${System.getProperty('user.name')}-${buildContext}"
 }
+
 def buildContentDir(name) {
   "${project.rootDir}/build/website/generated-${name.toLowerCase()}-content"
 }
@@ -186,6 +197,7 @@ task preCommit {
 // Creates a new commit on asf-site branch
 task commitWebsite {
   doLast {
+    assert grgit : "Cannot commit website outside of git repository"
     assert file("${buildContentDir('apache')}/index.html").exists()
     // Generated javadoc and pydoc content is not built or stored in this repo.
     assert !file("${buildContentDir('apache')}/documentation/sdks/javadoc").exists()
@@ -242,6 +254,8 @@ task commitWebsite {
  */
 task publishWebsite {
   doLast {
+    assert grgit : "Cannot publish website outside of git repository"
+
     def git = grgit.open()
     git.checkout(branch: 'asf-site')
     if (!commitedChanges) {

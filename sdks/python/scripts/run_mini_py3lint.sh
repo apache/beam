@@ -37,7 +37,6 @@ set -o errexit
 set -o pipefail
 
 MODULE=apache_beam
-EXCLUDE_CLAUSE=--exclude=apache_beam/io/gcp/internal/clients/*
 
 usage(){ echo "Usage: $0 [MODULE|--help]  # The default MODULE is $MODULE"; }
 
@@ -49,4 +48,4 @@ if test $# -gt 0; then
 fi
 
 echo "Running flake8 for module $MODULE:"
-flake8 $MODULE $EXCLUDE_CLAUSE --count --select=E9,F821,F822,F823 --show-source --statistics
+flake8 $MODULE --count --select=E9,F821,F822,F823 --show-source --statistics
