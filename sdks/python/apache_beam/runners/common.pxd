@@ -83,6 +83,8 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef bint cache_globally_windowed_args
   cdef object process_method
   cdef bint is_splittable
+  cdef object restriction_tracker
+  cdef WindowedValue current_windowed_value
 
 
 cdef class DoFnRunner(Receiver):

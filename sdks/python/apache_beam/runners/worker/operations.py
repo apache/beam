@@ -98,6 +98,10 @@ class ConsumerSet(Receiver):
     self.update_counters_finish()
 
   def try_split(self, fraction_of_remainder):
+    # TODO(SDF): Consider supporting this.
+    # This would never come up in the existing SDF expansion, but might
+    # be useful to support fused SDF nodes.
+    # This would require dedicated delivery to each of the ops separately.
     return None, None
 
   def update_counters_start(self, windowed_value):
@@ -210,8 +214,7 @@ class Operation(object):
     self.metrics_container.reset()
 
   def output(self, windowed_value, output_index=0):
-    return cython.cast(
-        Receiver, self.receivers[output_index]).receive(windowed_value)
+    cython.cast(Receiver, self.receivers[output_index]).receive(windowed_value)
 
   def add_receiver(self, operation, output_index=0):
     """Adds a receiver operation for the specified output."""
@@ -583,7 +586,12 @@ class SdfProcessElements(DoOperation):
             (self, delayed_application))
 
   def try_split(self, fraction_of_remainder):
-    return self.dofn_runner.try_split(fraction_of_remainder)
+    primary, residual = self.dofn_runner.try_split(fraction_of_remainder)
+    if primary or residual:
+      return (self, primary), (self, residual)
+    else:
+      assert primary is None and residual is None
+      return None, None
 
 
 class DoFnRunnerReceiver(Receiver):

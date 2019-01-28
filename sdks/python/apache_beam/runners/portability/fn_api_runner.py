@@ -417,7 +417,7 @@ class FnApiRunner(runner.PipelineRunner):
             data_spec.api_service_descriptor.url = (
                 data_api_service_descriptor.url)
           transform.spec.payload = data_spec.SerializeToString()
-        elif transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+        elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           for tag, si in payload.side_inputs.items():
@@ -551,7 +551,6 @@ class FnApiRunner(runner.PipelineRunner):
 
       prev_stops = collections.defaultdict(lambda: sys.maxint)
       for split in splits:
-        print("SPLIT", split)
         for delayed_application in split.residual_roots:
           add_application(delayed_application.application)
         for buffer_split in split.buffer_splits:
@@ -582,7 +581,6 @@ class FnApiRunner(runner.PipelineRunner):
             if index > prev_stop:
               break
             element = coder_impl.decode_from_stream(input_stream, True)
-            print(element, index, index >= buffer_split.first_residual_element)
             if index >= buffer_split.first_residual_element:
               coder_impl.encode_to_stream(element, output_stream, True)
             index += 1
@@ -1018,7 +1016,6 @@ class BundleManager(object):
     # Actually start the bundle.
     if registration_future and registration_future.get().error:
       raise RuntimeError(registration_future.get().error)
-    print("Starting", process_bundle_id)
     process_bundle = beam_fn_api_pb2.InstructionRequest(
         instruction_id=process_bundle_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
@@ -1046,7 +1043,6 @@ class BundleManager(object):
       logging.debug('Wait for the bundle to finish.')
       result = result_future.get()
 
-    print("Completed", process_bundle_id)
     if random_splitter:
       random_splitter.stop()
       split_results = random_splitter.split_results()
@@ -1115,9 +1111,9 @@ class BundleSplitter(threading.Thread):
               process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitRequest(
                   instruction_reference=self._instruction_id,
                   fraction_of_remainder=fraction))).get()
-      print(split_result)
       if split_result.error:
-        print(fraction, split_result.error)
+        logging.info('Unable to split at %s: %s' % (
+            fraction, split_result.error))
       elif split_result.process_bundle_split:
         self._results.append(split_result.process_bundle_split)
 

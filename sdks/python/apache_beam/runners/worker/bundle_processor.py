@@ -124,13 +124,7 @@ class DataInputOperation(RunnerIOOperation):
     self.stop = None
 
   def process(self, windowed_value):
-    primary, residual = self.receivers[0].receive_splittable(windowed_value)
-    while residual:
-      element, _ = windowed_value.value
-      # TODO(SDF): Does this mess with output counters?
-      # Do we even ever call bare process()?
-      primary, residual = self.receivers[0].receive_splittable(
-          windowed_value.with_value((element, residual)))
+    self.output(windowed_value)
 
   def process_encoded(self, encoded_windowed_values):
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
@@ -144,10 +138,9 @@ class DataInputOperation(RunnerIOOperation):
       self.output(decoded_value)
 
   def try_split(self, fraction_of_remainder, total_buffer_size=None):
-    print("TRY_SPLIT", fraction_of_remainder)
     with self.splitting_lock:
       if not total_buffer_size:
-        total_buffer_size = 4 #self.index + 1
+        total_buffer_size = self.index + 2
       elif self.stop and total_buffer_size > self.stop:
         total_buffer_size = self.stop
       stop_offset = (total_buffer_size - self.index) * fraction_of_remainder
@@ -156,7 +149,7 @@ class DataInputOperation(RunnerIOOperation):
             stop_offset)
         if element_primary:
           self.stop = self.index + 1
-          return self.stop - 2, [element_primary], [element_residual], self.stop
+          return self.stop - 2, element_primary, element_residual, self.stop
 
       desired_stop = max(int(stop_offset), 1) + self.index
       if desired_stop == self.stop:
@@ -527,26 +520,18 @@ class BundleProcessor(object):
       for data_channel, expected_targets in data_channels.items():
         for data in data_channel.input_elements(
             instruction_id, expected_targets):
-          input_op_by_target[data.target.primitive_transform_reference
-              ].process_encoded(data.data)
+          input_op_by_target[
+              data.target.primitive_transform_reference
+          ].process_encoded(data.data)
 
       # Finish all operations.
       for op in self.ops.values():
         logging.debug('finish %s', op)
         op.finish()
 
-      delayed_applications = []
-      for op, element_and_residual in execution_context.delayed_applications:
-        ptransform_id, main_input_tag, main_input_coder, = op.input_info
-        # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
-        delayed_applications.append(beam_fn_api_pb2.DelayedBundleApplication(
-            application=beam_fn_api_pb2.BundleApplication(
-                ptransform_id=ptransform_id,
-                input_id=main_input_tag,
-                element=main_input_coder.get_impl().encode_nested(
-                    element_and_residual))))
-
-      return delayed_applications
+      return [
+          self.delayed_bundle_application(op, residual)
+          for op, residual in execution_context.delayed_applications]
 
     finally:
       # Ensure any in-flight split attempts complete.
@@ -563,23 +548,14 @@ class BundleProcessor(object):
                                split_request.total_buffer_size.get(
                                    op.target.primitive_transform_reference))
           if split:
-            import pprint
-            pprint.pprint(split)
-            (primary_end, primary_elements, residual_elements, residual_start,
+            (primary_end, element_primary, element_residual, residual_start,
              ) = split
-            encode = op.windowed_coder_impl.encode
-            ptransform_id = op.target.primitive_transform_reference
-            def application(element):
-              return beam_fn_api_pb2.BundleApplication(
-                  ptransform_id=op.target.primitive_transform_reference,
-                  input_id=op.target.name,
-                  element=encode(element))
-            split_response.primary_roots.extend(
-                application(element) for element in primary_elements)
-            split_response.residual_roots.extend(
-                beam_fn_api_pb2.DelayedBundleApplication(
-                    application=application(element))
-                for element in residual_elements)
+            if element_primary:
+              split_response.primary_roots.add().CopyFrom(
+                  self.delayed_bundle_application(*element_primary).application)
+            if element_residual:
+              split_response.residual_roots.add().CopyFrom(
+                self.delayed_bundle_application(*element_residual))
             split_response.buffer_splits.extend([
                 beam_fn_api_pb2.BufferSplit(
                     ptransform_id=op.target.primitive_transform_reference,
@@ -589,6 +565,15 @@ class BundleProcessor(object):
 
     return split_response
 
+  def delayed_bundle_application(self, op, element_and_restriction):
+    ptransform_id, main_input_tag, main_input_coder, = op.input_info
+    # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
+    return beam_fn_api_pb2.DelayedBundleApplication(
+        application=beam_fn_api_pb2.BundleApplication(
+            ptransform_id=ptransform_id,
+            input_id=main_input_tag,
+            element=main_input_coder.get_impl().encode_nested(
+                element_and_restriction)))
 
   def metrics(self):
     # DEPRECATED
@@ -684,7 +669,6 @@ class BeamTransformFactory(object):
     return creator(self, transform_id, transform_proto, payload, consumers)
 
   def get_coder(self, coder_id):
-   try:
     if coder_id not in self.descriptor.coders:
       raise KeyError("No such coder: %s" % coder_id)
     coder_proto = self.descriptor.coders[coder_id]
@@ -694,10 +678,6 @@ class BeamTransformFactory(object):
       # No URN, assume cloud object encoding json bytes.
       return operation_specs.get_coder_from_spec(
           json.loads(coder_proto.spec.spec.payload))
-   except:
-    print("CODER_ID", coder_id)
-    print(dict(self.descriptor.coders))
-    raise
 
   def get_windowed_coder(self, pcoll_id):
     coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
@@ -872,7 +852,10 @@ def create(*args):
     def __init__(self, fn, restriction_provider):
       self.restriction_provider = restriction_provider
 
-    def process(self, element, *args, **kwargs):
+    # An unused window is requested to force explosion of multi-window
+    # WindowedValues.
+    def process(
+        self, element, _unused_window=beam.DoFn.WindowParam, *args, **kwargs):
       # TODO(SDF): Do we want to allow mutation of the element?
       # (E.g. it could be nice to shift bulky description to the portion
       # that can be distributed.)
@@ -892,7 +875,6 @@ def create(*args):
 
     def process(self, element_restriction, *args, **kwargs):
       element, restriction = element_restriction
-      # TODO: parts?
       for part in self.restriction_provider.split(element, restriction):
         yield element, part
 
@@ -910,36 +892,6 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       serialized_fn, parameter,
       operation_cls=operations.SdfProcessElements)
 
-  class ProxyDoFn(beam.DoFn):
-    def __init__(self, fn, restriction_provider):
-      self.fn = fn
-      self.restriction_provider = restriction_provider
-
-    def start_bundle(self):
-      return self.fn.start_bundle()
-
-    def process(self, element_restriction, *args, **kwargs):
-      element, restriction = element_restriction
-      tracker = self.restriction_provider.create_tracker(restriction)
-      def swap(value):
-        if isinstance(value, beam.transforms.core.RestrictionProvider):
-          return tracker
-        else:
-          return value
-      args = [swap(arg) for arg in args]
-      kwargs = {key: swap(value) for key, value in kwargs}
-
-      # TODO: Not in args or kwargs.
-      results = self.fn.process(element, *args, restriction_tracker=tracker, **kwargs)
-      if results:
-        for output in results:
-          yield output
-
-    def finish_bundle(self):
-      return self.fn.finish_bundle()
-
-  return _create_sdf_operation(ProxyDoFn, *args)
-
 
 def _create_sdf_operation(
     proxy_dofn,
@@ -947,11 +899,9 @@ def _create_sdf_operation(
 
   dofn_data = pickler.loads(parameter.do_fn.spec.payload)
   dofn = dofn_data[0]
-  restriction_provider = common.DoFnSignature(dofn)._get_restriction_provider(
-      dofn)
+  restriction_provider = common.DoFnSignature(dofn).get_restriction_provider()
   serialized_fn = pickler.dumps(
       (proxy_dofn(dofn, restriction_provider),) + dofn_data[1:])
-#  parameter.splittable = False
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
       serialized_fn, parameter)

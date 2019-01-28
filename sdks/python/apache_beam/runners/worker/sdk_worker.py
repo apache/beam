@@ -310,11 +310,9 @@ class SdkWorker(object):
     processor.reset()
     self.cached_bundle_processors[bundle_descriptor_id].append(processor)
 
-  # TODO(SDF): What threadpool should this belong to?
   def process_bundle_split(self, request, instruction_id):
     processor = self.active_bundle_processors.get(request.instruction_reference)
     if not processor:
-      print(self.active_bundle_processors.keys())
       raise ValueError('Instruction not running: %s' % instruction_id)
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,

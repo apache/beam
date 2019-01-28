@@ -83,7 +83,8 @@ class ReadFiles(DoFn):
         output_count += 1
 
         if self._resume_count and output_count == self._resume_count:
-          yield ProcessContinuation()
+          restriction_tracker.checkpoint_from_process()
+          # yield ProcessContinuation()
           break
 
         pos += len_line
@@ -111,11 +112,10 @@ class ExpandStrings(DoFn):
       restriction_tracker=ExpandStringsProvider(),
       *args, **kwargs):
     side = []
-#    side.extend(side1)
-#    side.extend(side2)
-#    side.extend(side3)
-    assert isinstance(restriction_tracker, OffsetRestrictionTracker), (
-        restriction_tracker)
+    side.extend(side1)
+    side.extend(side2)
+    side.extend(side3)
+    assert isinstance(restriction_tracker, OffsetRestrictionTracker)
     side = list(side)
     for i in range(restriction_tracker.start_position(),
                    restriction_tracker.stop_position()):

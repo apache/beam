@@ -107,11 +107,6 @@ class OffsetRestrictionTracker(RestrictionTracker):
       return self._range.stop
 
   def try_claim(self, position):
-    res = self.try_claim0(position)
-    print("try_claim", position, self._current_position, "range", self._range.start, self._range.stop, res)
-    return res
-
-  def try_claim0(self, position):
     with self._lock:
       if self._last_claim_attempt and position <= self._last_claim_attempt:
         raise ValueError(
@@ -132,6 +127,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
       return False
 
+  # TODO(SDF): Re-use try_split(0).
   def checkpoint(self):
     with self._lock:
       # If self._current_position is 'None' no records have been claimed so
@@ -146,6 +142,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
       self._range = OffsetRange(self._range.start, end_position)
       return residual_range
 
+  # TODO(SDF): Rename.
   def checkpoint_from_process(self):
     with self._lock:
       self._checkpoint_residual = self.checkpoint()
@@ -160,7 +157,6 @@ class OffsetRestrictionTracker(RestrictionTracker):
           cur = self._current_position
         if cur < self._range.stop - 1:
           split_point = cur + int(max(1, (self._range.stop - cur) * fraction))
-          print("cur", cur, "self._range", self._range.start, self._range.stop, "fraction", fraction, "split_point", split_point)
           if split_point < self._range.stop:
             prev_stop, self._range.stop = self._range.stop, split_point
             return (self._range.start, split_point), (split_point, prev_stop)

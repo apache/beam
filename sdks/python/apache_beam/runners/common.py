@@ -24,7 +24,6 @@ For internal use only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
-import threading
 import traceback
 from builtins import next
 from builtins import object
@@ -212,7 +211,7 @@ class DoFnSignature(object):
     self.start_bundle_method = MethodWrapper(do_fn, 'start_bundle')
     self.finish_bundle_method = MethodWrapper(do_fn, 'finish_bundle')
 
-    restriction_provider = self._get_restriction_provider(do_fn)
+    restriction_provider = self.get_restriction_provider()
     self.initial_restriction_method = (
         MethodWrapper(restriction_provider, 'initial_restriction')
         if restriction_provider else None)
@@ -238,7 +237,7 @@ class DoFnSignature(object):
         method = timer_spec._attached_callback
         self.timer_methods[timer_spec] = MethodWrapper(do_fn, method.__name__)
 
-  def _get_restriction_provider(self, do_fn):
+  def get_restriction_provider(self):
     result = _find_param_with_default(self.process_method,
                                       default_as_type=RestrictionProvider)
     return result[1] if result else None
@@ -524,8 +523,11 @@ class PerWindowInvoker(DoFnInvoker):
       restriction_tracker = self.invoke_create_tracker(restriction)
 
     if restriction_tracker:
-      # TODO(SDF): Pre-explode?
-      assert len(windowed_value.windows) == 1 or not self.has_windowed_inputs
+      if len(windowed_value.windows) > 1 and self.has_windowed_inputs:
+        # Should never get here due to window explosion in
+        # the upstream pair-with-restriction.
+        raise NotImplementedError(
+            'SDFs in multiply-windowed values with windowed arguments.')
       restriction_tracker_param = _find_param_with_default(
           self.signature.process_method,
           default_as_type=core.RestrictionProvider)[0]
@@ -633,7 +635,6 @@ class PerWindowInvoker(DoFnInvoker):
     current_windowed_value = self.current_windowed_value
     if restriction_tracker and current_windowed_value:
       primary, residual = self.restriction_tracker.try_split(fraction)
-      # TODO(SDF): Both or none
       assert (primary is None) == (residual is None)
       if primary:
           element = self.current_windowed_value.value
@@ -686,8 +687,6 @@ class DoFnRunner(Receiver):
     self.context = DoFnContext(step_name, state=state)
 
     do_fn_signature = DoFnSignature(fn)
-    self.is_splittable = do_fn_signature.is_splittable_dofn()
-    self.splitting_lock = threading.Lock()
 
     # Optimize for the common case.
     main_receivers = tagged_receivers[None]

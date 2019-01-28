@@ -967,7 +967,8 @@ class ParDo(PTransformWithSideInputs):
     is_splittable = DoFnSignature(self.fn).is_splittable_dofn()
     if is_splittable:
       # TODO: query
-      restriction_coder = coders.FastPrimitivesCoder()
+      restriction_coder = (
+          DoFnSignature(self.fn).get_restriction_provider().restriction_coder())
       restriction_coder_id = context.coders.get_id(restriction_coder)
     else:
       restriction_coder_id = None
