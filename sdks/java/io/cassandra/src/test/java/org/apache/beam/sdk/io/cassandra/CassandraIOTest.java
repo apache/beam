@@ -48,6 +48,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -103,6 +104,11 @@ public class CassandraIOTest implements Serializable {
     EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
     session.close();
     cluster.close();
+  }
+
+  @Before
+  public void purgeCassandra() throws Exception {
+    session.execute(String.format("TRUNCATE TABLE %s.%s", CASSANDRA_KEYSPACE, CASSANDRA_TABLE));
   }
 
 
