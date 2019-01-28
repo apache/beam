@@ -29,7 +29,7 @@
 syntax = "proto3";
 
 /* TODO: Consider consolidating common components in another package
- * and lanaguage namespaces for re-use with Runner Api.
+ * and language namespaces for re-use with Runner Api.
  */
 
 package org.apache.beam.model.fn_execution.v1;

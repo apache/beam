@@ -30,6 +30,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 public interface MetricResult<T> {
   /** Return the name of the metric. */
   MetricName getName();
+
   /** Return the step context to which this metric result applies. */
   String getStep();
 
@@ -43,4 +44,8 @@ public interface MetricResult<T> {
 
   /** Return the value of this metric across all attempts of executing all parts of the pipeline. */
   T getAttempted();
+
+  static <T> DefaultMetricResult<T> create(MetricName name, String step, T committed, T attempted) {
+    return new AutoValue_DefaultMetricResult<>(name, step, committed, attempted);
+  }
 }
