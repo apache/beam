@@ -42,4 +42,5 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_jdk14
   testCompile library.java.mockito_core
+  testCompile group: 'org.cassandraunit', name: 'cassandra-unit', version: '3.5.0.1'
 }
