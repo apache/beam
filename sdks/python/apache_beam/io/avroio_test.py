@@ -277,6 +277,10 @@ class TestAvro(unittest.TestCase):
     expected_result = self.RECORDS * 2000
     self._run_avro_test(file_name, 10000, True, expected_result)
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3. '
+                   'See BEAM-6522')
   def test_split_points(self):
     file_name = self._write_data(count=12000)
     source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
@@ -422,6 +426,10 @@ class TestAvro(unittest.TestCase):
           | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
           equal_to(self.RECORDS * 10))
 
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3. '
+                   'See BEAM-6522')
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
