@@ -79,8 +79,11 @@ lint.dependsOn lintPy27_3
 toxTask "lintPy3", "py3-lint"
 lint.dependsOn lintPy3
 
-toxTask "testGcp", "py27-gcp"
-test.dependsOn testGcp
+toxTask "testPy2Gcp", "py27-gcp"
+test.dependsOn testPy2Gcp
+
+toxTask "testPy3Gcp", "py3-gcp"
+test.dependsOn testPy3Gcp
 
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
@@ -93,7 +96,7 @@ test.dependsOn testCython
 // Ensure that testCython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
-testCython.mustRunAfter testPython2, testGcp
+testCython.mustRunAfter testPython2, testPy2Gcp
 
 toxTask "docs", "docs"
 assemble.dependsOn docs
@@ -105,7 +108,8 @@ task preCommit() {
   dependsOn "testCython"
   dependsOn "testPython2"
   dependsOn "testPython3"
-  dependsOn "testGcp"
+  dependsOn "testPy2Gcp"
+  dependsOn "testPy3Gcp"
   dependsOn "lint"
 }
 
