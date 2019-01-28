@@ -28,7 +28,7 @@ import org.apache.beam.sdk.metrics.MetricsSink;
 import org.joda.time.Instant;
 
 /** Test class to be used as a input to {@link MetricsSink} implementations tests. */
-class CustomMetricQueryResults implements MetricQueryResults {
+class CustomMetricQueryResults extends MetricQueryResults {
 
   private final boolean isCommittedSupported;
 
