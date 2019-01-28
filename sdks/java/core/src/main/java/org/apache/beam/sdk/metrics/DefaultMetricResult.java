@@ -17,29 +17,30 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import com.fasterxml.jackson.annotation.JsonFilter;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * The results of a query for metrics. Allows accessing all of the metrics that matched the filter.
- */
-@AutoValue
+/** The results of a single current metric. */
 @Experimental(Kind.METRICS)
-public abstract class MetricQueryResults {
-  /** Return the metric results for the getCounters that matched the filter. */
-  public abstract Iterable<MetricResult<Long>> getCounters();
+@JsonFilter("committedMetrics")
+@AutoValue
+public abstract class DefaultMetricResult<T> implements MetricResult<T> {
+  @Override
+  public abstract MetricName getName();
 
-  /** Return the metric results for the getDistributions that matched the filter. */
-  public abstract Iterable<MetricResult<DistributionResult>> getDistributions();
+  @Override
+  public abstract String getStep();
 
-  /** Return the metric results for the getGauges that matched the filter. */
-  public abstract Iterable<MetricResult<GaugeResult>> getGauges();
+  @Override
+  public abstract T getCommitted();
 
-  public static MetricQueryResults create(
-      Iterable<MetricResult<Long>> counters,
-      Iterable<MetricResult<DistributionResult>> distributions,
-      Iterable<MetricResult<GaugeResult>> gauges) {
-    return new AutoValue_MetricQueryResults(counters, distributions, gauges);
+  @Override
+  public abstract T getAttempted();
+
+  public static <T> DefaultMetricResult<T> create(
+      MetricName name, String step, T committed, T attempted) {
+    return new AutoValue_DefaultMetricResult<>(name, step, committed, attempted);
   }
 }

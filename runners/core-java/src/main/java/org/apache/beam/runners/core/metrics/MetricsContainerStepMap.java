@@ -217,7 +217,7 @@ public class MetricsContainerStepMap implements Serializable {
       return new QueryResults(filter);
     }
 
-    private class QueryResults implements MetricQueryResults {
+    private class QueryResults extends MetricQueryResults {
       private final MetricsFilter filter;
 
       private QueryResults(MetricsFilter filter) {
