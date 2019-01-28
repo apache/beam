@@ -41,6 +41,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -98,13 +99,17 @@ public class MongoDBGridFSIOTest implements Serializable {
     try (ServerSocket serverSocket = new ServerSocket(0)) {
       port = serverSocket.getLocalPort();
     }
-    LOG.info("Starting MongoDB embedded instance on {}", port);
     try {
       Files.forceDelete(new File(MONGODB_LOCATION));
     } catch (Exception e) {
-
+      LOG.error("Could not delete files from existing MongoDB instance.", e);
     }
-    new File(MONGODB_LOCATION).mkdirs();
+    boolean mkdirs = new File(MONGODB_LOCATION).mkdirs();
+    if (!mkdirs) {
+      throw new IOException("Could not create location for embedded MongoDB server0");
+    }
+
+    LOG.info("Starting MongoDB embedded instance on {}", port);
     IMongodConfig mongodConfig =
         new MongodConfigBuilder()
             .version(Version.Main.PRODUCTION)
