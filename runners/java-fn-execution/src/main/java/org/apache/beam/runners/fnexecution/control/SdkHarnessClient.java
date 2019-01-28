@@ -232,7 +232,7 @@ public class SdkHarnessClient implements AutoCloseable {
     }
 
     /**
-     * Blocks till bundle processing is finished. This is comprised of:
+     * Blocks until bundle processing is finished. This is comprised of:
      *
      * <ul>
      *   <li>closing each {@link #getInputReceivers() input receiver}.

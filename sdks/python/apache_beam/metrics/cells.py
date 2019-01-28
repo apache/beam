@@ -167,7 +167,7 @@ class CounterCell(Counter, MetricCell):
 
   def to_runner_api_monitoring_info(self):
     """Returns a Metric with this counter value for use in a MonitoringInfo."""
-    # TODO(ajamato): Update this code to be consisten with Gauges
+    # TODO(ajamato): Update this code to be consistent with Gauges
     # and Distributions. Since there is no CounterData class this method
     # was added to CounterCell. Consider adding a CounterData class or
     # removing the GaugeData and DistributionData classes.

@@ -227,7 +227,7 @@ def portableWordCountTask(name, streaming) {
       if (streaming)
         options += ["--streaming"]
       else
-      // workaround for local file output in docker container
+        // workaround for local file output in docker container
         options += ["--environment_cache_millis=10000"]
       if (project.hasProperty("jobEndpoint"))
         options += ["--job_endpoint=${project.property('jobEndpoint')}"]
@@ -427,6 +427,18 @@ project.task('createProcessWorker') {
     }
     exec {
       commandLine('chmod', '+x', sdkWorkerFile)
+    }
+  }
+}
+
+project.task('crossLanguagePythonJava') {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':beam-sdks-java-container:docker'
+  dependsOn ':beam-runners-core-construction-java:testExpansionService'
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test --expansion_service_jar=${project(":beam-runners-core-construction-java:").testExpansionService.archivePath}"
     }
   }
 }

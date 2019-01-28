@@ -332,7 +332,7 @@ public class RabbitMqIO {
   private static class RabbitMQCheckpointMark
       implements UnboundedSource.CheckpointMark, Serializable {
     transient Channel channel;
-    Instant oldestTimestamp;
+    Instant oldestTimestamp = Instant.now();
     final List<Long> sessionIds = new ArrayList<>();
 
     @Override

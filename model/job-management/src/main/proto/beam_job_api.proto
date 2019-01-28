@@ -134,7 +134,6 @@ message GetJobStateResponse {
 // the job ended.
 message JobMessagesRequest {
   string job_id = 1; // (required)
-
 }
 
 message JobMessage {

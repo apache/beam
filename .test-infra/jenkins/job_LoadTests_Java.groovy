@@ -38,7 +38,7 @@ def loadTestConfigurations = [
                         stepOptions         : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true,"perBundleDelay":10000,"perBundleDelayType":"MIXED","cpuUtilizationInMixedDelay":0.5}',
                         fanout              : 10,
                         iterations          : 1,
-                        maxNumWorkers       : 10,
+                        maxNumWorkers       : 32,
                 ]
 
         ],
@@ -52,7 +52,7 @@ for (testConfiguration in loadTestConfigurations) {
             this
     ) {
         description(testConfiguration.jobDescription)
-        commonJobProperties.setTopLevelMainJobProperties(delegate)
+        commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
         loadTestsBuilder.loadTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
     }
 }

@@ -255,11 +255,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     String invocationId = request.getJobId();
     try {
       JobInvocation invocation = getInvocation(invocationId);
-      Function<JobState.Enum, GetJobStateResponse> responseFunction =
-          state -> GetJobStateResponse.newBuilder().setState(state).build();
       Consumer<JobState.Enum> stateListener =
           state -> {
-            responseObserver.onNext(responseFunction.apply(state));
+            responseObserver.onNext(GetJobStateResponse.newBuilder().setState(state).build());
             if (JobInvocation.isTerminated(state)) {
               responseObserver.onCompleted();
             }

@@ -163,8 +163,10 @@ if __name__ == '__main__':
       raise unittest.SkipTest("BEAM-6019")
 
     def test_flattened_side_input(self):
-      # BEAM-6473
-      super(FlinkRunnerTest, self).test_flattened_side_input(extended=False)
+      # Blocked on support for transcoding
+      # https://jira.apache.org/jira/browse/BEAM-6523
+      super(FlinkRunnerTest, self).test_flattened_side_input(
+          with_transcoding=False)
 
     def test_metrics(self):
       """Run a simple DoFn that increments a counter, and verify that its

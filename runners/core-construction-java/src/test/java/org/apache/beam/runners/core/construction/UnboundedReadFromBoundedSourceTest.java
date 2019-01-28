@@ -256,6 +256,16 @@ public class UnboundedReadFromBoundedSourceTest {
   }
 
   @Test
+  public void testInvokingSplitProducesAtLeastOneSplit() throws Exception {
+    UnboundedSource<Long, ?> unboundedCountingSource =
+        new BoundedToUnboundedSourceAdapter<Long>(CountingSource.upTo(0));
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<?> splits = unboundedCountingSource.split(100, options);
+    assertEquals(1, splits.size());
+    assertNotEquals(splits.get(0), unboundedCountingSource);
+  }
+
+  @Test
   public void testReadFromCheckpointBeforeStart() throws Exception {
     thrown.expect(NoSuchElementException.class);
 

@@ -66,7 +66,7 @@ import org.slf4j.LoggerFactory;
  * EnvironmentFactory} for environment management. Note that returned {@link StageBundleFactory
  * stage bundle factories} are not thread-safe. Instead, a new stage factory should be created for
  * each client. {@link DefaultJobBundleFactory} initializes the Environment lazily when the forStage
- * is called for a stage. This factory is not capable of handling a mixed types of environment.
+ * is called for a stage. This factory is not capable of handling mixed types of environment.
  */
 @ThreadSafe
 public class DefaultJobBundleFactory implements JobBundleFactory {

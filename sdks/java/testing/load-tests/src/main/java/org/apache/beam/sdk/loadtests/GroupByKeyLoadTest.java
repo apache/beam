@@ -85,10 +85,11 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
     PCollection<KV<byte[], byte[]>> input =
         pipeline
             .apply("Read input", readFromSource(sourceOptions))
-            .apply("Collect start time metrics", ParDo.of(runtimeMonitor))
-            .apply(
-                "Total bytes monitor",
-                ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
+            .apply("Collect start time metrics", ParDo.of(runtimeMonitor));
+    input = applyWindowing(input);
+
+    input.apply(
+        "Total bytes monitor", ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
       applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)
