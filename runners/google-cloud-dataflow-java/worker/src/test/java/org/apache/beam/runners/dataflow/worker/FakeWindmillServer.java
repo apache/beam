@@ -31,10 +31,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -185,13 +182,20 @@ class FakeWindmillServer extends WindmillServerStub {
   public GetWorkStream getWorkStream(Windmill.GetWorkRequest request, WorkItemReceiver receiver) {
     LOG.debug("getWorkStream: {}", request.toString());
     Instant startTime = Instant.now();
+    final CountDownLatch done = new CountDownLatch(1);
     return new GetWorkStream() {
       @Override
       public void closeAfterDefaultTimeout() {
-        while (true) {
+        while (done.getCount() > 0) {
           Windmill.GetWorkResponse response = workToOffer.poll();
           if (response == null) {
-            break;
+            try {
+              sleepMillis(500);
+            } catch (InterruptedException e) {
+              close();
+              Thread.currentThread().interrupt();
+            }
+            continue;
           }
           for (Windmill.ComputationWorkItems computationWork : response.getWorkList()) {
             Instant inputDataWatermark =
@@ -206,14 +210,18 @@ class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void close() {}
+      public void close() {
+        done.countDown();
+      }
 
       @Override
-      public void awaitTermination() {}
+      public void awaitTermination() throws InterruptedException {
+        done.await();
+      }
 
       @Override
-      public boolean awaitTermination(int time, TimeUnit unit) {
-        return false;
+      public boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException {
+        return done.await(time, unit);
       }
 
       @Override
@@ -258,7 +266,7 @@ class FakeWindmillServer extends WindmillServerStub {
 
       @Override
       public boolean awaitTermination(int time, TimeUnit unit) {
-        return false;
+        return true;
       }
 
       @Override
