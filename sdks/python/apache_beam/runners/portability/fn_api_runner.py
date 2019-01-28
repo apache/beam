@@ -44,6 +44,7 @@ from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
@@ -1231,8 +1232,7 @@ class FnApiMetrics(metrics.metric.MetricResults):
     # Right now this assumes that all metrics have a PTRANSFORM
     ptransform_id = monitoring_info.labels['PTRANSFORM']
     namespace, name = monitoring_infos.parse_namespace_and_name(monitoring_info)
-    return MetricKey(
-        ptransform_id, metrics.metricbase.MetricName(namespace, name))
+    return MetricKey(ptransform_id, MetricName(namespace, name))
 
   def query(self, filter=None):
     counters = [metrics.execution.MetricResult(k, v, v)

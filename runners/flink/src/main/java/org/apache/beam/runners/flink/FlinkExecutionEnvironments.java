@@ -142,20 +142,20 @@ public class FlinkExecutionEnvironments {
     LOG.info("Creating a Streaming Environment.");
 
     String masterUrl = options.getFlinkMaster();
-    Configuration flinkConfig = getFlinkConfiguration(confDir);
+    Configuration flinkConfiguration = getFlinkConfiguration(confDir);
     final StreamExecutionEnvironment flinkStreamEnv;
 
     // depending on the master, create the right environment.
     if ("[local]".equals(masterUrl)) {
       flinkStreamEnv =
           StreamExecutionEnvironment.createLocalEnvironment(
-              getDefaultLocalParallelism(), flinkConfig);
+              getDefaultLocalParallelism(), flinkConfiguration);
     } else if ("[auto]".equals(masterUrl)) {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
     } else {
-      int defaultPort = flinkConfig.getInteger(RestOptions.PORT);
+      int defaultPort = flinkConfiguration.getInteger(RestOptions.PORT);
       HostAndPort hostAndPort = HostAndPort.fromString(masterUrl).withDefaultPort(defaultPort);
-      flinkConfig.setInteger(RestOptions.PORT, hostAndPort.getPort());
+      flinkConfiguration.setInteger(RestOptions.PORT, hostAndPort.getPort());
       final SavepointRestoreSettings savepointRestoreSettings;
       if (options.getSavepointPath() != null) {
         savepointRestoreSettings =
@@ -168,7 +168,7 @@ public class FlinkExecutionEnvironments {
           new BeamFlinkRemoteStreamEnvironment(
               hostAndPort.getHost(),
               hostAndPort.getPort(),
-              flinkConfig,
+              flinkConfiguration,
               savepointRestoreSettings,
               filesToStage.toArray(new String[filesToStage.size()]));
       LOG.info("Using Flink Master URL {}:{}.", hostAndPort.getHost(), hostAndPort.getPort());
@@ -177,7 +177,7 @@ public class FlinkExecutionEnvironments {
     // Set the parallelism, required by UnboundedSourceWrapper to generate consistent splits.
     final int parallelism =
         determineParallelism(
-            options.getParallelism(), flinkStreamEnv.getParallelism(), flinkConfig);
+            options.getParallelism(), flinkStreamEnv.getParallelism(), flinkConfiguration);
     flinkStreamEnv.setParallelism(parallelism);
     if (options.getMaxParallelism() > 0) {
       flinkStreamEnv.setMaxParallelism(options.getMaxParallelism());
