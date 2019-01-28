@@ -20,12 +20,9 @@ package org.apache.beam.sdk.io.mongodb;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-import com.google.common.collect.Iterators;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.Filters;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
@@ -35,17 +32,11 @@ import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
 import de.flapdoodle.embed.mongo.config.Net;
 import de.flapdoodle.embed.mongo.config.Storage;
 import de.flapdoodle.embed.mongo.distribution.Version;
-import de.flapdoodle.embed.process.io.file.Files;
 import de.flapdoodle.embed.process.runtime.Network;
-import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -55,50 +46,38 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.bson.BsonDocument;
-import org.bson.BsonString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.bson.Document;
 import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Test on the MongoDbIO. */
 public class MongoDbIOTest implements Serializable {
-
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIOTest.class);
 
-  private static final String MONGODB_LOCATION = "target/mongodb";
+  @ClassRule public static final TemporaryFolder MONGODB_LOCATION = new TemporaryFolder();
   private static final String DATABASE = "beam";
   private static final String COLLECTION = "test";
 
-  private static final MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
-
+  private static final transient MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
   private static transient MongodExecutable mongodExecutable;
   private static transient MongodProcess mongodProcess;
+  private static transient MongoClient client;
 
   private static int port;
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  /** Looking for an available network port. */
   @BeforeClass
-  public static void startServer() throws Exception {
+  public static void start() throws Exception {
     try (ServerSocket serverSocket = new ServerSocket(0)) {
       port = serverSocket.getLocalPort();
-    }
-    try {
-      Files.forceDelete(new File(MONGODB_LOCATION));
-    } catch (Exception e) {
-      LOG.error("Could not delete files from existing MongoDB instance.", e);
-    }
-    boolean mkdirs = new File(MONGODB_LOCATION).mkdirs();
-    if (!mkdirs) {
-      throw new IOException("Could not create location for embedded MongoDB server0");
     }
 
     LOG.info("Starting MongoDB embedded instance on {}", port);
@@ -106,7 +85,7 @@ public class MongoDbIOTest implements Serializable {
         new MongodConfigBuilder()
             .version(Version.Main.PRODUCTION)
             .configServer(false)
-            .replication(new Storage(MONGODB_LOCATION, null, 0))
+            .replication(new Storage(MONGODB_LOCATION.getRoot().getPath(), null, 0))
             .net(new Net("localhost", port, Network.localhostIsIPv6()))
             .cmdOptions(
                 new MongoCmdOptionsBuilder()
@@ -114,63 +93,25 @@ public class MongoDbIOTest implements Serializable {
                     .useNoPrealloc(true)
                     .useSmallFiles(true)
                     .useNoJournal(true)
+                    .verbose(false)
                     .build())
             .build();
     mongodExecutable = mongodStarter.prepare(mongodConfig);
     mongodProcess = mongodExecutable.start();
-
-    MongoClient client = new MongoClient("localhost", port);
-    MongoDatabase database = client.getDatabase(DATABASE);
-    MongoCollection collection = database.getCollection(COLLECTION);
+    client = new MongoClient("localhost", port);
 
     LOG.info("Insert test data");
     List<Document> documents = createDocuments(1000);
+    MongoCollection<Document> collection = getCollection(COLLECTION);
     collection.insertMany(documents);
   }
 
   @AfterClass
-  public static void stopServer() {
+  public static void stop() {
     LOG.info("Stopping MongoDB instance");
+    client.close();
     mongodProcess.stop();
     mongodExecutable.stop();
-  }
-
-  private static List<Document> createDocuments(final int n) {
-    final String[] scientists =
-        new String[] {
-          "Einstein",
-          "Darwin",
-          "Copernicus",
-          "Pasteur",
-          "Curie",
-          "Faraday",
-          "Newton",
-          "Bohr",
-          "Galilei",
-          "Maxwell"
-        };
-    final String[] country =
-        new String[] {
-          "Germany",
-          "England",
-          "Poland",
-          "France",
-          "France",
-          "England",
-          "England",
-          "Denmark",
-          "Florence",
-          "Scotland"
-        };
-    List<Document> documents = new ArrayList<>();
-    for (int i = 1; i <= n; i++) {
-      int index = i % scientists.length;
-      Document document = new Document();
-      document.append("_id", i);
-      document.append("scientist", scientists[index]);
-      document.append("country", country[index]);
-    }
-    return documents;
   }
 
   @Test
@@ -278,8 +219,7 @@ public class MongoDbIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithFilterAndProjection() throws Exception {
-
+  public void testReadWithFilterAndProjection() {
     PCollection<Document> output =
         pipeline.apply(
             MongoDbIO.read()
@@ -328,7 +268,7 @@ public class MongoDbIOTest implements Serializable {
   @Test
   public void testWrite() {
     final String collectionName = "testWrite";
-    final int numElements = 10000;
+    final int numElements = 1000;
 
     pipeline
         .apply(Create.of(createDocuments(numElements)))
@@ -340,44 +280,12 @@ public class MongoDbIOTest implements Serializable {
 
     pipeline.run();
 
-    MongoClient client = new MongoClient("localhost", port);
-    MongoDatabase database = client.getDatabase(DATABASE);
-    MongoCollection collection = database.getCollection(collectionName);
-
-    MongoCursor cursor = collection.find().iterator();
-
-    int size = Iterators.size(cursor);
-    assertEquals(numElements, size);
-
-  }
-
-  @Test
-  public void testWriteEmptyCollection() {
-    final String collectionName = "testWriteEmptyCollection";
-    final int numElements = 0;
-
-    final PCollection<Document> emptyInput =
-        pipeline.apply(Create.empty(SerializableCoder.of(Document.class)));
-
-    emptyInput.apply(
-        MongoDbIO.write()
-            .withUri("mongodb://localhost:" + port)
-            .withDatabase(DATABASE)
-            .withCollection(collectionName));
-
-    pipeline.run();
-
-    final MongoClient client = new MongoClient("localhost", port);
-    final MongoDatabase database = client.getDatabase(DATABASE);
-    final MongoCollection collection = database.getCollection(collectionName);
-
-    Assert.assertEquals(numElements, collection.countDocuments());
+    assertEquals(numElements, countElements(collectionName));
   }
 
   @Test
   public void testWriteUnordered() {
     final String collectionName = "testWriteUnordered";
-    final int numElements = 1;
 
     Document doc =
         Document.parse("{\"_id\":\"521df3a4300466f1f2b5ae82\",\"scientist\":\"Test %s\"}");
@@ -392,13 +300,54 @@ public class MongoDbIOTest implements Serializable {
                 .withCollection(collectionName));
     pipeline.run();
 
-    MongoClient client = new MongoClient("localhost", port);
+    assertEquals(1, countElements(collectionName));
+  }
+
+  private static List<Document> createDocuments(final int n) {
+    final String[] scientists =
+        new String[] {
+          "Einstein",
+          "Darwin",
+          "Copernicus",
+          "Pasteur",
+          "Curie",
+          "Faraday",
+          "Newton",
+          "Bohr",
+          "Galilei",
+          "Maxwell"
+        };
+    final String[] country =
+        new String[] {
+          "Germany",
+          "England",
+          "Poland",
+          "France",
+          "France",
+          "England",
+          "England",
+          "Denmark",
+          "Florence",
+          "Scotland"
+        };
+    List<Document> documents = new ArrayList<>();
+    for (int i = 1; i <= n; i++) {
+      int index = i % scientists.length;
+      Document document = new Document();
+      document.append("_id", i);
+      document.append("scientist", scientists[index]);
+      document.append("country", country[index]);
+      documents.add(document);
+    }
+    return documents;
+  }
+
+  private static int countElements(final String collectionName) {
+    return Iterators.size(getCollection(collectionName).find().iterator());
+  }
+
+  private static MongoCollection<Document> getCollection(final String collectionName) {
     MongoDatabase database = client.getDatabase(DATABASE);
-    MongoCollection collection = database.getCollection(collectionName);
-
-    MongoCursor cursor = collection.find().iterator();
-
-    int size = Iterators.size(cursor);
-    assertEquals(1, size);
+    return database.getCollection(collectionName);
   }
 }
