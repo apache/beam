@@ -34,13 +34,11 @@ import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
 import de.flapdoodle.embed.mongo.config.Net;
 import de.flapdoodle.embed.mongo.config.Storage;
 import de.flapdoodle.embed.mongo.distribution.Version;
-import de.flapdoodle.embed.process.io.file.Files;
 import de.flapdoodle.embed.process.runtime.Network;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
-import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -72,8 +70,10 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,11 +81,10 @@ import org.slf4j.LoggerFactory;
 public class MongoDBGridFSIOTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDBGridFSIOTest.class);
 
-  private static final String MONGODB_LOCATION = "target/mongodb";
+  @ClassRule public static final TemporaryFolder MONGODB_LOCATION = new TemporaryFolder();
   private static final String DATABASE = "gridfs";
 
   private static final transient MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
-
   private static transient MongodExecutable mongodExecutable;
   private static transient MongodProcess mongodProcess;
 
@@ -94,22 +93,17 @@ public class MongoDBGridFSIOTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void setup() throws Exception {
+  public static void start() throws Exception {
     try (ServerSocket serverSocket = new ServerSocket(0)) {
       port = serverSocket.getLocalPort();
     }
-    LOG.info("Starting MongoDB embedded instance on {}", port);
-    try {
-      Files.forceDelete(new File(MONGODB_LOCATION));
-    } catch (Exception e) {
 
-    }
-    new File(MONGODB_LOCATION).mkdirs();
+    LOG.info("Starting MongoDB embedded instance on {}", port);
     IMongodConfig mongodConfig =
         new MongodConfigBuilder()
             .version(Version.Main.PRODUCTION)
             .configServer(false)
-            .replication(new Storage(MONGODB_LOCATION, null, 0))
+            .replication(new Storage(MONGODB_LOCATION.getRoot().getPath(), null, 0))
             .net(new Net("localhost", port, Network.localhostIsIPv6()))
             .cmdOptions(
                 new MongoCmdOptionsBuilder()
@@ -117,6 +111,7 @@ public class MongoDBGridFSIOTest implements Serializable {
                     .useNoPrealloc(true)
                     .useSmallFiles(true)
                     .useNoJournal(true)
+                    .verbose(false)
                     .build())
             .build();
     mongodExecutable = mongodStarter.prepare(mongodConfig);
@@ -180,15 +175,14 @@ public class MongoDBGridFSIOTest implements Serializable {
   }
 
   @AfterClass
-  public static void stop() throws Exception {
+  public static void stop() {
     LOG.info("Stopping MongoDB instance");
     mongodProcess.stop();
     mongodExecutable.stop();
   }
 
   @Test
-  public void testFullRead() throws Exception {
-
+  public void testFullRead() {
     PCollection<String> output =
         pipeline.apply(
             MongoDbGridFSIO.read().withUri("mongodb://localhost:" + port).withDatabase(DATABASE));
@@ -208,8 +202,7 @@ public class MongoDBGridFSIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithParser() throws Exception {
-
+  public void testReadWithParser() {
     PCollection<KV<String, Integer>> output =
         pipeline.apply(
             MongoDbGridFSIO.read()
@@ -282,7 +275,6 @@ public class MongoDBGridFSIOTest implements Serializable {
 
   @Test
   public void testWriteMessage() throws Exception {
-
     ArrayList<String> data = new ArrayList<>(100);
     ArrayList<Integer> intData = new ArrayList<>(100);
     for (int i = 0; i < 1000; i++) {
