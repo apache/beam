@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.cassandra;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 import java.io.Serializable;
@@ -45,13 +47,64 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests of {@link CassandraIO}. */
 public class CassandraIOTest implements Serializable {
+  private static final String CASSANDRA_KEYSPACE = "beam_ks";
+  private static final String CASSANDRA_HOST = "127.0.0.1";
+  private static final String CASSANDRA_TABLE = "scientist";
+  private static final String JMX_PORT = "7199";
+  private static final Logger LOGGER = LoggerFactory.getLogger(CassandraIOTest.class);
+  private static Cluster cluster;
+  private static Session session;
+  private static long startupTime;
 
-  @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public transient TestPipeline pipeline = TestPipeline.create();
+
+  @BeforeClass
+  public static void startCassandra() throws Exception {
+    System.setProperty("cassandra.jmx.local.port", JMX_PORT);
+    startupTime = System.currentTimeMillis();
+    EmbeddedCassandraServerHelper.startEmbeddedCassandra(
+        "/cassandra.yaml", "target/cassandra", 30000);
+
+    cluster = Cluster.builder().addContactPoint(CASSANDRA_HOST).withClusterName("beam").build();
+    session = cluster.connect();
+
+    LOGGER.info("Creating the Cassandra keyspace");
+    session.execute(
+        "CREATE KEYSPACE IF NOT EXISTS "
+            + CASSANDRA_KEYSPACE
+            + " WITH REPLICATION = "
+            + "{'class':'SimpleStrategy', 'replication_factor':3};");
+    LOGGER.info(CASSANDRA_KEYSPACE + " keyspace created");
+
+    LOGGER.info("Use the Cassandra keyspace");
+    session.execute("USE " + CASSANDRA_KEYSPACE);
+
+    LOGGER.info("Create Cassandra table");
+    session.execute(
+        String.format(
+            "CREATE TABLE IF NOT EXISTS %s(person_id int, person_name text, PRIMARY KEY"
+                + "(person_id));",
+            CASSANDRA_TABLE));
+  }
+
+  @AfterClass
+  public static void stopCassandra() {
+    EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
+    session.close();
+    cluster.close();
+  }
+
 
   @Test
   public void testEstimatedSizeBytes() {
