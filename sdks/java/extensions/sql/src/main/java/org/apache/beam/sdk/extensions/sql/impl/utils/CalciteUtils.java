@@ -167,8 +167,7 @@ public class CalciteUtils {
     return builder.build();
   }
 
-  private static RelDataType toRelDataType(
-      RelDataTypeFactory dataTypeFactory, FieldType fieldType) {
+  public static RelDataType toRelDataType(RelDataTypeFactory dataTypeFactory, FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case ARRAY:
         return dataTypeFactory.createArrayType(
