@@ -27,6 +27,7 @@ set -e
 LOCAL_CLONE_DIR=build_release_candidate
 LOCAL_JAVA_STAGING_DIR=java_staging_dir
 LOCAL_PYTHON_STAGING_DIR=python_staging_dir
+LOCAL_PYTHON_VIRTUALENV=${LOCAL_PYTHON_STAGING_DIR}/venv
 LOCAL_WEBSITE_UPDATE_DIR=website_update_dir
 LOCAL_PYTHON_DOC=python_doc
 LOCAL_JAVA_DOC=java_doc
@@ -165,6 +166,8 @@ if [[ $confirmation = "y" ]]; then
 
   echo '-------------------Generating Python Artifacts-----------------'
   cd sdks/python
+  virtualenv ${LOCAL_PYTHON_VIRTUALENV}
+  source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
   python setup.py sdist --format=zip
   cd dist
 
