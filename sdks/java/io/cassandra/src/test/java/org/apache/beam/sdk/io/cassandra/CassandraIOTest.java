@@ -33,6 +33,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.management.JMX;
+import javax.management.MBeanServerConnection;
+import javax.management.ObjectName;
+import javax.management.remote.JMXConnector;
+import javax.management.remote.JMXConnectorFactory;
+import javax.management.remote.JMXServiceURL;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -47,6 +53,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.cassandra.service.StorageServiceMBean;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -58,11 +65,16 @@ import org.slf4j.LoggerFactory;
 
 /** Tests of {@link CassandraIO}. */
 public class CassandraIOTest implements Serializable {
+  private static final long NUM_ROWS = 1000L;
   private static final String CASSANDRA_KEYSPACE = "beam_ks";
   private static final String CASSANDRA_HOST = "127.0.0.1";
   private static final String CASSANDRA_TABLE = "scientist";
-  private static final String JMX_PORT = "7199";
   private static final Logger LOGGER = LoggerFactory.getLogger(CassandraIOTest.class);
+  private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
+  private static final String JMX_PORT = "7199";
+  private static final long SIZE_ESTIMATES_UPDATE_INTERVAL = 5000L;
+  private static final long STARTUP_TIMEOUT = 45000L;
+
   private static Cluster cluster;
   private static Session session;
   private static long startupTime;
@@ -111,6 +123,60 @@ public class CassandraIOTest implements Serializable {
     session.execute(String.format("TRUNCATE TABLE %s.%s", CASSANDRA_KEYSPACE, CASSANDRA_TABLE));
   }
 
+  private static void insertRecords() throws Exception {
+    LOGGER.info("Insert records");
+    String[] scientists = {
+        "Einstein",
+        "Darwin",
+        "Copernicus",
+        "Pasteur",
+        "Curie",
+        "Faraday",
+        "Newton",
+        "Bohr",
+        "Galilei",
+        "Maxwell"
+    };
+    for (int i = 0; i < NUM_ROWS; i++) {
+      int index = i % scientists.length;
+      session.execute(
+          String.format(
+              "INSERT INTO %s.%s(person_id, person_name) values("
+                  + i
+                  + ", '"
+                  + scientists[index]
+                  + "');",
+              CASSANDRA_KEYSPACE,
+              CASSANDRA_TABLE));
+    }
+    flushMemTables();
+  }
+
+  /**
+   * Force the flush of cassandra memTables to SSTables to update size_estimates.
+   * https://wiki.apache.org/cassandra/MemtableSSTable This is what cassandra spark connector does
+   * through nodetool binary call. See:
+   * https://github.com/datastax/spark-cassandra-connector/blob/master/spark-cassandra-connector
+   * /src/it/scala/com/datastax/spark/connector/rdd/partitioner/DataSizeEstimatesSpec.scala which
+   * uses the same JMX service as bellow. See:
+   * https://github.com/apache/cassandra/blob/cassandra-3.X
+   * /src/java/org/apache/cassandra/tools/nodetool/Flush.java
+   */
+  private static void flushMemTables() throws Exception {
+    JMXServiceURL url =
+        new JMXServiceURL(
+            String.format("service:jmx:rmi:///jndi/rmi://%s:%s/jmxrmi", CASSANDRA_HOST, JMX_PORT));
+    JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
+    MBeanServerConnection mBeanServerConnection = jmxConnector.getMBeanServerConnection();
+    ObjectName objectName = new ObjectName(STORAGE_SERVICE_MBEAN);
+    StorageServiceMBean mBeanProxy =
+        JMX.newMBeanProxy(mBeanServerConnection, objectName, StorageServiceMBean.class);
+    mBeanProxy.forceKeyspaceFlush(CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+    jmxConnector.close();
+    // same method of waiting than cassandra spark connector
+    long initialDelay = Math.max(startupTime + STARTUP_TIMEOUT - System.currentTimeMillis(), 0L);
+    Thread.sleep(initialDelay + 2 * SIZE_ESTIMATES_UPDATE_INTERVAL);
+  }
 
   @Test
   public void testEstimatedSizeBytes() {
