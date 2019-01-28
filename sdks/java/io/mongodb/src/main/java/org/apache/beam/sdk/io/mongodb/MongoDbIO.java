@@ -133,6 +133,10 @@ public class MongoDbIO {
     @Nullable
     abstract String uri();
 
+    /**
+     * @deprecated This is deprecated in the MongoDB API and will be removed in a future version.
+     */
+    @Deprecated
     abstract boolean keepAlive();
 
     abstract int maxConnectionIdleTime();
@@ -162,7 +166,10 @@ public class MongoDbIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setUri(String uri);
-
+      /**
+       * @deprecated This is deprecated in the MongoDB API and will be removed in a future version.
+       */
+      @Deprecated
       abstract Builder setKeepAlive(boolean keepAlive);
 
       abstract Builder setMaxConnectionIdleTime(int maxConnectionIdleTime);
@@ -226,7 +233,12 @@ public class MongoDbIO {
       return builder().setUri(uri).build();
     }
 
-    /** Sets whether socket keep alive is enabled. */
+    /**
+     * Sets whether socket keep alive is enabled.
+     *
+     * @deprecated This is deprecated in the MongoDB API and will be removed in a future version.
+     */
+    @Deprecated
     public Read withKeepAlive(boolean keepAlive) {
       return builder().setKeepAlive(keepAlive).build();
     }
@@ -246,7 +258,7 @@ public class MongoDbIO {
       return builder().setSslInvalidHostNameAllowed(invalidHostNameAllowed).build();
     }
 
-    /** Enable ignoreSSLCertificate for ssl for connection (allow for self signed ceritificates). */
+    /** Enable ignoreSSLCertificate for ssl for connection (allow for self signed certificates). */
     public Read withIgnoreSSLCertificate(boolean ignoreSSLCertificate) {
       return builder().setIgnoreSSLCertificate(ignoreSSLCertificate).build();
     }
@@ -329,7 +341,7 @@ public class MongoDbIO {
   /** A MongoDB {@link BoundedSource} reading {@link Document} from a given instance. */
   @VisibleForTesting
   static class BoundedMongoDbSource extends BoundedSource<Document> {
-    private Read spec;
+    private final Read spec;
 
     private BoundedMongoDbSource(Read spec) {
       this.spec = spec;
@@ -403,7 +415,7 @@ public class MongoDbIO {
 
         // the desired batch size is small, using default chunk size of 1MB
         if (desiredBundleSizeBytes < 1024L * 1024L) {
-          desiredBundleSizeBytes = 1L * 1024L * 1024L;
+          desiredBundleSizeBytes = 1024L * 1024L;
         }
 
         // now we have the batch size (provided by user or provided by the runner)
@@ -522,7 +534,7 @@ public class MongoDbIO {
     private MongoCursor<Document> cursor;
     private Document current;
 
-    public BoundedMongoDbReader(BoundedMongoDbSource source) {
+    BoundedMongoDbReader(BoundedMongoDbSource source) {
       this.source = source;
     }
 
@@ -604,7 +616,10 @@ public class MongoDbIO {
 
     @Nullable
     abstract String uri();
-
+    /**
+     * @deprecated This is deprecated in the MongoDB API and will be removed in a future version.
+     */
+    @Deprecated
     abstract boolean keepAlive();
 
     abstract int maxConnectionIdleTime();
@@ -630,7 +645,10 @@ public class MongoDbIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setUri(String uri);
-
+      /**
+       * @deprecated This is deprecated in the MongoDB API and will be removed in a future version.
+       */
+      @Deprecated
       abstract Builder setKeepAlive(boolean keepAlive);
 
       abstract Builder setMaxConnectionIdleTime(int maxConnectionIdleTime);
@@ -692,7 +710,12 @@ public class MongoDbIO {
       return builder().setUri(uri).build();
     }
 
-    /** Sets whether socket keep alive is enabled. */
+    /**
+     * Sets whether socket keep alive is enabled.
+     *
+     * @deprecated This is deprecated in the MongoDB API and will be removed in a future version.
+     */
+    @Deprecated
     public Write withKeepAlive(boolean keepAlive) {
       return builder().setKeepAlive(keepAlive).build();
     }
@@ -723,7 +746,7 @@ public class MongoDbIO {
       return builder().setOrdered(ordered).build();
     }
 
-    /** Enable ignoreSSLCertificate for ssl for connection (allow for self signed ceritificates). */
+    /** Enable ignoreSSLCertificate for ssl for connection (allow for self signed certificates). */
     public Write withIgnoreSSLCertificate(boolean ignoreSSLCertificate) {
       return builder().setIgnoreSSLCertificate(ignoreSSLCertificate).build();
     }
@@ -775,12 +798,12 @@ public class MongoDbIO {
       private transient MongoClient client;
       private List<Document> batch;
 
-      public WriteFn(Write spec) {
+      WriteFn(Write spec) {
         this.spec = spec;
       }
 
       @Setup
-      public void createMongoClient() throws Exception {
+      public void createMongoClient() {
         client =
             new MongoClient(
                 new MongoClientURI(
@@ -793,12 +816,12 @@ public class MongoDbIO {
       }
 
       @StartBundle
-      public void startBundle() throws Exception {
+      public void startBundle() {
         batch = new ArrayList<>();
       }
 
       @ProcessElement
-      public void processElement(ProcessContext ctx) throws Exception {
+      public void processElement(ProcessContext ctx) {
         // Need to copy the document because mongoCollection.insertMany() will mutate it
         // before inserting (will assign an id).
         batch.add(new Document(ctx.element()));
@@ -808,7 +831,7 @@ public class MongoDbIO {
       }
 
       @FinishBundle
-      public void finishBundle() throws Exception {
+      public void finishBundle() {
         flush();
       }
 
@@ -830,7 +853,7 @@ public class MongoDbIO {
       }
 
       @Teardown
-      public void closeMongoClient() throws Exception {
+      public void closeMongoClient() {
         client.close();
         client = null;
       }
