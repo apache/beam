@@ -29,13 +29,13 @@ import org.apache.beam.vendor.grpc.v1p13p1.com.google.common.collect.ImmutableLi
 @AutoValue
 @Experimental(Kind.METRICS)
 public abstract class MetricQueryResults {
-  /** Return the metric results for the getCounters that matched the filter. */
+  /** Return the metric results for the counters that matched the filter. */
   public abstract Iterable<MetricResult<Long>> getCounters();
 
-  /** Return the metric results for the getDistributions that matched the filter. */
+  /** Return the metric results for the distributions that matched the filter. */
   public abstract Iterable<MetricResult<DistributionResult>> getDistributions();
 
-  /** Return the metric results for the getGauges that matched the filter. */
+  /** Return the metric results for the gauges that matched the filter. */
   public abstract Iterable<MetricResult<GaugeResult>> getGauges();
 
   static <T> void printMetrics(String type, Iterable<MetricResult<T>> metrics, StringBuilder sb) {
