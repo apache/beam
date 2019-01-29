@@ -189,12 +189,6 @@ class PortableRunner(runner.PipelineRunner):
       proto_pipeline = fn_api_runner_transforms.with_stages(
           proto_pipeline, stages)
 
-    # TODO: Define URNs for options.
-    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
-    p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
-                 for k, v in options.get_all_options().items()
-                 if v is not None}
-
     if not job_service:
       channel = grpc.insecure_channel(job_endpoint)
       grpc.channel_ready_future(channel).result()
@@ -202,8 +196,9 @@ class PortableRunner(runner.PipelineRunner):
     else:
       channel = None
 
-    # Sends the PrepareRequest but retries in case the channel is not ready
-    def send_prepare_request(max_retries=5):
+    # fetch runner options from job service
+    # retries in case the channel is not ready
+    def send_options_request(max_retries=5):
       num_retries = 0
       while True:
         try:
@@ -211,16 +206,47 @@ class PortableRunner(runner.PipelineRunner):
           # Seems to be only an issue on Mac with port forwardings
           if channel:
             grpc.channel_ready_future(channel).result()
-          return job_service.Prepare(
-              beam_job_api_pb2.PrepareJobRequest(
-                  job_name='job', pipeline=proto_pipeline,
-                  pipeline_options=job_utils.dict_to_struct(p_options)))
+          return job_service.DescribePipelineOptions(
+              beam_job_api_pb2.DescribePipelineOptionsRequest())
         except grpc._channel._Rendezvous as e:
           num_retries += 1
           if num_retries > max_retries:
             raise e
 
-    prepare_response = send_prepare_request()
+    options_response = send_options_request()
+
+    def add_runner_options(parser):
+      for option in options_response.options:
+        try:
+          # no default values - we don't want runner options
+          # added unless they were specified by the user
+          add_arg_args = {'action' : 'store', 'help' : option.description}
+          if option.type == beam_job_api_pb2.PipelineOptionType.BOOLEAN:
+            add_arg_args['action'] = 'store_true'\
+              if option.default_value != 'true' else 'store_false'
+          elif option.type == beam_job_api_pb2.PipelineOptionType.INTEGER:
+            add_arg_args['type'] = int
+          elif option.type == beam_job_api_pb2.PipelineOptionType.ARRAY:
+            add_arg_args['action'] = 'append'
+          parser.add_argument("--%s" % option.name, **add_arg_args)
+        except Exception as e:
+          # ignore runner options that are already present
+          # only in this case is duplicate not treated as error
+          if 'conflicting option string' not in str(e):
+            raise
+          logging.debug("Runner option '%s' was already added" % option.name)
+
+    all_options = options.get_all_options(add_extra_args_fn=add_runner_options)
+    # TODO: Define URNs for options.
+    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
+    p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
+                 for k, v in all_options.items()
+                 if v is not None}
+
+    prepare_response = job_service.Prepare(
+        beam_job_api_pb2.PrepareJobRequest(
+            job_name='job', pipeline=proto_pipeline,
+            pipeline_options=job_utils.dict_to_struct(p_options)))
     if prepare_response.artifact_staging_endpoint.url:
       stager = portable_stager.PortableStager(
           grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
