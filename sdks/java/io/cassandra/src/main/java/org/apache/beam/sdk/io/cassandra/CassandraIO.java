@@ -416,11 +416,7 @@ public class CassandraIO {
           try {
             List<TokenRange> tokenRanges = getTokenRanges(cluster, spec.keyspace(), spec
                 .table());
-            long size = 0L;
-            for (TokenRange tokenRange : tokenRanges) {
-              size = size + tokenRange.meanPartitionSize * tokenRange.partitionCount;
-            }
-            return Math.round(size / getRingFraction(tokenRanges));
+            return getEstimatedSizeBytesFromTokenRanges(tokenRanges);
           } catch (Exception e) {
             LOG.warn("Can't estimate the size", e);
             return 0L;
@@ -430,6 +426,15 @@ public class CassandraIO {
           return 0L;
         }
       }
+    }
+
+    @VisibleForTesting
+    static long getEstimatedSizeBytesFromTokenRanges(List<TokenRange> tokenRanges) {
+      long size = 0L;
+      for (TokenRange tokenRange : tokenRanges) {
+        size = size + tokenRange.meanPartitionSize * tokenRange.partitionCount;
+      }
+      return Math.round(size / getRingFraction(tokenRanges));
     }
 
     @Override
