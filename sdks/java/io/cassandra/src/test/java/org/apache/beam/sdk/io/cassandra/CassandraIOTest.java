@@ -21,10 +21,15 @@ import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ColumnMetadata;
+import com.datastax.driver.core.KeyspaceMetadata;
+import com.datastax.driver.core.Metadata;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.TableMetadata;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 import java.io.Serializable;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -55,11 +60,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -281,136 +288,69 @@ public class CassandraIOTest implements Serializable {
     assertEquals(0, service.getTable().size());
   }
 
-  /** A {@link CassandraService} implementation that stores the entity in memory. */
-  private static class FakeCassandraService implements CassandraService<Scientist> {
-    private static final Map<Integer, Scientist> table = new ConcurrentHashMap<>();
+  private static final String MURMUR3_PARTITIONER = "org.apache.cassandra.dht.Murmur3Partitioner";
 
-    void load() {
-      table.clear();
-      String[] scientists = {
-        "Lovelace",
-        "Franklin",
-        "Meitner",
-        "Hopper",
-        "Curie",
-        "Faraday",
-        "Newton",
-        "Bohr",
-        "Galilei",
-        "Maxwell"
-      };
-      for (int i = 0; i < 10000; i++) {
-        int index = i % scientists.length;
-        Scientist scientist = new Scientist();
-        scientist.id = i;
-        scientist.name = scientists[index];
-        table.put(scientist.id, scientist);
-      }
-    }
 
-    Map<Integer, Scientist> getTable() {
-      return table;
-    }
+  @Test
+  public void testValidPartitioner() {
+    Assert.assertTrue(CassandraServiceImpl.isMurmur3Partitioner(cluster));
+  }
 
-    @Override
-    public BoundedReader<Scientist> createReader(CassandraIO.CassandraSource<Scientist> source) {
-      return new FakeCassandraReader(source);
-    }
+  @Test
+  public void testDistance() {
+    BigInteger distance =
+        CassandraServiceImpl.distance(new BigInteger("10"), new BigInteger("100"));
+    assertEquals(BigInteger.valueOf(90), distance);
 
-    private static class FakeCassandraReader extends BoundedSource.BoundedReader<Scientist> {
-      private final CassandraIO.CassandraSource<Scientist> source;
+    distance = CassandraServiceImpl.distance(new BigInteger("100"), new BigInteger("10"));
+    assertEquals(new BigInteger("18446744073709551526"), distance);
+  }
 
-      private Iterator<Scientist> iterator;
-      private Scientist current;
+  @Test
+  public void testRingFraction() {
+    // simulate a first range taking "half" of the available tokens
+    List<CassandraServiceImpl.TokenRange> tokenRanges = new ArrayList<>();
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1, BigInteger.valueOf(Long.MIN_VALUE), new BigInteger("0")));
+    assertEquals(0.5, CassandraServiceImpl.getRingFraction(tokenRanges), 0);
 
-      FakeCassandraReader(CassandraIO.CassandraSource<Scientist> source) {
-        this.source = source;
-      }
+    // add a second range to cover all tokens available
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1, new BigInteger("0"), BigInteger.valueOf(Long.MAX_VALUE)));
+    assertEquals(1.0, CassandraServiceImpl.getRingFraction(tokenRanges), 0);
+  }
 
-      @Override
-      public boolean start() {
-        iterator = table.values().iterator();
-        return advance();
-      }
+  @Test
+  public void testEstimatedSizeBytesFromTokenRanges() {
+    List<CassandraServiceImpl.TokenRange> tokenRanges = new ArrayList<>();
+    // one partition containing all tokens, the size is actually the size of the partition
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1000, BigInteger.valueOf(Long.MIN_VALUE), BigInteger.valueOf(Long.MAX_VALUE)));
+    assertEquals(1000, CassandraServiceImpl.getEstimatedSizeBytes(tokenRanges));
 
-      @Override
-      public boolean advance() {
-        if (iterator.hasNext()) {
-          current = iterator.next();
-          return true;
-        }
-        current = null;
-        return false;
-      }
+    // one partition with half of the tokens, we estimate the size to the double of this partition
+    tokenRanges = new ArrayList<>();
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1000, BigInteger.valueOf(Long.MIN_VALUE), new BigInteger("0")));
+    assertEquals(2000, CassandraServiceImpl.getEstimatedSizeBytes(tokenRanges));
 
-      @Override
-      public void close() {
-        iterator = null;
-        current = null;
-      }
-
-      @Override
-      public Scientist getCurrent() throws NoSuchElementException {
-        if (current == null) {
-          throw new NoSuchElementException();
-        }
-        return current;
-      }
-
-      @Override
-      public CassandraIO.CassandraSource<Scientist> getCurrentSource() {
-        return this.source;
-      }
-    }
-
-    @Override
-    public long getEstimatedSizeBytes(CassandraIO.Read spec) {
-      long size = 0L;
-      for (Scientist scientist : table.values()) {
-        size = size + scientist.toString().getBytes(StandardCharsets.UTF_8).length;
-      }
-      return size;
-    }
-
-    @Override
-    public List<BoundedSource<Scientist>> split(
-        CassandraIO.Read<Scientist> spec, long desiredBundleSizeBytes) {
-      return Collections.singletonList(new CassandraIO.CassandraSource<>(spec, null));
-    }
-
-    private static class FakeCassandraWriter implements Writer<Scientist> {
-      @Override
-      public void write(Scientist scientist) {
-        table.put(scientist.id, scientist);
-      }
-
-      @Override
-      public void close() {
-        // nothing to do
-      }
-    }
-
-    @Override
-    public FakeCassandraWriter createWriter(CassandraIO.Write<Scientist> spec) {
-      return new FakeCassandraWriter();
-    }
-
-    private static class FakeCassandraDeleter implements Deleter<Scientist> {
-      @Override
-      public void delete(Scientist scientist) {
-        table.remove(scientist.id);
-      }
-
-      @Override
-      public void close() {
-        // nothing to do
-      }
-    }
-
-    @Override
-    public FakeCassandraDeleter createDeleter(CassandraIO.Write<Scientist> spec) {
-      return new FakeCassandraDeleter();
-    }
+    // we have three partitions covering all tokens, the size is the sum of partition size *
+    // partition count
+    tokenRanges = new ArrayList<>();
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1000, BigInteger.valueOf(Long.MIN_VALUE), new BigInteger("-3")));
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            1, 1000, new BigInteger("-2"), new BigInteger("10000")));
+    tokenRanges.add(
+        new CassandraServiceImpl.TokenRange(
+            2, 3000, new BigInteger("10001"), BigInteger.valueOf(Long.MAX_VALUE)));
+    assertEquals(8000, CassandraServiceImpl.getEstimatedSizeBytes(tokenRanges));
   }
 
   /** Simple Cassandra entity used in test. */
