@@ -226,7 +226,7 @@ class _AvroUtils(object):
     meta = header['meta']
 
     if datafile.CODEC_KEY in meta:
-      codec = meta[datafile.CODEC_KEY]
+      codec = meta[datafile.CODEC_KEY].decode('utf-8')
     else:
       codec = 'null'
 

@@ -1046,7 +1046,7 @@ class DataflowRunner(PipelineRunner):
   @staticmethod
   def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
-    return unquote(encoded_string)
+    return unquote(encoded_string).encode('utf-8')
 
 
 class _DataflowSideInput(beam.pvalue.AsSideInput):
