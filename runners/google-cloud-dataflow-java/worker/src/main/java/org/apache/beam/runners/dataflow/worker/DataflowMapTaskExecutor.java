@@ -18,8 +18,8 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.util.List;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 
