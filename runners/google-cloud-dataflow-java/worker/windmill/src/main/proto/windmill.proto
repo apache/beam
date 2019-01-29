@@ -328,6 +328,17 @@ message GetConfigRequest {
   repeated string computations = 1;
 }
 
+message ComputationConfig {
+  // Map from user name of stateful transforms in this stage to their state
+  // family.
+  message TransformUserNameToStateFamilyEntry {
+    optional string transform_user_name = 1;
+    optional string state_family = 2;
+  }
+  repeated TransformUserNameToStateFamilyEntry
+      transform_user_name_to_state_family = 1;
+}
+
 message GetConfigResponse {
   repeated string cloud_works = 1;
 
@@ -345,6 +356,13 @@ message GetConfigResponse {
   }
   repeated SystemNameToComputationIdMapEntry
     system_name_to_computation_id_map = 3;
+
+  // Map of computation id to ComputationConfig.
+  message ComputationConfigMapEntry {
+    optional string computation_id = 1;
+    optional ComputationConfig computation_config = 2;
+  }
+  repeated ComputationConfigMapEntry computation_config_map = 4;
 }
 
 // Reporting
