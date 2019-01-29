@@ -93,7 +93,6 @@ def smokeTestConfigurations = [
                 itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 runner       : CommonTestProperties.Runner.FLINK,
                 jobProperties: [
-                        flinkMaster      : '[local]',
                         publishToBigQuery: true,
                         bigQueryDataset  : 'load_test_SMOKE',
                         bigQueryTable    : 'flink_gbk',
