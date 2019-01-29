@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.gearpump.translators;
 
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Gearpump streaming overrides for various view (side input) transforms. */
 class CreateStreamingGearpumpView<ElemT, ViewT>

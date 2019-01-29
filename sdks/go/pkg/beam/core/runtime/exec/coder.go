@@ -118,13 +118,9 @@ type bytesEncoder struct{}
 func (*bytesEncoder) Encode(val FullValue, w io.Writer) error {
 	// Encoding: size (varint) + raw data
 	var data []byte
-	switch v := val.Elm.(type) {
-	case []byte:
-		data = v
-	case string:
-		data = []byte(v)
-	default:
-		return fmt.Errorf("received unknown value type: want []byte or string, got %T", v)
+	data, ok := val.Elm.([]byte)
+	if !ok {
+		return fmt.Errorf("received unknown value type: want []byte, got %T", val.Elm)
 	}
 	size := len(data)
 
@@ -254,13 +250,14 @@ func (c *kvDecoder) Decode(r io.Reader) (FullValue, error) {
 type WindowEncoder interface {
 	// Encode serializes the given value to the writer.
 	Encode([]typex.Window, io.Writer) error
+	EncodeSingle(typex.Window, io.Writer) error
 }
 
 // EncodeWindow is a convenience function for encoding a single window into a
 // byte slice.
 func EncodeWindow(c WindowEncoder, w typex.Window) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := c.Encode([]typex.Window{w}, &buf); err != nil {
+	if err := c.EncodeSingle(w, &buf); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -308,6 +305,10 @@ func (*globalWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
 	return coder.EncodeInt32(1, w) // #windows
 }
 
+func (*globalWindowEncoder) EncodeSingle(ws typex.Window, w io.Writer) error {
+	return nil
+}
+
 type globalWindowDecoder struct{}
 
 func (*globalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
@@ -317,21 +318,27 @@ func (*globalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
 
 type intervalWindowEncoder struct{}
 
-func (*intervalWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
-	// Encoding: upper bound and duration
-
+func (enc *intervalWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
 	if err := coder.EncodeInt32(int32(len(ws)), w); err != nil { // #windows
 		return err
 	}
 	for _, elm := range ws {
-		iw := elm.(window.IntervalWindow)
-		if err := coder.EncodeEventTime(iw.End, w); err != nil {
-			return err
+		if err := enc.EncodeSingle(elm, w); err != nil {
+			return nil
 		}
-		duration := iw.End.Milliseconds() - iw.Start.Milliseconds()
-		if err := coder.EncodeVarUint64(uint64(duration), w); err != nil {
-			return err
-		}
+	}
+	return nil
+}
+
+func (*intervalWindowEncoder) EncodeSingle(elm typex.Window, w io.Writer) error {
+	// Encoding: upper bound and duration
+	iw := elm.(window.IntervalWindow)
+	if err := coder.EncodeEventTime(iw.End, w); err != nil {
+		return err
+	}
+	duration := iw.End.Milliseconds() - iw.Start.Milliseconds()
+	if err := coder.EncodeVarUint64(uint64(duration), w); err != nil {
+		return err
 	}
 	return nil
 }
@@ -384,7 +391,8 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 	if err != nil {
 		return nil, mtime.ZeroTimestamp, err
 	}
-	if _, err := ioutilx.ReadN(r, 1); err != nil { // NO_FIRING pane
+	var data [1]byte
+	if err := ioutilx.ReadNBufUnsafe(r, data[:]); err != nil { // NO_FIRING pane
 		return nil, mtime.ZeroTimestamp, err
 	}
 	return ws, t, nil

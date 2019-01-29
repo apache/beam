@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.util.Collection;
 import javax.annotation.Nullable;
@@ -27,6 +24,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 
 /**
  * A {@link Supplier} that returns a static set of {@link BoundedWindow BoundedWindows}. The

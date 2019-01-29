@@ -17,11 +17,8 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.primitives.Ints;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -42,6 +39,7 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
+import org.apache.beam.runners.samza.transforms.UpdatingCombineFn;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -60,6 +58,9 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
 import org.apache.samza.storage.kv.KeyValueStore;
@@ -535,7 +536,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   private class SamzaMapStateImpl<KeyT, ValueT> extends AbstractSamzaState<ValueT>
       implements SamzaMapState<KeyT, ValueT>, KeyValueIteratorState {
 
-    private static final int MAX_KEY_SIZE = 100000; //100K bytes
+    private static final int MAX_KEY_SIZE = 100000; // 100K bytes
     private final Coder<KeyT> keyCoder;
     private final byte[] maxKey;
     private final int storeKeySize;
@@ -805,7 +806,14 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     @Override
     @Nonnull
     public OutT read() {
-      return combineFn.extractOutput(getAccum());
+      AccumT accum = getAccum();
+      OutT output = combineFn.extractOutput(accum);
+      if (combineFn instanceof UpdatingCombineFn) {
+        AccumT updatedAccum =
+            ((UpdatingCombineFn<InT, AccumT, OutT>) combineFn).updateAfterFiring(accum);
+        writeInternal(updatedAccum);
+      }
+      return output;
     }
   }
 

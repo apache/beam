@@ -115,11 +115,11 @@ class ReadFromDatastore(PTransform):
     super(ReadFromDatastore, self).__init__()
 
     if not project:
-      ValueError("Project cannot be empty")
+      raise ValueError("Project cannot be empty")
     if not query:
-      ValueError("Query cannot be empty")
+      raise ValueError("Query cannot be empty")
     if num_splits < 0:
-      ValueError("num_splits must be greater than or equal 0")
+      raise ValueError("num_splits must be greater than or equal 0")
 
     self._project = project
     # using _namespace conflicts with DisplayData._namespace

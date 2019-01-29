@@ -17,15 +17,15 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,12 +38,6 @@ import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.WorkerPool;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
-import com.google.common.base.Utf8;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -156,6 +150,12 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Utf8;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -788,8 +788,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (!isNullOrEmpty(dataflowOptions.getMinCpuPlatform())) {
 
       List<String> minCpuFlags =
-          experiments
-              .stream()
+          experiments.stream()
               .filter(p -> p.startsWith("min_cpu_platform"))
               .collect(Collectors.toList());
 
@@ -1677,13 +1676,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class PrimitiveCombineGroupedValuesOverrideFactory<K, InputT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>,
+          PCollection<KV<K, Iterable<InputT>>>,
+          PCollection<KV<K, OutputT>>,
           Combine.GroupedValues<K, InputT, OutputT>> {
     @Override
     public PTransformReplacement<PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>,
+                    PCollection<KV<K, Iterable<InputT>>>,
+                    PCollection<KV<K, OutputT>>,
                     GroupedValues<K, InputT, OutputT>>
                 transform) {
       return PTransformReplacement.of(
@@ -1726,7 +1727,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static class StreamingShardedWriteFactory<UserT, DestinationT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<UserT>, WriteFilesResult<DestinationT>,
+          PCollection<UserT>,
+          WriteFilesResult<DestinationT>,
           WriteFiles<UserT, DestinationT, OutputT>> {
     // We pick 10 as a a default, as it works well with the default number of workers started
     // by Dataflow.
@@ -1741,7 +1743,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public PTransformReplacement<PCollection<UserT>, WriteFilesResult<DestinationT>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<UserT>, WriteFilesResult<DestinationT>,
+                    PCollection<UserT>,
+                    WriteFilesResult<DestinationT>,
                     WriteFiles<UserT, DestinationT, OutputT>>
                 transform) {
       // By default, if numShards is not set WriteFiles will produce one file per bundle. In

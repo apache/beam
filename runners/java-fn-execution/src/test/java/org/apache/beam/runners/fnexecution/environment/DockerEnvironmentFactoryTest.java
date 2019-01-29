@@ -20,6 +20,7 @@ package org.apache.beam.runners.fnexecution.environment;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -89,6 +90,7 @@ public class DockerEnvironmentFactoryTest {
   public void createsCorrectEnvironment() throws Exception {
     when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
         .thenReturn(CONTAINER_ID);
+    when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
 
     RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
     assertThat(handle.getInstructionRequestHandler(), is(client));
@@ -99,6 +101,7 @@ public class DockerEnvironmentFactoryTest {
   public void destroysCorrectContainer() throws Exception {
     when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
         .thenReturn(CONTAINER_ID);
+    when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
 
     RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
     handle.close();
@@ -107,6 +110,7 @@ public class DockerEnvironmentFactoryTest {
 
   @Test
   public void createsMultipleEnvironments() throws Exception {
+    when(docker.isContainerRunning(anyString())).thenReturn(true);
     Environment fooEnv = Environments.createDockerEnvironment("foo");
     RemoteEnvironment fooHandle = factory.createEnvironment(fooEnv);
     assertThat(fooHandle.getEnvironment(), is(equalTo(fooEnv)));

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.base.Utf8;
-import com.google.common.io.ByteStreams;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,6 +27,8 @@ import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Utf8;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 
 /**
  * A {@link Coder} that encodes {@link String Strings} in UTF-8 encoding. If in a nested context,

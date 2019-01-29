@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -27,6 +26,7 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -39,6 +39,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.state.ListState;
@@ -78,6 +79,12 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
    * consistent about the split sources.
    */
   private final List<? extends UnboundedSource<OutputT, CheckpointMarkT>> splitSources;
+
+  /**
+   * Shuts down the source if the final watermark is read. Note: This prevents further checkpoints
+   * of the streaming application.
+   */
+  private final boolean shutdownOnFinalWatermark;
 
   /** The local split sources. Assigned at runtime when the wrapper is executed in parallel. */
   private transient List<UnboundedSource<OutputT, CheckpointMarkT>> localSplitSources;
@@ -148,6 +155,8 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     // this is necessary so that the mapping of state to source is correct
     // when restoring
     splitSources = source.split(parallelism, pipelineOptions);
+    shutdownOnFinalWatermark =
+        pipelineOptions.as(FlinkPipelineOptions.class).isShutdownSourcesOnFinalWatermark();
   }
 
   /** Initialize and restore state before starting execution of the source. */
@@ -187,7 +196,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
     LOG.info(
         "Unbounded Flink Source {}/{} is reading from sources: {}",
-        subtaskIndex,
+        subtaskIndex + 1,
         numSubtasks,
         localSplitSources);
   }
@@ -282,8 +291,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   }
 
   private void finalizeSource() {
-    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
-    if (!options.isShutdownSourcesOnFinalWatermark()) {
+    if (!shutdownOnFinalWatermark) {
       // do nothing, but still look busy ...
       // we can't return here since Flink requires that all operators stay up,
       // otherwise checkpointing would not work correctly anymore
@@ -326,11 +334,15 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   @Override
   public void close() throws Exception {
-    super.close();
-    if (localReaders != null) {
-      for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
-        reader.close();
+    try {
+      super.close();
+      if (localReaders != null) {
+        for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
+          reader.close();
+        }
       }
+    } finally {
+      FlinkClassloading.deleteStaticCaches();
     }
   }
 
@@ -409,9 +421,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
     if (context.isRestored()) {
       isRestored = true;
-      LOG.info("Having restore state in the UnbounedSourceWrapper.");
+      LOG.info("Restoring state in the UnboundedSourceWrapper.");
     } else {
-      LOG.info("No restore state for UnbounedSourceWrapper.");
+      LOG.info("No restore state for UnboundedSourceWrapper.");
     }
   }
 
@@ -429,7 +441,8 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
         }
         context.emitWatermark(new Watermark(watermarkMillis));
 
-        if (watermarkMillis >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+        if (shutdownOnFinalWatermark
+            && watermarkMillis >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
           this.isRunning = false;
         }
       }
@@ -464,14 +477,30 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   /** Visible so that we can check this in tests. Must not be used for anything else. */
   @VisibleForTesting
-  public List<? extends UnboundedSource<OutputT, CheckpointMarkT>> getLocalSplitSources() {
+  List<? extends UnboundedSource<OutputT, CheckpointMarkT>> getLocalSplitSources() {
     return localSplitSources;
   }
 
   /** Visible so that we can check this in tests. Must not be used for anything else. */
   @VisibleForTesting
-  public List<UnboundedSource.UnboundedReader<OutputT>> getLocalReaders() {
+  List<UnboundedSource.UnboundedReader<OutputT>> getLocalReaders() {
     return localReaders;
+  }
+
+  /** Visible so that we can check this in tests. Must not be used for anything else. */
+  @VisibleForTesting
+  boolean isRunning() {
+    return isRunning;
+  }
+
+  /**
+   * Visible so that we can set this in tests. This is only set in the run method which is
+   * inconvenient for the tests where the context is assumed to be set when run is called. Must not
+   * be used for anything else.
+   */
+  @VisibleForTesting
+  public void setSourceContext(SourceContext<WindowedValue<ValueWithRecordId<OutputT>>> ctx) {
+    context = ctx;
   }
 
   @Override

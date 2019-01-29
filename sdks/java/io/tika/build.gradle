@@ -22,11 +22,11 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: IO :: Tika"
 ext.summary = "Tika Input to parse files."
 
-def tika_version = "1.18"
+def tika_version = "1.20"
 def bndlib_version = "1.43.0"
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   compileOnly "biz.aQute:bndlib:$bndlib_version"
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow "org.apache.tika:tika-core:$tika_version"

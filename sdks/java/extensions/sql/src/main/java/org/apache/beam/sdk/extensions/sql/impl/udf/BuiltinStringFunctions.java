@@ -35,10 +35,9 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   // return null for boolean is not allowed.
   // TODO: handle null input.
   @UDF(
-    funcName = "ENDS_WITH",
-    parameterArray = {TypeName.STRING},
-    returnType = TypeName.STRING
-  )
+      funcName = "ENDS_WITH",
+      parameterArray = {TypeName.STRING},
+      returnType = TypeName.STRING)
   public Boolean endsWith(String str1, String str2) {
     return str1.endsWith(str2);
   }
@@ -47,20 +46,18 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   // return null for boolean is not allowed.
   // TODO: handle null input.
   @UDF(
-    funcName = "STARTS_WITH",
-    parameterArray = {TypeName.STRING},
-    returnType = TypeName.STRING
-  )
+      funcName = "STARTS_WITH",
+      parameterArray = {TypeName.STRING},
+      returnType = TypeName.STRING)
   public Boolean startsWith(String str1, String str2) {
     return str1.startsWith(str2);
   }
 
   @UDF(
-    funcName = "LENGTH",
-    parameterArray = {TypeName.STRING},
-    returnType = TypeName.INT64
-  )
-  public Long length(String str) {
+      funcName = "LENGTH",
+      parameterArray = {TypeName.STRING},
+      returnType = TypeName.INT64)
+  public Long lengthString(String str) {
     if (str == null) {
       return null;
     }
@@ -68,11 +65,10 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   }
 
   @UDF(
-    funcName = "LENGTH",
-    parameterArray = {TypeName.BYTES},
-    returnType = TypeName.INT64
-  )
-  public Long length(byte[] bytes) {
+      funcName = "LENGTH",
+      parameterArray = {TypeName.BYTES},
+      returnType = TypeName.INT64)
+  public Long lengthBytes(byte[] bytes) {
     if (bytes == null) {
       return null;
     }
@@ -80,11 +76,10 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   }
 
   @UDF(
-    funcName = "REVERSE",
-    parameterArray = {TypeName.STRING},
-    returnType = TypeName.STRING
-  )
-  public String reverse(String str) {
+      funcName = "REVERSE",
+      parameterArray = {TypeName.STRING},
+      returnType = TypeName.STRING)
+  public String reverseString(String str) {
     if (str == null) {
       return null;
     }
@@ -92,11 +87,10 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   }
 
   @UDF(
-    funcName = "REVERSE",
-    parameterArray = {TypeName.BYTES},
-    returnType = TypeName.BYTES
-  )
-  public byte[] reverse(byte[] bytes) {
+      funcName = "REVERSE",
+      parameterArray = {TypeName.BYTES},
+      returnType = TypeName.BYTES)
+  public byte[] reverseBytes(byte[] bytes) {
     if (bytes == null) {
       return null;
     }
@@ -106,10 +100,9 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   }
 
   @UDF(
-    funcName = "FROM_HEX",
-    parameterArray = {TypeName.STRING},
-    returnType = TypeName.BYTES
-  )
+      funcName = "FROM_HEX",
+      parameterArray = {TypeName.STRING},
+      returnType = TypeName.BYTES)
   public byte[] fromHex(String str) {
     if (str == null) {
       return null;
@@ -123,10 +116,9 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   }
 
   @UDF(
-    funcName = "TO_HEX",
-    parameterArray = {TypeName.BYTES},
-    returnType = TypeName.STRING
-  )
+      funcName = "TO_HEX",
+      parameterArray = {TypeName.BYTES},
+      returnType = TypeName.STRING)
   public String toHex(byte[] bytes) {
     if (bytes == null) {
       return null;
@@ -136,19 +128,17 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   }
 
   @UDF(
-    funcName = "LPAD",
-    parameterArray = {TypeName.STRING, TypeName.INT64},
-    returnType = TypeName.STRING
-  )
+      funcName = "LPAD",
+      parameterArray = {TypeName.STRING, TypeName.INT64},
+      returnType = TypeName.STRING)
   public String lpad(String originalValue, Long returnLength) {
     return lpad(originalValue, returnLength, " ");
   }
 
   @UDF(
-    funcName = "LPAD",
-    parameterArray = {TypeName.STRING, TypeName.INT64, TypeName.STRING},
-    returnType = TypeName.STRING
-  )
+      funcName = "LPAD",
+      parameterArray = {TypeName.STRING, TypeName.INT64, TypeName.STRING},
+      returnType = TypeName.STRING)
   public String lpad(String originalValue, Long returnLength, String pattern) {
     if (originalValue == null || returnLength == null || pattern == null) {
       return null;
@@ -169,19 +159,17 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   }
 
   @UDF(
-    funcName = "LPAD",
-    parameterArray = {TypeName.BYTES, TypeName.INT64},
-    returnType = TypeName.BYTES
-  )
+      funcName = "LPAD",
+      parameterArray = {TypeName.BYTES, TypeName.INT64},
+      returnType = TypeName.BYTES)
   public byte[] lpad(byte[] originalValue, Long returnLength) {
     return lpad(originalValue, returnLength, " ".getBytes(UTF_8));
   }
 
   @UDF(
-    funcName = "LPAD",
-    parameterArray = {TypeName.BYTES, TypeName.INT64, TypeName.BYTES},
-    returnType = TypeName.BYTES
-  )
+      funcName = "LPAD",
+      parameterArray = {TypeName.BYTES, TypeName.INT64, TypeName.BYTES},
+      returnType = TypeName.BYTES)
   public byte[] lpad(byte[] originalValue, Long returnLength, byte[] pattern) {
     if (originalValue == null || returnLength == null || pattern == null) {
       return null;
@@ -214,19 +202,17 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   }
 
   @UDF(
-    funcName = "RPAD",
-    parameterArray = {TypeName.STRING, TypeName.INT64},
-    returnType = TypeName.STRING
-  )
+      funcName = "RPAD",
+      parameterArray = {TypeName.STRING, TypeName.INT64},
+      returnType = TypeName.STRING)
   public String rpad(String originalValue, Long returnLength) {
     return lpad(originalValue, returnLength, " ");
   }
 
   @UDF(
-    funcName = "RPAD",
-    parameterArray = {TypeName.STRING, TypeName.INT64, TypeName.STRING},
-    returnType = TypeName.STRING
-  )
+      funcName = "RPAD",
+      parameterArray = {TypeName.STRING, TypeName.INT64, TypeName.STRING},
+      returnType = TypeName.STRING)
   public String rpad(String originalValue, Long returnLength, String pattern) {
     if (originalValue == null || returnLength == null || pattern == null) {
       return null;
@@ -247,19 +233,17 @@ public class BuiltinStringFunctions extends BeamBuiltinFunctionProvider {
   }
 
   @UDF(
-    funcName = "RPAD",
-    parameterArray = {TypeName.BYTES, TypeName.INT64},
-    returnType = TypeName.BYTES
-  )
+      funcName = "RPAD",
+      parameterArray = {TypeName.BYTES, TypeName.INT64},
+      returnType = TypeName.BYTES)
   public byte[] rpad(byte[] originalValue, Long returnLength) {
     return lpad(originalValue, returnLength, " ".getBytes(UTF_8));
   }
 
   @UDF(
-    funcName = "RPAD",
-    parameterArray = {TypeName.BYTES, TypeName.INT64, TypeName.BYTES},
-    returnType = TypeName.BYTES
-  )
+      funcName = "RPAD",
+      parameterArray = {TypeName.BYTES, TypeName.INT64, TypeName.BYTES},
+      returnType = TypeName.BYTES)
   public byte[] rpad(byte[] originalValue, Long returnLength, byte[] pattern) {
     if (originalValue == null || returnLength == null || pattern == null) {
       return null;

@@ -21,16 +21,8 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
-
-func init() {
-	runtime.RegisterFunction(encVarIntZ)
-	runtime.RegisterFunction(decVarIntZ)
-	runtime.RegisterFunction(encVarUintZ)
-	runtime.RegisterFunction(decVarUintZ)
-}
 
 // NewVarIntZ returns a varint coder for the given integer type. It uses a zig-zag scheme,
 // which is _different_ from the Beam standard coding scheme.

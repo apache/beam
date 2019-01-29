@@ -101,7 +101,7 @@ To contribute code, you need
    [examples](https://s.apache.org/beam-design-docs)) and email it to the dev@ mailing list.
 
 ### Development Setup
-   
+
 1. If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
    [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)
 1. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
@@ -114,7 +114,7 @@ To contribute code, you need
 
    For a given module, use:
 
-       $ ./gradlew sdks/java/io/cassandra tasks
+       $ ./gradlew -p sdks/java/io/cassandra tasks
 
     For an exhaustive list of tasks, use:
 
@@ -131,7 +131,7 @@ To contribute code, you need
        $ ./gradlew -p sdks/go check
        $ ./gradlew -p sdks/java/io/cassandra check
        $ ./gradlew -p runners/flink check
-       
+
 1. Now you may want to set up your preferred IDE and other aspects of your development
    environment. See the Developers' wiki for tips, guides, and FAQs on:
    - [IntelliJ](https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE)
@@ -142,9 +142,9 @@ To contribute code, you need
    - [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips)
    - [Jenkins](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
    - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
-   
+
 ### Make your change
-   
+
 1. Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
    have an open source license [compatible](https://www.apache.org/legal/resolved.html#criteria) with Apache.
 1. Add unit tests for your change
@@ -155,7 +155,7 @@ To contribute code, you need
    Use descriptive commit messages that make it easy to identify changes and provide a clear history.
    To support efficient and quality review, avoid tiny or out-of-context changes and huge mega-changes.
 1. The pull request and any changes pushed to it will trigger [pre-commit
-   jobs](/contribute/testing/). If a test fails and appears unrelated to your
+   jobs](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit). If a test fails and appears unrelated to your
    change, you can cause tests to be re-run by adding a single line comment on your
    PR
 

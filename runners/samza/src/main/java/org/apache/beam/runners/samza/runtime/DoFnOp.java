@@ -20,8 +20,11 @@ package org.apache.beam.runners.samza.runtime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
@@ -31,9 +34,11 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
+import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -47,6 +52,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.apache.samza.config.Config;
 import org.apache.samza.operators.TimerRegistry;
 import org.apache.samza.storage.kv.KeyValueStore;
@@ -69,6 +75,13 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // NOTE: we use HashMap here to guarantee Serializability
   private final HashMap<String, PCollectionView<?>> idToViewMap;
   private final String stepName;
+  private final Coder<InT> inputCoder;
+  private final HashMap<TupleTag<?>, Coder<?>> outputCoders;
+
+  // portable api related
+  private final boolean isPortable;
+  private final RunnerApi.ExecutableStagePayload stagePayload;
+  private final HashMap<String, TupleTag<?>> idToTupleTagMap;
 
   private transient SamzaTimerInternalsFactory<?> timerInternalsFactory;
   private transient DoFnRunner<InT, FnOutT> fnRunner;
@@ -79,20 +92,15 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   // This is derivable from pushbackValues which is persisted to a store.
   // TODO: eagerly initialize the hold in init
   @edu.umd.cs.findbugs.annotations.SuppressWarnings(
-    justification = "No bug",
-    value = "SE_TRANSIENT_FIELD_NOT_RESTORED"
-  )
+      justification = "No bug",
+      value = "SE_TRANSIENT_FIELD_NOT_RESTORED")
   private transient Instant pushbackWatermarkHold;
 
   // TODO: add this to checkpointable state
   private transient Instant inputWatermark;
   private transient Instant sideInputWatermark;
   private transient List<WindowedValue<InT>> pushbackValues;
-  private transient DoFnSignature signature;
-  private transient TaskContext context;
-  private transient SamzaPipelineOptions pipelineOptions;
-  private Coder<InT> inputCoder;
-  private Map<TupleTag<?>, Coder<?>> outputCoders;
+  private transient StageBundleFactory stageBundleFactory;
 
   public DoFnOp(
       TupleTag<FnOutT> mainOutputTag,
@@ -105,18 +113,24 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       WindowingStrategy windowingStrategy,
       Map<String, PCollectionView<?>> idToViewMap,
       OutputManagerFactory<OutT> outputManagerFactory,
-      String stepName) {
+      String stepName,
+      boolean isPortable,
+      RunnerApi.ExecutableStagePayload stagePayload,
+      Map<String, TupleTag<?>> idToTupleTagMap) {
     this.mainOutputTag = mainOutputTag;
     this.doFn = doFn;
     this.sideInputs = sideInputs;
     this.sideOutputTags = sideOutputTags;
     this.inputCoder = inputCoder;
-    this.outputCoders = outputCoders;
+    this.outputCoders = new HashMap<>(outputCoders);
     this.windowingStrategy = windowingStrategy;
     this.idToViewMap = new HashMap<>(idToViewMap);
     this.outputManagerFactory = outputManagerFactory;
     this.stepName = stepName;
     this.keyCoder = keyCoder;
+    this.isPortable = isPortable;
+    this.stagePayload = stagePayload;
+    this.idToTupleTagMap = new HashMap<>(idToTupleTagMap);
   }
 
   @Override
@@ -125,52 +139,98 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       TaskContext context,
       TimerRegistry<TimerKey<Void>> timerRegistry,
       OpEmitter<OutT> emitter) {
-    this.pipelineOptions =
+    this.inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    this.sideInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    this.pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
+    this.timerInternalsFactory = new SamzaTimerInternalsFactory(keyCoder, timerRegistry);
+
+    final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+    final SamzaPipelineOptions pipelineOptions =
         Base64Serializer.deserializeUnchecked(
                 config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
             .get()
             .as(SamzaPipelineOptions.class);
-    this.inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
-    this.sideInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
-    this.pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
-    this.timerInternalsFactory = createTimerInternalsFactory(keyCoder, timerRegistry);
-    this.context = context;
-    this.signature = DoFnSignatures.getSignature(doFn.getClass());
 
-    // use non-keyed StateInternals for side input
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
-        createStateInternalFactory(null);
+        createStateInternalFactory(null, context, pipelineOptions, signature, mainOutputTag);
     this.sideInputHandler =
         new SideInputHandler(sideInputs, nonKeyedStateInternalsFactory.stateInternalsForKey(null));
 
-    final SamzaExecutionContext executionContext = (SamzaExecutionContext) context.getUserContext();
-    final SamzaStoreStateInternals.Factory<?> stateInternalsFactory =
-        createStateInternalFactory(keyCoder);
-
-    this.fnRunner =
-        DoFnRunnerWithKeyedInternals.of(
-            pipelineOptions,
-            doFn,
-            sideInputHandler,
-            outputManagerFactory.create(emitter),
-            mainOutputTag,
-            sideOutputTags,
-            inputCoder,
-            outputCoders,
-            stateInternalsFactory,
-            timerInternalsFactory,
-            windowingStrategy,
-            executionContext.getMetricsContainer(),
-            stepName);
+    if (isPortable) {
+      SamzaExecutionContext samzaExecutionContext =
+          (SamzaExecutionContext) context.getUserContext();
+      ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
+      stageBundleFactory = samzaExecutionContext.getJobBundleFactory().forStage(executableStage);
+      this.fnRunner =
+          SamzaDoFnRunners.createPortable(
+              outputManagerFactory.create(emitter),
+              stageBundleFactory,
+              mainOutputTag,
+              idToTupleTagMap,
+              context,
+              stepName);
+    } else {
+      this.fnRunner =
+          SamzaDoFnRunners.create(
+              pipelineOptions,
+              doFn,
+              windowingStrategy,
+              stepName,
+              context,
+              mainOutputTag,
+              sideInputHandler,
+              timerInternalsFactory,
+              keyCoder,
+              outputManagerFactory.create(emitter),
+              inputCoder,
+              sideOutputTags,
+              outputCoders);
+    }
 
     this.pushbackFnRunner =
         SimplePushbackSideInputDoFnRunner.create(fnRunner, sideInputs, sideInputHandler);
-
     this.pushbackValues = new ArrayList<>();
 
-    doFnInvoker = DoFnInvokers.invokerFor(doFn);
+    final Iterator<SamzaDoFnInvokerRegistrar> invokerReg =
+        ServiceLoader.load(SamzaDoFnInvokerRegistrar.class).iterator();
+    if (!invokerReg.hasNext()) {
+      // use the default invoker here
+      doFnInvoker = DoFnInvokers.invokerFor(doFn);
+    } else {
+      doFnInvoker = Iterators.getOnlyElement(invokerReg).invokerFor(doFn, context);
+    }
 
     doFnInvoker.invokeSetup();
+  }
+
+  static SamzaStoreStateInternals.Factory createStateInternalFactory(
+      Coder<?> keyCoder,
+      TaskContext context,
+      SamzaPipelineOptions pipelineOptions,
+      DoFnSignature signature,
+      TupleTag<?> mainOutputTag) {
+    final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
+    final Map<String, KeyValueStore<byte[], byte[]>> stores =
+        new HashMap<>(SamzaStoreStateInternals.getBeamStore(context));
+
+    final Coder stateKeyCoder;
+    if (keyCoder != null) {
+      signature
+          .stateDeclarations()
+          .keySet()
+          .forEach(
+              stateId ->
+                  stores.put(stateId, (KeyValueStore<byte[], byte[]>) context.getStore(stateId)));
+      stateKeyCoder = keyCoder;
+    } else {
+      stateKeyCoder = VoidCoder.of();
+    }
+    return new SamzaStoreStateInternals.Factory<>(
+        // TODO: ??? what to do with empty output?
+        mainOutputTag == null ? "null" : mainOutputTag.getId(),
+        stores,
+        stateKeyCoder,
+        batchGetSize);
   }
 
   @Override
@@ -262,34 +322,11 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @Override
   public void close() {
     doFnInvoker.invokeTeardown();
-  }
-
-  @SuppressWarnings("unchecked")
-  private SamzaStoreStateInternals.Factory createStateInternalFactory(Coder<?> keyCoder) {
-    final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
-    final Map<String, KeyValueStore<byte[], byte[]>> stores =
-        new HashMap<>(SamzaStoreStateInternals.getBeamStore(context));
-
-    final Coder stateKeyCoder;
-    if (keyCoder != null) {
-      signature
-          .stateDeclarations()
-          .keySet()
-          .forEach(
-              stateId ->
-                  stores.put(stateId, (KeyValueStore<byte[], byte[]>) context.getStore(stateId)));
-      stateKeyCoder = keyCoder;
-    } else {
-      stateKeyCoder = VoidCoder.of();
+    try (AutoCloseable closer = stageBundleFactory) {
+      // do nothing
+    } catch (Exception e) {
+      LOG.error("Failed to close stage bundle factory", e);
     }
-    return new SamzaStoreStateInternals.Factory<>(
-        mainOutputTag.getId(), stores, stateKeyCoder, batchGetSize);
-  }
-
-  @SuppressWarnings("unchecked")
-  private SamzaTimerInternalsFactory createTimerInternalsFactory(
-      Coder<?> keyCoder, TimerRegistry timerRegistry) {
-    return new SamzaTimerInternalsFactory<>(keyCoder, timerRegistry);
   }
 
   private void fireTimer(KeyedTimerData<?> keyedTimerData) {
@@ -352,10 +389,10 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
    * RawUnionValue}.
    */
   public static class MultiOutputManagerFactory implements OutputManagerFactory<RawUnionValue> {
-    private final Map<TupleTag<?>, Integer> tagToIdMap;
+    private final Map<TupleTag<?>, Integer> tagToIndexMap;
 
-    public MultiOutputManagerFactory(Map<TupleTag<?>, Integer> tagToIdMap) {
-      this.tagToIdMap = tagToIdMap;
+    public MultiOutputManagerFactory(Map<TupleTag<?>, Integer> tagToIndexMap) {
+      this.tagToIndexMap = tagToIndexMap;
     }
 
     @Override
@@ -363,9 +400,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       return new DoFnRunners.OutputManager() {
         @Override
         public <T> void output(TupleTag<T> tupleTag, WindowedValue<T> windowedValue) {
-          final int id = tagToIdMap.get(tupleTag);
+          final int index = tagToIndexMap.get(tupleTag);
           final T rawValue = windowedValue.getValue();
-          final RawUnionValue rawUnionValue = new RawUnionValue(id, rawValue);
+          final RawUnionValue rawUnionValue = new RawUnionValue(index, rawValue);
           emitter.emitElement(windowedValue.withValue(rawUnionValue));
         }
       };

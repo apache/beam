@@ -51,5 +51,7 @@ enum StandardSQLTypeName {
   /** Represents a time, independent of a specific date, to microsecond precision. */
   TIME,
   /** Represents a year, month, day, hour, minute, second, and subsecond (microsecond precision). */
-  DATETIME
+  DATETIME,
+  /** Represents a collection of points, lines, and polygons. Represented as a point set. */
+  GEOGRAPHY
 }

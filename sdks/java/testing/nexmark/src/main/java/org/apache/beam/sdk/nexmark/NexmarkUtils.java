@@ -17,13 +17,9 @@
  */
 package org.apache.beam.sdk.nexmark;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -81,6 +77,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -579,37 +579,35 @@ public class NexmarkUtils {
                     }
                   }));
       // Apply actual transform that generates disk IO using state API
-      PCollection<T> output =
-          kvCollection.apply(
-              "diskBusy.generateIO",
-              ParDo.of(
-                  new DoFn<KV<Integer, T>, T>() {
+      return kvCollection.apply(
+          "diskBusy.generateIO",
+          ParDo.of(
+              new DoFn<KV<Integer, T>, T>() {
 
-                    private static final String DISK_BUSY = "diskBusy";
+                private static final String DISK_BUSY = "diskBusy";
 
-                    @StateId(DISK_BUSY)
-                    private final StateSpec<ValueState<byte[]>> spec =
-                        StateSpecs.value(ByteArrayCoder.of());
+                @StateId(DISK_BUSY)
+                private final StateSpec<ValueState<byte[]>> spec =
+                    StateSpecs.value(ByteArrayCoder.of());
 
-                    @ProcessElement
-                    public void processElement(
-                        ProcessContext c, @StateId(DISK_BUSY) ValueState<byte[]> state) {
-                      long remain = bytes;
-                      long now = System.currentTimeMillis();
-                      while (remain > 0) {
-                        long thisBytes = Math.min(remain, MAX_BUFFER_SIZE);
-                        remain -= thisBytes;
-                        byte[] arr = new byte[(int) thisBytes];
-                        for (int i = 0; i < thisBytes; i++) {
-                          arr[i] = (byte) now;
-                        }
-                        state.write(arr);
-                        now = System.currentTimeMillis();
-                      }
-                      c.output(c.element().getValue());
+                @ProcessElement
+                public void processElement(
+                    ProcessContext c, @StateId(DISK_BUSY) ValueState<byte[]> state) {
+                  long remain = bytes;
+                  long now = System.currentTimeMillis();
+                  while (remain > 0) {
+                    long thisBytes = Math.min(remain, MAX_BUFFER_SIZE);
+                    remain -= thisBytes;
+                    byte[] arr = new byte[(int) thisBytes];
+                    for (int i = 0; i < thisBytes; i++) {
+                      arr[i] = (byte) now;
                     }
-                  }));
-      return output;
+                    state.write(arr);
+                    now = System.currentTimeMillis();
+                  }
+                  c.output(c.element().getValue());
+                }
+              }));
     }
   }
 
@@ -717,9 +715,7 @@ public class NexmarkUtils {
         break;
       case CSV:
         FileSystems.delete(
-            FileSystems.match(config.sideInputUrl + "*")
-                .metadata()
-                .stream()
+            FileSystems.match(config.sideInputUrl + "*").metadata().stream()
                 .map(metadata -> metadata.resourceId())
                 .collect(Collectors.toList()));
         break;

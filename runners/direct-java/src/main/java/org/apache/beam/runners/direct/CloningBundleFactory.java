@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.base.MoreObjects;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -91,6 +92,14 @@ class CloningBundleFactory implements BundleFactory {
     @Override
     public CommittedBundle<T> commit(Instant synchronizedProcessingTime) {
       return underlying.commit(synchronizedProcessingTime);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("Data", underlying.toString())
+          .add("Coder", coder.toString())
+          .toString();
     }
   }
 }

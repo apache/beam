@@ -32,16 +32,20 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 /** Tests for {@link FlinkPipelineExecutionEnvironment}. */
 @RunWith(JUnit4.class)
@@ -107,6 +111,28 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
     assertThat(options.getFilesToStage().size(), is(2));
     assertThat(options.getFilesToStage(), everyItem(not(matches(".*\\.jar"))));
+  }
+
+  @Test
+  public void shouldUseTransformOverrides() {
+    boolean[] testParameters = {true, false};
+    for (boolean streaming : testParameters) {
+      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      options.setStreaming(streaming);
+      options.setRunner(FlinkRunner.class);
+      FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+      Pipeline p = Mockito.spy(Pipeline.create(options));
+
+      flinkEnv.translate(p);
+
+      ArgumentCaptor<ImmutableList> captor = ArgumentCaptor.forClass(ImmutableList.class);
+      Mockito.verify(p).replaceAll(captor.capture());
+      ImmutableList<PTransformOverride> overridesList = captor.getValue();
+
+      assertThat(overridesList.isEmpty(), is(false));
+      assertThat(
+          overridesList.size(), is(FlinkTransformOverrides.getDefaultOverrides(options).size()));
+    }
   }
 
   private FlinkPipelineOptions testPreparingResourcesToStage(String flinkMaster)

@@ -17,12 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.LinkedHashMultimap;
-import com.google.common.collect.Multimap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,6 +28,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.LinkedHashMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 
 /**
  * Utilities for converting {@link ExecutableStage}s to and from {@link RunnerApi} protocol buffers.
@@ -112,10 +112,7 @@ public class ExecutableStageTranslation {
       } else {
         // Enumerate the outer stages with their composite structure, if any.
         parts =
-            groupByOuter
-                .asMap()
-                .entrySet()
-                .stream()
+            groupByOuter.asMap().entrySet().stream()
                 .map(
                     outer ->
                         String.format(

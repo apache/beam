@@ -89,6 +89,14 @@ func (t *Top) sort() {
 	sort.SliceStable(t.Shims, func(i, j int) bool {
 		return t.Shims[i].Name < t.Shims[j].Name
 	})
+	sort.SliceStable(t.Wraps, func(i, j int) bool {
+		return t.Wraps[i].Name < t.Wraps[j].Name
+	})
+	for _, w := range t.Wraps {
+		sort.SliceStable(w.Methods, func(i, j int) bool {
+			return w.Methods[i].Name < w.Methods[j].Name
+		})
+	}
 }
 
 // processImports removes imports that are otherwise handled by the template
@@ -337,15 +345,6 @@ func (v *iterNative) Value() interface{} {
 	return v.fn
 }
 
-func convToString(v interface{}) string {
-	switch v.(type) {
-	case []byte:
-		return string(v.([]byte))
-	default:
-		return v.(string)
-	}
-}
-
 func (v *iterNative) Reset() error {
 	if err := v.cur.Close(); err != nil {
 		return err
@@ -374,16 +373,10 @@ func (v *iterNative) read{{$x.Name}}({{if $x.Time -}} et *typex.EventTime, {{end
 {{- if $x.Time}}
 	*et = elm.Timestamp
 {{- end}}
-{{- if eq $x.Key "string"}}
-	*key = convToString(elm.Elm)
-{{- else if $x.Key}}
+{{- if $x.Key}}
 	*key = elm.Elm.({{$x.Key}})
 {{- end}}
-{{- if eq $x.Val "string"}}
-	*value = convToString(elm.Elm{{- if $x.Key -}} 2 {{- end -}})
-{{- else}}
 	*value = elm.Elm{{- if $x.Key -}} 2 {{- end -}}.({{$x.Val}})
-{{- end}}
 	return true
 }
 

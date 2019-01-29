@@ -12,7 +12,6 @@
 # Queries Jenkins to collect metrics and pu them in bigquery.
 import os
 import psycopg2
-import re
 import requests
 import socket
 import sys
@@ -44,22 +43,22 @@ build_url varchar,
 build_result varchar,
 build_timestamp TIMESTAMP,
 build_builtOn varchar,
-build_duration integer,
-build_estimatedDuration integer,
+build_duration BIGINT,
+build_estimatedDuration BIGINT,
 build_fullDisplayName varchar,
-timing_blockedDurationMillis integer,
-timing_buildableDurationMillis integer,
-timing_buildingDurationMillis integer,
-timing_executingTimeMillis integer,
-timing_queuingDurationMillis integer,
-timing_totalDurationMillis integer,
-timing_waitingDurationMillis integer,
+timing_blockedDurationMillis BIGINT,
+timing_buildableDurationMillis BIGINT,
+timing_buildingDurationMillis BIGINT,
+timing_executingTimeMillis BIGINT,
+timing_queuingDurationMillis BIGINT,
+timing_totalDurationMillis BIGINT,
+timing_waitingDurationMillis BIGINT,
 primary key(job_name, build_id)
 )
 """
 
 def fetchJobs():
-  url = ('https://builds.apache.org/view/A-D/view/Beam/api/json'
+  url = ('https://builds.apache.org/view/A-D/view/Beam/view/All/api/json'
          '?tree=jobs[name,url,lastCompletedBuild[id]]&depth=1')
   r = requests.get(url)
   jobs = r.json()[u'jobs']

@@ -27,16 +27,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.common.base.Suppliers;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.ServiceLoader;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -44,10 +43,20 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.construction.metrics.MetricKey;
+import org.apache.beam.runners.core.metrics.MetricUpdates;
+import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -78,7 +87,10 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.hamcrest.collection.IsMapContaining;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -86,12 +98,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link FnApiDoFnRunner}. */
 @RunWith(JUnit4.class)
 public class FnApiDoFnRunnerTest implements Serializable {
 
   @Rule public transient ResetDateTimeProvider dateTimeProvider = new ResetDateTimeProvider();
+
+  private static final Logger LOG = LoggerFactory.getLogger(FnApiDoFnRunnerTest.class);
 
   public static final String TEST_PTRANSFORM_ID = "pTransformId";
 
@@ -182,12 +198,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 bagUserStateKey("combine", "X"), encode("X0")));
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put(
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    consumers.register(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -201,11 +217,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     mainOutputValues.clear();
 
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
@@ -213,7 +229,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the key order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getMultiplexingConsumer(inputPCollectionId);
     mainInput.accept(valueInGlobalWindow(KV.of("X", "X1")));
     mainInput.accept(valueInGlobalWindow(KV.of("Y", "Y1")));
     mainInput.accept(valueInGlobalWindow(KV.of("X", "X2")));
@@ -235,7 +251,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             valueInGlobalWindow("combine:Y1")));
     mainOutputValues.clear();
 
-    Iterables.getOnlyElement(finishFunctions).run();
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
     assertThat(mainOutputValues, empty());
 
     assertEquals(
@@ -341,15 +357,15 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put(
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    consumers.register(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-    consumers.put(
+    consumers.register(
         additionalPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -363,11 +379,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     mainOutputValues.clear();
 
     assertThat(
@@ -377,7 +393,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getMultiplexingConsumer(inputPCollectionId);
     mainInput.accept(valueInGlobalWindow("X"));
     mainInput.accept(valueInGlobalWindow("Y"));
     assertThat(
@@ -398,7 +414,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         contains(valueInGlobalWindow("X:additional"), valueInGlobalWindow("Y:additional")));
     mainOutputValues.clear();
 
-    Iterables.getOnlyElement(finishFunctions).run();
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
     assertThat(mainOutputValues, empty());
 
     // Assert that state data did not change
@@ -408,6 +424,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
   private static class TestSideInputIsAccessibleForDownstreamCallersDoFn
       extends DoFn<String, Iterable<String>> {
+    public static final String USER_COUNTER_NAME = "userCountedElems";
+    private final Counter countedElements =
+        Metrics.counter(TestSideInputIsAccessibleForDownstreamCallersDoFn.class, USER_COUNTER_NAME);
+
     private final PCollectionView<Iterable<String>> iterableSideInput;
 
     private TestSideInputIsAccessibleForDownstreamCallersDoFn(
@@ -417,6 +437,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     @ProcessElement
     public void processElement(ProcessContext context) {
+      countedElements.inc();
       context.output(context.sideInput(iterableSideInput));
     }
   }
@@ -468,12 +489,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
 
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put(
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -487,11 +508,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     mainOutputValues.clear();
 
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
@@ -499,7 +520,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getMultiplexingConsumer(inputPCollectionId);
     mainInput.accept(valueInWindow("X", windowA));
     mainInput.accept(valueInWindow("Y", windowB));
     assertThat(mainOutputValues, hasSize(2));
@@ -512,6 +533,123 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     // Assert that state data did not change
     assertEquals(stateData, fakeClient.getData());
+  }
+
+  /** @return a test MetricUpdate for expected metrics to compare against */
+  public MetricUpdate create(String stepName, MetricName name, long value) {
+    return MetricUpdate.create(MetricKey.create(stepName, name), value);
+  }
+
+  @Test
+  public void testUsingMetrics() throws Exception {
+    MetricsContainerImpl metricsContainer = new MetricsContainerImpl("testUsingMetrics");
+    Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer);
+    FixedWindows windowFn = FixedWindows.of(Duration.millis(1L));
+    IntervalWindow windowA = windowFn.assignWindow(new Instant(1L));
+    IntervalWindow windowB = windowFn.assignWindow(new Instant(2L));
+    ByteString encodedWindowA =
+        ByteString.copyFrom(CoderUtils.encodeToByteArray(windowFn.windowCoder(), windowA));
+    ByteString encodedWindowB =
+        ByteString.copyFrom(CoderUtils.encodeToByteArray(windowFn.windowCoder(), windowB));
+
+    Pipeline p = Pipeline.create();
+    PCollection<String> valuePCollection =
+        p.apply(Create.of("unused")).apply(Window.into(windowFn));
+    PCollectionView<Iterable<String>> iterableSideInputView =
+        valuePCollection.apply(View.asIterable());
+    PCollection<Iterable<String>> outputPCollection =
+        valuePCollection.apply(
+            TEST_PTRANSFORM_ID,
+            ParDo.of(new TestSideInputIsAccessibleForDownstreamCallersDoFn(iterableSideInputView))
+                .withSideInputs(iterableSideInputView));
+
+    SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
+    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
+    String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
+
+    RunnerApi.PTransform pTransform =
+        pProto
+            .getComponents()
+            .getTransformsOrThrow(
+                pProto
+                    .getComponents()
+                    .getTransformsOrThrow(TEST_PTRANSFORM_ID)
+                    .getSubtransforms(0));
+
+    ImmutableMap<StateKey, ByteString> stateData =
+        ImmutableMap.of(
+            multimapSideInputKey(
+                iterableSideInputView.getTagInternal().getId(), ByteString.EMPTY, encodedWindowA),
+            encode("iterableValue1A", "iterableValue2A", "iterableValue3A"),
+            multimapSideInputKey(
+                iterableSideInputView.getTagInternal().getId(), ByteString.EMPTY, encodedWindowB),
+            encode("iterableValue1B", "iterableValue2B", "iterableValue3B"));
+
+    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
+
+    List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    consumers.register(
+        Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+
+    new FnApiDoFnRunner.Factory<>()
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            null /* beamFnDataClient */,
+            fakeClient,
+            TEST_PTRANSFORM_ID,
+            pTransform,
+            Suppliers.ofInstance("57L")::get,
+            pProto.getComponents().getPcollectionsMap(),
+            pProto.getComponents().getCodersMap(),
+            pProto.getComponents().getWindowingStrategiesMap(),
+            consumers,
+            startFunctionRegistry,
+            finishFunctionRegistry,
+            null /* splitListener */);
+
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
+    mainOutputValues.clear();
+
+    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+
+    // Ensure that bag user state that is initially empty or populated works.
+    // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
+    FnDataReceiver<WindowedValue<?>> mainInput =
+        consumers.getMultiplexingConsumer(inputPCollectionId);
+    mainInput.accept(valueInWindow("X", windowA));
+    mainInput.accept(valueInWindow("Y", windowB));
+
+    MetricsContainer mc = MetricsEnvironment.getCurrentContainer();
+
+    List<MetricUpdate> expectedMetrics = new ArrayList<MetricUpdate>();
+    MetricName metricName =
+        MetricName.named(
+            TestSideInputIsAccessibleForDownstreamCallersDoFn.class,
+            TestSideInputIsAccessibleForDownstreamCallersDoFn.USER_COUNTER_NAME);
+    expectedMetrics.add(create("testUsingMetrics", metricName, 2));
+
+    HashMap<String, String> labels = new HashMap<String, String>();
+
+    labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, "Window.Into()/Window.Assign.out");
+    metricName =
+        MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
+    expectedMetrics.add(create("testUsingMetrics", metricName, 2));
+
+    labels.put(
+        SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL,
+        "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
+    metricName =
+        MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
+    expectedMetrics.add(create("testUsingMetrics", metricName, 2));
+
+    closeable.close();
+    MetricUpdates updates = metricsContainer.getUpdates();
+    assertThat(updates.counterUpdates(), containsInAnyOrder(expectedMetrics.toArray()));
   }
 
   private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {
@@ -610,21 +748,21 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     List<WindowedValue<KV<String, Timer>>> eventTimerOutputValues = new ArrayList<>();
     List<WindowedValue<KV<String, Timer>>> processingTimerOutputValues = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put(
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    consumers.register(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-    consumers.put(
+    consumers.register(
         eventTimerOutputPCollectionId,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Timer>>>) eventTimerOutputValues::add);
-    consumers.put(
+    consumers.register(
         processingTimerOutputPCollectionId,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Timer>>>) processingTimerOutputValues::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -650,11 +788,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     mainOutputValues.clear();
 
     assertThat(
@@ -670,11 +808,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the key order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getMultiplexingConsumer(inputPCollectionId);
     FnDataReceiver<WindowedValue<?>> eventTimerInput =
-        Iterables.getOnlyElement(consumers.get(eventTimerInputPCollectionId));
+        consumers.getMultiplexingConsumer(eventTimerInputPCollectionId);
     FnDataReceiver<WindowedValue<?>> processingTimerInput =
-        Iterables.getOnlyElement(consumers.get(processingTimerInputPCollectionId));
+        consumers.getMultiplexingConsumer(processingTimerInputPCollectionId);
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X1"), new Instant(1000L)));
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y1"), new Instant(1100L)));
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X2"), new Instant(1200L)));
@@ -726,7 +864,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             timerInGlobalWindow("B", new Instant(1900L), new Instant(10022L))));
     mainOutputValues.clear();
 
-    Iterables.getOnlyElement(finishFunctions).run();
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
     assertThat(mainOutputValues, empty());
 
     assertEquals(

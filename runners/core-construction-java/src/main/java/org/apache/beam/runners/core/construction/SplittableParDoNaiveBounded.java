@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Instant;
 
 /**
@@ -60,14 +60,16 @@ public class SplittableParDoNaiveBounded {
   /** Overrides a {@link ProcessKeyedElements} into {@link SplittableProcessNaive}. */
   public static class OverrideFactory<InputT, OutputT, RestrictionT>
       implements PTransformOverrideFactory<
-          PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple,
+          PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
+          PCollectionTuple,
           ProcessKeyedElements<InputT, OutputT, RestrictionT>> {
     @Override
     public PTransformReplacement<
             PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple,
+                    PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
+                    PCollectionTuple,
                     ProcessKeyedElements<InputT, OutputT, RestrictionT>>
                 transform) {
       checkArgument(
@@ -109,7 +111,8 @@ public class SplittableParDoNaiveBounded {
     }
   }
 
-  static class NaiveProcessFn<InputT, OutputT, RestrictionT, PositionT>
+  static class NaiveProcessFn<
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
       extends DoFn<KV<InputT, RestrictionT>, OutputT> {
     private final DoFn<InputT, OutputT> fn;
 
@@ -141,13 +144,13 @@ public class SplittableParDoNaiveBounded {
       InputT element = c.element().getKey();
       RestrictionT restriction = c.element().getValue();
       while (true) {
-        RestrictionTracker<RestrictionT, PositionT> tracker = invoker.invokeNewTracker(restriction);
+        TrackerT tracker = invoker.invokeNewTracker(restriction);
         ProcessContinuation continuation =
             invoker.invokeProcessElement(new NestedProcessContext<>(fn, c, element, w, tracker));
         if (continuation.shouldResume()) {
           restriction = tracker.checkpoint();
-          long sleepTimeMillis = continuation.resumeTime().getMillis() - System.currentTimeMillis();
-          Uninterruptibles.sleepUninterruptibly(sleepTimeMillis, TimeUnit.MILLISECONDS);
+          Uninterruptibles.sleepUninterruptibly(
+              continuation.resumeDelay().getMillis(), TimeUnit.MILLISECONDS);
         } else {
           break;
         }

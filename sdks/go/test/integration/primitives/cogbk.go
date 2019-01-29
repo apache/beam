@@ -37,6 +37,12 @@ func genB(_ []byte, emit func(string, int)) {
 	emit("d", 9)
 }
 
+func genC(_ []byte, emit func(string, string)) {
+	emit("a", "alpha")
+	emit("c", "charlie")
+	emit("d", "delta")
+}
+
 func sum(nums func(*int) bool) int {
 	var ret, i int
 	for nums(&i) {
@@ -45,8 +51,17 @@ func sum(nums func(*int) bool) int {
 	return ret
 }
 
-func joinFn(key string, as, bs func(*int) bool, emit func(string, int)) {
-	emit(key, sum(as)+sum(bs))
+func lenSum(strings func(*string) bool) int {
+	var ret int
+	var s string
+	for strings(&s) {
+		ret += len(s)
+	}
+	return ret
+}
+
+func joinFn(key string, as, bs func(*int) bool, cs func(*string) bool, emit func(string, int)) {
+	emit(key, sum(as)+sum(bs)+lenSum(cs))
 }
 
 func splitFn(key string, v int, a, b, c, d func(int)) {
@@ -70,15 +85,16 @@ func CoGBK() *beam.Pipeline {
 
 	as := beam.ParDo(s, genA, beam.Impulse(s))
 	bs := beam.ParDo(s, genB, beam.Impulse(s))
+	cs := beam.ParDo(s, genC, beam.Impulse(s))
 
-	grouped := beam.CoGroupByKey(s, as, bs)
+	grouped := beam.CoGroupByKey(s, as, bs, cs)
 	joined := beam.ParDo(s, joinFn, grouped)
 	a, b, c, d := beam.ParDo4(s, splitFn, joined)
 
-	passert.Sum(s, a, "a", 1, 13)
+	passert.Sum(s, a, "a", 1, 18)
 	passert.Sum(s, b, "b", 1, 17)
-	passert.Sum(s, c, "c", 1, 6)
-	passert.Sum(s, d, "d", 1, 9)
+	passert.Sum(s, c, "c", 1, 13)
+	passert.Sum(s, d, "d", 1, 14)
 
 	return p
 }

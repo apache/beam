@@ -80,6 +80,7 @@ public class PipelineOptionsTest {
     assertThat(options.getMinPauseBetweenCheckpoints(), is(-1L));
     assertThat(options.getCheckpointingInterval(), is(-1L));
     assertThat(options.getCheckpointTimeoutMillis(), is(-1L));
+    assertThat(options.getFailOnCheckpointingErrors(), is(true));
     assertThat(options.getNumberOfExecutionRetries(), is(-1));
     assertThat(options.getExecutionRetryDelay(), is(-1L));
     assertThat(options.getRetainExternalizedCheckpointsOnCancellation(), is(false));

@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 
 /** Simple POJO representing a filter for querying metrics. */
 @Experimental(Kind.METRICS)
@@ -55,7 +55,7 @@ public abstract class MetricsFilter {
     /**
      * Add a {@link MetricNameFilter}.
      *
-     * <p>If no name filters are specified then all metric names will be inculded.
+     * <p>If no name filters are specified then all metric names will be included
      *
      * <p>If one or more name filters are specified, then only metrics that match one or more of the
      * filters will be included.
@@ -79,7 +79,7 @@ public abstract class MetricsFilter {
      *
      * <p>Step name filters may be either a full name (such as "foo/bar/baz") or a partial name such
      * as "foo", "bar" or "foo/bar". However, each component of the step name must be completely
-     * matched, so the filter "foo" will not match the step name such as "fool/bar/foot".
+     * matched, so the filter "foo" will not match a step name such as "fool/bar/foot"
      */
     public Builder addStep(String step) {
       immutableStepsBuilder().add(step);

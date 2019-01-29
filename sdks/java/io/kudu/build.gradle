@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+applyJavaNature(exportJavadoc: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -35,7 +35,7 @@ test {
 def kudu_version = "1.4.0"
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow "org.apache.kudu:kudu-client:$kudu_version"
   shadow library.java.slf4j_api

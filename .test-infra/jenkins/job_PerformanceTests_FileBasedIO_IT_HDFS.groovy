@@ -44,6 +44,19 @@ def testsConfigurations = [
                 ]
         ],
         [
+                jobName           : 'beam_PerformanceTests_ManyFiles_TextIOIT_HDFS',
+                jobDescription    : 'Runs PerfKit tests for TextIOIT with many output files on HDFS',
+                itClass           : 'org.apache.beam.sdk.io.text.TextIOIT',
+                bqTable           : 'beam_performance.many_files_textioit_hdfs_pkb_results',
+                prCommitStatusName: 'Java ManyFilesTextIO Performance Test on HDFS',
+                prTriggerPhase    : 'Run Java ManyFilesTextIO Performance Test HDFS',
+                extraPipelineArgs: [
+                        numberOfRecords: '1000000',
+                        numberOfShards: '1000'
+                ]
+
+        ],
+        [
                 jobName           : 'beam_PerformanceTests_AvroIOIT_HDFS',
                 jobDescription    : 'Runs PerfKit tests for AvroIOIT on HDFS',
                 itClass           : 'org.apache.beam.sdk.io.avro.AvroIOIT',

@@ -114,7 +114,7 @@ $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
       --inputFile=/path/to/pom.xml \
       --output=/path/to/counts \
       --flinkMaster=<flink master url> \
-      --filesToStage=target/word-count-beam--bundled-0.1.jar"
+      --filesToStage=target/word-count-beam-bundled-0.1.jar"
 ```
 If you have a Flink `JobManager` running on your local machine you can give `localhost:8081` for
 `flinkMaster`.

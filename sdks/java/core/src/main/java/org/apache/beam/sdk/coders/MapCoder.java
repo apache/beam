@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.collect.Maps;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -32,6 +31,7 @@ import java.util.Map.Entry;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /**
  * A {@link Coder} for {@link Map Maps} that encodes them according to provided coders for keys and
@@ -145,6 +145,25 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(
         this, "Ordering of entries in a Map may be non-deterministic.");
+  }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return keyCoder.consistentWithEquals() && valueCoder.consistentWithEquals();
+  }
+
+  @Override
+  public Object structuralValue(Map<K, V> value) {
+    if (consistentWithEquals()) {
+      return value;
+    } else {
+      Map<Object, Object> ret = Maps.newHashMapWithExpectedSize(value.size());
+      for (Map.Entry<K, V> entry : value.entrySet()) {
+        ret.put(
+            keyCoder.structuralValue(entry.getKey()), valueCoder.structuralValue(entry.getValue()));
+      }
+      return ret;
+    }
   }
 
   @Override

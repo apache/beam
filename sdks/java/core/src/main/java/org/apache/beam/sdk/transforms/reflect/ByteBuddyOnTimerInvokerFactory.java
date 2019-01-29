@@ -19,12 +19,6 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
-import com.google.common.base.CharMatcher;
-import com.google.common.base.Charsets;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.io.BaseEncoding;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.ExecutionException;
@@ -48,6 +42,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.ByteBuddyDoFnInvokerFactory.DoFnMethodWithExtraParametersDelegation;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CharMatcher;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
 
 /**
  * Dynamically generates {@link OnTimerInvoker} instances for invoking a particular {@link TimerId}
@@ -66,9 +66,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
           OnTimerMethodSpecifier.forClassAndTimerId(fnClass, timerId);
       Constructor<?> constructor = constructorCache.get(onTimerMethodSpecifier);
 
-      OnTimerInvoker<InputT, OutputT> invoker =
-          (OnTimerInvoker<InputT, OutputT>) constructor.newInstance(fn);
-      return invoker;
+      return (OnTimerInvoker<InputT, OutputT>) constructor.newInstance(fn);
     } catch (InstantiationException
         | IllegalAccessException
         | IllegalArgumentException

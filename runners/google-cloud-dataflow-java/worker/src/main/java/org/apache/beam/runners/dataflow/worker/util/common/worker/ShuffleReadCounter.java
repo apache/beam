@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /** Counts the Bytes and MSECS spent within a shuffle read. */
 public class ShuffleReadCounter {
@@ -53,7 +54,10 @@ public class ShuffleReadCounter {
     if (this.experimentEnabled) {
       ExecutionStateTracker.ExecutionState currentState =
           ExecutionStateTracker.getCurrentExecutionState();
-      String currentStateName = currentState.getStepName().originalName();
+      String currentStateName = null;
+      if (currentState instanceof DataflowExecutionState) {
+        currentStateName = ((DataflowExecutionState) currentState).getStepName().originalName();
+      }
       if (this.currentCounter != null
           && currentStateName == this.currentCounter.getName().originalRequestingStepName()) {
         // If the step name of the state has not changed do not do another lookup.

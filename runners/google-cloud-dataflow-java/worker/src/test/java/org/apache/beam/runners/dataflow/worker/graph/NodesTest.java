@@ -24,8 +24,6 @@ import static org.mockito.Mockito.mock;
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.SideInputInfo;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -50,6 +48,8 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -57,6 +57,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link Nodes}. */
 @RunWith(JUnit4.class)
 public class NodesTest {
+  private static final String PCOLLECTION_ID = "fakeId";
+
   @Test
   public void testParallelInstructionNode() {
     ParallelInstruction param = new ParallelInstruction();
@@ -73,18 +75,22 @@ public class NodesTest {
   @Test
   public void testInstructionOutputNode() {
     InstructionOutput param = new InstructionOutput();
-    assertSame(param, InstructionOutputNode.create(param).getInstructionOutput());
-    assertNotEquals(InstructionOutputNode.create(param), InstructionOutputNode.create(param));
+    assertSame(param, InstructionOutputNode.create(param, PCOLLECTION_ID).getInstructionOutput());
+    assertNotEquals(
+        InstructionOutputNode.create(param, PCOLLECTION_ID),
+        InstructionOutputNode.create(param, PCOLLECTION_ID));
   }
 
   @Test
   public void testOutputReceiverNode() {
     OutputReceiver receiver = new OutputReceiver();
     Coder<?> coder = StringUtf8Coder.of();
-    assertSame(receiver, OutputReceiverNode.create(receiver, coder).getOutputReceiver());
-    assertSame(coder, OutputReceiverNode.create(receiver, coder).getCoder());
+    assertSame(
+        receiver, OutputReceiverNode.create(receiver, coder, PCOLLECTION_ID).getOutputReceiver());
+    assertSame(coder, OutputReceiverNode.create(receiver, coder, PCOLLECTION_ID).getCoder());
     assertNotEquals(
-        OutputReceiverNode.create(receiver, coder), OutputReceiverNode.create(receiver, coder));
+        OutputReceiverNode.create(receiver, coder, PCOLLECTION_ID),
+        OutputReceiverNode.create(receiver, coder, PCOLLECTION_ID));
   }
 
   @Test

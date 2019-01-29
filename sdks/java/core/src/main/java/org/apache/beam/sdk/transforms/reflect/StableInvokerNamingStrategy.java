@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;

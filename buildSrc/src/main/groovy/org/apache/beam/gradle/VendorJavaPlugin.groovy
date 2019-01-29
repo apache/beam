@@ -78,6 +78,10 @@ class VendorJavaPlugin implements Plugin<Project> {
 
       project.apply plugin: 'java'
 
+      // Projects should only depend on the shadowJar output
+      project.jar.enabled = false
+      project.assemble.dependsOn(project.shadowJar)
+
       // Register all Beam repositories and configuration tweaks
       Repositories.register(project)
 

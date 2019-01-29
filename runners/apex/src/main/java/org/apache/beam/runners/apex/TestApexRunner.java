@@ -33,7 +33,7 @@ public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
 
   private TestApexRunner(ApexPipelineOptions options) {
     options.setEmbeddedExecution(true);
-    //options.setEmbeddedExecutionDebugMode(false);
+    // options.setEmbeddedExecutionDebugMode(false);
     this.delegate = ApexRunner.fromOptions(options);
   }
 

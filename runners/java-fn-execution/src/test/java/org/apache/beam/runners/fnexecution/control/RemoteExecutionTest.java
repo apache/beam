@@ -17,20 +17,14 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import static com.google.common.base.Preconditions.checkState;
+import static junit.framework.TestCase.assertEquals;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,12 +43,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.FnHarness;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
@@ -82,6 +80,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
@@ -97,6 +96,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -107,7 +107,15 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.joda.time.DateTimeUtils;
@@ -118,6 +126,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests the execution of a pipeline from specification time to executing a single fused stage,
@@ -126,6 +136,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class RemoteExecutionTest implements Serializable {
   @Rule public transient ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
+
+  private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutionTest.class);
 
   private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
   private transient GrpcFnServer<GrpcDataService> dataServer;
@@ -279,6 +291,91 @@ public class RemoteExecutionTest implements Serializable {
   }
 
   @Test
+  public void testBundleProcessorThrowsExecutionExceptionWhenUserCodeThrows() throws Exception {
+    Pipeline p = Pipeline.create();
+    p.apply("impulse", Impulse.create())
+        .apply(
+            "create",
+            ParDo.of(
+                new DoFn<byte[], KV<String, String>>() {
+                  @ProcessElement
+                  public void process(ProcessContext ctxt) throws Exception {
+                    String element =
+                        CoderUtils.decodeFromByteArray(StringUtf8Coder.of(), ctxt.element());
+                    if (element.equals("X")) {
+                      throw new Exception("testBundleExecutionFailure");
+                    }
+                    ctxt.output(KV.of(element, element));
+                  }
+                }))
+        .apply("gbk", GroupByKey.create());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
+    checkState(fused.getFusedStages().size() == 1, "Expected exactly one fused stage");
+    ExecutableStage stage = fused.getFusedStages().iterator().next();
+
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "my_stage", stage, dataServer.getApiServiceDescriptor());
+
+    BundleProcessor processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(), descriptor.getRemoteInputDestinations());
+    Map<Target, ? super Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+    Map<Target, Collection<? super WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<Target, ? super Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+      List<? super WindowedValue<?>> outputContents =
+          Collections.synchronizedList(new ArrayList<>());
+      outputValues.put(targetCoder.getKey(), outputContents);
+      outputReceivers.put(
+          targetCoder.getKey(),
+          RemoteOutputReceiver.of(
+              (Coder) targetCoder.getValue(),
+              (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
+    }
+
+    try (ActiveBundle bundle =
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+    }
+
+    try {
+      try (ActiveBundle bundle =
+          processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
+        Iterables.getOnlyElement(bundle.getInputReceivers().values())
+            .accept(
+                WindowedValue.valueInGlobalWindow(
+                    CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+      }
+      // Fail the test if we reach this point and never threw the exception.
+      fail();
+    } catch (ExecutionException e) {
+      assertTrue(e.getMessage().contains("testBundleExecutionFailure"));
+    }
+
+    try (ActiveBundle bundle =
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Z")));
+    }
+
+    for (Collection<? super WindowedValue<?>> windowedValues : outputValues.values()) {
+      assertThat(
+          windowedValues,
+          containsInAnyOrder(
+              WindowedValue.valueInGlobalWindow(kvBytes("Y", "Y")),
+              WindowedValue.valueInGlobalWindow(kvBytes("Z", "Z"))));
+    }
+  }
+
+  @Test
   public void testExecutionWithSideInput() throws Exception {
     Pipeline p = Pipeline.create();
     PCollection<String> input =
@@ -345,11 +442,7 @@ public class RemoteExecutionTest implements Serializable {
           RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
     }
 
-    Iterable<byte[]> sideInputData =
-        Arrays.asList(
-            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A"),
-            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
-            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
+    Iterable<String> sideInputData = Arrays.asList("A", "B", "C");
     StateRequestHandler stateRequestHandler =
         StateRequestHandlers.forSideInputHandlerFactory(
             descriptor.getSideInputSpecs(),
@@ -379,13 +472,9 @@ public class RemoteExecutionTest implements Serializable {
     try (ActiveBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(
-              WindowedValue.valueInGlobalWindow(
-                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+          .accept(WindowedValue.valueInGlobalWindow("X"));
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(
-              WindowedValue.valueInGlobalWindow(
-                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+          .accept(WindowedValue.valueInGlobalWindow("Y"));
     }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
@@ -397,6 +486,178 @@ public class RemoteExecutionTest implements Serializable {
               WindowedValue.valueInGlobalWindow(kvBytes("Y", "A")),
               WindowedValue.valueInGlobalWindow(kvBytes("Y", "B")),
               WindowedValue.valueInGlobalWindow(kvBytes("Y", "C"))));
+    }
+  }
+
+  @Test
+  public void testMetrics() throws Exception {
+    final String counterMetricName = "counterMetric";
+    Pipeline p = Pipeline.create();
+    PCollection<String> input =
+        p.apply("impulse", Impulse.create())
+            .apply(
+                "create",
+                ParDo.of(
+                    new DoFn<byte[], String>() {
+                      private boolean emitted = false;
+
+                      @ProcessElement
+                      public void process(ProcessContext ctxt) {
+                        // TODO(BEAM-6467): Impulse is producing two elements instead of one.
+                        // So add this check to only emit these three elemenets.
+                        if (!emitted) {
+                          ctxt.output("zero");
+                          ctxt.output("one");
+                          ctxt.output("two");
+                          Metrics.counter(RemoteExecutionTest.class, counterMetricName).inc();
+                        }
+                        emitted = true;
+                      }
+                    }))
+            .setCoder(StringUtf8Coder.of());
+
+    SingleOutput<String, String> pardo =
+        ParDo.of(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void process(ProcessContext ctxt) {
+                // Output the element twice to keep unique numbers in asserts, 6 output elements.
+                ctxt.output(ctxt.element());
+                ctxt.output(ctxt.element());
+              }
+            });
+    input.apply("processA", pardo).setCoder(StringUtf8Coder.of());
+    input.apply("processB", pardo).setCoder(StringUtf8Coder.of());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
+    Optional<ExecutableStage> optionalStage =
+        Iterables.tryFind(fused.getFusedStages(), (ExecutableStage stage) -> true);
+    checkState(optionalStage.isPresent(), "Expected a stage with side inputs.");
+    ExecutableStage stage = optionalStage.get();
+
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "test_stage",
+            stage,
+            dataServer.getApiServiceDescriptor(),
+            stateServer.getApiServiceDescriptor());
+
+    BundleProcessor processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(),
+            descriptor.getRemoteInputDestinations(),
+            stateDelegator);
+
+    Map<Target, Coder<WindowedValue<?>>> outputTargets = descriptor.getOutputTargetCoders();
+    Map<Target, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<Target, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<Target, Coder<WindowedValue<?>>> targetCoder : outputTargets.entrySet()) {
+      List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
+      outputValues.put(targetCoder.getKey(), outputContents);
+      outputReceivers.put(
+          targetCoder.getKey(),
+          RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
+    }
+
+    Iterable<byte[]> sideInputData =
+        Arrays.asList(
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A"),
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
+
+    StateRequestHandler stateRequestHandler =
+        StateRequestHandlers.forSideInputHandlerFactory(
+            descriptor.getSideInputSpecs(),
+            new SideInputHandlerFactory() {
+              @Override
+              public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
+                  String pTransformId,
+                  String sideInputId,
+                  RunnerApi.FunctionSpec accessPattern,
+                  Coder<T> elementCoder,
+                  Coder<W> windowCoder) {
+                return new SideInputHandler<V, W>() {
+                  @Override
+                  public Iterable<V> get(byte[] key, W window) {
+                    return (Iterable) sideInputData;
+                  }
+
+                  @Override
+                  public Coder<V> resultCoder() {
+                    return ((KvCoder) elementCoder).getValueCoder();
+                  }
+                };
+              }
+            });
+
+    BundleProgressHandler progressHandler =
+        new BundleProgressHandler() {
+          @Override
+          public void onProgress(ProcessBundleProgressResponse progress) {}
+
+          @Override
+          public void onCompleted(ProcessBundleResponse response) {
+            // Assert the timestamps are non empty then 0 them out before comparing.
+            List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
+            for (MonitoringInfo mi : response.getMonitoringInfosList()) {
+              result.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+            }
+
+            // The user counter is counted in both ParDos, so it should be counted twice for each
+            // element 4 = 2 x 2 elements.
+            List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+
+            SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), counterMetricName);
+            // TODO(ajamato): Add test having a user counter with the same name, in two
+            // separate ptransforms, should be labelled differnetly. Currently this does not work
+            // because the MetricContainer is not being seeded properly with the step name.
+            builder.setInt64Value(1); // Count just the one inc() in create();
+            expected.add(builder.build());
+
+            // The element counter should be counted only once for the pcollection.
+            // So there should be only two elements.
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+            builder.setPCollectionLabel("impulse.out");
+            builder.setInt64Value(2);
+            expected.add(builder.build());
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+            builder.setPCollectionLabel("create/ParMultiDo(Anonymous).output");
+            builder.setInt64Value(3);
+            expected.add(builder.build());
+
+            // Verify that the element count is not double counted if two PCollections consume it.
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+            builder.setPCollectionLabel("processA/ParMultiDo(Anonymous).output");
+            builder.setInt64Value(6);
+            expected.add(builder.build());
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+            builder.setPCollectionLabel("processB/ParMultiDo(Anonymous).output");
+            builder.setInt64Value(6);
+            expected.add(builder.build());
+
+            assertEquals(5, result.size());
+            assertThat(result, containsInAnyOrder(expected.toArray()));
+          }
+        };
+
+    try (ActiveBundle bundle =
+        processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
     }
   }
 
@@ -666,7 +927,8 @@ public class RemoteExecutionTest implements Serializable {
       }
     }
 
-    // Set the current system time to a fixed value to get stable values for processing time timer output.
+    // Set the current system time to a fixed value to get stable values for processing time timer
+    // output.
     DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
     try (ActiveBundle bundle =
@@ -808,22 +1070,18 @@ public class RemoteExecutionTest implements Serializable {
             WindowedValue.valueInGlobalWindow(kvBytes("stream2X", ""))));
   }
 
-  private KV<byte[], byte[]> kvBytes(String key, long value) throws CoderException {
-    return KV.of(
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
-        CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), value));
+  private KV<String, byte[]> kvBytes(String key, long value) throws CoderException {
+    return KV.of(key, CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), value));
   }
 
-  private KV<byte[], byte[]> kvBytes(String key, String value) throws CoderException {
-    return KV.of(
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), value));
+  private KV<String, String> kvBytes(String key, String value) throws CoderException {
+    return KV.of(key, value);
   }
 
-  private KV<byte[], org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
+  private KV<String, org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
       String key, long timestampOffset) throws CoderException {
     return KV.of(
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
+        key,
         org.apache.beam.runners.core.construction.Timer.of(
             BoundedWindow.TIMESTAMP_MIN_VALUE.plus(timestampOffset),
             CoderUtils.encodeToByteArray(VoidCoder.of(), null, Coder.Context.NESTED)));
@@ -832,7 +1090,7 @@ public class RemoteExecutionTest implements Serializable {
   private Object timerStructuralValue(Object timer) {
     return WindowedValue.FullWindowedValueCoder.of(
             KvCoder.of(
-                ByteArrayCoder.of(),
+                StringUtf8Coder.of(),
                 org.apache.beam.runners.core.construction.Timer.Coder.of(ByteArrayCoder.of())),
             GlobalWindow.Coder.INSTANCE)
         .structuralValue(timer);

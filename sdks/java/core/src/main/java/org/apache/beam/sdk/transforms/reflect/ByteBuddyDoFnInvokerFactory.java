@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -84,7 +84,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomain
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
-import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -258,10 +257,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     /** Doesn't split the restriction. */
     @SuppressWarnings("unused")
     public static <InputT, RestrictionT> void invokeSplitRestriction(
-        InputT element,
-        RestrictionT restriction,
-        Backlog backlog,
-        DoFn.OutputReceiver<RestrictionT> receiver) {
+        InputT element, RestrictionT restriction, DoFn.OutputReceiver<RestrictionT> receiver) {
       receiver.output(restriction);
     }
   }

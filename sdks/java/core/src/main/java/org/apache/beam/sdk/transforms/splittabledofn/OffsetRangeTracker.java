@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.MoreObjects;
 import java.math.BigDecimal;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /**
  * A {@link RestrictionTracker} for claiming offsets in an {@link OffsetRange} in a monotonically
@@ -41,12 +41,12 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public OffsetRange currentRestriction() {
+  public synchronized OffsetRange currentRestriction() {
     return range;
   }
 
   @Override
-  public OffsetRange checkpoint() {
+  public synchronized OffsetRange checkpoint() {
     checkState(
         lastClaimedOffset != null, "Can't checkpoint before any offset was successfully claimed");
     OffsetRange res = new OffsetRange(lastClaimedOffset + 1, range.getTo());
@@ -63,7 +63,7 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
    *     current {@link OffsetRange} of this tracker (in that case this operation is a no-op).
    */
   @Override
-  public boolean tryClaim(Long i) {
+  protected synchronized boolean tryClaimImpl(Long i) {
     checkArgument(
         lastAttemptedOffset == null || i > lastAttemptedOffset,
         "Trying to claim offset %s while last attempted was %s",
@@ -81,7 +81,7 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public void checkDone() throws IllegalStateException {
+  public synchronized void checkDone() throws IllegalStateException {
     checkState(
         lastAttemptedOffset >= range.getTo() - 1,
         "Last attempted offset was %s in range %s, claiming work in [%s, %s) was not attempted",
@@ -101,7 +101,7 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public Backlog getBacklog() {
+  public synchronized Backlog getBacklog() {
     // If we have never attempted an offset, we return the length of the entire range.
     if (lastAttemptedOffset == null) {
       return Backlog.of(BigDecimal.valueOf(range.getTo() - range.getFrom()));

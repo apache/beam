@@ -34,10 +34,6 @@ import com.google.api.services.pubsub.model.Topic;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -54,6 +50,10 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 
 /**
@@ -224,7 +224,8 @@ public class ExampleUtils {
             Transport.getJsonFactory(),
             chainHttpRequestInitializer(
                 options.getGcpCredential(),
-                // Do not log 404. It clutters the output and is possibly even required by the caller.
+                // Do not log 404. It clutters the output and is possibly even required by the
+                // caller.
                 new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
@@ -237,7 +238,8 @@ public class ExampleUtils {
             Transport.getJsonFactory(),
             chainHttpRequestInitializer(
                 options.getGcpCredential(),
-                // Do not log 404. It clutters the output and is possibly even required by the caller.
+                // Do not log 404. It clutters the output and is possibly even required by the
+                // caller.
                 new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setRootUrl(options.getPubsubRootUrl())
         .setApplicationName(options.getAppName())

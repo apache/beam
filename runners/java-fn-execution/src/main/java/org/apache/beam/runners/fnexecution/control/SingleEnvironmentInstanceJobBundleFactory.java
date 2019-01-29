@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,9 +34,9 @@ import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * A {@link JobBundleFactory} which can manage a single instance of an {@link Environment}.
@@ -78,11 +77,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
     this.environmentFactory = environmentFactory;
     this.dataService = dataService;
     this.stateService = stateService;
-    if (idGenerator != null) {
-      this.idGenerator = idGenerator;
-    } else {
-      this.idGenerator = IdGenerators.incrementingLongs();
-    }
+    this.idGenerator = idGenerator;
   }
 
   @Override

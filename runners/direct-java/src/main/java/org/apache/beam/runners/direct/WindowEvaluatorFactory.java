@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.Iterables;
 import java.util.Collection;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.WindowIntoTranslation;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
@@ -98,8 +98,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
         WindowFn<InputT, W> windowFn, WindowedValue<InputT> element) throws Exception {
       WindowFn<InputT, W>.AssignContext assignContext =
           new DirectAssignContext<>(windowFn, element);
-      Collection<? extends BoundedWindow> windows = windowFn.assignWindows(assignContext);
-      return windows;
+      return windowFn.assignWindows(assignContext);
     }
 
     @Override

@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: Runners :: Samza"
 
@@ -37,7 +37,7 @@ configurations {
 def samza_version = "0.14.1"
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")

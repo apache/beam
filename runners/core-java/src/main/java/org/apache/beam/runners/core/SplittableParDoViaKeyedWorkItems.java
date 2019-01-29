@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -55,6 +53,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
@@ -104,14 +104,16 @@ public class SplittableParDoViaKeyedWorkItems {
   /** Overrides a {@link ProcessKeyedElements} into {@link SplittableProcessViaKeyedWorkItems}. */
   public static class OverrideFactory<InputT, OutputT, RestrictionT>
       implements PTransformOverrideFactory<
-          PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple,
+          PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
+          PCollectionTuple,
           ProcessKeyedElements<InputT, OutputT, RestrictionT>> {
     @Override
     public PTransformReplacement<
             PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple,
+                    PCollection<KV<byte[], KV<InputT, RestrictionT>>>,
+                    PCollectionTuple,
                     ProcessKeyedElements<InputT, OutputT, RestrictionT>>
                 transform) {
       return PTransformReplacement.of(
@@ -153,7 +155,8 @@ public class SplittableParDoViaKeyedWorkItems {
   }
 
   /** A primitive transform wrapping around {@link ProcessFn}. */
-  public static class ProcessElements<InputT, OutputT, RestrictionT, PositionT>
+  public static class ProcessElements<
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
       extends PTransform<
           PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final ProcessKeyedElements<InputT, OutputT, RestrictionT> original;
@@ -162,7 +165,7 @@ public class SplittableParDoViaKeyedWorkItems {
       this.original = original;
     }
 
-    public ProcessFn<InputT, OutputT, RestrictionT, PositionT> newProcessFn(
+    public ProcessFn<InputT, OutputT, RestrictionT, TrackerT> newProcessFn(
         DoFn<InputT, OutputT> fn) {
       return new ProcessFn<>(
           fn,
@@ -213,7 +216,8 @@ public class SplittableParDoViaKeyedWorkItems {
    * <p>See also: https://issues.apache.org/jira/browse/BEAM-1983
    */
   @VisibleForTesting
-  public static class ProcessFn<InputT, OutputT, RestrictionT, PositionT>
+  public static class ProcessFn<
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
       extends DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
@@ -250,7 +254,7 @@ public class SplittableParDoViaKeyedWorkItems {
     private transient @Nullable StateInternalsFactory<byte[]> stateInternalsFactory;
     private transient @Nullable TimerInternalsFactory<byte[]> timerInternalsFactory;
     private transient @Nullable SplittableProcessElementInvoker<
-            InputT, OutputT, RestrictionT, PositionT>
+            InputT, OutputT, RestrictionT, TrackerT>
         processElementInvoker;
 
     private transient @Nullable DoFnInvoker<InputT, OutputT> invoker;
@@ -281,7 +285,7 @@ public class SplittableParDoViaKeyedWorkItems {
     }
 
     public void setProcessElementInvoker(
-        SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT> invoker) {
+        SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT> invoker) {
       this.processElementInvoker = invoker;
     }
 
@@ -366,9 +370,8 @@ public class SplittableParDoViaKeyedWorkItems {
         elementAndRestriction = KV.of(elementState.read(), restrictionState.read());
       }
 
-      final RestrictionTracker<RestrictionT, PositionT> tracker =
-          invoker.invokeNewTracker(elementAndRestriction.getValue());
-      SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT>.Result result =
+      final TrackerT tracker = invoker.invokeNewTracker(elementAndRestriction.getValue());
+      SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT>.Result result =
           processElementInvoker.invokeProcessElement(
               invoker, elementAndRestriction.getKey(), tracker);
 
@@ -385,13 +388,8 @@ public class SplittableParDoViaKeyedWorkItems {
       if (futureOutputWatermark == null) {
         futureOutputWatermark = elementAndRestriction.getKey().getTimestamp();
       }
-
-      // TODO(BEAM-6157): When we are getting a ProcessContinuation#STOP, why are we setting another
-      // timer?
       Instant wakeupTime =
-          timerInternals.currentProcessingTime().isBefore(result.getContinuation().resumeTime())
-              ? result.getContinuation().resumeTime()
-              : timerInternals.currentProcessingTime();
+          timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
       timerInternals.setTimer(

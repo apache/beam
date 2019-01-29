@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties.TriggeringContext
 import NexmarkBigqueryProperties
 import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
@@ -79,5 +80,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Sp
   ]
 
   // Spark doesn't run streaming jobs, therefore run only batch variants.
-  Nexmark.batchOnlyJob(delegate, JOB_SPECIFIC_OPTIONS, Nexmark.TriggeringContext.PR)
+  Nexmark.batchOnlyJob(delegate, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
 }

@@ -20,13 +20,12 @@ package org.apache.beam.runners.flink;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
@@ -52,13 +51,17 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.After;
-import org.junit.Before;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests the state and timer integration of {@link
@@ -67,23 +70,32 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class PortableTimersExecutionTest implements Serializable {
 
-  @Parameters
+  private static final Logger LOG = LoggerFactory.getLogger(PortableTimersExecutionTest.class);
+
+  @Parameters(name = "streaming: {0}")
   public static Object[] testModes() {
     return new Object[] {true, false};
   }
 
   @Parameter public boolean isStreaming;
 
-  private transient ListeningExecutorService flinkJobExecutor;
+  private static ListeningExecutorService flinkJobExecutor;
 
-  @Before
-  public void setup() {
-    flinkJobExecutor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
+  @BeforeClass
+  public static void setup() {
+    // Restrict this to only one thread to avoid multiple Flink clusters up at the same time
+    // which is not suitable for memory-constraint environments, i.e. Jenkins.
+    flinkJobExecutor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
   }
 
-  @After
-  public void tearDown() {
+  @AfterClass
+  public static void tearDown() throws InterruptedException {
     flinkJobExecutor.shutdown();
+    flinkJobExecutor.awaitTermination(10, TimeUnit.SECONDS);
+    if (!flinkJobExecutor.isShutdown()) {
+      LOG.warn("Could not shutdown Flink job executor");
+    }
+    flinkJobExecutor = null;
   }
 
   @Test(timeout = 120_000)
@@ -92,6 +104,8 @@ public class PortableTimersExecutionTest implements Serializable {
     options.setRunner(CrashingRunner.class);
     options.as(FlinkPipelineOptions.class).setFlinkMaster("[local]");
     options.as(FlinkPipelineOptions.class).setStreaming(isStreaming);
+    options.as(FlinkPipelineOptions.class).setParallelism(2);
+    options.as(FlinkPipelineOptions.class).setShutdownSourcesOnFinalWatermark(true);
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);

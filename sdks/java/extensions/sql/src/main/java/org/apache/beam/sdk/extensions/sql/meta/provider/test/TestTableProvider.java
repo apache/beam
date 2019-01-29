@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
@@ -82,16 +82,13 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
   @Override
   public Map<String, Table> getTables() {
-    return tables()
-        .entrySet()
-        .stream()
+    return tables().entrySet().stream()
         .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().table));
   }
 
   @Override
   public synchronized BeamSqlTable buildBeamSqlTable(Table table) {
-    InMemoryTable inMemoryTable = new InMemoryTable(tables().get(table.getName()));
-    return inMemoryTable;
+    return new InMemoryTable(tables().get(table.getName()));
   }
 
   public void addRows(String tableName, Row... rows) {

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.dataflow.model.InstructionOutput;
@@ -28,10 +28,6 @@ import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.ReadInstruction;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.HashMap;
@@ -76,14 +72,24 @@ import org.apache.beam.runners.dataflow.worker.util.CloudSourceUtils;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.joda.time.Duration;
 
 /**
- * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into an
- * {@link Node} containing {@link org.apache.beam.runners.core.construction.graph.ExecutableStage}.
+ * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into a
+ * {@link Node} containing an {@link
+ * org.apache.beam.runners.core.construction.graph.ExecutableStage}.
  */
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
@@ -162,19 +168,25 @@ public class CreateExecutableStageNodeFunction
       componentsBuilder.putEnvironments(envId, Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
     }
 
-    // Use default WindowingStrategy as the fake one.
+    // By default, use GlobalWindow for all languages.
+    // For java, if there is a IntervalWindowCoder, then use FixedWindow instead.
     // TODO: should get real WindowingStategy from pipeline proto.
-    String fakeWindowingStrategyId = "fakeWindowingStrategy" + idGenerator.getId();
+    String globalWindowingStrategyId = "generatedGlobalWindowingStrategy" + idGenerator.getId();
+    String intervalWindowEncodingWindowingStrategyId =
+        "generatedIntervalWindowEncodingWindowingStrategy" + idGenerator.getId();
+
     SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
     try {
-      RunnerApi.MessageWithComponents fakeWindowingStrategyProto =
-          WindowingStrategyTranslation.toMessageProto(
-              WindowingStrategy.globalDefault(), sdkComponents);
-      componentsBuilder.putWindowingStrategies(
-          fakeWindowingStrategyId, fakeWindowingStrategyProto.getWindowingStrategy());
-      componentsBuilder.putAllCoders(fakeWindowingStrategyProto.getComponents().getCodersMap());
-      componentsBuilder.putAllEnvironments(
-          fakeWindowingStrategyProto.getComponents().getEnvironmentsMap());
+      registerWindowingStrategy(
+          globalWindowingStrategyId,
+          WindowingStrategy.globalDefault(),
+          componentsBuilder,
+          sdkComponents);
+      registerWindowingStrategy(
+          intervalWindowEncodingWindowingStrategyId,
+          WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1))),
+          componentsBuilder,
+          sdkComponents);
     } catch (IOException exc) {
       throw new RuntimeException("Could not convert default windowing stratey to proto", exc);
     }
@@ -191,6 +203,7 @@ public class CreateExecutableStageNodeFunction
       InstructionOutput instructionOutput = node.getInstructionOutput();
 
       String coderId = "generatedCoder" + idGenerator.getId();
+      String windowingStrategyId;
       try (ByteString.Output output = ByteString.newOutput()) {
         try {
           Coder<?> javaCoder =
@@ -199,6 +212,24 @@ public class CreateExecutableStageNodeFunction
           sdkComponents.registerCoder(elementCoder);
           RunnerApi.Coder coderProto = CoderTranslation.toProto(elementCoder, sdkComponents);
           componentsBuilder.putCoders(coderId, coderProto);
+          // For now, Dataflow runner harness only deal with FixedWindow.
+          if (javaCoder instanceof FullWindowedValueCoder) {
+            FullWindowedValueCoder<?> windowedValueCoder = (FullWindowedValueCoder<?>) javaCoder;
+            Coder<?> windowCoder = windowedValueCoder.getWindowCoder();
+            if (windowCoder instanceof IntervalWindowCoder) {
+              windowingStrategyId = intervalWindowEncodingWindowingStrategyId;
+            } else if (windowCoder instanceof GlobalWindow.Coder) {
+              windowingStrategyId = globalWindowingStrategyId;
+            } else {
+              throw new UnsupportedOperationException(
+                  String.format(
+                      "Dataflow portable runner harness doesn't support windowing with %s",
+                      windowCoder));
+            }
+          } else {
+            throw new UnsupportedOperationException(
+                "Dataflow portable runner harness only supports FullWindowedValueCoder");
+          }
         } catch (IOException e) {
           throw new IllegalArgumentException(
               String.format(
@@ -217,6 +248,9 @@ public class CreateExecutableStageNodeFunction
                               RunnerApi.FunctionSpec.newBuilder()
                                   .setPayload(output.toByteString())))
                   .build());
+          // For non-java coder, hope it's GlobalWindows by default.
+          // TODO(BEAM-6231): Actually discover the right windowing strategy.
+          windowingStrategyId = globalWindowingStrategyId;
         }
       } catch (IOException e) {
         throw new IllegalArgumentException(
@@ -226,21 +260,22 @@ public class CreateExecutableStageNodeFunction
             e);
       }
 
-      String pcollectionId = "generatedPcollection" + idGenerator.getId();
+      String pcollectionId = node.getPcollectionId();
       RunnerApi.PCollection pCollection =
           RunnerApi.PCollection.newBuilder()
               .setCoderId(coderId)
-              .setWindowingStrategyId(fakeWindowingStrategyId)
+              .setWindowingStrategyId(windowingStrategyId)
               .build();
       nodesToPCollections.put(node, pcollectionId);
       componentsBuilder.putPcollections(pcollectionId, pCollection);
 
-      // Check whether this output collection has consumers from worker side when "use_executable_stage_bundle_execution"
+      // Check whether this output collection has consumers from worker side when
+      // "use_executable_stage_bundle_execution"
       // is set
-      if (input.successors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance)) {
+      if (isExecutableStageOutputPCollection(input, node)) {
         executableStageOutputs.add(PipelineNode.pCollection(pcollectionId, pCollection));
       }
-      if (input.predecessors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance)) {
+      if (isExecutableStageInputPCollection(input, node)) {
         executableStageInputs.add(PipelineNode.pCollection(pcollectionId, pCollection));
       }
     }
@@ -350,6 +385,10 @@ public class CreateExecutableStageNodeFunction
       executableStageTransforms.add(PipelineNode.pTransform(ptransformId, pTransform.build()));
     }
 
+    if (executableStageInputs.size() != 1) {
+      throw new UnsupportedOperationException("ExecutableStage only support one input PCollection");
+    }
+
     PCollectionNode executableInput = executableStageInputs.iterator().next();
     RunnerApi.Components executableStageComponents = componentsBuilder.build();
 
@@ -445,5 +484,30 @@ public class CreateExecutableStageNodeFunction
     return RunnerApi.FunctionSpec.newBuilder()
         .setUrn(urn)
         .setPayload(combinePayload.toByteString());
+  }
+
+  private boolean isExecutableStageInputPCollection(
+      MutableNetwork<Node, Edge> input, InstructionOutputNode node) {
+    return input.predecessors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance);
+  }
+
+  private boolean isExecutableStageOutputPCollection(
+      MutableNetwork<Node, Edge> input, InstructionOutputNode node) {
+    return input.successors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance);
+  }
+
+  private void registerWindowingStrategy(
+      String windowingStrategyId,
+      WindowingStrategy<?, ?> windowingStrategy,
+      RunnerApi.Components.Builder componentsBuilder,
+      SdkComponents sdkComponents)
+      throws IOException {
+    RunnerApi.MessageWithComponents fakeWindowingStrategyProto =
+        WindowingStrategyTranslation.toMessageProto(windowingStrategy, sdkComponents);
+    componentsBuilder.putWindowingStrategies(
+        windowingStrategyId, fakeWindowingStrategyProto.getWindowingStrategy());
+    componentsBuilder.putAllCoders(fakeWindowingStrategyProto.getComponents().getCodersMap());
+    componentsBuilder.putAllEnvironments(
+        fakeWindowingStrategyProto.getComponents().getEnvironmentsMap());
   }
 }

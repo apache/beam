@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.logging;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -29,6 +28,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A {@link PrintStream} factory that creates {@link PrintStream}s which output to the specified JUL

@@ -18,9 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.graph;
 
 import com.google.api.services.dataflow.model.ParallelInstruction;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.MutableNetwork;
 import java.util.Set;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -28,6 +25,9 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.ExecutionLocation;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 
 /**
  * A function which optimises the execution of {@link FlattenInstruction}s with ambiguous {@link
@@ -89,21 +89,24 @@ public class CloneAmbiguousFlattensFunction
    */
   private void cloneFlatten(Node flatten, MutableNetwork<Node, Edge> network) {
     // Start by creating the clones of the flatten and its PCollection.
-    Node flattenOut = Iterables.getOnlyElement(network.successors(flatten));
+    InstructionOutputNode flattenOut =
+        (InstructionOutputNode) Iterables.getOnlyElement(network.successors(flatten));
     ParallelInstruction flattenInstruction =
         ((ParallelInstructionNode) flatten).getParallelInstruction();
 
     Node runnerFlatten =
         ParallelInstructionNode.create(flattenInstruction, ExecutionLocation.RUNNER_HARNESS);
     Node runnerFlattenOut =
-        InstructionOutputNode.create(((InstructionOutputNode) flattenOut).getInstructionOutput());
+        InstructionOutputNode.create(
+            flattenOut.getInstructionOutput(), flattenOut.getPcollectionId());
     network.addNode(runnerFlatten);
     network.addNode(runnerFlattenOut);
 
     Node sdkFlatten =
         ParallelInstructionNode.create(flattenInstruction, ExecutionLocation.SDK_HARNESS);
     Node sdkFlattenOut =
-        InstructionOutputNode.create(((InstructionOutputNode) flattenOut).getInstructionOutput());
+        InstructionOutputNode.create(
+            flattenOut.getInstructionOutput(), flattenOut.getPcollectionId());
     network.addNode(sdkFlatten);
     network.addNode(sdkFlattenOut);
 

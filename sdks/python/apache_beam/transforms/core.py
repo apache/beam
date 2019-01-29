@@ -1215,13 +1215,21 @@ class CombineGlobally(PTransform):
     self.kwargs = kwargs
 
   def display_data(self):
-    return {'combine_fn':
+    return {
+        'combine_fn':
             DisplayDataItem(self.fn.__class__, label='Combine Function'),
-            'combine_fn_dd':
-            self.fn}
+        'combine_fn_dd':
+            self.fn,
+    }
 
   def default_label(self):
-    return 'CombineGlobally(%s)' % ptransform.label_from_callable(self.fn)
+    if self.fanout is None:
+      return '%s(%s)' % (self.__class__.__name__,
+                         ptransform.label_from_callable(self.fn))
+    else:
+      return '%s(%s, fanout=%s)' % (self.__class__.__name__,
+                                    ptransform.label_from_callable(self.fn),
+                                    self.fanout)
 
   def _clone(self, **extra_attributes):
     clone = copy.copy(self)
@@ -1327,16 +1335,18 @@ class CombinePerKey(PTransformWithSideInputs):
     aggregation.
 
     Args:
-      fanout: either an int, for a constant-degree fanout, or a callable
-          mapping keys to a key-specific degree of fanout
+      fanout: either None, for no fanout, an int, for a constant-degree fanout,
+          or a callable mapping keys to a key-specific degree of fanout.
 
     Returns:
       A per-key combining PTransform with the specified fanout.
     """
     from apache_beam.transforms.combiners import curry_combine_fn
-    return _CombinePerKeyWithHotKeyFanout(
-        curry_combine_fn(self.fn, self.args, self.kwargs),
-        fanout)
+    if fanout is None:
+      return self
+    else:
+      return _CombinePerKeyWithHotKeyFanout(
+          curry_combine_fn(self.fn, self.args, self.kwargs), fanout)
 
   def display_data(self):
     return {'combine_fn':
@@ -1490,9 +1500,15 @@ class CombineValuesDoFn(DoFn):
 class _CombinePerKeyWithHotKeyFanout(PTransform):
 
   def __init__(self, combine_fn, fanout):
+    self._combine_fn = combine_fn
     self._fanout_fn = (
         (lambda key: fanout) if isinstance(fanout, int) else fanout)
-    self._combine_fn = combine_fn
+
+  def default_label(self):
+    return '%s(%s, fanout=%s)' % (
+        self.__class__.__name__,
+        ptransform.label_from_callable(self._combine_fn),
+        ptransform.label_from_callable(self._fanout_fn))
 
   def expand(self, pcoll):
 
@@ -1527,6 +1543,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
       create_accumulator = combine_fn.create_accumulator
       add_input = combine_fn.add_input
       merge_accumulators = combine_fn.merge_accumulators
+      # TODO(BEAM-4030): Remove the getattr indirection.
+      compact = getattr(combine_fn, 'compact', None)
 
     class PostCombineFn(CombineFn):
       @staticmethod
@@ -1538,6 +1556,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           return combine_fn.add_input(accumulator, value)
       create_accumulator = combine_fn.create_accumulator
       merge_accumulators = combine_fn.merge_accumulators
+      # TODO(BEAM-4030): Remove the getattr indirection.
+      compact = getattr(combine_fn, 'compact', None)
       extract_output = combine_fn.extract_output
 
     def StripNonce(nonce_key_value):
@@ -1973,7 +1993,7 @@ PTransform.register_urn(
 class Create(PTransform):
   """A transform that creates a PCollection from an iterable."""
 
-  def __init__(self, values):
+  def __init__(self, values, reshuffle=True):
     """Initializes a Create transform.
 
     Args:
@@ -1986,6 +2006,7 @@ class Create(PTransform):
     elif isinstance(values, dict):
       values = values.items()
     self.values = tuple(values)
+    self.reshuffle = reshuffle
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
@@ -2010,13 +2031,14 @@ class Create(PTransform):
     if fn_api:
       coder = typecoders.registry.get_coder(self.get_output_type())
       serialized_values = [coder.encode(v) for v in self.values]
+      reshuffle = self.reshuffle
       # Avoid the "redistributing" reshuffle for 0 and 1 element Creates.
       # These special cases are often used in building up more complex
       # transforms (e.g. Write).
 
       class MaybeReshuffle(PTransform):
         def expand(self, pcoll):
-          if len(serialized_values) > 1:
+          if len(serialized_values) > 1 and reshuffle:
             from apache_beam.transforms.util import Reshuffle
             return pcoll | Reshuffle()
           else:

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.testing;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
@@ -40,6 +40,7 @@ import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
 import com.google.api.services.bigquery.model.TableDataInsertAllRequest.Rows;
+import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableList;
 import com.google.api.services.bigquery.model.TableList.Tables;
@@ -49,8 +50,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
@@ -64,6 +63,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -181,21 +182,21 @@ public class BigqueryClient {
       return values.build();
     }
 
-    if (fieldSchema.getType().equals("RECORD")) {
+    if ("RECORD".equals(fieldSchema.getType())) {
       @SuppressWarnings("unchecked")
       Map<String, Object> typedV = (Map<String, Object>) v;
       return getTypedTableRow(fieldSchema.getFields(), typedV);
     }
 
-    if (fieldSchema.getType().equals("FLOAT")) {
+    if ("FLOAT".equals(fieldSchema.getType())) {
       return Double.parseDouble((String) v);
     }
 
-    if (fieldSchema.getType().equals("BOOLEAN")) {
+    if ("BOOLEAN".equals(fieldSchema.getType())) {
       return Boolean.parseBoolean((String) v);
     }
 
-    if (fieldSchema.getType().equals("TIMESTAMP")) {
+    if ("TIMESTAMP".equals(fieldSchema.getType())) {
       return (String) v;
     }
 
@@ -353,18 +354,43 @@ public class BigqueryClient {
         lastException);
   }
 
-  public void createNewDataset(String projectId, String datasetId) {
-    try {
-      bqClient
-          .datasets()
-          .insert(
-              projectId,
-              new Dataset().setDatasetReference(new DatasetReference().setDatasetId(datasetId)))
-          .execute();
-      LOG.info("Successfully created new dataset : " + datasetId);
-    } catch (Exception e) {
-      LOG.debug("Exceptions caught when creating new dataset: " + e.getMessage());
-    }
+  public void createNewDataset(String projectId, String datasetId)
+      throws IOException, InterruptedException {
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+    IOException lastException = null;
+    do {
+      if (lastException != null) {
+        LOG.warn("Retrying insert dataset ({}) after exception", datasetId, lastException);
+      }
+      try {
+        Dataset response =
+            bqClient
+                .datasets()
+                .insert(
+                    projectId,
+                    new Dataset()
+                        .setDatasetReference(new DatasetReference().setDatasetId(datasetId)))
+                .execute();
+        if (response != null) {
+          LOG.info("Successfully created new dataset : " + response.getId());
+          return;
+        } else {
+          lastException =
+              new IOException(
+                  "Expected valid response from insert dataset job, but received null.");
+        }
+      } catch (IOException e) {
+        // ignore and retry
+        lastException = e;
+      }
+    } while (BackOffUtils.next(sleeper, backoff));
+
+    throw new RuntimeException(
+        String.format(
+            "Unable to get BigQuery response after retrying %d times for dataset (%s)",
+            MAX_QUERY_RETRIES, datasetId),
+        lastException);
   }
 
   public void deleteTable(String projectId, String datasetId, String tableName) {
@@ -394,28 +420,84 @@ public class BigqueryClient {
     }
   }
 
-  public void createNewTable(String projectId, String datasetId, Table newTable) {
-    try {
-      this.bqClient.tables().insert(projectId, datasetId, newTable).execute();
-      LOG.info("Successfully created new table: " + newTable.getId());
-    } catch (Exception e) {
-      LOG.debug("Exceptions caught when creating new table: " + e.getMessage());
-    }
+  public void createNewTable(String projectId, String datasetId, Table newTable)
+      throws IOException, InterruptedException {
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+    IOException lastException = null;
+    do {
+      if (lastException != null) {
+        LOG.warn("Retrying create table ({}) after exception", newTable.getId(), lastException);
+      }
+      try {
+        Table response = this.bqClient.tables().insert(projectId, datasetId, newTable).execute();
+        if (response != null) {
+          LOG.info("Successfully created new table: " + response.getId());
+          return;
+        } else {
+          lastException =
+              new IOException("Expected valid response from create table job, but received null.");
+        }
+      } catch (IOException e) {
+        // ignore and retry
+        lastException = e;
+      }
+    } while (BackOffUtils.next(sleeper, backoff));
+
+    throw new RuntimeException(
+        String.format(
+            "Unable to get BigQuery response after retrying %d times for table (%s)",
+            MAX_QUERY_RETRIES, newTable.getId()),
+        lastException);
   }
 
   public void insertDataToTable(
-      String projectId, String datasetId, String tableName, List<Map<String, Object>> rows) {
-    try {
-      List<Rows> dataRows =
-          rows.stream().map(row -> new Rows().setJson(row)).collect(Collectors.toList());
-      this.bqClient
-          .tabledata()
-          .insertAll(
-              projectId, datasetId, tableName, new TableDataInsertAllRequest().setRows(dataRows))
-          .execute();
-      LOG.info("Successfully inserted data into table : " + tableName);
-    } catch (Exception e) {
-      LOG.debug("Exceptions caught when inserting data: " + e.getMessage());
-    }
+      String projectId, String datasetId, String tableName, List<Map<String, Object>> rows)
+      throws IOException, InterruptedException {
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+    IOException lastException = null;
+    do {
+      if (lastException != null) {
+        LOG.warn("Retrying insert table ({}) after exception", tableName, lastException);
+      }
+      try {
+        List<Rows> dataRows =
+            rows.stream().map(row -> new Rows().setJson(row)).collect(Collectors.toList());
+        TableDataInsertAllResponse response =
+            this.bqClient
+                .tabledata()
+                .insertAll(
+                    projectId,
+                    datasetId,
+                    tableName,
+                    new TableDataInsertAllRequest().setRows(dataRows))
+                .execute();
+        if (response != null
+            && (response.getInsertErrors() == null || response.getInsertErrors().isEmpty())) {
+          LOG.info("Successfully inserted data into table : " + tableName);
+          return;
+        } else {
+          if (response == null || response.getInsertErrors() == null) {
+            lastException =
+                new IOException("Expected valid response from insert data job, but received null.");
+          } else {
+            lastException =
+                new IOException(
+                    String.format(
+                        "Got insertion error (%s)", response.getInsertErrors().toString()));
+          }
+        }
+      } catch (IOException e) {
+        // ignore and retry
+        lastException = e;
+      }
+    } while (BackOffUtils.next(sleeper, backoff));
+
+    throw new RuntimeException(
+        String.format(
+            "Unable to get BigQuery response after retrying %d times for table (%s)",
+            MAX_QUERY_RETRIES, tableName),
+        lastException);
   }
 }

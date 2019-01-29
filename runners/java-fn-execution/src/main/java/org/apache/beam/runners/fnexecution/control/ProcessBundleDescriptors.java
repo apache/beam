@@ -17,14 +17,10 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.core.construction.SyntheticComponents.uniqueId;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableTable;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -62,7 +58,11 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 
 /** Utility methods for creating {@link ProcessBundleDescriptor} instances. */
@@ -110,9 +110,7 @@ public class ProcessBundleDescriptors {
     // Create with all of the processing transforms, and all of the components.
     // TODO: Remove the unreachable subcomponents if the size of the descriptor matters.
     Map<String, PTransform> stageTransforms =
-        stage
-            .getTransforms()
-            .stream()
+        stage.getTransforms().stream()
             .collect(Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform));
 
     Components.Builder components =
@@ -388,7 +386,8 @@ public class ProcessBundleDescriptors {
       outputTargetCodersBuilder.put(targetEncoding.getTarget(), targetEncoding.getCoder());
       components.putTransforms(
           timerReference.transform().getId(),
-          // Since a transform can have more then one timer, update the transform inside components and not the original
+          // Since a transform can have more then one timer, update the transform inside components
+          // and not the original
           components
               .getTransformsOrThrow(timerReference.transform().getId())
               .toBuilder()

@@ -342,7 +342,7 @@ public class MongoDBGridFSIOTest implements Serializable {
       }
 
       files = gridfs.find("WriteTestIntData");
-      boolean intResults[] = new boolean[100];
+      boolean[] intResults = new boolean[100];
       for (GridFSDBFile file : files) {
         int l = (int) file.getLength();
         try (InputStream ins = file.getInputStream()) {

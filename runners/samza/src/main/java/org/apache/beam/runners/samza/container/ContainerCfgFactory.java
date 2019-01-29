@@ -18,9 +18,12 @@
 package org.apache.beam.runners.samza.container;
 
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.ConfigFactory;
+import org.apache.samza.config.MapConfig;
 import org.apache.samza.config.ShellCommandConfig;
 import org.apache.samza.container.SamzaContainer;
 import org.apache.samza.job.model.JobModel;
@@ -49,6 +52,8 @@ public class ContainerCfgFactory implements ConfigFactory {
       }
     }
 
-    return jobModel.getConfig();
+    final Map<String, String> config = new HashMap<>(jobModel.getConfig());
+    config.put("app.runner.class", BeamContainerRunner.class.getName());
+    return new MapConfig(config);
   }
 }

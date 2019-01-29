@@ -25,11 +25,11 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
-import com.google.common.collect.Lists;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** Sends records to Kinesis in reliable way. */
 public class KinesisUploader {

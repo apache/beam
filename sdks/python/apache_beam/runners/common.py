@@ -392,8 +392,6 @@ def _find_param_with_default(
         'provided. Received %r and %r.' % (default_as_value, default_as_type))
 
   defaults = method.defaults
-  default_as_value = default_as_value
-  default_as_type = default_as_type
   ret = None
   for i, value in enumerate(defaults):
     if default_as_value and value == default_as_value:

@@ -23,8 +23,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,7 +45,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -56,6 +53,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
@@ -170,7 +169,7 @@ public class ReferenceRunnerTest implements Serializable {
 
     @SplitRestriction
     public void splitRange(
-        String element, OffsetRange range, Backlog backlog, OutputReceiver<OffsetRange> receiver) {
+        String element, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
       long middle = (range.getFrom() + range.getTo()) / 2;
       receiver.output(new OffsetRange(range.getFrom(), middle));
       receiver.output(new OffsetRange(middle, range.getTo()));

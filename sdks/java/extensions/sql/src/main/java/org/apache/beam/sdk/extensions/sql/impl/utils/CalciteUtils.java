@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableBiMap;
-import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -167,8 +167,7 @@ public class CalciteUtils {
     return builder.build();
   }
 
-  private static RelDataType toRelDataType(
-      RelDataTypeFactory dataTypeFactory, FieldType fieldType) {
+  public static RelDataType toRelDataType(RelDataTypeFactory dataTypeFactory, FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case ARRAY:
         return dataTypeFactory.createArrayType(
@@ -202,7 +201,7 @@ public class CalciteUtils {
    * @return
    */
   public static RelDataType sqlTypeWithAutoCast(RelDataTypeFactory typeFactory, Type rawType) {
-    //For Joda time types, return SQL type for java.util.Date.
+    // For Joda time types, return SQL type for java.util.Date.
     if (rawType instanceof Class && AbstractInstant.class.isAssignableFrom((Class<?>) rawType)) {
       return typeFactory.createJavaType(Date.class);
     } else if (rawType instanceof Class && ByteString.class.isAssignableFrom((Class<?>) rawType)) {

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
@@ -29,9 +29,6 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +44,9 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -621,12 +621,10 @@ public class BigQueryHelpers {
   static TableReference createTempTableReference(String projectId, String jobUuid) {
     String queryTempDatasetId = "temp_dataset_" + jobUuid;
     String queryTempTableId = "temp_table_" + jobUuid;
-    TableReference queryTempTableRef =
-        new TableReference()
-            .setProjectId(projectId)
-            .setDatasetId(queryTempDatasetId)
-            .setTableId(queryTempTableId);
-    return queryTempTableRef;
+    return new TableReference()
+        .setProjectId(projectId)
+        .setDatasetId(queryTempDatasetId)
+        .setTableId(queryTempTableId);
   }
 
   static String resolveTempLocation(

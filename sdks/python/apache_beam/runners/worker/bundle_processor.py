@@ -33,6 +33,7 @@ from builtins import object
 from future.utils import itervalues
 
 import apache_beam as beam
+from apache_beam import coders
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import coder_impl
 from apache_beam.internal import pickler
@@ -126,20 +127,32 @@ class DataInputOperation(RunnerIOOperation):
 
 
 class _StateBackedIterable(object):
-  def __init__(self, state_handler, state_key, coder):
+  def __init__(self, state_handler, state_key, coder_or_impl):
     self._state_handler = state_handler
     self._state_key = state_key
-    self._coder_impl = coder.get_impl()
+    if isinstance(coder_or_impl, coders.Coder):
+      self._coder_impl = coder_or_impl.get_impl()
+    else:
+      self._coder_impl = coder_or_impl
 
   def __iter__(self):
-    # TODO(robertwb): Support pagination.
-    input_stream = coder_impl.create_InputStream(
-        self._state_handler.blocking_get(self._state_key))
-    while input_stream.size() > 0:
-      yield self._coder_impl.decode_from_stream(input_stream, True)
+    data, continuation_token = self._state_handler.blocking_get(self._state_key)
+    while True:
+      input_stream = coder_impl.create_InputStream(data)
+      while input_stream.size() > 0:
+        yield self._coder_impl.decode_from_stream(input_stream, True)
+      if not continuation_token:
+        break
+      else:
+        data, continuation_token = self._state_handler.blocking_get(
+            self._state_key, continuation_token)
 
   def __reduce__(self):
     return list, (list(self),)
+
+
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
+    _StateBackedIterable)
 
 
 class StateBackedSideInputMap(object):
@@ -258,6 +271,9 @@ class _ConcatIterable(object):
       yield elem
     for elem in self.second:
       yield elem
+
+
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 
 
 # TODO(BEAM-5428): Implement cross-bundle state caching.
@@ -546,7 +562,14 @@ class BeamTransformFactory(object):
     self.counter_factory = counter_factory
     self.state_sampler = state_sampler
     self.state_handler = state_handler
-    self.context = pipeline_context.PipelineContext(descriptor)
+    self.context = pipeline_context.PipelineContext(
+        descriptor,
+        iterable_state_read=lambda token, element_coder_impl:
+        _StateBackedIterable(
+            state_handler,
+            beam_fn_api_pb2.StateKey(
+                runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
+            element_coder_impl))
 
   _known_urns = {}
 
@@ -576,7 +599,7 @@ class BeamTransformFactory(object):
     else:
       # No URN, assume cloud object encoding json bytes.
       return operation_specs.get_coder_from_spec(
-          json.loads(coder_proto.spec.spec.payload))
+          json.loads(coder_proto.spec.spec.payload.decode('utf-8')))
 
   def get_windowed_coder(self, pcoll_id):
     coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)

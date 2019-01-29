@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.gearpump.translators.io;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
+import io.gearpump.cluster.ClusterConfig;
+import io.gearpump.util.Constants;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -33,9 +33,8 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.gearpump.cluster.ClusterConfig;
-import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
-import org.apache.gearpump.util.Constants;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -49,10 +48,8 @@ public class ValueSoureTest {
     Config config = ClusterConfig.master(null);
     config =
         config.withValue(Constants.APPLICATION_TOTAL_RETRIES(), ConfigValueFactory.fromAnyRef(0));
-    EmbeddedCluster cluster = new EmbeddedCluster(config);
-    cluster.start();
 
-    options.setEmbeddedCluster(cluster);
+    options.setRemote(false);
     options.setRunner(GearpumpRunner.class);
     options.setParallelism(1);
     Pipeline p = Pipeline.create(options);
@@ -61,7 +58,6 @@ public class ValueSoureTest {
     p.apply(Read.from(source)).apply(ParDo.of(new ResultCollector()));
 
     p.run().waitUntilFinish();
-    cluster.stop();
 
     Assert.assertEquals(Sets.newHashSet(values), ResultCollector.RESULTS);
   }

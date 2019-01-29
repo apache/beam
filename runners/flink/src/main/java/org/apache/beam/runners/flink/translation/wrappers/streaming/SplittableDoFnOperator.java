@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -40,6 +40,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -57,7 +58,8 @@ import org.joda.time.Instant;
  * Flink operator for executing splittable {@link DoFn DoFns}. Specifically, for executing the
  * {@code @ProcessElement} method of a splittable {@link DoFn}.
  */
-public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
+public class SplittableDoFnOperator<
+        InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
     extends DoFnOperator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
 
   private transient ScheduledExecutorService executorService;
@@ -155,6 +157,7 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
 
   @Override
   public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
+    timerInternals.cleanupPendingTimer(timer.getNamespace());
     if (timer.getNamespace().getDomain().equals(TimeDomain.EVENT_TIME)) {
       // ignore this, it can only be a state cleanup timers from StatefulDoFnRunner and ProcessFn
       // does its own state cleanup and should never set event-time timers.

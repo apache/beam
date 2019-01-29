@@ -17,10 +17,8 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -33,7 +31,9 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,8 +47,17 @@ class GreedyPCollectionFusers {
       ImmutableMap.<String, FusibilityChecker>builder()
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, GreedyPCollectionFusers::canFuseParDo)
           .put(
+              PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
+              GreedyPCollectionFusers::canFuseCompatibleEnvironment)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
+              GreedyPCollectionFusers::canFuseCompatibleEnvironment)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
+              GreedyPCollectionFusers::canFuseCompatibleEnvironment)
+          .put(
               PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
-              GreedyPCollectionFusers::canFuseAssignWindows)
+              GreedyPCollectionFusers::canFuseCompatibleEnvironment)
           .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, GreedyPCollectionFusers::canAlwaysFuse)
           .put(
               // GroupByKeys are runner-implemented only. PCollections consumed by a GroupByKey must
@@ -65,6 +74,15 @@ class GreedyPCollectionFusers {
           .put(
               PTransformTranslation.PAR_DO_TRANSFORM_URN,
               GreedyPCollectionFusers::parDoCompatibility)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
+              GreedyPCollectionFusers::compatibleEnvironments)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
+              GreedyPCollectionFusers::compatibleEnvironments)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
+              GreedyPCollectionFusers::compatibleEnvironments)
           .put(
               PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
               GreedyPCollectionFusers::compatibleEnvironments)
@@ -196,9 +214,11 @@ class GreedyPCollectionFusers {
         // upstream of any of the side inputs.
         || (pipeline.getSideInputs(parDo).isEmpty()
             // We purposefully break fusion here to provide runners the opportunity to insert a
-            // grouping operation to simplify implementing support for ParDo's that contain user state.
+            // grouping operation to simplify implementing support for ParDo's that contain user
+            // state.
             // We would not need to do this if we had the ability to mark upstream transforms as
-            // key preserving or if runners could execute ParDos containing user state in a distributed
+            // key preserving or if runners could execute ParDos containing user state in a
+            // distributed
             // fashion for a single key.
             && pipeline.getUserStates(parDo).isEmpty()
             // We purposefully break fusion here to provide runners the opportunity to insert a
@@ -213,15 +233,15 @@ class GreedyPCollectionFusers {
   /**
    * A WindowInto can be fused into a stage if it executes in the same Environment as that stage.
    */
-  private static boolean canFuseAssignWindows(
-      PTransformNode window,
+  private static boolean canFuseCompatibleEnvironment(
+      PTransformNode operation,
       Environment environmemnt,
       @SuppressWarnings("unused") PCollectionNode candidate,
       @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       QueryablePipeline pipeline) {
     // WindowInto transforms may not have an environment
-    Optional<Environment> windowEnvironment = pipeline.getEnvironment(window);
-    return environmemnt.equals(windowEnvironment.orElse(null));
+    Optional<Environment> operationEnvironment = pipeline.getEnvironment(operation);
+    return environmemnt.equals(operationEnvironment.orElse(null));
   }
 
   private static boolean compatibleEnvironments(

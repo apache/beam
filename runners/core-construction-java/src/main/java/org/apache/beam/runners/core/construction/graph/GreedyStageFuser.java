@@ -17,17 +17,18 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.ArrayDeque;
 import java.util.LinkedHashSet;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Supplier;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,9 +170,10 @@ public class GreedyStageFuser {
       PCollectionNode candidate,
       Environment environment,
       Set<PCollectionNode> fusedPCollections) {
-    for (PTransformNode node : pipeline.getPerElementConsumers(candidate)) {
-      if (!(GreedyPCollectionFusers.canFuse(
-          node, environment, candidate, fusedPCollections, pipeline))) {
+    for (PTransformNode consumer : pipeline.getPerElementConsumers(candidate)) {
+      if (anyInputsSideInputs(consumer, pipeline)
+          || !(GreedyPCollectionFusers.canFuse(
+              consumer, environment, candidate, fusedPCollections, pipeline))) {
         // Some of the consumers can't be fused into this subgraph, so the PCollection has to be
         // materialized.
         // TODO: Potentially, some of the consumers can be fused back into this stage later
@@ -190,5 +192,17 @@ public class GreedyStageFuser {
   private enum PCollectionFusibility {
     MATERIALIZE,
     FUSE,
+  }
+
+  private static boolean anyInputsSideInputs(PTransformNode consumer, QueryablePipeline pipeline) {
+    for (String inputPCollectionId : consumer.getTransform().getInputsMap().values()) {
+      RunnerApi.PCollection pCollection =
+          pipeline.getComponents().getPcollectionsMap().get(inputPCollectionId);
+      PCollectionNode pCollectionNode = PipelineNode.pCollection(inputPCollectionId, pCollection);
+      if (!pipeline.getSingletonConsumers(pCollectionNode).isEmpty()) {
+        return true;
+      }
+    }
+    return false;
   }
 }

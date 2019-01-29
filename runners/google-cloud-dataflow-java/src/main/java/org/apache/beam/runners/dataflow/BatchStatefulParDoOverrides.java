@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.util.List;
 import java.util.Map;
@@ -69,7 +69,8 @@ public class BatchStatefulParDoOverrides {
    */
   public static <K, InputT, OutputT>
       PTransformOverrideFactory<
-              PCollection<KV<K, InputT>>, PCollection<OutputT>,
+              PCollection<KV<K, InputT>>,
+              PCollection<OutputT>,
               ParDo.SingleOutput<KV<K, InputT>, OutputT>>
           singleOutputOverrideFactory(DataflowPipelineOptions options) {
     return new SingleOutputOverrideFactory<>(isFnApi(options));
@@ -81,7 +82,8 @@ public class BatchStatefulParDoOverrides {
    */
   public static <K, InputT, OutputT>
       PTransformOverrideFactory<
-              PCollection<KV<K, InputT>>, PCollectionTuple,
+              PCollection<KV<K, InputT>>,
+              PCollectionTuple,
               ParDo.MultiOutput<KV<K, InputT>, OutputT>>
           multiOutputOverrideFactory(DataflowPipelineOptions options) {
     return new MultiOutputOverrideFactory<>(isFnApi(options));
@@ -94,7 +96,8 @@ public class BatchStatefulParDoOverrides {
 
   private static class SingleOutputOverrideFactory<K, InputT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<KV<K, InputT>>, PCollection<OutputT>,
+          PCollection<KV<K, InputT>>,
+          PCollection<OutputT>,
           ParDo.SingleOutput<KV<K, InputT>, OutputT>> {
 
     private final boolean isFnApi;
@@ -107,7 +110,8 @@ public class BatchStatefulParDoOverrides {
     public PTransformReplacement<PCollection<KV<K, InputT>>, PCollection<OutputT>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<K, InputT>>, PCollection<OutputT>,
+                    PCollection<KV<K, InputT>>,
+                    PCollection<OutputT>,
                     SingleOutput<KV<K, InputT>, OutputT>>
                 transform) {
       return PTransformReplacement.of(
@@ -136,7 +140,8 @@ public class BatchStatefulParDoOverrides {
     public PTransformReplacement<PCollection<KV<K, InputT>>, PCollectionTuple>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<KV<K, InputT>>, PCollectionTuple,
+                    PCollection<KV<K, InputT>>,
+                    PCollectionTuple,
                     MultiOutput<KV<K, InputT>, OutputT>>
                 transform) {
       return PTransformReplacement.of(

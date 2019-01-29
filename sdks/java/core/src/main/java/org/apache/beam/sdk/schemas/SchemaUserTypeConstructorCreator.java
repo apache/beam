@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -27,7 +27,7 @@ public class SchemaUserTypeConstructorCreator implements SchemaUserTypeCreator {
   private final Class<?> clazz;
   private final transient Constructor<?> constructor;
 
-  SchemaUserTypeConstructorCreator(Class<?> clazz, Constructor<?> constructor) {
+  public SchemaUserTypeConstructorCreator(Class<?> clazz, Constructor<?> constructor) {
     this.clazz = clazz;
     this.constructor = checkNotNull(constructor);
   }

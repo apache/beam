@@ -32,7 +32,7 @@ test {
 }
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.google_http_client_jackson2
   shadow library.java.google_auth_library_oauth2_http

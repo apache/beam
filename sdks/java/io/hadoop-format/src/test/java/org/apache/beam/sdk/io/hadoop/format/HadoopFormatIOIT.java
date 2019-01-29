@@ -22,35 +22,35 @@ import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
 
 import java.sql.SQLException;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
-import org.apache.beam.sdk.io.hadoop.inputformat.TestRowDBWritable;
-import org.apache.beam.sdk.io.jdbc.JdbcIO;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.lib.db.DBConfiguration;
+import org.apache.hadoop.mapreduce.lib.db.DBInputFormat;
 import org.apache.hadoop.mapreduce.lib.db.DBOutputFormat;
+import org.apache.hadoop.mapreduce.lib.db.DBWritable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.postgresql.ds.PGSimpleDataSource;
-
-//sequencefile
 
 /**
  * A test of {@link org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO} on an independent postgres
@@ -111,6 +111,16 @@ public class HadoopFormatIOIT {
         DatabaseTestHelper.getPostgresDBUrl(options),
         options.getPostgresUsername(),
         options.getPostgresPassword());
+
+    conf.set(DBConfiguration.INPUT_TABLE_NAME_PROPERTY, tableName);
+    conf.setStrings(DBConfiguration.INPUT_FIELD_NAMES_PROPERTY, "id", "name");
+    conf.set(DBConfiguration.INPUT_ORDER_BY_PROPERTY, "id ASC");
+    conf.setClass(DBConfiguration.INPUT_CLASS_PROPERTY, TestRowDBWritable.class, DBWritable.class);
+
+    conf.setClass("key.class", LongWritable.class, Object.class);
+    conf.setClass("value.class", TestRowDBWritable.class, Object.class);
+    conf.setClass("mapreduce.job.inputformat.class", DBInputFormat.class, InputFormat.class);
+
     conf.set(DBConfiguration.OUTPUT_TABLE_NAME_PROPERTY, tableName);
     conf.set(DBConfiguration.OUTPUT_FIELD_COUNT_PROPERTY, "2");
     conf.setStrings(DBConfiguration.OUTPUT_FIELD_NAMES_PROPERTY, "id", "name");
@@ -134,13 +144,13 @@ public class HadoopFormatIOIT {
   }
 
   @Test
-  public void writeUsingHadoopOutputFormat() {
+  public void writeAndReadUsingHadoopFormat() {
     writePipeline
         .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRows))
         .apply("Produce db rows", ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply("Construct rows for DBOutputFormat", ParDo.of(new ConstructDBOutputFormatRowFn()))
         .apply(
-            "Write using HadoopOutputFormat",
+            "Write using Hadoop OutputFormat",
             HadoopFormatIO.<TestRowDBWritable, NullWritable>write()
                 .withConfiguration(hadoopConfiguration.get())
                 .withPartitioning()
@@ -152,14 +162,13 @@ public class HadoopFormatIOIT {
     PCollection<String> consolidatedHashcode =
         readPipeline
             .apply(
-                "Read using JDBCIO",
-                JdbcIO.<String>read()
-                    .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-                    .withQuery(String.format("select name,id from %s;", tableName))
-                    .withRowMapper(
-                        (JdbcIO.RowMapper<String>) resultSet -> resultSet.getString("name"))
-                    .withCoder(StringUtf8Coder.of()))
+                "Read using Hadoop InputFormat",
+                HadoopFormatIO.<LongWritable, TestRowDBWritable>read()
+                    .withConfiguration(hadoopConfiguration.get()))
+            .apply("Get values only", Values.create())
+            .apply("Values as string", ParDo.of(new TestRow.SelectNameFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(getExpectedHashForRowCount(numberOfRows));
 
     readPipeline.run().waitUntilFinish();

@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,9 +31,13 @@ import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.ExternalEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.ProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /** Implementation of a {@link FlinkExecutableStageContext}. */
 class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext, AutoCloseable {
@@ -52,8 +53,11 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
                     PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())),
                 BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
                 new ProcessEnvironmentFactory.Provider(),
+                BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL),
+                new ExternalEnvironmentFactory.Provider(),
                 Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
-                new EmbeddedEnvironmentFactory.Provider()));
+                new EmbeddedEnvironmentFactory.Provider(
+                    PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions()))));
     return new FlinkDefaultExecutableStageContext(jobBundleFactory);
   }
 
@@ -81,7 +85,8 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
       Preconditions.checkArgument(maxFactories >= 0, "sdk_worker_parallelism must be >= 0");
 
       if (maxFactories == 0) {
-        // if this is 0, use the auto behavior of num_cores - 1 so that we leave some resources available for the java process
+        // if this is 0, use the auto behavior of num_cores - 1 so that we leave some resources
+        // available for the java process
         this.maxFactories = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
       } else {
         this.maxFactories = maxFactories;

@@ -43,7 +43,7 @@ class CommonJobProperties {
 
     // Discard old builds. Build records are only kept up to this number of days.
     context.logRotator {
-      daysToKeep(30)
+      daysToKeep(14)
     }
 
     // Source code management.
@@ -145,8 +145,6 @@ class CommonJobProperties {
   // Default maxWorkers is 12 to avoid jvm oom as in [BEAM-4847].
   static void setGradleSwitches(context, maxWorkers = 12) {
     def defaultSwitches = [
-      // Gradle log verbosity enough to diagnose basic build issues
-      "--info",
       // Continue the build even if there is a failure to show as many potential failures as possible.
       '--continue',
     ]
@@ -280,7 +278,7 @@ class CommonJobProperties {
   }
 
   // Adds the standard performance test job steps.
-  static def buildPerformanceTest(def context, def argMap, def language = "DEFAULT") {
+  static def buildPerformanceTest(def context, def argMap) {
     def pkbArgs = genPerformanceArgs(argMap)
 
     // Absolute path of project root and virtualenv path of Beam and Perfkit.

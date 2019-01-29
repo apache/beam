@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.gearpump.translators;
 
-import com.google.common.collect.ImmutableList;
+import io.gearpump.util.Graph;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +36,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.gearpump.util.Graph;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

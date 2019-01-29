@@ -22,7 +22,6 @@ import io
 import logging
 import multiprocessing
 import os
-import sys
 import threading
 import unittest
 from builtins import range
@@ -48,7 +47,7 @@ class FakeDownloader(filesystemio.Downloader):
 class FakeUploader(filesystemio.Uploader):
 
   def __init__(self):
-    self.data = ''
+    self.data = b''
     self.last_write_size = -1
     self.finished = False
 
@@ -69,7 +68,7 @@ class TestDownloaderStream(unittest.TestCase):
   def test_file_attributes(self):
     downloader = FakeDownloader(data=None)
     stream = filesystemio.DownloaderStream(downloader)
-    self.assertEqual(stream.mode, 'r')
+    self.assertEqual(stream.mode, 'rb')
     self.assertTrue(stream.readable())
     self.assertFalse(stream.writable())
     self.assertTrue(stream.seekable())
@@ -80,43 +79,35 @@ class TestDownloaderStream(unittest.TestCase):
     self.assertEqual(stream.read(), b'')
 
   def test_read(self):
-    data = 'abcde'
+    data = b'abcde'
     downloader = FakeDownloader(data)
     stream = filesystemio.DownloaderStream(downloader)
 
     # Read size is exactly what was passed to read() (unbuffered).
-    self.assertEqual(stream.read(1), data[0])
+    self.assertEqual(stream.read(1), data[0:1])
     self.assertEqual(downloader.last_read_size, 1)
     self.assertEqual(stream.read(), data[1:])
     self.assertEqual(downloader.last_read_size, len(data) - 1)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
   def test_read_buffered(self):
-    data = 'abcde'
+    data = b'abcde'
     downloader = FakeDownloader(data)
     buffer_size = 2
     stream = io.BufferedReader(filesystemio.DownloaderStream(downloader),
                                buffer_size)
 
     # Verify that buffering works and is reading ahead.
-    self.assertEqual(stream.read(1), data[0])
+    self.assertEqual(stream.read(1), data[0:1])
     self.assertEqual(downloader.last_read_size, buffer_size)
     self.assertEqual(stream.read(), data[1:])
 
 
-@unittest.skipIf(sys.version_info[0] == 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3'
-                 'TODO: BEAM-5627')
 class TestUploaderStream(unittest.TestCase):
 
   def test_file_attributes(self):
     uploader = FakeUploader()
     stream = filesystemio.UploaderStream(uploader)
-    self.assertEqual(stream.mode, 'w')
+    self.assertEqual(stream.mode, 'wb')
     self.assertFalse(stream.readable())
     self.assertTrue(stream.writable())
     self.assertFalse(stream.seekable())
@@ -124,17 +115,17 @@ class TestUploaderStream(unittest.TestCase):
   def test_write_empty(self):
     uploader = FakeUploader()
     stream = filesystemio.UploaderStream(uploader)
-    data = ''
+    data = b''
     stream.write(memoryview(data))
     self.assertEqual(uploader.data, data)
 
   def test_write(self):
-    data = 'abcde'
+    data = b'abcde'
     uploader = FakeUploader()
     stream = filesystemio.UploaderStream(uploader)
 
     # Unbuffered writes.
-    stream.write(memoryview(data[0]))
+    stream.write(memoryview(data[0:1]))
     self.assertEqual(uploader.data[0], data[0])
     self.assertEqual(uploader.last_write_size, 1)
     stream.write(memoryview(data[1:]))
@@ -142,7 +133,7 @@ class TestUploaderStream(unittest.TestCase):
     self.assertEqual(uploader.last_write_size, len(data) - 1)
 
   def test_write_buffered(self):
-    data = 'abcde'
+    data = b'abcde'
     uploader = FakeUploader()
     buffer_size = 2
     stream = io.BufferedWriter(filesystemio.UploaderStream(uploader),
@@ -150,7 +141,7 @@ class TestUploaderStream(unittest.TestCase):
 
     # Verify that buffering works: doesn't write to uploader until buffer is
     # filled.
-    stream.write(data[0])
+    stream.write(data[0:1])
     self.assertEqual(-1, uploader.last_write_size)
     stream.write(data[1:])
     stream.close()

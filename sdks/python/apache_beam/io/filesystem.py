@@ -209,7 +209,7 @@ class CompressedFile(object):
         # objects for the unused compressed data.
         if (self._compression_type == CompressionTypes.BZIP2 or
             self._compression_type == CompressionTypes.GZIP):
-          if self._decompressor.unused_data != '':
+          if self._decompressor.unused_data != b'':
             buf = self._decompressor.unused_data
             self._decompressor = (
                 bz2.BZ2Decompressor()
@@ -259,7 +259,7 @@ class CompressedFile(object):
       line = self._read_from_internal_buffer(
           lambda: self._read_buffer.readline())
       bytes_io.write(line)
-      if line.endswith('\n') or not line:
+      if line.endswith(b'\n') or not line:
         break  # Newline or EOF reached.
 
     return bytes_io.getvalue()

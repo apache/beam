@@ -24,7 +24,7 @@ Beam pre-commit jobs are suites of tests run automatically on Jenkins build
 machines for each pull request (PR) submitted to
 [apache/beam](https://github.com/apache/beam). For more information and the
 difference between pre-commits and post-commits, see
-[testing](/contribute/testing/).
+[testing](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide).
 
 ## What are fast pre-commits?
 

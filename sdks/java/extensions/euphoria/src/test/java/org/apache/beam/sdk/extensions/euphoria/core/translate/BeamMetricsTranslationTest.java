@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
-import static org.junit.Assert.assertThat;
 
 import java.util.stream.Stream;
 import org.apache.beam.sdk.PipelineResult;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -134,11 +134,11 @@ public class BeamMetricsTranslationTest {
   }
 
   private void testStep1Metrics(MetricQueryResults metrics, String counterName1, String stepName1) {
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getCounters(),
         Matchers.hasItem(metricsResult(stepName1, counterName1, stepName1, 5L, true)));
 
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getDistributions(),
         Matchers.hasItem(
             metricsResult(
@@ -146,11 +146,11 @@ public class BeamMetricsTranslationTest {
   }
 
   private void testStep2Metrics(MetricQueryResults metrics, String counterName2, String stepName2) {
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getCounters(),
         Matchers.hasItem(metricsResult(stepName2, counterName2, stepName2, 2L, true)));
 
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getDistributions(),
         Matchers.hasItem(
             metricsResult(
@@ -159,11 +159,11 @@ public class BeamMetricsTranslationTest {
 
   private void testStep3WithDefaultOperatorName(
       MetricQueryResults metrics, String counterName2, String stepName3) {
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getCounters(),
         Matchers.hasItem(metricsResult(stepName3, counterName2, stepName3, 6L, true)));
 
-    assertThat(
+    MatcherAssert.assertThat(
         metrics.getDistributions(),
         Matchers.hasItem(
             metricsResult(

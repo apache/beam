@@ -200,33 +200,6 @@ __Attention__: Only PMC has permission to perform this. If you are not a PMC, pl
 1. Add a new release. Choose the next minor version number after the version currently underway, select the release cut date (today’s date) as the `Start Date`, and choose `Add`.
 1. At the end of the release, go to the same page and mark the recently released version as released. Use the `...` menu and choose `Release`.
 
-### Triage release-blocking issues in JIRA
-
-There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate. We track them by assigning a specific `Fix version` field even before the issue resolved.
-
-The list of release-blocking issues is available at the [version status page](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel). Triage each unresolved issue with one of the following resolutions:
-
-* If the issue has been resolved and JIRA was not updated, resolve it accordingly.
-* If the issue has not been resolved and it is acceptable to defer this until the next release, update the `Fix Version` field to the new version you just created. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.
-* If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed. Instead, work with the Beam community to resolve the issue.
-
-If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.
-
-### Review Release Notes in JIRA
-
-JIRA automatically generates Release Notes based on the `Fix Version` field applied to issues. Release Notes are intended for Beam users (not Beam committers/contributors). You should ensure that Release Notes are informative and useful.
-
-Open the release notes from the [version status page](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel) by choosing the release underway and clicking Release Notes.
-
-You should verify that the issues listed automatically by JIRA are appropriate to appear in the Release Notes. Specifically, issues should:
-
-* Be appropriately classified as `Bug`, `New Feature`, `Improvement`, etc.
-* Represent noteworthy user-facing changes, such as new functionality, backward-incompatible API changes, or performance improvements.
-* Have occurred since the previous release; an issue that was introduced and fixed between releases should not appear in the Release Notes.
-* Have an issue title that makes sense when read on its own.
-
-Adjust any of the above properties to the improve clarity and presentation of the Release Notes.
-
 ### Create a release branch in apache/beam repository
 
 Attention: Only committer has permission to create release branch in apache/beam.
@@ -315,7 +288,7 @@ There are 2 ways to cut a release branch: either running automation script(recom
 
 ### Start a snapshot build
 
-Start a build of [the nightly snapshot](https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_Gradle_NightlySnapshot/) against master branch.
+Start a build of [the nightly snapshot](https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/) against master branch.
 Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version
 from the `master` branch. Once the release branch is cut, these SNAPSHOT versions are no longer found,
 so builds will be broken until a new snapshot is available.
@@ -342,33 +315,36 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
 
 * Find one PR against apache:master in beam.
 * Comment  ```Run Gradle Publish``` in this pull request to trigger build.
-* Verify that build successes.
+* Verify that build succeeds.
 
 
-### Verify that a Release Build Works
+### Verify release branch
 
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
 
-#### Run verify_release_build.sh to verity a release build 
+#### Run automation script (verify_release_build.sh)
 * Script: [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh)
 
 * Usage
-      
+
+      ```
       ./beam/release/src/main/scripts/verify_release_build.sh
+      ```
 
 * Tasks included
   1. Install ```pip```, ```virtualenv```, ```cython``` and ```/usr/bin/time``` with your agreements.
-  1. Run ```gradle release build``` against release branch.
-  
+  2. Run ```gradle release build``` against release branch.
+
 * Tasks you need to do manually
-  1. Check the build result. 
-  1. If build failed, scan log will contain all failures.
-  1. You should stabilize the release branch until release build succeeded.
+  1. Check the build result.
+  2. If build failed, scan log will contain all failures.
+  3. You should stabilize the release branch until release build succeeded.
+  4. The script will output a set of Jenkins phrases to enter in the created PR
 
 #### Run all commands manually
 * Pre-installation for python build
   1. Install pip
-  
+
       ```
       curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
       python get-pip.py
@@ -410,7 +386,25 @@ There are 2 ways to perform this verification, either running automation script(
       ```
       ./gradlew build -PisRelease --no-parallel --scan --stacktrace --continue
       ```
-  
+
+
+#### Create release-blocking issues in JIRA
+
+The verify_release_build.sh script may include failing or flaky tests. For each of the failing tests create a JIRA with the following properties:
+
+* Issue Type: Bug
+
+* Summary: Name of failing gradle task and name of failing test (where applicable) in form of :MyGradleProject:SomeGradleTask NameOfFailedTest: Short description of failure
+
+* Priority: Major
+
+* Component: "test-failures"
+
+* Fix Version: Release number of verified release branch
+
+* Description: Description of failure
+
+
 ### Update and Verify Javadoc
 
 The build with `-PisRelease` creates the combined Javadoc for the release in `sdks/java/javadoc`.
@@ -428,6 +422,44 @@ Javadoc to the Javadoc for other modules that Beam depends on.
   the version number has changed, download a new version of the corresponding
   `<module>-docs/package-list` file.
 
+### Triage release-blocking issues in JIRA
+
+There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate. We track them by assigning a specific `Fix version` field even before the issue resolved.
+
+The list of release-blocking issues is available at the [version status page](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel). Triage each unresolved issue with one of the following resolutions:
+
+For all JIRA issues:
+
+* If the issue has been resolved and JIRA was not updated, resolve it accordingly.
+
+For JIRA issues with type "Bug" or labeled "flaky":
+
+* If the issue is a known continuously failing test, it is not acceptable to defer this until the next release. Please work with the Beam community to resolve the issue.
+* If the issue is a known flaky test, make an attempt to delegate a fix. However, if the issue may take too long to fix (to the discretion of the release manager):
+  * Delegate manual testing of the flaky issue to ensure no release blocking issues.
+  * Update the `Fix Version` field to the version of the next release. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.
+
+For all other JIRA issues:
+
+* If the issue has not been resolved and it is acceptable to defer this until the next release, update the `Fix Version` field to the new version you just created. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.
+* If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed. Instead, work with the Beam community to resolve the issue.
+
+If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.
+
+### Review Release Notes in JIRA
+
+JIRA automatically generates Release Notes based on the `Fix Version` field applied to issues. Release Notes are intended for Beam users (not Beam committers/contributors). You should ensure that Release Notes are informative and useful.
+
+Open the release notes from the [version status page](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel) by choosing the release underway and clicking Release Notes.
+
+You should verify that the issues listed automatically by JIRA are appropriate to appear in the Release Notes. Specifically, issues should:
+
+* Be appropriately classified as `Bug`, `New Feature`, `Improvement`, etc.
+* Represent noteworthy user-facing changes, such as new functionality, backward-incompatible API changes, or performance improvements.
+* Have occurred since the previous release; an issue that was introduced and fixed between releases should not appear in the Release Notes.
+* Have an issue title that makes sense when read on its own.
+
+Adjust any of the above properties to the improve clarity and presentation of the Release Notes.
 
 ### Checklist to proceed to the next step
 
@@ -436,12 +468,13 @@ Javadoc to the Javadoc for other modules that Beam depends on.
 3. Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus
 4. Release Manager’s Nexus User Token is configured in `settings.xml`
 5. JIRA release item for the subsequent release has been created
-6. There are no release blocking JIRA issues
-7. Release Notes in JIRA have been audited and adjusted
-8. Combined javadoc has the appropriate contents.
-9. Release branch has been created
-10. Originating branch has the version information updated to the new version
-11. Nightly snapshot is in progress (do revisit it continually)
+6. All test failures from branch verification have associated JIRA issues
+7. There are no release blocking JIRA issues
+8. Release Notes in JIRA have been audited and adjusted
+9. Combined javadoc has the appropriate contents.
+10. Release branch has been created
+11. Originating branch has the version information updated to the new version
+12. Nightly snapshot is in progress (do revisit it continually)
 
 **********
 
@@ -944,7 +977,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
 
 ## Fix any issues
 
-Any issues identified during the community review and vote should be fixed in this step.
+Any issues identified during the community review and vote should be fixed in this step. Additionally, any JIRA issues created from the initial branch verification should be fixed.
 
 Code changes should be proposed as standard pull requests to the `master` branch and reviewed using the normal contributing process. Then, relevant changes should be cherry-picked into the release branch. The cherry-pick commits should then be proposed as the pull requests against the release branch, again reviewed and merged using the normal contributing process.
 
@@ -953,6 +986,7 @@ Once all issues have been resolved, you should go back and build a new release c
 ### Checklist to proceed to the next step
 
 1. Issues identified during vote have been resolved, with fixes committed to the release branch.
+2. All issues tagged with `Fix-Version` for the current release should be closed.
 
 **********
 

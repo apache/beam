@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.avro.file.DataFileConstants.BZIP2_CODEC;
 import static org.apache.avro.file.DataFileConstants.DEFLATE_CODEC;
 import static org.apache.avro.file.DataFileConstants.NULL_CODEC;
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
 import static org.apache.avro.file.DataFileConstants.XZ_CODEC;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.io.Externalizable;
 import java.io.IOException;

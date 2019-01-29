@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.math.LongMath;
-import com.google.common.primitives.Longs;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.math.LongMath;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Longs;
 
 /**
  * This module provides routines for encoding a sequence of typed entities into a byte array. The

@@ -30,7 +30,6 @@ public class StaticRemoteEnvironment implements RemoteEnvironment {
     return new StaticRemoteEnvironment(environment, instructionRequestHandler);
   }
 
-  private final Object lock = new Object();
   private final Environment environment;
   private final InstructionRequestHandler instructionRequestHandler;
 
@@ -53,14 +52,13 @@ public class StaticRemoteEnvironment implements RemoteEnvironment {
   }
 
   @Override
-  public void close() throws Exception {
-    synchronized (lock) {
-      // The running docker container and instruction handler should each only be terminated once.
-      // Do nothing if we have already requested termination.
-      if (!isClosed) {
-        isClosed = true;
-        this.instructionRequestHandler.close();
-      }
+  public synchronized void close() throws Exception {
+    // The instruction handler should each only be terminated once.
+    // Do nothing if we have already requested termination.
+    if (!isClosed) {
+      return;
     }
+    isClosed = true;
+    this.instructionRequestHandler.close();
   }
 }

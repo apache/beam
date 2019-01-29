@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +29,8 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 
 /** Function to convert a {@link Row} to a user type using a creator factory. */
 class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
@@ -55,8 +56,11 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   public <ValueT> ValueT fromRow(
       Row row, Class<ValueT> clazz, Factory<List<FieldValueTypeInformation>> typeFactory) {
     if (row instanceof RowWithGetters) {
-      // Efficient path: simply extract the underlying object instead of creating a new one.
-      return (ValueT) ((RowWithGetters) row).getGetterTarget();
+      Object target = ((RowWithGetters) row).getGetterTarget();
+      if (target.getClass().equals(clazz)) {
+        // Efficient path: simply extract the underlying object instead of creating a new one.
+        return (ValueT) target;
+      }
     }
 
     Object[] params = new Object[row.getFieldCount()];
@@ -68,12 +72,12 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
 
     for (int i = 0; i < row.getFieldCount(); ++i) {
       FieldType type = schema.getField(i).getType();
-      FieldValueTypeInformation typeInformation = typeInformations.get(i);
+      FieldValueTypeInformation typeInformation = checkNotNull(typeInformations.get(i));
       params[i] =
           fromValue(
               type,
               row.getValue(i),
-              typeInformation.getType(),
+              typeInformation.getRawType(),
               typeInformation.getElementType(),
               typeInformation.getMapKeyType(),
               typeInformation.getMapValueType(),
@@ -90,9 +94,9 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       FieldType type,
       ValueT value,
       Type fieldType,
-      Type elemenentType,
-      Type keyType,
-      Type valueType,
+      FieldValueTypeInformation elementType,
+      FieldValueTypeInformation keyType,
+      FieldValueTypeInformation valueType,
       Factory<List<FieldValueTypeInformation>> typeFactory) {
     if (value == null) {
       return null;
@@ -101,7 +105,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       return (ValueT) fromRow((Row) value, (Class) fieldType, typeFactory);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
       return (ValueT)
-          fromListValue(type.getCollectionElementType(), (List) value, elemenentType, typeFactory);
+          fromListValue(type.getCollectionElementType(), (List) value, elementType, typeFactory);
     } else if (TypeName.MAP.equals(type.getTypeName())) {
       return (ValueT)
           fromMapValue(
@@ -120,11 +124,19 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   private <ElementT> List fromListValue(
       FieldType elementType,
       List<ElementT> rowList,
-      Type elementClass,
+      FieldValueTypeInformation elementTypeInformation,
       Factory<List<FieldValueTypeInformation>> typeFactory) {
     List list = Lists.newArrayList();
     for (ElementT element : rowList) {
-      list.add(fromValue(elementType, element, elementClass, null, null, null, typeFactory));
+      list.add(
+          fromValue(
+              elementType,
+              element,
+              elementTypeInformation.getType().getType(),
+              elementTypeInformation.getElementType(),
+              elementTypeInformation.getMapKeyType(),
+              elementTypeInformation.getMapValueType(),
+              typeFactory));
     }
     return list;
   }
@@ -134,14 +146,29 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       FieldType keyType,
       FieldType valueType,
       Map<?, ?> map,
-      Type keyClass,
-      Type valueClass,
+      FieldValueTypeInformation keyTypeInformation,
+      FieldValueTypeInformation valueTypeInformation,
       Factory<List<FieldValueTypeInformation>> typeFactory) {
     Map newMap = Maps.newHashMap();
     for (Map.Entry<?, ?> entry : map.entrySet()) {
-      Object key = fromValue(keyType, entry.getKey(), keyClass, null, null, null, typeFactory);
+      Object key =
+          fromValue(
+              keyType,
+              entry.getKey(),
+              keyTypeInformation.getType().getType(),
+              keyTypeInformation.getElementType(),
+              keyTypeInformation.getMapKeyType(),
+              keyTypeInformation.getMapValueType(),
+              typeFactory);
       Object value =
-          fromValue(valueType, entry.getValue(), valueClass, null, null, null, typeFactory);
+          fromValue(
+              valueType,
+              entry.getValue(),
+              valueTypeInformation.getType().getType(),
+              valueTypeInformation.getElementType(),
+              valueTypeInformation.getMapKeyType(),
+              valueTypeInformation.getMapValueType(),
+              typeFactory);
       newMap.put(key, value);
     }
     return newMap;

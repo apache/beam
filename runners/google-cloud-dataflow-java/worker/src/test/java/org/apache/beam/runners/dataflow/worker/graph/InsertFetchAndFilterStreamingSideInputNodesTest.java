@@ -24,14 +24,6 @@ import static org.junit.Assert.assertThat;
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
-import com.google.common.base.Equivalence;
-import com.google.common.base.Equivalence.Wrapper;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.ImmutableNetwork;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
-import com.google.common.graph.NetworkBuilder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +54,15 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Equivalence.Wrapper;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.ImmutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -93,7 +93,8 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
     RunnerApi.Pipeline pipeline = PipelineTranslation.toProto(p);
 
     Node predecessor = createParDoNode("predecessor");
-    InstructionOutputNode mainInput = InstructionOutputNode.create(new InstructionOutput());
+    InstructionOutputNode mainInput =
+        InstructionOutputNode.create(new InstructionOutput(), "fakeId");
     Node sideInputParDo = createParDoNode(findParDoWithSideInput(pipeline));
 
     MutableNetwork<Node, Edge> network = createEmptyNetwork();
@@ -106,7 +107,7 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
     Network<Node, Edge> inputNetwork = ImmutableNetwork.copyOf(network);
     network = InsertFetchAndFilterStreamingSideInputNodes.with(pipeline).forNetwork(network);
 
-    Node mainInputClone = InstructionOutputNode.create(mainInput.getInstructionOutput());
+    Node mainInputClone = InstructionOutputNode.create(mainInput.getInstructionOutput(), "fakeId");
     Node fetchAndFilter =
         FetchAndFilterStreamingSideInputsNode.create(
             pcView.getWindowingStrategyInternal(),
@@ -139,7 +140,7 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
     RunnerApi.Pipeline pipeline = PipelineTranslation.toProto(p);
 
     Node predecessor = createParDoNode("predecessor");
-    Node mainInput = InstructionOutputNode.create(new InstructionOutput());
+    Node mainInput = InstructionOutputNode.create(new InstructionOutput(), "fakeId");
     Node sideInputParDo = createParDoNode("noSideInput");
 
     MutableNetwork<Node, Edge> network = createEmptyNetwork();

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import com.google.common.collect.Lists;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** Abstract executor for WorkItem tasks. */
 public interface WorkExecutor extends AutoCloseable {

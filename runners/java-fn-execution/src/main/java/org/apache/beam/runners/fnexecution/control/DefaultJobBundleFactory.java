@@ -17,14 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalNotification;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Map;
@@ -58,6 +50,14 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +66,7 @@ import org.slf4j.LoggerFactory;
  * EnvironmentFactory} for environment management. Note that returned {@link StageBundleFactory
  * stage bundle factories} are not thread-safe. Instead, a new stage factory should be created for
  * each client. {@link DefaultJobBundleFactory} initializes the Environment lazily when the forStage
- * is called for a stage. This factory is not capable of handling a mixed types of environment.
+ * is called for a stage. This factory is not capable of handling mixed types of environment.
  */
 @ThreadSafe
 public class DefaultJobBundleFactory implements JobBundleFactory {
@@ -132,7 +132,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       ThrowingFunction<Environment, RemoteEnvironment> environmentCreator) {
     return CacheBuilder.newBuilder()
         .removalListener(
-            ((RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
+            (RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
               LOG.debug("Cleaning up for environment {}", notification.getKey().getUrn());
               try {
                 notification.getValue().close();
@@ -140,7 +140,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                 LOG.warn(
                     String.format("Error cleaning up environment %s", notification.getKey()), e);
               }
-            }))
+            })
         .build(
             new CacheLoader<Environment, WrappedSdkHarnessClient>() {
               @Override

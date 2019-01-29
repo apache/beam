@@ -19,9 +19,9 @@ package org.apache.beam.runners.samza.translation;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.adapter.BoundedSourceSystem;
 import org.apache.beam.runners.samza.adapter.UnboundedSourceSystem;
-import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -64,18 +64,20 @@ public class ReadTranslator<T>
             : ((Read.Bounded) transform).getSource();
 
     final Map<String, String> config = new HashMap<>();
-    final String streamPrefix = "systems." + id;
+    final String systemPrefix = "systems." + id;
+    final String streamPrefix = "streams." + id;
 
-    config.put(streamPrefix + ".source", Base64Serializer.serializeUnchecked(source));
-    config.put(streamPrefix + ".coder", Base64Serializer.serializeUnchecked(coder));
-    config.put(streamPrefix + ".stepName", node.getFullName());
-    config.put("streams." + id + ".samza.system", id);
+    config.put(systemPrefix + ".source", Base64Serializer.serializeUnchecked(source));
+    config.put(systemPrefix + ".coder", Base64Serializer.serializeUnchecked(coder));
+    config.put(systemPrefix + ".stepName", node.getFullName());
+
+    config.put(streamPrefix + ".samza.system", id);
 
     if (source instanceof BoundedSource) {
-      config.put("streams." + id + ".samza.bounded", "true");
-      config.put(streamPrefix + ".samza.factory", BoundedSourceSystem.Factory.class.getName());
+      config.put(streamPrefix + ".samza.bounded", "true");
+      config.put(systemPrefix + ".samza.factory", BoundedSourceSystem.Factory.class.getName());
     } else {
-      config.put(streamPrefix + ".samza.factory", UnboundedSourceSystem.Factory.class.getName());
+      config.put(systemPrefix + ".samza.factory", UnboundedSourceSystem.Factory.class.getName());
     }
 
     return config;

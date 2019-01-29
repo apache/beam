@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct.portable.job;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -68,7 +69,10 @@ public class ReferenceRunnerJobServer {
 
   private static void runServer(ServerConfiguration configuration) throws Exception {
     ServerFactory serverFactory = ServerFactory.createDefault();
-    ReferenceRunnerJobService service = ReferenceRunnerJobService.create(serverFactory);
+    ReferenceRunnerJobService.Configuration jobServiceConfig =
+        createJobServiceConfig(configuration);
+    ReferenceRunnerJobService service =
+        ReferenceRunnerJobService.create(serverFactory, jobServiceConfig);
     try (GrpcFnServer<ReferenceRunnerJobService> server =
         createServer(configuration, serverFactory, service)) {
       System.out.println(
@@ -92,8 +96,13 @@ public class ReferenceRunnerJobServer {
 
   public String start() throws Exception {
     ServerFactory serverFactory = ServerFactory.createDefault();
+    ReferenceRunnerJobService.Configuration jobServiceConfig =
+        createJobServiceConfig(configuration);
     server =
-        createServer(configuration, serverFactory, ReferenceRunnerJobService.create(serverFactory));
+        createServer(
+            configuration,
+            serverFactory,
+            ReferenceRunnerJobService.create(serverFactory, jobServiceConfig));
 
     return server.getApiServiceDescriptor().getUrl();
   }
@@ -122,12 +131,34 @@ public class ReferenceRunnerJobServer {
         serverFactory);
   }
 
-  private static class ServerConfiguration {
+  /**
+   * Helper function to fill out a {@code ReferenceRunnerJobService.Configuration Configuration}
+   * object for {@code ReferenceRunnerJobService}.
+   */
+  private static ReferenceRunnerJobService.Configuration createJobServiceConfig(
+      ServerConfiguration configuration) {
+    ReferenceRunnerJobService.Configuration jobServiceConfig =
+        new ReferenceRunnerJobService.Configuration();
+    jobServiceConfig.artifactStagingPath = configuration.artifactStagingPath;
+    jobServiceConfig.keepArtifacts = configuration.keepArtifacts;
+    return jobServiceConfig;
+  }
+
+  /** Command-line options to configure the JobServer. */
+  public static class ServerConfiguration {
     @Option(
-      name = "-p",
-      aliases = {"--port"},
-      usage = "The local port to expose the server on. 0 to use a dynamic port. (Default: 8099)"
-    )
+        name = "-p",
+        aliases = {"--port"},
+        usage = "The local port to expose the server on. 0 to use a dynamic port. (Default: 8099)")
     private int port = 8099;
+
+    @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
+    String artifactStagingPath =
+        Paths.get(System.getProperty("java.io.tmpdir"), "beam-artifact-staging").toString();
+
+    @Option(
+        name = "--keep-artifacts",
+        usage = "When enabled, do not delete staged artifacts when a job completes")
+    boolean keepArtifacts;
   }
 }

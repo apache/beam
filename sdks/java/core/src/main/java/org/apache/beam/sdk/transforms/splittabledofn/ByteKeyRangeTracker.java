@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.primitives.Bytes;
 import java.math.BigDecimal;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Bytes;
 
 /**
  * A {@link RestrictionTracker} for claiming {@link ByteKey}s in a {@link ByteKeyRange} in a
@@ -56,12 +56,12 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public ByteKeyRange currentRestriction() {
+  public synchronized ByteKeyRange currentRestriction() {
     return range;
   }
 
   @Override
-  public ByteKeyRange checkpoint() {
+  public synchronized ByteKeyRange checkpoint() {
     // If we haven't done any work, we should return the original range we were processing
     // as the checkpoint.
     if (lastAttemptedKey == null) {
@@ -99,7 +99,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
    *     current {@link ByteKeyRange} of this tracker.
    */
   @Override
-  public boolean tryClaim(ByteKey key) {
+  protected synchronized boolean tryClaimImpl(ByteKey key) {
     // Handle claiming the end of range EMPTY key
     if (key.isEmpty()) {
       checkArgument(
@@ -132,7 +132,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public void checkDone() throws IllegalStateException {
+  public synchronized void checkDone() throws IllegalStateException {
     // Handle checking the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.
@@ -162,7 +162,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public String toString() {
+  public synchronized String toString() {
     return MoreObjects.toStringHelper(this)
         .add("range", range)
         .add("lastClaimedKey", lastClaimedKey)
@@ -184,7 +184,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   private static final byte[] ZERO_BYTE_ARRAY = new byte[] {0};
 
   @Override
-  public Backlog getBacklog() {
+  public synchronized Backlog getBacklog() {
     // Return 0 for the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.

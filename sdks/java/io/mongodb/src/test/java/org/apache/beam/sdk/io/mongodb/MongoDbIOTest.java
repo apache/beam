@@ -368,4 +368,34 @@ public class MongoDbIOTest implements Serializable {
 
     Assert.assertEquals(0, collection.count());
   }
+
+  @Test
+  public void testWriteUnordered() throws Exception {
+    Document doc =
+        Document.parse("{\"_id\":\"521df3a4300466f1f2b5ae82\",\"scientist\":\"Test %s\"}");
+
+    pipeline
+        .apply(Create.of(doc, doc))
+        .apply(
+            MongoDbIO.write()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase("test")
+                .withOrdered(false)
+                .withCollection("test"));
+    pipeline.run();
+
+    MongoClient client = new MongoClient("localhost", port);
+    MongoDatabase database = client.getDatabase("test");
+    MongoCollection collection = database.getCollection("test");
+
+    MongoCursor cursor = collection.find().iterator();
+
+    int count = 0;
+    while (cursor.hasNext()) {
+      count = count + 1;
+      cursor.next();
+    }
+
+    assertEquals(1, count);
+  }
 }

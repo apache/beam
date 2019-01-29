@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.counters;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.MoreObjects.ToStringHelper;
 import javax.annotation.Nullable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.ToStringHelper;
 
 /**
  * The name of a counter identifies the user-specified name, as well as the origin, the step the

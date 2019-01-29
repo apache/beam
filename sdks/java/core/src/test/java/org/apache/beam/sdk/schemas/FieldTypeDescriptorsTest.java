@@ -27,6 +27,7 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+
 /** test for {@link FieldTypeDescriptors}. */
 public class FieldTypeDescriptorsTest {
   @Test

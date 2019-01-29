@@ -114,7 +114,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   @Override
   public boolean isRegisterByteSizeObserverCheap(KafkaRecord<K, V> value) {
     return kvCoder.isRegisterByteSizeObserverCheap(value.getKV());
-    //TODO : do we have to implement getEncodedSize()?
+    // TODO : do we have to implement getEncodedSize()?
   }
 
   @SuppressWarnings("unchecked")

@@ -17,12 +17,14 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.Map.Entry;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -30,6 +32,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /**
  * Holds the metrics for a single step and uses metric cells that allow extracting the cumulative
@@ -134,6 +137,43 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   public MetricUpdates getUpdates() {
     return MetricUpdates.create(
         extractUpdates(counters), extractUpdates(distributions), extractUpdates(gauges));
+  }
+
+  /**
+   * @param metricUpdate
+   * @return The MonitoringInfo generated from the metricUpdate.
+   */
+  private MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
+    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+    MetricName metricName = metricUpdate.getKey().metricName();
+    if (metricName instanceof MonitoringInfoMetricName) {
+      MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
+      // Represents a specific MonitoringInfo for a specific URN.
+      builder.setUrn(monitoringInfoName.getUrn());
+      for (Entry<String, String> e : monitoringInfoName.getLabels().entrySet()) {
+        builder.setLabel(e.getKey(), e.getValue());
+      }
+    } else {
+      // Represents a user counter.
+      builder.setUrnForUserMetric(
+          metricUpdate.getKey().metricName().getNamespace(),
+          metricUpdate.getKey().metricName().getName());
+    }
+    builder.setInt64Value(metricUpdate.getUpdate());
+    builder.setTimestampToNow();
+    return builder.build();
+  }
+
+  /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  public Iterable<MonitoringInfo> getMonitoringInfos() {
+    // Extract user metrics and store as MonitoringInfos.
+    ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
+    MetricUpdates metricUpdates = this.getUpdates();
+
+    for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
+      monitoringInfos.add(counterUpdateToMonitoringInfo(metricUpdate));
+    }
+    return monitoringInfos;
   }
 
   private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {

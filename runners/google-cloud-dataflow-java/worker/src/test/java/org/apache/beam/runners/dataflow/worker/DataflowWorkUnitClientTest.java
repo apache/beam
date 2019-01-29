@@ -33,9 +33,6 @@ import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.SeqMapTask;
 import com.google.api.services.dataflow.model.WorkItem;
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
@@ -45,6 +42,9 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -142,9 +142,33 @@ public class DataflowWorkUnitClientTest {
   }
 
   @Test
-  public void testCloudServiceCallNoWorkId() throws Exception {
+  public void testCloudServiceCallNoWorkPresent() throws Exception {
     // If there's no work the service should return an empty work item.
     WorkItem workItem = new WorkItem();
+
+    when(request.execute()).thenReturn(generateMockResponse(workItem));
+
+    WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
+
+    assertEquals(Optional.absent(), client.getWorkItem());
+
+    LeaseWorkItemRequest actualRequest =
+        Transport.getJsonFactory()
+            .fromString(request.getContentAsString(), LeaseWorkItemRequest.class);
+    assertEquals(WORKER_ID, actualRequest.getWorkerId());
+    assertEquals(
+        ImmutableList.<String>of(WORKER_ID, "remote_source", "custom_source"),
+        actualRequest.getWorkerCapabilities());
+    assertEquals(
+        ImmutableList.<String>of("map_task", "seq_map_task", "remote_source_task"),
+        actualRequest.getWorkItemTypes());
+  }
+
+  @Test
+  public void testCloudServiceCallNoWorkId() throws Exception {
+    // If there's no work the service should return an empty work item.
+    WorkItem workItem = createWorkItem(PROJECT_ID, JOB_ID);
+    workItem.setId(null);
 
     when(request.execute()).thenReturn(generateMockResponse(workItem));
 

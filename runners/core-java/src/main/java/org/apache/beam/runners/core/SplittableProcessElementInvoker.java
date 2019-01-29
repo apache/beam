@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -30,7 +30,8 @@ import org.joda.time.Instant;
  * A runner-specific hook for invoking a {@link DoFn.ProcessElement} method for a splittable {@link
  * DoFn}, in particular, allowing the runner to access the {@link RestrictionTracker}.
  */
-public abstract class SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT> {
+public abstract class SplittableProcessElementInvoker<
+    InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> {
   /** Specifies how to resume a splittable {@link DoFn.ProcessElement} call. */
   public class Result {
     @Nullable private final RestrictionT residualRestriction;
@@ -76,7 +77,5 @@ public abstract class SplittableProcessElementInvoker<InputT, OutputT, Restricti
    *     DoFn.ProcessContinuation}, and a future output watermark.
    */
   public abstract Result invokeProcessElement(
-      DoFnInvoker<InputT, OutputT> invoker,
-      WindowedValue<InputT> element,
-      RestrictionTracker<RestrictionT, PositionT> tracker);
+      DoFnInvoker<InputT, OutputT> invoker, WindowedValue<InputT> element, TrackerT tracker);
 }

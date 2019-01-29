@@ -109,6 +109,15 @@ public interface FlinkPipelineOptions
   void setMinPauseBetweenCheckpoints(Long minPauseInterval);
 
   @Description(
+      "Sets the expected behaviour for tasks in case that they encounter an error in their "
+          + "checkpointing procedure. If this is set to true, the task will fail on checkpointing error. "
+          + "If this is set to false, the task will only decline a the checkpoint and continue running. ")
+  @Default.Boolean(true)
+  Boolean getFailOnCheckpointingErrors();
+
+  void setFailOnCheckpointingErrors(Boolean failOnCheckpointingErrors);
+
+  @Description(
       "Sets the number of times that failed tasks are re-executed. "
           + "A value of zero effectively disables fault tolerance. A value of -1 indicates "
           + "that the system default value (as defined in the configuration) should be used.")

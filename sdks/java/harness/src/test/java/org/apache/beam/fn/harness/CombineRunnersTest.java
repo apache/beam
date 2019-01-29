@@ -24,15 +24,12 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.List;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -41,7 +38,6 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -49,6 +45,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -123,15 +120,15 @@ public class CombineRunnersTest {
   @Test
   public void testPrecombine() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     // Create runner.
     new CombineRunners.PrecombineFactory<>()
@@ -146,25 +143,24 @@ public class CombineRunnersTest {
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null);
 
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", "1")));
     input.accept(valueInGlobalWindow(KV.of("A", "2")));
     input.accept(valueInGlobalWindow(KV.of("A", "6")));
     input.accept(valueInGlobalWindow(KV.of("B", "2")));
     input.accept(valueInGlobalWindow(KV.of("C", "3")));
 
-    Iterables.getOnlyElement(finishFunctions).run();
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
 
     // Check that all values for "A" were converted to accumulators regardless of how they were
     // combined by the Precombine optimization.
@@ -190,15 +186,15 @@ public class CombineRunnersTest {
   @Test
   public void testMergeAccumulators() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
@@ -213,19 +209,18 @@ public class CombineRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", Arrays.asList(1, 2, 6))));
     input.accept(valueInGlobalWindow(KV.of("B", Arrays.asList(2, 3))));
     input.accept(valueInGlobalWindow(KV.of("C", Arrays.asList(5, 2))));
@@ -245,15 +240,15 @@ public class CombineRunnersTest {
   @Test
   public void testExtractOutputs() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
@@ -268,19 +263,18 @@ public class CombineRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", 9)));
     input.accept(valueInGlobalWindow(KV.of("B", 5)));
     input.accept(valueInGlobalWindow(KV.of("C", 7)));
@@ -300,15 +294,15 @@ public class CombineRunnersTest {
   @Test
   public void testCombineGroupedValues() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)
@@ -323,19 +317,18 @@ public class CombineRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null);
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
 
     // Send elements to runner and check outputs.
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", Arrays.asList("1", "2", "6"))));
     input.accept(valueInGlobalWindow(KV.of("B", Arrays.asList("2", "3"))));
     input.accept(valueInGlobalWindow(KV.of("C", Arrays.asList("5", "2"))));

@@ -40,11 +40,11 @@ import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.fn.function.ThrowingConsumer;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -255,11 +255,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     String invocationId = request.getJobId();
     try {
       JobInvocation invocation = getInvocation(invocationId);
-      Function<JobState.Enum, GetJobStateResponse> responseFunction =
-          state -> GetJobStateResponse.newBuilder().setState(state).build();
       Consumer<JobState.Enum> stateListener =
           state -> {
-            responseObserver.onNext(responseFunction.apply(state));
+            responseObserver.onNext(GetJobStateResponse.newBuilder().setState(state).build());
             if (JobInvocation.isTerminated(state)) {
               responseObserver.onCompleted();
             }

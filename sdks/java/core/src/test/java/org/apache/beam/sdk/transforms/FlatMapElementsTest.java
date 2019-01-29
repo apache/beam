@@ -24,8 +24,6 @@ import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
@@ -40,6 +38,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -58,19 +58,41 @@ public class FlatMapElementsTest implements Serializable {
   /** Basic test of {@link FlatMapElements} with a {@link SimpleFunction}. */
   @Test
   @Category(NeedsRunner.class)
-  public void testFlatMapBasic() throws Exception {
+  public void testFlatMapSimpleFunction() throws Exception {
     PCollection<Integer> output =
         pipeline
             .apply(Create.of(1, 2, 3))
 
-            // Note that FlatMapElements takes a SimpleFunction<InputT, ? extends Iterable<OutputT>>
-            // so the use of List<Integer> here (as opposed to Iterable<Integer>) deliberately exercises
+            // Note that FlatMapElements takes an InferableFunction<InputT, ? extends
+            // Iterable<OutputT>>
+            // so the use of List<Integer> here (as opposed to Iterable<Integer>) deliberately
+            // exercises
             // the use of an upper bound.
             .apply(
                 FlatMapElements.via(
                     new SimpleFunction<Integer, List<Integer>>() {
                       @Override
                       public List<Integer> apply(Integer input) {
+                        return ImmutableList.of(-input, input);
+                      }
+                    }));
+
+    PAssert.that(output).containsInAnyOrder(1, -2, -1, -3, 2, 3);
+    pipeline.run();
+  }
+
+  /** Basic test of {@link FlatMapElements} with an {@link InferableFunction}. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatMapInferableFunction() throws Exception {
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                FlatMapElements.via(
+                    new InferableFunction<Integer, List<Integer>>() {
+                      @Override
+                      public List<Integer> apply(Integer input) throws Exception {
                         return ImmutableList.of(-input, input);
                       }
                     }));
@@ -182,6 +204,20 @@ public class FlatMapElementsTest implements Serializable {
   }
 
   @Test
+  public void testInferableFunctionClassDisplayData() {
+    InferableFunction<Integer, List<Integer>> inferableFn =
+        new InferableFunction<Integer, List<Integer>>() {
+          @Override
+          public List<Integer> apply(Integer input) {
+            return Collections.emptyList();
+          }
+        };
+
+    FlatMapElements<?, ?> inferableMap = FlatMapElements.via(inferableFn);
+    assertThat(DisplayData.from(inferableMap), hasDisplayItem("class", inferableFn.getClass()));
+  }
+
+  @Test
   public void testSimpleFunctionDisplayData() {
     SimpleFunction<Integer, List<Integer>> simpleFn =
         new SimpleFunction<Integer, List<Integer>>() {
@@ -199,6 +235,26 @@ public class FlatMapElementsTest implements Serializable {
     FlatMapElements<?, ?> simpleFlatMap = FlatMapElements.via(simpleFn);
     assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("class", simpleFn.getClass()));
     assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("foo", "baz"));
+  }
+
+  @Test
+  public void testInferableFunctionDisplayData() {
+    InferableFunction<Integer, List<Integer>> inferableFn =
+        new InferableFunction<Integer, List<Integer>>() {
+          @Override
+          public List<Integer> apply(Integer input) {
+            return Collections.emptyList();
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "baz"));
+          }
+        };
+
+    FlatMapElements<?, ?> inferableFlatMap = FlatMapElements.via(inferableFn);
+    assertThat(DisplayData.from(inferableFlatMap), hasDisplayItem("class", inferableFn.getClass()));
+    assertThat(DisplayData.from(inferableFlatMap), hasDisplayItem("foo", "baz"));
   }
 
   @Test
@@ -230,7 +286,7 @@ public class FlatMapElementsTest implements Serializable {
 
   /**
    * Basic test of {@link FlatMapElements} with a lambda (which is instantiated as a {@link
-   * SerializableFunction}).
+   * ProcessFunction}).
    */
   @Test
   @Category(NeedsRunner.class)

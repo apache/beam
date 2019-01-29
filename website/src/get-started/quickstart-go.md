@@ -74,12 +74,18 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 ```
 
+{:.runner-nemo}
+```
+This runner is not yet available for the Go SDK.
+```
+
 ## Next Steps
 
 * Learn more about the [Beam SDK for Go]({{ site.baseurl }}/documentation/sdks/go/)
   and look through the [godoc](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
-* Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
+* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
+* Dive in to some of our favorite [Videos and Podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!

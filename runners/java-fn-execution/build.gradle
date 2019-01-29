@@ -21,7 +21,7 @@ applyJavaNature()
 description = "Apache Beam :: Runners :: Java Fn Execution"
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   provided project(path: ":beam-sdks-java-harness")
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")

@@ -17,14 +17,13 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerSpec;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,6 +52,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * A {@link PTransformOverrideFactory} that produces {@link ParDoSingle} instances from {@link
@@ -66,7 +66,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
   public PTransformReplacement<PCollection<? extends InputT>, PCollection<OutputT>>
       getReplacementTransform(
           AppliedPTransform<
-                  PCollection<? extends InputT>, PCollection<OutputT>,
+                  PCollection<? extends InputT>,
+                  PCollection<OutputT>,
                   SingleOutput<InputT, OutputT>>
               transform) {
     return PTransformReplacement.of(

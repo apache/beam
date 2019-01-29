@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.coders;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -98,8 +98,7 @@ public final class CoderHelpers {
    */
   public static <T> Iterable<T> fromByteArrays(
       Collection<byte[]> serialized, final Coder<T> coder) {
-    return serialized
-        .stream()
+    return serialized.stream()
         .map(bytes -> fromByteArray(checkNotNull(bytes, "Cannot decode null values."), coder))
         .collect(Collectors.toList());
   }

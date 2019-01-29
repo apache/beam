@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableList;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -33,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,6 +93,26 @@ class DockerCommand {
             .add(imageTag)
             .addAll(args)
             .build());
+  }
+
+  /**
+   * Check if the given container state is running.
+   *
+   * @param containerId Id of the container to check
+   */
+  public boolean isContainerRunning(String containerId)
+      throws IOException, TimeoutException, InterruptedException {
+    checkArgument(!containerId.isEmpty(), "Docker containerId required");
+    // TODO: Validate args?
+    return runShortCommand(
+            ImmutableList.<String>builder()
+                .add(dockerExecutable)
+                .add("inspect")
+                .add("-f")
+                .add("{{.State.Running}}")
+                .add(containerId)
+                .build())
+        .equalsIgnoreCase("true");
   }
 
   /**

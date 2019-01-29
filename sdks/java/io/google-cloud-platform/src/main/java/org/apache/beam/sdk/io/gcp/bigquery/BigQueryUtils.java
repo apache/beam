@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.sdk.values.Row.toRow;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.chrono.ISOChronology;
@@ -263,9 +263,7 @@ public class BigQueryUtils {
             .collect(toMap(i -> bqFields.get(i).getName(), i -> i));
 
     List<Object> rawJsonValues =
-        rowSchema
-            .getFields()
-            .stream()
+        rowSchema.getFields().stream()
             .map(field -> bqFieldIndices.get(field.getName()))
             .map(index -> jsonBqRow.getF().get(index).getV())
             .collect(toList());
@@ -284,9 +282,9 @@ public class BigQueryUtils {
     if (jsonBQValue instanceof List) {
       return ((List<Object>) jsonBQValue)
           .stream()
-          .map(v -> ((Map<String, Object>) v).get("v"))
-          .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
-          .collect(toList());
+              .map(v -> ((Map<String, Object>) v).get("v"))
+              .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
+              .collect(toList());
     }
 
     throw new UnsupportedOperationException(

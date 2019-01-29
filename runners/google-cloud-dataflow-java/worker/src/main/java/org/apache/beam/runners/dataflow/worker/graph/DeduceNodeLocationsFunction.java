@@ -21,8 +21,6 @@ import com.google.api.services.dataflow.model.FlattenInstruction;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.ReadInstruction;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.graph.MutableNetwork;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -30,6 +28,8 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.ExecutionLocation;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
 import org.apache.beam.runners.dataflow.worker.util.CloudSourceUtils;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 
 /**
  * A function which sets the location for {@link ParallelInstructionNode}s in the network, with the

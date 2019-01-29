@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.hcatalog;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -41,6 +40,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -276,8 +276,8 @@ public class HCatalogIO {
         desiredSplitCount = (int) Math.ceil((double) estimatedSizeBytes / desiredBundleSizeBytes);
       }
       ReaderContext readerContext = getReaderContext(desiredSplitCount);
-      //process the splits returned by native API
-      //this could be different from 'desiredSplitCount' calculated above
+      // process the splits returned by native API
+      // this could be different from 'desiredSplitCount' calculated above
       LOG.info(
           "Splitting into bundles of {} bytes: "
               + "estimated size {}, desired split count {}, actual split count {}",
@@ -486,7 +486,7 @@ public class HCatalogIO {
           masterWriter.commit(writerContext);
         } catch (HCatException e) {
           LOG.error("Exception in flush - write/commit data to Hive", e);
-          //abort on exception
+          // abort on exception
           masterWriter.abort(writerContext);
           throw e;
         } finally {

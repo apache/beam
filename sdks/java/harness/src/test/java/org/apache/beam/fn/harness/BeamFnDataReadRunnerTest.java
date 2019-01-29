@@ -29,13 +29,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Suppliers;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +39,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -58,12 +54,16 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Before;
 import org.junit.Rule;
@@ -126,12 +126,12 @@ public class BeamFnDataReadRunnerTest {
 
     List<WindowedValue<String>> outputValues = new ArrayList<>();
 
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     String localOutputId = "outputPC";
-    consumers.put(
+    consumers.register(
         localOutputId, (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
 
     RunnerApi.PTransform pTransform =
         RemoteGrpcPortRead.readFromPort(PORT_SPEC, localOutputId).toPTransform();
@@ -150,15 +150,15 @@ public class BeamFnDataReadRunnerTest {
             COMPONENTS.getCodersMap(),
             COMPONENTS.getWindowingStrategiesMap(),
             consumers,
-            startFunctions::add,
-            finishFunctions::add,
+            startFunctionRegistry,
+            finishFunctionRegistry,
             null /* splitListener */);
 
     verifyZeroInteractions(mockBeamFnDataClient);
 
     InboundDataClient completionFuture = CompletableFutureInboundDataClient.create();
     when(mockBeamFnDataClient.receive(any(), any(), any(), any())).thenReturn(completionFuture);
-    Iterables.getOnlyElement(startFunctions).run();
+    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
@@ -179,7 +179,7 @@ public class BeamFnDataReadRunnerTest {
     assertThat(consumers.keySet(), containsInAnyOrder(localOutputId));
 
     completionFuture.complete();
-    Iterables.getOnlyElement(finishFunctions).run();
+    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
 
     verifyNoMoreInteractions(mockBeamFnDataClient);
   }
@@ -193,7 +193,8 @@ public class BeamFnDataReadRunnerTest {
         .thenReturn(bundle2Future);
     List<WindowedValue<String>> valuesA = new ArrayList<>();
     List<WindowedValue<String>> valuesB = new ArrayList<>();
-
+    FnDataReceiver<WindowedValue<String>> consumers =
+        MultiplexingFnDataReceiver.forConsumers(ImmutableList.of(valuesA::add, valuesB::add));
     AtomicReference<String> bundleId = new AtomicReference<>("0");
     BeamFnDataReadRunner<String> readRunner =
         new BeamFnDataReadRunner<>(
@@ -203,7 +204,7 @@ public class BeamFnDataReadRunnerTest {
             CODER_SPEC,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient,
-            ImmutableList.of(valuesA::add, valuesB::add));
+            consumers);
 
     // Process for bundle id 0
     readRunner.registerInputLocation();

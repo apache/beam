@@ -17,7 +17,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import functools
 import logging
 import os
 import sys
@@ -27,14 +26,18 @@ import traceback
 import unittest
 from builtins import range
 
+from tenacity import retry
+from tenacity import stop_after_attempt
+
 import apache_beam as beam
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.portability import python_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -50,8 +53,7 @@ else:
 class FnApiRunnerTest(unittest.TestCase):
 
   def create_pipeline(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_grpc=False))
+    return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
@@ -148,9 +150,6 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(unnamed.even, equal_to([2]), label='unnamed.even')
       assert_that(unnamed.odd, equal_to([1, 3]), label='unnamed.odd')
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
   def test_pardo_side_inputs(self):
     def cross_product(elem, sides):
       for side in sides:
@@ -162,9 +161,6 @@ class FnApiRunnerTest(unittest.TestCase):
                   equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'),
                             ('a', 'y'), ('b', 'y'), ('c', 'y')]))
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
   def test_pardo_windowed_side_inputs(self):
     with self.create_pipeline() as p:
       # Now with some windowing.
@@ -192,22 +188,27 @@ class FnApiRunnerTest(unittest.TestCase):
               (9, list(range(7, 10)))]),
           label='windowed')
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
-  def test_flattened_side_input(self):
+  def test_flattened_side_input(self, with_transcoding=True):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
       side1 = p | 'side1' >> beam.Create([('a', 1)])
       side2 = p | 'side2' >> beam.Create([('b', 2)])
+      if with_transcoding:
+        # Also test non-matching coder types (transcoding required)
+        third_element = [('another_type')]
+      else:
+        third_element = [('b', 3)]
+      side3 = p | 'side3' >> beam.Create(third_element)
       side = (side1, side2) | beam.Flatten()
       assert_that(
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
-          equal_to([(None, {'a': 1, 'b': 2})]))
+          equal_to([(None, {'a': 1, 'b': 2})]),
+          label='CheckFlattenAsSideInput')
+      assert_that(
+          (side, side3) | 'FlattenAfter' >> beam.Flatten(),
+          equal_to([('a', 1), ('b', 2)] + third_element),
+          label='CheckFlattenOfSideInput')
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
   def test_gbk_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
@@ -216,9 +217,6 @@ class FnApiRunnerTest(unittest.TestCase):
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': [1]})]))
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
   def test_multimap_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
@@ -230,9 +228,6 @@ class FnApiRunnerTest(unittest.TestCase):
                           beam.pvalue.AsMultiMap(side)),
           equal_to([('a', [1, 3]), ('b', [2])]))
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
   def test_pardo_unfusable_side_inputs(self):
     def cross_product(elem, sides):
       for side in sides:
@@ -364,12 +359,23 @@ class FnApiRunnerTest(unittest.TestCase):
              | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
       assert_that(res, equal_to([('a', [1, 2]), ('b', [3])]))
 
-  def test_flatten(self):
+  # Runners may special case the Reshuffle transform urn.
+  def test_reshuffle(self):
     with self.create_pipeline() as p:
+      assert_that(p | beam.Create([1, 2, 3]) | beam.Reshuffle(),
+                  equal_to([1, 2, 3]))
+
+  def test_flatten(self, with_transcoding=True):
+    with self.create_pipeline() as p:
+      if with_transcoding:
+        # Additional element which does not match with the first type
+        additional = [ord('d')]
+      else:
+        additional = ['d']
       res = (p | 'a' >> beam.Create(['a']),
              p | 'bc' >> beam.Create(['b', 'c']),
-             p | 'd' >> beam.Create(['d'])) | beam.Flatten()
-      assert_that(res, equal_to(['a', 'b', 'c', 'd']))
+             p | 'd' >> beam.Create(additional)) | beam.Flatten()
+      assert_that(res, equal_to(['a', 'b', 'c'] + additional))
 
   def test_combine_per_key(self):
     with self.create_pipeline() as p:
@@ -409,9 +415,6 @@ class FnApiRunnerTest(unittest.TestCase):
              | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
   def test_large_elements(self):
     with self.create_pipeline() as p:
       big = (p
@@ -560,6 +563,11 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_counter_exists(
           all_metrics_via_montoring_infos, namespace, name, step='MyStep')
 
+  # Due to somewhat non-deterministic nature of state sampling and sleep,
+  # this test is flaky when state duration is low.
+  # Since increasing state duration significantly would also slow down
+  # the test suite, we are retrying twice on failure as a mitigation.
+  @retry(reraise=True, stop=stop_after_attempt(3))
   def test_progress_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
@@ -684,7 +692,9 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_grpc=True))
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
 
 
 class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
@@ -692,16 +702,16 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            use_grpc=True,
-            sdk_harness_factory=functools.partial(
-                sdk_worker.SdkHarness, worker_count=2)))
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC,
+                payload=b'2')))
 
 
 class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_grpc=False, bundle_repeat=3))
+        runner=fn_api_runner.FnApiRunner(bundle_repeat=3))
 
 
 if __name__ == '__main__':

@@ -17,13 +17,8 @@
  */
 package org.apache.beam.runners.direct.portable.job;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
@@ -44,41 +39,52 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceImplBase;
 import org.apache.beam.runners.direct.portable.ReferenceRunner;
-import org.apache.beam.runners.direct.portable.artifact.LocalFileSystemArtifactStagerService;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The ReferenceRunner uses the portability framework to execute a Pipeline on a single machine. */
+/**
+ * This JobService implements the grpc calls for running jobs by using the {@code ReferenceRunner}
+ * as an engine.
+ */
 public class ReferenceRunnerJobService extends JobServiceImplBase implements FnService {
+
+  /** A configuration object for constructing the {@code ReferenceRunnerJobService}. */
+  public static class Configuration {
+    public String artifactStagingPath;
+    public boolean keepArtifacts;
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
   private static final int WAIT_MS = 1000;
 
-  public static ReferenceRunnerJobService create(final ServerFactory serverFactory) {
+  public static ReferenceRunnerJobService create(
+      final ServerFactory serverFactory, Configuration configuration) {
     LOG.info("Starting {}", ReferenceRunnerJobService.class);
-    return new ReferenceRunnerJobService(
-        serverFactory, () -> Files.createTempDirectory("reference-runner-staging"));
+    return new ReferenceRunnerJobService(serverFactory, configuration);
   }
 
   private final ServerFactory serverFactory;
-  private final Callable<Path> stagingPathCallable;
+  private final Configuration configuration;
 
   private final ConcurrentMap<String, PreparingJob> unpreparedJobs;
   private final ConcurrentMap<String, ReferenceRunner> runningJobs;
   private final ConcurrentMap<String, JobState.Enum> jobStates;
   private final ExecutorService executor;
-  private final ConcurrentLinkedQueue<GrpcFnServer<LocalFileSystemArtifactStagerService>>
+  private final ConcurrentLinkedQueue<GrpcFnServer<BeamFileSystemArtifactStagingService>>
       artifactStagingServices;
 
-  private ReferenceRunnerJobService(
-      ServerFactory serverFactory, Callable<Path> stagingPathCallable) {
+  private ReferenceRunnerJobService(ServerFactory serverFactory, Configuration configuration) {
     this.serverFactory = serverFactory;
-    this.stagingPathCallable = stagingPathCallable;
+    this.configuration = configuration;
     unpreparedJobs = new ConcurrentHashMap<>();
     runningJobs = new ConcurrentHashMap<>();
     jobStates = new ConcurrentHashMap<>();
@@ -91,10 +97,6 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
     artifactStagingServices = new ConcurrentLinkedQueue<>();
   }
 
-  public ReferenceRunnerJobService withStagingPathSupplier(Callable<Path> supplier) {
-    return new ReferenceRunnerJobService(serverFactory, supplier);
-  }
-
   @Override
   public void prepare(
       JobApi.PrepareJobRequest request,
@@ -103,29 +105,29 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
       LOG.trace("{} {}", PrepareJobResponse.class.getSimpleName(), request);
 
       String preparationId = request.getJobName() + ThreadLocalRandom.current().nextInt();
-      Path tempDir = stagingPathCallable.call();
-      GrpcFnServer<LocalFileSystemArtifactStagerService> artifactStagingService =
-          createArtifactStagingService(tempDir);
+      GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService =
+          createArtifactStagingService();
       artifactStagingServices.add(artifactStagingService);
-      PreparingJob previous =
+      String stagingSessionToken =
+          BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+              preparationId, configuration.artifactStagingPath);
+      PreparingJob existingJob =
           unpreparedJobs.putIfAbsent(
               preparationId,
               PreparingJob.builder()
                   .setArtifactStagingServer(artifactStagingService)
                   .setPipeline(request.getPipeline())
                   .setOptions(request.getPipelineOptions())
-                  .setStagingLocation(tempDir)
+                  .setStagingSessionToken(stagingSessionToken)
                   .build());
       checkArgument(
-          previous == null, "Unexpected existing job with preparation ID %s", preparationId);
+          existingJob == null, "Unexpected existing job with preparation ID %s", preparationId);
 
       responseObserver.onNext(
           PrepareJobResponse.newBuilder()
               .setPreparationId(preparationId)
               .setArtifactStagingEndpoint(artifactStagingService.getApiServiceDescriptor())
-              // ReferenceRunner uses LocalFileSystemArtifactStagerService which only need local
-              // artifact directory.
-              .setStagingSessionToken(tempDir.toFile().getAbsolutePath())
+              .setStagingSessionToken(stagingSessionToken)
               .build());
       responseObserver.onCompleted();
     } catch (Exception e) {
@@ -134,10 +136,9 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
     }
   }
 
-  private GrpcFnServer<LocalFileSystemArtifactStagerService> createArtifactStagingService(
-      Path stagingPath) throws Exception {
-    LocalFileSystemArtifactStagerService service =
-        LocalFileSystemArtifactStagerService.forRootDirectory(stagingPath.toFile());
+  private GrpcFnServer<BeamFileSystemArtifactStagingService> createArtifactStagingService()
+      throws Exception {
+    BeamFileSystemArtifactStagingService service = new BeamFileSystemArtifactStagingService();
     return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
   }
 
@@ -165,9 +166,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
 
       ReferenceRunner runner =
           ReferenceRunner.forPipeline(
-              preparingJob.getPipeline(),
-              preparingJob.getOptions(),
-              preparingJob.getStagingLocation().toFile());
+              preparingJob.getPipeline(), preparingJob.getOptions(), request.getRetrievalToken());
       String jobId = "job-" + Integer.toString(ThreadLocalRandom.current().nextInt());
       responseObserver.onNext(RunJobResponse.newBuilder().setJobId(jobId).build());
       responseObserver.onCompleted();
@@ -179,11 +178,27 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
               jobStates.computeIfPresent(jobId, (id, status) -> Enum.RUNNING);
               runner.execute();
               jobStates.computeIfPresent(jobId, (id, status) -> Enum.DONE);
-              return null;
             } catch (Exception e) {
               jobStates.computeIfPresent(jobId, (id, status) -> Enum.FAILED);
               throw e;
             }
+
+            // Delete artifacts after job is done.
+            if (!configuration.keepArtifacts) {
+              String stagingSessionToken = preparingJob.getStagingSessionToken();
+              try {
+                preparingJob
+                    .getArtifactStagingServer()
+                    .getService()
+                    .removeArtifacts(stagingSessionToken);
+              } catch (Exception e) {
+                LOG.error(
+                    "Failed to remove job staging directory for token {}: {}",
+                    stagingSessionToken,
+                    e);
+              }
+            }
+            return null;
           });
     } catch (StatusRuntimeException e) {
       responseObserver.onError(e);
@@ -252,7 +267,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
       }
     }
     while (!artifactStagingServices.isEmpty()) {
-      GrpcFnServer<LocalFileSystemArtifactStagerService> artifactStagingService =
+      GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService =
           artifactStagingServices.remove();
       try {
         artifactStagingService.close();

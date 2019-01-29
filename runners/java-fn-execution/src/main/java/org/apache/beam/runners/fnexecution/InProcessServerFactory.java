@@ -21,10 +21,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.BindableService;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.ServerInterceptors;
-import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessServerBuilder;
 
 /**
  * A {@link ServerFactory} which creates {@link Server servers} with the {@link
@@ -45,8 +45,7 @@ public class InProcessServerFactory extends ServerFactory {
     String name = String.format("InProcessServer_%s", serviceNameUniqifier.getAndIncrement());
     builder.setUrl(name);
     InProcessServerBuilder serverBuilder = InProcessServerBuilder.forName(name);
-    services
-        .stream()
+    services.stream()
         .forEach(
             service ->
                 serverBuilder.addService(
@@ -59,8 +58,7 @@ public class InProcessServerFactory extends ServerFactory {
   public Server create(List<BindableService> services, ApiServiceDescriptor serviceDescriptor)
       throws IOException {
     InProcessServerBuilder builder = InProcessServerBuilder.forName(serviceDescriptor.getUrl());
-    services
-        .stream()
+    services.stream()
         .forEach(
             service ->
                 builder.addService(

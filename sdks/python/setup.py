@@ -22,7 +22,6 @@ from __future__ import print_function
 
 import os
 import platform
-import sys
 import warnings
 from distutils.version import StrictVersion
 
@@ -101,18 +100,14 @@ else:
   except ImportError:
     cythonize = lambda *args, **kwargs: []
 
-REQUIRED_PACKAGES_PY2_ONLY = [
-    'avro>=1.8.1,<2.0.0'
-]
-
-REQUIRED_PACKAGES_PY3_ONLY = [
-    'avro-python3>=1.8.1,<2.0.0'
-]
-
 REQUIRED_PACKAGES = [
+    'avro>=1.8.1,<2.0.0; python_version < "3.0"',
+    'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
-    'dill>=0.2.6,<=0.2.8.2',
+    'dill>=0.2.9,<0.2.10',
     'fastavro>=0.21.4,<0.22',
+    'future>=0.16.0,<1.0.0',
+    'futures>=3.1.1,<4.0.0',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.11.3',
@@ -120,36 +115,34 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<4',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
+    # pyarrow is not supported on Windows for Python 2 [BEAM-6287]
+    ('pyarrow>=0.11.1,<0.12.0; python_version >= "3.0" or '
+     'platform_system != "Windows"'),
     'pydot>=1.2.0,<1.3',
-    'pytz>=2018.3,<=2018.4',
-    'pyyaml>=3.12,<4.0.0',
+    'pytz>=2018.3',
     'pyvcf>=0.6.8,<0.7.0',
+    'pyyaml>=3.12,<4.0.0',
     'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
-    'futures>=3.1.1,<4.0.0',
-    'future>=0.16.0,<1.0.0',
     ]
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
-    'parameterized>=0.6.0,<0.7.0',
     'numpy>=1.14.3,<2',
+    'pandas>=0.23.4,<0.24',
+    'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
+    'tenacity>=5.0.2,<6.0',
     ]
 
 GCP_REQUIREMENTS = [
     # google-apitools 0.5.23 and above has important Python 3 supports.
-    'google-apitools>=0.5.23,<=0.5.24',
+    'google-apitools>=0.5.26,<0.5.27',
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
     'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
-    'google-cloud-pubsub==0.35.4',
+    'google-cloud-pubsub==0.39.0',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<1.7.0',
 ]
-
-if sys.version_info[0] == 2:
-  REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY2_ONLY
-elif sys.version_info[0] >= 3:
-  REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY3_ONLY
 
 
 # We must generate protos after setup_requires are installed.

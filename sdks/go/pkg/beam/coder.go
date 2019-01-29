@@ -27,13 +27,6 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func init() {
-	RegisterFunction(JSONDec)
-	RegisterFunction(JSONEnc)
-	RegisterFunction(ProtoEnc)
-	RegisterFunction(ProtoDec)
-}
-
 // Coder defines how to encode and decode values of type 'A' into byte streams.
 // Coders are attached to PCollections of the same type. For PCollections
 // consumed by GBK, the attached coders are required to be deterministic.
@@ -113,9 +106,13 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			}
 			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
 
-		case reflectx.String, reflectx.ByteSlice:
-			// TODO(BEAM-3580): we should stop encoding string using the bytecoder. It forces
-			// conversions at runtime in inconvenient places.
+		case reflectx.String:
+			c, err := coderx.NewString()
+			if err != nil {
+				return nil, err
+			}
+			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+		case reflectx.ByteSlice:
 			return &coder.Coder{Kind: coder.Bytes, T: t}, nil
 		default:
 			// TODO(BEAM-3306): the coder registry should be consulted here for user

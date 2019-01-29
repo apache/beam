@@ -48,20 +48,25 @@ public class SqlDdlNodes {
   /** Returns the schema in which to create an object. */
   static Pair<CalciteSchema, String> schema(
       CalcitePrepare.Context context, boolean mutable, SqlIdentifier id) {
-    final String name;
     final List<String> path;
     if (id.isSimple()) {
       path = context.getDefaultSchemaPath();
-      name = id.getSimple();
     } else {
       path = Util.skipLast(id.names);
-      name = Util.last(id.names);
     }
     CalciteSchema schema = mutable ? context.getMutableRootSchema() : context.getRootSchema();
     for (String p : path) {
       schema = schema.getSubSchema(p, true);
     }
-    return Pair.of(schema, name);
+    return Pair.of(schema, name(id));
+  }
+
+  static String name(SqlIdentifier id) {
+    if (id.isSimple()) {
+      return id.getSimple();
+    } else {
+      return Util.last(id.names);
+    }
   }
 
   static @Nullable String getString(SqlNode n) {

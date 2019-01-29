@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.runners.dataflow.util.TimeUtil.toCloudDuration;
 import static org.apache.beam.runners.dataflow.util.TimeUtil.toCloudTime;
 import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.CAPABILITY_REMOTE_SOURCE;
@@ -25,6 +24,7 @@ import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.W
 import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.WORK_ITEM_TYPE_REMOTE_SOURCE_TASK;
 import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.WORK_ITEM_TYPE_SEQ_MAP_TASK;
 import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.WORK_ITEM_TYPE_STREAMING_CONFIG_TASK;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
@@ -34,9 +34,6 @@ import com.google.api.services.dataflow.model.ReportWorkItemStatusResponse;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -46,6 +43,9 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
@@ -103,7 +103,12 @@ class DataflowWorkUnitClient implements WorkUnitClient {
             options.getWorkerId(), CAPABILITY_REMOTE_SOURCE, PropertyNames.CUSTOM_SOURCE_FORMAT);
 
     Optional<WorkItem> workItem = getWorkItemInternal(workItemTypes, capabilities);
-    if (!workItem.isPresent() || workItem.get().getId() == null) {
+    if (!workItem.isPresent()) {
+      // Normal case, this means that the response contained no work, i.e. no work is available
+      // at this time.
+      return Optional.absent();
+    }
+    if (workItem.isPresent() && workItem.get().getId() == null) {
       logger.warn("Discarding invalid work item {}", workItem.orNull());
       return Optional.absent();
     }

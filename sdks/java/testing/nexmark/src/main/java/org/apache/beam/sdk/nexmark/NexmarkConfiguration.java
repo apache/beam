@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;
+import org.joda.time.Duration;
 
 /**
  * Configuration controlling how a query is run. May be supplied by command line or
@@ -70,6 +71,9 @@ public class NexmarkConfiguration implements Serializable {
    * stream to static enrichment data.
    */
   @JsonProperty public String sideInputUrl = null;
+
+  /** Gap for the session in {@link org.apache.beam.sdk.nexmark.queries.SessionSideInputJoin}. */
+  @JsonProperty public Duration sessionGap = Duration.standardMinutes(10);
 
   /**
    * Number of events to generate. If zero, generate as many as possible without overflowing

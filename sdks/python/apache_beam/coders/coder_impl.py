@@ -282,6 +282,14 @@ LIST_TYPE = 5
 TUPLE_TYPE = 6
 DICT_TYPE = 7
 SET_TYPE = 8
+ITERABLE_LIKE_TYPE = 10
+
+
+# Types that can be encoded as iterables, but are not literally
+# lists, etc. due to being lazy.  The actual type is not preserved
+# through encoding, only the elements. This is particularly useful
+# for the value list types created in GroupByKey.
+_ITERABLE_LIKE_TYPES = set()
 
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
@@ -289,6 +297,11 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
   def __init__(self, fallback_coder_impl):
     self.fallback_coder_impl = fallback_coder_impl
+    self.iterable_coder_impl = IterableCoderImpl(self)
+
+  @staticmethod
+  def register_iterable_like_type(t):
+    _ITERABLE_LIKE_TYPES.add(t)
 
   def get_estimated_size_and_observables(self, value, nested=False):
     if isinstance(value, observable.ObservableMixin):
@@ -346,6 +359,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t is bool:
       stream.write_byte(BOOL_TYPE)
       stream.write_byte(value)
+    elif t in _ITERABLE_LIKE_TYPES:
+      stream.write_byte(ITERABLE_LIKE_TYPE)
+      self.iterable_coder_impl.encode_to_stream(value, stream, nested)
     else:
       stream.write_byte(UNKNOWN_TYPE)
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
@@ -379,6 +395,8 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return v
     elif t == BOOL_TYPE:
       return not not stream.read_byte()
+    elif t == ITERABLE_LIKE_TYPE:
+      return self.iterable_coder_impl.decode_from_stream(stream, nested)
     elif t == UNKNOWN_TYPE:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
     else:
@@ -615,6 +633,30 @@ class TupleCoderImpl(AbstractComponentCoderImpl):
     return tuple(components)
 
 
+class _ConcatSequence(object):
+  def __init__(self, head, tail):
+    self._head = head
+    self._tail = tail
+
+  def __iter__(self):
+    for elem in self._head:
+      yield elem
+    for elem in self._tail:
+      yield elem
+
+  def __eq__(self, other):
+    return list(self) == list(other)
+
+  def __hash__(self):
+    raise NotImplementedError
+
+  def __reduce__(self):
+    return list, (list(self),)
+
+
+FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatSequence)
+
+
 class SequenceCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -637,20 +679,33 @@ class SequenceCoderImpl(StreamCoderImpl):
     countX element(0) element(1) ... element(countX - 1)
     0
 
+  If writing to state is enabled, the final terminating 0 will instead be
+  repaced with::
+
+    varInt64(-1)
+    len(state_token)
+    state_token
+
+  where state_token is a bytes object used to retrieve the remainder of the
+  iterable via the state API.
   """
 
   # Default buffer size of 64kB of handling iterables of unknown length.
   _DEFAULT_BUFFER_SIZE = 64 * 1024
 
-  def __init__(self, elem_coder):
+  def __init__(self, elem_coder,
+               read_state=None, write_state=None, write_state_threshold=0):
     self._elem_coder = elem_coder
+    self._read_state = read_state
+    self._write_state = write_state
+    self._write_state_threshold = write_state_threshold
 
   def _construct_from_sequence(self, values):
     raise NotImplementedError
 
   def encode_to_stream(self, value, out, nested):
     # Compatible with Java's IterableLikeCoder.
-    if hasattr(value, '__len__'):
+    if hasattr(value, '__len__') and self._write_state is None:
       out.write_bigendian_int32(len(value))
       for elem in value:
         self._elem_coder.encode_to_stream(elem, out, True)
@@ -662,19 +717,36 @@ class SequenceCoderImpl(StreamCoderImpl):
       # -1 to indicate that the length is not known.
       out.write_bigendian_int32(-1)
       buffer = create_OutputStream()
-      target_buffer_size = self._DEFAULT_BUFFER_SIZE
+      if self._write_state is None:
+        target_buffer_size = self._DEFAULT_BUFFER_SIZE
+      else:
+        target_buffer_size = min(
+            self._DEFAULT_BUFFER_SIZE, self._write_state_threshold)
       prev_index = index = -1
-      for index, elem in enumerate(value):
+      # Don't want to miss out on fast list iteration optimization.
+      value_iter = value if isinstance(value, (list, tuple)) else iter(value)
+      start_size = out.size()
+      for elem in value_iter:
+        index += 1
         self._elem_coder.encode_to_stream(elem, buffer, True)
         if buffer.size() > target_buffer_size:
           out.write_var_int64(index - prev_index)
           out.write(buffer.get())
           prev_index = index
           buffer = create_OutputStream()
-      if index > prev_index:
-        out.write_var_int64(index - prev_index)
-        out.write(buffer.get())
-      out.write_var_int64(0)
+          if (self._write_state is not None
+              and out.size() - start_size > self._write_state_threshold):
+            tail = (value_iter[index + 1:] if isinstance(value, (list, tuple))
+                    else value_iter)
+            state_token = self._write_state(tail, self._elem_coder)
+            out.write_var_int64(-1)
+            out.write(state_token, True)
+            break
+      else:
+        if index > prev_index:
+          out.write_var_int64(index - prev_index)
+          out.write(buffer.get())
+        out.write_var_int64(0)
 
   def decode_from_stream(self, in_stream, nested):
     size = in_stream.read_bigendian_int32()
@@ -689,6 +761,15 @@ class SequenceCoderImpl(StreamCoderImpl):
         for _ in range(count):
           elements.append(self._elem_coder.decode_from_stream(in_stream, True))
         count = in_stream.read_var_int64()
+
+      if count == -1:
+        if self._read_state is None:
+          raise ValueError(
+              'Cannot read state-written iterable without state reader.')
+
+        state_token = in_stream.read_all(True)
+        elements = _ConcatSequence(
+            elements, self._read_state(state_token, self._elem_coder))
 
     return self._construct_from_sequence(elements)
 
@@ -719,6 +800,8 @@ class SequenceCoderImpl(StreamCoderImpl):
     # per block of data since we are not including the count prefix which
     # occurs at most once per 64k of data and is upto 10 bytes long. The upper
     # bound of the underestimate is 10 / 65536 ~= 0.0153% of the actual size.
+    # TODO: More efficient size estimation in the case of state-backed
+    # iterables.
     return estimated_size, observables
 
 

@@ -17,14 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableBiMap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -32,10 +27,16 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /** The {@link CoderTranslatorRegistrar} for coders which are shared across languages. */
 @AutoService(CoderTranslatorRegistrar.class)
@@ -46,6 +47,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
   static final BiMap<Class<? extends Coder>, String> BEAM_MODEL_CODER_URNS =
       ImmutableBiMap.<Class<? extends Coder>, String>builder()
           .put(ByteArrayCoder.class, ModelCoders.BYTES_CODER_URN)
+          .put(StringUtf8Coder.class, ModelCoders.STRING_UTF8_CODER_URN)
           .put(KvCoder.class, ModelCoders.KV_CODER_URN)
           .put(VarLongCoder.class, ModelCoders.INT64_CODER_URN)
           .put(IntervalWindowCoder.class, ModelCoders.INTERVAL_WINDOW_CODER_URN)
@@ -62,6 +64,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
   static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> BEAM_MODEL_CODERS =
       ImmutableMap.<Class<? extends Coder>, CoderTranslator<? extends Coder>>builder()
           .put(ByteArrayCoder.class, CoderTranslators.atomic(ByteArrayCoder.class))
+          .put(StringUtf8Coder.class, CoderTranslators.atomic(StringUtf8Coder.class))
           .put(VarLongCoder.class, CoderTranslators.atomic(VarLongCoder.class))
           .put(IntervalWindowCoder.class, CoderTranslators.atomic(IntervalWindowCoder.class))
           .put(GlobalWindow.Coder.class, CoderTranslators.atomic(GlobalWindow.Coder.class))

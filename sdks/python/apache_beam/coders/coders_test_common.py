@@ -86,18 +86,21 @@ class CodersTest(unittest.TestCase):
         cls.seen_nested.add(type(c))
         cls._observe_nested(c)
 
-  def check_coder(self, coder, *values):
+  def check_coder(self, coder, *values, **kwargs):
+    context = kwargs.pop('context', pipeline_context.PipelineContext())
+    test_size_estimation = kwargs.pop('test_size_estimation', True)
+    assert not kwargs
     self._observe(coder)
     for v in values:
       self.assertEqual(v, coder.decode(coder.encode(v)))
-      self.assertEqual(coder.estimate_size(v),
-                       len(coder.encode(v)))
-      self.assertEqual(coder.estimate_size(v),
-                       coder.get_impl().estimate_size(v))
-      self.assertEqual(coder.get_impl().get_estimated_size_and_observables(v),
-                       (coder.get_impl().estimate_size(v), []))
-    copy1 = dill.loads(dill.dumps(coder))
-    context = pipeline_context.PipelineContext()
+      if test_size_estimation:
+        self.assertEqual(coder.estimate_size(v),
+                         len(coder.encode(v)))
+        self.assertEqual(coder.estimate_size(v),
+                         coder.get_impl().estimate_size(v))
+        self.assertEqual(coder.get_impl().get_estimated_size_and_observables(v),
+                         (coder.get_impl().estimate_size(v), []))
+      copy1 = dill.loads(dill.dumps(coder))
     copy2 = coders.Coder.from_runner_api(coder.to_runner_api(context), context)
     for v in values:
       self.assertEqual(v, copy1.decode(copy2.encode(v)))
@@ -444,6 +447,37 @@ class CodersTest(unittest.TestCase):
     self.assertEqual(
         coder.get_impl().get_estimated_size_and_observables(value)[1],
         [(observ, elem_coder.get_impl())])
+
+  def test_state_backed_iterable_coder(self):
+    # pylint: disable=global-variable-undefined
+    # required for pickling by reference
+    global state
+    state = {}
+
+    def iterable_state_write(values, element_coder_impl):
+      token = b'state_token_%d' % len(state)
+      state[token] = [element_coder_impl.encode(e) for e in values]
+      return token
+
+    def iterable_state_read(token, element_coder_impl):
+      return [element_coder_impl.decode(s) for s in state[token]]
+
+    coder = coders.StateBackedIterableCoder(
+        coders.VarIntCoder(),
+        read_state=iterable_state_read,
+        write_state=iterable_state_write,
+        write_state_threshold=1)
+    context = pipeline_context.PipelineContext(
+        iterable_state_read=iterable_state_read,
+        iterable_state_write=iterable_state_write)
+    self.check_coder(
+        coder, [1, 2, 3], context=context, test_size_estimation=False)
+    # Ensure that state was actually used.
+    self.assertNotEqual(state, {})
+    self.check_coder(coders.TupleCoder((coder, coder)),
+                     ([1], [2, 3]),
+                     context=context,
+                     test_size_estimation=False)
 
 
 if __name__ == '__main__':

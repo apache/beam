@@ -26,11 +26,11 @@ import (
 	"path"
 	"sync"
 
+	"cloud.google.com/go/storage"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
-	"google.golang.org/api/storage/v1"
 )
 
 // StagingServer is a artifact staging server backed by Google Cloud Storage
@@ -81,11 +81,11 @@ func (s *StagingServer) CommitManifest(ctx context.Context, req *pb.CommitManife
 		return nil, fmt.Errorf("failed to marshal proxy manifest: %v", err)
 	}
 
-	cl, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
+	cl, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GCS client: %v", err)
 	}
-	if err := gcsx.WriteObject(cl, s.bucket, s.manifest, bytes.NewReader(data)); err != nil {
+	if err := gcsx.WriteObject(ctx, cl, s.bucket, s.manifest, bytes.NewReader(data)); err != nil {
 		return nil, fmt.Errorf("failed to write manifest: %v", err)
 	}
 
@@ -135,13 +135,14 @@ func (s *StagingServer) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServ
 	// Stream content to GCS. We don't have to worry about partial
 	// or abandoned writes, because object writes are atomic.
 
-	cl, err := gcsx.NewClient(ps.Context(), storage.DevstorageReadWriteScope)
+	ctx := ps.Context()
+	cl, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 	if err != nil {
 		return fmt.Errorf("failed to create GCS client: %v", err)
 	}
 
 	r := &reader{sha256W: sha256.New(), stream: ps}
-	if err := gcsx.WriteObject(cl, s.bucket, object, r); err != nil {
+	if err := gcsx.WriteObject(ctx, cl, s.bucket, object, r); err != nil {
 		return fmt.Errorf("failed to stage artifact %v: %v", md.Name, err)
 	}
 	hash := r.SHA256()

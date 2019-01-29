@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
+import java.sql.Timestamp;
 import java.util.Map;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.calcite.linq4j.function.Parameter;
 import org.apache.calcite.schema.TranslatableTable;
 import org.joda.time.Instant;
@@ -94,7 +95,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     String sql2 = "SELECT PRE_DAY(f_timestamp) as jodatime FROM PCOLLECTION WHERE f_int=1";
     PCollection<Row> result2 =
         boundedInput1.apply(
-            "testJodaUdf", SqlTransform.query(sql2).registerUdf("PRE_DAY", JodaPreviousDay.class));
+            "testTimeUdf", SqlTransform.query(sql2).registerUdf("PRE_DAY", PreviousDay.class));
     PAssert.that(result2).containsInAnyOrder(row2);
 
     pipeline.run().waitUntilFinish();
@@ -337,10 +338,10 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     }
   }
 
-  /** A UDF to test support of Joda time. */
-  public static final class JodaPreviousDay implements BeamSqlUdf {
-    public static Instant eval(Instant time) {
-      return new Instant(time.getMillis() - 24 * 3600 * 1000L);
+  /** A UDF to test support of time. */
+  public static final class PreviousDay implements BeamSqlUdf {
+    public static Timestamp eval(Timestamp time) {
+      return new Timestamp(time.getTime() - 24 * 3600 * 1000L);
     }
   }
 

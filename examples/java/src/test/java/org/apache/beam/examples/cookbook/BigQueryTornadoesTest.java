@@ -18,7 +18,6 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.examples.cookbook.BigQueryTornadoes.ExtractTornadoesFn;
 import org.apache.beam.examples.cookbook.BigQueryTornadoes.FormatCountsFn;
 import org.apache.beam.sdk.testing.PAssert;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;

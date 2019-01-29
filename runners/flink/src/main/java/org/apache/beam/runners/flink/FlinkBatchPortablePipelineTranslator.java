@@ -17,17 +17,13 @@
  */
 package org.apache.beam.runners.flink;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.ExecutableStageTranslation.generateNameFromStagePayload;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.createOutputMap;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.getWindowingStrategy;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,6 +39,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
+import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
@@ -80,7 +77,13 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -119,7 +122,8 @@ public class FlinkBatchPortablePipelineTranslator
    * Creates a batch translation context. The resulting Flink execution dag will live in a new
    * {@link ExecutionEnvironment}.
    */
-  public static BatchTranslationContext createTranslationContext(
+  @Override
+  public BatchTranslationContext createTranslationContext(
       JobInfo jobInfo,
       FlinkPipelineOptions pipelineOptions,
       @Nullable String confDir,
@@ -158,7 +162,8 @@ public class FlinkBatchPortablePipelineTranslator
    * flink {@link ExecutionEnvironment} that the execution plan will be applied to.
    */
   public static class BatchTranslationContext
-      implements FlinkPortablePipelineTranslator.TranslationContext {
+      implements FlinkPortablePipelineTranslator.TranslationContext,
+          FlinkPortablePipelineTranslator.Executor {
 
     private final JobInfo jobInfo;
     private final FlinkPipelineOptions options;
@@ -183,6 +188,11 @@ public class FlinkBatchPortablePipelineTranslator
     @Override
     public FlinkPipelineOptions getPipelineOptions() {
       return options;
+    }
+
+    @Override
+    public JobExecutionResult execute(String jobName) throws Exception {
+      return getExecutionEnvironment().execute(jobName);
     }
 
     public ExecutionEnvironment getExecutionEnvironment() {
@@ -229,7 +239,23 @@ public class FlinkBatchPortablePipelineTranslator
   }
 
   @Override
-  public void translate(BatchTranslationContext context, RunnerApi.Pipeline pipeline) {
+  public Set<String> knownUrns() {
+    return urnToTransformTranslator.keySet();
+  }
+
+  /** Predicate to determine whether a URN is a Flink native transform. */
+  @AutoService(NativeTransforms.IsNativeTransform.class)
+  public static class IsFlinkNativeTransform implements NativeTransforms.IsNativeTransform {
+    @Override
+    public boolean test(RunnerApi.PTransform pTransform) {
+      return PTransformTranslation.RESHUFFLE_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(pTransform));
+    }
+  }
+
+  @Override
+  public FlinkPortablePipelineTranslator.Executor translate(
+      BatchTranslationContext context, RunnerApi.Pipeline pipeline) {
     // Use a QueryablePipeline to traverse transforms topologically.
     QueryablePipeline p =
         QueryablePipeline.forTransforms(
@@ -246,6 +272,8 @@ public class FlinkBatchPortablePipelineTranslator
     for (DataSet<?> dataSet : context.getDanglingDataSets()) {
       dataSet.output(new DiscardingOutputFormat<>()).name("DiscardingOutput");
     }
+
+    return context;
   }
 
   private static <K, V> void translateReshuffle(
@@ -268,7 +296,7 @@ public class FlinkBatchPortablePipelineTranslator
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(e);
     }
-    //TODO: https://issues.apache.org/jira/browse/BEAM-4296
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4296
     // This only works for well known window fns, we should defer this execution to the SDK
     // if the WindowFn can't be parsed or just defer it all the time.
     WindowFn<T, ? extends BoundedWindow> windowFn =

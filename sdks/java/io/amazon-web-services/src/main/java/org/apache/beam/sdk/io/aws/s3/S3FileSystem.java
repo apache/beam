@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
@@ -41,22 +41,13 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -76,6 +67,16 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -318,7 +319,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         if (wildcardRegexp.matcher(objectSummary.getKey()).matches()) {
           S3ResourceId expandedPath =
               S3ResourceId.fromComponents(objectSummary.getBucketName(), objectSummary.getKey())
-                  .withSize(objectSummary.getSize());
+                  .withSize(objectSummary.getSize())
+                  .withLastModified(objectSummary.getLastModified());
           LOG.debug("Expanded S3 object path {}", expandedPath);
           expandedPaths.add(expandedPath);
         }
@@ -373,7 +375,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         MatchResult.Status.OK,
         ImmutableList.of(
             createBeamMetadata(
-                path.withSize(s3Metadata.getContentLength()),
+                path.withSize(s3Metadata.getContentLength())
+                    .withLastModified(s3Metadata.getLastModified()),
                 Strings.nullToEmpty(s3Metadata.getContentEncoding()))));
   }
 
@@ -382,10 +385,12 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     checkArgument(path.getSize().isPresent(), "path has size");
     checkNotNull(contentEncoding, "contentEncoding");
     boolean isReadSeekEfficient = !NON_READ_SEEK_EFFICIENT_ENCODINGS.contains(contentEncoding);
+
     return MatchResult.Metadata.builder()
         .setIsReadSeekEfficient(isReadSeekEfficient)
         .setResourceId(path)
         .setSizeBytes(path.getSize().get())
+        .setLastModifiedMillis(path.getLastModified().transform(Date::getTime).or(0L))
         .build();
   }
 
@@ -596,8 +601,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @Override
   protected void delete(Collection<S3ResourceId> resourceIds) throws IOException {
     List<S3ResourceId> nonDirectoryPaths =
-        resourceIds
-            .stream()
+        resourceIds.stream()
             .filter(s3ResourceId -> !s3ResourceId.isDirectory())
             .collect(Collectors.toList());
     Multimap<String, String> keysByBucket = ArrayListMultimap.create();

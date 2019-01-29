@@ -21,8 +21,6 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.joda.time.Duration.ZERO;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +41,9 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -51,6 +51,8 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -263,6 +265,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       PCollection<KV<Row, Row>> extractedLeftRows =
           leftRows
               .apply(
+                  "left_TimestampCombiner",
+                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST))
+              .apply(
                   "left_ExtractJoinFields",
                   MapElements.via(
                       new BeamJoinTransforms.ExtractJoinFields(true, pairs, extractKeySchemaLeft)))
@@ -270,6 +275,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
       PCollection<KV<Row, Row>> extractedRightRows =
           rightRows
+              .apply(
+                  "right_TimestampCombiner",
+                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST))
               .apply(
                   "right_ExtractJoinFields",
                   MapElements.via(
@@ -406,13 +414,11 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     }
 
     Schema schema = CalciteUtils.toSchema(getRowType());
-    PCollection<Row> ret =
-        joinedRows
-            .apply(
-                "JoinParts2WholeRow",
-                MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow(schema)))
-            .setRowSchema(schema);
-    return ret;
+    return joinedRows
+        .apply(
+            "JoinParts2WholeRow",
+            MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow(schema)))
+        .setRowSchema(schema);
   }
 
   public PCollection<Row> sideInputJoin(
@@ -456,16 +462,13 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     final PCollectionView<Map<Row, Iterable<Row>>> rowsView = rightRows.apply(View.asMultimap());
 
     Schema schema = CalciteUtils.toSchema(getRowType());
-    PCollection<Row> ret =
-        leftRows
-            .apply(
-                ParDo.of(
-                        new BeamJoinTransforms.SideInputJoinDoFn(
-                            joinType, rightNullRow, rowsView, swapped, schema))
-                    .withSideInputs(rowsView))
-            .setRowSchema(schema);
-
-    return ret;
+    return leftRows
+        .apply(
+            ParDo.of(
+                    new BeamJoinTransforms.SideInputJoinDoFn(
+                        joinType, rightNullRow, rowsView, swapped, schema))
+                .withSideInputs(rowsView))
+        .setRowSchema(schema);
   }
 
   private Schema buildNullSchema(Schema schema) {

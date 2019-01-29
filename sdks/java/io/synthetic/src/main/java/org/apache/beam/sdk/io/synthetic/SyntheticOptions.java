@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.synthetic;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -27,13 +27,13 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Random;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.apache.commons.math3.distribution.ConstantRealDistribution;
 import org.apache.commons.math3.distribution.ExponentialDistribution;
 import org.apache.commons.math3.distribution.IntegerDistribution;
@@ -44,7 +44,7 @@ import org.apache.commons.math3.distribution.ZipfDistribution;
 
 /**
  * This {@link SyntheticOptions} class provides common parameterizable synthetic options that are
- * used by {@link SyntheticBoundedIO}.
+ * used by {@link SyntheticBoundedSource} and {@link SyntheticUnboundedSource}.
  */
 public class SyntheticOptions implements Serializable {
   private static final long serialVersionUID = 0;
@@ -354,5 +354,13 @@ public class SyntheticOptions implements Serializable {
     byte[] val = new byte[(int) valueSizeBytes];
     random.nextBytes(val);
     return KV.of(key, val);
+  }
+
+  public static <T extends SyntheticOptions> T fromJsonString(String json, Class<T> type)
+      throws IOException {
+    ObjectMapper mapper = new ObjectMapper();
+    T result = mapper.readValue(json, type);
+    result.validate();
+    return result;
   }
 }

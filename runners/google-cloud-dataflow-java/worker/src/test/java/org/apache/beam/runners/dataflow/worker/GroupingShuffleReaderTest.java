@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
-import static org.apache.beam.runners.dataflow.worker.NameContextsForTests.nameContextForTest;
 import static org.apache.beam.runners.dataflow.worker.ReaderTestUtils.approximateSplitRequestAtPosition;
 import static org.apache.beam.runners.dataflow.worker.ReaderTestUtils.consumedParallelismFromProgress;
 import static org.apache.beam.runners.dataflow.worker.ReaderTestUtils.positionFromSplitResult;
@@ -34,7 +33,6 @@ import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.Position;
-import com.google.common.collect.Lists;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.DataOutputStream;
@@ -49,16 +47,17 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.GroupingShuffleReader.GroupingShuffleReaderIterator;
 import org.apache.beam.runners.dataflow.worker.ShuffleSink.ShuffleKind;
+import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterBackedElementByteSizeObserver;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShufflePosition;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutorTestUtils;
@@ -81,6 +80,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -99,8 +99,7 @@ public class GroupingShuffleReaderTest {
   private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
 
   private final ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
-  private final ExecutionStateTracker tracker =
-      new ExecutionStateTracker(sampler, ElementExecutionTracker.newForTest());
+  private final ExecutionStateTracker tracker = new ExecutionStateTracker(sampler);
   private Closeable trackerCleanup;
 
   // As Shuffle records, {@code KV} is encoded as 10 records. Each records uses an integer as key
@@ -144,20 +143,10 @@ public class GroupingShuffleReaderTest {
   }
 
   private void setCurrentExecutionState(String mockOriginalName) {
-    ExecutionStateTracker.ExecutionState state =
-        new ExecutionStateTracker.ExecutionState(nameContextForTest(), "activity") {
-          @Override
-          public void takeSample(long millisSinceLastSample) {}
-
-          @Override
-          public void reportLull(Thread trackedThread, long millis) {}
-
-          @Override
-          public NameContext getStepName() {
-            return NameContext.create(
-                MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME);
-          }
-        };
+    DataflowExecutionState state =
+        new TestDataflowExecutionState(
+            NameContext.create(MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME),
+            "activity");
     tracker.enterState(state);
   }
 

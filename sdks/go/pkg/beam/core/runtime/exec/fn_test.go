@@ -29,13 +29,16 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
+type testInt int32
+
 // TestInvoke verifies the the various forms of input to Invoke are handled correctly.
 func TestInvoke(t *testing.T) {
 	tests := []struct {
-		Fn       interface{}
-		Opt      *MainInput
-		Args     []interface{}
-		Expected interface{}
+		Fn                  interface{}
+		Opt                 *MainInput
+		Args                []interface{}
+		Expected, Expected2 interface{}
+		ExpectedTime        typex.EventTime
 	}{
 		{
 			// Void function
@@ -106,23 +109,76 @@ func TestInvoke(t *testing.T) {
 			Opt:      &MainInput{Key: FullValue{Elm: 1}},
 			Expected: mtime.EndOfGlobalWindowTime.Milliseconds(),
 		},
+		{
+			// (Return check) K, V
+			Fn:        func(a int) (int64, int) { return int64(a), 2 * a },
+			Opt:       &MainInput{Key: FullValue{Elm: 1}},
+			Expected:  int64(1),
+			Expected2: 2,
+		},
+		{
+			// (Return check)  K, V, Error
+			Fn:        func(a int) (int64, int, error) { return int64(a), 2 * a, nil },
+			Opt:       &MainInput{Key: FullValue{Elm: 1}},
+			Expected:  int64(1),
+			Expected2: 2,
+		},
+		{
+			// (Return check) EventTime, K, V
+			Fn:           func(a int) (typex.EventTime, int64, int) { return 42, int64(a), 3 * a },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     int64(1),
+			Expected2:    3,
+			ExpectedTime: 42,
+		},
+		{
+			// (Return check) EventTime, K, V, Error
+			Fn:           func(a int) (typex.EventTime, int64, int, error) { return 47, int64(a), 3 * a, nil },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     int64(1),
+			Expected2:    3,
+			ExpectedTime: 47,
+		},
+		{
+			// Check ConvertFn is invoked
+			Fn:       func(a string, b []int) (string, int) { return a, len(b) },
+			Opt:      &MainInput{Key: FullValue{Elm: "basketball", Elm2: []typex.T{23}}},
+			Expected: "basketball", Expected2: 1,
+		},
 	}
 
-	for _, test := range tests {
-		fn, err := funcx.New(reflectx.MakeFunc(test.Fn))
-		if err != nil {
-			t.Fatalf("function not valid: %v", err)
-		}
+	for i, test := range tests {
+		test := test
+		t.Run(fmt.Sprintf("%02d:%v", i, reflect.TypeOf(test.Fn)), func(t *testing.T) {
+			defer func() {
+				if p := recover(); p != nil {
+					t.Fatalf("panic: %v", p)
+				}
+			}()
+			fn, err := funcx.New(reflectx.MakeFunc(test.Fn))
+			if err != nil {
+				t.Fatalf("function not valid: %v", err)
+			}
 
-		ts := mtime.ZeroTimestamp.Add(2 * time.Millisecond)
+			ts := mtime.ZeroTimestamp.Add(2 * time.Millisecond)
+			if test.ExpectedTime == mtime.ZeroTimestamp {
+				test.ExpectedTime = ts
+			}
 
-		val, err := Invoke(context.Background(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
-		if err != nil {
-			t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
-		}
-		if val != nil && val.Elm != test.Expected {
-			t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
-		}
+			val, err := Invoke(context.Background(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
+			if err != nil {
+				t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
+			}
+			if val != nil && val.Elm != test.Expected {
+				t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
+			}
+			if val != nil && val.Elm2 != test.Expected2 {
+				t.Errorf("Elm2: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm2, test.Expected2)
+			}
+			if val != nil && val.Timestamp != test.ExpectedTime {
+				t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Timestamp, test.ExpectedTime)
+			}
+		})
 	}
 }
 

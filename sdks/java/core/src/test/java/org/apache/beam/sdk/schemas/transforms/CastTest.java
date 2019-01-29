@@ -17,15 +17,10 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
-import java.util.Objects;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.schemas.DefaultSchema;
-import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -33,140 +28,256 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 
 /** Tests for {@link Cast}. */
 public class CastTest {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient ExpectedException expectedException = ExpectedException.none();
 
   @Test
   @Category(NeedsRunner.class)
-  public void testProjection() throws Exception {
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Projection2.class);
-    PCollection<Projection2> pojos =
-        pipeline
-            .apply(Create.of(new Projection1()))
-            .apply(Cast.widening(outputSchema))
-            .apply(Convert.to(Projection2.class));
+  public void testProjection() {
+    Schema inputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT16),
+            Schema.Field.of("f1", Schema.FieldType.INT32),
+            Schema.Field.of("f2", Schema.FieldType.STRING));
 
-    PAssert.that(pojos).containsInAnyOrder(new Projection2());
+    // remove f0 and reorder f1 and f2
+    Schema outputSchema =
+        Schema.of(
+            Schema.Field.of("f2", Schema.FieldType.STRING),
+            Schema.Field.of("f1", Schema.FieldType.INT32));
+
+    Row input = Row.withSchema(inputSchema).addValues((short) 1, 2, "3").build();
+    Row expected = Row.withSchema(outputSchema).addValues("3", 2).build();
+
+    PCollection<Row> output =
+        pipeline
+            .apply(Create.of(input).withRowSchema(inputSchema))
+            .apply(Cast.widening(outputSchema));
+
+    PAssert.that(output).containsInAnyOrder(expected);
+
     pipeline.run();
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void testTypeWiden() throws Exception {
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden2.class);
+  public void testTypeWiden() {
+    Schema inputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT16),
+            Schema.Field.of("f1", Schema.FieldType.INT32));
 
-    PCollection<TypeWiden2> pojos =
+    Schema outputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT32),
+            Schema.Field.of("f1", Schema.FieldType.INT64));
+
+    Row input = Row.withSchema(inputSchema).addValues((short) 1, 2).build();
+    Row expected = Row.withSchema(outputSchema).addValues(1, 2L).build();
+
+    PCollection<Row> output =
         pipeline
-            .apply(Create.of(new TypeWiden1()))
-            .apply(Cast.widening(outputSchema))
-            .apply(Convert.to(TypeWiden2.class));
+            .apply(Create.of(input).withRowSchema(inputSchema))
+            .apply(Cast.widening(outputSchema));
 
-    PAssert.that(pojos).containsInAnyOrder(new TypeWiden2());
+    PAssert.that(output).containsInAnyOrder(expected);
+
     pipeline.run();
   }
 
   @Test
-  @Category(NeedsRunner.class)
-  public void testTypeNarrow() throws Exception {
-    // narrowing is the opposite of widening
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden1.class);
+  public void testTypeWidenFail() {
+    Schema inputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT16),
+            Schema.Field.of("f1", Schema.FieldType.INT64));
 
-    PCollection<TypeWiden1> pojos =
-        pipeline
-            .apply(Create.of(new TypeWiden2()))
-            .apply(Cast.narrowing(outputSchema))
-            .apply(Convert.to(TypeWiden1.class));
+    Schema outputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT32),
+            Schema.Field.of("f1", Schema.FieldType.INT32));
 
-    PAssert.that(pojos).containsInAnyOrder(new TypeWiden1());
-    pipeline.run();
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  @Category(NeedsRunner.class)
-  public void testTypeNarrowFail() throws Exception {
-    // narrowing is the opposite of widening
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden2.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(TypeWiden1.class);
-
-    Cast.narrowing(outputSchema).verifyCompatibility(inputSchema);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testWeakedNullable() throws Exception {
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
-
-    PCollection<Nullable2> pojos =
-        pipeline
-            .apply(Create.of(new Nullable1()))
-            .apply(Cast.narrowing(outputSchema))
-            .apply(Convert.to(Nullable2.class));
-
-    PAssert.that(pojos).containsInAnyOrder(new Nullable2());
-    pipeline.run();
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  @Category(NeedsRunner.class)
-  public void testWeakedNullableFail() throws Exception {
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(containsString("f1: Can't cast 'INT64' to 'INT32'"));
 
     Cast.widening(outputSchema).verifyCompatibility(inputSchema);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void testIgnoreNullable() throws Exception {
-    // ignoring nullable is opposite of weakening
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
+  public void testTypeNarrow() {
+    // the same as testTypeWiden, but to casting to the opposite direction
 
-    PCollection<Nullable1> pojos =
+    Schema inputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT32),
+            Schema.Field.of("f1", Schema.FieldType.INT64));
+
+    Schema outputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT16),
+            Schema.Field.of("f1", Schema.FieldType.INT32));
+
+    Row input = Row.withSchema(inputSchema).addValues(1, 2L).build();
+    Row expected = Row.withSchema(outputSchema).addValues((short) 1, 2).build();
+
+    PCollection<Row> output =
         pipeline
-            .apply(Create.of(new Nullable2()))
-            .apply(Cast.narrowing(outputSchema))
-            .apply(Convert.to(Nullable1.class));
+            .apply(Create.of(input).withRowSchema(inputSchema))
+            .apply(Cast.narrowing(outputSchema));
 
-    PAssert.that(pojos).containsInAnyOrder(new Nullable1());
+    PAssert.that(output).containsInAnyOrder(expected);
+
     pipeline.run();
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   @Category(NeedsRunner.class)
-  public void testIgnoreNullableFail() throws Exception {
-    // ignoring nullable is opposite of weakening
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(Nullable2.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(Nullable1.class);
+  public void testWeakenNullable() {
+    Schema inputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT16),
+            Schema.Field.of("f1", Schema.FieldType.INT32));
+
+    Schema outputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT32),
+            Schema.Field.nullable("f1", Schema.FieldType.INT64));
+
+    Row input = Row.withSchema(inputSchema).addValues((short) 1, 2).build();
+    Row expected = Row.withSchema(outputSchema).addValues(1, 2L).build();
+
+    PCollection<Row> output =
+        pipeline
+            .apply(Create.of(input).withRowSchema(inputSchema))
+            .apply(Cast.widening(outputSchema));
+
+    PAssert.that(output).containsInAnyOrder(expected);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testIgnoreNullable() {
+    // the opposite of testWeakenNullable
+
+    Schema inputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT32),
+            Schema.Field.nullable("f1", Schema.FieldType.INT64));
+
+    Schema outputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT16),
+            Schema.Field.nullable("f1", Schema.FieldType.INT32));
+
+    Row input = Row.withSchema(inputSchema).addValues(1, 2L).build();
+    Row expected = Row.withSchema(outputSchema).addValues((short) 1, 2).build();
+
+    PCollection<Row> output =
+        pipeline
+            .apply(Create.of(input).withRowSchema(inputSchema))
+            .apply(Cast.narrowing(outputSchema));
+
+    PAssert.that(output).containsInAnyOrder(expected);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testIgnoreNullableFail() {
+    // the opposite of testWeakenNullable
+
+    Schema inputSchema = Schema.of(Schema.Field.nullable("f0", Schema.FieldType.INT32));
+
+    Schema outputSchema = Schema.of(Schema.Field.of("f0", Schema.FieldType.INT64));
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        containsString("f0: Can't cast nullable field to non-nullable field"));
 
     Cast.widening(outputSchema).verifyCompatibility(inputSchema);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void testComplexCast() throws Exception {
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(All2.class);
+  public void testCastInnerRow() {
+    Schema innerInputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT16),
+            Schema.Field.of("f1", Schema.FieldType.INT32));
 
-    PCollection<All2> pojos =
+    Schema inputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.row(innerInputSchema)),
+            Schema.Field.of("f1", Schema.FieldType.INT32));
+
+    Schema innerOutputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT32),
+            Schema.Field.of("f1", Schema.FieldType.INT64));
+
+    Schema outputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.row(innerOutputSchema)),
+            Schema.Field.of("f1", Schema.FieldType.INT64));
+
+    Row input =
+        Row.withSchema(inputSchema)
+            .addValue(Row.withSchema(innerInputSchema).addValues((short) 1, 2).build())
+            .addValue(42)
+            .build();
+
+    Row expected =
+        Row.withSchema(outputSchema)
+            .addValue(Row.withSchema(innerOutputSchema).addValues(1, 2L).build())
+            .addValue(42L)
+            .build();
+
+    PCollection<Row> output =
         pipeline
-            .apply(Create.of(new All1()))
-            .apply(Cast.narrowing(outputSchema))
-            .apply(Convert.to(All2.class));
+            .apply(Create.of(input).withRowSchema(inputSchema))
+            .apply(Cast.widening(outputSchema));
 
-    PAssert.that(pojos).containsInAnyOrder(new All2());
+    PAssert.that(output).containsInAnyOrder(expected);
+
     pipeline.run();
   }
 
-  @Test(expected = IllegalArgumentException.class)
-  @Category(NeedsRunner.class)
-  public void testComplexCastFail() throws Exception {
-    Schema inputSchema = pipeline.getSchemaRegistry().getSchema(All1.class);
-    Schema outputSchema = pipeline.getSchemaRegistry().getSchema(All2.class);
+  @Test
+  public void testCastInnerRowFail() {
+    Schema innerInputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT16),
+            Schema.Field.of("f1", Schema.FieldType.INT64));
+
+    Schema inputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.row(innerInputSchema)),
+            Schema.Field.of("f1", Schema.FieldType.INT32));
+
+    Schema innerOutputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT32),
+            Schema.Field.of("f1", Schema.FieldType.INT32));
+
+    Schema outputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.row(innerOutputSchema)),
+            Schema.Field.of("f1", Schema.FieldType.INT64));
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(containsString("f0.f1: Can't cast 'INT64' to 'INT32'"));
 
     Cast.widening(outputSchema).verifyCompatibility(inputSchema);
   }
@@ -191,299 +302,5 @@ public class CastTest {
             Schema.FieldType.map(Schema.FieldType.INT32, Schema.FieldType.INT64));
 
     assertEquals(ImmutableMap.of(1, 1L, 2, 2L, 3, 3L), output);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testIgnoreNullFail() {
-    Schema inputSchema = Schema.of(Schema.Field.nullable("f0", Schema.FieldType.INT32));
-    Schema outputSchema = Schema.of(Schema.Field.of("f0", Schema.FieldType.INT32));
-
-    Cast.castRow(Row.withSchema(inputSchema).addValue(null).build(), inputSchema, outputSchema);
-  }
-
-  /** POJO for {@link CastTest#testProjection()}. */
-  @DefaultSchema(JavaFieldSchema.class)
-  @VisibleForTesting
-  public static class Projection1 {
-
-    public Short field1 = 42;
-    public Integer field2 = 1337;
-    public String field3 = "field";
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final Projection1 pojo1 = (Projection1) o;
-      return Objects.equals(field1, pojo1.field1) && Objects.equals(field2, pojo1.field2);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field1, field2);
-    }
-
-    @Override
-    public String toString() {
-      return "Projection1{"
-          + "field1="
-          + field1
-          + ", field2="
-          + field2
-          + ", field3='"
-          + field3
-          + '\''
-          + '}';
-    }
-  }
-
-  /** POJO for {@link CastTest#testProjection()}. */
-  @DefaultSchema(JavaFieldSchema.class)
-  @VisibleForTesting
-  public static class Projection2 {
-    public Integer field2 = 1337;
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final Projection2 that = (Projection2) o;
-      return Objects.equals(field2, that.field2);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field2);
-    }
-
-    @Override
-    public String toString() {
-      return "Projection2{" + "field2=" + field2 + '}';
-    }
-  }
-
-  /** POJO for {@link CastTest#testTypeWiden()}. */
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class TypeWiden1 {
-
-    public Short field1 = 42;
-    public Integer field2 = 1337;
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final TypeWiden1 typeWiden1 = (TypeWiden1) o;
-      return Objects.equals(field1, typeWiden1.field1) && Objects.equals(field2, typeWiden1.field2);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field1, field2);
-    }
-
-    @Override
-    public String toString() {
-      return "TypeWiden1{" + "field1=" + field1 + ", field2=" + field2 + '}';
-    }
-  }
-
-  /** POJO for {@link CastTest#testTypeWiden()}. */
-  @DefaultSchema(JavaFieldSchema.class)
-  @VisibleForTesting
-  public static class TypeWiden2 {
-
-    public Integer field1 = 42;
-    public Long field2 = 1337L;
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final TypeWiden2 typeWiden2 = (TypeWiden2) o;
-      return Objects.equals(field1, typeWiden2.field1) && Objects.equals(field2, typeWiden2.field2);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field1, field2);
-    }
-
-    @Override
-    public String toString() {
-      return "TypeWiden2{" + "field1=" + field1 + ", field2=" + field2 + '}';
-    }
-  }
-
-  /** POJO for {@link CastTest#testWeakedNullable()}. */
-  @DefaultSchema(JavaFieldSchema.class)
-  @VisibleForTesting
-  public static class Nullable1 {
-    public Integer field1 = 42;
-    public @Nullable Long field2 = null;
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final Nullable1 nullable1 = (Nullable1) o;
-      return Objects.equals(field1, nullable1.field1) && Objects.equals(field2, nullable1.field2);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field1, field2);
-    }
-
-    @Override
-    public String toString() {
-      return "Nullable1{" + "field1=" + field1 + ", field2=" + field2 + '}';
-    }
-  }
-
-  /** POJO for {@link CastTest#testWeakedNullable()}. */
-  @DefaultSchema(JavaFieldSchema.class)
-  @VisibleForTesting
-  public static class Nullable2 {
-    public @Nullable Integer field1 = 42;
-    public @Nullable Long field2 = null;
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final Nullable2 nullable2 = (Nullable2) o;
-      return Objects.equals(field1, nullable2.field1) && Objects.equals(field2, nullable2.field2);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field1, field2);
-    }
-
-    @Override
-    public String toString() {
-      return "Nullable2{" + "field1=" + field1 + ", field2=" + field2 + '}';
-    }
-  }
-
-  /** POJO for {@link CastTest#testComplexCast()}. */
-  @DefaultSchema(JavaFieldSchema.class)
-  @VisibleForTesting
-  public static class All1 {
-    public Projection1 field1 = new Projection1();
-    public TypeWiden1 field2 = new TypeWiden1();
-    public TypeWiden2 field3 = new TypeWiden2();
-    public Nullable1 field4 = new Nullable1();
-    public @Nullable Nullable2 field5 = new Nullable2();
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final All1 all1 = (All1) o;
-      return Objects.equals(field1, all1.field1)
-          && Objects.equals(field2, all1.field2)
-          && Objects.equals(field3, all1.field3)
-          && Objects.equals(field4, all1.field4)
-          && Objects.equals(field5, all1.field5);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field1, field2, field3, field4, field5);
-    }
-
-    @Override
-    public String toString() {
-      return "All1{"
-          + "field1="
-          + field1
-          + ", field2="
-          + field2
-          + ", field3="
-          + field3
-          + ", field4="
-          + field4
-          + ", field5="
-          + field5
-          + '}';
-    }
-  }
-
-  /** POJO for {@link CastTest#testComplexCast()}. */
-  @DefaultSchema(JavaFieldSchema.class)
-  @VisibleForTesting
-  public static class All2 {
-    public Projection2 field1 = new Projection2();
-    public TypeWiden2 field2 = new TypeWiden2();
-    public TypeWiden1 field3 = new TypeWiden1();
-    public Nullable2 field4 = new Nullable2();
-    public @Nullable Nullable1 field5 = new Nullable1();
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final All2 all2 = (All2) o;
-      return Objects.equals(field1, all2.field1)
-          && Objects.equals(field2, all2.field2)
-          && Objects.equals(field3, all2.field3)
-          && Objects.equals(field4, all2.field4)
-          && Objects.equals(field5, all2.field5);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field1, field2, field3, field4, field5);
-    }
-
-    @Override
-    public String toString() {
-      return "All2{"
-          + "field1="
-          + field1
-          + ", field2="
-          + field2
-          + ", field3="
-          + field3
-          + ", field4="
-          + field4
-          + ", field5="
-          + field5
-          + '}';
-    }
   }
 }

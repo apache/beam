@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Synthetic"
 ext.summary = "Generators of Synthetic IO for Testing."
@@ -30,7 +30,7 @@ dependencies {
   shadow library.java.jackson_databind
   shadow library.java.guava
 
-  testCompile library.java.guava
+  shadowTest library.java.vendored_guava_20_0
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

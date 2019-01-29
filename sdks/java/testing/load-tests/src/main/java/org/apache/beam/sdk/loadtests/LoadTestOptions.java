@@ -17,15 +17,17 @@
  */
 package org.apache.beam.sdk.loadtests;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 
 /** Common interface for all load test options. */
-public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions {
+public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
   @Description("Options for synthetic source")
   @Validation.Required
@@ -53,6 +55,18 @@ public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions
   String getBigQueryTable();
 
   void setBigQueryTable(String tableName);
+
+  @Description("Timeout for a load test expressed in minutes")
+  @Default.Integer(240)
+  Integer getLoadTestTimeout();
+
+  void setLoadTestTimeout(Integer timeout);
+
+  @Description("Window duration. If not set global windows will be used.")
+  @Nullable
+  Long getInputWindowDurationSec();
+
+  void setInputWindowDurationSec(Long windowSizeSec);
 
   static <T extends LoadTestOptions> T readFromArgs(String[] args, Class<T> optionsClass) {
     return PipelineOptionsFactory.fromArgs(args).withValidation().as(optionsClass);

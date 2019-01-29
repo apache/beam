@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
@@ -27,7 +27,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -63,6 +62,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -210,10 +210,7 @@ public class QueryablePipelineTest {
     PTransform parDoTransform = components.getTransformsOrThrow("par_do");
     String sideInputLocalName =
         getOnlyElement(
-            parDoTransform
-                .getInputsMap()
-                .entrySet()
-                .stream()
+            parDoTransform.getInputsMap().entrySet().stream()
                 .filter(entry -> !entry.getValue().equals(mainInputName))
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet()));

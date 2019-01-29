@@ -68,27 +68,6 @@ public class BigQueryClient {
     return new BigQueryClient(options.getService(), options.getProjectId(), dataset);
   }
 
-  /**
-   * Creates a new table with given schema when it not exists.
-   *
-   * @param tableName name of the desired table
-   * @param schema schema of consequent table fields (name, type pairs).
-   */
-  public void createTableIfNotExists(String tableName, Map<String, String> schema) {
-    TableId tableId = TableId.of(projectId, dataset, tableName);
-
-    if (client.getTable(tableId, FIELD_OPTIONS) == null) {
-      List<Field> schemaFields =
-          schema
-              .entrySet()
-              .stream()
-              .map(entry -> Field.of(entry.getKey(), LegacySQLTypeName.valueOf(entry.getValue())))
-              .collect(Collectors.toList());
-
-      createTable(tableId, Schema.of(schemaFields));
-    }
-  }
-
   private void createTable(TableId tableId, Schema schema) {
     TableInfo tableInfo =
         TableInfo.newBuilder(tableId, StandardTableDefinition.of(schema))
@@ -119,6 +98,18 @@ public class BigQueryClient {
     insertAll(Collections.singletonList(row), table);
   }
 
+  /**
+   * Inserts rows to BigQuery table. Creates table using the given schema if the table does not
+   * exist.
+   *
+   * @see #insertRow(Map, String)
+   * @see #createTableIfNotExists(String, Map) for more details.
+   */
+  public void insertAll(Collection<Map<String, ?>> rows, Map<String, String> schema, String table) {
+    createTableIfNotExists(table, schema);
+    insertAll(rows, table);
+  }
+
   /** Inserts multiple rows of the same schema to a BigQuery table. */
   public void insertAll(Collection<Map<String, ?>> rows, String table) {
     TableId tableId = TableId.of(projectId, dataset, table);
@@ -139,6 +130,25 @@ public class BigQueryClient {
           format(
               "The following errors occurred while inserting to BigQuery: %s",
               response.getInsertErrors()));
+    }
+  }
+
+  /**
+   * Creates a new table with given schema when it not exists.
+   *
+   * @param tableName name of the desired table
+   * @param schema schema of consequent table fields (name, type pairs).
+   */
+  public void createTableIfNotExists(String tableName, Map<String, String> schema) {
+    TableId tableId = TableId.of(projectId, dataset, tableName);
+
+    if (client.getTable(tableId, FIELD_OPTIONS) == null) {
+      List<Field> schemaFields =
+          schema.entrySet().stream()
+              .map(entry -> Field.of(entry.getKey(), LegacySQLTypeName.valueOf(entry.getValue())))
+              .collect(Collectors.toList());
+
+      createTable(tableId, Schema.of(schemaFields));
     }
   }
 }

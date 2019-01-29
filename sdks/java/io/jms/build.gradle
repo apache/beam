@@ -24,7 +24,7 @@ ext.summary = """IO to read and write to JMS (Java Messaging Service)
 destinations (queues and topics)."""
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time

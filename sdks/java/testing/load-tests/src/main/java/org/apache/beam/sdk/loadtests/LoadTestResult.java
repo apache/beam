@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.loadtests;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testutils.TestResult;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /** POJO that represents load test results. */
 public class LoadTestResult implements TestResult {
@@ -39,12 +39,12 @@ public class LoadTestResult implements TestResult {
   }
 
   /** Constructs {@link LoadTestResult} from {@link PipelineResult}. */
-  static LoadTestResult create(PipelineResult result, String namespace, long now) {
+  static LoadTestResult create(PipelineResult result, String namespace, long nowInMillis) {
     MetricsReader reader = new MetricsReader(result, namespace);
 
     return new LoadTestResult(
-        now,
-        reader.getEndTimeMetric("runtime") - reader.getStartTimeMetric("runtime"),
+        nowInMillis / 1000,
+        (reader.getEndTimeMetric("runtime") - reader.getStartTimeMetric("runtime")) / 1000,
         reader.getCounterMetric("totalBytes.count"));
   }
 
@@ -61,7 +61,7 @@ public class LoadTestResult implements TestResult {
     return ImmutableMap.<String, Object>builder()
         .put("timestamp", timestamp)
         .put("runtime", runtime)
-        .put("totalBytesCount", totalBytesCount)
+        .put("total_bytes_count", totalBytesCount)
         .build();
   }
 }
