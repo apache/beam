@@ -822,7 +822,7 @@ public class CassandraIO {
 
   private static class WriteFn<T> extends DoFn<T, Void> {
     private final Write<T> spec;
-    private Writer<T> writer;
+    private Mutator<T> writer;
 
     WriteFn(Write<T> spec) {
       this.spec = spec;
@@ -830,12 +830,12 @@ public class CassandraIO {
 
     @Setup
     public void setup() {
-      writer = new Writer<>(spec);
+      writer = new Mutator<>(spec, Mapper::saveAsync, "writes");
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws ExecutionException, InterruptedException {
-      writer.write(c.element());
+      writer.mutate(c.element());
     }
 
     @Teardown
@@ -847,7 +847,7 @@ public class CassandraIO {
 
   private static class DeleteFn<T> extends DoFn<T, Void> {
     private final Write<T> spec;
-    private Deleter<T> deleter;
+    private Mutator<T> deleter;
 
     DeleteFn(Write<T> spec) {
       this.spec = spec;
@@ -855,12 +855,12 @@ public class CassandraIO {
 
     @Setup
     public void setup() {
-      deleter = new Deleter<>(spec);
+      deleter = new Mutator<>(spec, Mapper::deleteAsync, "deletes");
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws ExecutionException, InterruptedException {
-      deleter.delete(c.element());
+      deleter.mutate(c.element());
     }
 
     @Teardown
@@ -901,14 +901,12 @@ public class CassandraIO {
 
 
   /** Mutator allowing to do side effects into Apache Cassandra database. */
-  abstract static class Mutator<T> {
+  private static class Mutator<T> {
     /**
      * The threshold of 100 concurrent async queries is a heuristic commonly used by the Apache
      * Cassandra community. There is no real gain to expect in tuning this value.
      */
     private static final int CONCURRENT_ASYNC_QUERIES = 100;
-
-    private final Write<T> spec;
 
     private final Cluster cluster;
     private final Session session;
@@ -921,7 +919,6 @@ public class CassandraIO {
         Write<T> spec,
         BiFunction<Mapper<T>, T, ListenableFuture<Void>> mutator,
         String operationName) {
-      this.spec = spec;
       this.cluster =
           getCluster(
               spec.hosts(),
@@ -979,29 +976,4 @@ public class CassandraIO {
       }
     }
   }
-
-  /** Writer storing an entity into Apache Cassandra database. */
-  private static class Writer<T> extends Mutator<T> {
-
-    Writer(Write<T> spec) {
-      super(spec, Mapper::saveAsync, "writes");
-    }
-
-    public void write(T entity) throws ExecutionException, InterruptedException {
-      mutate(entity);
-    }
-  }
-
-  /** Deleter storing an entity into Apache Cassandra database. */
-  private static class Deleter<T> extends Mutator<T> {
-
-    Deleter(Write<T> spec) {
-      super(spec, Mapper::deleteAsync, "deletes");
-    }
-
-    public void delete(T entity) throws ExecutionException, InterruptedException {
-      mutate(entity);
-    }
-  }
-
 }
