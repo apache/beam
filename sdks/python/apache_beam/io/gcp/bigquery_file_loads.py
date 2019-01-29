@@ -18,6 +18,8 @@
 """
 Functionality to perform file loads into BigQuery for Batch and Streaming
 pipelines.
+
+NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES
 """
 
 from __future__ import absolute_import
@@ -84,11 +86,15 @@ class _AppendDestinationsFn(beam.DoFn):
   Experimental; no backwards compatibility guarantees.
   """
 
-  def __init__(self, table_reference):
-    self.table_reference = table_reference
+  def __init__(self, destination):
+    if callable(destination):
+      self.destination = destination
+    else:
+      self.destination = lambda x: destination
 
   def process(self, element):
-    yield (self.table_reference, element)
+    logging.info((self.destination(element), element))
+    yield (self.destination(element), element)
 
 
 class _ShardDestinations(beam.DoFn):
@@ -319,7 +325,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
   def __init__(
       self,
-      table_reference,
+      destination,
       schema=None,
       gs_location=None,
       create_disposition=None,
@@ -328,7 +334,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       max_file_size=_DEFAULT_MAX_FILE_SIZE,
       max_files_per_bundle=_DEFAULT_MAX_WRITERS_PER_BUNDLE,
       test_client=None):
-    self.table_reference = table_reference
+    self.destination = destination
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.max_file_size = max_file_size
@@ -354,7 +360,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     outputs = (
         pcoll
         | "AppendDestination" >> beam.ParDo(_AppendDestinationsFn(
-            self.table_reference))
+            self.destination))
         | beam.ParDo(
             WriteRecordsToFile(max_files_per_bundle=self.max_files_per_bundle,
                                max_file_size=self.max_file_size,

@@ -79,7 +79,7 @@ _DISTINCT_DESTINATIONS = list(
     set([elm[0] for elm in _DESTINATION_ELEMENT_PAIRS]))
 
 
-_ELEMENTS = list([elm[1] for elm in _DESTINATION_ELEMENT_PAIRS])
+_ELEMENTS = list([json.loads(elm[1]) for elm in _DESTINATION_ELEMENT_PAIRS])
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -251,7 +251,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
   def test_records_traverse_transform_with_mocks(self):
-    table_reference = 'project1:dataset1.table1'
+    destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
@@ -270,7 +270,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Insert.return_value = result_job
 
     transform = bqfl.BigQueryBatchFileLoads(
-        table_reference,
+        destination,
         gs_location=self._new_tempdir(),
         test_client=bq_client)
 
@@ -298,7 +298,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                   label='CountFiles')
 
       assert_that(destinations,
-                  equal_to([table_reference]), label='CheckDestinations')
+                  equal_to([destination]), label='CheckDestinations')
 
       assert_that(jobs,
                   equal_to([job_reference]), label='CheckJobs')
@@ -351,14 +351,46 @@ class BigQueryFileLoadsIT(unittest.TestCase):
       input = p | beam.Create(_NAME_LANGUAGE_ELEMENTS)
       _ = (input
            | "LoadWithSchema" >> bqfl.BigQueryBatchFileLoads(
-               table_reference=output_table_1,
+               destination=output_table_1,
                schema=self.BIG_QUERY_SCHEMA,
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
       _ = (input
            | "LoadWithoutSchema" >> bqfl.BigQueryBatchFileLoads(
-               table_reference=output_table_2,
+               destination=output_table_2,
+               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+
+  @attr('IT')
+  def test_multiple_destinations_transform(self):
+    output_table_1 = '%s%s' % (self.output_table, 1)
+    output_table_2 = '%s%s' % (self.output_table, 2)
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_1,
+            data=[(d['name'], d['language'])
+                  for d in _ELEMENTS
+                  if 'language' in d]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_2,
+            data=[(d['name'], d['foundation'])
+                  for d in _ELEMENTS
+                  if 'foundation' in d])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=all_of(*pipeline_verifiers))
+
+    with beam.Pipeline(argv=args) as p:
+      input = p | beam.Create(_ELEMENTS)
+
+      _ = (input |
+           "WriteWithMultipleDests" >> bqfl.BigQueryBatchFileLoads(
+               destination=lambda x: (output_table_1
+                                      if 'language' in x
+                                      else output_table_2),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
