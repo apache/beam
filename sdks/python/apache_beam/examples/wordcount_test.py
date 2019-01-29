@@ -52,7 +52,7 @@ class WordCountTest(unittest.TestCase):
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
-        match = re.search(r'(\S+): ([0-9]+)', line.decode('utf-8'))
+        match = re.search(r'(\S+): ([0-9]+)', line)
         if match is not None:
           results.append((match.group(1), int(match.group(2))))
     self.assertEqual(sorted(results), sorted(expected_words.items()))
