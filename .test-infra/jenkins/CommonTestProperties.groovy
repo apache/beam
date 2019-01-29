@@ -20,7 +20,7 @@ class CommonTestProperties {
     enum Runner {
         DATAFLOW("DataflowRunner", ":beam-runners-google-cloud-dataflow-java"),
         SPARK("SparkRunner", ":beam-runners-spark"),
-        FLINK("FlinkRunner", ":beam-runners-flink_2.11"),
+        FLINK("TestFlinkRunner", ":beam-runners-flink_2.11"),
         DIRECT("DirectRunner", ":beam-runners-direct-java")
 
         private final String option
