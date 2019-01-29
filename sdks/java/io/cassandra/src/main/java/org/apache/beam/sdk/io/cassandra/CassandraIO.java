@@ -247,7 +247,7 @@ public class CassandraIO {
     public PCollection<T> expand(PBegin input) {
       checkArgument(
           (hosts() != null && port() != null),
-          "Either withHosts() and withPort(), is required");
+          "WithHosts() and withPort() are required");
       checkArgument(keyspace() != null, "withKeyspace() is required");
       checkArgument(table() != null, "withTable() is required");
       checkArgument(entity() != null, "withEntity() is required");
@@ -447,7 +447,7 @@ public class CassandraIO {
       builder.addIfNotNull(DisplayData.item("localDc", spec.localDc()));
       builder.addIfNotNull(DisplayData.item("consistencyLevel", spec.consistencyLevel()));
     }
-    // ------------- CASSANDRA UTIL METHODS ---------------//
+    // ------------- CASSANDRA SOURCE UTIL METHODS ---------------//
 
     /**
      * Gets the list of token ranges that a table occupies on a give Cassandra node.
