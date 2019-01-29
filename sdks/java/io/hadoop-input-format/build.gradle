@@ -67,7 +67,7 @@ dependencies {
     exclude group: "org.apache.storm", module: "storm-core"
   }
   testCompile "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver"
-  testCompile "org.apache.cassandra:cassandra-all:3.9"
+  testCompile "org.apache.cassandra:cassandra-all:3.11.3"
   testCompile "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver"
   testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
   testCompile library.java.postgres
