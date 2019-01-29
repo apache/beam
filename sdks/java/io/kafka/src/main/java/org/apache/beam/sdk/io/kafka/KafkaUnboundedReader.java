@@ -706,8 +706,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   }
 
   @VisibleForTesting
-  public Map<String, Object> getOffsetConsumerConfig() {
+  Map<String, Object> getOffsetConsumerConfig() {
     Map<String, Object> offsetConsumerConfig = new HashMap<>(source.getSpec().getConsumerConfig());
+    offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+
     Object groupId = source.getSpec().getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG);
     // override group_id and disable auto_commit so that it does not interfere with main consumer
     String offsetGroupId =
@@ -720,7 +722,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       offsetConsumerConfig.putAll(source.getSpec().getOffsetConsumerConfig());
     }
 
-    offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
     // Force read isolation level to 'read_uncommitted' for offset consumer. This consumer
     // fetches latest offset for two reasons : (a) to calculate backlog (number of records
     // yet to be consumed) (b) to advance watermark if the backlog is zero. The right thing to do
