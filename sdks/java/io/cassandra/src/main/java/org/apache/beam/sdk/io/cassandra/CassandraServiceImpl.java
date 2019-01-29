@@ -390,7 +390,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   /** Writer storing an entity into Apache Cassandra database. */
   class WriterImpl extends MutatorImpl implements Writer<T> {
 
-    WriterImpl(CassandraIO.Mutate<T> spec) {
+    WriterImpl(CassandraIO.Write<T> spec) {
       super(spec, Mapper::saveAsync, "writes");
     }
 
@@ -408,7 +408,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
      */
     private static final int CONCURRENT_ASYNC_QUERIES = 100;
 
-    private final CassandraIO.Mutate<T> spec;
+    private final CassandraIO.Write<T> spec;
 
     private final Cluster cluster;
     private final Session session;
@@ -418,7 +418,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     private final String operationName;
 
     MutatorImpl(
-        CassandraIO.Mutate<T> spec,
+        CassandraIO.Write<T> spec,
         BiFunction<Mapper<T>, T, ListenableFuture<Void>> mutator,
         String operationName) {
       this.spec = spec;
@@ -438,7 +438,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     }
 
     /**
-     * Mutate the entity to the Cassandra instance, using {@link Mapper} obtained with the {@link
+     * Write the entity to the Cassandra instance, using {@link Mapper} obtained with the {@link
      * MappingManager}. This method uses {@link Mapper#saveAsync(Object)} method, which is
      * asynchronous. Beam will wait for all futures to complete, to guarantee all writes have
      * succeeded.
@@ -481,14 +481,14 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   }
 
   @Override
-  public Writer<T> createWriter(CassandraIO.Mutate<T> spec) {
+  public Writer<T> createWriter(CassandraIO.Write<T> spec) {
     return new WriterImpl(spec);
   }
 
   /** Deleter storing an entity into Apache Cassandra database. */
   protected class DeleterImpl extends MutatorImpl implements Deleter<T> {
 
-    DeleterImpl(CassandraIO.Mutate<T> spec) {
+    DeleterImpl(CassandraIO.Write<T> spec) {
       super(spec, Mapper::deleteAsync, "deletes");
     }
 
@@ -499,7 +499,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   }
 
   @Override
-  public Deleter<T> createDeleter(CassandraIO.Mutate<T> spec) {
+  public Deleter<T> createDeleter(CassandraIO.Write<T> spec) {
     return new DeleterImpl(spec);
   }
 }

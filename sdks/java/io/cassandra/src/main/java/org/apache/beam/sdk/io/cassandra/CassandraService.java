@@ -38,7 +38,7 @@ interface CassandraService<T> extends Serializable {
   List<BoundedSource<T>> split(CassandraIO.Read<T> spec, long desiredBundleSizeBytes);
 
   /** Create a {@link Writer} that writes entities into the Cassandra instance. */
-  Writer<T> createWriter(CassandraIO.Mutate<T> spec);
+  Writer<T> createWriter(CassandraIO.Write<T> spec);
 
   /** Writer for an entity. */
   interface Writer<T> extends AutoCloseable {
@@ -50,7 +50,7 @@ interface CassandraService<T> extends Serializable {
   }
 
   /** Create a {@link Writer} that writes entities into the Cassandra instance. */
-  Deleter<T> createDeleter(CassandraIO.Mutate<T> spec);
+  Deleter<T> createDeleter(CassandraIO.Write<T> spec);
 
   /** Deleter for an entity. */
   interface Deleter<T> extends AutoCloseable {
