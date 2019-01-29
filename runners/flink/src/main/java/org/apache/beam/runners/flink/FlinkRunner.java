@@ -63,7 +63,6 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
    * @return The newly created runner.
    */
   public static FlinkRunner fromOptions(PipelineOptions options) {
-    options.setRunner(FlinkRunner.class);
     FlinkPipelineOptions flinkOptions =
         PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
     ArrayList<String> missing = new ArrayList<>();
