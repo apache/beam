@@ -611,6 +611,23 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     """
     raise NotImplementedError(str(self))
 
+  def compact_accumulator(self, accumulator, *args, **kwargs):
+    """Optionally returns a more compact represenation of the accumulator.
+
+    This is called before an accumulator is sent across the wire, and can
+    be useful in cases where values are buffered or otherwise lazily
+    kept unprocessed when added to the accumulator.  Should return an
+    equivalent, though possibly modified, accumulator.
+
+    By default returns the accumulator unmodified.
+
+    Args:
+      accumulator: the current accumulator
+      *args: Additional arguments and side inputs.
+      **kwargs: Additional arguments and side inputs.
+    """
+    return accumulator
+
   def extract_output(self, accumulator, *args, **kwargs):
     """Return result of converting accumulator into the output value.
 
@@ -673,9 +690,9 @@ class CallableWrapperCombineFn(CombineFn):
   The purpose of this class is to conveniently wrap simple functions and use
   them in Combine transforms.
   """
-  _EMPTY = object()
+  _DEFAULT_BUFFER_SIZE = 10
 
-  def __init__(self, fn):
+  def __init__(self, fn, buffer_size=_DEFAULT_BUFFER_SIZE):
     """Initializes a CallableFn object wrapping a callable.
 
     Args:
@@ -692,6 +709,7 @@ class CallableWrapperCombineFn(CombineFn):
 
     super(CallableWrapperCombineFn, self).__init__()
     self._fn = fn
+    self._buffer_size = buffer_size
 
   def display_data(self):
     return {'fn_dd': self._fn}
@@ -700,37 +718,41 @@ class CallableWrapperCombineFn(CombineFn):
     return "CallableWrapperCombineFn(%s)" % self._fn
 
   def create_accumulator(self, *args, **kwargs):
-    return self._EMPTY
+    return []
 
   def add_input(self, accumulator, element, *args, **kwargs):
-    if accumulator is self._EMPTY:
-      return element
-    return self._fn([accumulator, element], *args, **kwargs)
+    accumulator.append(element)
+    if len(accumulator) > self._buffer_size:
+      accumulator = [self._fn(accumulator, *args, **kwargs)]
+    return accumulator
 
   def add_inputs(self, accumulator, elements, *args, **kwargs):
-    if accumulator is self._EMPTY:
-      return self._fn(elements, *args, **kwargs)
-    elif isinstance(elements, (list, tuple)):
-      return self._fn([accumulator] + list(elements), *args, **kwargs)
-
-    def union():
-      yield accumulator
-      for e in elements:
-        yield e
-    return self._fn(union(), *args, **kwargs)
+    accumulator.extend(elements)
+    if len(accumulator) > self._buffer_size:
+      accumulator = [self._fn(accumulator, *args, **kwargs)]
+    return accumulator
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
-    filter_fn = lambda x: x is not self._EMPTY
-
-    class ReiterableNonEmptyAccumulators(object):
+    class ReiterableChain(object):
       def __iter__(self):
-        return filter(filter_fn, accumulators)
+        for accumulator in accumulators:
+          for item in accumulator:
+            yield item
+      def __bool__(self):
+        for accumulator in accumulators:
+          for item in accumulator:
+            return True
+        return False
+    return [self._fn(ReiterableChain(), *args, **kwargs)]
 
-    # It's (weakly) assumed that self._fn is associative.
-    return self._fn(ReiterableNonEmptyAccumulators(), *args, **kwargs)
+  def compact_accumulator(self, accumulator, *args, **kwargs):
+    if len(accumulator) <= 1:
+      return accumulator
+    else:
+      return [self._fn(accumulator, *args, **kwargs)]
 
   def extract_output(self, accumulator, *args, **kwargs):
-    return self._fn(()) if accumulator is self._EMPTY else accumulator
+    return self._fn(accumulator, *args, **kwargs)
 
   def default_type_hints(self):
     fn_hints = get_type_hints(self._fn)
