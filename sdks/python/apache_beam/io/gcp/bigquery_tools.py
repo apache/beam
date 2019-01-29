@@ -136,6 +136,8 @@ def parse_table_reference(table, dataset=None, project=None):
 
   if isinstance(table, bigquery.TableReference):
     return table
+  elif callable(table):
+    return table
 
   table_reference = bigquery.TableReference()
   # If dataset argument is not specified, the expectation is that the

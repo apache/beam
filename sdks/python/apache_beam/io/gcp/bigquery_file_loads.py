@@ -36,6 +36,7 @@ import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.options import value_provider as vp
 
 ONE_TERABYTE = (1 << 40)
@@ -65,6 +66,9 @@ def _generate_file_prefix(pipeline_gcs_location):
 
 def _make_new_file_writer(file_prefix, destination):
   # TODO: Sanitize destination (or generate hash name for it?)
+  if isinstance(destination, bigquery_api.TableReference):
+    destination = '%s:%s.%s' % (
+        destination.projectId, destination.datasetId, destination.tableId)
 
   directory = fs.FileSystems.join(file_prefix, destination)
 
@@ -237,7 +241,7 @@ class TriggerLoadJobs(beam.DoFn):
     result = {'create_disposition': self.create_disposition,
               'write_disposition': self.write_disposition}
     if self.schema is not None:
-      result['schema'] = self.schema
+      result['schema'] = str(self.schema)
     else:
       result['schema'] = 'AUTODETECT'
 
@@ -256,13 +260,10 @@ class TriggerLoadJobs(beam.DoFn):
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
-    if self.schema:
-      parsed_schema = bigquery_tools.parse_table_schema_from_json(self.schema)
-    else:
-      parsed_schema = None
+
     job_reference = self.bq_wrapper.perform_load_job(
         table_reference, list(files), job_name,
-        schema=parsed_schema,
+        schema=self.schema,
         write_disposition=self.write_disposition,
         create_disposition=self.create_disposition)
     logging.info("Triggered job %s to load data to BigQuery table %s.",

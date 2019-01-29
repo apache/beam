@@ -35,6 +35,7 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_file_loads as bqfl
+from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -269,7 +270,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     bq_client.jobs.Insert.return_value = result_job
 
-    transform = bqfl.BigQueryBatchFileLoads(
+    transform = bigquery.WriteToBigQuery(
         destination,
         gs_location=self._new_tempdir(),
         test_client=bq_client)
@@ -298,7 +299,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                   label='CountFiles')
 
       assert_that(destinations,
-                  equal_to([destination]), label='CheckDestinations')
+                  equal_to([bigquery_tools.parse_table_reference(destination)]),
+                  label='CheckDestinations')
 
       assert_that(jobs,
                   equal_to([job_reference]), label='CheckJobs')
@@ -350,15 +352,16 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_NAME_LANGUAGE_ELEMENTS)
       _ = (input
-           | "LoadWithSchema" >> bqfl.BigQueryBatchFileLoads(
-               destination=output_table_1,
-               schema=self.BIG_QUERY_SCHEMA,
+           | "LoadWithSchema" >> bigquery.WriteToBigQuery(
+               table=output_table_1,
+               schema=bigquery_tools.parse_table_schema_from_json(
+                   self.BIG_QUERY_SCHEMA),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
       _ = (input
-           | "LoadWithoutSchema" >> bqfl.BigQueryBatchFileLoads(
-               destination=output_table_2,
+           | "LoadWithoutSchema" >> bigquery.WriteToBigQuery(
+               table=output_table_2,
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
@@ -387,10 +390,10 @@ class BigQueryFileLoadsIT(unittest.TestCase):
       input = p | beam.Create(_ELEMENTS)
 
       _ = (input |
-           "WriteWithMultipleDests" >> bqfl.BigQueryBatchFileLoads(
-               destination=lambda x: (output_table_1
-                                      if 'language' in x
-                                      else output_table_2),
+           "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
+               table=lambda x: (output_table_1
+                                if 'language' in x
+                                else output_table_2),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 

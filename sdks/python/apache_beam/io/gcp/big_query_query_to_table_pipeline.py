@@ -62,12 +62,11 @@ def run_bq_pipeline(argv=None):
   (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
       query=known_args.query, use_standard_sql=known_args.use_standard_sql,
       kms_key=kms_key))
-   | 'write' >> beam.io.Write(beam.io.BigQuerySink(
+   | 'write' >> beam.io.WriteToBigQuery(
            known_args.output,
            schema=table_schema,
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
-           kms_key=known_args.kms_key)))
+           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   result = p.run()
   result.wait_until_finish()
