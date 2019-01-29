@@ -25,6 +25,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.EnumMap;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -85,6 +86,7 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.CallCredentials;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.auth.MoreCallCredentials;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
@@ -103,7 +105,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** gRPC client for communicating with Windmill Service or Windmill Appliance. */
+/** gRPC client for communicating with Windmill Service. */
 public class GrpcWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServer.class);
 
@@ -134,6 +136,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
   private ImmutableSet<HostAndPort> endpoints;
   private int logEveryNStreamFailures = 20;
   private Duration maxBackoff = MAX_BACKOFF;
+  private final ThrottleTimer throttleTimer = new ThrottleTimer();
   Random rand = new Random();
 
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry =
@@ -528,6 +531,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
     }
   }
 
+  @Override
+  public long getAndResetThrottleTime() {
+    return throttleTimer.getAndResetThrottleTime();
+  }
+
   private JobHeader makeHeader() {
     return JobHeader.newBuilder()
         .setJobId(options.getJobId())
@@ -586,7 +594,12 @@ public class GrpcWindmillServer extends WindmillServerStub {
     protected abstract void onNewStream();
     /** Returns whether there are any pending requests that should be retried on a stream break. */
     protected abstract boolean hasPendingRequests();
-
+    /**
+     * Called when the stream is throttled due to resource exhausted errors. Will be called for each
+     * resource exhausted error not just the first. onResponse() must stop throttling on reciept of
+     * the first good message.
+     */
+    protected abstract void startThrottle();
     /** Send a request to the server. */
     protected final synchronized void send(RequestT request) {
       requestObserver.onNext(request);
@@ -684,6 +697,13 @@ public class GrpcWindmillServer extends WindmillServerStub {
                 errorCount.get(),
                 t.toString());
           }
+          // If the stream was stopped due to a resource exhausted error then we are throttled.
+          if (t instanceof StatusRuntimeException) {
+            StatusRuntimeException statusExc = (StatusRuntimeException) t;
+            if (statusExc.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
+              startThrottle();
+            }
+          }
           try {
             long sleep = backoff.nextBackOffMillis();
             sleepUntil.set(Instant.now().getMillis() + sleep);
@@ -773,6 +793,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
     @Override
     protected void onResponse(StreamingGetWorkResponseChunk chunk) {
+      throttleTimer.stop(ThrottleTimer.RpcType.GetWork);
       long id = chunk.getStreamId();
 
       WorkItemBuffer buffer = buffers.computeIfAbsent(id, (Long l) -> new WorkItemBuffer());
@@ -812,6 +833,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
                   });
         }
       }
+    }
+
+    @Override
+    protected void startThrottle() {
+      throttleTimer.start(ThrottleTimer.RpcType.GetWork);
     }
 
     private class WorkItemBuffer {
@@ -941,6 +967,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       Preconditions.checkArgument(chunk.getRequestIdCount() == chunk.getSerializedResponseCount());
       Preconditions.checkArgument(
           chunk.getRemainingBytesForResponse() == 0 || chunk.getRequestIdCount() == 1);
+      throttleTimer.stop(ThrottleTimer.RpcType.GetData);
 
       for (int i = 0; i < chunk.getRequestIdCount(); ++i) {
         AppendableInputStream responseStream = pending.get(chunk.getRequestId(i));
@@ -950,6 +977,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
           responseStream.complete();
         }
       }
+    }
+
+    @Override
+    protected void startThrottle() {
+      throttleTimer.start(ThrottleTimer.RpcType.GetData);
     }
 
     @Override
@@ -1177,6 +1209,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
     @Override
     protected void onResponse(StreamingCommitResponse response) {
+      throttleTimer.stop(ThrottleTimer.RpcType.CommitWork);
+
       for (int i = 0; i < response.getRequestIdCount(); ++i) {
         long requestId = response.getRequestId(i);
         PendingRequest done = pending.remove(requestId);
@@ -1187,6 +1221,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
               (i < response.getStatusCount()) ? response.getStatus(i) : CommitStatus.OK);
         }
       }
+    }
+
+    @Override
+    protected void startThrottle() {
+      throttleTimer.start(ThrottleTimer.RpcType.CommitWork);
     }
 
     @Override
@@ -1410,6 +1449,85 @@ public class GrpcWindmillServer extends WindmillServerStub {
     @Override
     public void close() throws IOException {
       stream.close();
+    }
+  }
+
+  /**
+   * A set of stopwatches used to track the amount of time spent throttled due to Resource Exhausted
+   * errors. Throttle time is cumulative for all three rpcs types but not for all streams. So if
+   * GetWork and CommitWork are both blocked for x, totalTime will be 2x. However, if 2 GetWork
+   * streams are both blocked for x totalTime will be x. All methods are thread safe.
+   */
+  private static class ThrottleTimer {
+    enum RpcType {
+      GetWork,
+      CommitWork,
+      GetData
+    }
+    // This maps to -1 if the selected type is not currently being throttled or the time in
+    // milliseconds when throttling for this type started.
+    private final Map<RpcType, Long> startTimes = new EnumMap<RpcType, Long>(RpcType.class);
+    // This maps to the collected total throttle times since the last poll.  Throttle times are
+    // reported as a delta so these are cleared whenever they get reported.
+    private final Map<RpcType, Long> totalTimes = new EnumMap<RpcType, Long>(RpcType.class);
+
+    public ThrottleTimer() {
+      // Methods assume all enums map to a valid value so initialize those now.
+      for (RpcType type : RpcType.values()) {
+        resetStartTime(type);
+        totalTimes.put(type, Long.valueOf(0));
+      }
+    }
+
+    /**
+     * Starts the timer for the specified type if it has not been started and does nothing if it has
+     * already been started.
+     */
+    public synchronized void start(RpcType type) {
+      if (!throttled(type)) { // This timer is not started yet so start it now.
+        startTimes.put(type, Instant.now().getMillis());
+      }
+    }
+
+    /**
+     * Stops the timer for the specified type if it has been started and does nothing if it has not
+     * been started.
+     */
+    public synchronized void stop(RpcType type) {
+      if (throttled(type)) { // This timer has been started already so stop it now.
+        totalTimes.put(type, totalTimes.get(type) + getCurrentThrottleTime(type));
+        resetStartTime(type);
+      }
+    }
+
+    /** Returns if the specified type is currently being throttled */
+    public synchronized boolean throttled(RpcType type) {
+      return startTimes.get(type) != -1;
+    }
+
+    /** Returns the combined total of all throttle times and resets those times to 0. */
+    public synchronized long getAndResetThrottleTime() {
+      long totalTime = 0;
+      for (RpcType type : totalTimes.keySet()) {
+        // If the given type is currently throttled then we stop it to update totalTime and start
+        // it again.
+        if (throttled(type)) {
+          stop(type);
+          start(type);
+        }
+        totalTime += totalTimes.get(type);
+        totalTimes.put(type, Long.valueOf(0));
+      }
+      return totalTime;
+    }
+
+    private synchronized long getCurrentThrottleTime(RpcType type) {
+      if (!throttled(type)) return 0; // There is not currently a throttle in progress.
+      return Instant.now().getMillis() - startTimes.get(type);
+    }
+
+    private synchronized void resetStartTime(RpcType type) {
+      startTimes.put(type, Long.valueOf(-1));
     }
   }
 }

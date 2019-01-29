@@ -109,7 +109,8 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
   /** Returns true if the job is running with streaming engine enabled. */
   public static boolean streamingEngineEnabled(StreamingDataflowWorkerOptions options) {
     return hasExperiment(options, STREAMING_ENGINE_EXPERIMENT)
-        || hasExperiment(options, WINDMILL_SERVICE_EXPERIMENT);
+        || hasExperiment(options, WINDMILL_SERVICE_EXPERIMENT)
+        || options.isEnableStreamingEngine();
   }
 
   /**
