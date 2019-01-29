@@ -142,6 +142,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-pubsub==0.39.0',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<1.7.0',
+    'google-cloud-core==0.28.1',
+    'google-cloud-bigtable==0.31.1',
 ]
 
 
