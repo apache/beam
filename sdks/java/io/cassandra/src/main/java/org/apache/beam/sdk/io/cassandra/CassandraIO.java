@@ -115,15 +115,15 @@ public class CassandraIO {
         .build();
   }
 
-  /** Provide a {@link Mutate} {@link PTransform} to write data to a Cassandra database. */
-  public static <T> Mutate<T> write() {
-    return Mutate.<T>builder(MutationType.WRITE)
+  /** Provide a {@link Write} {@link PTransform} to write data to a Cassandra database. */
+  public static <T> Write<T> write() {
+    return Write.<T>builder(MutationType.WRITE)
         .build();
   }
 
-  /** Provide a {@link Mutate} {@link PTransform} to delete data to a Cassandra database. */
-  public static <T> Mutate<T> delete() {
-    return Mutate.<T>builder(MutationType.DELETE)
+  /** Provide a {@link Write} {@link PTransform} to delete data to a Cassandra database. */
+  public static <T> Write<T> delete() {
+    return Write.<T>builder(MutationType.DELETE)
         .build();
   }
 
@@ -659,7 +659,7 @@ public class CassandraIO {
    * usage and configuration.
    */
   @AutoValue
-  public abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
+  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
     abstract List<String> hosts();
 
@@ -689,11 +689,11 @@ public class CassandraIO {
     abstract Builder<T> builder();
 
     static <T> Builder<T> builder(MutationType mutationType) {
-      return new AutoValue_CassandraIO_Mutate.Builder<T>().setMutationType(mutationType);
+      return new AutoValue_CassandraIO_Write.Builder<T>().setMutationType(mutationType);
     }
 
     /** Specify the Cassandra instance hosts where to write data. */
-    public Mutate<T> withHosts(List<String> hosts) {
+    public Write<T> withHosts(List<String> hosts) {
       checkArgument(
           hosts != null,
           "CassandraIO." + getMutationTypeName() + "().withHosts(hosts) called with null hosts");
@@ -707,7 +707,7 @@ public class CassandraIO {
     }
 
     /** Specify the Cassandra instance port number where to write data. */
-    public Mutate<T> withPort(int port) {
+    public Write<T> withPort(int port) {
       checkArgument(
           port > 0,
           "CassandraIO."
@@ -719,7 +719,7 @@ public class CassandraIO {
     }
 
     /** Specify the Cassandra keyspace where to write data. */
-    public Mutate<T> withKeyspace(String keyspace) {
+    public Write<T> withKeyspace(String keyspace) {
       checkArgument(
           keyspace != null,
           "CassandraIO."
@@ -733,7 +733,7 @@ public class CassandraIO {
      * Specify the entity class in the input {@link PCollection}. The {@link CassandraIO} will map
      * this entity to the Cassandra table thanks to the annotations.
      */
-    public Mutate<T> withEntity(Class<T> entity) {
+    public Write<T> withEntity(Class<T> entity) {
       checkArgument(
           entity != null,
           "CassandraIO."
@@ -744,7 +744,7 @@ public class CassandraIO {
     }
 
     /** Specify the username used for authentication. */
-    public Mutate<T> withUsername(String username) {
+    public Write<T> withUsername(String username) {
       checkArgument(
           username != null,
           "CassandraIO."
@@ -755,7 +755,7 @@ public class CassandraIO {
     }
 
     /** Specify the password used for authentication. */
-    public Mutate<T> withPassword(String password) {
+    public Write<T> withPassword(String password) {
       checkArgument(
           password != null,
           "CassandraIO."
@@ -766,7 +766,7 @@ public class CassandraIO {
     }
 
     /** Specify the local DC used by the load balancing policy. */
-    public Mutate<T> withLocalDc(String localDc) {
+    public Write<T> withLocalDc(String localDc) {
       checkArgument(
           localDc != null,
           "CassandraIO."
@@ -776,7 +776,7 @@ public class CassandraIO {
       return builder().setLocalDc(localDc).build();
     }
 
-    public Mutate<T> withConsistencyLevel(String consistencyLevel) {
+    public Write<T> withConsistencyLevel(String consistencyLevel) {
       checkArgument(
           consistencyLevel != null,
           "CassandraIO."
@@ -849,15 +849,15 @@ public class CassandraIO {
 
       abstract Builder<T> setMutationType(MutationType mutationType);
 
-      abstract Mutate<T> build();
+      abstract Write<T> build();
     }
   }
 
   private static class WriteFn<T> extends DoFn<T, Void> {
-    private final Mutate<T> spec;
+    private final Write<T> spec;
     private Writer<T> writer;
 
-    WriteFn(Mutate<T> spec) {
+    WriteFn(Write<T> spec) {
       this.spec = spec;
     }
 
@@ -879,10 +879,10 @@ public class CassandraIO {
   }
 
   private static class DeleteFn<T> extends DoFn<T, Void> {
-    private final Mutate<T> spec;
+    private final Write<T> spec;
     private Deleter<T> deleter;
 
-    DeleteFn(Mutate<T> spec) {
+    DeleteFn(Write<T> spec) {
       this.spec = spec;
     }
 
@@ -941,7 +941,7 @@ public class CassandraIO {
      */
     private static final int CONCURRENT_ASYNC_QUERIES = 100;
 
-    private final CassandraIO.Mutate<T> spec;
+    private final Write<T> spec;
 
     private final Cluster cluster;
     private final Session session;
@@ -951,7 +951,7 @@ public class CassandraIO {
     private final String operationName;
 
     Mutator(
-        CassandraIO.Mutate<T> spec,
+        Write<T> spec,
         BiFunction<Mapper<T>, T, ListenableFuture<Void>> mutator,
         String operationName) {
       this.spec = spec;
@@ -1016,7 +1016,7 @@ public class CassandraIO {
   /** Writer storing an entity into Apache Cassandra database. */
   private static class Writer<T> extends Mutator<T> {
 
-    Writer(Mutate<T> spec) {
+    Writer(Write<T> spec) {
       super(spec, Mapper::saveAsync, "writes");
     }
 
@@ -1028,7 +1028,7 @@ public class CassandraIO {
   /** Deleter storing an entity into Apache Cassandra database. */
   private static class Deleter<T> extends Mutator<T> {
 
-    Deleter(Mutate<T> spec) {
+    Deleter(Write<T> spec) {
       super(spec, Mapper::deleteAsync, "deletes");
     }
 
