@@ -196,7 +196,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
     LOG.info(
         "Unbounded Flink Source {}/{} is reading from sources: {}",
-        subtaskIndex,
+        subtaskIndex + 1,
         numSubtasks,
         localSplitSources);
   }
