@@ -28,7 +28,6 @@ from builtins import map
 from builtins import object
 from builtins import range
 
-from future.builtins import filter
 from past.builtins import unicode
 
 from apache_beam import coders
@@ -668,9 +667,11 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return CallableWrapperCombineFn(fn)
 
   @staticmethod
-  def maybe_from_callable(fn):
+  def maybe_from_callable(fn, has_side_inputs=True):
     if isinstance(fn, CombineFn):
       return fn
+    elif callable(fn) and not has_side_inputs:
+      return NoSideInputsCallableWrapperCombineFn(fn)
     elif callable(fn):
       return CallableWrapperCombineFn(fn)
     else:
@@ -680,6 +681,23 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return coders.registry.get_coder(object)
 
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_COMBINE_FN)
+
+
+class _ReiterableChain(object):
+  """Like itertools.chain, but allowing re-iteration."""
+  def __init__(self, iterables):
+    self.iterables = iterables
+
+  def __iter__(self):
+    for iterable in self.iterables:
+      for item in iterable:
+        yield item
+
+  def __bool__(self):
+    for iterable in self.iterables:
+      for _ in iterable:
+        return True
+    return False
 
 
 class CallableWrapperCombineFn(CombineFn):
@@ -715,7 +733,7 @@ class CallableWrapperCombineFn(CombineFn):
     return {'fn_dd': self._fn}
 
   def __repr__(self):
-    return "CallableWrapperCombineFn(%s)" % self._fn
+    return "%s(%s)" % (self.__class__.__name__, self._fn)
 
   def create_accumulator(self, *args, **kwargs):
     return []
@@ -733,17 +751,7 @@ class CallableWrapperCombineFn(CombineFn):
     return accumulator
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
-    class ReiterableChain(object):
-      def __iter__(self):
-        for accumulator in accumulators:
-          for item in accumulator:
-            yield item
-      def __bool__(self):
-        for accumulator in accumulators:
-          for item in accumulator:
-            return True
-        return False
-    return [self._fn(ReiterableChain(), *args, **kwargs)]
+    return [self._fn(_ReiterableChain(accumulators), *args, **kwargs)]
 
   def compact_accumulator(self, accumulator, *args, **kwargs):
     if len(accumulator) <= 1:
@@ -795,6 +803,42 @@ class CallableWrapperCombineFn(CombineFn):
           (max, float): cy_combiners.MaxFloatFn(),
       }
     return known_types.get((self._fn, input_type), self)
+
+
+class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A CombineFn (function) object wrapping a callable object with no side inputs.
+
+  This is identical to its parent, but avoids accepting and passing *args
+  and **kwargs for efficiency as they are known to be empty.
+  """
+  def create_accumulator(self):
+    return []
+
+  def add_input(self, accumulator, element):
+    accumulator.append(element)
+    if len(accumulator) > self._buffer_size:
+      accumulator = [self._fn(accumulator)]
+    return accumulator
+
+  def add_inputs(self, accumulator, elements):
+    accumulator.extend(elements)
+    if len(accumulator) > self._buffer_size:
+      accumulator = [self._fn(accumulator)]
+    return accumulator
+
+  def merge_accumulators(self, accumulators):
+    return [self._fn(_ReiterableChain(accumulators))]
+
+  def compact_accumulator(self, accumulator):
+    if len(accumulator) <= 1:
+      return accumulator
+    else:
+      return [self._fn(accumulator)]
+
+  def extract_output(self, accumulator):
+    return self._fn(accumulator)
 
 
 class PartitionFn(WithTypeHints):
@@ -902,7 +946,7 @@ class ParDo(PTransformWithSideInputs):
     return trivial_inference.element_type(
         self.fn.infer_output_type(input_type))
 
-  def make_fn(self, fn):
+  def make_fn(self, fn, has_side_inputs):
     if isinstance(fn, DoFn):
       return fn
     return CallableWrapperDoFn(fn)
@@ -1376,9 +1420,9 @@ class CombinePerKey(PTransformWithSideInputs):
             'combine_fn_dd':
             self.fn}
 
-  def make_fn(self, fn):
+  def make_fn(self, fn, has_side_inputs):
     self._fn_label = ptransform.label_from_callable(fn)
-    return fn if isinstance(fn, CombineFn) else CombineFn.from_callable(fn)
+    return CombineFn.maybe_from_callable(fn, has_side_inputs)
 
   def default_label(self):
     return '%s(%s)' % (self.__class__.__name__, self._fn_label)
@@ -1430,8 +1474,8 @@ class CombinePerKey(PTransformWithSideInputs):
 # TODO(robertwb): Rename to CombineGroupedValues?
 class CombineValues(PTransformWithSideInputs):
 
-  def make_fn(self, fn):
-    return fn if isinstance(fn, CombineFn) else CombineFn.from_callable(fn)
+  def make_fn(self, fn, has_side_inputs):
+    return CombineFn.maybe_from_callable(fn, has_side_inputs)
 
   def expand(self, pcoll):
     args, kwargs = util.insert_values_in_args(
@@ -1763,7 +1807,7 @@ class Partition(PTransformWithSideInputs):
       # selected partition.
       yield pvalue.TaggedOutput(str(partition), element)
 
-  def make_fn(self, fn):
+  def make_fn(self, fn, has_side_inputs):
     return fn if isinstance(fn, PartitionFn) else CallableWrapperPartitionFn(fn)
 
   def expand(self, pcoll):
