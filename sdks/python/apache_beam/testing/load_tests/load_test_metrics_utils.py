@@ -48,7 +48,7 @@ except ImportError:
   NotFound = None
 
 RUNTIME_METRIC = 'runtime'
-COUNTER_LABEL = "total_bytes_count"
+COUNTER_LABEL = 'total_bytes_count'
 
 ID_LABEL = 'test_id'
 SUBMIT_TIMESTAMP_LABEL = 'timestamp'
@@ -57,29 +57,22 @@ VALUE_LABEL = 'value'
 
 SCHEMA = [
     {'name': ID_LABEL,
-     'type': 'STRING',
+     'field_type': 'STRING',
      'mode': 'REQUIRED'
     },
     {'name': SUBMIT_TIMESTAMP_LABEL,
-     'type': 'TIMESTAMP',
+     'field_type': 'TIMESTAMP',
      'mode': 'REQUIRED'
     },
     {'name': METRICS_TYPE_LABEL,
-     'type': 'STRING',
+     'field_type': 'STRING',
      'mode': 'REQUIRED'
     },
     {'name': VALUE_LABEL,
-     'type': 'FLOAT',
+     'field_type': 'FLOAT',
      'mode': 'REQUIRED'
     }
 ]
-
-
-def get_schema_field(schema_field):
-  return SchemaField(
-      name=schema_field['name'],
-      field_type=schema_field['type'],
-      mode=schema_field['mode'])
 
 
 def get_element_by_schema(schema_name, insert_list):
@@ -99,20 +92,8 @@ class BigQueryClient(object):
 
     self._get_or_create_table(schema, dataset)
 
-  def match_and_save(self, results_lists):
-    list_of_tuples = []
-    for x in results_lists:
-      list_of_tuples += [self._match_inserts_by_schema(x)]
-    self._insert_data(list_of_tuples)
-
-  def _match_inserts_by_schema(self, insert_list):
-    result_tuple = ()
-    for name in self._schema_names:
-      result_tuple += (get_element_by_schema(name, insert_list),)
-    return result_tuple
-
-  def _insert_data(self, list_of_tuples):
-    outputs = self._bq_client.insert_rows(self._bq_table, rows=list_of_tuples)
+  def match_and_save(self, rows):
+    outputs = self._bq_client.insert_rows(self._bq_table, rows)
     if len(outputs) > 0:
       for output in outputs:
         errors = output['errors']
@@ -146,7 +127,7 @@ class BigQueryClient(object):
       self._bq_table = self._bq_client.create_table(table)
 
   def _prepare_schema(self):
-    return [get_schema_field(row) for row in SCHEMA]
+    return [SchemaField(**row) for row in SCHEMA]
 
   def _get_schema_names(self):
     return [schema['name'] for schema in SCHEMA]
@@ -159,29 +140,29 @@ class MetricsMonitor(object):
 
   def send_metrics(self, result):
     metrics = result.metrics().query()
-    timestamp = {'label': SUBMIT_TIMESTAMP_LABEL, 'value': time.time()}
-    test_id = {'label': ID_LABEL, 'value': uuid.uuid4().hex}
+
+    insert_dicts = self._prepare_all_metrics(metrics)
+
+    self.bq.match_and_save(insert_dicts)
+
+  def _prepare_all_metrics(self, metrics):
+    common_metric_rows = {SUBMIT_TIMESTAMP_LABEL: time.time(),
+                          ID_LABEL: uuid.uuid4().hex
+                         }
+    insert_rows = []
 
     counters = metrics['counters']
-    counters_list = []
     if len(counters) > 0:
-      counters_list = self._prepare_counter_metrics(counters)
+      insert_rows += self._prepare_counter_metrics(counters, common_metric_rows)
 
     distributions = metrics['distributions']
-    dist_list = []
     if len(distributions) > 0:
-      dist_list = self._prepare_runtime_metrics(distributions)
+      insert_rows += self._prepare_runtime_metrics(distributions,
+                                                   common_metric_rows)
 
-    metrics_list = [test_id] + [timestamp]
-    insert_list = []
-    values = [dist_list] + [counters_list]
-    for value in values:
-      if value:
-        insert_list.append(metrics_list + value)
+    return insert_rows
 
-    self.bq.match_and_save(insert_list)
-
-  def _prepare_counter_metrics(self, counters):
+  def _prepare_counter_metrics(self, counters, common_metric_rows):
     for counter in counters:
       logging.info("Counter:  %s", counter)
     counters_list = []
@@ -189,12 +170,14 @@ class MetricsMonitor(object):
       counter_commited = counter.committed
       counter_label = str(counter.key.metric.name)
       counters_list.extend([
-          {'label': VALUE_LABEL, 'value': counter_commited},
-          {'label': METRICS_TYPE_LABEL, 'value': counter_label}])
+          dict({VALUE_LABEL: counter_commited,
+                METRICS_TYPE_LABEL: counter_label
+               },
+               **common_metric_rows)])
 
     return counters_list
 
-  def _prepare_runtime_metrics(self, distributions):
+  def _prepare_runtime_metrics(self, distributions, common_metric_rows):
     min_values = []
     max_values = []
     for dist in distributions:
@@ -209,8 +192,9 @@ class MetricsMonitor(object):
     runtime_in_s = max_value - min_value
     logging.info("Runtime: %s", runtime_in_s)
     runtime_in_s = float(runtime_in_s)
-    return [{'label': VALUE_LABEL, 'value': runtime_in_s},
-            {'label': METRICS_TYPE_LABEL, 'value': RUNTIME_METRIC}]
+    return [dict({VALUE_LABEL: runtime_in_s,
+                  METRICS_TYPE_LABEL: RUNTIME_METRIC
+                 }, **common_metric_rows)]
 
 
 class MeasureTime(beam.DoFn):
@@ -237,4 +221,5 @@ def count_bytes(f):
     for i in range(len(value)):
       counter.inc(i)
     return f(*args)
+
   return repl

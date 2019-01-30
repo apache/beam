@@ -21,11 +21,13 @@ input options there are additional options:
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
-* metrics_namespace (optional) - name of BigQuery table where metrics
+* publish_to_big_query - if metrics should be published in big query,
+* metrics_namespace (optional) - name of BigQuery dataset where metrics
 will be stored,
-in case of lack of any of both options metrics won't be saved
+* metrics_table (optional) - name of BigQuery table where metrics
+will be stored,
 * output (optional) - destination to save output, in case of no option
-output won't be written
+output won't be written,
 * input_options - options for Synthetic Sources.
 
 Example test run on DirectRunner:
@@ -35,6 +37,7 @@ python setup.py nosetests \
     --number_of_counter_operations=1000
     --output=gs://...
     --project=big-query-project
+    --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=pardo
     --input_options='{
@@ -58,6 +61,7 @@ python setup.py nosetests \
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
         --output=gs://...
         --number_of_counter_operations=1000
+        --publish_to_big_query=true
         --metrics_dataset=python_load_tests
         --metrics_table=pardo
         --input_options='{
@@ -120,6 +124,7 @@ class ParDoTest(unittest.TestCase):
     metrics_project_id = self.pipeline.get_option('project')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')
     metrics_dataset = self.pipeline.get_option('metrics_dataset')
+
     check = metrics_project_id and self.metrics_namespace and metrics_dataset \
             is not None
     if not self.metrics_monitor:

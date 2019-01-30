@@ -20,9 +20,11 @@ input options there are additional options:
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
-* metrics_namespace (optional) - name of BigQuery table where metrics
+* publish_to_big_query - if metrics should be published in big query,
+* metrics_namespace (optional) - name of BigQuery dataset where metrics
 will be stored,
-in case of lack of any of both options metrics won't be saved
+* metrics_table (optional) - name of BigQuery table where metrics
+will be stored,
 * input_options - options for Synthetic Sources.
 
 Example test run on DirectRunner:
@@ -30,6 +32,7 @@ Example test run on DirectRunner:
 python setup.py nosetests \
     --test-pipeline-options="
     --project=big-query-project
+    --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=combine
     --input_options='{
@@ -51,6 +54,7 @@ python setup.py nosetests \
         --staging_location=gs://...
         --temp_location=gs://...
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
+        --publish_to_big_query=true
         --metrics_dataset=python_load_tests
         --metrics_table=combine
         --input_options='{

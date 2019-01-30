@@ -20,10 +20,12 @@ input options there are additional options:
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
-* metrics_namespace (optional) - name of BigQuery table where metrics
+* publish_to_big_query - if metrics should be published in big query,
+* metrics_namespace (optional) - name of BigQuery dataset where metrics
 will be stored,
-in case of lack of any of both options metrics won't be saved
-* input_options - options for Synthetic Sources
+* metrics_table (optional) - name of BigQuery table where metrics
+will be stored,
+* input_options - options for Synthetic Sources,
 * co_input_options - options for  Synthetic Sources.
 
 Example test run on DirectRunner:
@@ -31,6 +33,7 @@ Example test run on DirectRunner:
 python setup.py nosetests \
     --test-pipeline-options="
       --project=big-query-project
+      --publish_to_big_query=true
       --metrics_dataset=python_load_tests
       --metrics_table=co_gbk
       --input_options='{
@@ -58,6 +61,7 @@ python setup.py nosetests \
         --staging_location=gs://...
         --temp_location=gs://...
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
+        --publish_to_big_query=true
         --metrics_dataset=python_load_tests
         --metrics_table=co_gbk
         --input_options='{
@@ -125,21 +129,23 @@ class CoGroupByKeyTest(unittest.TestCase):
     self.co_input_options = json.loads(
         self.pipeline.get_option('co_input_options'))
 
+    self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
     metrics_project_id = self.pipeline.get_option('project')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')
     metrics_dataset = self.pipeline.get_option('metrics_dataset')
-    self.metrics_monitor = None
     check = metrics_project_id and self.metrics_namespace and metrics_dataset\
             is not None
-    if check:
+    if not self.metrics_monitor:
+      logging.info('Metrics will not be collected')
+    elif check:
       self.metrics_monitor = MetricsMonitor(
           project_name=metrics_project_id,
           table=self.metrics_namespace,
           dataset=metrics_dataset,
       )
     else:
-      logging.error('One or more of parameters for collecting metrics '
-                    'are empty. Metrics will not be collected')
+      raise ValueError('One or more of parameters for collecting metrics '
+                       'are empty.')
 
   class _Ungroup(beam.DoFn):
     def process(self, element):
