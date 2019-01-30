@@ -153,6 +153,7 @@ public abstract class WindmillServerStub implements StatusDataProvider {
     /** Flushes any pending work items to the wire. */
     void flush();
   }
+
   /**
    * Pool of homogeneous streams to Windmill.
    *
