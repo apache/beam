@@ -60,6 +60,12 @@ import org.slf4j.LoggerFactory;
 public class SimpleMonitoringInfoBuilder {
   public static final String ELEMENT_COUNT_URN =
       BeamUrns.getUrn(MonitoringInfoUrns.Enum.ELEMENT_COUNT);
+  public static final String START_BUNDLE_MSECS_URN =
+      BeamUrns.getUrn(MonitoringInfoUrns.Enum.START_BUNDLE_MSECS);
+  public static final String PROCESS_BUNDLE_MSECS_URN =
+      BeamUrns.getUrn(MonitoringInfoUrns.Enum.PROCESS_BUNDLE_MSECS);
+  public static final String FINISH_BUNDLE_MSECS_URN =
+      BeamUrns.getUrn(MonitoringInfoUrns.Enum.FINISH_BUNDLE_MSECS);
   public static final String USER_COUNTER_URN_PREFIX =
       BeamUrns.getUrn(MonitoringInfoUrns.Enum.USER_COUNTER_URN_PREFIX);
   public static final String SUM_INT64_TYPE_URN =
@@ -147,9 +153,15 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
-  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropraite type URN. */
+  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropriate type URN. */
   public SimpleMonitoringInfoBuilder setInt64Value(long value) {
     this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
+    this.setInt64TypeUrn();
+    return this;
+  }
+
+  /** Sets the the appropriate type URN for sum int64 counters. */
+  public SimpleMonitoringInfoBuilder setInt64TypeUrn() {
     this.builder.setType(SUM_INT64_TYPE_URN);
     return this;
   }
@@ -188,6 +200,19 @@ public class SimpleMonitoringInfoBuilder {
     MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
     builder.mergeFrom(input);
     builder.clearTimestamp();
+    return builder.build();
+  }
+
+  /**
+   * @return A copy of the MonitoringInfo with the value cleared, to allow comparing two
+   *     MonitoringInfos when the value is non deterministic (i.e. execution time).
+   */
+  @VisibleForTesting
+  public static MonitoringInfo clearValue(MonitoringInfo input) {
+    // TODO can we create matchers instead?
+    MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
+    builder.mergeFrom(input);
+    builder.clearMetric();
     return builder.build();
   }
 

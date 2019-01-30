@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -33,6 +34,7 @@ import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -132,9 +134,11 @@ public class CombineRunnersTest {
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     // Create runner.
     new CombineRunners.PrecombineFactory<>()
@@ -203,9 +207,11 @@ public class CombineRunnersTest {
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
@@ -262,9 +268,11 @@ public class CombineRunnersTest {
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
@@ -321,9 +329,11 @@ public class CombineRunnersTest {
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)

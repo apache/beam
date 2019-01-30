@@ -30,6 +30,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
+import org.apache.beam.fn.harness.SimpleExecutionState;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
@@ -53,8 +54,11 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -230,10 +234,14 @@ public class ProcessBundleHandler {
         new PCollectionConsumerRegistry(metricsContainerRegistry);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
+    ExecutionStateTracker stateTracker =
+        new ExecutionStateTracker(ExecutionStateSampler.instance());
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(metricsContainerRegistry, stateTracker,
+            SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(metricsContainerRegistry, stateTracker,
+            SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN);
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -303,31 +311,36 @@ public class ProcessBundleHandler {
       // a pTransform's context.
       MetricsContainerImpl rootMetricsContainer = metricsContainerRegistry.getUnboundContainer();
       try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(rootMetricsContainer)) {
+        try (Closeable closeTracker = stateTracker.activate()) {
+          // Already in reverse topological order so we don't need to do anything.
+          for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
+            LOG.debug("Starting function {}", startFunction);
+            startFunction.run();
+          }
 
-        // Already in reverse topological order so we don't need to do anything.
-        for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
-          LOG.debug("Starting function {}", startFunction);
-          startFunction.run();
-        }
+          queueingClient.drainAndBlock();
 
-        queueingClient.drainAndBlock();
-
-        // Need to reverse this since we want to call finish in topological order.
-        for (ThrowingRunnable finishFunction :
-            Lists.reverse(finishFunctionRegistry.getFunctions())) {
-          LOG.debug("Finishing function {}", finishFunction);
-          finishFunction.run();
-        }
-        if (!allResiduals.isEmpty()) {
-          response.addAllResidualRoots(allResiduals.values());
+          // Need to reverse this since we want to call finish in topological order.
+          for (ThrowingRunnable finishFunction :
+              Lists.reverse(finishFunctionRegistry.getFunctions())) {
+            LOG.debug("Finishing function {}", finishFunction);
+            finishFunction.run();
+          }
+          if (!allResiduals.isEmpty()) {
+            response.addAllResidualRoots(allResiduals.values());
+          }
         }
       }
-
+      for (MonitoringInfo mi : startFunctionRegistry.getExecutionTimeMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
+      }
+      for (MonitoringInfo mi : finishFunctionRegistry.getExecutionTimeMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
+      }
       for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
         response.addMonitoringInfos(mi);
       }
     }
-
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
 
