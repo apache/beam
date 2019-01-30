@@ -177,6 +177,9 @@ You can monitor a running Flink job using the Flink JobManager Dashboard or its 
 
 If your pipeline uses an unbounded data source or sink, the Flink Runner will automatically switch to streaming mode. You can enforce streaming mode by using the `streaming` setting mentioned below.
 
+Note: The Runner will print a warning message when unbounded sources are used and checkpointing is not enabled.
+Many sources like `PubSubIO` rely on their checkpoints to be acknowledged which can only be done when checkpointing is enabled for the `FlinkRunner`. To enable checkpointing, please set <span class="language-java">`checkpointingInterval`</span><span class="language-py">`checkpointing_interval`</span> to the desired checkpointing interval in milliseconds.
+
 ## Pipeline options for the Flink Runner
 
 When executing your pipeline with the Flink Runner, you can set these pipeline options.
