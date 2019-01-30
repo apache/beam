@@ -611,7 +611,7 @@ class PGBKOperation(Operation):
 
   def flush(self, target):
     limit = self.size - target
-    for ix, (kw, vs) in enumerate(self.table.items()):
+    for ix, (kw, vs) in enumerate(list(self.table.items())):
       if ix >= limit:
         break
       del self.table[kw]
