@@ -17,26 +17,16 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import static org.mockito.Matchers.anyObject;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
-import java.io.Closeable;
-import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
-import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.vendor.grpc.v1p13p1.io.netty.util.internal.MathUtil;
-import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
-import org.mockito.internal.verification.VerificationModeFactory;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -83,12 +73,10 @@ public class PTransformFunctionRegistryTest {
 
     // Verify that static scopedMetricsContainer is called with pTransformA's container.
     PowerMockito.verifyStatic(times(1));
-    MetricsEnvironment.scopedMetricsContainer(
-        metricsContainerRegistry.getContainer("pTransformA"));
+    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformA"));
 
     // Verify that static scopedMetricsContainer is called with pTransformB's container.
     PowerMockito.verifyStatic(times(1));
-    MetricsEnvironment.scopedMetricsContainer(
-        metricsContainerRegistry.getContainer("pTransformB"));
+    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformB"));
   }
 }

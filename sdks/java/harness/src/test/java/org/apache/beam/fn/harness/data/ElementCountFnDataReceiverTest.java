@@ -18,7 +18,6 @@
 package org.apache.beam.fn.harness.data;
 
 import static junit.framework.TestCase.assertEquals;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -82,7 +81,8 @@ public class ElementCountFnDataReceiverTest {
 
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
 
-    FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class, withSettings().verboseLogging());
+    FnDataReceiver<WindowedValue<String>> consumer =
+        mock(FnDataReceiver.class, withSettings().verboseLogging());
     ElementCountFnDataReceiver<String> wrapperConsumer =
         new ElementCountFnDataReceiver(consumer, pCollectionA, metricsContainerRegistry);
     WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");

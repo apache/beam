@@ -17,19 +17,13 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.collect.Iterables;
-import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
@@ -44,7 +38,6 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
 
 /**
@@ -83,8 +76,7 @@ public class MetricsContainerStepMap implements Serializable {
    * MetricsContainerStepMap}.
    */
   public void updateAll(MetricsContainerStepMap other) {
-    for (Map.Entry<String, MetricsContainerImpl> container :
-        other.metricsContainers.entrySet()) {
+    for (Map.Entry<String, MetricsContainerImpl> container : other.metricsContainers.entrySet()) {
       getContainer(container.getKey()).update(container.getValue());
     }
     getUnboundContainer().update(other.getUnboundContainer());
@@ -109,7 +101,8 @@ public class MetricsContainerStepMap implements Serializable {
 
     MetricsContainerStepMap that = (MetricsContainerStepMap) o;
 
-    return metricsContainers.equals(that.metricsContainers);
+    // TODO(BEAM-6546): The underlying MetricContainerImpls do not implement equals().
+    return getMetricsContainers().equals(that.getMetricsContainers());
   }
 
   @Override
@@ -134,7 +127,7 @@ public class MetricsContainerStepMap implements Serializable {
   public Iterable<MonitoringInfo> getMonitoringInfos() {
     // Extract user metrics and store as MonitoringInfos.
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
-    for (MetricsContainerImpl container : metricsContainers.values()) {
+    for (MetricsContainerImpl container : getMetricsContainers()) {
       for (MonitoringInfo mi : container.getMonitoringInfos()) {
         monitoringInfos.add(mi);
       }

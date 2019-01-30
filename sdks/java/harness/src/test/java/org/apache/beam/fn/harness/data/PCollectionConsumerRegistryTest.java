@@ -26,14 +26,12 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -121,12 +119,10 @@ public class PCollectionConsumerRegistryTest {
 
     // Verify that static scopedMetricsContainer is called with pTransformA's container.
     PowerMockito.verifyStatic(times(1));
-    MetricsEnvironment.scopedMetricsContainer(
-        metricsContainerRegistry.getContainer("pTransformA"));
+    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformA"));
 
     // Verify that static scopedMetricsContainer is called with pTransformB's container.
     PowerMockito.verifyStatic(times(1));
-    MetricsEnvironment.scopedMetricsContainer(
-        metricsContainerRegistry.getContainer("pTransformB"));
+    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformB"));
   }
 }
