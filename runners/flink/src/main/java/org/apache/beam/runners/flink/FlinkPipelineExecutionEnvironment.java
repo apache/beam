@@ -36,6 +36,8 @@ import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The class that instantiates and manages the execution of a given job. Depending on if the job is
@@ -46,6 +48,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * (translated) job.
  */
 class FlinkPipelineExecutionEnvironment {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(FlinkPipelineExecutionEnvironment.class);
 
   private final FlinkPipelineOptions options;
 
@@ -109,6 +114,11 @@ class FlinkPipelineExecutionEnvironment {
     if (translationMode == TranslationMode.STREAMING) {
       this.flinkStreamEnv =
           FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, filesToStage);
+      if (optimizer.hasUnboundedSources()
+          && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
+        LOG.warn(
+            "UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
+      }
       translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
     } else {
       this.flinkBatchEnv =
