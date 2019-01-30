@@ -22,18 +22,21 @@ import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.dista
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getEstimatedSizeBytesFromTokenRanges;
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getRingFraction;
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.isMurmur3Partitioner;
+import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.junit.Assert.assertEquals;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
@@ -42,10 +45,12 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.TokenRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -258,6 +263,38 @@ public class CassandraIOTest implements Serializable {
     for (Row row : results) {
       assertTrue(row.getString("person_name").matches("Name (\\d*)"));
     }
+  }
+
+  @Test
+  public void testSplit() throws Exception {
+    insertRecords();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    CassandraIO.Read<Scientist> read =
+        CassandraIO.<Scientist>read()
+            .withHosts(Arrays.asList(CASSANDRA_HOST)).withPort(CASSANDRA_PORT)
+            .withKeyspace(CASSANDRA_KEYSPACE)
+            .withTable(CASSANDRA_TABLE)
+            .withEntity(Scientist.class)
+            .withCoder(SerializableCoder.of(Scientist.class));
+
+    // initialSource will be read without splitting (which does not happen in production)
+    // so we need to provide splitQueries to avoid NPE in source.reader.start()
+    String splitQuery = QueryBuilder.select().from(CASSANDRA_KEYSPACE, CASSANDRA_TABLE).toString();
+    CassandraIO.CassandraSource<Scientist> initialSource = new CassandraIO.CassandraSource<>(read,
+        Collections.singletonList(splitQuery));
+
+    int desiredBundleSizeBytes = 2000;
+    List<BoundedSource<Scientist>> splits = initialSource.split(desiredBundleSizeBytes, options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
+    int expectedNumSplits =  (int)initialSource.getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
+    assertEquals(expectedNumSplits, splits.size());
+    int nonEmptySplits = 0;
+    for (BoundedSource<Scientist> subSource : splits) {
+      if (readFromSource(subSource, options).size() > 0) {
+        nonEmptySplits += 1;
+      }
+    }
+    assertEquals("Wrong number of empty splits", expectedNumSplits, nonEmptySplits);
   }
 
   private List<Row> getRows() {
