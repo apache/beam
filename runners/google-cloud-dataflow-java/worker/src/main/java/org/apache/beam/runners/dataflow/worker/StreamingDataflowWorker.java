@@ -30,6 +30,7 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -829,6 +830,13 @@ public class StreamingDataflowWorker {
     } catch (Exception e) {
       LOG.warn("Exception while shutting down: ", e);
     }
+    setIsDone();
+  }
+
+  // null is the only value of type Void, but findbugs thinks
+  // it violates the contract of CompletableFuture.complete
+  @SuppressFBWarnings("NP_NONNULL_PARAM_VIOLATION")
+  private void setIsDone() {
     isDoneFuture.complete(null);
   }
 
