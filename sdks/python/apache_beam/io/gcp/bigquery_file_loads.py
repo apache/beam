@@ -100,7 +100,6 @@ class _AppendDestinationsFn(beam.DoFn):
       self.destination = lambda x: destination
 
   def process(self, element):
-    logging.info((self.destination(element), element))
     yield (self.destination(element), element)
 
 
@@ -261,7 +260,7 @@ class TriggerCopyJobs(beam.DoFn):
       copy_from_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
 
-    logging.info("Must trigger copy job from %s to %s",
+    logging.info("Triggering copy job from %s to %s",
                  copy_from_reference, copy_to_reference)
     job_reference = self.bq_wrapper._insert_copy_job(
         copy_to_reference.projectId,
