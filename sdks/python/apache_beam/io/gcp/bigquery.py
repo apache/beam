@@ -808,6 +808,8 @@ bigquery_v2_messages.TableSchema):
 
   def expand(self, pcoll):
     p = pcoll.pipeline
+
+    # TODO(pabloem): Use a different method to determine if streaming or batch.
     standard_options = p.options.view_as(StandardOptions)
 
     if (not callable(self.table_reference)

@@ -19,7 +19,7 @@
 Functionality to perform file loads into BigQuery for Batch and Streaming
 pipelines.
 
-NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES
+NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
 from __future__ import absolute_import
@@ -52,7 +52,7 @@ _MAXIMUM_LOAD_SIZE = 15 * ONE_TERABYTE
 
 def _generate_load_job_name():
   datetime_component = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S")
-  # TODO: include job id / pipeline component?
+  # TODO(pabloem): include job id / pipeline component?
   return 'beam_load_%s_%s' % (datetime_component, random.randint(0, 100))
 
 
@@ -65,7 +65,6 @@ def _generate_file_prefix(pipeline_gcs_location):
 
 
 def _make_new_file_writer(file_prefix, destination):
-  # TODO: Sanitize destination (or generate hash name for it?)
   if isinstance(destination, bigquery_api.TableReference):
     destination = '%s:%s.%s' % (
         destination.projectId, destination.datasetId, destination.tableId)
@@ -79,6 +78,10 @@ def _make_new_file_writer(file_prefix, destination):
   file_path = fs.FileSystems.join(file_prefix, destination, file_name)
 
   return file_path, fs.FileSystems.create(file_path, 'application/text')
+
+
+def _bq_uuid():
+  return str(uuid.uuid4()).replace("-", "")
 
 
 class _AppendDestinationsFn(beam.DoFn):
@@ -176,7 +179,7 @@ class WriteRecordsToFile(beam.DoFn):
           WriteRecordsToFile.UNWRITTEN_RECORD_TAG, element)
       return
 
-    # TODO: Is it possible for this to throw exception
+    # TODO(pabloem): Is it possible for this to throw exception?
     writer.write(self.coder.encode(row))
     writer.write(b'\n')
 
@@ -185,8 +188,8 @@ class WriteRecordsToFile(beam.DoFn):
       self._destination_to_file_writer.pop(destination)
 
   def finish_bundle(self):
-    # TODO: Maybe output to WRITTEN_FILE_TAG here instead of at the begining?
-    #  it would permit to add file size.
+    # TODO(pabloem): Maybe output to WRITTEN_FILE_TAG here instead of the
+    #  begining? - it would permit to add file size.
     for _, writer in iteritems(self._destination_to_file_writer):
       writer.close()
     self._destination_to_file_writer = {}
@@ -222,6 +225,55 @@ class WriteGroupedRecordsToFile(beam.DoFn):
         writer = None
 
 
+class TriggerCopyJobs(beam.DoFn):
+  def __init__(self,
+               create_disposition=None,
+               write_disposition=None,
+               test_client=None,
+               temporary_tables=False):
+    self.create_disposition = create_disposition
+    self.write_disposition = write_disposition
+    self.test_client = test_client
+    self.temporary_tables = temporary_tables
+
+  def start_bundle(self):
+    self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
+
+  def process(self, element, load_job_name_prefix=None):
+    destination = element[0]
+    job_reference = element[1]
+
+    if not self.temporary_tables:
+      # If we did not use temporary tables, then we do not need to trigger any
+      # copy jobs.
+      return
+
+    copy_job_name = '%s_copy_%s' % (load_job_name_prefix, _bq_uuid())
+
+    copy_to_reference = bigquery_tools.parse_table_reference(destination)
+    if copy_to_reference.projectId is None:
+      copy_to_reference.projectId = vp.RuntimeValueProvider.get_value(
+          'project', str, '')
+
+    copy_from_reference = bigquery_tools.parse_table_reference(destination)
+    copy_from_reference.tableId = job_reference.jobId
+    if copy_from_reference.projectId is None:
+      copy_from_reference.projectId = vp.RuntimeValueProvider.get_value(
+          'project', str, '')
+
+    logging.info("Must trigger copy job from %s to %s",
+                 copy_from_reference, copy_to_reference)
+    job_reference = self.bq_wrapper._insert_copy_job(
+        copy_to_reference.projectId,
+        copy_job_name,
+        copy_from_reference,
+        copy_to_reference,
+        create_disposition=self.create_disposition,
+        write_disposition=self.write_disposition)
+
+    yield (destination, job_reference)
+
+
 class TriggerLoadJobs(beam.DoFn):
   """Triggers the import jobs to BQ.
 
@@ -231,15 +283,23 @@ class TriggerLoadJobs(beam.DoFn):
                schema=None,
                create_disposition=None,
                write_disposition=None,
-               test_client=None):
+               test_client=None,
+               temporary_tables=False):
     self.schema = schema
-    self.create_disposition = create_disposition
-    self.write_disposition = write_disposition
     self.test_client = test_client
+    self.temporary_tables = temporary_tables
+    if self.temporary_tables:
+      # If we are loading into temporary tables, we rely on the default create
+      # and write dispositions, which mean that a new table will be created.
+      self.create_disposition = None
+      self.write_disposition = None
+    else:
+      self.create_disposition = create_disposition
+      self.write_disposition = write_disposition
 
   def display_data(self):
-    result = {'create_disposition': self.create_disposition,
-              'write_disposition': self.write_disposition}
+    result = {'create_disposition': str(self.create_disposition),
+              'write_disposition': str(self.write_disposition)}
     if self.schema is not None:
       result['schema'] = str(self.schema)
     else:
@@ -250,16 +310,20 @@ class TriggerLoadJobs(beam.DoFn):
   def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
 
-  def process(self, element, load_job):
+  def process(self, element, load_job_name_prefix):
     destination = element[0]
     files = element[1]
-    job_name = '%s_%s' % (load_job, str(uuid.uuid4()))
+    job_name = '%s_%s' % (load_job_name_prefix, _bq_uuid())
 
-    # TODO: MOVE TABLE REFERENCE PARSING UPSTREAM?
     table_reference = bigquery_tools.parse_table_reference(destination)
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
+
+    if self.temporary_tables:
+      # For temporary tables, we create a new table with the name with JobId.
+      table_reference.tableId = job_name
+      #TODO(pabloem): How to ensure that tables are removed?
 
     job_reference = self.bq_wrapper.perform_load_job(
         table_reference, list(files), job_name,
@@ -294,9 +358,10 @@ class WaitForBQJobs(beam.DoFn):
     while True:
       status = self._check_job_states(job_references)
       if status == WaitForBQJobs.FAILED:
-        raise Exception('BigQuery jobs failed. Pipeline ded.')
+        raise Exception(
+            'BigQuery jobs failed. BQ error: %s', self._latest_error)
       elif status == WaitForBQJobs.ALL_DONE:
-        return
+        return dest_ids_list  # Pass the list of destination-jobs downstream
       time.sleep(10)
 
   def _check_job_states(self, job_references):
@@ -309,6 +374,7 @@ class WaitForBQJobs(beam.DoFn):
       if job.status.state == 'DONE' and job.status.errorResult:
         logging.warn("Job %s seems to have failed. Error Result: %s",
                      ref.jobId, job.status.errorResult)
+        self._latest_error = job.status
         return WaitForBQJobs.FAILED
       elif job.status.state == 'DONE':
         continue
@@ -321,8 +387,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
   """
 
-  DESTINATION_JOBID_PAIRS = 'destination_jobid_pairs'
+  DESTINATION_JOBID_PAIRS = 'destination_load_jobid_pairs'
   DESTINATION_FILE_PAIRS = 'destination_file_pairs'
+  DESTINATION_COPY_JOBID_PAIRS = 'destination_copy_jobid_pairs'
 
   def __init__(
       self,
@@ -344,6 +411,12 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self.test_client = test_client
     self.schema = schema
     self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
+
+    # If we have multiple destinations, then we will have multiple load jobs,
+    # thus we will need temporary tables for atomicity.
+    # If the destination is a single one, we assume that we will have only one
+    # job to run - and thus we avoid using temporary tables
+    self.temp_tables = True if callable(destination) else False
 
   def expand(self, pcoll):
     p = pcoll.pipeline
@@ -391,22 +464,41 @@ class BigQueryBatchFileLoads(beam.PTransform):
         all_destination_file_pairs_pc
         | "GroupFilesByTableDestinations" >> beam.GroupByKey())
 
-    # TODO: What about the temporary tables?
+    # Load Jobs are triggered to temporary tables, and those are later copied to
+    # the actual appropriate destination query. This ensures atomicity when only
+    # some of the load jobs would fail but not other.
+    # If any of them fails, then copy jobs are not triggered.
     destination_job_ids_pc = (
         grouped_files_pc | beam.ParDo(TriggerLoadJobs(
             schema=self.schema,
             write_disposition=self.write_disposition,
             create_disposition=self.create_disposition,
             test_client=self.test_client,
-        ), load_job_name_pcv)
+            temporary_tables=self.temp_tables), load_job_name_pcv)
     )
 
+    destination_copy_job_ids_pc = (
+        p
+        | "ImpulseMonitorLoadJobs" >> beam.Create([None])
+        | "WaitForLoadJobs" >> beam.ParDo(
+            WaitForBQJobs(self.test_client),
+            beam.pvalue.AsList(destination_job_ids_pc))
+        | beam.ParDo(TriggerCopyJobs(
+            create_disposition=self.create_disposition,
+            write_disposition=self.write_disposition,
+            temporary_tables=self.temp_tables,
+            test_client=self.test_client), load_job_name_pcv))
+
     _ = (p
-         | "ImpulseMonitorJobs" >> beam.Create([None])
-         | beam.ParDo(WaitForBQJobs(self.test_client),
-                      beam.pvalue.AsList(destination_job_ids_pc)))
+         | "ImpulseMonitorCopyJobs" >> beam.Create([None])
+         | "WaitForCopyJobs" >> beam.ParDo(
+             WaitForBQJobs(self.test_client),
+             beam.pvalue.AsList(destination_copy_job_ids_pc)))
+
+    # TODO: Must delete temporary tables.
 
     return {
         self.DESTINATION_JOBID_PAIRS: destination_job_ids_pc,
         self.DESTINATION_FILE_PAIRS: all_destination_file_pairs_pc,
+        self.DESTINATION_COPY_JOBID_PAIRS: destination_copy_job_ids_pc,
     }

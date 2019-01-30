@@ -313,7 +313,12 @@ class BigQueryFileLoadsIT(unittest.TestCase):
   BIG_QUERY_SCHEMA = (
       '{"fields": [{"name": "name","type": "STRING"},'
       '{"name": "language","type": "STRING"}]}'
-      )
+  )
+
+  BIG_QUERY_SCHEMA_2 = (
+      '{"fields": [{"name": "name","type": "STRING"},'
+      '{"name": "foundation","type": "STRING"}]}'
+  )
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -396,6 +401,54 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                                 else output_table_2),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+
+  @attr('IT')
+  def test_one_job_fails_all_jobs_fail(self):
+
+    # If one of the import jobs fails, then other jobs must not be performed.
+    # This is to avoid reinsertion of some records when a pipeline fails and
+    # is rerun.
+    output_table_1 = '%s%s' % (self.output_table, 1)
+    output_table_2 = '%s%s' % (self.output_table, 2)
+
+    self.bigquery_client.get_or_create_table(
+        self.project, self.dataset_id, output_table_1.split('.')[1],
+        bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA),
+        None, None)
+    self.bigquery_client.get_or_create_table(
+        self.project, self.dataset_id, output_table_2.split('.')[1],
+        bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA_2),
+        None, None)
+
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_1,
+            data=[]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_2,
+            data=[])]
+
+    args = self.test_pipeline.get_full_options_as_args()
+
+    with self.assertRaises(Exception):
+      with beam.Pipeline(argv=args) as p:
+        input = p | beam.Create(_ELEMENTS)
+        input2 = p | "Broken record" >> beam.Create(['language_broken_record'])
+
+        input = (input, input2) | beam.Flatten()
+
+        _ = (input |
+             "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
+                 table=lambda x: (output_table_1
+                                  if 'language' in x
+                                  else output_table_2),
+                 create_disposition=(
+                     beam.io.BigQueryDisposition.CREATE_IF_NEEDED),
+                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
+
+    hamcrest_assert(p, all_of(*pipeline_verifiers))
 
   def tearDown(self):
     request = bigquery_api.BigqueryDatasetsDeleteRequest(
