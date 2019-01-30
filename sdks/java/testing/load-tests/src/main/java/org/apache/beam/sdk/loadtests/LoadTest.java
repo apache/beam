@@ -72,7 +72,11 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
     this.runtimeMonitor = new TimeMonitor<>(metricsNamespace, "runtime");
     this.options = LoadTestOptions.readFromArgs(args, testOptions);
     this.sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
-    this.stepOptions = fromJsonString(options.getStepOptions(), SyntheticStep.Options.class);
+
+    if (options.getStepOptions() != null) {
+      this.stepOptions = fromJsonString(options.getStepOptions(), SyntheticStep.Options.class);
+    }
+
     this.pipeline = Pipeline.create(options);
   }
 
