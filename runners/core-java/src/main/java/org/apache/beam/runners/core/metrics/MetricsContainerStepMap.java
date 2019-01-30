@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * Metrics containers by step.

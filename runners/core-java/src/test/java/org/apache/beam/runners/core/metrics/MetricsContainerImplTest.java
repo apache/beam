@@ -166,7 +166,7 @@ public class MetricsContainerImplTest {
     SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
     builder2.setUrnForUserMetric("ns", "name2");
     builder2.setInt64Value(4);
-    builder1.setPTransformLabel("step1");
+    builder2.setPTransformLabel("step1");
     builder2.build();
 
     ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
