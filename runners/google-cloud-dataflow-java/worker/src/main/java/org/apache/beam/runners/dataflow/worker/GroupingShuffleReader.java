@@ -235,8 +235,12 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
         this.groups =
             new GroupingShuffleEntryIterator(
                 entryReader,
-                ByteArrayShufflePosition.fromBase64(parentReader.startShufflePosition),
-                ByteArrayShufflePosition.fromBase64(parentReader.stopShufflePosition)) {
+                parentReader.startShufflePosition == null
+                    ? null
+                    : ByteArrayShufflePosition.fromBase64(parentReader.startShufflePosition),
+                parentReader.stopShufflePosition == null
+                    ? null
+                    : ByteArrayShufflePosition.fromBase64(parentReader.stopShufflePosition)) {
               @Override
               protected void notifyElementRead(long byteSize) {
                 // We accumulate the sum of bytes read in a local variable. This sum will be counted
