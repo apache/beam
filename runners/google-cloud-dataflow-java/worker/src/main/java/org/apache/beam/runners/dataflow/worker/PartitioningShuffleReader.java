@@ -119,8 +119,12 @@ public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<
         PartitioningShuffleReader<K, V> shuffleReader, ShuffleEntryReader entryReader) {
       this.iterator =
           entryReader.read(
-              ByteArrayShufflePosition.fromBase64(shuffleReader.startShufflePosition),
-              ByteArrayShufflePosition.fromBase64(shuffleReader.stopShufflePosition));
+              shuffleReader.startShufflePosition == null
+                  ? null
+                  : ByteArrayShufflePosition.fromBase64(shuffleReader.startShufflePosition),
+              shuffleReader.stopShufflePosition == null
+                  ? null
+                  : ByteArrayShufflePosition.fromBase64(shuffleReader.stopShufflePosition));
       this.shuffleReader = shuffleReader;
       this.entryReader = entryReader;
     }
