@@ -23,6 +23,7 @@ from __future__ import absolute_import
 import logging
 import time
 
+from apache_beam.io import filesystems
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
@@ -77,6 +78,9 @@ def delete_bq_dataset(project, dataset_ref):
   client.delete_dataset(dataset_ref, delete_contents=True)
 
 
+@retry.with_exponential_backoff(
+    num_retries=3,
+    retry_filter=retry.retry_on_server_errors_filter)
 def delete_bq_table(project, dataset_id, table_id):
   """Delete a BiqQuery table.
 
@@ -93,3 +97,16 @@ def delete_bq_table(project, dataset_id, table_id):
     client.delete_table(table_ref)
   except NotFound:
     raise GcpTestIOError('BigQuery table does not exist: %s' % table_ref)
+
+
+@retry.with_exponential_backoff(
+    num_retries=3,
+    retry_filter=retry.retry_on_server_errors_filter)
+def delete_directory(directory):
+  """Delete a directory in a filesystem.
+
+  Args:
+    directory: Full path to a directory supported by Beam filesystems (e.g.
+      "gs://mybucket/mydir/", "s3://...", ...)
+  """
+  filesystems.FileSystems.delete([directory])
