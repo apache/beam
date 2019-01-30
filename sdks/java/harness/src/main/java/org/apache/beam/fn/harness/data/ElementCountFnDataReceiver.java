@@ -44,7 +44,7 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
   public ElementCountFnDataReceiver(
       FnDataReceiver<WindowedValue<T>> original,
       String pCollection,
-      MetricsContainerStepMap metricsContainerStepMap) {
+      MetricsContainerStepMap metricContainerRegistry) {
     this.original = original;
     HashMap<String, String> labels = new HashMap<String, String>();
     labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, pCollection);
@@ -54,7 +54,7 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
     // Place it in a metric container which is not bound to the step name.
     // Though, this is not likely to happen for ElementCount because the producing pTransform for
     // the pCollection always invokes the consumer.
-    this.unboundMetricContainer = metricsContainerStepMap.getUnboundContainer();
+    this.unboundMetricContainer = metricContainerRegistry.getUnboundContainer();
   }
 
   @Override
