@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
+import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
 import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
@@ -422,6 +423,15 @@ public class AvroIOTest implements Serializable {
                       .withHintMatchesManyFiles()))
           .containsInAnyOrder(values);
       PAssert.that(
+              path.apply(FileIO.matchAll())
+                  .apply(FileIO.readMatches().withCompression(AUTO))
+                  .apply(
+                      "ReadFiles",
+                      AvroIO.readFiles(GenericClass.class)
+                          .withBeamSchemas(withBeamSchemas)
+                          .withDesiredBundleSizeBytes(10)))
+          .containsInAnyOrder(values);
+      PAssert.that(
               path.apply(
                   "ReadAll",
                   AvroIO.readAll(GenericClass.class)
@@ -487,6 +497,16 @@ public class AvroIOTest implements Serializable {
                   tmpFolder.getRoot().getAbsolutePath() + "/first*",
                   tmpFolder.getRoot().getAbsolutePath() + "/second*"));
       PAssert.that(
+              paths
+                  .apply(FileIO.matchAll())
+                  .apply(FileIO.readMatches().withCompression(AUTO))
+                  .apply(
+                      "ReadFiles",
+                      AvroIO.readFiles(GenericClass.class)
+                          .withBeamSchemas(withBeamSchemas)
+                          .withDesiredBundleSizeBytes(10)))
+          .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
+      PAssert.that(
               paths.apply(
                   "Read all",
                   AvroIO.readAll(GenericClass.class)
@@ -549,7 +569,8 @@ public class AvroIOTest implements Serializable {
                   .withNumShards(3)
                   .withWindowedWrites());
 
-      // Test read(), readAll(), parse(), and parseAllGenericRecords() with watchForNewFiles().
+      // Test read(), readFiles(), readAll(), parse(), and parseAllGenericRecords() with
+      // watchForNewFiles().
       PAssert.that(
               readPipeline.apply(
                   "Read",
@@ -576,6 +597,19 @@ public class AvroIOTest implements Serializable {
               Create.of(
                   tmpFolder.getRoot().getAbsolutePath() + "/first*",
                   tmpFolder.getRoot().getAbsolutePath() + "/second*"));
+      PAssert.that(
+              paths
+                  .apply(FileIO.matchAll())
+                  .apply(FileIO.readMatches().withCompression(AUTO))
+                  .apply(
+                      "ReadFiles",
+                      AvroIO.readFiles(GenericClass.class)
+                          .withBeamSchemas(withBeamSchemas)
+                          .watchForNewFiles(
+                              Duration.millis(100),
+                              Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3)))
+                          .withDesiredBundleSizeBytes(10)))
+          .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
       PAssert.that(
               paths.apply(
                   "Read all",
