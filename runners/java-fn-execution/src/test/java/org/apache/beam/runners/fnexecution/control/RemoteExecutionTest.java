@@ -442,7 +442,11 @@ public class RemoteExecutionTest implements Serializable {
           RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
     }
 
-    Iterable<String> sideInputData = Arrays.asList("A", "B", "C");
+    Iterable<byte[]> sideInputData =
+        Arrays.asList(
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "A"),
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "B"),
+            CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
     StateRequestHandler stateRequestHandler =
         StateRequestHandlers.forSideInputHandlerFactory(
             descriptor.getSideInputSpecs(),
@@ -472,9 +476,13 @@ public class RemoteExecutionTest implements Serializable {
     try (ActiveBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(WindowedValue.valueInGlobalWindow("X"));
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(WindowedValue.valueInGlobalWindow("Y"));
+          .accept(
+              WindowedValue.valueInGlobalWindow(
+                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
     }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
@@ -1099,18 +1107,22 @@ public class RemoteExecutionTest implements Serializable {
             WindowedValue.valueInGlobalWindow(kvBytes("stream2X", ""))));
   }
 
-  private KV<String, byte[]> kvBytes(String key, long value) throws CoderException {
-    return KV.of(key, CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), value));
+  private KV<byte[], byte[]> kvBytes(String key, long value) throws CoderException {
+    return KV.of(
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
+        CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), value));
   }
 
-  private KV<String, String> kvBytes(String key, String value) throws CoderException {
-    return KV.of(key, value);
+  private KV<byte[], byte[]> kvBytes(String key, String value) throws CoderException {
+    return KV.of(
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), value));
   }
 
-  private KV<String, org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
+  private KV<byte[], org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
       String key, long timestampOffset) throws CoderException {
     return KV.of(
-        key,
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), key),
         org.apache.beam.runners.core.construction.Timer.of(
             BoundedWindow.TIMESTAMP_MIN_VALUE.plus(timestampOffset),
             CoderUtils.encodeToByteArray(VoidCoder.of(), null, Coder.Context.NESTED)));
@@ -1119,7 +1131,7 @@ public class RemoteExecutionTest implements Serializable {
   private Object timerStructuralValue(Object timer) {
     return WindowedValue.FullWindowedValueCoder.of(
             KvCoder.of(
-                StringUtf8Coder.of(),
+                ByteArrayCoder.of(),
                 org.apache.beam.runners.core.construction.Timer.Coder.of(ByteArrayCoder.of())),
             GlobalWindow.Coder.INSTANCE)
         .structuralValue(timer);

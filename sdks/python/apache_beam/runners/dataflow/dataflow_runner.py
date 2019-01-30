@@ -27,11 +27,10 @@ import logging
 import threading
 import time
 import traceback
+import urllib
 from builtins import hex
 from collections import defaultdict
 
-from future.moves.urllib.parse import quote
-from future.moves.urllib.parse import unquote
 from future.utils import iteritems
 
 import apache_beam as beam
@@ -60,6 +59,15 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
 from apache_beam.utils.plugin import BeamPlugin
+
+try:                    # Python 3
+  unquote_to_bytes = urllib.parse.unquote_to_bytes
+  quote = urllib.parse.quote
+except AttributeError:  # Python 2
+  # pylint: disable=deprecated-urllib-function
+  unquote_to_bytes = urllib.unquote
+  quote = urllib.quote
+
 
 __all__ = ['DataflowRunner']
 
@@ -1046,7 +1054,7 @@ class DataflowRunner(PipelineRunner):
   @staticmethod
   def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
-    return unquote(encoded_string)
+    return unquote_to_bytes(encoded_string)
 
 
 class _DataflowSideInput(beam.pvalue.AsSideInput):

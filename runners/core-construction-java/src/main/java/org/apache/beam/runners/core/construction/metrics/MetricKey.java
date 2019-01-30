@@ -36,6 +36,11 @@ public abstract class MetricKey implements Serializable {
   /** The name of the metric. */
   public abstract MetricName metricName();
 
+  @Override
+  public String toString() {
+    return String.format("%s:%s", stepName(), metricName());
+  }
+
   public static MetricKey create(String stepName, MetricName metricName) {
     return new AutoValue_MetricKey(stepName, metricName);
   }

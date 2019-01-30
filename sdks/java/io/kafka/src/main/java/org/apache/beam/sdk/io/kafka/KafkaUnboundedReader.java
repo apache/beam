@@ -141,28 +141,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     consumerPollThread.submit(this::consumerPollLoop);
 
     // offsetConsumer setup :
-
-    Object groupId = spec.getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG);
-    // override group_id and disable auto_commit so that it does not interfere with main consumer
-    String offsetGroupId =
-        String.format(
-            "%s_offset_consumer_%d_%s",
-            name, (new Random()).nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
-    Map<String, Object> offsetConsumerConfig = new HashMap<>(spec.getConsumerConfig());
-    offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
-    offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-    // Force read isolation level to 'read_uncommitted' for offset consumer. This consumer
-    // fetches latest offset for two reasons : (a) to calculate backlog (number of records
-    // yet to be consumed) (b) to advance watermark if the backlog is zero. The right thing to do
-    // for (a) is to leave this config unchanged from the main config (i.e. if there are records
-    // that can't be read because of uncommitted records before them, they shouldn't
-    // ideally count towards backlog when "read_committed" is enabled. But (b)
-    // requires finding out if there are any records left to be read (committed or uncommitted).
-    // Rather than using two separate consumers we will go with better support for (b). If we do
-    // hit a case where a lot of records are not readable (due to some stuck transactions), the
-    // pipeline would report more backlog, but would not be able to consume it. It might be ok
-    // since CPU consumed on the workers would be low and will likely avoid unnecessary upscale.
-    offsetConsumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted");
+    Map<String, Object> offsetConsumerConfig = getOffsetConsumerConfig();
 
     offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
     consumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
@@ -724,6 +703,39 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     return backlogCount;
+  }
+
+  @VisibleForTesting
+  Map<String, Object> getOffsetConsumerConfig() {
+    Map<String, Object> offsetConsumerConfig = new HashMap<>(source.getSpec().getConsumerConfig());
+    offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+
+    Object groupId = source.getSpec().getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG);
+    // override group_id and disable auto_commit so that it does not interfere with main consumer
+    String offsetGroupId =
+        String.format(
+            "%s_offset_consumer_%d_%s",
+            name, (new Random()).nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
+    offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
+
+    if (source.getSpec().getOffsetConsumerConfig() != null) {
+      offsetConsumerConfig.putAll(source.getSpec().getOffsetConsumerConfig());
+    }
+
+    // Force read isolation level to 'read_uncommitted' for offset consumer. This consumer
+    // fetches latest offset for two reasons : (a) to calculate backlog (number of records
+    // yet to be consumed) (b) to advance watermark if the backlog is zero. The right thing to do
+    // for (a) is to leave this config unchanged from the main config (i.e. if there are records
+    // that can't be read because of uncommitted records before them, they shouldn't
+    // ideally count towards backlog when "read_committed" is enabled. But (b)
+    // requires finding out if there are any records left to be read (committed or uncommitted).
+    // Rather than using two separate consumers we will go with better support for (b). If we do
+    // hit a case where a lot of records are not readable (due to some stuck transactions), the
+    // pipeline would report more backlog, but would not be able to consume it. It might be ok
+    // since CPU consumed on the workers would be low and will likely avoid unnecessary upscale.
+    offsetConsumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted");
+
+    return offsetConsumerConfig;
   }
 
   @Override
