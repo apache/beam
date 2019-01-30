@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import collections
 import glob
+import io
 import tempfile
 from builtins import object
 
@@ -213,11 +214,25 @@ def assert_that(actual, matcher, label='assert_that',
 
 
 @experimental()
-def open_shards(glob_pattern):
-  """Returns a composite file of all shards matching the given glob pattern."""
+def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
+  """Returns a composite file of all shards matching the given glob pattern.
+
+  Args:
+    glob_pattern (str): Pattern used to match files which should be opened.
+    mode (str): Specify the mode in which the file should be opened. For
+                available modes, check io.open() documentation.
+    encoding (str): Name of the encoding used to decode or encode the file.
+                    This should only be used in text mode.
+
+  Returns:
+    A stream with the contents of the opened files.
+  """
+  if 'b' in mode:
+    encoding = None
+
   with tempfile.NamedTemporaryFile(delete=False) as out_file:
     for shard in glob.glob(glob_pattern):
       with open(shard, 'rb') as in_file:
         out_file.write(in_file.read())
     concatenated_file_name = out_file.name
-  return open(concatenated_file_name, 'rb')
+  return io.open(concatenated_file_name, mode, encoding=encoding)
