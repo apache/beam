@@ -41,7 +41,7 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
   }
 
   public static TestFlinkRunner fromOptions(PipelineOptions options) {
-    FlinkPipelineOptions flinkOptions = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
     return new TestFlinkRunner(flinkOptions);
   }
 
