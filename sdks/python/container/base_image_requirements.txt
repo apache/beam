@@ -29,7 +29,7 @@ fastavro==0.21.4
 crcmod==1.7
 dill==0.2.8.2
 future==0.16.0
-futures==3.2.0
+futures==3.2.0;python_version<"3.0"
 grpcio==1.15.0
 hdfs==2.1.0
 httplib2==0.9.2
