@@ -443,10 +443,10 @@ p.run()
 
 class PlayerCoder(beam.coders.Coder):
   def encode(self, player):
-    return '%s:%s' % (player.team, player.name)
+    return ('%s:%s' % (player.team, player.name)).encode('utf-8')
 
   def decode(self, s):
-    return Player(*s.split(':'))
+    return Player(*s.decode('utf-8').split(':'))
 
   def is_deterministic(self):
     return True
