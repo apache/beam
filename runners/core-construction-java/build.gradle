@@ -50,21 +50,3 @@ dependencies {
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
 }
-
-task runExpansionService (type: JavaExec) {
-  main = "org.apache.beam.runners.core.construction.ExpansionService"
-  classpath = sourceSets.main.runtimeClasspath
-  args = [project.findProperty("constructionService.port") ?: "8097"]
-}
-
-task testExpansionService(type: Jar) {
-  dependsOn = [shadowJar, shadowTestJar]
-  manifest {
-    attributes(
-            'Main-Class': 'org.apache.beam.runners.core.construction.TestExpansionService'
-    )
-  }
-  from { configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
-  from sourceSets.main.output
-  from sourceSets.test.output
-}

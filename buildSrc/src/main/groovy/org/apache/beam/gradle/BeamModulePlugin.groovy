@@ -351,6 +351,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def kafka_version = "1.0.0"
     def quickcheck_version = "0.8"
     def google_cloud_core_version = "1.36.0"
+    def cassandra_driver_version = "3.6.0"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -377,6 +378,8 @@ class BeamModulePlugin implements Plugin<Project> {
         bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:$bigtable_version",
         bigtable_protos                             : "com.google.api.grpc:grpc-google-cloud-bigtable-v2:$generated_grpc_beta_version",
         byte_buddy                                  : "net.bytebuddy:byte-buddy:1.9.3",
+        cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
+        cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         commons_compress                            : "org.apache.commons:commons-compress:1.16.1",
         commons_csv                                 : "org.apache.commons:commons-csv:1.4",
         commons_io_1x                               : "commons-io:commons-io:1.3.2",
@@ -1535,9 +1538,20 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.envdir = "${project.rootProject.buildDir}/gradleenv/${project.name.hashCode()}"
       project.ext.pythonRootDir = "${project.rootDir}/sdks/python"
 
+      // This is current supported Python3 version. It should match the one in
+      // sdks/python/container/py3/Dockerfile
+      final PYTHON3_VERSION = '3.5'
+
       project.task('setupVirtualenv')  {
         doLast {
-          project.exec { commandLine 'virtualenv', "${project.ext.envdir}" }
+          def virtualenvCmd = [
+            'virtualenv',
+            "${project.ext.envdir}",
+          ]
+          if (project.hasProperty('python3')) {
+            virtualenvCmd += '--python=python' + PYTHON3_VERSION
+          }
+          project.exec { commandLine virtualenvCmd }
           project.exec {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5"
@@ -1585,6 +1599,7 @@ class BeamModulePlugin implements Plugin<Project> {
             args '-c', ". ${project.ext.envdir}/bin/activate && python ${project.ext.pythonRootDir}/setup.py clean"
           }
           project.delete project.buildDir
+          project.delete project.ext.envdir
         }
       }
       project.clean.dependsOn project.cleanPython

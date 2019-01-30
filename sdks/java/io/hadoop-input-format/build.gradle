@@ -26,8 +26,6 @@ ext.summary = "IO to read data from sources that implement Hadoop Input Format."
 
 def log4j_version = "2.6.2"
 def elastic_search_version = "5.0.0"
-// Migrate to using a version of the driver compatible with Guava 20
-def cassandra_driver = "3.2.0"
 
 // Ban dependencies from the test runtime classpath
 configurations.testRuntimeClasspath {
@@ -66,9 +64,9 @@ dependencies {
     exclude group: "org.apache.spark", module: "spark-sql_2.10"
     exclude group: "org.apache.storm", module: "storm-core"
   }
-  testCompile "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver"
-  testCompile "org.apache.cassandra:cassandra-all:3.9"
-  testCompile "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver"
+  testCompile library.java.cassandra_driver_core
+  testCompile library.java.cassandra_driver_mapping
+  testCompile "org.apache.cassandra:cassandra-all:3.11.3"
   testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
   testCompile library.java.postgres
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
