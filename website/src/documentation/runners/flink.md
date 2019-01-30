@@ -164,14 +164,14 @@ $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
       --flinkMaster=<flink master url> \
       --filesToStage=target/word-count-beam-bundled-0.1.jar"
 ```
-If you have a Flink `JobManager` running on your local machine you can give `localhost:8081` for
-`flinkMaster`.
+If you have a Flink `JobManager` running on your local machine you can provide `localhost:8081` for
+`flinkMaster`. Otherwise an embedded Flink cluster will be started for the WordCount job.
 
 ## Additional information and caveats
 
 ### Monitoring your job
 
-You can monitor a running Flink job using the Flink JobManager Dashboard. By default, this is available at port `8081` of the JobManager node. If you have a Flink installation on your local machine that would be `http://localhost:8081`.
+You can monitor a running Flink job using the Flink JobManager Dashboard or its Rest interfaces. By default, this is available at port `8081` of the JobManager node. If you have a Flink installation on your local machine that would be `http://localhost:8081`. Note: When you use the `[local]` mode an embedded Flink cluster will be started which does not make a dashboard available.
 
 ### Streaming Execution
 
