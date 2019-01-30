@@ -950,7 +950,7 @@ public class CassandraIO {
       this.mutateFutures.add(mutator.apply(mapper, entity));
       if (this.mutateFutures.size() == CONCURRENT_ASYNC_QUERIES) {
         // We reached the max number of allowed in flight queries.
-        // Write methods are synchronous in Beam as stated by the CassandraService interface,
+        // Write methods are synchronous in Beam,
         // so we wait for each async query to return before exiting.
         LOG.debug(
             "Waiting for a batch of {} Cassandra {} to be executed...",
