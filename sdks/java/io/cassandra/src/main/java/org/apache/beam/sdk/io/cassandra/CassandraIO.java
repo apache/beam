@@ -827,7 +827,7 @@ public class CassandraIO {
 
   private static class WriteFn<T> extends DoFn<T, Void> {
     private final Write<T> spec;
-    private Mutator<T> writer;
+    private transient Mutator<T> writer;
 
     WriteFn(Write<T> spec) {
       this.spec = spec;
@@ -852,7 +852,7 @@ public class CassandraIO {
 
   private static class DeleteFn<T> extends DoFn<T, Void> {
     private final Write<T> spec;
-    private Mutator<T> deleter;
+    private transient Mutator<T> deleter;
 
     DeleteFn(Write<T> spec) {
       this.spec = spec;
