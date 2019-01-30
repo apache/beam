@@ -19,9 +19,15 @@ package org.apache.beam.fn.harness.data;
 
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import org.apache.beam.fn.harness.SimpleExecutionState;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 
@@ -33,8 +39,8 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
  * <p>Usage: // Instantiate and use the registry for each class of functions. i.e. start. finish.
  *
  * <pre>
- * PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
- * PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+ * PTransformFunctionRegistry startFunctionRegistry;
+ * PTransformFunctionRegistry finishFunctionRegistry;
  * startFunctionRegistry.register(myStartThrowingRunnable);
  * finishFunctionRegistry.register(myFinishThrowingRunnable);
  *
@@ -51,33 +57,66 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
  */
 public class PTransformFunctionRegistry {
 
-  private List<ThrowingRunnable> runnables = new ArrayList<>();
   private MetricsContainerStepMap metricsContainerRegistry;
+  private ExecutionStateTracker stateTracker;
+  private String executionTimeUrn;
+  private List<ThrowingRunnable> runnables = new ArrayList<>();
+  private List<SimpleExecutionState> executionStates = new ArrayList<SimpleExecutionState>();
+
 
   /**
-   * @param metricsContainerRegistry Used to get the appropriate metrics container for the
-   *     pTransform in order to set its context before invoking the pTransform specific function.
+   * Construct the registry to run for either start or finish bundle functions.
+   * @param metricsContainerRegistry - Used to enable a metric container to properly account for
+   *     the pTransform in user metrics.
+   * @param stateTracker - The tracker to enter states in order to calculate execution time metrics.
+   * @param executionTimeUrn - The URN to use for the execution time metrics.
    */
-  public PTransformFunctionRegistry(MetricsContainerStepMap metricsContainerRegistry) {
+  public PTransformFunctionRegistry(
+      MetricsContainerStepMap metricsContainerRegistry,
+      ExecutionStateTracker stateTracker,
+      String executionTimeUrn) {
     this.metricsContainerRegistry = metricsContainerRegistry;
+    this.executionTimeUrn = executionTimeUrn;
+    this.stateTracker = stateTracker;
   }
 
   /**
-   * Register the runnable to process the specific pTransformId.
+   * Register the runnable to process the specific pTransformId and track its execution time
    *
    * @param pTransformId
    * @param runnable
    */
   public void register(String pTransformId, ThrowingRunnable runnable) {
+    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
+    labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, pTransformId);
+    SimpleExecutionState state = new SimpleExecutionState(this.executionTimeUrn, labelsMetadata);
+    executionStates.add(state);
+
     ThrowingRunnable wrapped =
         () -> {
           MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
-          try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
-            // TODO(ajamato): Set the proper state sampler state for ExecutionTime Metrics to use.
-            runnable.run();
+          try (Closeable metricCloseable = MetricsEnvironment.scopedMetricsContainer(container)) {
+            try (Closeable trackerCloseable = this.stateTracker.enterState(state)) {
+              runnable.run();
+            }
           }
         };
     runnables.add(wrapped);
+  }
+
+  // TODO write unit tests for this method and entering the state.
+  public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
+    List<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
+    for (SimpleExecutionState state : executionStates) {
+      SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+      builder.setUrn(this.executionTimeUrn);
+      for (Map.Entry<String, String> entry : state.getLabels().entrySet()) {
+        builder.setLabel(entry.getKey(), entry.getValue());
+      }
+      builder.setInt64Value(state.getTotalMillis());
+      monitoringInfos.add(builder.build());
+    }
+    return monitoringInfos;
   }
 
   /**
