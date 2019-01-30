@@ -353,6 +353,15 @@ class DataflowRunner(PipelineRunner):
         experiments = list(set(experiments + debug_options.experiments))
       debug_options.experiments = experiments
 
+    # Elevate "enable_streaming_engine" to pipeline option, but using the
+    # existing experiment.
+    if options.enable_streaming_engine:
+      experiments = ["enable_windmill_service", "enable_streaming_engine");
+      if debug_options.experiments is not None:
+        experiments = list(set(experiments + debug_options.experiments))
+      debug_options.experiments = experiments
+
+
     self.job = apiclient.Job(options, self.proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that

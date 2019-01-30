@@ -433,6 +433,9 @@ class GoogleCloudOptions(PipelineOptions):
                         'Experimental. '
                         'See https://cloud.google.com/dataflow/pipelines/'
                         'updating-a-pipeline')
+    parser.add_argument('--enable_streaming_engine',
+                        default=False,
+                        help='Enable Windmill Service for this Dataflow job. ')
 
   def validate(self, validator):
     errors = []

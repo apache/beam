@@ -29,10 +29,5 @@ public interface StreamingOptions extends ApplicationNameOptions, PipelineOption
   @Hidden
   boolean isStreaming();
 
-  @Description("If true will use Streaming Engine.")
-  boolean isEnableStreamingEngine();
-
-  void setEnableStreamingEngine(boolean value);
-
   void setStreaming(boolean value);
 }
