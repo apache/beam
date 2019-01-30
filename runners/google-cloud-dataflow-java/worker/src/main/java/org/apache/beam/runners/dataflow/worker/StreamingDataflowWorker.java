@@ -165,6 +165,8 @@ public class StreamingDataflowWorker {
   private static final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToBaseNetwork =
       new MapTaskToNetworkFunction(idGenerator);
 
+  private static Random clientIdGenerator = new Random();
+
   // Maximum number of threads for processing.  Currently each thread processes one key at a time.
   static final int MAX_PROCESSING_THREADS = 300;
   static final long THREAD_EXPIRATION_TIME_SEC = 60;
@@ -615,7 +617,7 @@ public class StreamingDataflowWorker {
     this.metricTrackingWindmillServer =
         new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, windmillServiceEnabled);
     this.stateFetcher = new StateFetcher(metricTrackingWindmillServer);
-    this.clientId = new Random().nextLong();
+    this.clientId = clientIdGenerator.nextLong();
 
     for (MapTask mapTask : mapTasks) {
       addComputation(mapTask.getSystemName(), mapTask);
