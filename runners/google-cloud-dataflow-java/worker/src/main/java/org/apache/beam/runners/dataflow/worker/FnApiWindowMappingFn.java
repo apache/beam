@@ -284,7 +284,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
               + "the SDK harness but also received %s",
           outputValue);
       return sideInputWindow.getValue().getValue();
-    } catch (Exception e) {
+    } catch (Throwable e) {
       LOG.error("Unable to map main input window {} to side input window.", mainWindow, e);
       throw new IllegalStateException(e);
     }
