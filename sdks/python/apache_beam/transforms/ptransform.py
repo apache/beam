@@ -624,7 +624,7 @@ class PTransformWithSideInputs(PTransform):
     if isinstance(fn, type) and issubclass(fn, WithTypeHints):
       # Don't treat Fn class objects as callables.
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
-    self.fn = self.make_fn(fn)
+    self.fn = self.make_fn(fn, bool(args or kwargs))
     # Now that we figure out the label, initialize the super-class.
     super(PTransformWithSideInputs, self).__init__()
 
@@ -720,7 +720,7 @@ class PTransformWithSideInputs(PTransform):
     """
     raise NotImplementedError
 
-  def make_fn(self, fn):
+  def make_fn(self, fn, has_side_inputs):
     # TODO(silviuc): Add comment describing that this is meant to be overriden
     # by methods detecting callables and wrapping them in DoFns.
     return fn

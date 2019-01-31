@@ -114,6 +114,15 @@ class _CombiningValueStateTag(_StateTag):
   def with_prefix(self, prefix):
     return _CombiningValueStateTag(prefix + self.tag, self.combine_fn)
 
+  def without_extraction(self):
+    class NoExtractionCombineFn(core.CombineFn):
+      create_accumulator = self.combine_fn.create_accumulator
+      add_input = self.combine_fn.add_input
+      merge_accumulators = self.combine_fn.merge_accumulators
+      compact = self.combine_fn.compact
+      extract_output = staticmethod(lambda x: x)
+    return _CombiningValueStateTag(self.tag, NoExtractionCombineFn())
+
 
 class _ListStateTag(_StateTag):
   """StateTag pointing to a list of elements."""
@@ -838,24 +847,21 @@ class MergeableStateAdapter(SimpleState):
     if isinstance(tag, _ValueStateTag):
       raise ValueError(
           'Merging requested for non-mergeable state tag: %r.' % tag)
+    elif isinstance(tag, _CombiningValueStateTag):
+      tag = tag.without_extraction()
     self.raw_state.add_state(self._get_id(window), tag, value)
 
   def get_state(self, window, tag):
+    if isinstance(tag, _CombiningValueStateTag):
+      original_tag, tag = tag, tag.without_extraction()
     values = [self.raw_state.get_state(window_id, tag)
               for window_id in self._get_ids(window)]
     if isinstance(tag, _ValueStateTag):
       raise ValueError(
           'Merging requested for non-mergeable state tag: %r.' % tag)
     elif isinstance(tag, _CombiningValueStateTag):
-      # TODO(robertwb): Strip combine_fn.extract_output from raw_state tag.
-      if not values:
-        accumulator = tag.combine_fn.create_accumulator()
-      elif len(values) == 1:
-        accumulator = values[0]
-      else:
-        accumulator = tag.combine_fn.merge_accumulators(values)
-        # TODO(robertwb): Store the merged value in the first tag.
-      return tag.combine_fn.extract_output(accumulator)
+      return original_tag.combine_fn.extract_output(
+          original_tag.combine_fn.merge_accumulators(values))
     elif isinstance(tag, _ListStateTag):
       return [v for vs in values for v in vs]
     elif isinstance(tag, _WatermarkHoldStateTag):
@@ -1211,6 +1217,7 @@ class InMemoryUnmergedState(UnmergedState):
     if isinstance(tag, _ValueStateTag):
       self.state[window][tag.tag] = value
     elif isinstance(tag, _CombiningValueStateTag):
+      # TODO(robertwb): Store merged accumulators.
       self.state[window][tag.tag].append(value)
     elif isinstance(tag, _ListStateTag):
       self.state[window][tag.tag].append(value)
