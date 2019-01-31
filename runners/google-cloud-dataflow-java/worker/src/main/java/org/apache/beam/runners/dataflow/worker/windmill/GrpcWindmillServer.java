@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
@@ -104,6 +105,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** gRPC client for communicating with Windmill Service or Windmill Appliance. */
+// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6562
+@SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
 public class GrpcWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServer.class);
 

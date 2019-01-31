@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import com.google.api.client.util.Clock;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +39,8 @@ import org.slf4j.LoggerFactory;
  * interval between two consecutive updates is also bound by {@link #getMinReportingInterval} and
  * {@link #getMaxReportingInterval}.
  */
+// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6561
+@SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
 @NotThreadSafe
 public abstract class WorkProgressUpdater {
   private static final Logger LOG = LoggerFactory.getLogger(WorkProgressUpdater.class);
