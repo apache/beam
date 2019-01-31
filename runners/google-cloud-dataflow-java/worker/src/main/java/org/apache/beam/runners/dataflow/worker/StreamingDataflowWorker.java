@@ -532,7 +532,7 @@ public class StreamingDataflowWorker {
     this.workUnitClient = workUnitClient;
     this.options = options;
     this.sdkHarnessRegistry = sdkHarnessRegistry;
-    this.windmillServiceEnabled = StreamingDataflowWorkerOptions.streamingEngineEnabled(options);
+    this.windmillServiceEnabled = options.isEnableStreamingEngine();
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
     this.statusPages = WorkerStatusPages.create(DEFAULT_STATUS_PORT, memoryMonitor);
     if (windmillServiceEnabled) {

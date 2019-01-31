@@ -49,6 +49,7 @@ import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -126,7 +127,14 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
 
   void setGcpCredential(Credentials value);
 
-  @Description("If true will use Streaming Engine.")
+  /** Experiment to turn on the Streaming Engine experiment. */
+  public static final String STREAMING_ENGINE_EXPERIMENT = "enable_streaming_engine";
+
+  /** @deprecated Use STREAMING_ENGINE_EXPERIMENT instead. */
+  @Deprecated public static final String WINDMILL_SERVICE_EXPERIMENT = "enable_windmill_service";
+
+  @Description("If true will use Streaming Engine.  Defaults to false unless the experiments enable_streaming_engine or enable_windmill_service are set.")
+  @Default.InstanceFactory(EnableStreamingEngineFactory.class)
   boolean isEnableStreamingEngine();
 
   void setEnableStreamingEngine(boolean value);
@@ -218,6 +226,15 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       } catch (IOException | GeneralSecurityException e) {
         throw new RuntimeException("Unable to obtain credential", e);
       }
+    }
+  }
+
+  /** EneableStreamingEngine defaults to false unless one of the two experiments is set **/
+  class EnableStreamingEngineFactory implements DefaultValueFactory<Boolean> {
+    @Override
+    public Boolean create(PipelineOptions options) {
+      return ExperimentalOptions.hasExperiment(options, STREAMING_ENGINE_EXPERIMENT)
+          || ExperimentalOptions.hasExperiment(options, WINDMILL_SERVICE_EXPERIMENT);
     }
   }
 

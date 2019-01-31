@@ -100,19 +100,6 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
 
   void setWindmillServiceStreamingRpcBatchLimit(int value);
 
-  /** Experiment to turn on the Streaming Engine experiment. */
-  public static final String STREAMING_ENGINE_EXPERIMENT = "enable_streaming_engine";
-
-  /** @deprecated Use STREAMING_ENGINE_EXPERIMENT instead. */
-  @Deprecated public static final String WINDMILL_SERVICE_EXPERIMENT = "enable_windmill_service";
-
-  /** Returns true if the job is running with streaming engine enabled. */
-  public static boolean streamingEngineEnabled(StreamingDataflowWorkerOptions options) {
-    return hasExperiment(options, STREAMING_ENGINE_EXPERIMENT)
-        || hasExperiment(options, WINDMILL_SERVICE_EXPERIMENT)
-        || options.isEnableStreamingEngine();
-  }
-
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
    * backwards compatibility.
@@ -187,7 +174,7 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
       StreamingDataflowWorkerOptions streamingOptions =
           options.as(StreamingDataflowWorkerOptions.class);
       if (streamingOptions.getWindmillServiceEndpoint() != null
-          || streamingEngineEnabled(streamingOptions)
+          || streamingOptions.isEnableStreamingEngine()
           || streamingOptions.getLocalWindmillHostport().startsWith("grpc:")) {
         try {
           return new GrpcWindmillServer(streamingOptions);
@@ -207,7 +194,7 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
     public Boolean create(PipelineOptions options) {
       StreamingDataflowWorkerOptions streamingOptions =
           options.as(StreamingDataflowWorkerOptions.class);
-      return streamingEngineEnabled(streamingOptions)
+      return streamingOptions.isEnableStreamingEngine()
           && hasExperiment(streamingOptions, "windmill_service_streaming_rpcs")
           && !hasExperiment(streamingOptions, "windmill_service_disable_streaming_rpcs");
     }
@@ -220,7 +207,7 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
     public Integer create(PipelineOptions options) {
       StreamingDataflowWorkerOptions streamingOptions =
           options.as(StreamingDataflowWorkerOptions.class);
-      if (streamingEngineEnabled(streamingOptions)
+      if (streamingOptions.isEnableStreamingEngine()
           && hasExperiment(streamingOptions, "windmill_service_streaming_rpc_batching")) {
         return Integer.MAX_VALUE;
       }
