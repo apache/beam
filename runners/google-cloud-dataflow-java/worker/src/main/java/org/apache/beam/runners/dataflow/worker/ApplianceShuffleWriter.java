@@ -52,7 +52,7 @@ public final class ApplianceShuffleWriter implements ShuffleWriter {
   }
 
   @Override
-  public void finalize() {
+  protected void finalize() {
     destroy();
   }
 
