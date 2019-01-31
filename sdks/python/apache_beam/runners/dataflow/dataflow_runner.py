@@ -41,7 +41,6 @@ from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
 from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
@@ -350,15 +349,6 @@ class DataflowRunner(PipelineRunner):
     worker_options = options.view_as(WorkerOptions)
     if worker_options.min_cpu_platform:
       experiments = ["min_cpu_platform=%s" % worker_options.min_cpu_platform]
-      if debug_options.experiments is not None:
-        experiments = list(set(experiments + debug_options.experiments))
-      debug_options.experiments = experiments
-
-    # Elevate "enable_streaming_engine" to pipeline option, but using the
-    # existing experiment.
-    google_cloud_options = options.view_as(GoogleCloudOptions)
-    if google_cloud_options.enable_streaming_engine:
-      experiments = ["enable_windmill_service", "enable_streaming_engine"]
       if debug_options.experiments is not None:
         experiments = list(set(experiments + debug_options.experiments))
       debug_options.experiments = experiments

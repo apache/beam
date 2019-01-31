@@ -318,18 +318,6 @@ public class DataflowPipelineTranslator {
 
       WorkerPool workerPool = new WorkerPool();
 
-      // If streaming engine is enabled set the proper experiments so that it is enabled on the
-      // back end as well.
-      if (options.isEnableStreamingEngine()) {
-        List<String> experiments = options.getExperiments();
-        if (experiments == null) {
-          experiments = new ArrayList<String>();
-        }
-        experiments.add("enable_windmill_service");
-        experiments.add("enable_streaming_engine");
-        options.setExperiments(experiments);
-      }
-
       if (options.isStreaming()) {
         job.setType("JOB_TYPE_STREAMING");
       } else {

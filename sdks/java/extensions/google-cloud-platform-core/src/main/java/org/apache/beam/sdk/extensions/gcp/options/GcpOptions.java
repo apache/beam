@@ -126,11 +126,6 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
 
   void setGcpCredential(Credentials value);
 
-  @Description("If true will use Streaming Engine.")
-  boolean isEnableStreamingEngine();
-
-  void setEnableStreamingEngine(boolean value);
-
   /**
    * Attempts to infer the default project based upon the environment this application is executing
    * within. Currently this only supports getting the default project from gcloud.
