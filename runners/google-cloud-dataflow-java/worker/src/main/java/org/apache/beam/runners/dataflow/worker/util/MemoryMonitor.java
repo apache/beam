@@ -394,7 +394,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     // Compare the amount of time spent in GC thrashing to the given threshold;
     // if config.getSleepTimeMillis() is equal to 0 (should happen in tests only),
     // then we compare percentage-per-period to 100%
-    double gcPercentage = (inGC - timeInGC) * 100 / (now - lastTimeWokeUp);
+    double gcPercentage = (inGC - timeInGC) * 100.0 / (now - lastTimeWokeUp);
 
     lastMeasuredGCPercentage.set(gcPercentage);
     maxGCPercentage.set(Math.max(maxGCPercentage.get(), gcPercentage));
