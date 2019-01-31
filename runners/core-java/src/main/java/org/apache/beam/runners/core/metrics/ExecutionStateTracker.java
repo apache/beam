@@ -143,11 +143,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   }
 
   @Override
-  public boolean equals(Object o) {
-    return this == o;
-  }
-
-  @Override
   public int hashCode() {
     return System.identityHashCode(this);
   }
