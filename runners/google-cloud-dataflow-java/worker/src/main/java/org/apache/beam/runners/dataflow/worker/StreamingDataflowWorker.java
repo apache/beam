@@ -616,6 +616,7 @@ public class StreamingDataflowWorker {
     this.windmillServer = options.getWindmillServerStub();
     this.metricTrackingWindmillServer =
         new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, windmillServiceEnabled);
+    this.metricTrackingWindmillServer.start();
     this.stateFetcher = new StateFetcher(metricTrackingWindmillServer);
     this.clientId = clientIdGenerator.nextLong();
 
