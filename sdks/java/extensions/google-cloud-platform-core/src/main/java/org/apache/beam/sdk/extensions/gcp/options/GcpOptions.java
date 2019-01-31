@@ -133,7 +133,8 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /** @deprecated Use STREAMING_ENGINE_EXPERIMENT instead. */
   @Deprecated public static final String WINDMILL_SERVICE_EXPERIMENT = "enable_windmill_service";
 
-  @Description("If true will use Streaming Engine.  Defaults to false unless the experiments enable_streaming_engine or enable_windmill_service are set.")
+  @Description(
+      "If true will use Streaming Engine.  Defaults to false unless the experiments enable_streaming_engine or enable_windmill_service are set.")
   @Default.InstanceFactory(EnableStreamingEngineFactory.class)
   boolean isEnableStreamingEngine();
 
@@ -229,7 +230,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     }
   }
 
-  /** EneableStreamingEngine defaults to false unless one of the two experiments is set **/
+  /** EneableStreamingEngine defaults to false unless one of the two experiments is set * */
   class EnableStreamingEngineFactory implements DefaultValueFactory<Boolean> {
     @Override
     public Boolean create(PipelineOptions options) {
