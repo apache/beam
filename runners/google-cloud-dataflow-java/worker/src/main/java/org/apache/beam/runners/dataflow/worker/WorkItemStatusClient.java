@@ -263,7 +263,7 @@ public class WorkItemStatusClient {
       populateCounterUpdates(status);
     }
 
-    Double throttleTime = extractThrottleTime().doubleValue();
+    double throttleTime = extractThrottleTime();
     status.setTotalThrottlerWaitTimeSeconds(throttleTime);
     return status;
   }
@@ -337,7 +337,7 @@ public class WorkItemStatusClient {
         : executionContext.extractMsecCounters(isFinalUpdate);
   }
 
-  public Long extractThrottleTime() {
+  public long extractThrottleTime() {
     return executionContext == null ? 0L : executionContext.extractThrottleTime();
   }
 
