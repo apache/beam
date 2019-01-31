@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collection;
@@ -79,14 +81,19 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
   }
 
   static class Factory implements ReaderFactory {
+    // Findbugs does not correctly understand inheritance + nullability.
+    //
+    // coder may be null due to parent class signature, and must be checked,
+    // despite not being nullable here
     @Override
     public NativeReader<?> create(
         CloudObject spec,
-        @Nullable Coder<?> coder,
+        Coder<?> coder,
         @Nullable PipelineOptions options,
         @Nullable DataflowExecutionContext context,
         DataflowOperationContext operationContext)
         throws Exception {
+      checkArgument(coder != null, "coder must not be null");
       @SuppressWarnings({"rawtypes", "unchecked"})
       Coder<WindowedValue<KeyedWorkItem<Object, Object>>> typedCoder =
           (Coder<WindowedValue<KeyedWorkItem<Object, Object>>>) coder;
