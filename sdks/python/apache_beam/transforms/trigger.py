@@ -34,6 +34,7 @@ from future.moves.itertools import zip_longest
 from future.utils import iteritems
 from future.utils import with_metaclass
 
+from apache_beam.coders import coder_impl
 from apache_beam.coders import observable
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import combiners
@@ -1005,6 +1006,10 @@ class _UnwindowedValues(observable.ObservableMixin):
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
+
+
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
+    _UnwindowedValues)
 
 
 class DiscardingGlobalTriggerDriver(TriggerDriver):
