@@ -50,6 +50,11 @@ public abstract class MetricName implements Serializable {
   /** The name of this metric. */
   public abstract String getName();
 
+  @Override
+  public String toString() {
+    return String.format("%s:%s", getNamespace(), getName());
+  }
+
   /**
    * The name of this metric.
    *

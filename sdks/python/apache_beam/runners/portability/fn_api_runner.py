@@ -317,39 +317,27 @@ class FnApiRunner(runner.PipelineRunner):
       yield
 
   def create_stages(self, pipeline_proto):
-
-    pipeline_context = fn_api_runner_transforms.TransformContext(
-        copy.deepcopy(pipeline_proto.components),
+    return fn_api_runner_transforms.create_and_optimize_stages(
+        copy.deepcopy(pipeline_proto),
+        phases=[fn_api_runner_transforms.annotate_downstream_side_inputs,
+                fn_api_runner_transforms.fix_side_input_pcoll_coders,
+                fn_api_runner_transforms.lift_combiners,
+                fn_api_runner_transforms.expand_gbk,
+                fn_api_runner_transforms.sink_flattens,
+                fn_api_runner_transforms.greedily_fuse,
+                fn_api_runner_transforms.read_to_impulse,
+                fn_api_runner_transforms.impulse_to_input,
+                fn_api_runner_transforms.inject_timer_pcollections,
+                fn_api_runner_transforms.sort_stages,
+                fn_api_runner_transforms.window_pcollection_coders],
+        known_runner_urns=frozenset([
+            common_urns.primitives.FLATTEN.urn,
+            common_urns.primitives.GROUP_BY_KEY.urn]),
         use_state_iterables=self._use_state_iterables)
 
-    # Initial set of stages are singleton leaf transforms.
-    stages = list(fn_api_runner_transforms.leaf_transform_stages(
-        pipeline_proto.root_transform_ids,
-        pipeline_proto.components))
-
-    # Apply each phase in order.
-    for phase in [
-        fn_api_runner_transforms.annotate_downstream_side_inputs,
-        fn_api_runner_transforms.fix_side_input_pcoll_coders,
-        fn_api_runner_transforms.lift_combiners,
-        fn_api_runner_transforms.expand_gbk,
-        fn_api_runner_transforms.sink_flattens,
-        fn_api_runner_transforms.greedily_fuse,
-        fn_api_runner_transforms.read_to_impulse,
-        fn_api_runner_transforms.impulse_to_input,
-        fn_api_runner_transforms.inject_timer_pcollections,
-        fn_api_runner_transforms.sort_stages,
-        fn_api_runner_transforms.window_pcollection_coders]:
-      logging.info('%s %s %s', '=' * 20, phase, '=' * 20)
-      stages = list(phase(stages, pipeline_context))
-      logging.debug('Stages: %s', [str(s) for s in stages])
-
-    # Return the (possibly mutated) context and ordered set of stages.
-    return pipeline_context.components, stages, pipeline_context.safe_coders
-
-  def run_stages(self, pipeline_components, stages, safe_coders):
+  def run_stages(self, stage_context, stages):
     worker_handler_manager = WorkerHandlerManager(
-        pipeline_components.environments, self._provision_info)
+        stage_context.components.environments, self._provision_info)
     metrics_by_stage = {}
     monitoring_infos_by_stage = {}
 
@@ -359,10 +347,10 @@ class FnApiRunner(runner.PipelineRunner):
         for stage in stages:
           stage_results = self.run_stage(
               worker_handler_manager.get_worker_handler,
-              pipeline_components,
+              stage_context.components,
               stage,
               pcoll_buffers,
-              safe_coders)
+              stage_context.safe_coders)
           metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)

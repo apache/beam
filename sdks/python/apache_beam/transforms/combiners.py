@@ -722,6 +722,9 @@ class _CurriedFn(core.CombineFn):
   def extract_output(self, accumulator):
     return self.fn.extract_output(accumulator, *self.args, **self.kwargs)
 
+  def compact(self, accumulator):
+    return self.fn.compact(accumulator, *self.args, **self.kwargs)
+
   def apply(self, elements):
     return self.fn.apply(elements, *self.args, **self.kwargs)
 

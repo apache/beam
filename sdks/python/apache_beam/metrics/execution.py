@@ -122,6 +122,13 @@ class MetricResult(object):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
         self.key, str(self.committed), str(self.attempted))
 
+  @property
+  def result(self):
+    """Short-hand for falling back to attempted metrics if it seems that
+    committed was not populated (e.g. due to not being supported on a given
+    runner"""
+    return self.committed if self.committed else self.attempted
+
 
 class _MetricsEnvironment(object):
   """Holds the MetricsContainer for every thread and other metric information.
