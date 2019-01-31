@@ -101,8 +101,9 @@ public class WorkItemStatusClient {
    */
   public synchronized void setWorker(
       DataflowWorkExecutor worker, BatchModeExecutionContext executionContext) {
+    checkArgument(worker != null, "worker must be non-null");
     checkState(this.worker == null, "Can only call setWorker once");
-    this.worker = checkNotNull(worker, "worker must be non-null");
+    this.worker = worker;
     this.executionContext = executionContext;
   }
 
