@@ -198,6 +198,7 @@ task javaPreCommitPortabilityApi() {
 
 task javaPostCommit() {
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
+  dependsOn ":beam-sdks-java-extensions-google-cloud-platform-core:postCommit"
   dependsOn ":beam-sdks-java-io-google-cloud-platform:postCommit"
 }
 
