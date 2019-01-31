@@ -545,10 +545,10 @@ public class StreamingDataflowWorker {
             StreamingSystemCounterNames.WINDMILL_SHUFFLE_BYTES_READ.counterName());
     this.windmillStateBytesRead =
         pendingDeltaCounters.longSum(
-            StreamingSystemCounterNames.WINDMILl_STATE_BYTES_READ.counterName());
+            StreamingSystemCounterNames.WINDMILL_STATE_BYTES_READ.counterName());
     this.windmillStateBytesWritten =
         pendingDeltaCounters.longSum(
-            StreamingSystemCounterNames.WINDMILl_STATE_BYTES_WRITTEN.counterName());
+            StreamingSystemCounterNames.WINDMILL_STATE_BYTES_WRITTEN.counterName());
     this.windmillQuotaThrottling =
         pendingDeltaCounters.longSum(
             StreamingSystemCounterNames.WINDMILL_QUOTA_THROTTLING.counterName());

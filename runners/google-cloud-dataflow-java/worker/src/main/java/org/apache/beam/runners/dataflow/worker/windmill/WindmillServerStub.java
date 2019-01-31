@@ -92,9 +92,7 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   public abstract CommitWorkStream commitWorkStream();
 
   /** Returns the amount of time the server has been throttled and resets the time to 0. */
-  public long getAndResetThrottleTime() {
-    return (long) 0;
-  }
+  public abstract long getAndResetThrottleTime();
 
   @Override
   public void appendSummaryHtml(PrintWriter writer) {}
