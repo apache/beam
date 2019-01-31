@@ -119,7 +119,7 @@ class _CombiningValueStateTag(_StateTag):
       create_accumulator = self.combine_fn.create_accumulator
       add_input = self.combine_fn.add_input
       merge_accumulators = self.combine_fn.merge_accumulators
-      compact_accumulator = self.combine_fn.compact_accumulator
+      compact = self.combine_fn.compact
       extract_output = staticmethod(lambda x: x)
     return _CombiningValueStateTag(self.tag, NoExtractionCombineFn())
 

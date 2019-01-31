@@ -98,7 +98,7 @@ cdef class CombineOperation(Operation):
 cdef class PGBKCVOperation(Operation):
   cdef public object combine_fn
   cdef public object combine_fn_add_input
-  cdef public object combine_fn_compact_accumulator
+  cdef public object combine_fn_compact
   cdef dict table
   cdef long max_keys
   cdef long key_count

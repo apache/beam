@@ -610,7 +610,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     """
     raise NotImplementedError(str(self))
 
-  def compact_accumulator(self, accumulator, *args, **kwargs):
+  def compact(self, accumulator, *args, **kwargs):
     """Optionally returns a more compact represenation of the accumulator.
 
     This is called before an accumulator is sent across the wire, and can
@@ -753,7 +753,7 @@ class CallableWrapperCombineFn(CombineFn):
   def merge_accumulators(self, accumulators, *args, **kwargs):
     return [self._fn(_ReiterableChain(accumulators), *args, **kwargs)]
 
-  def compact_accumulator(self, accumulator, *args, **kwargs):
+  def compact(self, accumulator, *args, **kwargs):
     if len(accumulator) <= 1:
       return accumulator
     else:
@@ -831,7 +831,7 @@ class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
   def merge_accumulators(self, accumulators):
     return [self._fn(_ReiterableChain(accumulators))]
 
-  def compact_accumulator(self, accumulator):
+  def compact(self, accumulator):
     if len(accumulator) <= 1:
       return accumulator
     else:
@@ -1609,8 +1609,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
       create_accumulator = combine_fn.create_accumulator
       add_input = combine_fn.add_input
       merge_accumulators = combine_fn.merge_accumulators
-      # TODO(BEAM-4030): Remove the getattr indirection.
-      compact = getattr(combine_fn, 'compact', None)
+      compact = combine_fn.compact
 
     class PostCombineFn(CombineFn):
       @staticmethod
@@ -1622,8 +1621,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           return combine_fn.add_input(accumulator, value)
       create_accumulator = combine_fn.create_accumulator
       merge_accumulators = combine_fn.merge_accumulators
-      # TODO(BEAM-4030): Remove the getattr indirection.
-      compact = getattr(combine_fn, 'compact', None)
+      compact = combine_fn.compact
       extract_output = combine_fn.extract_output
 
     def StripNonce(nonce_key_value):
