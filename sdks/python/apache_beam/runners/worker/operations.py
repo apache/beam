@@ -635,13 +635,13 @@ class PGBKCVOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
     self.combine_fn_add_input = self.combine_fn.add_input
-    base_compact_accumulator = (
-        core.CombineFn.compact_accumulator if sys.version_info >= (3,)
-        else core.CombineFn.compact_accumulator.__func__)
-    if self.combine_fn.compact_accumulator.__func__ is base_compact_accumulator:
-      self.combine_fn_compact_accumulator = None
+    base_compact = (
+        core.CombineFn.compact if sys.version_info >= (3,)
+        else core.CombineFn.compact.__func__)
+    if self.combine_fn.compact.__func__ is base_compact:
+      self.combine_fn_compact = None
     else:
-      self.combine_fn_compact_accumulator = self.combine_fn.compact_accumulator
+      self.combine_fn_compact = self.combine_fn.compact
     # Optimization for the (known tiny accumulator, often wide keyspace)
     # combine functions.
     # TODO(b/36567833): Bound by in-memory size rather than key count.
@@ -692,10 +692,10 @@ class PGBKCVOperation(Operation):
 
   def output_key(self, wkey, accumulator):
     windows, key = wkey
-    if self.combine_fn_compact_accumulator is None:
+    if self.combine_fn_compact is None:
       value = accumulator
     else:
-      value = self.combine_fn_compact_accumulator(accumulator)
+      value = self.combine_fn_compact(accumulator)
     if windows is 0:
       self.output(_globally_windowed_value.with_value((key, value)))
     else:
