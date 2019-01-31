@@ -270,10 +270,14 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       waitForInboundTermination.awaitCompletion();
       WindowedValue<KV<byte[], TargetWindowT>> sideInputWindow = outputValue.poll();
       checkState(
-          sideInputWindow != null
-              && sideInputWindow.getValue() != null
-              && sideInputWindow.getValue().getValue() != null,
+          sideInputWindow != null,
           "Expected side input window to have been emitted by SDK harness.");
+      checkState(
+          sideInputWindow.getValue() != null,
+          "Side input window emitted by SDK harness was a WindowedValue with no value in it.");
+      checkState(
+          sideInputWindow.getValue().getValue() != null,
+          "Side input window emitted by SDK harness was a WindowedValue<KV<...>> with a null V.");
       checkState(
           outputValue.isEmpty(),
           "Expected only a single side input window to have been emitted by "
