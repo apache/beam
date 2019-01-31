@@ -186,14 +186,14 @@ public class Networks {
     for (Entry<N, String> nodeEntry : nodeName.entrySet()) {
       builder.append(
           String.format(
-              "  %s [fontname=\"Courier New\" label=\"%s\"];\n",
+              "  %s [fontname=\"Courier New\" label=\"%s\"];%n",
               nodeEntry.getValue(), escapeDot(nodeEntry.getKey().toString())));
     }
     for (E edge : network.edges()) {
       EndpointPair<N> endpoints = network.incidentNodes(edge);
       builder.append(
           String.format(
-              "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];\n",
+              "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];%n",
               nodeName.get(endpoints.source()),
               nodeName.get(endpoints.target()),
               escapeDot(edge.toString())));
