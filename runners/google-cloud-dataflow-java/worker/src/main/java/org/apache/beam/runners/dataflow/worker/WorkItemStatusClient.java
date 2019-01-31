@@ -29,6 +29,7 @@ import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -58,6 +59,8 @@ import org.slf4j.LoggerFactory;
  * Wrapper around {@link WorkUnitClient} with methods for creating and sending work item status
  * updates.
  */
+// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6565
+@SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 public class WorkItemStatusClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(WorkItemStatusClient.class);
