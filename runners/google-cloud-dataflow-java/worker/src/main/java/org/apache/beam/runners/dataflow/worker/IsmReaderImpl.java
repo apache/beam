@@ -471,6 +471,8 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
    * have not been initialized yet. Re-uses the provided channel, returning it or a new one if this
    * method was required to open one.
    */
+  // Real bug - https://issues.apache.org/jira/browse/BEAM-6559
+  @SuppressFBWarnings("NP_NULL_ON_SOME_PATH")
   private Optional<SeekableByteChannel> initializeForKeyedRead(
       int shardId, Optional<SeekableByteChannel> inChannel, SideInputReadCounter readCounter)
       throws IOException {
