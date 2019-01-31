@@ -169,7 +169,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       try {
         PipelineValidator.validate(preparation.pipeline());
       } catch (Exception e) {
+        LOG.warn("Encountered Unexpected Exception during validation", e);
         responseObserver.onError(new StatusRuntimeException(Status.INVALID_ARGUMENT.withCause(e)));
+        return;
       }
 
       // create new invocation
