@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -30,6 +31,9 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
  * a field) to determine the current step. This allows the {@link MetricsEnvironment} to only be
  * updated once on entry to the entire stage, rather than in between every step.
  */
+// not clear why the interface extends Serializable
+// https://issues.apache.org/jira/browse/BEAM-6573
+@SuppressFBWarnings("SE_BAD_FIELD")
 public class DataflowMetricsContainer implements MetricsContainer {
 
   private final ExecutionStateTracker executionStateTracker;
