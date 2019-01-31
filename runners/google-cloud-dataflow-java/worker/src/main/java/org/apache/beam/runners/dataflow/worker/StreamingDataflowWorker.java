@@ -955,7 +955,7 @@ public class StreamingDataflowWorker {
 
   private void scheduleWorkItem(
       final ComputationState computationState,
-      @Nullable final Instant inputDataWatermark,
+      final Instant inputDataWatermark,
       final Instant synchronizedProcessingTime,
       final Windmill.WorkItem workItem) {
     Preconditions.checkNotNull(inputDataWatermark);
