@@ -92,7 +92,7 @@ public class GroupingShuffleRangeTracker implements RangeTracker<ShufflePosition
 
   @Override
   public synchronized boolean tryReturnRecordAt(
-      boolean isAtSplitPoint, ShufflePosition groupStart) {
+      boolean isAtSplitPoint, @Nullable ShufflePosition groupStart) {
     if (lastGroupStart == null && !isAtSplitPoint) {
       throw new IllegalStateException(
           String.format("The first group [at %s] must be at a split point", groupStart.toString()));
