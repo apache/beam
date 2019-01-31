@@ -19,8 +19,17 @@ package org.apache.beam.sdk.transforms;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /** Represents information about how a DoFn extracts schemas. */
 @AutoValue
@@ -29,25 +38,175 @@ public abstract class DoFnSchemaInformation implements Serializable {
    * The schema of the @Element parameter. If the Java type does not match the input PCollection but
    * the schemas are compatible, Beam will automatically convert between the Java types.
    */
-  @Nullable
-  public abstract SchemaCoder<?> getElementParameterSchema();
+  public abstract List<SerializableFunction<?, ?>> getElementConverters();
 
   /** Create an instance. */
   public static DoFnSchemaInformation create() {
-    return new AutoValue_DoFnSchemaInformation.Builder().build();
+    return new AutoValue_DoFnSchemaInformation.Builder()
+        .setElementConverters(Collections.emptyList())
+        .build();
   }
 
   /** The builder object. */
   @AutoValue.Builder
   public abstract static class Builder {
-    abstract Builder setElementParameterSchema(@Nullable SchemaCoder<?> schemaCoder);
+    abstract Builder setElementConverters(List<SerializableFunction<?, ?>> converters);
 
     abstract DoFnSchemaInformation build();
   }
 
   public abstract Builder toBuilder();
 
-  public <T> DoFnSchemaInformation withElementParameterSchema(SchemaCoder<T> schemaCoder) {
-    return toBuilder().setElementParameterSchema(schemaCoder).build();
+  DoFnSchemaInformation withElementParameterSchema(
+      SchemaCoder<?> inputCoder,
+      FieldAccessDescriptor selectDescriptor,
+      Schema selectOutputSchema,
+      SchemaCoder<?> elementCoder,
+      boolean unbox) {
+    List<SerializableFunction<?, ?>> converters =
+        ImmutableList.<SerializableFunction<?, ?>>builder()
+            .addAll(getElementConverters())
+            .add(
+                ConversionFunction.of(
+                    inputCoder.getSchema(),
+                    inputCoder.getToRowFunction(),
+                    elementCoder.getFromRowFunction(),
+                    selectDescriptor,
+                    selectOutputSchema,
+                    unbox))
+            .build();
+
+    return toBuilder().setElementConverters(converters).build();
+  }
+
+  DoFnSchemaInformation withUnboxParameter(
+      SchemaCoder inputCoder,
+      FieldAccessDescriptor selectDescriptor,
+      Schema selectOutputSchema,
+      TypeDescriptor<?> elementT) {
+    if (selectOutputSchema.getFieldCount() != 1) {
+      throw new RuntimeException("Parameter has no schema and the input is not a simple type.");
+    }
+    FieldType fieldType = selectOutputSchema.getField(0).getType();
+    if (fieldType.getTypeName().isCompositeType()) {
+      throw new RuntimeException("Parameter has no schema and the input is not a primitive type.");
+    }
+
+    List<SerializableFunction<?, ?>> converters =
+        ImmutableList.<SerializableFunction<?, ?>>builder()
+            .addAll(getElementConverters())
+            .add(
+                UnboxingConversionFunction.of(
+                    inputCoder.getSchema(),
+                    inputCoder.getToRowFunction(),
+                    selectDescriptor,
+                    selectOutputSchema,
+                    elementT))
+            .build();
+
+    return toBuilder().setElementConverters(converters).build();
+  }
+
+  private static class ConversionFunction<InputT, OutputT>
+      implements SerializableFunction<InputT, OutputT> {
+    private final Schema inputSchema;
+    private final SerializableFunction<InputT, Row> toRowFunction;
+    private final SerializableFunction<Row, OutputT> fromRowFunction;
+    private final FieldAccessDescriptor selectDescriptor;
+    private final Schema selectOutputSchema;
+    private final boolean unbox;
+
+    private ConversionFunction(
+        Schema inputSchema,
+        SerializableFunction<InputT, Row> toRowFunction,
+        SerializableFunction<Row, OutputT> fromRowFunction,
+        FieldAccessDescriptor selectDescriptor,
+        Schema selectOutputSchema,
+        boolean unbox) {
+      this.inputSchema = inputSchema;
+      this.toRowFunction = toRowFunction;
+      this.fromRowFunction = fromRowFunction;
+      this.selectDescriptor = selectDescriptor;
+      this.selectOutputSchema = selectOutputSchema;
+      this.unbox = unbox;
+    }
+
+    public static <InputT, OutputT> ConversionFunction of(
+        Schema inputSchema,
+        SerializableFunction<InputT, Row> toRowFunction,
+        SerializableFunction<Row, OutputT> fromRowFunction,
+        FieldAccessDescriptor selectDescriptor,
+        Schema selectOutputSchema,
+        boolean unbox) {
+      return new ConversionFunction<>(
+          inputSchema, toRowFunction, fromRowFunction, selectDescriptor, selectOutputSchema, unbox);
+    }
+
+    @Override
+    public OutputT apply(InputT input) {
+      Row row = toRowFunction.apply(input);
+      Row selected =
+          SelectHelpers.selectRow(row, selectDescriptor, inputSchema, selectOutputSchema);
+      if (unbox) {
+        selected = selected.getRow(0);
+      }
+      return fromRowFunction.apply(selected);
+    }
+  }
+
+  /**
+   * This function is used when the schema is a singleton schema containing a single primitive field
+   * and the Java type we are converting to is that of the primitive field.
+   */
+  private static class UnboxingConversionFunction<InputT, OutputT>
+      implements SerializableFunction<InputT, OutputT> {
+    private final Schema inputSchema;
+    private final SerializableFunction<InputT, Row> toRowFunction;
+    private final FieldAccessDescriptor selectDescriptor;
+    private final Schema selectOutputSchema;
+    private final FieldType primitiveType;
+    private final TypeDescriptor<?> primitiveOutputType;
+    private transient SerializableFunction<InputT, OutputT> conversionFunction;
+
+    private UnboxingConversionFunction(
+        Schema inputSchema,
+        SerializableFunction<InputT, Row> toRowFunction,
+        FieldAccessDescriptor selectDescriptor,
+        Schema selectOutputSchema,
+        TypeDescriptor<?> primitiveOutputType) {
+      this.inputSchema = inputSchema;
+      this.toRowFunction = toRowFunction;
+      this.selectDescriptor = selectDescriptor;
+      this.selectOutputSchema = selectOutputSchema;
+      this.primitiveType = selectOutputSchema.getField(0).getType();
+      this.primitiveOutputType = primitiveOutputType;
+    }
+
+    public static <InputT, OutputT> UnboxingConversionFunction of(
+        Schema inputSchema,
+        SerializableFunction<InputT, Row> toRowFunction,
+        FieldAccessDescriptor selectDescriptor,
+        Schema selectOutputSchema,
+        TypeDescriptor<?> primitiveOutputType) {
+      return new UnboxingConversionFunction<>(
+          inputSchema, toRowFunction, selectDescriptor, selectOutputSchema, primitiveOutputType);
+    }
+
+    @Override
+    public OutputT apply(InputT input) {
+      Row row = toRowFunction.apply(input);
+      Row selected =
+          SelectHelpers.selectRow(row, selectDescriptor, inputSchema, selectOutputSchema);
+      return getConversionFunction().apply(selected.getValue(0));
+    }
+
+    private SerializableFunction<InputT, OutputT> getConversionFunction() {
+      if (conversionFunction == null) {
+        conversionFunction =
+            (SerializableFunction<InputT, OutputT>)
+                ConvertHelpers.getConvertPrimitive(primitiveType, primitiveOutputType);
+      }
+      return conversionFunction;
+    }
   }
 }

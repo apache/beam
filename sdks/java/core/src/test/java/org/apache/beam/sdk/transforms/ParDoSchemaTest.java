@@ -17,10 +17,14 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -307,8 +311,7 @@ public class ParDoSchemaTest implements Serializable {
                           FieldAccessDescriptor.withAllFields();
 
                       @ProcessElement
-                      public void process(
-                          @FieldAccess("foo") @Element Row row, OutputReceiver<String> r) {
+                      public void process(@FieldAccess("foo") Row row, OutputReceiver<String> r) {
                         r.output(row.getString(0) + ":" + row.getInt32(1));
                       }
                     }));
@@ -419,6 +422,24 @@ public class ParDoSchemaTest implements Serializable {
       this.stringField = stringField;
       this.integerField = integerField;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof InferredPojo2)) {
+        return false;
+      }
+      InferredPojo2 that = (InferredPojo2) o;
+      return Objects.equals(integerField, that.integerField)
+          && Objects.equals(stringField, that.stringField);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(integerField, stringField);
+    }
   }
 
   @Test
@@ -479,6 +500,190 @@ public class ParDoSchemaTest implements Serializable {
                       }
                     }));
     PAssert.that(output).containsInAnyOrder("a:1", "b:2", "c:3");
+    pipeline.run();
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class PojoForExtraction {
+    final Integer integerField;
+    final String stringField;
+    List<Integer> ints;
+
+    @SchemaCreate
+    public PojoForExtraction(String stringField, Integer integerField, List<Integer> ints) {
+      this.integerField = integerField;
+      this.stringField = stringField;
+      this.ints = ints;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      PojoForExtraction that = (PojoForExtraction) o;
+      return Objects.equals(integerField, that.integerField)
+          && Objects.equals(stringField, that.stringField)
+          && Objects.equals(ints, that.ints);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(integerField, stringField, ints);
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSchema.class})
+  public void testSchemaFieldSelectionUnboxing() {
+    List<PojoForExtraction> pojoList =
+        Lists.newArrayList(
+            new PojoForExtraction("a", 1, Lists.newArrayList(1, 2)),
+            new PojoForExtraction("b", 2, Lists.newArrayList(2, 3)),
+            new PojoForExtraction("c", 3, Lists.newArrayList(3, 4)));
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(pojoList))
+            .apply(
+                ParDo.of(
+                    new DoFn<PojoForExtraction, String>() {
+                      // Read the list twice as two equivalent types to ensure that Beam properly
+                      // converts.
+                      @ProcessElement
+                      public void process(
+                          @FieldAccess("stringField") String stringField,
+                          @FieldAccess("integerField") Integer integerField,
+                          @FieldAccess("ints") Integer[] intArray,
+                          @FieldAccess("ints") List<Integer> intList,
+                          OutputReceiver<String> r) {
+
+                        r.output(
+                            stringField
+                                + ":"
+                                + integerField
+                                + ":"
+                                + Arrays.toString(intArray)
+                                + ":"
+                                + intList.toString());
+                      }
+                    }));
+    PAssert.that(output)
+        .containsInAnyOrder("a:1:[1, 2]:[1, 2]", "b:2:[2, 3]:[2, 3]", "c:3:[3, 4]:[3, 4]");
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSchema.class})
+  public void testSchemaFieldDescriptorSelectionUnboxing() {
+    List<PojoForExtraction> pojoList =
+        Lists.newArrayList(
+            new PojoForExtraction("a", 1, Lists.newArrayList(1, 2)),
+            new PojoForExtraction("b", 2, Lists.newArrayList(2, 3)),
+            new PojoForExtraction("c", 3, Lists.newArrayList(3, 4)));
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(pojoList))
+            .apply(
+                ParDo.of(
+                    new DoFn<PojoForExtraction, String>() {
+                      @FieldAccess("stringSelector")
+                      final FieldAccessDescriptor stringSelector =
+                          FieldAccessDescriptor.withFieldNames("stringField");
+
+                      @FieldAccess("intSelector")
+                      final FieldAccessDescriptor intSelector =
+                          FieldAccessDescriptor.withFieldNames("integerField");
+
+                      @FieldAccess("intsSelector")
+                      final FieldAccessDescriptor stringsSelector =
+                          FieldAccessDescriptor.withFieldNames("ints");
+
+                      @ProcessElement
+                      public void process(
+                          @FieldAccess("stringSelector") String stringField,
+                          @FieldAccess("intSelector") int integerField,
+                          @FieldAccess("intsSelector") int[] intArray,
+                          OutputReceiver<String> r) {
+                        r.output(
+                            stringField + ":" + integerField + ":" + Arrays.toString(intArray));
+                      }
+                    }));
+    PAssert.that(output).containsInAnyOrder("a:1:[1, 2]", "b:2:[2, 3]", "c:3:[3, 4]");
+    pipeline.run();
+  }
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class NestedPojoForExtraction {
+    PojoForExtraction inner;
+
+    @SchemaCreate
+    public NestedPojoForExtraction(PojoForExtraction inner) {
+      this.inner = inner;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof NestedPojoForExtraction)) {
+        return false;
+      }
+      NestedPojoForExtraction that = (NestedPojoForExtraction) o;
+      return Objects.equals(inner, that.inner);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(inner);
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSchema.class})
+  public void testSchemaFieldSelectionNested() {
+    List<PojoForExtraction> pojoList =
+        Lists.newArrayList(
+            new PojoForExtraction("a", 1, Lists.newArrayList(1, 2)),
+            new PojoForExtraction("b", 2, Lists.newArrayList(2, 3)),
+            new PojoForExtraction("c", 3, Lists.newArrayList(3, 4)));
+    List<NestedPojoForExtraction> outerList =
+        pojoList.stream().map(NestedPojoForExtraction::new).collect(Collectors.toList());
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(outerList))
+            .apply(
+                ParDo.of(
+                    new DoFn<NestedPojoForExtraction, String>() {
+
+                      @ProcessElement
+                      public void process(
+                          @FieldAccess("inner.*") PojoForExtraction pojo,
+                          @FieldAccess("inner") PojoForExtraction pojo2,
+                          @FieldAccess("inner.stringField") String stringField,
+                          @FieldAccess("inner.integerField") int integerField,
+                          @FieldAccess("inner.ints") List<Integer> intArray,
+                          OutputReceiver<String> r) {
+                        assertEquals(pojo, pojo2);
+                        assertEquals(stringField, pojo.stringField);
+                        assertEquals(integerField, (int) pojo.integerField);
+                        assertEquals(intArray, pojo.ints);
+                        r.output(
+                            pojo.stringField
+                                + ":"
+                                + pojo.integerField
+                                + ":"
+                                + pojo.ints.toString());
+                      }
+                    }));
+    PAssert.that(output).containsInAnyOrder("a:1:[1, 2]", "b:2:[2, 3]", "c:3:[3, 4]");
     pipeline.run();
   }
 }

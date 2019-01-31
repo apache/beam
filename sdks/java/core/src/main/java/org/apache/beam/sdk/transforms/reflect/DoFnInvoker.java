@@ -136,7 +136,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     InputT element(DoFn<InputT, OutputT> doFn);
 
     /** Provide a link to the input element. */
-    Object schemaElement(DoFn<InputT, OutputT> doFn);
+    Object schemaElement(int index);
 
     /** Provide a link to the input element timestamp. */
     Instant timestamp(DoFn<InputT, OutputT> doFn);
@@ -188,7 +188,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public InputT schemaElement(DoFn<InputT, OutputT> doFn) {
+    public InputT schemaElement(int index) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",
