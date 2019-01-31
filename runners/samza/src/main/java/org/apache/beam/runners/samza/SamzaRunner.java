@@ -59,7 +59,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
   SamzaPipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline) {
     ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPortablePipelineTranslator.createConfig(pipeline, configBuilder);
+    SamzaPortablePipelineTranslator.createConfig(pipeline, configBuilder, options);
     final SamzaExecutionContext executionContext = new SamzaExecutionContext(options);
     final StreamApplication app =
         appDescriptor -> {
