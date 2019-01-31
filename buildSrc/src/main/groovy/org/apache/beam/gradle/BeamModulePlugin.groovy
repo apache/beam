@@ -617,6 +617,8 @@ class BeamModulePlugin implements Plugin<Project> {
       def defaultLintSuppressions = [
         'options',
         'cast',
+        // https://bugs.openjdk.java.net/browse/JDK-8190452
+        'classfile',
         'deprecation',
         'fallthrough',
         'processing',
