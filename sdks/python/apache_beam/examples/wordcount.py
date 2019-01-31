@@ -122,13 +122,13 @@ def run(argv=None):
     query_result = result.metrics().query(empty_lines_filter)
     if query_result['counters']:
       empty_lines_counter = query_result['counters'][0]
-      logging.info('number of empty lines: %d', empty_lines_counter.committed)
+      logging.info('number of empty lines: %d', empty_lines_counter.result)
 
     word_lengths_filter = MetricsFilter().with_name('word_len_dist')
     query_result = result.metrics().query(word_lengths_filter)
     if query_result['distributions']:
       word_lengths_dist = query_result['distributions'][0]
-      logging.info('average word length: %d', word_lengths_dist.committed.mean)
+      logging.info('average word length: %d', word_lengths_dist.result.mean)
 
 
 if __name__ == '__main__':

@@ -28,6 +28,7 @@ from concurrent import futures
 import grpc
 
 from apache_beam import metrics
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -161,6 +162,7 @@ class PortableRunner(runner.PipelineRunner):
       portable_options.environment_config, server = (
           BeamFnExternalWorkerPoolServicer.start(
               sdk_worker_main._get_worker_count(options)))
+      globals()['x'] = server
       cleanup_callbacks = [functools.partial(server.stop, 1)]
     else:
       cleanup_callbacks = []
@@ -180,20 +182,39 @@ class PortableRunner(runner.PipelineRunner):
 
     # Preemptively apply combiner lifting, until all runners support it.
     # This optimization is idempotent.
+    pre_optimize = options.view_as(DebugOptions).lookup_experiment(
+        'pre_optimize', 'combine').lower()
     if not options.view_as(StandardOptions).streaming:
-      stages = list(fn_api_runner_transforms.leaf_transform_stages(
-          proto_pipeline.root_transform_ids, proto_pipeline.components))
-      stages = fn_api_runner_transforms.lift_combiners(
-          stages,
-          fn_api_runner_transforms.TransformContext(proto_pipeline.components))
-      proto_pipeline = fn_api_runner_transforms.with_stages(
-          proto_pipeline, stages)
-
-    # TODO: Define URNs for options.
-    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
-    p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
-                 for k, v in options.get_all_options().items()
-                 if v is not None}
+      flink_known_urns = frozenset([
+          common_urns.composites.RESHUFFLE.urn,
+          common_urns.primitives.IMPULSE.urn,
+          common_urns.primitives.FLATTEN.urn,
+          common_urns.primitives.GROUP_BY_KEY.urn])
+      if pre_optimize == 'combine':
+        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
+            proto_pipeline,
+            phases=[fn_api_runner_transforms.lift_combiners],
+            known_runner_urns=flink_known_urns,
+            partial=True)
+      elif pre_optimize == 'all':
+        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
+            proto_pipeline,
+            phases=[fn_api_runner_transforms.annotate_downstream_side_inputs,
+                    fn_api_runner_transforms.annotate_stateful_dofns_as_roots,
+                    fn_api_runner_transforms.fix_side_input_pcoll_coders,
+                    fn_api_runner_transforms.lift_combiners,
+                    fn_api_runner_transforms.fix_flatten_coders,
+                    # fn_api_runner_transforms.sink_flattens,
+                    fn_api_runner_transforms.greedily_fuse,
+                    fn_api_runner_transforms.read_to_impulse,
+                    fn_api_runner_transforms.extract_impulse_stages,
+                    fn_api_runner_transforms.remove_data_plane_ops,
+                    fn_api_runner_transforms.sort_stages],
+            known_runner_urns=flink_known_urns)
+      elif pre_optimize == 'none':
+        pass
+      else:
+        raise ValueError('Unknown value for pre_optimize: %s' % pre_optimize)
 
     if not job_service:
       channel = grpc.insecure_channel(job_endpoint)
@@ -202,8 +223,9 @@ class PortableRunner(runner.PipelineRunner):
     else:
       channel = None
 
-    # Sends the PrepareRequest but retries in case the channel is not ready
-    def send_prepare_request(max_retries=5):
+    # fetch runner options from job service
+    # retries in case the channel is not ready
+    def send_options_request(max_retries=5):
       num_retries = 0
       while True:
         try:
@@ -211,16 +233,47 @@ class PortableRunner(runner.PipelineRunner):
           # Seems to be only an issue on Mac with port forwardings
           if channel:
             grpc.channel_ready_future(channel).result()
-          return job_service.Prepare(
-              beam_job_api_pb2.PrepareJobRequest(
-                  job_name='job', pipeline=proto_pipeline,
-                  pipeline_options=job_utils.dict_to_struct(p_options)))
+          return job_service.DescribePipelineOptions(
+              beam_job_api_pb2.DescribePipelineOptionsRequest())
         except grpc._channel._Rendezvous as e:
           num_retries += 1
           if num_retries > max_retries:
             raise e
 
-    prepare_response = send_prepare_request()
+    options_response = send_options_request()
+
+    def add_runner_options(parser):
+      for option in options_response.options:
+        try:
+          # no default values - we don't want runner options
+          # added unless they were specified by the user
+          add_arg_args = {'action' : 'store', 'help' : option.description}
+          if option.type == beam_job_api_pb2.PipelineOptionType.BOOLEAN:
+            add_arg_args['action'] = 'store_true'\
+              if option.default_value != 'true' else 'store_false'
+          elif option.type == beam_job_api_pb2.PipelineOptionType.INTEGER:
+            add_arg_args['type'] = int
+          elif option.type == beam_job_api_pb2.PipelineOptionType.ARRAY:
+            add_arg_args['action'] = 'append'
+          parser.add_argument("--%s" % option.name, **add_arg_args)
+        except Exception as e:
+          # ignore runner options that are already present
+          # only in this case is duplicate not treated as error
+          if 'conflicting option string' not in str(e):
+            raise
+          logging.debug("Runner option '%s' was already added" % option.name)
+
+    all_options = options.get_all_options(add_extra_args_fn=add_runner_options)
+    # TODO: Define URNs for options.
+    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
+    p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
+                 for k, v in all_options.items()
+                 if v is not None}
+
+    prepare_response = job_service.Prepare(
+        beam_job_api_pb2.PrepareJobRequest(
+            job_name='job', pipeline=proto_pipeline,
+            pipeline_options=job_utils.dict_to_struct(p_options)))
     if prepare_response.artifact_staging_endpoint.url:
       stager = portable_stager.PortableStager(
           grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),

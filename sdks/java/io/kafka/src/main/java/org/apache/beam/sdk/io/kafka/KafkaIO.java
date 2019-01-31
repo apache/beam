@@ -345,6 +345,9 @@ public class KafkaIO {
 
     abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
+    @Nullable
+    abstract Map<String, Object> getOffsetConsumerConfig();
+
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -379,6 +382,8 @@ public class KafkaIO {
 
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
+
+      abstract Builder<K, V> setOffsetConsumerConfig(Map<String, Object> offsetConsumerConfig);
 
       abstract Read<K, V> build();
     }
@@ -654,6 +659,24 @@ public class KafkaIO {
      */
     public Read<K, V> commitOffsetsInFinalize() {
       return toBuilder().setCommitOffsetsInFinalizeEnabled(true).build();
+    }
+
+    /**
+     * Set additional configuration for the backend offset consumer. It may be required for a
+     * secured Kafka cluster, especially when you see similar WARN log message 'exception while
+     * fetching latest offset for partition {}. will be retried'.
+     *
+     * <p>In {@link KafkaIO#read()}, there're two consumers running in the backend actually:<br>
+     * 1. the main consumer, which reads data from kafka;<br>
+     * 2. the secondary offset consumer, which is used to estimate backlog, by fetching latest
+     * offset;<br>
+     *
+     * <p>By default, offset consumer inherits the configuration from main consumer, with an
+     * auto-generated {@link ConsumerConfig#GROUP_ID_CONFIG}. This may not work in a secured Kafka
+     * which requires more configurations.
+     */
+    public Read<K, V> withOffsetConsumerConfigOverrides(Map<String, Object> offsetConsumerConfig) {
+      return toBuilder().setOffsetConsumerConfig(offsetConsumerConfig).build();
     }
 
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */

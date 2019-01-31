@@ -72,7 +72,6 @@ from apache_beam.pvalue import PDone
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ptransform
-#from apache_beam.transforms import external
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils.annotations import deprecated
@@ -791,23 +790,23 @@ class AppliedPTransform(object):
 
     for pval in self.inputs:
       if pval not in visited and not isinstance(pval, pvalue.PBegin):
-        if pval.producer is not None:
-          pval.producer.visit(visitor, pipeline, visited)
-          # The value should be visited now since we visit outputs too.
-          assert pval in visited, pval
+        assert pval.producer is not None
+        pval.producer.visit(visitor, pipeline, visited)
+        # The value should be visited now since we visit outputs too.
+        assert pval in visited, pval
 
     # Visit side inputs.
     for pval in self.side_inputs:
       if isinstance(pval, pvalue.AsSideInput) and pval.pvalue not in visited:
         pval = pval.pvalue  # Unpack marker-object-wrapped pvalue.
-        if pval.producer is not None:
-          pval.producer.visit(visitor, pipeline, visited)
-          # The value should be visited now since we visit outputs too.
-          assert pval in visited
-          # TODO(silviuc): Is there a way to signal that we are visiting a side
-          # value? The issue is that the same PValue can be reachable through
-          # multiple paths and therefore it is not guaranteed that the value
-          # will be visited as a side value.
+        assert pval.producer is not None
+        pval.producer.visit(visitor, pipeline, visited)
+        # The value should be visited now since we visit outputs too.
+        assert pval in visited
+        # TODO(silviuc): Is there a way to signal that we are visiting a side
+        # value? The issue is that the same PValue can be reachable through
+        # multiple paths and therefore it is not guaranteed that the value
+        # will be visited as a side value.
 
     # Visit a composite or primitive transform.
     if self.is_composite():
@@ -848,11 +847,6 @@ class AppliedPTransform(object):
             if isinstance(output, pvalue.PCollection)}
 
   def to_runner_api(self, context):
-    # External tranforms require more splicing than just setting the spec.
-    from apache_beam.transforms import external
-    if isinstance(self.transform, external.ExternalTransform):
-      return self.transform.to_runner_api_transform(context, self.full_label)
-
     from apache_beam.portability.api import beam_runner_api_pb2
 
     def transform_to_runner_api(transform, context):

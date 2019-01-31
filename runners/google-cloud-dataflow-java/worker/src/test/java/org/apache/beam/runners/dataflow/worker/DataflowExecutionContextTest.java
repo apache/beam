@@ -23,7 +23,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.auto.service.AutoService;
 import java.io.Closeable;
 import java.io.IOException;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 import org.junit.runner.RunWith;

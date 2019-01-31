@@ -44,6 +44,7 @@ public class BaseClickHouseTest {
 
     zookeeper =
         new GenericContainer<>("zookeeper:3.4.13")
+            .withStartupAttempts(10)
             .withExposedPorts(2181)
             .withNetwork(network)
             .withNetworkAliases("zookeeper");
@@ -51,7 +52,8 @@ public class BaseClickHouseTest {
 
     clickHouse =
         (ClickHouseContainer)
-            new ClickHouseContainer()
+            new ClickHouseContainer("yandex/clickhouse-server:19.1")
+                .withStartupAttempts(10)
                 .withCreateContainerCmdModifier(
                     // type inference for `(CreateContainerCmd) -> cmd.` doesn't work
                     cmd ->

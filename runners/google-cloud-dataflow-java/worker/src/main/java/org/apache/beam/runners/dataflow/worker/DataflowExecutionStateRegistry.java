@@ -23,9 +23,9 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
 
