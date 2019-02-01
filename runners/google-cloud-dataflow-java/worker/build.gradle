@@ -29,7 +29,7 @@ def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.
 applyJavaNature(
   publish: false,
   exportJavadoc: false,
-  enableFindbugs: false /* TODO(BEAM-5658): enable findbugs */,
+  enableFindbugs: true,
   validateShadowJar: false,
   shadowClosure: {
     // In the case of the Fn API worker jar we are creating an application so we rely on

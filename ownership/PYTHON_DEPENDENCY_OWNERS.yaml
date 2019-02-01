@@ -42,8 +42,14 @@ deps:
   google-apitools:
     owners:
 
+  google-cloud-core:
+    owners:
+
   google-cloud-bigquery:
     owners: markflyhigh
+
+  google-cloud-bigtable:
+    owners:
 
   google-cloud-pubsub:
     owners: markflyhigh

@@ -47,6 +47,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.DistributionData;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -55,7 +56,6 @@ import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitRequest;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
@@ -293,7 +293,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
     private final ReadOperation readOperation;
     private final RemoteGrpcPortWriteOperation grpcWriteOperation;
     private final RegisterAndProcessBundleOperation bundleProcessOperation;
-    private final long progressUpdatePeriodMs = ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS;
+    private static final long progressUpdatePeriodMs =
+        ReadOperation.DEFAULT_PROGRESS_UPDATE_PERIOD_MS;
     private int progressErrors;
 
     private final Interpolator<Progress> progressInterpolator;
@@ -618,7 +619,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
         T[] newYs = (T[]) new Object[ys.length];
         newXs[0] = xs[0];
         newYs[0] = ys[0];
-        double dx = (xs[numPoints - 1] - xs[0]) / (numPoints / 2);
+        double dx = (xs[numPoints - 1] - xs[0]) / (numPoints / 2.0);
         for (int i = 1; i < numPoints / 2; i++) {
           double x = xs[0] + i * dx;
           newXs[i] = x;

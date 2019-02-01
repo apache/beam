@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.util.common.worker;
+package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Objects;
@@ -29,6 +30,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /** Tracks the current state of a single execution thread. */
+@SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
 public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> {
 
   /**
@@ -102,7 +104,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private final ExecutionStateSampler sampler;
 
   /** The thread being managed by this {@link ExecutionStateTracker}. */
-  private Thread trackedThread = null;
+  @Nullable private Thread trackedThread = null;
 
   /**
    * The current state of the thread managed by this {@link ExecutionStateTracker}.
@@ -110,7 +112,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * <p>This variable is written by the Execution thread, and read by the sampling and progress
    * reporting threads, thus it being marked volatile.
    */
-  private volatile ExecutionState currentState;
+  @Nullable private volatile ExecutionState currentState;
 
   /**
    * The current number of times that this {@link ExecutionStateTracker} has transitioned state.
@@ -141,8 +143,18 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   }
 
   @Override
+  public int hashCode() {
+    return System.identityHashCode(this);
+  }
+
+  // Findbugs warns about use of pointer equality in the `then` clause
+  // below, because it is critical that the `else` clause below can never
+  // return 0. Our use of identityHashCode is a special case where this
+  // holds.
+  @SuppressFBWarnings("EQ_COMPARETO_USE_OBJECT_EQUALS")
+  @Override
   public int compareTo(ExecutionStateTracker o) {
-    if (this == o) {
+    if (this.equals(o)) {
       return 0;
     } else {
       return System.identityHashCode(this) - System.identityHashCode(o);
@@ -215,6 +227,9 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * from the execution thread.
    */
   @SuppressWarnings("NonAtomicVolatileUpdate")
+  @SuppressFBWarnings(
+      value = "VO_VOLATILE_INCREMENT",
+      justification = "Intentional for performance.")
   public Closeable enterState(ExecutionState newState) {
     // WARNING: This method is called in the hottest path, and must be kept as efficient as
     // possible. Avoid blocking, synchronizing, etc.

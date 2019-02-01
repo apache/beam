@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.status;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.LinkedHashMap;
@@ -25,7 +26,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 
-/** General servlet for providing a bunch of information on the statusz page. */
+/**
+ * General servlet for providing a bunch of information on the statusz page.
+ *
+ * <p><b>Not actually serializable</b>. Its superclass is serializable but this subclass is not.
+ */
+@SuppressFBWarnings("SE_BAD_FIELD") // not serializable
 public class StatuszServlet extends BaseStatusServlet implements Capturable {
 
   private static class DataProviderInfo {

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -167,7 +168,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
    * before dumping the heap, this block of memory will be garbage collected, thus giving dumpHeap()
    * enough space to dump the heap.
    */
-  @SuppressWarnings("unused")
+  @SuppressFBWarnings("unused")
   private byte[] reservedForDumpingHeap = new byte[HEAP_DUMP_RESERVED_BYTES];
 
   /** If true, dump the heap when thrashing or requested. */
@@ -393,7 +394,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     // Compare the amount of time spent in GC thrashing to the given threshold;
     // if config.getSleepTimeMillis() is equal to 0 (should happen in tests only),
     // then we compare percentage-per-period to 100%
-    double gcPercentage = (inGC - timeInGC) * 100 / (now - lastTimeWokeUp);
+    double gcPercentage = (inGC - timeInGC) * 100.0 / (now - lastTimeWokeUp);
 
     lastMeasuredGCPercentage.set(gcPercentage);
     maxGCPercentage.set(Math.max(maxGCPercentage.get(), gcPercentage));
@@ -444,6 +445,19 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     }
   }
 
+  @SuppressFBWarnings("DM_EXIT") // we deliberately System.exit under memory
+  private void shutDownDueToGcThrashing(int thrashingCount) {
+    File heapDumpFile = tryToDumpHeap();
+    LOG.error(
+        "Shutting down JVM after {} consecutive periods of measured GC thrashing. "
+            + "Memory is {}. Heap dump {}.",
+        thrashingCount,
+        describeMemory(),
+        heapDumpFile == null ? "not written" : ("written to '" + heapDumpFile + "'"));
+
+    System.exit(1);
+  }
+
   /** Runs this thread. */
   @Override
   public void run() {
@@ -482,14 +496,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
 
           if (shutDownAfterNumGCThrashing > 0
               && (currentThrashingCount >= shutDownAfterNumGCThrashing)) {
-            File heapDumpFile = tryToDumpHeap();
-            LOG.error(
-                "Shutting down JVM after {} consecutive periods of measured GC thrashing. "
-                    + "Memory is {}. Heap dump {}.",
-                currentThrashingCount,
-                describeMemory(),
-                heapDumpFile == null ? "not written" : ("written to '" + heapDumpFile + "'"));
-            System.exit(1);
+            shutDownDueToGcThrashing(currentThrashingCount);
           }
         } else {
           // Reset the counter whenever the server is evaluated not under gc thrashing.

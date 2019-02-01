@@ -29,6 +29,7 @@ import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,13 +38,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingHandler;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
@@ -58,6 +59,8 @@ import org.slf4j.LoggerFactory;
  * Wrapper around {@link WorkUnitClient} with methods for creating and sending work item status
  * updates.
  */
+// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6565
+@SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 public class WorkItemStatusClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(WorkItemStatusClient.class);
@@ -101,8 +104,9 @@ public class WorkItemStatusClient {
    */
   public synchronized void setWorker(
       DataflowWorkExecutor worker, BatchModeExecutionContext executionContext) {
+    checkArgument(worker != null, "worker must be non-null");
     checkState(this.worker == null, "Can only call setWorker once");
-    this.worker = checkNotNull(worker, "worker must be non-null");
+    this.worker = worker;
     this.executionContext = executionContext;
   }
 
@@ -262,7 +266,7 @@ public class WorkItemStatusClient {
       populateCounterUpdates(status);
     }
 
-    Double throttleTime = extractThrottleTime().doubleValue();
+    double throttleTime = extractThrottleTime();
     status.setTotalThrottlerWaitTimeSeconds(throttleTime);
     return status;
   }
@@ -336,7 +340,7 @@ public class WorkItemStatusClient {
         : executionContext.extractMsecCounters(isFinalUpdate);
   }
 
-  public Long extractThrottleTime() {
+  public long extractThrottleTime() {
     return executionContext == null ? 0L : executionContext.extractThrottleTime();
   }
 

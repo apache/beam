@@ -180,7 +180,6 @@ class WindmillStateInternals<K> implements StateInternals {
     }
   }
 
-  private boolean isNewKey;
   private WindmillStateCache.ForKey cache;
   Supplier<Closeable> scopedReadStateSupplier;
   private StateTable workItemState;
@@ -193,7 +192,6 @@ class WindmillStateInternals<K> implements StateInternals {
       WindmillStateCache.ForKey cache,
       Supplier<Closeable> scopedReadStateSupplier) {
     this.key = key;
-    this.isNewKey = isNewKey;
     this.cache = cache;
     this.scopedReadStateSupplier = scopedReadStateSupplier;
     this.workItemState =

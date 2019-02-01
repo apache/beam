@@ -107,7 +107,7 @@ REQUIRED_PACKAGES = [
     'dill>=0.2.9,<0.2.10',
     'fastavro>=0.21.4,<0.22',
     'future>=0.16.0,<1.0.0',
-    'futures>=3.1.1,<4.0.0',
+    'futures>=3.2.0,<4.0.0; python_version < "3.0"',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.11.3',
@@ -142,6 +142,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-pubsub==0.39.0',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<1.7.0',
+    'google-cloud-core==0.28.1',
+    'google-cloud-bigtable==0.31.1',
 ]
 
 

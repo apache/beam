@@ -60,7 +60,6 @@ public class CoderTranslationTest {
   private static final Set<StructuredCoder<?>> KNOWN_CODERS =
       ImmutableSet.<StructuredCoder<?>>builder()
           .add(ByteArrayCoder.of())
-          .add(StringUtf8Coder.of())
           .add(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()))
           .add(VarLongCoder.of())
           .add(IntervalWindowCoder.of())

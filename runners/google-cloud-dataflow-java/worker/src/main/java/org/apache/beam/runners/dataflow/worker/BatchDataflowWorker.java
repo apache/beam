@@ -26,6 +26,7 @@ import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.SdkHarnessRegistry.SdkWorkerHarness;
@@ -47,7 +48,6 @@ import org.apache.beam.runners.dataflow.worker.graph.ReplacePgbkWithPrecombineFu
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.util.Weighted;
@@ -370,6 +370,8 @@ public class BatchDataflowWorker implements Closeable {
                 counterSet,
                 executionContext,
                 stageName);
+      } else {
+        throw new IllegalStateException("Work Item was neither a MapTask nor a SourceOperation");
       }
       workItemStatusClient.setWorker(worker, executionContext);
 

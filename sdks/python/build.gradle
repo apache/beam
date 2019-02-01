@@ -79,8 +79,11 @@ lint.dependsOn lintPy27_3
 toxTask "lintPy3", "py3-lint"
 lint.dependsOn lintPy3
 
-toxTask "testGcp", "py27-gcp"
-test.dependsOn testGcp
+toxTask "testPy2Gcp", "py27-gcp"
+test.dependsOn testPy2Gcp
+
+toxTask "testPy3Gcp", "py3-gcp"
+test.dependsOn testPy3Gcp
 
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
@@ -93,7 +96,7 @@ test.dependsOn testCython
 // Ensure that testCython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
-testCython.mustRunAfter testPython2, testGcp
+testCython.mustRunAfter testPython2, testPy2Gcp
 
 toxTask "docs", "docs"
 assemble.dependsOn docs
@@ -105,7 +108,8 @@ task preCommit() {
   dependsOn "testCython"
   dependsOn "testPython2"
   dependsOn "testPython3"
-  dependsOn "testGcp"
+  dependsOn "testPy2Gcp"
+  dependsOn "testPy3Gcp"
   dependsOn "lint"
 }
 
@@ -330,6 +334,9 @@ class CompatibilityMatrixConfig {
   enum SDK_WORKER_TYPE {
     DOCKER, PROCESS, LOOPBACK
   }
+
+  // Whether to pre-optimize the pipeline with the Python optimizer.
+  boolean preOptimize = false
 }
 
 def flinkCompatibilityMatrix = {
@@ -337,7 +344,10 @@ def flinkCompatibilityMatrix = {
   def workerType = config.workerType.name()
   def streaming = config.streaming
   def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${project(":beam-sdks-python:").buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
-  def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${workerType}"
+  def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${config.preOptimize ? 'PreOptimize' : ''}${workerType}"
+  def extra_experiments = []
+  if (config.preOptimize)
+    extra_experiments.add('pre_optimize=all')
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
     dependsOn ':beam-runners-flink_2.11-job-server:shadowJar'
@@ -348,7 +358,7 @@ def flinkCompatibilityMatrix = {
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''}"
+        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
       }
     }
   }
@@ -367,6 +377,7 @@ task flinkCompatibilityMatrixProcess() {
 task flinkCompatibilityMatrixLoopback() {
   dependsOn flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
   dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
+  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK, preOptimize: true)
 }
 
 task flinkValidatesRunner() {
@@ -427,18 +438,6 @@ project.task('createProcessWorker') {
     }
     exec {
       commandLine('chmod', '+x', sdkWorkerFile)
-    }
-  }
-}
-
-project.task('crossLanguagePythonJava') {
-  dependsOn 'setupVirtualenv'
-  dependsOn ':beam-sdks-java-container:docker'
-  dependsOn ':beam-runners-core-construction-java:testExpansionService'
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test --expansion_service_jar=${project(":beam-runners-core-construction-java:").testExpansionService.archivePath}"
     }
   }
 }
