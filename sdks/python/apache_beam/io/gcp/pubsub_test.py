@@ -74,7 +74,7 @@ class TestPubsubMessage(unittest.TestCase):
 
   @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
   def test_proto_conversion(self):
-    data = 'data'
+    data = b'data'
     attributes = {'k1': 'v1', 'k2': 'v2'}
     m = PubsubMessage(data, attributes)
     m_converted = PubsubMessage._from_proto_str(m._to_proto_str())
@@ -82,25 +82,25 @@ class TestPubsubMessage(unittest.TestCase):
     self.assertEqual(m_converted.attributes, attributes)
 
   def test_eq(self):
-    a = PubsubMessage('abc', {1: 2, 3: 4})
-    b = PubsubMessage('abc', {1: 2, 3: 4})
-    c = PubsubMessage('abc', {1: 2})
+    a = PubsubMessage(b'abc', {1: 2, 3: 4})
+    b = PubsubMessage(b'abc', {1: 2, 3: 4})
+    c = PubsubMessage(b'abc', {1: 2})
     self.assertTrue(a == b)
     self.assertTrue(a != c)
     self.assertTrue(b != c)
 
   def test_hash(self):
-    a = PubsubMessage('abc', {1: 2, 3: 4})
-    b = PubsubMessage('abc', {1: 2, 3: 4})
-    c = PubsubMessage('abc', {1: 2})
+    a = PubsubMessage(b'abc', {1: 2, 3: 4})
+    b = PubsubMessage(b'abc', {1: 2, 3: 4})
+    c = PubsubMessage(b'abc', {1: 2})
     self.assertTrue(hash(a) == hash(b))
     self.assertTrue(hash(a) != hash(c))
     self.assertTrue(hash(b) != hash(c))
 
   def test_repr(self):
-    a = PubsubMessage('abc', {1: 2, 3: 4})
-    b = PubsubMessage('abc', {1: 2, 3: 4})
-    c = PubsubMessage('abc', {1: 2})
+    a = PubsubMessage(b'abc', {1: 2, 3: 4})
+    b = PubsubMessage(b'abc', {1: 2, 3: 4})
+    c = PubsubMessage(b'abc', {1: 2})
     self.assertTrue(repr(a) == repr(b))
     self.assertTrue(repr(a) != repr(c))
     self.assertTrue(repr(b) != repr(c))
@@ -333,7 +333,7 @@ transform_evaluator.TransformEvaluatorRegistry._test_evaluators_overrides = {
 class TestReadFromPubSub(unittest.TestCase):
 
   def test_read_messages_success(self, mock_pubsub):
-    data = 'data'
+    data = b'data'
     publish_time_secs = 1520861821
     publish_time_nanos = 234567000
     attributes = {'key': 'value'}
@@ -399,7 +399,7 @@ class TestReadFromPubSub(unittest.TestCase):
         mock.call(mock.ANY, [ack_id])])
 
   def test_read_messages_timestamp_attribute_milli_success(self, mock_pubsub):
-    data = 'data'
+    data = b'data'
     attributes = {'time': '1337'}
     publish_time_secs = 1520861821
     publish_time_nanos = 234567000
@@ -429,7 +429,7 @@ class TestReadFromPubSub(unittest.TestCase):
         mock.call(mock.ANY, [ack_id])])
 
   def test_read_messages_timestamp_attribute_rfc3339_success(self, mock_pubsub):
-    data = 'data'
+    data = b'data'
     attributes = {'time': '2018-03-12T13:37:01.234567Z'}
     publish_time_secs = 1337000000
     publish_time_nanos = 133700000
@@ -459,7 +459,7 @@ class TestReadFromPubSub(unittest.TestCase):
         mock.call(mock.ANY, [ack_id])])
 
   def test_read_messages_timestamp_attribute_missing(self, mock_pubsub):
-    data = 'data'
+    data = b'data'
     attributes = {}
     publish_time_secs = 1520861821
     publish_time_nanos = 234567000
@@ -490,7 +490,7 @@ class TestReadFromPubSub(unittest.TestCase):
         mock.call(mock.ANY, [ack_id])])
 
   def test_read_messages_timestamp_attribute_fail_parse(self, mock_pubsub):
-    data = 'data'
+    data = b'data'
     attributes = {'time': '1337 unparseable'}
     publish_time_secs = 1520861821
     publish_time_nanos = 234567000
@@ -557,7 +557,7 @@ class TestWriteToPubSub(unittest.TestCase):
         mock.call(mock.ANY, data)])
 
   def test_write_messages_with_attributes_success(self, mock_pubsub):
-    data = 'data'
+    data = b'data'
     attributes = {'key': 'value'}
     payloads = [PubsubMessage(data, attributes)]
 
@@ -589,7 +589,7 @@ class TestWriteToPubSub(unittest.TestCase):
       p.run()
 
   def test_write_messages_unsupported_features(self, mock_pubsub):
-    data = 'data'
+    data = b'data'
     attributes = {'key': 'value'}
     payloads = [PubsubMessage(data, attributes)]
 
