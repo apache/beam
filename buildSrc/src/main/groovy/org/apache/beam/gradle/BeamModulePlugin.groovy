@@ -27,16 +27,14 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.quality.Checkstyle
-import org.gradle.api.plugins.quality.FindBugs
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
-import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
-
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
@@ -713,14 +711,19 @@ class BeamModulePlugin implements Plugin<Project> {
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
-        // findbugs-annotations artifact is licensed under LGPL and cannot be included in the
+        // spotbugs-annotations artifact is licensed under LGPL and cannot be included in the
         // Apache Beam distribution, but may be relied on during build.
         // See: https://www.apache.org/legal/resolved.html#prohibited
-        def findbugs_annotations = "com.google.code.findbugs:annotations:3.0.1"
-        compileOnly findbugs_annotations
-        testCompileOnly findbugs_annotations
-        annotationProcessor findbugs_annotations
-        testAnnotationProcessor findbugs_annotations
+        def spotbugs_annotations = "com.github.spotbugs:spotbugs-annotations:3.1.11"
+        def jcip_annotations = "net.jcip:jcip-annotations:1.0"
+        compileOnly spotbugs_annotations
+        compileOnly jcip_annotations
+        testCompileOnly spotbugs_annotations
+        testCompileOnly jcip_annotations
+        annotationProcessor spotbugs_annotations
+        annotationProcessor jcip_annotations
+        testAnnotationProcessor spotbugs_annotations
+        testAnnotationProcessor jcip_annotations
       }
 
       // Add the optional and provided configurations for dependencies
@@ -781,12 +784,12 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enables a plugin which performs code analysis for common bugs.
       // This plugin is configured to only analyze the "main" source set.
       if (configuration.enableFindbugs) {
-        project.apply plugin: 'findbugs'
-        project.findbugs {
+        project.apply plugin: 'com.github.spotbugs'
+        project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/findbugs-filter.xml')
           sourceSets = [sourceSets.main]
         }
-        project.tasks.withType(FindBugs) {
+        project.tasks.withType(com.github.spotbugs.SpotBugsTask) {
           reports {
             html.enabled = !project.jenkins.isCIBuild
             xml.enabled = project.jenkins.isCIBuild
