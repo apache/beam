@@ -93,4 +93,7 @@
   <suppress checks="JavadocMethod" files=".*flink.*wrappers.*ExecutableStageDoFnOperator\.java" lines="119"/>
   <!-- End of Suppression on JavadocMethod violations. -->
 
+  <!-- Guava use exceptions -->
+  <!-- Cassandra driver exposes guava in its API so we need to suppress the error for this case. -->
+  <suppress id="ForbidNonVendoredGuava" files=".*cassandra.*CassandraServiceImpl\.java" />
 </suppressions>
