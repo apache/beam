@@ -23,6 +23,7 @@ applyJavaNature(
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann'],
   testShadowJar: true,
+  enableStrictDependencies: true,
   shadowClosure: DEFAULT_SHADOW_CLOSURE << {
     dependencies {
       include(dependency(library.java.protobuf_java))
@@ -71,6 +72,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
   shadow library.java.slf4j_api
+  shadow library.java.commons_codec
   shadow library.java.commons_csv
   shadow library.java.commons_lang3
   shadow library.java.jackson_databind
@@ -88,6 +90,14 @@ dependencies {
   shadowTest library.java.hamcrest_library
   shadowTest library.java.mockito_core
   shadowTest library.java.quickcheck_core
+
+  // Dependencies that we don't directly reference
+  permitUnusedDeclared "com.jayway.jsonpath:json-path:2.4.0"
+  permitUnusedDeclared library.java.jackson_dataformat_yaml
+
+  // Dependencies that are bundled in when we bundle Calcite
+  permitUsedUndeclared "org.codehaus.janino:janino:3.0.9"
+  permitUsedUndeclared "org.codehaus.janino:commons-compiler:3.0.9"
 }
 
 // Copy Caclcite templates and our own template into the build directory
