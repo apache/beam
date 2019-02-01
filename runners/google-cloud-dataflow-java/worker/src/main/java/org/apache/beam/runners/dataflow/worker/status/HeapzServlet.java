@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.status;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import javax.management.InstanceNotFoundException;
@@ -33,7 +34,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
  * Respond to /heapz with a page allowing downloading of the heap dumps.
  *
  * <p>Respond to /heapz?action=download with a download of the actual heap dump.
+ *
+ * <p><b>Not actually serializable</b>. Its superclass is serializable but this subclass is not.
  */
+@SuppressFBWarnings("SE_BAD_FIELD") // not serializable
 public class HeapzServlet extends BaseStatusServlet {
 
   private final MemoryMonitor memoryMonitor;

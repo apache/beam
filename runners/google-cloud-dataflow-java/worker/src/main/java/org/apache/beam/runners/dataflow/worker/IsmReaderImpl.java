@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -79,6 +80,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Longs;
  *
  * @param <V> the type of the value written to the sink
  */
+// Possible real inconsistency - https://issues.apache.org/jira/browse/BEAM-6560
+@SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 public class IsmReaderImpl<V> extends IsmReader<V> {
   /**
    * This constant represents the distance we would rather read and drop bytes for versus doing an
@@ -468,6 +471,8 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
    * have not been initialized yet. Re-uses the provided channel, returning it or a new one if this
    * method was required to open one.
    */
+  // Real bug - https://issues.apache.org/jira/browse/BEAM-6559
+  @SuppressFBWarnings("NP_NULL_ON_SOME_PATH")
   private Optional<SeekableByteChannel> initializeForKeyedRead(
       int shardId, Optional<SeekableByteChannel> inChannel, SideInputReadCounter readCounter)
       throws IOException {

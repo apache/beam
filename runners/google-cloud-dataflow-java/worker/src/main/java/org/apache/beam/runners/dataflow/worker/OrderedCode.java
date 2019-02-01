@@ -68,7 +68,7 @@ public class OrderedCode {
 
   public static final byte[] ESCAPE1_SEPARATOR = {ESCAPE1, SEPARATOR};
 
-  public static final byte[] INFINITY_ENCODED = {ESCAPE2, INFINITY};
+  static final byte[] INFINITY_ENCODED = {ESCAPE2, INFINITY};
 
   /**
    * This array maps encoding length to header bits in the first two bytes for SignedNumIncreasing

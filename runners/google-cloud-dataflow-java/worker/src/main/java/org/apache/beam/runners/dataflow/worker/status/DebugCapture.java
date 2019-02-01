@@ -26,6 +26,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.GetDebugConfigRequest;
 import com.google.api.services.dataflow.model.GetDebugConfigResponse;
 import com.google.api.services.dataflow.model.SendDebugCaptureRequest;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -73,8 +74,15 @@ public class DebugCapture {
       this.content = content;
     }
 
-    @Key public String name;
-    @Key public String content;
+    // Implicitly read. Not a bug.
+    @SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+    @Key
+    public String name;
+
+    // Implicitly read. Not a bug.
+    @SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+    @Key
+    public String content;
   }
 
   /** Interface for capturable components. */

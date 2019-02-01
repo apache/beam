@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static com.google.api.client.util.Preconditions.checkArgument;
 import static org.apache.beam.runners.dataflow.util.Structs.getLong;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 
@@ -53,6 +54,8 @@ public class AvroByteReaderFactory implements ReaderFactory {
       @Nullable DataflowExecutionContext executionContext,
       DataflowOperationContext operationContext)
       throws Exception {
+    checkArgument(coder != null, "coder must not be null");
+    checkArgument(options != null, "options must not be null");
     return create(spec, coder, options);
   }
 

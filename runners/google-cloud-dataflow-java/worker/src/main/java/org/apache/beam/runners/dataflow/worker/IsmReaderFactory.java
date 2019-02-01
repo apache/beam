@@ -59,14 +59,20 @@ public class IsmReaderFactory implements ReaderFactory {
 
   public IsmReaderFactory() {}
 
+  // Findbugs does not correctly understand inheritance + nullability.
+  //
+  // coder & executionContext may be null due to parent class signature, and must be checked,
+  // despite not being nullable here
   @Override
   public NativeReader<?> create(
       CloudObject spec,
-      @Nullable Coder<?> coder,
+      Coder<?> coder,
       @Nullable PipelineOptions options,
-      @Nullable DataflowExecutionContext executionContext,
+      DataflowExecutionContext executionContext,
       DataflowOperationContext operationContext)
       throws Exception {
+    checkArgument(coder != null, "coder must not be null");
+    checkArgument(executionContext != null, "executionContext must not be null");
     return createImpl(spec, coder, options, executionContext, operationContext);
   }
 
