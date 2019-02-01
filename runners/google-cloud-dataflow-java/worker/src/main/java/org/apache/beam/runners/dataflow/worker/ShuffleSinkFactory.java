@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static com.google.api.client.util.Base64.decodeBase64;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.runners.dataflow.worker.ShuffleSink.parseShuffleKind;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
@@ -49,14 +50,20 @@ public class ShuffleSinkFactory implements SinkFactory {
     }
   }
 
+  // Findbugs does not correctly understand inheritance + nullability.
+  //
+  // coder & executionContext may be null due to parent class signature, and must be checked,
+  // despite not being nullable here
   @Override
   public ShuffleSink<?> create(
       CloudObject spec,
       Coder<?> coder,
       @Nullable PipelineOptions options,
-      @Nullable DataflowExecutionContext executionContext,
+      DataflowExecutionContext executionContext,
       DataflowOperationContext operationContext)
       throws Exception {
+
+    checkArgument(coder != null, "coder must not be null");
 
     @SuppressWarnings("unchecked")
     Coder<WindowedValue<Object>> typedCoder = (Coder<WindowedValue<Object>>) coder;

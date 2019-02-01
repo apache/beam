@@ -172,7 +172,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
         processBundleDescriptor.getPcollectionsMap().entrySet()) {
       builder.append(
           String.format(
-              "  %s [fontname=\"Courier New\" label=\"%s\"];\n",
+              "  %s [fontname=\"Courier New\" label=\"%s\"];%n",
               nodeName.get("pc " + nodeEntry.getKey()),
               escapeDot(nodeEntry.getKey() + ": " + nodeEntry.getValue().getUniqueName())));
     }
@@ -180,7 +180,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
         processBundleDescriptor.getTransformsMap().entrySet()) {
       builder.append(
           String.format(
-              "  %s [fontname=\"Courier New\" label=\"%s\"];\n",
+              "  %s [fontname=\"Courier New\" label=\"%s\"];%n",
               nodeName.get("pt " + nodeEntry.getKey()),
               escapeDot(
                   nodeEntry.getKey()
@@ -191,7 +191,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       for (Entry<String, String> inputEntry : nodeEntry.getValue().getInputsMap().entrySet()) {
         builder.append(
             String.format(
-                "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];\n",
+                "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];%n",
                 nodeName.get("pc " + inputEntry.getValue()),
                 nodeName.get("pt " + nodeEntry.getKey()),
                 escapeDot(inputEntry.getKey())));
@@ -199,7 +199,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       for (Entry<String, String> outputEntry : nodeEntry.getValue().getOutputsMap().entrySet()) {
         builder.append(
             String.format(
-                "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];\n",
+                "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];%n",
                 nodeName.get("pt " + nodeEntry.getKey()),
                 nodeName.get("pc " + outputEntry.getValue()),
                 escapeDot(outputEntry.getKey())));

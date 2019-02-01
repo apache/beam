@@ -329,7 +329,7 @@ public class ReadOperation extends Operation {
     public void update(Observable obs, Object obj) {
       Preconditions.checkArgument(obs == reader, "unexpected observable");
       Preconditions.checkArgument(obj instanceof Long, "unexpected parameter object");
-      byteCount.addValue((long) obj);
+      byteCount.addValue((Long) obj);
     }
   }
 

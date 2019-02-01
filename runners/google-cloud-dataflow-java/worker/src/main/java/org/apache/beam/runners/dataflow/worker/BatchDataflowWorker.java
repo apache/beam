@@ -370,6 +370,8 @@ public class BatchDataflowWorker implements Closeable {
                 counterSet,
                 executionContext,
                 stageName);
+      } else {
+        throw new IllegalStateException("Work Item was neither a MapTask nor a SourceOperation");
       }
       workItemStatusClient.setWorker(worker, executionContext);
 
