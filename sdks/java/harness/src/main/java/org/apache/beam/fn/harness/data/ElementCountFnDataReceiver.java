@@ -51,9 +51,9 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
     MonitoringInfoMetricName metricName =
         MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
     this.counter = LabeledMetrics.counter(metricName);
-    // Place it in a metric container which is not bound to the step name.
-    // Though, this is not likely to happen for ElementCount because the producing pTransform for
-    // the pCollection always invokes the consumer.
+    // Collect the metric in a metric container which is not bound to the step name.
+    // This is required to count elements from impulse steps, which will produce elements outside
+    // of a pTransform context.
     this.unboundMetricContainer = metricContainerRegistry.getUnboundContainer();
   }
 

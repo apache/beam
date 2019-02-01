@@ -534,7 +534,6 @@ public class RemoteExecutionTest implements Serializable {
 
                       @DoFn.FinishBundle
                       public void finishBundle() throws InterruptedException {
-                        // Thread.sleep(2000); // TODO smarter test without sleeps???
                         Metrics.counter(RemoteExecutionTest.class, finishUserCounterName).inc(100);
                       }
                     }))

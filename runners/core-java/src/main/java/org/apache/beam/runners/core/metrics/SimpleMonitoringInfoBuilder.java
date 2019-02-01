@@ -173,6 +173,12 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  /** Clear the builder and merge from the provided monitoringInfo. */
+  public void clearAndMerge(MonitoringInfo monitoringInfo) {
+    this.builder = MonitoringInfo.newBuilder();
+    this.builder.mergeFrom(monitoringInfo);
+  }
+
   /**
    * @return A copy of the MonitoringInfo with the timestamp cleared, to allow comparing two
    *     MonitoringInfos.
