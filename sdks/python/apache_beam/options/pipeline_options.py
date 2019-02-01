@@ -412,7 +412,7 @@ class GoogleCloudOptions(PipelineOptions):
                         'updating-a-pipeline')
     parser.add_argument('--gcp_kms_key',
                         default=None,
-                        help='Set a Google Cloud KMS key name to be used ini '
+                        help='Set a Google Cloud KMS key name to be used in '
                         'IO operations.')
 
   def validate(self, validator):
