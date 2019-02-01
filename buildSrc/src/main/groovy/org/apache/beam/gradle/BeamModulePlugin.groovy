@@ -381,6 +381,7 @@ class BeamModulePlugin implements Plugin<Project> {
         bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:$bigtable_version",
         bigtable_protos                             : "com.google.api.grpc:grpc-google-cloud-bigtable-v2:$generated_grpc_beta_version",
         byte_buddy                                  : "net.bytebuddy:byte-buddy:1.9.3",
+        commons_codec                               : "commons-codec:commons-codec:1.10",
         commons_compress                            : "org.apache.commons:commons-compress:1.16.1",
         commons_csv                                 : "org.apache.commons:commons-csv:1.4",
         commons_io_1x                               : "commons-io:commons-io:1.3.2",
