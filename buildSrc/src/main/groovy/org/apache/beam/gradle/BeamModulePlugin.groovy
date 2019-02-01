@@ -763,8 +763,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.tasks.withType(FindBugs) {
           reports {
-            html.enabled = true
-            xml.enabled = false
+            html.enabled = false
+            xml.enabled = true
           }
         }
       }
