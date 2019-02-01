@@ -158,11 +158,10 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       builder.setUrnForUserMetric(
           metricUpdate.getKey().metricName().getNamespace(),
           metricUpdate.getKey().metricName().getName());
+      // Drop if the stepname is not set. All user counters must be
+      // defined for a PTransform. They must be defined on a container bound to a step.
       if (this.stepName != null) {
         builder.setPTransformLabel(metricUpdate.getKey().stepName());
-      } else {
-        // Drop and log fpr these user counters, as they break the spec. All user counters must be
-        // defined for a PTransform. They must be defined on a container bound to a step.
       }
     }
     builder.setInt64Value(metricUpdate.getUpdate());
