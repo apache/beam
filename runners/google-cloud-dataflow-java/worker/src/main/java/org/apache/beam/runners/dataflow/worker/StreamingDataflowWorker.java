@@ -30,6 +30,7 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -163,6 +164,8 @@ public class StreamingDataflowWorker {
    */
   private static final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToBaseNetwork =
       new MapTaskToNetworkFunction(idGenerator);
+
+  private static Random clientIdGenerator = new Random();
 
   // Maximum number of threads for processing.  Currently each thread processes one key at a time.
   static final int MAX_PROCESSING_THREADS = 300;
@@ -613,8 +616,9 @@ public class StreamingDataflowWorker {
     this.windmillServer = options.getWindmillServerStub();
     this.metricTrackingWindmillServer =
         new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, windmillServiceEnabled);
+    this.metricTrackingWindmillServer.start();
     this.stateFetcher = new StateFetcher(metricTrackingWindmillServer);
-    this.clientId = new Random().nextLong();
+    this.clientId = clientIdGenerator.nextLong();
 
     for (MapTask mapTask : mapTasks) {
       addComputation(mapTask.getSystemName(), mapTask);
@@ -829,6 +833,13 @@ public class StreamingDataflowWorker {
     } catch (Exception e) {
       LOG.warn("Exception while shutting down: ", e);
     }
+    setIsDone();
+  }
+
+  // null is the only value of type Void, but findbugs thinks
+  // it violates the contract of CompletableFuture.complete
+  @SuppressFBWarnings("NP_NONNULL_PARAM_VIOLATION")
+  private void setIsDone() {
     isDoneFuture.complete(null);
   }
 
@@ -945,7 +956,7 @@ public class StreamingDataflowWorker {
 
   private void scheduleWorkItem(
       final ComputationState computationState,
-      @Nullable final Instant inputDataWatermark,
+      final Instant inputDataWatermark,
       final Instant synchronizedProcessingTime,
       final Windmill.WorkItem workItem) {
     Preconditions.checkNotNull(inputDataWatermark);

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files.fileTreeTraverser;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -243,7 +244,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         java.nio.file.FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
 
     // TODO: Avoid iterating all files: https://issues.apache.org/jira/browse/BEAM-1309
-    Iterable<File> files = com.google.common.io.Files.fileTreeTraverser().preOrderTraversal(parent);
+    Iterable<File> files = fileTreeTraverser().preOrderTraversal(parent);
     Iterable<File> matchedFiles =
         StreamSupport.stream(files.spliterator(), false)
             .filter(

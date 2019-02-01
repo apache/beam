@@ -281,7 +281,7 @@ public class WorkerCustomSources {
         throw new IllegalArgumentException(
             String.format(
                 "Splitting a valid source produced an invalid source."
-                    + "\nOriginal source: %s\nInvalid source: %s",
+                    + "%nOriginal source: %s%nInvalid source: %s",
                 source, split),
             e);
       }

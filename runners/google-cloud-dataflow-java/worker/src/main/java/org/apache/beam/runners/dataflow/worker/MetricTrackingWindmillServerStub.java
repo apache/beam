@@ -111,7 +111,10 @@ public class MetricTrackingWindmillServerStub {
     this.gcThrashingMonitor = gcThrashingMonitor;
     this.readQueue = new ArrayBlockingQueue<>(QUEUE_SIZE);
     this.readPool = new ArrayList<>(NUM_THREADS);
+    this.useStreamingRequests = useStreamingRequests;
+  }
 
+  public void start() {
     if (useStreamingRequests) {
       streamPool =
           new WindmillServerStub.StreamPool<>(
@@ -128,7 +131,6 @@ public class MetricTrackingWindmillServerStub {
         readPool.get(i).start();
       }
     }
-    this.useStreamingRequests = useStreamingRequests;
   }
 
   private void getDataLoop() {

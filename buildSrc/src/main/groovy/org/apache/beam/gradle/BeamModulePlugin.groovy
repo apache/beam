@@ -330,7 +330,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Maven artifacts.
     def generated_grpc_beta_version = "0.19.0"
     def generated_grpc_ga_version = "1.18.0"
-    def google_cloud_bigdataoss_version = "1.9.0"
+    def google_cloud_bigdataoss_version = "1.9.12"
     def bigtable_version = "1.4.0"
     def google_clients_version = "1.27.0"
     def google_auth_version = "0.10.0"
@@ -617,6 +617,8 @@ class BeamModulePlugin implements Plugin<Project> {
       def defaultLintSuppressions = [
         'options',
         'cast',
+        // https://bugs.openjdk.java.net/browse/JDK-8190452
+        'classfile',
         'deprecation',
         'fallthrough',
         'processing',
@@ -761,8 +763,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.tasks.withType(FindBugs) {
           reports {
-            html.enabled = true
-            xml.enabled = false
+            html.enabled = false
+            xml.enabled = true
           }
         }
       }
@@ -1375,7 +1377,6 @@ class BeamModulePlugin implements Plugin<Project> {
     /** ***********************************************************************************************/
 
     project.ext.applyPortabilityNature = {
-      println "applyPortabilityNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
       PortabilityNatureConfiguration configuration = it ? it as PortabilityNatureConfiguration : new PortabilityNatureConfiguration()
 
       project.ext.applyJavaNature(

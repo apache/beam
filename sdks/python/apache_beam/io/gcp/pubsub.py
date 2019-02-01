@@ -27,6 +27,7 @@ from __future__ import absolute_import
 import re
 from builtins import object
 
+from future.utils import iteritems
 from past.builtins import unicode
 
 from apache_beam import coders
@@ -114,7 +115,7 @@ class PubsubMessage(object):
     """
     msg = pubsub.types.pubsub_pb2.PubsubMessage()
     msg.data = self.data
-    for key, value in self.attributes.iteritems():
+    for key, value in iteritems(self.attributes):
       msg.attributes[key] = value
     return msg.SerializeToString()
 

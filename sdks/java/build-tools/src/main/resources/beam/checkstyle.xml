@@ -95,6 +95,17 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>
     </module>
 
+    <!--
+        Forbid non-vendored guava imports.
+        testing import is allowed because it comes from guava-testing for the tests.
+    -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidNonVendoredGuava"/>
+      <property name="format" value="\scom\.google\.common\.(?!testing)"/>
+      <property name="format" value="\scom\.google\.thirdparty\."/>
+      <property name="severity" value="error"/>
+    </module>
+
     <module name="UnusedImports">
       <property name="severity" value="error"/>
       <property name="processJavadoc" value="true"/>

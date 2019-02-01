@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
+import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.common.collect.ImmutableList;
 
 /**
  * The results of a query for metrics. Allows accessing all of the metrics that matched the filter.
@@ -27,14 +29,54 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @AutoValue
 @Experimental(Kind.METRICS)
 public abstract class MetricQueryResults {
-  /** Return the metric results for the getCounters that matched the filter. */
+  /** Return the metric results for the counters that matched the filter. */
   public abstract Iterable<MetricResult<Long>> getCounters();
 
-  /** Return the metric results for the getDistributions that matched the filter. */
+  /** Return the metric results for the distributions that matched the filter. */
   public abstract Iterable<MetricResult<DistributionResult>> getDistributions();
 
-  /** Return the metric results for the getGauges that matched the filter. */
+  /** Return the metric results for the gauges that matched the filter. */
   public abstract Iterable<MetricResult<GaugeResult>> getGauges();
+
+  static <T> void printMetrics(String type, Iterable<MetricResult<T>> metrics, StringBuilder sb) {
+    List<MetricResult<T>> metricsList = ImmutableList.copyOf(metrics);
+    if (!metricsList.isEmpty()) {
+      sb.append(type).append("(");
+      boolean first = true;
+      for (MetricResult<T> metricResult : metricsList) {
+        if (first) {
+          first = false;
+        } else {
+          sb.append(", ");
+        }
+        MetricName name = metricResult.getName();
+        sb.append(metricResult.getStep())
+            .append(":")
+            .append(name.getNamespace())
+            .append(":")
+            .append(name.getName())
+            .append(": ")
+            .append(metricResult.getAttempted());
+        try {
+          T committed = metricResult.getCommitted();
+          sb.append(", ").append(committed);
+        } catch (UnsupportedOperationException ignored) {
+        }
+      }
+      sb.append(")");
+    }
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("MetricQueryResults(");
+    printMetrics("Counters", getCounters(), sb);
+    printMetrics("Distributions", getDistributions(), sb);
+    printMetrics("Gauges", getGauges(), sb);
+    sb.append(")");
+    return sb.toString();
+  }
 
   public static MetricQueryResults create(
       Iterable<MetricResult<Long>> counters,

@@ -410,6 +410,10 @@ class GoogleCloudOptions(PipelineOptions):
                         'Experimental. '
                         'See https://cloud.google.com/dataflow/pipelines/'
                         'updating-a-pipeline')
+    parser.add_argument('--gcp_kms_key',
+                        default=None,
+                        help='Set a Google Cloud KMS key name to be used in '
+                        'IO operations.')
 
   def validate(self, validator):
     errors = []
@@ -581,6 +585,16 @@ class DebugOptions(PipelineOptions):
         ('Runners may provide a number of experimental features that can be '
          'enabled with this flag. Please sync with the owners of the runner '
          'before enabling any experiments.'))
+
+  def lookup_experiment(self, key, default=None):
+    if not self.experiments:
+      return default
+    elif key in self.experiments:
+      return True
+    for experiment in self.experiments:
+      if experiment.startswith(key + '='):
+        return experiment.split('=', 1)[1]
+    return default
 
 
 class ProfilingOptions(PipelineOptions):
