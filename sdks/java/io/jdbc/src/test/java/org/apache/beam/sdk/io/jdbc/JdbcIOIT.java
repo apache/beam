@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions
 
 import java.sql.SQLException;
 import java.util.List;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -67,9 +69,11 @@ import org.postgresql.ds.PGSimpleDataSource;
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
 
+  private static final String NAMESPACE = "JdbcIOITNamespace";
   private static int numberOfRows;
   private static PGSimpleDataSource dataSource;
   private static String tableName;
+
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public TestPipeline pipelineRead = TestPipeline.create();
 
@@ -122,7 +126,9 @@ public class JdbcIOIT {
                 .withStatement(String.format("insert into %s values(?, ?)", tableName))
                 .withPreparedStatementSetter(new JdbcTestHelper.PrepareStatementFromTestRow()));
 
-    pipelineWrite.run().waitUntilFinish();
+    PipelineResult state = pipelineWrite.run();
+    MetricsReader reader = new MetricsReader(state, NAMESPACE);
+    reader.getCounterMetric("counter");
   }
 
   /**
