@@ -643,11 +643,67 @@ TBLPROPERTIES '{"format: "Excel"}'
   <li><code class="highlighter-rouge">LOCATION</code>: The path to the file for Read Mode. The prefix for Write Mode.</li>
   <li><code class="highlighter-rouge">TBLPROPERTIES</code>:
     <ul>
-      <li><code class="highlighter-rouge">format</code>: Optional. Allows you to specify the
-<a href="https://commons.apache.org/proper/commons-csv/archives/1.5/apidocs/org/apache/commons/csv/CSVFormat.Predefined.html">CSVFormat</a>.</li>
+      <li><code class="highlighter-rouge">format</code>: Optional. Allows you to specify the CSV Format, which controls
+the field delimeter, quote character, record separator, and other properties.
+See the following table:</li>
     </ul>
   </li>
 </ul>
+
+<table class="table-bordered">
+  <thead>
+    <tr>
+      <th>Value for <code class="highlighter-rouge">format</code></th>
+      <th>Field delimiter</th>
+      <th>Quote</th>
+      <th>Record separator</th>
+      <th>Ignore empty lines?</th>
+      <th>Allow missing column names?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="highlighter-rouge">default</code></td>
+      <td><code class="highlighter-rouge">,</code></td>
+      <td><code class="highlighter-rouge">"</code></td>
+      <td><code class="highlighter-rouge">\r\n</code></td>
+      <td>Yes</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td><code class="highlighter-rouge">rfc4180</code></td>
+      <td><code class="highlighter-rouge">,</code></td>
+      <td><code class="highlighter-rouge">"</code></td>
+      <td><code class="highlighter-rouge">\r\n</code></td>
+      <td>No</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td><code class="highlighter-rouge">excel</code></td>
+      <td><code class="highlighter-rouge">,</code></td>
+      <td><code class="highlighter-rouge">"</code></td>
+      <td><code class="highlighter-rouge">\r\n</code></td>
+      <td>No</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td><code class="highlighter-rouge">tdf</code></td>
+      <td><code class="highlighter-rouge">\t</code></td>
+      <td><code class="highlighter-rouge">"</code></td>
+      <td><code class="highlighter-rouge">\r\n</code></td>
+      <td>Yes</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td><code class="highlighter-rouge">mysql</code></td>
+      <td><code class="highlighter-rouge">\t</code></td>
+      <td>none</td>
+      <td><code class="highlighter-rouge">\n</code></td>
+      <td>No</td>
+      <td>No</td>
+    </tr>
+  </tbody>
+</table>
 
 <h3 id="read-mode-3">Read Mode</h3>
 
