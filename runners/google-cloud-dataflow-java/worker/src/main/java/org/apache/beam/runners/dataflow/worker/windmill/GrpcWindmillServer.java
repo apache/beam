@@ -105,7 +105,6 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /** gRPC client for communicating with Windmill Service. */
 // Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6562
 // Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6564
