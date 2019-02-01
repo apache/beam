@@ -153,16 +153,17 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       for (Entry<String, String> e : monitoringInfoName.getLabels().entrySet()) {
         builder.setLabel(e.getKey(), e.getValue());
       }
-    } else {
+    } else { // Note: (metricName instanceof MetricName) is always True.
       // Represents a user counter.
       builder.setUrnForUserMetric(
           metricUpdate.getKey().metricName().getNamespace(),
           metricUpdate.getKey().metricName().getName());
-      String stepName = "";
-      if (metricUpdate.getKey().stepName() != null) {
-        stepName = metricUpdate.getKey().stepName();
+      if (this.stepName != null) {
+        builder.setPTransformLabel(metricUpdate.getKey().stepName());
+      } else {
+        // Drop and log fpr these user counters, as they break the spec. All user counters must be
+        // defined for a PTransform. They must be defined on a container bound to a step.
       }
-      builder.setPTransformLabel(stepName);
     }
     builder.setInt64Value(metricUpdate.getUpdate());
     builder.setTimestampToNow();
@@ -176,7 +177,10 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     MetricUpdates metricUpdates = this.getUpdates();
 
     for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
-      monitoringInfos.add(counterUpdateToMonitoringInfo(metricUpdate));
+      MonitoringInfo mi = counterUpdateToMonitoringInfo(metricUpdate);
+      if (mi != null) {
+        monitoringInfos.add(counterUpdateToMonitoringInfo(metricUpdate));
+      }
     }
     return monitoringInfos;
   }

@@ -177,6 +177,7 @@ public class MetricsContainerStepMapTest {
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.empty(), true);
   }
 
+  // TODO add test here
   @Test
   public void testUpdateAllUpdatesUnboundedAndBoundedContainers() {
     MetricsContainerStepMap baseMetricContainerRegistry = new MetricsContainerStepMap();
@@ -186,7 +187,8 @@ public class MetricsContainerStepMapTest {
     CounterCell c2 =
         baseMetricContainerRegistry
             .getUnboundContainer()
-            .getCounter(MetricName.named("ns", "name2"));
+            .getCounter(MonitoringInfoTestUtil.testElementCountName());
+
     c1.inc(7);
     c2.inc(14);
 
@@ -201,11 +203,7 @@ public class MetricsContainerStepMapTest {
     builder.setInt64Value(7);
     expected.add(builder.build());
 
-    builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrnForUserMetric("ns", "name2");
-    builder.setPTransformLabel("");
-    builder.setInt64Value(14);
-    expected.add(builder.build());
+    expected.add(MonitoringInfoTestUtil.testElementCountMonitoringInfo(14));
 
     ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
 

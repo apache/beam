@@ -46,7 +46,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
  * <p>This class is not thread-safe.
  */
 public class MetricsContainerStepMap implements Serializable {
-
   private Map<String, MetricsContainerImpl> metricsContainers;
   private MetricsContainerImpl unboundContainer = new MetricsContainerImpl(null);
 
