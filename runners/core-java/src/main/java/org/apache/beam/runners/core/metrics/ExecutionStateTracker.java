@@ -223,27 +223,32 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * Indicates that the execution thread has entered the {@code newState}. Returns a {@link
    * Closeable} that should be called when that state is completed.
    *
-   * <p>This must be the only place where the variable numTransitions is updated, and always called
-   * from the execution thread.
+   * <p>This must be the only place where incTransitions is called, and always called from the
+   * execution thread.
    */
-  @SuppressWarnings("NonAtomicVolatileUpdate")
-  @SuppressFBWarnings(
-      value = "VO_VOLATILE_INCREMENT",
-      justification = "Intentional for performance.")
   public Closeable enterState(ExecutionState newState) {
     // WARNING: This method is called in the hottest path, and must be kept as efficient as
     // possible. Avoid blocking, synchronizing, etc.
     final ExecutionState previous = currentState;
     currentState = newState;
     newState.onActivate(true);
-    numTransitions++;
+    incTransitions();
     return () -> {
       currentState = previous;
-      numTransitions++;
+      incTransitions();
       if (previous != null) {
         previous.onActivate(false);
       }
     };
+  }
+
+  @SuppressWarnings("NonAtomicVolatileUpdate")
+  // Helper method necessary due to https://github.com/spotbugs/spotbugs/issues/724
+  @SuppressFBWarnings(
+      value = "VO_VOLATILE_INCREMENT",
+      justification = "Intentional for performance.")
+  private void incTransitions() {
+    numTransitions++;
   }
 
   /** Return the number of transitions that have been observed by this state tracker. */

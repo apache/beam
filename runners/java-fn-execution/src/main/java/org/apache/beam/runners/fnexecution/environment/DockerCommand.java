@@ -19,6 +19,7 @@ package org.apache.beam.runners.fnexecution.environment;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -37,6 +38,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A docker command wrapper. Simplifies communications with the Docker daemon. */
+// Suppressing here due to https://github.com/spotbugs/spotbugs/issues/724
+@SuppressFBWarnings(
+    value = "OS_OPEN_STREAM",
+    justification = "BufferedReader wraps stream we don't own and should not close")
 class DockerCommand {
   private static final Logger LOG = LoggerFactory.getLogger(DockerCommand.class);
 
