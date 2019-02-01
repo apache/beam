@@ -65,6 +65,7 @@ dependencies {
   shadow "com.linkedin.samza-li:samza-kv-rocksdb_2.10:$samza_version"
   shadow "com.linkedin.samza-li:samza-kv-inmemory_2.10:$samza_version"
   shadow "com.linkedin.samza-li:samza-li-core-adapters:$samza_version"
+  shadow "com.linkedin.samza-li:samza-yarn_2.10:$samza_version"
 
   shadow "org.scala-lang:scala-library:2.10.7"
   shadow "org.apache.kafka:kafka-clients:0.11.0.2"

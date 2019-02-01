@@ -46,6 +46,14 @@ public interface SamzaPipelineOptions extends PipelineOptions {
 
   void setJobInstance(String instance);
 
+  @Description(
+      "Samza application execution environment."
+          + "See {@link org.apache.beam.runners.samza.SamzaExecutionEnvironment} for detailed environment descriptions.")
+  @Default.Enum("LOCAL")
+  SamzaExecutionEnvironment getSamzaExecutionEnvironment();
+
+  void setSamzaExecutionEnvironment(SamzaExecutionEnvironment environment);
+
   @Description("The interval to check for watermarks in milliseconds.")
   @Default.Long(1000)
   long getWatermarkInterval();

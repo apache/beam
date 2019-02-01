@@ -53,7 +53,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
   private final SamzaPipelineOptions options;
 
-  public SamzaRunner(SamzaPipelineOptions options) {
+  private SamzaRunner(SamzaPipelineOptions options) {
     this.options = options;
   }
 

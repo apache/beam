@@ -41,7 +41,7 @@ public class SamzaJobInvocation implements JobInvocation {
     // so we need to reset the runner here to a valid Java runner
     options.setRunner(SamzaRunner.class);
     try {
-      final SamzaRunner runner = new SamzaRunner(options);
+      final SamzaRunner runner = SamzaRunner.fromOptions(options);
       return runner.runPortablePipeline(fusedPipeline);
     } catch (Exception e) {
       throw new RuntimeException("Failed to invoke samza job", e);
