@@ -1604,6 +1604,37 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
       project.clean.dependsOn project.cleanPython
+
+      def pythonSdkDeps = project.files(
+              project.fileTree(dir: "${project.ext.pythonRootDir}/apache_beam", includes: [
+                '**/*.py',
+                '**/*.pyx',
+                '**/*.pxd'
+              ]),
+              project.fileTree(dir: "${project.ext.pythonRootDir}/apache_beam/testing/data"),
+              project.fileTree(dir: "${project.rootDir}/model"),
+              project.fileTree(dir: "${project.ext.pythonRootDir}/scripts"),
+              "${project.ext.pythonRootDir}/.pylintrc",
+              "${project.ext.pythonRootDir}/MANIFEST.in",
+              "${project.ext.pythonRootDir}/gen_protos.py",
+              "${project.ext.pythonRootDir}/setup.cfg",
+              "${project.ext.pythonRootDir}/setup.py",
+              "${project.ext.pythonRootDir}/test_config.py",
+              "${project.ext.pythonRootDir}/tox.ini")
+
+      project.ext.toxTask = { name, tox_env ->
+        project.tasks.create(name) {
+          dependsOn = ['setupVirtualenv']
+          doLast {
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && ${project.ext.pythonRootDir}/scripts/run_tox.sh $tox_env $name"
+            }
+          }
+          inputs.files pythonSdkDeps
+          outputs.files project.fileTree(dir: "${project.ext.pythonRootDir}/target/.tox/${tox_env}/log/")
+        }
+      }
     }
   }
 }

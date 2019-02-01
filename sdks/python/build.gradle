@@ -38,34 +38,8 @@ build.dependsOn buildPython
 
 
 /*************************************************************************************************/
-// Unit testing
-
-def pythonSdkDeps = files(
-    fileTree(dir: 'apache_beam', includes: ['**/*.py', '**/*.pyx', '**/*.pxd']),
-    fileTree(dir: 'apache_beam/testing/data'),
-    fileTree(dir: "${project.rootDir}/model"),
-    fileTree(dir: 'scripts'),
-    ".pylintrc",
-    "MANIFEST.in",
-    "gen_protos.py",
-    "setup.cfg",
-    "setup.py",
-    "test_config.py",
-    "tox.ini")
-
-def toxTask = {
-  name, tox_env -> tasks.create(name) {
-    dependsOn = ['setupVirtualenv']
-    doLast {
-      exec {
-        executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_tox.sh $tox_env"
-      }
-    }
-    inputs.files pythonSdkDeps
-    outputs.files fileTree(dir: "${project.rootDir}/sdks/python/target/.tox/${tox_env}/log/")
-  }
-}
+// Unit tests for Python 2
+// See Python 3 tests in precommit/py3/build.gradle
 
 task lint {}
 check.dependsOn lint
@@ -76,20 +50,11 @@ lint.dependsOn lintPy27
 toxTask "lintPy27_3", "py27-lint3"
 lint.dependsOn lintPy27_3
 
-toxTask "lintPy3", "py3-lint"
-lint.dependsOn lintPy3
-
 toxTask "testPy2Gcp", "py27-gcp"
 test.dependsOn testPy2Gcp
 
-toxTask "testPy3Gcp", "py3-gcp"
-test.dependsOn testPy3Gcp
-
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
-
-toxTask "testPython3", "py3"
-test.dependsOn testPython3
 
 toxTask "testCython", "py27-cython"
 test.dependsOn testCython
@@ -98,18 +63,15 @@ test.dependsOn testCython
 // project.
 testCython.mustRunAfter testPython2, testPy2Gcp
 
-toxTask "docs", "docs"
-assemble.dependsOn docs
+toxTask "pydoc", "docs"
+assemble.dependsOn pydoc
 
 toxTask "cover", "cover"
 
-task preCommit() {
-  dependsOn "docs"
-  dependsOn "testCython"
+task preCommitPy2() {
+  dependsOn "pydoc"
   dependsOn "testPython2"
-  dependsOn "testPython3"
   dependsOn "testPy2Gcp"
-  dependsOn "testPy3Gcp"
   dependsOn "lint"
 }
 

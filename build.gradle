@@ -236,8 +236,15 @@ task goIntegrationTests() {
   dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
 }
 
+task pythonUnitTests() {
+  dependsOn ":beam-sdks-python:preCommitPy2"
+  dependsOn ":beam-sdks-python-precommit-py3:preCommitPy3"
+  // Ensure that testCython runs exclusively to other tests.
+  finalizedBy ":beam-sdks-python:testCython"
+}
+
 task pythonPreCommit() {
-  dependsOn ":beam-sdks-python:preCommit"
+  dependsOn pythonUnitTests
   dependsOn ":beam-sdks-python-precommit-dataflow:precommitIT"
 }
 

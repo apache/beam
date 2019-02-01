@@ -24,9 +24,10 @@
 
 ###########################################################################
 # Usage check.
-if [[ $# != 1 ]]; then
-  printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment>"
+if [[ $# < 1 || $# > 2 ]]; then
+  printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment> <grade_task_name>"
   printf "\n\ttox_environment: [required] Tox environment to run the test in.\n"
+  printf "\n\tgrade_task_name: [optional] Use Gradle task name as part of toxworkdir.\n"
   exit 1
 fi
 
@@ -39,6 +40,11 @@ fi
 # Go to the Apache Beam Python SDK root
 if [[ "*sdks/python" != $PWD ]]; then
   cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
+fi
+
+# Set GRADLE_TASK_NAME (if provided) to isolate toxworkdir per Gradle task.
+if [[ ! -z $2 ]]; then
+  export GRADLE_TASK_NAME=$2
 fi
 
 tox -c tox.ini --recreate -e $1
