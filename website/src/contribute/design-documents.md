@@ -67,6 +67,7 @@ This is a collection of documents that may or may not be up to date.
 - Exactly-once Kafka sink [[doc](https://lists.apache.org/thread.html/fb394e576e6e858205307b033c5a5c6cc3923a17606814a54036c570@%3Cdev.beam.apache.org%3E)]
 
 ### Metrics
+- Get Metrics API: Metric Extraction via proto RPC API. [[doc](https://s.apache.org/get-metrics-api)]
 - Metrics API [[doc](http://s.apache.org/beam-metrics-api)]
 - I/O Metrics [[doc](https://s.apache.org/standard-io-metrics)]
 - Metrics extraction independent from runners / execution engines [[doc](https://s.apache.org/runner_independent_metrics_extraction)]
