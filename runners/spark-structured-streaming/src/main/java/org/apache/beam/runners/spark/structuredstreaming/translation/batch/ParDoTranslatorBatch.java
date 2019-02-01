@@ -61,6 +61,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
   public void translateTransform(
       PTransform<PCollection<InputT>, PCollectionTuple> transform, TranslationContext context) {
 
+    // Check for not-supported advanced features
     // TODO: add support of Splittable DoFn
     DoFn<InputT, OutputT> doFn = getDoFn(context);
     checkState(
@@ -74,10 +75,16 @@ class ParDoTranslatorBatch<InputT, OutputT>
         signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
     checkState(!stateful, "States and timers are not supported for the moment.");
 
+    // TODO: add support of SideInputs
+    List<PCollectionView<?>> sideInputs = getSideInputs(context);
+    final boolean hasSideInputs = sideInputs != null && sideInputs.size() > 0;
+    checkState(!hasSideInputs, "SideInputs are not supported for the moment.");
+
+
+    // Init main variables
     Dataset<WindowedValue<InputT>> inputDataSet = context.getDataset(context.getInput());
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     TupleTag<?> mainOutputTag = getTupleTag(context);
-
     Map<TupleTag<?>, Integer> outputTags = Maps.newHashMap();
 
     outputTags.put(mainOutputTag, 0);
@@ -98,7 +105,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     WindowingStrategy<?, ?> windowingStrategy = null;
 
     // collect all output Coders and create a UnionCoder for our tagged outputs
-    List<Coder<?>> outputCoders = Lists.newArrayList();
+//    List<Coder<?>> outputCoders = Lists.newArrayList();
     for (TupleTag<?> tag : indexMap.values()) {
       PValue taggedValue = outputs.get(tag);
       checkState(
@@ -107,7 +114,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
           taggedValue,
           taggedValue.getClass().getSimpleName());
       PCollection<?> coll = (PCollection<?>) taggedValue;
-      outputCoders.add(coll.getCoder());
+//      outputCoders.add(coll.getCoder());
       windowingStrategy = coll.getWindowingStrategy();
     }
 
@@ -115,18 +122,15 @@ class ParDoTranslatorBatch<InputT, OutputT>
       throw new IllegalStateException("No outputs defined.");
     }
 
-    UnionCoder unionCoder = UnionCoder.of(outputCoders);
+//    UnionCoder unionCoder = UnionCoder.of(outputCoders);
 
-    List<PCollectionView<?>> sideInputs = getSideInputs(context);
-    final boolean hasSideInputs = sideInputs != null && sideInputs.size() > 0;
-    // TODO: add support of SideInputs
-    checkState(!hasSideInputs, "SideInputs are not supported for the moment.");
+
 
     // construct a map from side input to WindowingStrategy so that
     // the DoFn runner can map main-input windows to side input windows
     Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
     for (PCollectionView<?> sideInput : sideInputs) {
-      sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
+      sideInputStrategies.put(sideInput, sideInput.getPCollection().getWindowingStrategy());
     }
 
     Map<TupleTag<?>, Coder<?>> outputCoderMap = context.getOutputCoders();
