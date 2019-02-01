@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.Config;
@@ -65,6 +66,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   private final Coder<K> keyCoder;
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn;
   private final String stepName;
+  private final PCollection.IsBounded isBounded;
 
   private transient StateInternalsFactory<K> stateInternalsFactory;
   private transient SamzaTimerInternalsFactory<K> timerInternalsFactory;
@@ -77,11 +79,13 @@ public class GroupByKeyOp<K, InputT, OutputT>
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn,
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
       OutputManagerFactory<KV<K, OutputT>> outputManagerFactory,
-      String stepName) {
+      String stepName,
+      PCollection.IsBounded isBounded) {
     this.mainOutputTag = mainOutputTag;
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;
     this.stepName = stepName;
+    this.isBounded = isBounded;
 
     if (!(inputCoder instanceof KeyedWorkItemCoder)) {
       throw new IllegalArgumentException(
@@ -108,13 +112,13 @@ public class GroupByKeyOp<K, InputT, OutputT>
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            null, context.getTaskContext(), pipelineOptions, null, mainOutputTag);
+            stepName, null, context.getTaskContext(), pipelineOptions, null);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
-            mainOutputTag.getId(),
+            stepName,
             Collections.singletonMap(
                 SamzaStoreStateInternals.BEAM_STORE,
                 SamzaStoreStateInternals.getBeamStore(context.getTaskContext())),
@@ -128,6 +132,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
             TIMER_STATE_ID,
             nonKeyedStateInternalsFactory,
             windowingStrategy,
+            isBounded,
             pipelineOptions);
 
     final DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =

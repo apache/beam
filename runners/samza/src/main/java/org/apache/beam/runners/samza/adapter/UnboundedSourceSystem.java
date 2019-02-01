@@ -71,6 +71,8 @@ import org.slf4j.LoggerFactory;
  * into partitions. Samza creates the job model by assigning partitions to Samza tasks.
  */
 public class UnboundedSourceSystem {
+  private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceSystem.class);
+
   // A dummy message used to force the consumer to wake up immediately and check the
   // lastException field, which will be populated.
   private static final IncomingMessageEnvelope CHECK_LAST_EXCEPTION_ENVELOPE =
@@ -460,7 +462,8 @@ public class UnboundedSourceSystem {
 
     @Override
     public SystemProducer getProducer(String systemName, Config config, MetricsRegistry registry) {
-      throw new UnsupportedOperationException("Cannot create a producer for an input system");
+      LOG.info("System " + systemName + " does not have producer.");
+      return null;
     }
 
     @Override

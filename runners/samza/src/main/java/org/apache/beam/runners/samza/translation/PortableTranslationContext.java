@@ -53,7 +53,6 @@ public class PortableTranslationContext {
   private final Map<String, MessageStream<?>> messsageStreams = new HashMap<>();
   private final StreamApplicationDescriptor appDescriptor;
   private final SamzaPipelineOptions options;
-  private int topologicalId;
   private final Set<String> registeredInputStreams = new HashSet<>();
 
   public PortableTranslationContext(
@@ -64,14 +63,6 @@ public class PortableTranslationContext {
 
   public SamzaPipelineOptions getSamzaPipelineOptions() {
     return this.options;
-  }
-
-  public void setCurrentTopologicalId(int id) {
-    this.topologicalId = id;
-  }
-
-  public int getCurrentTopologicalId() {
-    return this.topologicalId;
   }
 
   public <T> List<MessageStream<OpMessage<T>>> getAllInputMessageStreams(

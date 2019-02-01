@@ -77,7 +77,7 @@ public class SamzaDoFnRunners {
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     final SamzaStoreStateInternals.Factory<?> stateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            keyCoder, context.getTaskContext(), pipelineOptions, signature, mainOutputTag);
+            stepName, keyCoder, context.getTaskContext(), pipelineOptions, signature);
 
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
