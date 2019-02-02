@@ -374,6 +374,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
+    output_table_3 = '%s%s' % (self.output_table, 3)
+    output_table_4 = '%s%s' % (self.output_table, 4)
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
@@ -386,6 +388,18 @@ class BigQueryFileLoadsIT(unittest.TestCase):
             query="SELECT * FROM %s" % output_table_2,
             data=[(d['name'], d['foundation'])
                   for d in _ELEMENTS
+                  if 'foundation' in d]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_3,
+            data=[(d['name'], d['language'])
+                  for d in _ELEMENTS
+                  if 'language' in d]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_4,
+            data=[(d['name'], d['foundation'])
+                  for d in _ELEMENTS
                   if 'foundation' in d])]
 
     args = self.test_pipeline.get_full_options_as_args(
@@ -394,13 +408,29 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_ELEMENTS)
 
+      # Get all input in same machine
+      input = (input
+               | beam.Map(lambda x: (None, x))
+               | beam.GroupByKey()
+               | beam.FlatMap(lambda elm: elm[1]))
+
       _ = (input |
-           "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
+           "WriteWithMultipleDestsFreely" >> bigquery.WriteToBigQuery(
                table=lambda x: (output_table_1
                                 if 'language' in x
                                 else output_table_2),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+
+      _ = (input |
+           "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
+               table=lambda x: (output_table_3
+                                if 'language' in x
+                                else output_table_4),
+               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+               max_file_size=20,
+               max_files_per_bundle=-1))
 
   @attr('IT')
   def test_one_job_fails_all_jobs_fail(self):

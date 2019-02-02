@@ -659,6 +659,8 @@ class WriteToBigQuery(PTransform):
                create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=BigQueryDisposition.WRITE_APPEND,
                batch_size=None,
+               max_file_size=None,
+               max_files_per_bundle=None,
                test_client=None,
                gs_location=None):
     """Initialize a WriteToBigQuery transform.
@@ -727,6 +729,8 @@ bigquery_v2_messages.TableSchema`
     self.kms_key = kms_key
     self.test_client = test_client
     self.gs_location = gs_location
+    self.max_file_size = max_file_size
+    self.max_files_per_bundle = max_files_per_bundle
 
   @staticmethod
   def get_table_schema_from_string(schema):
@@ -836,6 +840,8 @@ bigquery_v2_messages.TableSchema):
           schema=self.get_dict_table_schema(self.schema),
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
+          max_file_size=self.max_file_size,
+          max_files_per_bundle=self.max_files_per_bundle,
           gs_location=self.gs_location,
           test_client=self.test_client)
 

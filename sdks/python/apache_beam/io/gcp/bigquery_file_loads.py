@@ -34,6 +34,7 @@ from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam import pvalue
+from apache_beam.transforms.combiners import Count
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
@@ -187,8 +188,6 @@ class WriteRecordsToFile(beam.DoFn):
       self._destination_to_file_writer.pop(destination)
 
   def finish_bundle(self):
-    # TODO(pabloem): Maybe output to WRITTEN_FILE_TAG here instead of the
-    #  begining? - it would permit to add file size.
     for _, writer in iteritems(self._destination_to_file_writer):
       writer.close()
     self._destination_to_file_writer = {}
@@ -278,6 +277,9 @@ class TriggerLoadJobs(beam.DoFn):
 
   Experimental; no backwards compatibility guarantees.
   """
+
+  TEMP_TABLES = 'TemporaryTables'
+
   def __init__(self,
                schema=None,
                create_disposition=None,
@@ -322,7 +324,7 @@ class TriggerLoadJobs(beam.DoFn):
     if self.temporary_tables:
       # For temporary tables, we create a new table with the name with JobId.
       table_reference.tableId = job_name
-      #TODO(pabloem): How to ensure that tables are removed?
+      yield pvalue.TaggedOutput(TriggerLoadJobs.TEMP_TABLES, table_reference)
 
     job_reference = self.bq_wrapper.perform_load_job(
         table_reference, list(files), job_name,
@@ -381,6 +383,22 @@ class WaitForBQJobs(beam.DoFn):
     return WaitForBQJobs.ALL_DONE
 
 
+class DeleteTablesFn(beam.DoFn):
+  def __init__(self, test_client=None):
+    self.test_client = test_client
+
+  def start_bundle(self):
+    self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
+
+  def process(self, table_reference):
+    logging.info("Deleting table %s", table_reference)
+    table_reference = bigquery_tools.parse_table_reference(table_reference)
+    self.bq_wrapper._delete_table(
+        table_reference.projectId,
+        table_reference.datasetId,
+        table_reference.tableId)
+
+
 class BigQueryBatchFileLoads(beam.PTransform):
   """Takes in a set of elements, and inserts them to BigQuery via batch loads.
 
@@ -398,14 +416,15 @@ class BigQueryBatchFileLoads(beam.PTransform):
       create_disposition=None,
       write_disposition=None,
       coder=None,
-      max_file_size=_DEFAULT_MAX_FILE_SIZE,
-      max_files_per_bundle=_DEFAULT_MAX_WRITERS_PER_BUNDLE,
+      max_file_size=None,
+      max_files_per_bundle=None,
       test_client=None):
     self.destination = destination
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
-    self.max_file_size = max_file_size
-    self.max_files_per_bundle = max_files_per_bundle
+    self.max_file_size = max_file_size or _DEFAULT_MAX_FILE_SIZE
+    self.max_files_per_bundle = (max_files_per_bundle or
+                                 _DEFAULT_MAX_WRITERS_PER_BUNDLE)
     self._input_gs_location = gs_location
     self.test_client = test_client
     self.schema = schema
@@ -452,7 +471,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         | "GroupShardedRows" >> beam.GroupByKey()
         | "DropShardNumber" >> beam.Map(lambda x: (x[0][0], x[1]))
         | "WriteGroupedRecordsToFile" >> beam.ParDo(WriteGroupedRecordsToFile(
-            coder=self.coder))
+            coder=self.coder), file_prefix=file_prefix_pcv)
     )
 
     all_destination_file_pairs_pc = (
@@ -467,14 +486,18 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # the actual appropriate destination query. This ensures atomicity when only
     # some of the load jobs would fail but not other.
     # If any of them fails, then copy jobs are not triggered.
-    destination_job_ids_pc = (
+    trigger_loads_outputs = (
         grouped_files_pc | beam.ParDo(TriggerLoadJobs(
             schema=self.schema,
             write_disposition=self.write_disposition,
             create_disposition=self.create_disposition,
             test_client=self.test_client,
-            temporary_tables=self.temp_tables), load_job_name_pcv)
+            temporary_tables=self.temp_tables), load_job_name_pcv).with_outputs(
+                TriggerLoadJobs.TEMP_TABLES, main='main')
     )
+
+    destination_job_ids_pc = trigger_loads_outputs['main']
+    temp_tables_pc = trigger_loads_outputs[TriggerLoadJobs.TEMP_TABLES]
 
     destination_copy_job_ids_pc = (
         p
@@ -488,13 +511,20 @@ class BigQueryBatchFileLoads(beam.PTransform):
             temporary_tables=self.temp_tables,
             test_client=self.test_client), load_job_name_pcv))
 
-    _ = (p
-         | "ImpulseMonitorCopyJobs" >> beam.Create([None])
-         | "WaitForCopyJobs" >> beam.ParDo(
-             WaitForBQJobs(self.test_client),
-             beam.pvalue.AsList(destination_copy_job_ids_pc)))
+    finished_copy_jobs_pc = (p
+                             | "ImpulseMonitorCopyJobs" >> beam.Create([None])
+                             | "WaitForCopyJobs" >> beam.ParDo(
+                                 WaitForBQJobs(self.test_client),
+                                 beam.pvalue.AsList(destination_copy_job_ids_pc)
+                             ))
 
-    # TODO: Must delete temporary tables.
+    _ = (finished_copy_jobs_pc
+         | "RemoveTempTables/PassTables" >> beam.FlatMap(
+             lambda x, deleting_tables: deleting_tables,
+             pvalue.AsIter(temp_tables_pc))
+         | "RemoveTempTables/DeduplicateTables" >> Count.PerElement()
+         | "RemoveTempTables/GetTableNames" >> beam.Map(lambda elm: elm[0])
+         | "RemoveTempTables/Delete" >> beam.ParDo(DeleteTablesFn()))
 
     return {
         self.DESTINATION_JOBID_PAIRS: destination_job_ids_pc,
