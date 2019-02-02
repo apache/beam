@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import
 
+import sys
 import unittest
 
 import mock
@@ -259,10 +260,16 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
-        (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-         '/python:' + names.BEAM_CONTAINER_VERSION))
+    if sys.version_info[0] == 3:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python3:' + names.BEAM_CONTAINER_VERSION))
+    else:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python:' + names.BEAM_CONTAINER_VERSION))
 
   @mock.patch('apache_beam.runners.dataflow.internal.apiclient.'
               'beam_version.__version__', '2.2.0')
@@ -286,10 +293,16 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
-        (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-         '/python:2.2.0'))
+    if sys.version_info[0] == 3:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python3:2.2.0'))
+    else:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python:2.2.0'))
 
   def test_worker_harness_override_takes_precedence_over_sdk_defaults(self):
     # streaming, fnapi pipeline.
