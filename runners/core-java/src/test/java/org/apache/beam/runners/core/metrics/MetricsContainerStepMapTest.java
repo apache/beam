@@ -184,7 +184,6 @@ public class MetricsContainerStepMapTest {
     c1.inc(5);
 
     List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
-    // ArrayList<MonitoringInfo> actual = testObject.getMonitoringInfos();
     assertThat(testObject.getMonitoringInfos(), containsInAnyOrder(expected.toArray()));
   }
 

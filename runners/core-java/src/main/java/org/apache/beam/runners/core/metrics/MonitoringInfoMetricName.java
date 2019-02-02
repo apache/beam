@@ -88,8 +88,7 @@ public class MonitoringInfoMetricName extends MetricName {
   public HashMap<String, String> getLabels() {
     return this.labels;
   }
-
-  /** @return a MonitoringInfoMetricName for a specific urn and labels map. */
+  
   public static MonitoringInfoMetricName named(String urn, HashMap<String, String> labels) {
     return new MonitoringInfoMetricName(urn, labels);
   }
