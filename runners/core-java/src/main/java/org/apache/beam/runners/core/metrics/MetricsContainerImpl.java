@@ -143,6 +143,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    * @param metricUpdate
    * @return The MonitoringInfo generated from the metricUpdate.
    */
+  @Nullable
   private MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
     MetricName metricName = metricUpdate.getKey().metricName();

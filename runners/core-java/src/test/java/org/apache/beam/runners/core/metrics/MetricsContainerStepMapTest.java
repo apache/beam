@@ -180,12 +180,11 @@ public class MetricsContainerStepMapTest {
   @Test
   public void testUserMetricDroppedOnUnbounded() {
     MetricsContainerStepMap testObject = new MetricsContainerStepMap();
-    CounterCell c1 =
-        testObject.getUnboundContainer().getCounter(MetricName.named("ns", "name1"));
+    CounterCell c1 = testObject.getUnboundContainer().getCounter(MetricName.named("ns", "name1"));
     c1.inc(5);
 
     List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
-    //ArrayList<MonitoringInfo> actual = testObject.getMonitoringInfos();
+    // ArrayList<MonitoringInfo> actual = testObject.getMonitoringInfos();
     assertThat(testObject.getMonitoringInfos(), containsInAnyOrder(expected.toArray()));
   }
 
