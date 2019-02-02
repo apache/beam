@@ -230,7 +230,7 @@ class _AvroUtils(object):
     else:
       codec = 'null'
 
-    schema_string = meta[datafile.SCHEMA_KEY]
+    schema_string = meta[datafile.SCHEMA_KEY].decode('utf-8')
     sync_marker = header['sync']
 
     return codec, schema_string, sync_marker
