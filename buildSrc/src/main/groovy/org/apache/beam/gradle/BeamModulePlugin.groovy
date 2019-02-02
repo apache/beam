@@ -82,6 +82,9 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls whether the findbugs plugin is enabled and configured. */
     boolean enableFindbugs = true
 
+    /** Controls whether the dependency analysis plugin is enabled. */
+    boolean enableStrictDependencies = false
+
     /**
      * List of additional lint warnings to disable.
      * In addition, defaultLintSuppressions defined below
@@ -310,6 +313,15 @@ class BeamModulePlugin implements Plugin<Project> {
     // when attempting to resolve dependency issues.
     project.apply plugin: "project-report"
 
+    // Apply a plugin which fails the build if there is a dependency on a transitive
+    // non-declared dependency, since these can break users (as in BEAM-6558)
+    //
+    // Though this is Java-specific, it is required to be applied to the root
+    // project due to implemeentation-details of the plugin. It can be enabled/disabled
+    // via JavaNatureConfiguration per project. It is disabled by default until we can
+    // make all of our deps good.
+    project.apply plugin: "ca.cutterslade.analyze"
+
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
@@ -369,6 +381,7 @@ class BeamModulePlugin implements Plugin<Project> {
         bigtable_client_core                        : "com.google.cloud.bigtable:bigtable-client-core:$bigtable_version",
         bigtable_protos                             : "com.google.api.grpc:grpc-google-cloud-bigtable-v2:$generated_grpc_beta_version",
         byte_buddy                                  : "net.bytebuddy:byte-buddy:1.9.3",
+        commons_codec                               : "commons-codec:commons-codec:1.10",
         commons_compress                            : "org.apache.commons:commons-compress:1.16.1",
         commons_csv                                 : "org.apache.commons:commons-csv:1.4",
         commons_io_1x                               : "commons-io:commons-io:1.3.2",
@@ -748,6 +761,16 @@ class BeamModulePlugin implements Plugin<Project> {
             xml.enabled = false
           }
         }
+      }
+
+      if (configuration.enableStrictDependencies) {
+        project.tasks.analyzeClassesDependencies.enabled = true
+        project.tasks.analyzeDependencies.enabled = true
+        project.tasks.analyzeTestClassesDependencies.enabled = false
+      } else {
+        project.tasks.analyzeClassesDependencies.enabled = false
+        project.tasks.analyzeTestClassesDependencies.enabled = false
+        project.tasks.analyzeDependencies.enabled = false
       }
 
       // Enable errorprone static analysis
