@@ -164,7 +164,7 @@ public class DefaultJobBundleFactoryTest {
       verify(envFactoryA, Mockito.times(0)).createEnvironment(environmentAA);
 
       bundleFactory.forStage(getExecutableStage(environmentAA));
-      verify(environmentProviderFactoryA, Mockito.times(1))
+      verify(environmentProviderFactoryA, Mockito.times(2))
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
       verify(environmentProviderFactoryB, Mockito.times(0))
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());

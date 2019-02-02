@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -74,17 +74,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
   private final IdGenerator stageIdGenerator;
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
-  // Using environment as the initialization marker.
-  private Environment environment;
   private ExecutorService executor;
-  private GrpcFnServer<FnApiControlClientPoolService> controlServer;
-  private GrpcFnServer<GrpcLoggingService> loggingServer;
-  private GrpcFnServer<ArtifactRetrievalService> retrievalServer;
-  private GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
-  private GrpcFnServer<GrpcDataService> dataServer;
-  private GrpcFnServer<GrpcStateService> stateServer;
-  private MapControlClientPool clientPool;
-  private EnvironmentFactory environmentFactory;
+  private String environmentURN;
 
   public static DefaultJobBundleFactory create(
       JobInfo jobInfo, Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap) {
@@ -94,15 +85,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   DefaultJobBundleFactory(
       JobInfo jobInfo, Map<String, EnvironmentFactory.Provider> environmentFactoryMap) {
     IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
+    this.executor = Executors.newCachedThreadPool();
     this.stageIdGenerator = stageIdGenerator;
     this.environmentCache =
         createEnvironmentCache(
-            environment -> {
-              synchronized (this) {
-                checkAndInitialize(jobInfo, environmentFactoryMap, environment);
-              }
-              return environmentFactory.createEnvironment(environment);
-            });
+            environment -> createServerInfo(jobInfo, environmentFactoryMap, environment));
   }
 
   @VisibleForTesting
@@ -114,22 +101,24 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       GrpcFnServer<ArtifactRetrievalService> retrievalServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServer,
       GrpcFnServer<GrpcDataService> dataServer,
-      GrpcFnServer<GrpcStateService> stateServer)
-      throws Exception {
+      GrpcFnServer<GrpcStateService> stateServer) {
     this.executor = Executors.newCachedThreadPool();
     this.stageIdGenerator = stageIdGenerator;
-    this.controlServer = controlServer;
-    this.loggingServer = loggingServer;
-    this.retrievalServer = retrievalServer;
-    this.provisioningServer = provisioningServer;
-    this.dataServer = dataServer;
-    this.stateServer = stateServer;
-    this.environmentCache =
-        createEnvironmentCache(env -> environmentFactory.createEnvironment(env));
+    ServerInfo serverInfo =
+        new AutoValue_DefaultJobBundleFactory_ServerInfo.Builder()
+            .setControlServer(controlServer)
+            .setLoggingServer(loggingServer)
+            .setRetrievalServer(retrievalServer)
+            .setProvisioningServer(provisioningServer)
+            .setDataServer(dataServer)
+            .setStateServer(stateServer)
+            .setEnvironmentFactory(environmentFactory)
+            .build();
+    this.environmentCache = createEnvironmentCache(env -> serverInfo);
   }
 
   private LoadingCache<Environment, WrappedSdkHarnessClient> createEnvironmentCache(
-      ThrowingFunction<Environment, RemoteEnvironment> environmentCreator) {
+      ThrowingFunction<Environment, ServerInfo> serverInfoCreator) {
     return CacheBuilder.newBuilder()
         .removalListener(
             (RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
@@ -145,8 +134,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             new CacheLoader<Environment, WrappedSdkHarnessClient>() {
               @Override
               public WrappedSdkHarnessClient load(Environment environment) throws Exception {
+                ServerInfo serverInfo = serverInfoCreator.apply(environment);
                 return WrappedSdkHarnessClient.wrapping(
-                    environmentCreator.apply(environment), dataServer);
+                    serverInfo.getEnvironmentFactory().createEnvironment(environment), serverInfo);
               }
             });
   }
@@ -161,28 +151,32 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
           ProcessBundleDescriptors.fromExecutableStage(
               stageIdGenerator.getId(),
               executableStage,
-              dataServer.getApiServiceDescriptor(),
-              stateServer.getApiServiceDescriptor());
+              wrappedClient.getServerInfo().getDataServer().getApiServiceDescriptor(),
+              wrappedClient.getServerInfo().getStateServer().getApiServiceDescriptor());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    return SimpleStageBundleFactory.create(wrappedClient, processBundleDescriptor, stateServer);
+    return SimpleStageBundleFactory.create(
+        wrappedClient, processBundleDescriptor, wrappedClient.getServerInfo().getStateServer());
   }
 
   @Override
   public void close() throws Exception {
+    // Tear down common servers.
+    for (WrappedSdkHarnessClient client : environmentCache.asMap().values()) {
+      ServerInfo serverInfo = client.getServerInfo();
+      serverInfo.getStateServer().close();
+      serverInfo.getDataServer().close();
+      serverInfo.getControlServer().close();
+      serverInfo.getLoggingServer().close();
+      serverInfo.getRetrievalServer().close();
+      serverInfo.getProvisioningServer().close();
+    }
+
     // Clear the cache. This closes all active environments.
     // note this may cause open calls to be cancelled by the peer
     environmentCache.invalidateAll();
     environmentCache.cleanUp();
-
-    // Tear down common servers.
-    stateServer.close();
-    dataServer.close();
-    controlServer.close();
-    loggingServer.close();
-    retrievalServer.close();
-    provisioningServer.close();
 
     executor.shutdown();
   }
@@ -269,22 +263,28 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     private final RemoteEnvironment environment;
     private final SdkHarnessClient client;
+    private final ServerInfo serverInfo;
 
-    static WrappedSdkHarnessClient wrapping(
-        RemoteEnvironment environment, GrpcFnServer<GrpcDataService> dataServer) {
+    static WrappedSdkHarnessClient wrapping(RemoteEnvironment environment, ServerInfo serverInfo) {
       SdkHarnessClient client =
           SdkHarnessClient.usingFnApiClient(
-              environment.getInstructionRequestHandler(), dataServer.getService());
-      return new WrappedSdkHarnessClient(environment, client);
+              environment.getInstructionRequestHandler(), serverInfo.getDataServer().getService());
+      return new WrappedSdkHarnessClient(environment, client, serverInfo);
     }
 
-    private WrappedSdkHarnessClient(RemoteEnvironment environment, SdkHarnessClient client) {
+    private WrappedSdkHarnessClient(
+        RemoteEnvironment environment, SdkHarnessClient client, ServerInfo serverInfo) {
       this.environment = environment;
       this.client = client;
+      this.serverInfo = serverInfo;
     }
 
     SdkHarnessClient getClient() {
       return client;
+    }
+
+    ServerInfo getServerInfo() {
+      return serverInfo;
     }
 
     @Override
@@ -296,51 +296,51 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     }
   }
 
-  @GuardedBy("this")
-  private void checkAndInitialize(
+  private ServerInfo createServerInfo(
       JobInfo jobInfo,
       Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap,
       Environment environment)
       throws IOException {
     Preconditions.checkNotNull(environment, "Environment can not be null");
-    if (this.environment != null) {
-      Preconditions.checkArgument(
-          this.environment.getUrn().equals(environment.getUrn()),
-          "Unsupported: Mixing environment types (%s, %s) is not supported for a job.",
-          this.environment.getUrn(),
-          environment.getUrn());
-      // Nothing to do. Already initialized.
-      return;
+    synchronized (this) {
+      if (this.environmentURN != null) {
+        Preconditions.checkArgument(
+            this.environmentURN.equals(environment.getUrn()),
+            "Unsupported: Mixing environment types (%s, %s) is not supported for a job.",
+            this.environmentURN,
+            environment.getUrn());
+      } else {
+        this.environmentURN = environment.getUrn();
+      }
     }
 
     EnvironmentFactory.Provider environmentFactoryProvider =
         environmentFactoryProviderMap.get(environment.getUrn());
     ServerFactory serverFactory = environmentFactoryProvider.getServerFactory();
 
-    this.clientPool = MapControlClientPool.create();
-    this.executor = Executors.newCachedThreadPool();
-    this.controlServer =
+    MapControlClientPool clientPool = MapControlClientPool.create();
+    GrpcFnServer<FnApiControlClientPoolService> controlServer =
         GrpcFnServer.allocatePortAndCreateFor(
             FnApiControlClientPoolService.offeringClientsToPool(
                 clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
             serverFactory);
-    this.loggingServer =
+    GrpcFnServer<GrpcLoggingService> loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
-    this.retrievalServer =
+    GrpcFnServer<ArtifactRetrievalService> retrievalServer =
         GrpcFnServer.allocatePortAndCreateFor(
             BeamFileSystemArtifactRetrievalService.create(), serverFactory);
-    this.provisioningServer =
+    GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
-    this.dataServer =
+    GrpcFnServer<GrpcDataService> dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
             serverFactory);
-    this.stateServer =
+    GrpcFnServer<GrpcStateService> stateServer =
         GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
-    this.environmentFactory =
+    EnvironmentFactory environmentFactory =
         environmentFactoryProvider.createEnvironmentFactory(
             controlServer,
             loggingServer,
@@ -348,6 +348,56 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             provisioningServer,
             clientPool,
             stageIdGenerator);
-    this.environment = environment;
+
+    ServerInfo serverInfo =
+        new AutoValue_DefaultJobBundleFactory_ServerInfo.Builder()
+            .setControlServer(controlServer)
+            .setLoggingServer(loggingServer)
+            .setRetrievalServer(retrievalServer)
+            .setProvisioningServer(provisioningServer)
+            .setDataServer(dataServer)
+            .setStateServer(stateServer)
+            .setEnvironmentFactory(environmentFactory)
+            .build();
+    return serverInfo;
+  }
+
+  /** A container for EnvironmentFactory and its corresponding Grpc servers. */
+  @AutoValue
+  public abstract static class ServerInfo {
+    abstract GrpcFnServer<FnApiControlClientPoolService> getControlServer();
+
+    abstract GrpcFnServer<GrpcLoggingService> getLoggingServer();
+
+    abstract GrpcFnServer<ArtifactRetrievalService> getRetrievalServer();
+
+    abstract GrpcFnServer<StaticGrpcProvisionService> getProvisioningServer();
+
+    abstract GrpcFnServer<GrpcDataService> getDataServer();
+
+    abstract GrpcFnServer<GrpcStateService> getStateServer();
+
+    abstract EnvironmentFactory getEnvironmentFactory();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setControlServer(GrpcFnServer<FnApiControlClientPoolService> server);
+
+      abstract Builder setLoggingServer(GrpcFnServer<GrpcLoggingService> server);
+
+      abstract Builder setRetrievalServer(GrpcFnServer<ArtifactRetrievalService> server);
+
+      abstract Builder setProvisioningServer(GrpcFnServer<StaticGrpcProvisionService> server);
+
+      abstract Builder setDataServer(GrpcFnServer<GrpcDataService> server);
+
+      abstract Builder setStateServer(GrpcFnServer<GrpcStateService> server);
+
+      abstract Builder setEnvironmentFactory(EnvironmentFactory factory);
+
+      abstract ServerInfo build();
+    }
   }
 }
