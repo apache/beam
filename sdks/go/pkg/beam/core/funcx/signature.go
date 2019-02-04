@@ -175,6 +175,9 @@ func matchReq(list, models []reflect.Type) error {
 		}
 
 		model := models[i]
+		if t.Kind() == reflect.Interface && model.Implements(t) {
+			continue
+		}
 		if model != t {
 			return fmt.Errorf("type mismatch: %v, want %v", t, model)
 		}
