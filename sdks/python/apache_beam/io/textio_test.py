@@ -29,6 +29,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import zlib
 from builtins import range
 
 import apache_beam as beam
@@ -554,6 +555,18 @@ class TextSourceTest(unittest.TestCase):
       assert_that(pcoll, equal_to(lines))
       pipeline.run()
 
+  def test_read_auto_deflate(self):
+    _, lines = write_data(15)
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file(suffix='.deflate')
+      with open(file_name, 'wb') as f:
+        f.write(zlib.compress('\n'.join(lines).encode('utf-8')))
+
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(file_name)
+      assert_that(pcoll, equal_to(lines))
+      pipeline.run()
+
   def test_read_auto_gzip(self):
     _, lines = write_data(15)
     with TempDir() as tempdir:
@@ -640,6 +653,82 @@ class TextSourceTest(unittest.TestCase):
       expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
       assert_that(lines, equal_to(expected))
       pipeline.run()
+
+  def test_read_deflate(self):
+    _, lines = write_data(15)
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file()
+      with open(file_name, 'wb') as f:
+        f.write(zlib.compress('\n'.join(lines).encode('utf-8')))
+
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(
+          file_name,
+          0, CompressionTypes.DEFLATE,
+          True, coders.StrUtf8Coder())
+      assert_that(pcoll, equal_to(lines))
+      pipeline.run()
+
+  def test_read_corrupted_deflate_fails(self):
+    _, lines = write_data(15)
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file()
+      with open(file_name, 'wb') as f:
+        f.write(zlib.compress('\n'.join(lines).encode('utf-8')))
+
+      with open(file_name, 'wb') as f:
+        f.write(b'corrupt')
+
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(
+          file_name,
+          0, CompressionTypes.DEFLATE,
+          True, coders.StrUtf8Coder())
+      assert_that(pcoll, equal_to(lines))
+
+      with self.assertRaises(Exception):
+        pipeline.run()
+
+  def test_read_deflate_concat(self):
+    with TempDir() as tempdir:
+      deflate_file_name1 = tempdir.create_temp_file()
+      lines = ['a', 'b', 'c']
+      with open(deflate_file_name1, 'wb') as dst:
+        data = '\n'.join(lines) + '\n'
+        dst.write(zlib.compress(data.encode('utf-8')))
+
+      deflate_file_name2 = tempdir.create_temp_file()
+      lines = ['p', 'q', 'r']
+      with open(deflate_file_name2, 'wb') as dst:
+        data = '\n'.join(lines) + '\n'
+        dst.write(zlib.compress(data.encode('utf-8')))
+
+      deflate_file_name3 = tempdir.create_temp_file()
+      lines = ['x', 'y', 'z']
+      with open(deflate_file_name3, 'wb') as dst:
+        data = '\n'.join(lines) + '\n'
+        dst.write(zlib.compress(data.encode('utf-8')))
+
+      final_deflate_file = tempdir.create_temp_file()
+      with open(deflate_file_name1, 'rb') as src, \
+              open(final_deflate_file, 'wb') as dst:
+        dst.writelines(src.readlines())
+
+      with open(deflate_file_name2, 'rb') as src, \
+              open(final_deflate_file, 'ab') as dst:
+        dst.writelines(src.readlines())
+
+      with open(deflate_file_name3, 'rb') as src, \
+              open(final_deflate_file, 'ab') as dst:
+        dst.writelines(src.readlines())
+
+      pipeline = TestPipeline()
+      lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
+          final_deflate_file,
+          compression_type=beam.io.filesystem.CompressionTypes.DEFLATE)
+
+      expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
+      assert_that(lines, equal_to(expected))
 
   def test_read_gzip(self):
     _, lines = write_data(15)
@@ -974,6 +1063,30 @@ class TextSinkTest(unittest.TestCase):
 
     with gzip.GzipFile(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), [])
+
+  def test_write_deflate_file(self):
+    sink = TextSink(
+        self.path, compression_type=CompressionTypes.DEFLATE)
+    self._write_lines(sink, self.lines)
+
+    with open(self.path, 'rb') as f:
+      self.assertEqual(zlib.decompress(f.read()).splitlines(), self.lines)
+
+  def test_write_deflate_file_auto(self):
+    self.path = self._create_temp_file(suffix='.deflate')
+    sink = TextSink(self.path)
+    self._write_lines(sink, self.lines)
+
+    with open(self.path, 'rb') as f:
+      self.assertEqual(zlib.decompress(f.read()).splitlines(), self.lines)
+
+  def test_write_deflate_file_empty(self):
+    sink = TextSink(
+        self.path, compression_type=CompressionTypes.DEFLATE)
+    self._write_lines(sink, [])
+
+    with open(self.path, 'rb') as f:
+      self.assertEqual(zlib.decompress(f.read()).splitlines(), [])
 
   def test_write_text_file_with_header(self):
     header = b'header1\nheader2'
