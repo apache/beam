@@ -335,6 +335,8 @@ message Annotation {
 // MonitoringInfo protos.
 message MonitoringInfoSpecs {
   enum Enum {
+    // TODO(ajamato): Add the PTRANSFORM name as a required label after
+    // upgrading the python SDK.
     USER_COUNTER = 0 [(monitoring_info_spec) = {
       urn: "beam:metric:user:",
       type_urn: "beam:metrics:sum_int_64",

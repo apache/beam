@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -169,8 +170,10 @@ public class AssignWindowsRunnerTest implements Serializable {
           }
         };
     Collection<WindowedValue<?>> outputs = new ArrayList<>();
-    PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
-    pCollectionConsumerRegistry.register("output", outputs::add);
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry pCollectionConsumerRegistry =
+        new PCollectionConsumerRegistry(metricsContainerRegistry);
+    pCollectionConsumerRegistry.register("output", "ptransform", outputs::add);
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
     MapFnRunners.forWindowedValueMapFnFactory(new AssignWindowsMapFnFactory<>())

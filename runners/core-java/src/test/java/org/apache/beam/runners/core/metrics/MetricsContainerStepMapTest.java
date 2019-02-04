@@ -20,16 +20,21 @@ package org.apache.beam.runners.core.metrics;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asMetricResults;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -170,6 +175,51 @@ public class MetricsContainerStepMapTest {
     thrown.expectMessage("This runner does not currently support committed metrics results.");
 
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.empty(), true);
+  }
+
+  @Test
+  public void testUserMetricDroppedOnUnbounded() {
+    MetricsContainerStepMap testObject = new MetricsContainerStepMap();
+    CounterCell c1 = testObject.getUnboundContainer().getCounter(MetricName.named("ns", "name1"));
+    c1.inc(5);
+
+    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+    assertThat(testObject.getMonitoringInfos(), containsInAnyOrder(expected.toArray()));
+  }
+
+  @Test
+  public void testUpdateAllUpdatesUnboundedAndBoundedContainers() {
+    MetricsContainerStepMap baseMetricContainerRegistry = new MetricsContainerStepMap();
+
+    CounterCell c1 =
+        baseMetricContainerRegistry.getContainer(STEP1).getCounter(MetricName.named("ns", "name1"));
+    CounterCell c2 =
+        baseMetricContainerRegistry
+            .getUnboundContainer()
+            .getCounter(MonitoringInfoTestUtil.testElementCountName());
+
+    c1.inc(7);
+    c2.inc(14);
+
+    MetricsContainerStepMap testObject = new MetricsContainerStepMap();
+    testObject.updateAll(baseMetricContainerRegistry);
+
+    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+
+    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrnForUserMetric("ns", "name1");
+    builder.setPTransformLabel(STEP1);
+    builder.setInt64Value(7);
+    expected.add(builder.build());
+
+    expected.add(MonitoringInfoTestUtil.testElementCountMonitoringInfo(14));
+
+    ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
+
+    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
+      actual.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+    }
+    assertThat(actual, containsInAnyOrder(expected.toArray()));
   }
 
   @Test

@@ -119,6 +119,7 @@ public abstract class MapFnRunners {
 
       pCollectionConsumerRegistry.register(
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
+          pTransformId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) mapper::map);
       return mapper;
     }
