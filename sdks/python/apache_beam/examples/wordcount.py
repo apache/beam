@@ -38,7 +38,6 @@ class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
 
   def __init__(self):
-    super(WordExtractingDoFn, self).__init__()
     self.words_counter = Metrics.counter(self.__class__, 'words')
     self.word_lengths_counter = Metrics.counter(self.__class__, 'word_lengths')
     self.word_lengths_dist = Metrics.distribution(
