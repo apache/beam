@@ -1202,7 +1202,28 @@ public class DoFnOperatorTest {
             WindowedValue.valueInGlobalWindow("d"),
             WindowedValue.valueInGlobalWindow("finishBundle")));
 
+    // A final bundle will be created when sending the MAX watermark
     newHarness.close();
+
+    assertThat(
+        stripStreamRecordFromWindowedValue(newHarness.getOutput()),
+        contains(
+            WindowedValue.valueInGlobalWindow("finishBundle"),
+            WindowedValue.valueInGlobalWindow("d"),
+            WindowedValue.valueInGlobalWindow("finishBundle"),
+            WindowedValue.valueInGlobalWindow("finishBundle")));
+
+    // close() will also call dispose(), but call again to verify no new bundle
+    // is created afterwards
+    newDoFnOperator.dispose();
+
+    assertThat(
+        stripStreamRecordFromWindowedValue(newHarness.getOutput()),
+        contains(
+            WindowedValue.valueInGlobalWindow("finishBundle"),
+            WindowedValue.valueInGlobalWindow("d"),
+            WindowedValue.valueInGlobalWindow("finishBundle"),
+            WindowedValue.valueInGlobalWindow("finishBundle")));
   }
 
   /**
