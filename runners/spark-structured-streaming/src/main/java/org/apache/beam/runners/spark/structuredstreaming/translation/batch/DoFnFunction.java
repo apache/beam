@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import java.util.Collections;
 import java.util.Iterator;
@@ -60,7 +59,7 @@ public class DoFnFunction<InputT, OutputT>
 
   private final WindowingStrategy<?, ?> windowingStrategy;
 
-  private final Map<TupleTag<?>, Integer> outputMap;
+  private final List<TupleTag<?>> additionalOutputTags;
   private final TupleTag<OutputT> mainOutputTag;
   private final Coder<InputT> inputCoder;
   private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
@@ -72,7 +71,7 @@ public class DoFnFunction<InputT, OutputT>
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions options,
-      Map<TupleTag<?>, Integer> outputMap,
+      List<TupleTag<?>> additionalOutputTags,
       TupleTag<OutputT> mainOutputTag,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoderMap) {
@@ -81,7 +80,7 @@ public class DoFnFunction<InputT, OutputT>
     this.sideInputs = sideInputs;
     this.serializedOptions = new SerializablePipelineOptions(options);
     this.windowingStrategy = windowingStrategy;
-    this.outputMap = outputMap;
+    this.additionalOutputTags = additionalOutputTags;
     this.mainOutputTag = mainOutputTag;
     this.inputCoder = inputCoder;
     this.outputCoderMap = outputCoderMap;
@@ -92,8 +91,6 @@ public class DoFnFunction<InputT, OutputT>
       throws Exception {
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
-
-    List<TupleTag<?>> additionalOutputTags = Lists.newArrayList(outputMap.keySet());
 
     DoFnRunner<InputT, OutputT> doFnRunner =
         DoFnRunners.simpleRunner(
