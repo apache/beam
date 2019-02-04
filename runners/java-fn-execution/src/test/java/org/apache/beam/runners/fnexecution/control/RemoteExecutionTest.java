@@ -20,8 +20,6 @@ package org.apache.beam.runners.fnexecution.control;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasItems;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -524,8 +522,7 @@ public class RemoteExecutionTest implements Serializable {
 
                       @SuppressWarnings("unused")
                       @ProcessElement
-                      public void processElement(ProcessContext ctxt)
-                          throws InterruptedException {
+                      public void processElement(ProcessContext ctxt) throws InterruptedException {
                         // TODO(BEAM-6467): Impulse is producing two elements instead of one.
                         // So add this check to only emit these three elemenets.
                         if (!emitted) {
@@ -533,8 +530,7 @@ public class RemoteExecutionTest implements Serializable {
                           ctxt.output("one");
                           ctxt.output("two");
                           Thread.sleep(1000);
-                          Metrics.counter(RemoteExecutionTest.class, processUserCounterName)
-                              .inc();
+                          Metrics.counter(RemoteExecutionTest.class, processUserCounterName).inc();
                         }
                         emitted = true;
                       }
@@ -542,8 +538,7 @@ public class RemoteExecutionTest implements Serializable {
                       @DoFn.FinishBundle
                       public void finishBundle() throws InterruptedException {
                         Thread.sleep(1000);
-                        Metrics.counter(RemoteExecutionTest.class, finishUserCounterName)
-                            .inc(100);
+                        Metrics.counter(RemoteExecutionTest.class, finishUserCounterName).inc(100);
                       }
                     }))
             .setCoder(StringUtf8Coder.of());
@@ -634,8 +629,8 @@ public class RemoteExecutionTest implements Serializable {
             // Assert the timestamps are non empty then 0 them out before comparing.
             List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
             for (MonitoringInfo mi : response.getMonitoringInfosList()) {
-              String pTransformId = mi.getLabelsOrDefault(
-                  SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, "");
+              String pTransformId =
+                  mi.getLabelsOrDefault(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, "");
               if (!pTransformId.equalsIgnoreCase(testPTransformId)) {
                 continue;
               }
@@ -646,7 +641,7 @@ public class RemoteExecutionTest implements Serializable {
                       .getUrn()
                       .equals(SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN)) {
                 // TODO assert non 0 here.
-                //assertTrue(miCleaned.getMetric().getCounterData().getInt64Value() > 0);
+                // assertTrue(miCleaned.getMetric().getCounterData().getInt64Value() > 0);
                 miCleaned = SimpleMonitoringInfoBuilder.clearValue(miCleaned);
               }
               result.add(miCleaned);
@@ -715,7 +710,7 @@ public class RemoteExecutionTest implements Serializable {
             builder.setPTransformLabel(testPTransformId);
             expected.add(builder.build());
 
-            //assertEquals(expected.size(), result.size());
+            // assertEquals(expected.size(), result.size());
             for (MonitoringInfo mi : expected) {
               assertThat(result, Matchers.hasItem(mi));
             }
