@@ -290,7 +290,7 @@ func (e *Extractor) fromObj(fset *token.FileSet, id *ast.Ident, obj types.Object
 		}
 
 		e.funcs[e.sigKey(sig)] = sig
-		e.extractParameters(sig)
+		e.extractFromSignature(sig)
 		e.Printf("\t%v\n", sig)
 	case *types.TypeName:
 		e.Printf("%s: %q is a type %v --- %T %v %v %v %v\n",
@@ -325,41 +325,44 @@ func (e *Extractor) extractType(ot *types.TypeName) {
 	e.types[name] = struct{}{}
 }
 
-/// Examines the signature and extracts types of parameters and results for
+// Examines the signature and extracts types of parameters and results for
 // generating necessary imports and emitter and iterator code.
-func (e *Extractor) extractParameters(sig *types.Signature) {
-	for _, tuple := range []*types.Tuple{sig.Params(), sig.Results()} {
-		for i := 0; i < tuple.Len(); i++ {
-			s := tuple.At(i) // *types.Var
+func (e *Extractor) extractFromSignature(sig *types.Signature) {
+	e.extractFromTuple(sig.Params())
+	e.extractFromTuple(sig.Results())
+}
 
-			// Pointer types need to be iteratively unwrapped until we're at the base type,
-			// so we can get the import if necessary.
-			t := s.Type()
-			p, ok := t.(*types.Pointer)
-			for ok {
-				t = p.Elem()
-				p, ok = t.(*types.Pointer)
-			}
-			// Here's where we ensure we register new imports.
-			if t, ok := t.(*types.Named); ok {
-				if pkg := t.Obj().Pkg(); pkg != nil {
-					e.imports[pkg.Path()] = struct{}{}
-				}
-				e.extractType(t.Obj())
-			}
+func (e *Extractor) extractFromTuple(tuple *types.Tuple) {
+	for i := 0; i < tuple.Len(); i++ {
+		s := tuple.At(i) // *types.Var
 
-			if a, ok := s.Type().(*types.Signature); ok {
-				// Check if the type is an emitter or iterator for the specialized
-				// shim generation for those types.
-				if emt, ok := e.makeEmitter(a); ok {
-					e.emits[emt.Name] = emt
-				}
-				if ipt, ok := e.makeInput(a); ok {
-					e.iters[ipt.Name] = ipt
-				}
-				// Tail recurse on functional parameters.
-				e.extractParameters(a)
+		// Pointer types need to be iteratively unwrapped until we're at the base type,
+		// so we can get the import if necessary.
+		t := s.Type()
+		p, ok := t.(*types.Pointer)
+		for ok {
+			t = p.Elem()
+			p, ok = t.(*types.Pointer)
+		}
+		// Here's where we ensure we register new imports.
+		if t, ok := t.(*types.Named); ok {
+			if pkg := t.Obj().Pkg(); pkg != nil {
+				e.imports[pkg.Path()] = struct{}{}
 			}
+			e.extractType(t.Obj())
+		}
+
+		if a, ok := s.Type().(*types.Signature); ok {
+			// Check if the type is an emitter or iterator for the specialized
+			// shim generation for those types.
+			if emt, ok := e.makeEmitter(a); ok {
+				e.emits[emt.Name] = emt
+			}
+			if ipt, ok := e.makeInput(a); ok {
+				e.iters[ipt.Name] = ipt
+			}
+			// Tail recurse on functional signature.
+			e.extractFromSignature(a)
 		}
 	}
 }
