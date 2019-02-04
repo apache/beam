@@ -95,7 +95,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
 
       FnDataReceiver runReadLoop = (FnDataReceiver<WindowedValue<InputT>>) runner::runReadLoop;
       for (String pCollectionId : pTransform.getInputsMap().values()) {
-        pCollectionConsumerRegistry.register(pCollectionId, runReadLoop);
+        pCollectionConsumerRegistry.register(pCollectionId, pTransformId, runReadLoop);
       }
 
       return runner;

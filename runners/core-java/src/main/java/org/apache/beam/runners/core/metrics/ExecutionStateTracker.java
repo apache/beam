@@ -143,15 +143,15 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   }
 
   @Override
-  public boolean equals(Object o) {
-    return this == o;
-  }
-
-  @Override
   public int hashCode() {
     return System.identityHashCode(this);
   }
 
+  // Findbugs warns about use of pointer equality in the `then` clause
+  // below, because it is critical that the `else` clause below can never
+  // return 0. Our use of identityHashCode is a special case where this
+  // holds.
+  @SuppressFBWarnings("EQ_COMPARETO_USE_OBJECT_EQUALS")
   @Override
   public int compareTo(ExecutionStateTracker o) {
     if (this.equals(o)) {

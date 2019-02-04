@@ -15,37 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.buildtools;
 
-import PrecommitJobBuilder
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import javax.annotation.Nonnull;
+import javax.annotation.meta.TypeQualifierDefault;
 
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'Java',
-    gradleTask: ':javaPreCommit',
-    gradleSwitches: ['-PdisableSpotlessCheck=true'], // spotless checked in separate pre-commit
-    triggerPathPatterns: [
-      '^model/.*$',
-      '^sdks/java/.*$',
-      '^runners/.*$',
-      '^examples/java/.*$',
-      '^release/.*$',
-    ]
-)
-builder.build {
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-    recordIssues {
-      tools {
-        errorProne()
-        java()
-        checkStyle {
-          pattern('**/build/reports/checkstyle/*.xml')
-        }
-        findBugs {
-          pattern('**/build/reports/findbugs/*.xml')
-        }
-      }
-      enabledForFailure(true)
-    }
-  }
-}
+/**
+ * An annotation to apply to a package or class that will help findbugs enforce non-null by default
+ * discipline.
+ */
+@Documented
+@Nonnull
+@TypeQualifierDefault({
+  ElementType.ANNOTATION_TYPE,
+  ElementType.CONSTRUCTOR,
+  ElementType.FIELD,
+  ElementType.LOCAL_VARIABLE,
+  ElementType.METHOD,
+  ElementType.PACKAGE,
+  ElementType.PARAMETER,
+  ElementType.TYPE
+})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface NonnullByDefault {}

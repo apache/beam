@@ -103,7 +103,7 @@ public class DataflowWorkerLoggingInitializer {
     String filepath = System.getProperty(filepathProperty, defaultFilePath);
     int filesizeMb = Integer.parseInt(System.getProperty(FILESIZE_MB_PROPERTY, "1024"));
     DataflowWorkerLoggingHandler handler =
-        new DataflowWorkerLoggingHandler(filepath, filesizeMb * 1024 * 1024);
+        new DataflowWorkerLoggingHandler(filepath, filesizeMb * 1024L * 1024L);
     handler.setLevel(Level.ALL);
     return handler;
   }

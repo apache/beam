@@ -50,7 +50,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 @Experimental(Kind.METRICS)
 public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
-  private final String stepName;
+  @Nullable private final String stepName;
 
   private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
 
@@ -60,7 +60,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
   /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
-  public MetricsContainerImpl(String stepName) {
+  public MetricsContainerImpl(@Nullable String stepName) {
     this.stepName = stepName;
   }
 
@@ -143,6 +143,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    * @param metricUpdate
    * @return The MonitoringInfo generated from the metricUpdate.
    */
+  @Nullable
   private MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
     MetricName metricName = metricUpdate.getKey().metricName();
@@ -153,11 +154,17 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       for (Entry<String, String> e : monitoringInfoName.getLabels().entrySet()) {
         builder.setLabel(e.getKey(), e.getValue());
       }
-    } else {
+    } else { // Note: (metricName instanceof MetricName) is always True.
       // Represents a user counter.
       builder.setUrnForUserMetric(
           metricUpdate.getKey().metricName().getNamespace(),
           metricUpdate.getKey().metricName().getName());
+      // Drop if the stepname is not set. All user counters must be
+      // defined for a PTransform. They must be defined on a container bound to a step.
+      if (this.stepName == null) {
+        return null;
+      }
+      builder.setPTransformLabel(metricUpdate.getKey().stepName());
     }
     builder.setInt64Value(metricUpdate.getUpdate());
     builder.setTimestampToNow();
@@ -171,7 +178,10 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     MetricUpdates metricUpdates = this.getUpdates();
 
     for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
-      monitoringInfos.add(counterUpdateToMonitoringInfo(metricUpdate));
+      MonitoringInfo mi = counterUpdateToMonitoringInfo(metricUpdate);
+      if (mi != null) {
+        monitoringInfos.add(counterUpdateToMonitoringInfo(metricUpdate));
+      }
     }
     return monitoringInfos;
   }

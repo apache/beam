@@ -119,6 +119,7 @@ abstract class DoFnPTransformRunnerFactory<
     for (String localInputName : mainInput) {
       pCollectionConsumerRegistry.register(
           pTransform.getInputsOrThrow(localInputName),
+          pTransformId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<TransformInputT>>) runner::processElement);
     }
 
@@ -130,6 +131,7 @@ abstract class DoFnPTransformRunnerFactory<
               .getTimeDomain();
       pCollectionConsumerRegistry.register(
           pTransform.getInputsOrThrow(localName),
+          pTransformId,
           (FnDataReceiver)
               timer ->
                   runner.processTimer(

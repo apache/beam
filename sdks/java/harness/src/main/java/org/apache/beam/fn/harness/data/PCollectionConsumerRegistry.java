@@ -17,11 +17,15 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import java.io.Closeable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
@@ -36,10 +40,12 @@ public class PCollectionConsumerRegistry {
 
   private ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers;
   private Map<String, ElementCountFnDataReceiver> pCollectionIdsToWrappedConsumer;
+  private MetricsContainerStepMap metricsContainerRegistry;
 
-  public PCollectionConsumerRegistry() {
-    pCollectionIdsToConsumers = ArrayListMultimap.create();
-    pCollectionIdsToWrappedConsumer = new HashMap<String, ElementCountFnDataReceiver>();
+  public PCollectionConsumerRegistry(MetricsContainerStepMap metricsContainerRegistry) {
+    this.metricsContainerRegistry = metricsContainerRegistry;
+    this.pCollectionIdsToConsumers = ArrayListMultimap.create();
+    this.pCollectionIdsToWrappedConsumer = new HashMap<String, ElementCountFnDataReceiver>();
   }
 
   /**
@@ -48,12 +54,14 @@ public class PCollectionConsumerRegistry {
    * calling getMultiplexingConsumer(), or an exception will be thrown.
    *
    * @param pCollectionId
+   * @param pTransformId
    * @param consumer
    * @param <T> the element type of the PCollection
    * @throws RuntimeException if {@code register()} is called after {@code
    *     getMultiplexingConsumer()} is called.
    */
-  public <T> void register(String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
+  public <T> void register(
+      String pCollectionId, String pTransformId, FnDataReceiver<WindowedValue<T>> consumer) {
     // Just save these consumers for now, but package them up later with an
     // ElementCountFnDataReceiver and possibly a MultiplexingFnDataReceiver
     // if there are multiple consumers.
@@ -64,7 +72,18 @@ public class PCollectionConsumerRegistry {
           "New consumers for a pCollectionId cannot be register()-d after "
               + "calling getMultiplexingConsumer.");
     }
-    pCollectionIdsToConsumers.put(pCollectionId, (FnDataReceiver) consumer);
+    // Wrap the consumer with extra logic to set the metric container with the appropriate
+    // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
+    // created.
+    FnDataReceiver<WindowedValue<T>> wrapAndEnableMetricContainer =
+        (WindowedValue<T> input) -> {
+          MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
+          try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
+            // TODO(ajamato): Set the proper state sampler state for ExecutionTime Metrics to use.
+            consumer.accept(input);
+          }
+        };
+    pCollectionIdsToConsumers.put(pCollectionId, (FnDataReceiver) wrapAndEnableMetricContainer);
   }
 
   /** @return the list of pcollection ids. */
@@ -87,7 +106,8 @@ public class PCollectionConsumerRegistry {
           pCollectionIdsToConsumers.get(pCollectionId);
       FnDataReceiver<WindowedValue<?>> consumer =
           MultiplexingFnDataReceiver.forConsumers(consumers);
-      wrappedConsumer = new ElementCountFnDataReceiver(consumer, pCollectionId);
+      wrappedConsumer =
+          new ElementCountFnDataReceiver(consumer, pCollectionId, metricsContainerRegistry);
       pCollectionIdsToWrappedConsumer.put(pCollectionId, wrappedConsumer);
     }
     return wrappedConsumer;

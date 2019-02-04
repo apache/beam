@@ -323,8 +323,19 @@ TBLPROPERTIES '{"format: "Excel"}'
 
 *   `LOCATION`: The path to the file for Read Mode. The prefix for Write Mode.
 *   `TBLPROPERTIES`:
-    *   `format`: Optional. Allows you to specify the
-        [CSVFormat](https://commons.apache.org/proper/commons-csv/archives/1.5/apidocs/org/apache/commons/csv/CSVFormat.Predefined.html).
+    *   `format`: Optional. Allows you to specify the CSV Format, which controls
+        the field delimeter, quote character, record separator, and other properties.
+        See the following table:
+
+
+| Value for `format` | Field delimiter | Quote | Record separator | Ignore empty lines? | Allow missing column names? |
+|--------------------|-----------------|-------|------------------|---------------------|-----------------------------|
+| `default`          | `,`             | `"`   | `\r\n`           | Yes                 | No                          |
+| `rfc4180`          | `,`             | `"`   | `\r\n`           | No                  | No                          |
+| `excel`            | `,`             | `"`   | `\r\n`           | No                  | Yes                         |
+| `tdf`              | `\t`            | `"`   | `\r\n`           | Yes                 | No                          |
+| `mysql`            | `\t`            | none  | `\n`             | No                  | No                          |
+{:.table-bordered}
 
 ### Read Mode
 
