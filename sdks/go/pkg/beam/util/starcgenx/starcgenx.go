@@ -325,40 +325,41 @@ func (e *Extractor) extractType(ot *types.TypeName) {
 	e.types[name] = struct{}{}
 }
 
-// Examines the signature and extracts types of parameters for generating
-// necessary imports and emitter and iterator code.
+/// Examines the signature and extracts types of parameters and results for
+// generating necessary imports and emitter and iterator code.
 func (e *Extractor) extractParameters(sig *types.Signature) {
-	in := sig.Params() // *types.Tuple
-	for i := 0; i < in.Len(); i++ {
-		s := in.At(i) // *types.Var
+	for _, tuple := range []*types.Tuple{sig.Params(), sig.Results()} {
+		for i := 0; i < tuple.Len(); i++ {
+			s := tuple.At(i) // *types.Var
 
-		// Pointer types need to be iteratively unwrapped until we're at the base type,
-		// so we can get the import if necessary.
-		t := s.Type()
-		p, ok := t.(*types.Pointer)
-		for ok {
-			t = p.Elem()
-			p, ok = t.(*types.Pointer)
-		}
-		// Here's were we ensure we register new imports.
-		if t, ok := t.(*types.Named); ok {
-			if pkg := t.Obj().Pkg(); pkg != nil {
-				e.imports[pkg.Path()] = struct{}{}
+			// Pointer types need to be iteratively unwrapped until we're at the base type,
+			// so we can get the import if necessary.
+			t := s.Type()
+			p, ok := t.(*types.Pointer)
+			for ok {
+				t = p.Elem()
+				p, ok = t.(*types.Pointer)
 			}
-			e.extractType(t.Obj())
-		}
+			// Here's where we ensure we register new imports.
+			if t, ok := t.(*types.Named); ok {
+				if pkg := t.Obj().Pkg(); pkg != nil {
+					e.imports[pkg.Path()] = struct{}{}
+				}
+				e.extractType(t.Obj())
+			}
 
-		if a, ok := s.Type().(*types.Signature); ok {
-			// Check if the type is an emitter or iterator for the specialized
-			// shim generation for those types.
-			if emt, ok := e.makeEmitter(a); ok {
-				e.emits[emt.Name] = emt
+			if a, ok := s.Type().(*types.Signature); ok {
+				// Check if the type is an emitter or iterator for the specialized
+				// shim generation for those types.
+				if emt, ok := e.makeEmitter(a); ok {
+					e.emits[emt.Name] = emt
+				}
+				if ipt, ok := e.makeInput(a); ok {
+					e.iters[ipt.Name] = ipt
+				}
+				// Tail recurse on functional parameters.
+				e.extractParameters(a)
 			}
-			if ipt, ok := e.makeInput(a); ok {
-				e.iters[ipt.Name] = ipt
-			}
-			// Tail recurse on functional parameters.
-			e.extractParameters(a)
 		}
 	}
 }

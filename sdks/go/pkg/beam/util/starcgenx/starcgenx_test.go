@@ -36,6 +36,9 @@ func TestExtractor(t *testing.T) {
 		{name: "pardo1", files: []string{pardo}, pkg: "pardo",
 			expected: []string{"runtime.RegisterFunction(MyIdent)", "runtime.RegisterFunction(MyDropVal)", "runtime.RegisterFunction(MyOtherDoFn)", "runtime.RegisterType(reflect.TypeOf((*foo)(nil)).Elem())", "funcMakerStringГString", "funcMakerIntStringГInt", "funcMakerFooГStringFoo"},
 		},
+		{name: "imports1", files: []string{imports}, pkg: "imports",
+			expected: []string{"runtime.RegisterFunction(MyImportedTypesDoFn)", "runtime.RegisterType(reflect.TypeOf((*rand.Rand)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*time.Time)(nil)).Elem())", "funcMakerRand۰RandГTime۰Time", "\"math/rand\"", "\"time\""},
+		},
 		{name: "emits1", files: []string{emits}, pkg: "emits",
 			expected: []string{"runtime.RegisterFunction(anotherFn)", "runtime.RegisterFunction(emitFn)", "runtime.RegisterType(reflect.TypeOf((*reInt)(nil)).Elem())", "funcMakerEmitIntIntГ", "emitMakerIntInt", "funcMakerIntIntEmitIntIntГError"},
 		},
@@ -97,6 +100,20 @@ type foo struct{}
 
 func MyOtherDoFn(v foo) (string,foo) {
 	return "constant"
+}
+`
+
+const imports = `
+package imports
+
+import (
+	"math/rand"
+	"time"
+)
+
+// Imported types
+func MyImportedTypesDoFn(r *rand.Rand) time.Time {
+	return time.Unix(r.Int63(), 0)
 }
 `
 
