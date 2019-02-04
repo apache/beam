@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getRootCause;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getStackTraceAsString;
 
 import java.io.IOException;
@@ -213,7 +214,7 @@ public class FlinkJobInvocation implements JobInvocation {
                     .build());
             sendMessage(
                 JobMessage.newBuilder()
-                    .setMessageText(throwable.toString())
+                    .setMessageText(getRootCause(throwable).toString())
                     .setImportance(JobMessage.MessageImportance.JOB_MESSAGE_ERROR)
                     .build());
             setState(JobState.Enum.FAILED);
