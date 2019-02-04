@@ -30,7 +30,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
-import org.apache.beam.fn.harness.SimpleExecutionState;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
@@ -237,10 +236,14 @@ public class ProcessBundleHandler {
     ExecutionStateTracker stateTracker =
         new ExecutionStateTracker(ExecutionStateSampler.instance());
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry, stateTracker,
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry,
+            stateTracker,
             SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(metricsContainerRegistry, stateTracker,
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry,
+            stateTracker,
             SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN);
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections

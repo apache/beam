@@ -63,11 +63,11 @@ public class PTransformFunctionRegistry {
   private List<ThrowingRunnable> runnables = new ArrayList<>();
   private List<SimpleExecutionState> executionStates = new ArrayList<SimpleExecutionState>();
 
-
   /**
    * Construct the registry to run for either start or finish bundle functions.
-   * @param metricsContainerRegistry - Used to enable a metric container to properly account for
-   *     the pTransform in user metrics.
+   *
+   * @param metricsContainerRegistry - Used to enable a metric container to properly account for the
+   *     pTransform in user metrics.
    * @param stateTracker - The tracker to enter states in order to calculate execution time metrics.
    * @param executionTimeUrn - The URN to use for the execution time metrics.
    */
@@ -81,7 +81,7 @@ public class PTransformFunctionRegistry {
   }
 
   /**
-   * Register the runnable to process the specific pTransformId and track its execution time
+   * Register the runnable to process the specific pTransformId and track its execution time.
    *
    * @param pTransformId
    * @param runnable
