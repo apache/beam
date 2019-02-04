@@ -176,13 +176,23 @@ class WriteTables<DestinationT>
               c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
       if (!singlePartition) {
+        // This is a temp table. Create a new one for each partition and each pane.
         tableReference.setTableId(jobIdPrefix);
       }
 
-      WriteDisposition writeDisposition =
-          (c.pane().getIndex() == 0) ? firstPaneWriteDisposition : WriteDisposition.WRITE_APPEND;
-      CreateDisposition createDisposition =
-          (c.pane().getIndex() == 0) ? firstPaneCreateDisposition : CreateDisposition.CREATE_NEVER;
+      WriteDisposition writeDisposition = firstPaneWriteDisposition;
+      CreateDisposition createDisposition = firstPaneCreateDisposition;
+      if (c.pane().getIndex() > 0 && singlePartition) {
+        // If writing directly to the destination, then the table is created on the first write
+        // and we should change the disposition for subsequent writes.
+        writeDisposition = WriteDisposition.WRITE_APPEND;
+        createDisposition = CreateDisposition.CREATE_NEVER;
+      } else if (!singlePartition) {
+        // In this case, we are writing to a temp table and always need to create it.
+        // WRITE_TRUNCATE is set so that we properly handle retries of this pane.
+        writeDisposition = WriteDisposition.WRITE_TRUNCATE;
+        createDisposition = CreateDisposition.CREATE_IF_NEEDED;
+      }
 
       BigQueryHelpers.PendingJob retryJob =
           startLoad(
