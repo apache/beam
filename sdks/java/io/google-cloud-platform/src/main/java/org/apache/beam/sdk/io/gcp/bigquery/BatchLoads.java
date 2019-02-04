@@ -526,7 +526,7 @@ class BatchLoads<DestinationT>
         .apply(
             "MultiPartitionsWriteTables",
             new WriteTables<>(
-                false,
+                true,
                 bigQueryServices,
                 jobIdTokenView,
                 WriteDisposition.WRITE_EMPTY,
@@ -558,7 +558,7 @@ class BatchLoads<DestinationT>
         .apply(
             "SinglePartitionWriteTables",
             new WriteTables<>(
-                true,
+                false,
                 bigQueryServices,
                 loadJobIdPrefixView,
                 writeDisposition,

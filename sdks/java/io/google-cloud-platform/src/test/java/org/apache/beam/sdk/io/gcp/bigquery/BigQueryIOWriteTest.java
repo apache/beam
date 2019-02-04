@@ -1185,7 +1185,7 @@ public class BigQueryIOWriteTest implements Serializable {
     fakeJobService.setNumFailuresExpected(3);
     WriteTables<String> writeTables =
         new WriteTables<>(
-            false,
+            true,
             fakeBqServices,
             jobIdTokenView,
             BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
