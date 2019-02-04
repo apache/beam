@@ -30,7 +30,6 @@ import java.util.UUID;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.SamzaRunnerOverrideConfigs;
 import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.config.ApplicationConfig;
@@ -72,7 +71,7 @@ public class ConfigBuilder {
 
   public Config build() {
     try {
-      config.putAll(systemStoreConfig(options));
+      config.putAll(createSystemConfig(options));
 
       // apply user configs
       config.putAll(createUserConfig(options));
@@ -95,20 +94,12 @@ public class ConfigBuilder {
       // TODO: remove after we sort out Samza task wrapper
       config.put("samza.li.task.wrapper.enabled", "false");
 
+      validateConfigs(options, config);
+
       return new MapConfig(config);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-  }
-
-  private static boolean isEmptyUserConfig(Map<String, String> config) {
-    if (config == null) {
-      return true;
-    }
-    return config
-        .keySet()
-        .stream()
-        .allMatch(key -> key.startsWith(SamzaRunnerOverrideConfigs.BEAM_RUNNER_CONFIG_PREFIX));
   }
 
   private static Map<String, String> createUserConfig(SamzaPipelineOptions options) {
@@ -128,19 +119,6 @@ public class ConfigBuilder {
     // Apply override on top
     if (options.getConfigOverride() != null) {
       config.putAll(options.getConfigOverride());
-    }
-
-    switch (options.getSamzaExecutionEnvironment()) {
-      case YARN:
-        config.putAll(yarnRunConfig());
-        validateYarnRun(config);
-        break;
-      case STANDALONE:
-        config.putAll(standAloneRunConfig());
-        validateZKStandAloneRun(config);
-        break;
-      default: // LOCAL
-        config.putAll(localRunConfig());
     }
 
     return config;
@@ -196,12 +174,6 @@ public class ConfigBuilder {
         "Config %s not found for %s Deployment",
         JOB_FACTORY_CLASS,
         SamzaExecutionEnvironment.YARN);
-    checkArgument(
-        config.get(JOB_FACTORY_CLASS).equals(YarnJobFactory.class.getName()),
-        "Config %s must be set to %s for %s Deployment",
-        JOB_FACTORY_CLASS,
-        YarnJobFactory.class.getName(),
-        SamzaExecutionEnvironment.STANDALONE);
   }
 
   @VisibleForTesting
@@ -234,7 +206,7 @@ public class ConfigBuilder {
         .build();
   }
 
-  private static Map<String, String> systemStoreConfig(SamzaPipelineOptions options) {
+  private static Map<String, String> createSystemConfig(SamzaPipelineOptions options) {
     ImmutableMap.Builder<String, String> configBuilder =
         ImmutableMap.<String, String>builder()
             .put(
@@ -249,7 +221,35 @@ public class ConfigBuilder {
       configBuilder.put("job.host-affinity.enabled", "true");
     }
 
+    switch (options.getSamzaExecutionEnvironment()) {
+      case YARN:
+        configBuilder.putAll(yarnRunConfig());
+        break;
+      case STANDALONE:
+        configBuilder.putAll(standAloneRunConfig());
+        break;
+      default: // LOCAL
+        configBuilder.putAll(localRunConfig());
+        break;
+    }
+
     return configBuilder.build();
+  }
+
+  private static void validateConfigs(SamzaPipelineOptions options, Map<String, String> config) {
+
+    // validate execution environment
+    switch (options.getSamzaExecutionEnvironment()) {
+      case YARN:
+        validateYarnRun(config);
+        break;
+      case STANDALONE:
+        validateZKStandAloneRun(config);
+        break;
+      default:
+        // do nothing
+        break;
+    }
   }
 
   static String getChangelogTopic(SamzaPipelineOptions options, String storeName) {
