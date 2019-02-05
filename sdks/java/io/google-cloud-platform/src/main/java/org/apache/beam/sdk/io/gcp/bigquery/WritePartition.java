@@ -40,6 +40,9 @@ class WritePartition<DestinationT>
   private final boolean singletonTable;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final PCollectionView<String> tempFilePrefix;
+  private final int maxNumFiles;
+  private final long maxSizeBytes;
+
   @Nullable private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
   private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag;
 
@@ -47,6 +50,17 @@ class WritePartition<DestinationT>
     private int numFiles = 0;
     private long byteSize = 0;
     private List<String> filenames = Lists.newArrayList();
+    private final int maxNumFiles;
+    private final long maxSizeBytes;
+
+    private PartitionData(int maxNumFiles, long maxSizeBytes) {
+      this.maxNumFiles = maxNumFiles;
+      this.maxSizeBytes = maxSizeBytes;
+    }
+
+    static PartitionData withMaximums(int maxNumFiles, long maxSizeBytes) {
+      return new PartitionData(maxNumFiles, maxSizeBytes);
+    }
 
     int getNumFiles() {
       return numFiles;
@@ -75,17 +89,23 @@ class WritePartition<DestinationT>
     // Check to see whether we can add to this partition without exceeding the maximum partition
     // size.
     boolean canAccept(int numFiles, long numBytes) {
-      return this.numFiles + numFiles <= BatchLoads.MAX_NUM_FILES
-          && this.byteSize + numBytes <= BatchLoads.MAX_SIZE_BYTES;
+      if (filenames.isEmpty()) {
+        return true;
+      }
+      return this.numFiles + numFiles <= maxNumFiles && this.byteSize + numBytes <= maxSizeBytes;
     }
   }
 
   private static class DestinationData {
     private List<PartitionData> partitions = Lists.newArrayList();
 
-    DestinationData() {
+    private DestinationData() {}
+
+    private static DestinationData create(int maxNumFiles, long maxSizeBytes) {
+      DestinationData destinationData = new DestinationData();
       // Always start out with a single empty partition.
-      partitions.add(new PartitionData());
+      destinationData.partitions.add(new PartitionData(maxNumFiles, maxSizeBytes));
+      return destinationData;
     }
 
     List<PartitionData> getPartitions() {
@@ -105,11 +125,15 @@ class WritePartition<DestinationT>
       boolean singletonTable,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       PCollectionView<String> tempFilePrefix,
+      int maxNumFiles,
+      long maxSizeBytes,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag) {
     this.singletonTable = singletonTable;
     this.dynamicDestinations = dynamicDestinations;
     this.tempFilePrefix = tempFilePrefix;
+    this.maxNumFiles = maxNumFiles;
+    this.maxSizeBytes = maxSizeBytes;
     this.multiPartitionsTag = multiPartitionsTag;
     this.singlePartitionTag = singlePartitionTag;
   }
@@ -138,12 +162,13 @@ class WritePartition<DestinationT>
     for (WriteBundlesToFiles.Result<DestinationT> fileResult : results) {
       DestinationT destination = fileResult.destination;
       DestinationData destinationData =
-          currentResults.computeIfAbsent(destination, k -> new DestinationData());
+          currentResults.computeIfAbsent(
+              destination, k -> DestinationData.create(maxNumFiles, maxSizeBytes));
 
       PartitionData latestPartition = destinationData.getLatestPartition();
       if (!latestPartition.canAccept(1, fileResult.fileByteSize)) {
         // Too much data, roll over to a new partition.
-        latestPartition = new PartitionData();
+        latestPartition = PartitionData.withMaximums(maxNumFiles, maxSizeBytes);
         destinationData.addPartition(latestPartition);
       }
       latestPartition.addFilename(fileResult.filename);
