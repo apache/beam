@@ -59,7 +59,7 @@ class PubSubMatcherTest(unittest.TestCase):
 
   def test_message_matcher_success(self, mock_get_sub, unsued_mock):
     self.init_matcher()
-    self.pubsub_matcher.expected_msg = ['a', 'b']
+    self.pubsub_matcher.expected_msg = [b'a', b'b']
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [
         create_pull_response([PullResponseMessage(b'a', {})]),
@@ -71,7 +71,7 @@ class PubSubMatcherTest(unittest.TestCase):
 
   def test_message_matcher_attributes_success(self, mock_get_sub, unsued_mock):
     self.init_matcher(with_attributes=True)
-    self.pubsub_matcher.expected_msg = [PubsubMessage('a', {'k': 'v'})]
+    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'})]
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [
         create_pull_response([PullResponseMessage(b'a', {'k': 'v'})])
@@ -82,7 +82,7 @@ class PubSubMatcherTest(unittest.TestCase):
 
   def test_message_matcher_attributes_fail(self, mock_get_sub, unsued_mock):
     self.init_matcher(with_attributes=True)
-    self.pubsub_matcher.expected_msg = [PubsubMessage('a', {})]
+    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {})]
     mock_sub = mock_get_sub.return_value
     # Unexpected attribute 'k'.
     mock_sub.pull.side_effect = [
@@ -96,7 +96,7 @@ class PubSubMatcherTest(unittest.TestCase):
   def test_message_matcher_strip_success(self, mock_get_sub, unsued_mock):
     self.init_matcher(with_attributes=True,
                       strip_attributes=['id', 'timestamp'])
-    self.pubsub_matcher.expected_msg = [PubsubMessage('a', {'k': 'v'})]
+    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'})]
     mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [create_pull_response([
         PullResponseMessage(b'a', {'id': 'foo', 'timestamp': 'bar', 'k': 'v'})
@@ -108,7 +108,7 @@ class PubSubMatcherTest(unittest.TestCase):
   def test_message_matcher_strip_fail(self, mock_get_sub, unsued_mock):
     self.init_matcher(with_attributes=True,
                       strip_attributes=['id', 'timestamp'])
-    self.pubsub_matcher.expected_msg = [PubsubMessage('a', {'k': 'v'})]
+    self.pubsub_matcher.expected_msg = [PubsubMessage(b'a', {'k': 'v'})]
     mock_sub = mock_get_sub.return_value
     # Message is missing attribute 'timestamp'.
     mock_sub.pull.side_effect = [create_pull_response([
@@ -130,7 +130,7 @@ class PubSubMatcherTest(unittest.TestCase):
     with self.assertRaises(AssertionError) as error:
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
-    self.assertCountEqual(['c', 'd'], self.pubsub_matcher.messages)
+    self.assertCountEqual([b'c', b'd'], self.pubsub_matcher.messages)
     self.assertTrue(
         '\nExpected: Expected 1 messages.\n     but: Got 2 messages.'
         in str(error.exception.args[0]))

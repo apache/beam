@@ -940,7 +940,12 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
         # precision of timestamps.
         self._from_normal_time(
-            restore_sign * (abs(wv.timestamp_micros) // 1000)))
+            restore_sign * (
+                abs(
+                    MIN_TIMESTAMP_micros
+                    if wv.timestamp_micros < MIN_TIMESTAMP_micros
+                    else wv.timestamp_micros
+                ) // 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
     self._pane_info_coder.encode_to_stream(wv.pane_info, out, True)

@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
@@ -34,6 +35,8 @@ import org.slf4j.LoggerFactory;
  * considered a split point (because it is the first to be returned when reading a position range
  * starting at this position), others are not.
  */
+// Likely real bugs - https://issues.apache.org/jira/browse/BEAM-6563
+@SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 public class GroupingShuffleRangeTracker implements RangeTracker<ShufflePosition> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleRangeTracker.class);
 
@@ -92,7 +95,7 @@ public class GroupingShuffleRangeTracker implements RangeTracker<ShufflePosition
 
   @Override
   public synchronized boolean tryReturnRecordAt(
-      boolean isAtSplitPoint, ShufflePosition groupStart) {
+      boolean isAtSplitPoint, @Nullable ShufflePosition groupStart) {
     if (lastGroupStart == null && !isAtSplitPoint) {
       throw new IllegalStateException(
           String.format("The first group [at %s] must be at a split point", groupStart.toString()));

@@ -35,7 +35,6 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 if __name__ == '__main__':
   # Run as
@@ -152,19 +151,6 @@ if __name__ == '__main__':
 
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
-
-    def test_assert_that(self):
-      # We still want to make sure asserts fail, even if the message
-      # isn't right (BEAM-6019).
-      with self.assertRaises(Exception):
-        with self.create_pipeline() as p:
-          assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
-
-    def test_error_message_includes_stage(self):
-      raise unittest.SkipTest("BEAM-6019")
-
-    def test_error_traceback_includes_user_code(self):
-      raise unittest.SkipTest("BEAM-6019")
 
     def test_flattened_side_input(self):
       # Blocked on support for transcoding

@@ -299,7 +299,7 @@ public class CounterFactory {
         // Value in existing bucket
         int curIndex = firstBucketOffset;
         for (Long curValue : curBuckets) {
-          Long newValue = (bucketIndex == curIndex) ? curValue + 1 : curValue;
+          long newValue = (bucketIndex == curIndex) ? curValue + 1 : curValue;
           newBuckets.add(newValue);
           curIndex++;
         }

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import static junit.framework.TestCase.assertEquals;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -80,6 +79,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
@@ -499,7 +499,9 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test
   public void testMetrics() throws Exception {
-    final String counterMetricName = "counterMetric";
+    final String processUserCounterName = "processUserCounter";
+    final String startUserCounterName = "startUserCounter";
+    final String finishUserCounterName = "finishUserCounter";
     Pipeline p = Pipeline.create();
     PCollection<String> input =
         p.apply("impulse", Impulse.create())
@@ -508,18 +510,31 @@ public class RemoteExecutionTest implements Serializable {
                 ParDo.of(
                     new DoFn<byte[], String>() {
                       private boolean emitted = false;
+                      Counter startCounter =
+                          Metrics.counter(RemoteExecutionTest.class, startUserCounterName);
 
+                      @StartBundle
+                      public void startBundle() throws InterruptedException {
+                        startCounter.inc(10);
+                      }
+
+                      @SuppressWarnings("unused")
                       @ProcessElement
-                      public void process(ProcessContext ctxt) {
+                      public void processElement(ProcessContext ctxt) {
                         // TODO(BEAM-6467): Impulse is producing two elements instead of one.
                         // So add this check to only emit these three elemenets.
                         if (!emitted) {
                           ctxt.output("zero");
                           ctxt.output("one");
                           ctxt.output("two");
-                          Metrics.counter(RemoteExecutionTest.class, counterMetricName).inc();
+                          Metrics.counter(RemoteExecutionTest.class, processUserCounterName).inc();
                         }
                         emitted = true;
+                      }
+
+                      @DoFn.FinishBundle
+                      public void finishBundle() throws InterruptedException {
+                        Metrics.counter(RemoteExecutionTest.class, finishUserCounterName).inc(100);
                       }
                     }))
             .setCoder(StringUtf8Coder.of());
@@ -616,12 +631,26 @@ public class RemoteExecutionTest implements Serializable {
             // element 4 = 2 x 2 elements.
             List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
 
-            SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), counterMetricName);
             // TODO(ajamato): Add test having a user counter with the same name, in two
             // separate ptransforms, should be labelled differnetly. Currently this does not work
             // because the MetricContainer is not being seeded properly with the step name.
-            builder.setInt64Value(1); // Count just the one inc() in create();
+            SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrnForUserMetric(
+                RemoteExecutionTest.class.getName(), processUserCounterName);
+            builder.setPTransformLabel("create/ParMultiDo(Anonymous)");
+            builder.setInt64Value(1);
+            expected.add(builder.build());
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), startUserCounterName);
+            builder.setPTransformLabel("create/ParMultiDo(Anonymous)");
+            builder.setInt64Value(10);
+            expected.add(builder.build());
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), finishUserCounterName);
+            builder.setPTransformLabel("create/ParMultiDo(Anonymous)");
+            builder.setInt64Value(100);
             expected.add(builder.build());
 
             // The element counter should be counted only once for the pcollection.
@@ -651,7 +680,6 @@ public class RemoteExecutionTest implements Serializable {
             builder.setInt64Value(6);
             expected.add(builder.build());
 
-            assertEquals(5, result.size());
             assertThat(result, containsInAnyOrder(expected.toArray()));
           }
         };

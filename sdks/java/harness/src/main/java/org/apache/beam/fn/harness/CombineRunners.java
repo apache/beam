@@ -163,8 +163,6 @@ public class CombineRunners {
               pCollectionConsumerRegistry.getMultiplexingConsumer(
                   Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
 
-      // TODO make the receiver aware of its transform context as well.
-      // Create the runner.
       PrecombineRunner<KeyT, InputT, AccumT> runner =
           new PrecombineRunner<>(pipelineOptions, combineFn, consumer, keyCoder, accumCoder);
 
@@ -172,6 +170,7 @@ public class CombineRunners {
       startFunctionRegistry.register(pTransformId, runner::startBundle);
       pCollectionConsumerRegistry.register(
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
+          pTransformId,
           (FnDataReceiver)
               (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement);
       finishFunctionRegistry.register(pTransformId, runner::finishBundle);

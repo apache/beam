@@ -413,6 +413,10 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--enable_streaming_engine',
                         default=False,
                         help='Enable Windmill Service for this Dataflow job. ')
+    parser.add_argument('--gcp_kms_key',
+                        default=None,
+                        help='Set a Google Cloud KMS key name to be used in '
+                        'IO operations.')
 
   def validate(self, validator):
     errors = []

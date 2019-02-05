@@ -481,7 +481,7 @@ public class GroupingTables {
       sampledElements += 1;
       sampledSum += value;
       sampledSumSquares += value * value;
-      estimate = (long) Math.ceil(sampledSum / sampledElements);
+      estimate = (long) Math.ceil(sampledSum / (double) sampledElements);
       long target = desiredSampleSize();
       if (sampledElements < minSampled || sampledElements < target) {
         // Sample immediately.

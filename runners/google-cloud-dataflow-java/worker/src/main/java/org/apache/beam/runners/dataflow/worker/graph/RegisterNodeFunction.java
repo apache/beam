@@ -297,9 +297,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
           String parDoPTransformId = getString(userFnSpec, PropertyNames.SERIALIZED_FN);
 
           RunnerApi.PTransform parDoPTransform =
-              pipeline == null
-                  ? null
-                  : pipeline.getComponents().getTransformsOrDefault(parDoPTransformId, null);
+              pipeline.getComponents().getTransformsOrDefault(parDoPTransformId, null);
 
           // TODO: only the non-null branch should exist; for migration ease only
           if (parDoPTransform != null) {

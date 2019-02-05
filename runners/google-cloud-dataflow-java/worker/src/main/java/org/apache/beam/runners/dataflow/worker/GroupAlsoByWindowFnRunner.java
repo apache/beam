@@ -127,6 +127,7 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
 
   @Override
   public DoFn<InputT, OutputT> getFn() {
-    return null;
+    throw new UnsupportedOperationException(
+        String.format("%s does not support getFn()", getClass().getCanonicalName()));
   }
 }
