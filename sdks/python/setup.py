@@ -20,8 +20,10 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import logging
 import os
 import platform
+import sys
 import warnings
 from distutils.version import StrictVersion
 
@@ -164,9 +166,14 @@ def generate_protos_first(original_cmd):
     return original_cmd
 
 
-python_requires = '>=2.7'
-if os.environ.get('BEAM_EXPERIMENTAL_PY3') is None:
-  python_requires += ',<3.0'
+# TODO(BEAM-6583): audit Python 3.x version compatibility and refine this
+# requirement range if necessary.
+python_requires = '>=2.7<=3.7'
+
+if sys.version_info[0] == 3:
+  logging.warning(
+      'Python 3 support for the Apache Beam SDK is not yet fully supported. '
+      'You may encounter buggy behavior or missing features.')
 
 setuptools.setup(
     name=PACKAGE_NAME,
