@@ -339,7 +339,7 @@ public class BigQueryServicesImplTest {
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
         new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
-    Table table = datasetService.getTable(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
+    Table table = datasetService.getTable(tableRef, null, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
 
     assertEquals(testTable, table);
     verify(response, times(2)).getStatusCode();
@@ -360,7 +360,7 @@ public class BigQueryServicesImplTest {
             .setProjectId("projectId")
             .setDatasetId("datasetId")
             .setTableId("tableId");
-    Table table = datasetService.getTable(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
+    Table table = datasetService.getTable(tableRef, null, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
 
     assertNull(table);
     verify(response, times(1)).getStatusCode();
@@ -384,7 +384,7 @@ public class BigQueryServicesImplTest {
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
         new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
-    datasetService.getTable(tableRef, BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
+    datasetService.getTable(tableRef, null, BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
   }
 
   @Test
