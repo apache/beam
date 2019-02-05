@@ -22,8 +22,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.SimpleExecutionState;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -41,9 +44,12 @@ public class PCollectionConsumerRegistry {
   private ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers;
   private Map<String, ElementCountFnDataReceiver> pCollectionIdsToWrappedConsumer;
   private MetricsContainerStepMap metricsContainerRegistry;
+  private ExecutionStateTracker stateTracker;
 
-  public PCollectionConsumerRegistry(MetricsContainerStepMap metricsContainerRegistry) {
+  public PCollectionConsumerRegistry(
+      MetricsContainerStepMap metricsContainerRegistry, ExecutionStateTracker stateTracker) {
     this.metricsContainerRegistry = metricsContainerRegistry;
+    this.stateTracker = stateTracker;
     this.pCollectionIdsToConsumers = ArrayListMultimap.create();
     this.pCollectionIdsToWrappedConsumer = new HashMap<String, ElementCountFnDataReceiver>();
   }
@@ -52,6 +58,8 @@ public class PCollectionConsumerRegistry {
    * Register the specified consumer to handle the elements in the pCollection associated with
    * pCollectionId. All consumers must be registered before extracting the combined consumer by
    * calling getMultiplexingConsumer(), or an exception will be thrown.
+   *
+   * This will cause both Element Count and Process Bundle Execution time metrics to be collected.
    *
    * @param pCollectionId
    * @param pTransformId
@@ -72,14 +80,22 @@ public class PCollectionConsumerRegistry {
           "New consumers for a pCollectionId cannot be register()-d after "
               + "calling getMultiplexingConsumer.");
     }
+
+    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
+    labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, pTransformId);
+    SimpleExecutionState state = new SimpleExecutionState(
+        SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN, labelsMetadata);
     // Wrap the consumer with extra logic to set the metric container with the appropriate
     // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
-    // created.
+    // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
+    // Process Bundle Execution time metric.
     FnDataReceiver<WindowedValue<T>> wrapAndEnableMetricContainer =
         (WindowedValue<T> input) -> {
           MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
           try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
-            consumer.accept(input);
+            try (Closeable trackerCloseable = this.stateTracker.enterState(state)) {
+              consumer.accept(input);
+            }
           }
         };
     pCollectionIdsToConsumers.put(pCollectionId, (FnDataReceiver) wrapAndEnableMetricContainer);

@@ -229,12 +229,12 @@ public class ProcessBundleHandler {
 
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry pCollectionConsumerRegistry =
-        new PCollectionConsumerRegistry(metricsContainerRegistry);
-    HashSet<String> processedPTransformIds = new HashSet<>();
-
     ExecutionStateTracker stateTracker =
         new ExecutionStateTracker(ExecutionStateSampler.instance());
+    PCollectionConsumerRegistry pCollectionConsumerRegistry =
+        new PCollectionConsumerRegistry(metricsContainerRegistry, stateTracker);
+    HashSet<String> processedPTransformIds = new HashSet<>();
+
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
             metricsContainerRegistry,
@@ -309,29 +309,24 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
-      // There always needs to be a metricContainer in scope, not everything is calculated in the
-      // context of a PTransform. For example, element count metrics are calculated before entering
-      // a pTransform's context.
-      MetricsContainerImpl rootMetricsContainer = metricsContainerRegistry.getUnboundContainer();
-      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(rootMetricsContainer)) {
-        try (Closeable closeTracker = stateTracker.activate()) {
-          // Already in reverse topological order so we don't need to do anything.
-          for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
-            LOG.debug("Starting function {}", startFunction);
-            startFunction.run();
-          }
 
-          queueingClient.drainAndBlock();
+      try (Closeable closeTracker = stateTracker.activate()) {
+        // Already in reverse topological order so we don't need to do anything.
+        for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
+          LOG.debug("Starting function {}", startFunction);
+          startFunction.run();
+        }
 
-          // Need to reverse this since we want to call finish in topological order.
-          for (ThrowingRunnable finishFunction :
-              Lists.reverse(finishFunctionRegistry.getFunctions())) {
-            LOG.debug("Finishing function {}", finishFunction);
-            finishFunction.run();
-          }
-          if (!allResiduals.isEmpty()) {
-            response.addAllResidualRoots(allResiduals.values());
-          }
+        queueingClient.drainAndBlock();
+
+        // Need to reverse this since we want to call finish in topological order.
+        for (ThrowingRunnable finishFunction :
+            Lists.reverse(finishFunctionRegistry.getFunctions())) {
+          LOG.debug("Finishing function {}", finishFunction);
+          finishFunction.run();
+        }
+        if (!allResiduals.isEmpty()) {
+          response.addAllResidualRoots(allResiduals.values());
         }
       }
       for (MonitoringInfo mi : startFunctionRegistry.getExecutionTimeMonitoringInfos()) {
@@ -340,6 +335,7 @@ public class ProcessBundleHandler {
       for (MonitoringInfo mi : finishFunctionRegistry.getExecutionTimeMonitoringInfos()) {
         response.addMonitoringInfos(mi);
       }
+      // Extract all other MonitoringInfos other than the execution time monitoring infos.
       for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
         response.addMonitoringInfos(mi);
       }
