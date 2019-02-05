@@ -27,6 +27,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strconv"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/util/shimx"
@@ -316,13 +317,19 @@ func (e *Extractor) extractType(ot *types.TypeName) {
 		if t, ok := ot.Type().(*types.Named); ok {
 			ot = t.Obj()
 			name = types.TypeString(t, e.qualifier)
-
-			if pkg := t.Obj().Pkg(); pkg != nil {
-				e.imports[pkg.Path()] = struct{}{}
-			}
 		}
 	}
-	e.types[name] = struct{}{}
+	// Only register non-universe types (eg. avoid `error` and similar)
+	if pkg := ot.Pkg(); pkg != nil {
+		path := pkg.Path()
+		e.imports[pkg.Path()] = struct{}{}
+
+		// Do not add universal types to be registered.
+		if path == shimx.TypexImport {
+			return
+		}
+		e.types[name] = struct{}{}
+	}
 }
 
 // Examines the signature and extracts types of parameters and results for
@@ -593,10 +600,12 @@ func (e *Extractor) NameType(t types.Type) string {
 			return "Iter" + ipt.Name
 		}
 		return shimx.Name(e.sigKey(a))
-	case *types.Pointer:
-		return e.NameType(a.Elem())
 	case *types.Slice:
-		return "Sliceof" + e.NameType(a.Elem())
+		return "SliceOf" + e.NameType(a.Elem())
+	case *types.Map:
+		return "MapOf" + e.NameType(a.Key()) + "_" + e.NameType(a.Elem())
+	case *types.Array:
+		return "ArrayOf" + strconv.Itoa(int(a.Len())) + e.NameType(a.Elem())
 	default:
 		return shimx.Name(types.TypeString(t, e.qualifier))
 	}
