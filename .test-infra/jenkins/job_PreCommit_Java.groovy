@@ -47,5 +47,8 @@ builder.build {
       }
       enabledForFailure(true)
     }
+    jacocoCodeCoverage {
+      execPattern('**/build/jacoco/*.exec')
+    }
   }
 }
