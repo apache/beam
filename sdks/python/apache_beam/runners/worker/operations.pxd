@@ -93,6 +93,10 @@ cdef class DoOperation(Operation):
   cdef public object input_info
 
 
+cdef class SdfProcessElements(DoOperation):
+  pass
+
+
 cdef class CombineOperation(Operation):
   cdef object phased_combine_fn
 

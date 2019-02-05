@@ -30,8 +30,8 @@ import re
 from builtins import next
 from builtins import object
 
-from google import protobuf
 from future.utils import itervalues
+from google import protobuf
 
 import apache_beam as beam
 from apache_beam import coders
