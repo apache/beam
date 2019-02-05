@@ -200,7 +200,7 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
     public Integer create(PipelineOptions options) {
       StreamingDataflowWorkerOptions streamingOptions =
           options.as(StreamingDataflowWorkerOptions.class);
-      return streamingEngineEnabled(options) ? Integer.MAX_VALUE : 1;
+      return streamingEngineEnabled(streamingOptions) ? Integer.MAX_VALUE : 1;
     }
   }
 }
