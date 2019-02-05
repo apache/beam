@@ -36,6 +36,7 @@ public class StreamingInserts<DestinationT>
   private boolean extendedErrorInfo;
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
+  private final String kmsKey;
 
   /** Constructor. */
   public StreamingInserts(
@@ -48,7 +49,8 @@ public class StreamingInserts<DestinationT>
         InsertRetryPolicy.alwaysRetry(),
         false,
         false,
-        false);
+        false,
+        null);
   }
 
   /** Constructor. */
@@ -59,7 +61,8 @@ public class StreamingInserts<DestinationT>
       InsertRetryPolicy retryPolicy,
       boolean extendedErrorInfo,
       boolean skipInvalidRows,
-      boolean ignoreUnknownValues) {
+      boolean ignoreUnknownValues,
+      String kmsKey) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = bigQueryServices;
@@ -67,6 +70,7 @@ public class StreamingInserts<DestinationT>
     this.extendedErrorInfo = extendedErrorInfo;
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.kmsKey = kmsKey;
   }
 
   /** Specify a retry policy for failed inserts. */
@@ -78,7 +82,8 @@ public class StreamingInserts<DestinationT>
         retryPolicy,
         extendedErrorInfo,
         skipInvalidRows,
-        ignoreUnknownValues);
+        ignoreUnknownValues,
+        kmsKey);
   }
 
   /** Specify whether to use extended error info or not. */
@@ -90,7 +95,8 @@ public class StreamingInserts<DestinationT>
         retryPolicy,
         extendedErrorInfo,
         skipInvalidRows,
-        ignoreUnknownValues);
+        ignoreUnknownValues,
+        kmsKey);
   }
 
   StreamingInserts<DestinationT> withSkipInvalidRows(boolean skipInvalidRows) {
@@ -101,7 +107,8 @@ public class StreamingInserts<DestinationT>
         retryPolicy,
         extendedErrorInfo,
         skipInvalidRows,
-        ignoreUnknownValues);
+        ignoreUnknownValues,
+        kmsKey);
   }
 
   StreamingInserts<DestinationT> withIgnoreUnknownValues(boolean ignoreUnknownValues) {
@@ -112,7 +119,20 @@ public class StreamingInserts<DestinationT>
         retryPolicy,
         extendedErrorInfo,
         skipInvalidRows,
-        ignoreUnknownValues);
+        ignoreUnknownValues,
+        kmsKey);
+  }
+
+  StreamingInserts<DestinationT> withKmsKey(String kmsKey) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        kmsKey);
   }
 
   StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
@@ -123,7 +143,8 @@ public class StreamingInserts<DestinationT>
         retryPolicy,
         extendedErrorInfo,
         skipInvalidRows,
-        ignoreUnknownValues);
+        ignoreUnknownValues,
+        kmsKey);
   }
 
   @Override
@@ -132,7 +153,8 @@ public class StreamingInserts<DestinationT>
         input.apply(
             "CreateTables",
             new CreateTables<>(createDisposition, dynamicDestinations)
-                .withTestServices(bigQueryServices));
+                .withTestServices(bigQueryServices)
+                .withKmsKey(kmsKey));
 
     return writes.apply(
         new StreamingWriteTables()

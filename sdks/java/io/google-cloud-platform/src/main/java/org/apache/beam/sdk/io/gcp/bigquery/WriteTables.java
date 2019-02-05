@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
@@ -68,7 +69,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Writes partitions to BigQuery tables.
  *
- * <p>The input is a list of files corresponding to each partition of a table. loadThese files are
+ * <p>The input is a list of files corresponding to each partition of a table. These files are
  * loaded into a temporary table (or into the final table if there is only one partition). The
  * output is a {@link KV} mapping each final table to a list of the temporary tables containing its
  * data.
@@ -95,6 +96,7 @@ class WriteTables<DestinationT>
   private final ValueProvider<String> loadJobProjectId;
   private final int maxRetryJobs;
   private final boolean ignoreUnknownValues;
+  @Nullable private final String kmsKey;
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
@@ -271,7 +273,8 @@ class WriteTables<DestinationT>
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       @Nullable ValueProvider<String> loadJobProjectId,
       int maxRetryJobs,
-      boolean ignoreUnknownValues) {
+      boolean ignoreUnknownValues,
+      String kmsKey) {
     this.tempTable = tempTable;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -284,6 +287,7 @@ class WriteTables<DestinationT>
     this.loadJobProjectId = loadJobProjectId;
     this.maxRetryJobs = maxRetryJobs;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.kmsKey = kmsKey;
   }
 
   @Override
@@ -338,6 +342,10 @@ class WriteTables<DestinationT>
             .setIgnoreUnknownValues(ignoreUnknownValues);
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
+    }
+    if (kmsKey != null) {
+      loadConfig.setDestinationEncryptionConfiguration(
+          new EncryptionConfiguration().setKmsKeyName(kmsKey));
     }
     String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId.get();
     String bqLocation =
