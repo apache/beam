@@ -93,7 +93,7 @@ class _GCEMetadataCredentials(OAuth2Credentials):
     token_url = ('http://{}/computeMetadata/v1/instance/service-accounts/'
                  'default/token').format(metadata_root)
     req = Request(token_url, headers={'Metadata-Flavor': 'Google'})
-    token_data = json.loads(urlopen(req).read())
+    token_data = json.loads(urlopen(req).read().decode('utf-8'))
     self.access_token = token_data['access_token']
     self.token_expiry = (refresh_time +
                          datetime.timedelta(seconds=token_data['expires_in']))

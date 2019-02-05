@@ -272,10 +272,11 @@ class SdkWorker(object):
         instruction_id,
         request.process_bundle_descriptor_reference) as bundle_processor:
       with self.maybe_profile(instruction_id):
-        bundle_processor.process_bundle(instruction_id)
+        delayed_applications = bundle_processor.process_bundle(instruction_id)
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
           process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+              residual_roots=delayed_applications,
               metrics=bundle_processor.metrics(),
               monitoring_infos=bundle_processor.monitoring_infos()))
 

@@ -55,6 +55,12 @@ type CustomCoder struct {
 // Equals returns true iff the two custom coders are equal. It assumes that
 // functions with the same name and types are identical.
 func (c *CustomCoder) Equals(o *CustomCoder) bool {
+	if c == nil && o == nil {
+		return true
+	}
+	if c == nil && o != nil || c != nil && o == nil {
+		return false
+	}
 	if c.Name != o.Name {
 		return false
 	}
@@ -86,23 +92,42 @@ var (
 		OptReturn: []reflect.Type{reflectx.Error}}
 )
 
+func validateEncoder(t reflect.Type, encode interface{}) error {
+	// Check if it uses the real type in question.
+	if err := funcx.Satisfy(encode, funcx.Replace(encodeSig, typex.TType, t)); err != nil {
+		return fmt.Errorf("validateEncoder: incorrect signature: %v", err)
+	}
+	// TODO(lostluck): 2019.02.03 - Determine if there are encode allocation bottlenecks.
+	return nil
+}
+
+func validateDecoder(t reflect.Type, decode interface{}) error {
+	// Check if it uses the real type in question.
+	if err := funcx.Satisfy(decode, funcx.Replace(decodeSig, typex.TType, t)); err != nil {
+		return fmt.Errorf("validateDecoder: incorrect signature: %v", err)
+	}
+	// TODO(lostluck): 2019.02.03 - Expand cases to avoid []byte -> interface{} conversion
+	// in exec, & a beam Decoder interface.
+	return nil
+}
+
 // NewCustomCoder creates a coder for the supplied parameters defining a
 // particular encoding strategy.
 func NewCustomCoder(id string, t reflect.Type, encode, decode interface{}) (*CustomCoder, error) {
+	if err := validateEncoder(t, encode); err != nil {
+		return nil, fmt.Errorf("NewCustomCoder: %v", err)
+	}
 	enc, err := funcx.New(reflectx.MakeFunc(encode))
 	if err != nil {
 		return nil, fmt.Errorf("bad encode: %v", err)
 	}
-	if err := funcx.Satisfy(encode, funcx.Replace(encodeSig, typex.TType, t)); err != nil {
-		return nil, fmt.Errorf("encode has incorrect signature: %v", err)
+	if err := validateDecoder(t, decode); err != nil {
+		return nil, fmt.Errorf("NewCustomCoder: %v", err)
 	}
 
 	dec, err := funcx.New(reflectx.MakeFunc(decode))
 	if err != nil {
 		return nil, fmt.Errorf("bad decode: %v", err)
-	}
-	if err := funcx.Satisfy(decode, funcx.Replace(decodeSig, typex.TType, t)); err != nil {
-		return nil, fmt.Errorf("decode has incorrect signature: %v", err)
 	}
 
 	c := &CustomCoder{

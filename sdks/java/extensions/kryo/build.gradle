@@ -28,9 +28,11 @@ applyJavaNature(
     dependencies {
         include(dependency('com.esotericsoftware:.*'))
         include(dependency('org.ow2.asm:asm'))
+        include(dependency('org.objenesis:objenesis'))
     }
     relocate 'com.esotericsoftware', getJavaRelocatedPath('com.esotericsoftware')
     relocate 'org.objectweb', getJavaRelocatedPath('org.objectweb')
+    relocate 'org.objenesis', getJavaRelocatedPath('org.objenesis')
     }
 )
 

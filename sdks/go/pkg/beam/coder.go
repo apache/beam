@@ -27,6 +27,18 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+type jsonCoder interface {
+	json.Marshaler
+	json.Unmarshaler
+}
+
+var protoMessageType = reflect.TypeOf((*proto.Message)(nil)).Elem()
+var jsonCoderType = reflect.TypeOf((*jsonCoder)(nil)).Elem()
+
+func init() {
+	coder.RegisterCoder(protoMessageType, protoEnc, protoDec)
+}
+
 // Coder defines how to encode and decode values of type 'A' into byte streams.
 // Coders are attached to PCollections of the same type. For PCollections
 // consumed by GBK, the attached coders are required to be deterministic.
@@ -81,8 +93,6 @@ func NewCoder(t FullType) Coder {
 	return Coder{c}
 }
 
-var protoMessageType = reflect.TypeOf((*proto.Message)(nil)).Elem()
-
 func inferCoder(t FullType) (*coder.Coder, error) {
 	switch t.Class() {
 	case typex.Concrete, typex.Container:
@@ -115,17 +125,17 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 		case reflectx.ByteSlice:
 			return &coder.Coder{Kind: coder.Bytes, T: t}, nil
 		default:
-			// TODO(BEAM-3306): the coder registry should be consulted here for user
-			// specified types and their coders.
-			if t.Type().Implements(protoMessageType) {
-				c, err := newProtoCoder(t.Type())
-				if err != nil {
-					return nil, err
-				}
+			et := t.Type()
+			if c := coder.LookupCustomCoder(et); c != nil {
 				return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
 			}
+			// Interface types that implement JSON marshalling can be handled by the default coder.
+			// otherwise, inference needs to fail here.
+			if et.Kind() == reflect.Interface && !et.Implements(jsonCoderType) {
+				return nil, fmt.Errorf("inferCoder failed: interface type %v has no coder registered", et)
+			}
 
-			c, err := newJSONCoder(t.Type())
+			c, err := newJSONCoder(et)
 			if err != nil {
 				return nil, err
 			}
@@ -174,14 +184,14 @@ func inferCoders(list []FullType) ([]*coder.Coder, error) {
 // form that doesn't require LengthPrefix'ing to cut up the bytestream from
 // the FnHarness.
 
-// ProtoEnc marshals the supplied proto.Message.
-func ProtoEnc(in T) ([]byte, error) {
+// protoEnc marshals the supplied proto.Message.
+func protoEnc(in T) ([]byte, error) {
 	return proto.Marshal(in.(proto.Message))
 }
 
-// ProtoDec unmarshals the supplied bytes into an instance of the supplied
+// protoDec unmarshals the supplied bytes into an instance of the supplied
 // proto.Message type.
-func ProtoDec(t reflect.Type, in []byte) (T, error) {
+func protoDec(t reflect.Type, in []byte) (T, error) {
 	val := reflect.New(t.Elem()).Interface().(proto.Message)
 	if err := proto.Unmarshal(in, val); err != nil {
 		return nil, err
@@ -189,24 +199,16 @@ func ProtoDec(t reflect.Type, in []byte) (T, error) {
 	return val, nil
 }
 
-func newProtoCoder(t reflect.Type) (*coder.CustomCoder, error) {
-	c, err := coder.NewCustomCoder("proto", t, ProtoEnc, ProtoDec)
-	if err != nil {
-		return nil, fmt.Errorf("invalid coder: %v", err)
-	}
-	return c, nil
-}
-
 // Concrete and universal custom coders both have a similar signature.
 // Conversion is handled by reflection.
 
-// JSONEnc encodes the supplied value in JSON.
-func JSONEnc(in T) ([]byte, error) {
+// jsonEnc encodes the supplied value in JSON.
+func jsonEnc(in T) ([]byte, error) {
 	return json.Marshal(in)
 }
 
-// JSONDec decodes the supplied JSON into an instance of the supplied type.
-func JSONDec(t reflect.Type, in []byte) (T, error) {
+// jsonDec decodes the supplied JSON into an instance of the supplied type.
+func jsonDec(t reflect.Type, in []byte) (T, error) {
 	val := reflect.New(t)
 	if err := json.Unmarshal(in, val.Interface()); err != nil {
 		return nil, err
@@ -215,7 +217,7 @@ func JSONDec(t reflect.Type, in []byte) (T, error) {
 }
 
 func newJSONCoder(t reflect.Type) (*coder.CustomCoder, error) {
-	c, err := coder.NewCustomCoder("json", t, JSONEnc, JSONDec)
+	c, err := coder.NewCustomCoder("json", t, jsonEnc, jsonDec)
 	if err != nil {
 		return nil, fmt.Errorf("invalid coder: %v", err)
 	}

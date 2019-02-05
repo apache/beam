@@ -131,22 +131,6 @@ def basicTestOpts = [
         "--process-timeout=4500", // timeout of whole command execution
 ]
 
-static def mapToArgString(argMap) {
-  def argList = []
-  argMap.each { k, v ->
-    if (v in List) {
-      v = "\"${v.join(' ')}\""
-    } else if (v in String && v.contains(' ')) {
-      // We should use double quote around the arg value if it contains series
-      // of flags joined with space. Otherwise, commandline parsing of the
-      // shell script will be broken.
-      v = "\"${v.replace('"', '')}\""
-    }
-    argList.add("--$k $v")
-  }
-  return argList.join(' ')
-}
-
 task directRunnerIT(dependsOn: 'installGcpTest') {
   // Run IT tests with TestDirectRunner in batch.
   doLast {
@@ -159,7 +143,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     def batchTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": batchTestOpts]
-    def batchCmdArgs = mapToArgString(argMap)
+    def batchCmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $batchCmdArgs"
@@ -176,7 +160,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     def argMap = ["runner": "TestDirectRunner",
                   "streaming": "true",
                   "test_opts": streamingTestOpts]
-    def streamingCmdArgs = mapToArgString(argMap)
+    def streamingCmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $streamingCmdArgs"
@@ -266,7 +250,7 @@ task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
     if (project.hasProperty('kmsKeyName'))
       argMap["kms_key_name"] = project.property('kmsKeyName')
 
-    def cmdArgs = mapToArgString(argMap)
+    def cmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -278,7 +262,7 @@ task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
 task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
   doLast {
     def testOpts = basicTestOpts + ["--attr=IT"]
-    def cmdArgs = mapToArgString(["test_opts": testOpts])
+    def cmdArgs = project.mapToArgString(["test_opts": testOpts])
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -289,7 +273,7 @@ task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
 task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
   doLast {
     def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
-    def cmdArgs = mapToArgString(["test_opts": testOpts])
+    def cmdArgs = project.mapToArgString(["test_opts": testOpts])
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -308,7 +292,7 @@ task validatesRunnerStreamingTests(dependsOn: ['installGcpTest', 'sdist']) {
     def argMap = ["test_opts": testOpts,
                   "streaming": "true",
                   "worker_jar": dataflowWorkerJar]
-    def cmdArgs = mapToArgString(argMap)
+    def cmdArgs = project.mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
@@ -438,6 +422,18 @@ project.task('createProcessWorker') {
     }
     exec {
       commandLine('chmod', '+x', sdkWorkerFile)
+    }
+  }
+}
+
+project.task('crossLanguagePythonJava') {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':beam-sdks-java-container:docker'
+  dependsOn ':beam-runners-core-construction-java:testExpansionService'
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test --expansion_service_jar=${project(":beam-runners-core-construction-java:").testExpansionService.archivePath}"
     }
   }
 }

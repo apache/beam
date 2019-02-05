@@ -30,6 +30,7 @@ import decimal
 import json
 import logging
 import re
+import sys
 import time
 import uuid
 from builtins import object
@@ -177,7 +178,8 @@ class BigQueryWrapper(object):
   def __init__(self, client=None):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
-        credentials=auth.get_service_credentials())
+        credentials=auth.get_service_credentials(),
+        response_encoding=None if sys.version_info[0] < 3 else 'utf8')
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
@@ -855,9 +857,9 @@ class RowAsDictJsonCoder(coders.Coder):
     # to the programmer that they have used NAN/INF values.
     try:
       return json.dumps(
-          table_row, allow_nan=False, default=default_encoder)
+          table_row, allow_nan=False, default=default_encoder).encode('utf-8')
     except ValueError as e:
       raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
 
   def decode(self, encoded_table_row):
-    return json.loads(encoded_table_row)
+    return json.loads(encoded_table_row.decode('utf-8'))

@@ -67,7 +67,6 @@ func init() {
 	runtime.RegisterFunction(sumUintFn)
 	runtime.RegisterType(reflect.TypeOf((*meanAccum)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*meanFn)(nil)).Elem())
-	runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*meanFn)(nil)).Elem(), wrapMakerMeanFn)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(float32,float32) (float32))(nil)).Elem(), funcMakerFloat32Float32ГFloat32)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(float64,float64) (float64))(nil)).Elem(), funcMakerFloat64Float64ГFloat64)
@@ -78,7 +77,7 @@ func init() {
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int,int) (int))(nil)).Elem(), funcMakerIntIntГInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(meanAccum,typex.T) (meanAccum))(nil)).Elem(), funcMakerMeanAccumTypex۰TГMeanAccum)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(meanAccum) (float64))(nil)).Elem(), funcMakerMeanAccumГFloat64)
-	reflectx.RegisterFunc(reflect.TypeOf((*func([]meanAccum) (meanAccum))(nil)).Elem(), funcMakerSliceofMeanAccumГMeanAccum)
+	reflectx.RegisterFunc(reflect.TypeOf((*func([]meanAccum) (meanAccum))(nil)).Elem(), funcMakerSliceOfMeanAccumГMeanAccum)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) (typex.T,int))(nil)).Elem(), funcMakerTypex۰TГTypex۰TInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(uint16,uint16) (uint16))(nil)).Elem(), funcMakerUint16Uint16ГUint16)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(uint32,uint32) (uint32))(nil)).Elem(), funcMakerUint32Uint32ГUint32)
@@ -332,29 +331,29 @@ func (c *callerMeanAccumГFloat64) Call1x1(arg0 interface{}) (interface{}) {
 	return c.fn(arg0.(meanAccum))
 }
 
-type callerSliceofMeanAccumГMeanAccum struct {
+type callerSliceOfMeanAccumГMeanAccum struct {
 	fn func([]meanAccum) (meanAccum)
 }
 
-func funcMakerSliceofMeanAccumГMeanAccum(fn interface{}) reflectx.Func {
+func funcMakerSliceOfMeanAccumГMeanAccum(fn interface{}) reflectx.Func {
 	f := fn.(func([]meanAccum) (meanAccum))
-	return &callerSliceofMeanAccumГMeanAccum{fn: f}
+	return &callerSliceOfMeanAccumГMeanAccum{fn: f}
 }
 
-func (c *callerSliceofMeanAccumГMeanAccum) Name() string {
+func (c *callerSliceOfMeanAccumГMeanAccum) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerSliceofMeanAccumГMeanAccum) Type() reflect.Type {
+func (c *callerSliceOfMeanAccumГMeanAccum) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerSliceofMeanAccumГMeanAccum) Call(args []interface{}) []interface{} {
+func (c *callerSliceOfMeanAccumГMeanAccum) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].([]meanAccum))
 	return []interface{}{out0}
 }
 
-func (c *callerSliceofMeanAccumГMeanAccum) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerSliceOfMeanAccumГMeanAccum) Call1x1(arg0 interface{}) (interface{}) {
 	return c.fn(arg0.([]meanAccum))
 }
 

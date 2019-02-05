@@ -60,6 +60,12 @@ import org.slf4j.LoggerFactory;
 public class SimpleMonitoringInfoBuilder {
   public static final String ELEMENT_COUNT_URN =
       BeamUrns.getUrn(MonitoringInfoUrns.Enum.ELEMENT_COUNT);
+  public static final String START_BUNDLE_MSECS_URN =
+      BeamUrns.getUrn(MonitoringInfoUrns.Enum.START_BUNDLE_MSECS);
+  public static final String PROCESS_BUNDLE_MSECS_URN =
+      BeamUrns.getUrn(MonitoringInfoUrns.Enum.PROCESS_BUNDLE_MSECS);
+  public static final String FINISH_BUNDLE_MSECS_URN =
+      BeamUrns.getUrn(MonitoringInfoUrns.Enum.FINISH_BUNDLE_MSECS);
   public static final String USER_COUNTER_URN_PREFIX =
       BeamUrns.getUrn(MonitoringInfoUrns.Enum.USER_COUNTER_URN_PREFIX);
   public static final String SUM_INT64_TYPE_URN =
@@ -147,9 +153,15 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
-  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropraite type URN. */
+  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropriate type URN. */
   public SimpleMonitoringInfoBuilder setInt64Value(long value) {
     this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
+    this.setInt64TypeUrn();
+    return this;
+  }
+
+  /** Sets the the appropriate type URN for sum int64 counters. */
+  public SimpleMonitoringInfoBuilder setInt64TypeUrn() {
     this.builder.setType(SUM_INT64_TYPE_URN);
     return this;
   }

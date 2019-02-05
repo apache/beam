@@ -30,11 +30,10 @@ import (
 func init() {
 	runtime.RegisterType(reflect.TypeOf((*accum)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*combineFn)(nil)).Elem())
-	runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*combineFn)(nil)).Elem(), wrapMakerCombineFn)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(accum,accum) (accum))(nil)).Elem(), funcMakerAccumAccumГAccum)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(accum,typex.T) (accum))(nil)).Elem(), funcMakerAccumTypex۰TГAccum)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(accum) ([]typex.T))(nil)).Elem(), funcMakerAccumГSliceofTypex۰T)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(accum) ([]typex.T))(nil)).Elem(), funcMakerAccumГSliceOfTypex۰T)
 	reflectx.RegisterFunc(reflect.TypeOf((*func() (accum))(nil)).Elem(), funcMakerГAccum)
 }
 
@@ -100,29 +99,29 @@ func (c *callerAccumTypex۰TГAccum) Call2x1(arg0, arg1 interface{}) (interface{
 	return c.fn(arg0.(accum), arg1.(typex.T))
 }
 
-type callerAccumГSliceofTypex۰T struct {
+type callerAccumГSliceOfTypex۰T struct {
 	fn func(accum) ([]typex.T)
 }
 
-func funcMakerAccumГSliceofTypex۰T(fn interface{}) reflectx.Func {
+func funcMakerAccumГSliceOfTypex۰T(fn interface{}) reflectx.Func {
 	f := fn.(func(accum) ([]typex.T))
-	return &callerAccumГSliceofTypex۰T{fn: f}
+	return &callerAccumГSliceOfTypex۰T{fn: f}
 }
 
-func (c *callerAccumГSliceofTypex۰T) Name() string {
+func (c *callerAccumГSliceOfTypex۰T) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerAccumГSliceofTypex۰T) Type() reflect.Type {
+func (c *callerAccumГSliceOfTypex۰T) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerAccumГSliceofTypex۰T) Call(args []interface{}) []interface{} {
+func (c *callerAccumГSliceOfTypex۰T) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].(accum))
 	return []interface{}{out0}
 }
 
-func (c *callerAccumГSliceofTypex۰T) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerAccumГSliceOfTypex۰T) Call1x1(arg0 interface{}) (interface{}) {
 	return c.fn(arg0.(accum))
 }
 

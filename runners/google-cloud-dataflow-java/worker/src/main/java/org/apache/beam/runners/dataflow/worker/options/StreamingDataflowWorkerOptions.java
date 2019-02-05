@@ -188,11 +188,7 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
     public Integer create(PipelineOptions options) {
       StreamingDataflowWorkerOptions streamingOptions =
           options.as(StreamingDataflowWorkerOptions.class);
-      if (streamingOptions.isEnableStreamingEngine()
-          && hasExperiment(streamingOptions, "windmill_service_streaming_rpc_batching")) {
-        return Integer.MAX_VALUE;
-      }
-      return 1;
+      return streamingOptions.isEnableStreamingEngine() ? Integer.MAX_VALUE : 1;
     }
   }
 }

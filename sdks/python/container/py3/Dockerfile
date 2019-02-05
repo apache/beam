@@ -43,7 +43,6 @@ RUN \
     rm -rf /root/.cache/pip
 
 
-ENV BEAM_EXPERIMENTAL_PY3=1
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 RUN pip install /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
     # Remove pip cache.
