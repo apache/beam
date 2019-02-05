@@ -378,7 +378,7 @@ class FnApiRunnerTest(unittest.TestCase):
           yield element[k]
           if k % 2 == 1:
             restriction_tracker.defer_remainder()
-            break
+            return
 
     with self.create_pipeline() as p:
       data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']

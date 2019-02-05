@@ -78,7 +78,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def __init__(self, start_position, stop_position):
     self._range = OffsetRange(start_position, stop_position)
-    self._current_position = None  # start_position - 1?
+    self._current_position = None
     self._last_claim_attempt = None
     self._deferred_residual = None
     self._checkpointed = False
@@ -127,7 +127,6 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
       return False
 
-  # TODO(SDF): Re-use try_split(0).
   def checkpoint(self):
     with self._lock:
       # If self._current_position is 'None' no records have been claimed so
