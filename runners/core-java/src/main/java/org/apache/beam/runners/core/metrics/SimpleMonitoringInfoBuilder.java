@@ -204,19 +204,6 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /**
-   * @return A copy of the MonitoringInfo with the value cleared, to allow comparing two
-   *     MonitoringInfos when the value is non deterministic (i.e. execution time).
-   */
-  @VisibleForTesting
-  public static MonitoringInfo clearValue(MonitoringInfo input) {
-    // TODO can we create matchers instead?
-    MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
-    builder.mergeFrom(input);
-    builder.clearMetric();
-    return builder.build();
-  }
-
-  /**
    * Builds the provided MonitoringInfo. Returns null if validateAndDropInvalid set and fields do
    * not match respecting MonitoringInfoSpec based on urn.
    */

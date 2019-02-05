@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness;
+package org.apache.beam.runners.core.metrics;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,7 +37,6 @@ public class SimpleExecutionState extends ExecutionState {
   public SimpleExecutionState(String name, HashMap<String, String> labelsMetadata) {
     super(name);
     this.labelsMetadata = labelsMetadata;
-    // TODO write unit tests for this class.
   }
 
   public Map<String, String> getLabels() {
