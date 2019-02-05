@@ -21,11 +21,13 @@ input options there are additional options:
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
-* metrics_namespace (optional) - name of BigQuery table where metrics
+* publish_to_big_query - if metrics should be published in big query,
+* metrics_namespace (optional) - name of BigQuery dataset where metrics
 will be stored,
-in case of lack of any of both options metrics won't be saved
+* metrics_table (optional) - name of BigQuery table where metrics
+will be stored,
 * output (optional) - destination to save output, in case of no option
-output won't be written
+output won't be written,
 * input_options - options for Synthetic Sources.
 
 Example test run on DirectRunner:
@@ -35,6 +37,7 @@ python setup.py nosetests \
     --number_of_counter_operations=1000
     --output=gs://...
     --project=big-query-project
+    --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=pardo
     --input_options='{
@@ -58,6 +61,7 @@ python setup.py nosetests \
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
         --output=gs://...
         --number_of_counter_operations=1000
+        --publish_to_big_query=true
         --metrics_dataset=python_load_tests
         --metrics_table=pardo
         --input_options='{
@@ -76,24 +80,21 @@ from __future__ import absolute_import
 
 import json
 import logging
+import os
 import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
+from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
 from apache_beam.testing.test_pipeline import TestPipeline
 
-try:
-  from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-  from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
-  from google.cloud import bigquery as bq
-except ImportError:
-  bq = None
-
-COUNTER_LABEL = "total_bytes_count"
-RUNTIME_LABEL = 'runtime'
+load_test_enabled = False
+if os.environ.get('LOAD_TEST_ENABLED') == 'true':
+  load_test_enabled = True
 
 
-@unittest.skipIf(bq is None, 'BigQuery for storing metrics not installed')
+@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class ParDoTest(unittest.TestCase):
   def parseTestPipelineOptions(self):
     return {'numRecords': self.input_options.get('num_records'),
@@ -113,37 +114,37 @@ class ParDoTest(unittest.TestCase):
            }
 
   def setUp(self):
-    self.pipeline = TestPipeline(is_integration_test=True)
+    self.pipeline = TestPipeline()
 
     self.output = self.pipeline.get_option('output')
     self.iterations = self.pipeline.get_option('number_of_counter_operations')
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
 
+    self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
     metrics_project_id = self.pipeline.get_option('project')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')
     metrics_dataset = self.pipeline.get_option('metrics_dataset')
-    self.metrics_monitor = None
-    if metrics_project_id and self.metrics_namespace is not None:
-      measured_values = [
-          {'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'},
-          {'name': COUNTER_LABEL, 'type': 'INTEGER', 'mode': 'REQUIRED'}
-      ]
+
+    check = metrics_project_id and self.metrics_namespace and metrics_dataset \
+            is not None
+    if not self.metrics_monitor:
+      logging.info('Metrics will not be collected')
+    elif check:
       self.metrics_monitor = MetricsMonitor(
           project_name=metrics_project_id,
           table=self.metrics_namespace,
           dataset=metrics_dataset,
-          schema_map=measured_values
       )
     else:
-      logging.error('One or more of parameters for collecting metrics '
-                    'are empty. Metrics will not be collected')
+      raise ValueError('One or more of parameters for collecting metrics '
+                       'are empty.')
 
   def testParDo(self):
 
     class _GetElement(beam.DoFn):
       from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
 
-      @count_bytes(COUNTER_LABEL)
+      @count_bytes
       def process(self, element, namespace, is_returning):
         if is_returning:
           yield element
