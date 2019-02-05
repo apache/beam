@@ -13,12 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beam_test
+package beam
 
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
@@ -26,11 +25,11 @@ func TestJSONCoder(t *testing.T) {
 	tests := []int{43, 12431235, -2, 0, 1}
 
 	for _, test := range tests {
-		data, err := beam.JSONEnc(test)
+		data, err := jsonEnc(test)
 		if err != nil {
 			t.Fatalf("Failed to encode %v: %v", tests, err)
 		}
-		decoded, err := beam.JSONDec(reflectx.Int, data)
+		decoded, err := jsonDec(reflectx.Int, data)
 		if err != nil {
 			t.Fatalf("Failed to decode: %v", err)
 		}

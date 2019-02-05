@@ -18,6 +18,7 @@ package beam
 import (
 	"reflect"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
@@ -56,6 +57,47 @@ func RegisterFunction(fn interface{}) {
 // execution environment. They are all executed regardless of the runner.
 func RegisterInit(hook func()) {
 	runtime.RegisterInit(hook)
+}
+
+// RegisterCoder registers a user defined coder for a given type, and will
+// be used if there is no existing beam coder for that type.
+// Must be called prior to beam.Init(), preferably in an init() function.
+//
+// The coder used for a given type follows this ordering:
+//   1. Coders for Known Beam types.
+//   2. Coders registered for specific types
+//   3. Coders registered for interfaces types
+//   4. Default coder (JSON)
+//
+// Coders for interface types are iterated over to check if a type
+// satisfies them, and the most recent one registered will be used.
+//
+// Repeated registrations of the same type overrides prior ones.
+//
+// RegisterCoder additionally registers the type, and coder functions
+// as per RegisterType and RegisterFunction to avoid redundant calls.
+//
+// Supported Encoder Signatures
+//
+//  func(T) []byte
+//  func(reflect.Type, T) []byte
+//  func(T) ([]byte, error)
+//  func(reflect.Type, T) ([]byte, error)
+//
+// Supported Decoder Signatures
+//
+//  func([]byte) T
+//  func(reflect.Type, []byte) T
+//  func([]byte) (T, error)
+//  func(reflect.Type, []byte) (T, error)
+//
+// where T is the matching user type.
+//
+func RegisterCoder(t reflect.Type, encoder, decoder interface{}) {
+	runtime.RegisterType(t)
+	runtime.RegisterFunction(encoder)
+	runtime.RegisterFunction(decoder)
+	coder.RegisterCoder(t, encoder, decoder)
 }
 
 // Init is the hook that all user code must call after flags processing and
