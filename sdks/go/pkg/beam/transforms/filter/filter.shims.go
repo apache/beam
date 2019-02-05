@@ -35,7 +35,6 @@ func init() {
 	runtime.RegisterFunction(keyFn)
 	runtime.RegisterFunction(mapFn)
 	runtime.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())
-	runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*filterFn)(nil)).Elem(), wrapMakerFilterFn)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T,func(typex.T)) ())(nil)).Elem(), funcMakerTypex۰TEmitTypex۰TГ)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T,func(*int) bool) (typex.T))(nil)).Elem(), funcMakerTypex۰TIterIntГTypex۰T)
