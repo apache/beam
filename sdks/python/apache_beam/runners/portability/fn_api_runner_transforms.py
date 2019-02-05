@@ -24,6 +24,7 @@ import collections
 import functools
 import logging
 from builtins import object
+
 from past.builtins import unicode
 
 from apache_beam import coders
