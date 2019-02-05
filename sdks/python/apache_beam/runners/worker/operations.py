@@ -129,6 +129,7 @@ class Operation(object):
 
     self.spec = spec
     self.counter_factory = counter_factory
+    self.execution_context = None
     self.consumers = collections.defaultdict(list)
 
     # These are overwritten in the legacy harness.
@@ -496,7 +497,10 @@ class DoOperation(Operation):
 
   def process(self, o):
     with self.scoped_process_state:
-      self.dofn_receiver.receive(o)
+      delayed_application = self.dofn_receiver.receive(o)
+      if delayed_application:
+        self.execution_context.delayed_applications.append(
+            (self, delayed_application))
 
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value
@@ -538,6 +542,16 @@ class DoOperation(Operation):
         )
         infos[monitoring_infos.to_key(mi)] = mi
     return infos
+
+
+class SdfProcessElements(DoOperation):
+
+  def process(self, o):
+    with self.scoped_process_state:
+      delayed_application = self.dofn_runner.process_with_restriction(o)
+      if delayed_application:
+        self.execution_context.delayed_applications.append(
+            (self, delayed_application))
 
 
 class DoFnRunnerReceiver(Receiver):

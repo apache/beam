@@ -80,8 +80,9 @@ class OffsetRestrictionTracker(RestrictionTracker):
     self._range = OffsetRange(start_position, stop_position)
     self._current_position = None
     self._last_claim_attempt = None
+    self._deferred_residual = None
     self._checkpointed = False
-    self._lock = threading.Lock()
+    self._lock = threading.RLock()
 
   def check_done(self):
     with self._lock:
@@ -139,3 +140,12 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
       self._range = OffsetRange(self._range.start, end_position)
       return residual_range
+
+  def defer_remainder(self, watermark=None):
+    with self._lock:
+      self._deferred_watermark = watermark
+      self._deferred_residual = self.checkpoint()
+
+  def deferred_status(self):
+    if self._deferred_residual:
+      return (self._deferred_residual, self._deferred_watermark)
