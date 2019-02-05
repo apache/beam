@@ -35,20 +35,16 @@ public class MonitoringInfoMatchers {
 
       @Override
       protected boolean matchesSafely(MonitoringInfo item) {
-        // Match the URN.
         if (!item.getUrn().equals(mi.getUrn())) {
           return false;
         }
-        // Match the labels.
         if (!item.getLabels().equals(mi.getLabels())) {
           return false;
         }
-        // Match the type URN.
         if (!item.getType().equals(mi.getType())) {
           return false;
         }
 
-        // Match the int64 value if it's set.
         if (mi.getMetric().hasCounterData()) {
           long valueToMatch = mi.getMetric().getCounterData().getInt64Value();
           if (valueToMatch != item.getMetric().getCounterData().getInt64Value()) {

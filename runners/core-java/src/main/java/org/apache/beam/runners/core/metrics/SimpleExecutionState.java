@@ -23,8 +23,9 @@ import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 
 /**
- * Simple state class which collects the totalMillis spent in the state. Allows attaching an
- * arbitrary set of key value labels which can be retrieved later for reporting purposes.
+ * Simple state class which collects the totalMillis spent in the state. Allows storing an arbitrary
+ * set of key value labels in the object which can be retrieved later for reporting purposes via
+ * getLabels().
  */
 public class SimpleExecutionState extends ExecutionState {
   private long totalMillis = 0;

@@ -135,7 +135,6 @@ public class PCollectionConsumerRegistry {
   }
 
   /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
-  /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
   public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
     return executionStates.getExecutionTimeMonitoringInfos();
   }

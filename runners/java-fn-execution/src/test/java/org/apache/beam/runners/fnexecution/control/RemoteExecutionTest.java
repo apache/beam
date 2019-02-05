@@ -507,6 +507,9 @@ public class RemoteExecutionTest implements Serializable {
     final String startUserCounterName = "startUserCounter";
     final String finishUserCounterName = "finishUserCounter";
     Pipeline p = Pipeline.create();
+    // TODO(BEAM-6597): Remove sleeps in this test after collecting MonitoringInfos in
+    // ProcessBundleProgressResponses. Use CountDownLatches to wait in start, finish and process
+    // functions and open the latches when valid metrics are seen in the progress responses.
     PCollection<String> input =
         p.apply("impulse", Impulse.create())
             .apply(
