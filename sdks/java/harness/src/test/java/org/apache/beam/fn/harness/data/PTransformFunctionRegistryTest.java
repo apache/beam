@@ -60,8 +60,9 @@ public class PTransformFunctionRegistryTest {
   public void testScopedMetricContainerInvokedUponRunningFunctions() throws Exception {
     mockStatic(MetricsEnvironment.class);
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PTransformFunctionRegistry testObject = new PTransformFunctionRegistry(
-        metricsContainerRegistry, mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry testObject =
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "start");
 
     ThrowingRunnable runnableA = mock(ThrowingRunnable.class);
     ThrowingRunnable runnableB = mock(ThrowingRunnable.class);

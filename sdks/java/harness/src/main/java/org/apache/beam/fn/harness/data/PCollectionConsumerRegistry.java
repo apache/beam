@@ -79,7 +79,6 @@ public class PCollectionConsumerRegistry {
         (WindowedValue<T> input) -> {
           MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
           try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
-            // TODO(ajamato): Set the proper state sampler state for ExecutionTime Metrics to use.
             consumer.accept(input);
           }
         };
