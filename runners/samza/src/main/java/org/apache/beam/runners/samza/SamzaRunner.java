@@ -38,6 +38,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.config.Config;
+import org.apache.samza.context.ExternalContext;
 import org.apache.samza.runtime.ApplicationRunner;
 import org.apache.samza.runtime.ApplicationRunners;
 import org.slf4j.Logger;
@@ -120,11 +121,12 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     final SamzaPipelineResult result =
         new SamzaPipelineResult(app, runner, executionContext, listener);
 
+    ExternalContext externalContext = null;
     if (listener != null) {
-      listener.onStart(config);
+      externalContext = listener.onStart(config);
     }
 
-    runner.run();
+    runner.run(externalContext);
 
     if (listener != null
         && options.getSamzaExecutionEnvironment() == SamzaExecutionEnvironment.YARN) {

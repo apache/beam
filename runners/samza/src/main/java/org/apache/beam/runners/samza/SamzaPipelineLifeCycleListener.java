@@ -1,12 +1,13 @@
 package org.apache.beam.runners.samza;
 
 import org.apache.samza.config.Config;
+import org.apache.samza.context.ExternalContext;
 
 /** Life cycle listener for a Samza pipeline during runtime. */
 public interface SamzaPipelineLifeCycleListener {
 
   /** Callback when the pipeline is started. */
-  void onStart(Config config);
+  ExternalContext onStart(Config config);
 
   /**
    * Callback after the pipeline is submmitted. This will be invoked only for Samza jobs submitted
