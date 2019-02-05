@@ -38,7 +38,11 @@ public class TestExpansionService {
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
       return ImmutableMap.of(
           TEST_COUNT_URN, spec -> Count.perElement(),
-          TEST_FILTER_URN, spec -> Filter.lessThanEq(spec.getPayload().toStringUtf8()));
+          TEST_FILTER_URN,
+              spec ->
+                  Filter.lessThanEq(
+                      // TODO(BEAM-6587): Use strings directly rather than longs.
+                      (long) spec.getPayload().toStringUtf8().charAt(0)));
     }
   }
 
