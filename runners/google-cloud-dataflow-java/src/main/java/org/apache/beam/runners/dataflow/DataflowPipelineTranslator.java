@@ -71,6 +71,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -319,19 +320,30 @@ public class DataflowPipelineTranslator {
       WorkerPool workerPool = new WorkerPool();
 
       // If streaming engine is enabled set the proper experiments so that it is enabled on the
-      // back end as well.
+      // back end as well.  If streaming engine is not enabled make sure the experiments are also
+      // not enabled.
       if (options.isEnableStreamingEngine()) {
         List<String> experiments = options.getExperiments();
         if (experiments == null) {
           experiments = new ArrayList<String>();
         }
-        if (!experiments.contains("enable_windmill_service")) {
-          experiments.add("enable_windmill_service");
+        if (!experiments.contains(GcpOptions.STREAMING_ENGINE_EXPERIMENT)) {
+          experiments.add(GcpOptions.STREAMING_ENGINE_EXPERIMENT);
         }
-        if (!experiments.contains("enable_streaming_engine")) {
-          experiments.add("enable_streaming_engine");
+        if (!experiments.contains(GcpOptions.WINDMILL_SERVICE_EXPERIMENT)) {
+          experiments.add(GcpOptions.WINDMILL_SERVICE_EXPERIMENT);
         }
         options.setExperiments(experiments);
+      } else {
+        List<String> experiments = options.getExperiments();
+        if (experiments != null) {
+          if (experiments.contains(
+              GcpOptions.STREAMING_ENGINE_EXPERIMENT
+                  || experiments.contains(GcpOptions.WINDMILL_SERVICE_EXPERIMENT))) {
+            throw new IllegalArgumentException(
+                "Streaming engine both disabled and enabled.  Please use --enableStreamingEngine.");
+          }
+        }
       }
 
       if (options.isStreaming()) {
