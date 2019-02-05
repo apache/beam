@@ -55,9 +55,10 @@ class _PipelineContextMap(object):
   Under the hood it encodes and decodes these objects into runner API
   representations.
   """
-  def __init__(self, context, obj_type, proto_map=None):
+  def __init__(self, context, obj_type, namespace, proto_map=None):
     self._pipeline_context = context
     self._obj_type = obj_type
+    self._namespace = namespace
     self._obj_to_id = {}
     self._id_to_obj = {}
     self._id_to_proto = dict(proto_map) if proto_map else {}
@@ -65,8 +66,11 @@ class _PipelineContextMap(object):
 
   def _unique_ref(self, obj=None, label=None):
     self._counter += 1
-    return "ref_%s_%s_%s" % (
-        self._obj_type.__name__, label or type(obj).__name__, self._counter)
+    return "%s_%s_%s_%d" % (
+        self._namespace,
+        self._obj_type.__name__,
+        label or type(obj).__name__,
+        self._counter)
 
   def populate_map(self, proto_map):
     for id, proto in self._id_to_proto.items():
@@ -88,6 +92,19 @@ class _PipelineContextMap(object):
       self._id_to_obj[id] = self._obj_type.from_runner_api(
           self._id_to_proto[id], self._pipeline_context)
     return self._id_to_obj[id]
+
+  def get_by_proto(self, maybe_new_proto, label=None, deduplicate=False):
+    if deduplicate:
+      for id, proto in self._id_to_proto.items():
+        if proto == maybe_new_proto:
+          return id
+    return self.put_proto(self._unique_ref(label), maybe_new_proto)
+
+  def put_proto(self, id, proto):
+    if id in self._id_to_proto:
+      raise ValueError("Id '%s' is already taken." % id)
+    self._id_to_proto[id] = proto
+    return id
 
   def __getitem__(self, id):
     return self.get_by_id(id)
@@ -112,7 +129,8 @@ class PipelineContext(object):
 
   def __init__(
       self, proto=None, default_environment=None, use_fake_coders=False,
-      iterable_state_read=None, iterable_state_write=None):
+      iterable_state_read=None, iterable_state_write=None,
+      namespace='ref'):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
@@ -121,7 +139,7 @@ class PipelineContext(object):
     for name, cls in self._COMPONENT_TYPES.items():
       setattr(
           self, name, _PipelineContextMap(
-              self, cls, getattr(proto, name, None)))
+              self, cls, namespace, getattr(proto, name, None)))
     if default_environment:
       self._default_environment_id = self.environments.get_id(
           Environment(default_environment), label='default_environment')
@@ -140,6 +158,12 @@ class PipelineContext(object):
       return pickler.dumps(element_type)
     else:
       return self.coders.get_id(coders.registry.get_coder(element_type))
+
+  def element_type_from_coder_id(self, coder_id):
+    if self.use_fake_coders or coder_id not in self.coders:
+      return pickler.loads(coder_id)
+    else:
+      return self.coders[coder_id].to_type_hint()
 
   @staticmethod
   def from_runner_api(proto):
