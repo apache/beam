@@ -21,18 +21,18 @@ input options there are additional options:
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
+* publish_to_big_query - if metrics should be published in big query,
+* metrics_namespace (optional) - name of BigQuery dataset where metrics
+will be stored,
 * metrics_table (optional) - name of BigQuery table where metrics
 will be stored,
-in case of lack of any of both options metrics won't be saved
-* metrics_dataset (optional) - name of BigQuery dataset where metrics
-will be stored,
-in case of lack of all three options metrics won't be saved
 * input_options - options for Synthetic Sources.
 
 To run test on DirectRunner
 
 python setup.py nosetests \
     --project=big-query-project
+    --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=side_input
     --test-pipeline-options="
@@ -54,6 +54,7 @@ python setup.py nosetests \
     --test-pipeline-options="
         --runner=TestDataflowRunner
         --project=...
+        --publish_to_big_query=true
         --metrics_dataset=python_load_tests
         --metrics_table=side_input
         --staging_location=gs://...
@@ -91,10 +92,8 @@ load_test_enabled = False
 if os.environ.get('LOAD_TEST_ENABLED') == 'true':
   load_test_enabled = True
 
-RUNTIME_LABEL = 'runtime'
 
-
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phase triggering.')
+@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class SideInputTest(unittest.TestCase):
   def _parseTestPipelineOptions(self):
     return {
@@ -136,27 +135,24 @@ class SideInputTest(unittest.TestCase):
       self.iterations = 1
     self.iterations = int(self.iterations)
 
+    self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
     metrics_project_id = self.pipeline.get_option('project')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')
-    if not self.metrics_namespace:
-      self.metrics_namespace = self.__class__.__name__
     metrics_dataset = self.pipeline.get_option('metrics_dataset')
-    self.metrics_monitor = None
+
     check = metrics_project_id and self.metrics_namespace and metrics_dataset \
             is not None
-    if check:
-      measured_values = [
-          {'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'},
-      ]
+    if not self.metrics_monitor:
+      logging.info('Metrics will not be collected')
+    elif check:
       self.metrics_monitor = MetricsMonitor(
           project_name=metrics_project_id,
           table=self.metrics_namespace,
           dataset=metrics_dataset,
-          schema_map=measured_values
       )
     else:
-      logging.error('One or more of parameters for collecting metrics '
-                    'are empty. Metrics will not be collected')
+      raise ValueError('One or more of parameters for collecting metrics '
+                       'are empty.')
 
   def testSideInput(self):
     def join_fn(element, side_input, iterations):
