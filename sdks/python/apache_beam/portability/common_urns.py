@@ -49,6 +49,8 @@ composites = PropertiesFromEnumType(
     beam_runner_api_pb2.StandardPTransforms.Composites)
 combine_components = PropertiesFromEnumType(
     beam_runner_api_pb2.StandardPTransforms.CombineComponents)
+sdf_components = PropertiesFromEnumType(
+    beam_runner_api_pb2.StandardPTransforms.SplittableParDoComponents)
 
 side_inputs = PropertiesFromEnumType(
     beam_runner_api_pb2.StandardSideInputTypes.Enum)
