@@ -337,9 +337,8 @@ public class DataflowPipelineTranslator {
       } else {
         List<String> experiments = options.getExperiments();
         if (experiments != null) {
-          if (experiments.contains(
-              GcpOptions.STREAMING_ENGINE_EXPERIMENT
-                  || experiments.contains(GcpOptions.WINDMILL_SERVICE_EXPERIMENT))) {
+          if (experiments.contains(GcpOptions.STREAMING_ENGINE_EXPERIMENT)
+              || experiments.contains(GcpOptions.WINDMILL_SERVICE_EXPERIMENT)) {
             throw new IllegalArgumentException(
                 "Streaming engine both disabled and enabled.  Please use --enableStreamingEngine.");
           }
