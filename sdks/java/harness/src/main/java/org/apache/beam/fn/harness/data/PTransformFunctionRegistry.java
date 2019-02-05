@@ -21,13 +21,13 @@ import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
+import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 
@@ -61,7 +61,7 @@ public class PTransformFunctionRegistry {
   private ExecutionStateTracker stateTracker;
   private String executionTimeUrn;
   private List<ThrowingRunnable> runnables = new ArrayList<>();
-  private List<SimpleExecutionState> executionStates = new ArrayList<SimpleExecutionState>();
+  private SimpleStateRegistry executionStates = new SimpleStateRegistry();
 
   /**
    * Construct the registry to run for either start or finish bundle functions.
@@ -90,7 +90,7 @@ public class PTransformFunctionRegistry {
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
     labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, pTransformId);
     SimpleExecutionState state = new SimpleExecutionState(this.executionTimeUrn, labelsMetadata);
-    executionStates.add(state);
+    executionStates.register(state);
 
     ThrowingRunnable wrapped =
         () -> {
@@ -104,19 +104,9 @@ public class PTransformFunctionRegistry {
     runnables.add(wrapped);
   }
 
-  // TODO write unit tests for this method and entering the state.
+  /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
   public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
-    List<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
-    for (SimpleExecutionState state : executionStates) {
-      SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-      builder.setUrn(this.executionTimeUrn);
-      for (Map.Entry<String, String> entry : state.getLabels().entrySet()) {
-        builder.setLabel(entry.getKey(), entry.getValue());
-      }
-      builder.setInt64Value(state.getTotalMillis());
-      monitoringInfos.add(builder.build());
-    }
-    return monitoringInfos;
+    return executionStates.getExecutionTimeMonitoringInfos();
   }
 
   /**

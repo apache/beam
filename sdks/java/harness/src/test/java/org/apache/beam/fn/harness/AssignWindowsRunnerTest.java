@@ -173,8 +173,9 @@ public class AssignWindowsRunnerTest implements Serializable {
         };
     Collection<WindowedValue<?>> outputs = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry(
-        metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry pCollectionConsumerRegistry =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     pCollectionConsumerRegistry.register("output", "ptransform", outputs::add);
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));

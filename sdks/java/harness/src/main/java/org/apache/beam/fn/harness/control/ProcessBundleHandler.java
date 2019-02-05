@@ -55,11 +55,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
-import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Message;
@@ -309,7 +307,6 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
-
       try (Closeable closeTracker = stateTracker.activate()) {
         // Already in reverse topological order so we don't need to do anything.
         for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
@@ -329,9 +326,16 @@ public class ProcessBundleHandler {
           response.addAllResidualRoots(allResiduals.values());
         }
       }
+      // Get start bundle Execution Time Metrics.
       for (MonitoringInfo mi : startFunctionRegistry.getExecutionTimeMonitoringInfos()) {
         response.addMonitoringInfos(mi);
       }
+      // Get process bundle Execution Time Metrics.
+      for (MonitoringInfo mi : pCollectionConsumerRegistry.getExecutionTimeMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
+      }
+
+      // Get finish bundle Execution Time Metrics.
       for (MonitoringInfo mi : finishFunctionRegistry.getExecutionTimeMonitoringInfos()) {
         response.addMonitoringInfos(mi);
       }

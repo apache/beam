@@ -124,8 +124,9 @@ public class CombineRunnersTest {
   public void testPrecombine() throws Exception {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry(
-        metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -197,8 +198,9 @@ public class CombineRunnersTest {
   public void testMergeAccumulators() throws Exception {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry(
-        metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -258,8 +260,9 @@ public class CombineRunnersTest {
   public void testExtractOutputs() throws Exception {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry(
-        metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
@@ -319,8 +322,9 @@ public class CombineRunnersTest {
   public void testCombineGroupedValues() throws Exception {
     // Create a map of consumers and an output target to check output values.
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry(
-        metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
