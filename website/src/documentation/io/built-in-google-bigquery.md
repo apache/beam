@@ -95,7 +95,7 @@ a string, or use a
   [TableReference](https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/index.html?com/google/api/services/bigquery/model/TableReference.html)
 </span>
 <span class="language-py">
-  [TableReference](https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.table.TableReference.html#google.cloud.bigquery.table.TableReference)
+  [TableReference](https://github.com/googleapis/google-cloud-python/blob/master/bigquery/google/cloud/bigquery/table.py#L153)
 </span>
 object.
 
