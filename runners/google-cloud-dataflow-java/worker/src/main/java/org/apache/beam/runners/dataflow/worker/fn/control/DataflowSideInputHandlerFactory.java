@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** This handles sideinput in Dataflow. The caller should be based on ExecutableStage framework. */
 public class DataflowSideInputHandlerFactory
     implements StateRequestHandlers.SideInputHandlerFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowSideInputHandlerFactory.class);
@@ -65,7 +66,9 @@ public class DataflowSideInputHandlerFactory
       RunnerApi.FunctionSpec accessPattern,
       Coder<T> elementCoder,
       Coder<W> windowCoder) {
-    checkArgument(pTransformId != null, String.format("Expect a valid PTransform ID."));
+    checkArgument(
+        pTransformId != null && pTransformId.length() > 0,
+        String.format("Expect a valid PTransform ID."));
 
     SideInputReader sideInputReader = ptransformIdToSideInputReader.get(pTransformId);
     checkState(sideInputReader != null, String.format("Unknown PTransform '%s'", pTransformId));
