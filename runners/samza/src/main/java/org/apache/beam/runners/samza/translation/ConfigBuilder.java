@@ -30,6 +30,7 @@ import java.util.UUID;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.container.BeamContainerRunner;
 import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.config.ApplicationConfig;
@@ -162,9 +163,11 @@ public class ConfigBuilder {
         "Config %s not found for %s Deployment",
         YARN_PACKAGE_PATH,
         SamzaExecutionEnvironment.YARN);
+    final String appRunner = config.get(APP_RUNNER_CLASS);
     checkArgument(
-        !config.containsKey(APP_RUNNER_CLASS)
-            || config.get(APP_RUNNER_CLASS).equals(RemoteApplicationRunner.class.getName()),
+        appRunner == null
+            || RemoteApplicationRunner.class.getName().equals(appRunner)
+            || BeamContainerRunner.class.getName().equals(appRunner),
         "Config %s must be set to %s for %s Deployment",
         APP_RUNNER_CLASS,
         RemoteApplicationRunner.class.getName(),
