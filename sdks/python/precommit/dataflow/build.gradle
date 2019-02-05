@@ -19,7 +19,7 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
-def runScriptsDir = "${project.rootDir}/sdks/python/script"
+def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 
 task precommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   doLast {
