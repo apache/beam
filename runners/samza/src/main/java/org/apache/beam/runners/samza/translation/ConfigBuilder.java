@@ -72,6 +72,7 @@ public class ConfigBuilder {
 
   public Config build() {
     try {
+      // apply framework configs
       config.putAll(createSystemConfig(options));
 
       // apply user configs
@@ -91,9 +92,6 @@ public class ConfigBuilder {
               + "-"
               // use the most significant bits in UUID (8 digits) to avoid collision
               + UUID.randomUUID().toString().substring(0, 8));
-
-      // TODO: remove after we sort out Samza task wrapper
-      config.put("samza.li.task.wrapper.enabled", "false");
 
       validateConfigs(options, config);
 
@@ -235,6 +233,9 @@ public class ConfigBuilder {
         configBuilder.putAll(localRunConfig());
         break;
     }
+
+    // TODO: remove after we sort out Samza task wrapper
+    configBuilder.put("samza.li.task.wrapper.enabled", "false");
 
     return configBuilder.build();
   }
