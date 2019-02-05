@@ -158,6 +158,7 @@ public class FnHarness {
           new ProcessBundleHandler(
               options, fnApiRegistry::getById, beamFnDataMultiplexer, beamFnStateGrpcClientCache);
       handlers.put(BeamFnApi.InstructionRequest.RequestCase.REGISTER, fnApiRegistry::register);
+      // TODO(BEAM-6597): Collect MonitoringInfos in ProcessBundleProgressResponses.
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
           processBundleHandler::processBundle);

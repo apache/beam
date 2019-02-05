@@ -22,6 +22,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -38,9 +39,9 @@ public class PTransformFunctionRegistryTest {
 
   @Test
   public void functionsAreInvokedIndirectlyAfterRegisteringAndInvoking() throws Exception {
-    MetricsContainerStepMap metricsContainerRegistry = mock(MetricsContainerStepMap.class);
     PTransformFunctionRegistry testObject =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
 
     ThrowingRunnable runnableA = mock(ThrowingRunnable.class);
     ThrowingRunnable runnableB = mock(ThrowingRunnable.class);
@@ -60,7 +61,8 @@ public class PTransformFunctionRegistryTest {
     mockStatic(MetricsEnvironment.class);
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PTransformFunctionRegistry testObject =
-        new PTransformFunctionRegistry(metricsContainerRegistry);
+        new PTransformFunctionRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class), "start");
 
     ThrowingRunnable runnableA = mock(ThrowingRunnable.class);
     ThrowingRunnable runnableB = mock(ThrowingRunnable.class);
