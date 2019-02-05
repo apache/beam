@@ -555,6 +555,8 @@ public class BigQueryIO {
       abstract Builder<T> setParseFn(SerializableFunction<SchemaAndRecord, T> parseFn);
 
       abstract Builder<T> setCoder(Coder<T> coder);
+
+      abstract Builder<T> setKmsKey(String kmsKey);
     }
 
     @Nullable
@@ -585,6 +587,9 @@ public class BigQueryIO {
 
     @Nullable
     abstract Coder<T> getCoder();
+
+    @Nullable
+    abstract String getKmsKey();
 
     /**
      * An enumeration type for the priority of a query.
@@ -643,7 +648,8 @@ public class BigQueryIO {
                 coder,
                 getParseFn(),
                 MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
-                getQueryLocation());
+                getQueryLocation(),
+                getKmsKey());
       }
       return source;
     }
@@ -902,6 +908,11 @@ public class BigQueryIO {
      */
     public TypedRead<T> withCoder(Coder<T> coder) {
       return toBuilder().setCoder(coder).build();
+    }
+
+    /** For query sources, use this Cloud KMS key to encrypt any temporary tables created. */
+    public TypedRead<T> withKmsKey(String kmsKey) {
+      return toBuilder().setKmsKey(kmsKey).build();
     }
 
     /** See {@link Read#from(String)}. */
@@ -1173,6 +1184,9 @@ public class BigQueryIO {
 
     abstract Boolean getIgnoreUnknownValues();
 
+    @Nullable
+    abstract String getKmsKey();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1227,6 +1241,8 @@ public class BigQueryIO {
       abstract Builder<T> setSkipInvalidRows(Boolean skipInvalidRows);
 
       abstract Builder<T> setIgnoreUnknownValues(Boolean ignoreUnknownValues);
+
+      abstract Builder<T> setKmsKey(String kmsKey);
 
       abstract Write<T> build();
     }
@@ -1430,7 +1446,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Specfies a policy for handling fPailed inserts.
+     * Specfies a policy for handling failed inserts.
      *
      * <p>Currently this only is allowed when writing an unbounded collection to BigQuery. Bounded
      * collections are written using batch load jobs, so we don't get per-element failures.
@@ -1532,6 +1548,10 @@ public class BigQueryIO {
      */
     public Write<T> ignoreUnknownValues() {
       return toBuilder().setIgnoreUnknownValues(true).build();
+    }
+
+    Write<T> withKmsKey(String kmsKey) {
+      return toBuilder().setKmsKey(kmsKey).build();
     }
 
     @VisibleForTesting
@@ -1737,7 +1757,8 @@ public class BigQueryIO {
                 .withTestServices(getBigQueryServices())
                 .withExtendedErrorInfo(getExtendedErrorInfo())
                 .withSkipInvalidRows(getSkipInvalidRows())
-                .withIgnoreUnknownValues(getIgnoreUnknownValues());
+                .withIgnoreUnknownValues(getIgnoreUnknownValues())
+                .withKmsKey(getKmsKey());
         return rowsWithDestination.apply(streamingInserts);
       } else {
         checkArgument(
@@ -1753,7 +1774,8 @@ public class BigQueryIO {
                 destinationCoder,
                 getCustomGcsTempLocation(),
                 getLoadJobProjectId(),
-                getIgnoreUnknownValues());
+                getIgnoreUnknownValues(),
+                getKmsKey());
         batchLoads.setTestServices(getBigQueryServices());
         if (getMaxFilesPerBundle() != null) {
           batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());

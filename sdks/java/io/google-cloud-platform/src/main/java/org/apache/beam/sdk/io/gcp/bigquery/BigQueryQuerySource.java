@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdTok
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
@@ -57,7 +58,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       QueryPriority priority,
-      String location) {
+      String location,
+      String kmsKey) {
     return new BigQueryQuerySource<>(
         stepUuid,
         query,
@@ -67,7 +69,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
         coder,
         parseFn,
         priority,
-        location);
+        location,
+        kmsKey);
   }
 
   private final ValueProvider<String> query;
@@ -76,6 +79,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   private transient AtomicReference<JobStatistics> dryRunJobStats;
   private final QueryPriority priority;
   private final String location;
+  private final String kmsKey;
 
   private BigQueryQuerySource(
       String stepUuid,
@@ -86,7 +90,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       QueryPriority priority,
-      String location) {
+      String location,
+      String kmsKey) {
     super(stepUuid, bqServices, coder, parseFn);
     this.query = checkNotNull(query, "query");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
@@ -94,6 +99,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
     this.dryRunJobStats = new AtomicReference<>();
     this.priority = priority;
     this.location = location;
+    this.kmsKey = kmsKey;
   }
 
   @Override
@@ -142,7 +148,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
         bqOptions.getProject(),
         tableToExtract,
         bqServices.getJobService(bqOptions),
-        location);
+        location,
+        kmsKey);
 
     return tableToExtract;
   }
@@ -183,7 +190,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       String executingProject,
       TableReference destinationTable,
       JobService jobService,
-      String bqLocation)
+      String bqLocation,
+      String kmsKey)
       throws IOException, InterruptedException {
     // Generate a transient (random) query job ID, because this code may be retried after the
     // temporary dataset and table have already been deleted by a previous attempt -
@@ -211,6 +219,10 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
             // Overwrite contents of the temporary table - it can only already exist if this
             // is a retry of the splitting task, in which case we must not produce duplicate data.
             .setWriteDisposition("WRITE_TRUNCATE");
+    if (kmsKey != null) {
+      queryConfig.setDestinationEncryptionConfiguration(
+          new EncryptionConfiguration().setKmsKeyName(kmsKey));
+    }
 
     jobService.startQueryJob(jobRef, queryConfig);
     Job job = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
