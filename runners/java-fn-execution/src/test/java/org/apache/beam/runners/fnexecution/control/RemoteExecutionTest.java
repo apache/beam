@@ -678,7 +678,7 @@ public class RemoteExecutionTest implements Serializable {
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             // Check for execution time metrics for the testPTransformId
-            builder = new SimpleMonitoringInfoBuilder(false);
+            builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
             builder.setInt64TypeUrn();
             builder.setPTransformLabel(testPTransformId);
@@ -687,7 +687,17 @@ public class RemoteExecutionTest implements Serializable {
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
                     MonitoringInfoMatchers.valueGreaterThan(0)));
 
-            builder = new SimpleMonitoringInfoBuilder(false);
+            // Check for execution time metrics for the testPTransformId
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN);
+            builder.setInt64TypeUrn();
+            builder.setPTransformLabel(testPTransformId);
+            matchers.add(
+                allOf(
+                    MonitoringInfoMatchers.matchSetFields(builder.build()),
+                    MonitoringInfoMatchers.valueGreaterThan(0)));
+
+            builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN);
             builder.setInt64TypeUrn();
             builder.setPTransformLabel(testPTransformId);

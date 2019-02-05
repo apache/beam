@@ -22,11 +22,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
+import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -45,6 +47,7 @@ public class PCollectionConsumerRegistry {
   private Map<String, ElementCountFnDataReceiver> pCollectionIdsToWrappedConsumer;
   private MetricsContainerStepMap metricsContainerRegistry;
   private ExecutionStateTracker stateTracker;
+  private SimpleStateRegistry executionStates = new SimpleStateRegistry();
 
   public PCollectionConsumerRegistry(
       MetricsContainerStepMap metricsContainerRegistry, ExecutionStateTracker stateTracker) {
@@ -59,7 +62,8 @@ public class PCollectionConsumerRegistry {
    * pCollectionId. All consumers must be registered before extracting the combined consumer by
    * calling getMultiplexingConsumer(), or an exception will be thrown.
    *
-   * This will cause both Element Count and Process Bundle Execution time metrics to be collected.
+   * <p>This will cause both Element Count and Process Bundle Execution time metrics to be
+   * collected.
    *
    * @param pCollectionId
    * @param pTransformId
@@ -83,8 +87,10 @@ public class PCollectionConsumerRegistry {
 
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
     labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, pTransformId);
-    SimpleExecutionState state = new SimpleExecutionState(
-        SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN, labelsMetadata);
+    SimpleExecutionState state =
+        new SimpleExecutionState(
+            SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN, labelsMetadata);
+    executionStates.register(state);
     // Wrap the consumer with extra logic to set the metric container with the appropriate
     // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
     // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
@@ -126,6 +132,12 @@ public class PCollectionConsumerRegistry {
       pCollectionIdsToWrappedConsumer.put(pCollectionId, wrappedConsumer);
     }
     return wrappedConsumer;
+  }
+
+  /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
+  /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
+  public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
+    return executionStates.getExecutionTimeMonitoringInfos();
   }
 
   /**

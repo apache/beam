@@ -54,8 +54,9 @@ public class PCollectionConsumerRegistryTest {
     final String pTransformId = "pTransformId";
 
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry(
-        metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
@@ -84,8 +85,9 @@ public class PCollectionConsumerRegistryTest {
     final String pTransformId = "pTransformId";
 
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry(
-        metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
@@ -103,8 +105,9 @@ public class PCollectionConsumerRegistryTest {
     final String pCollectionA = "pCollectionA";
 
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry(
-        metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 

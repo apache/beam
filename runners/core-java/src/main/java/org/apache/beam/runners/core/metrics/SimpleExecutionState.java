@@ -31,11 +31,11 @@ public class SimpleExecutionState extends ExecutionState {
   private HashMap<String, String> labelsMetadata;
 
   /**
-   * @param name A string name for the state.
+   * @param urn A string urn for the execution time metric.
    * @param labelsMetadata arbitrary metadata to use for reporting purposes.
    */
-  public SimpleExecutionState(String name, HashMap<String, String> labelsMetadata) {
-    super(name);
+  public SimpleExecutionState(String urn, HashMap<String, String> labelsMetadata) {
+    super(urn);
     this.labelsMetadata = labelsMetadata;
   }
 
