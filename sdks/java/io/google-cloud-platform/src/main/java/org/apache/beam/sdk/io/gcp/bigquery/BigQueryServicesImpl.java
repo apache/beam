@@ -26,7 +26,9 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
+import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.Bigquery.Tables;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Job;
@@ -46,6 +48,12 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.cloud.bigquery.storage.v1beta1.BigQueryStorageClient;
+import com.google.cloud.bigquery.storage.v1beta1.BigQueryStorageSettings;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import java.io.IOException;
@@ -56,6 +64,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -103,6 +112,11 @@ class BigQueryServicesImpl implements BigQueryServices {
   @Override
   public DatasetService getDatasetService(BigQueryOptions options) {
     return new DatasetServiceImpl(options);
+  }
+
+  @Override
+  public StorageClient getStorageClient(BigQueryOptions options) throws IOException {
+    return new StorageClientImpl(options);
   }
 
   private static BackOff createDefaultBackoff() {
@@ -412,16 +426,29 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     @Nullable
     public Table getTable(TableReference tableRef) throws IOException, InterruptedException {
-      return getTable(tableRef, createDefaultBackoff(), Sleeper.DEFAULT);
+      return getTable(tableRef, null);
+    }
+
+    @Override
+    @Nullable
+    public Table getTable(TableReference tableRef, List<String> selectedFields)
+        throws IOException, InterruptedException {
+      return getTable(tableRef, selectedFields, createDefaultBackoff(), Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
     @Nullable
-    Table getTable(TableReference ref, BackOff backoff, Sleeper sleeper)
+    Table getTable(
+        TableReference ref, @Nullable List<String> selectedFields, BackOff backoff, Sleeper sleeper)
         throws IOException, InterruptedException {
+      Tables.Get get =
+          client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+      if (selectedFields != null && !selectedFields.isEmpty()) {
+        get.setSelectedFields(String.join(",", selectedFields));
+      }
       try {
         return executeWithRetries(
-            client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId()),
+            get,
             String.format(
                 "Unable to get table: %s, aborting after %d retries.",
                 ref.getTableId(), MAX_RPC_RETRIES),
@@ -944,5 +971,34 @@ class BigQueryServicesImpl implements BigQueryServices {
             + "bigquery.tables.list, please find the instructions to increase this limit at: "
             + "https://cloud.google.com/service-infrastructure/docs/rate-limiting#configure");
     return builder.build();
+  }
+
+  @Experimental(Experimental.Kind.SOURCE_SINK)
+  static class StorageClientImpl implements StorageClient {
+
+    private final BigQueryStorageClient client;
+
+    private StorageClientImpl(BigQueryOptions options) throws IOException {
+      BigQueryStorageSettings settings =
+          BigQueryStorageSettings.newBuilder()
+              .setCredentialsProvider(FixedCredentialsProvider.create(options.getGcpCredential()))
+              .build();
+      this.client = BigQueryStorageClient.create(settings);
+    }
+
+    @Override
+    public ReadSession createReadSession(CreateReadSessionRequest request) {
+      return client.createReadSession(request);
+    }
+
+    @Override
+    public Iterable<ReadRowsResponse> readRows(ReadRowsRequest request) {
+      return client.readRowsCallable().call(request);
+    }
+
+    @Override
+    public void close() {
+      client.close();
+    }
   }
 }
