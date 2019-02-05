@@ -34,11 +34,11 @@ from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam import pvalue
-from apache_beam.transforms.combiners import Count
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.options import value_provider as vp
+from apache_beam.transforms.combiners import Count
 
 ONE_TERABYTE = (1 << 40)
 
