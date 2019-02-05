@@ -340,7 +340,7 @@ public class DataflowPipelineTranslator {
           if (experiments.contains(GcpOptions.STREAMING_ENGINE_EXPERIMENT)
               || experiments.contains(GcpOptions.WINDMILL_SERVICE_EXPERIMENT)) {
             throw new IllegalArgumentException(
-                "Streaming engine both disabled and enabled.  Please use --enableStreamingEngine.");
+                "Streaming engine both disabled and enabled: enableStreamingEngine is set to false, but enable_windmill_service and/or enable_streaming_engine are present. It is recommended you only set enableStreamingEngine.");
           }
         }
       }
