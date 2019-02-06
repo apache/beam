@@ -34,5 +34,21 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
 builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
+    recordIssues {
+      tools {
+        errorProne()
+        java()
+        checkStyle {
+          pattern('**/build/reports/checkstyle/*.xml')
+        }
+        findBugs {
+          pattern('**/build/reports/findbugs/*.xml')
+        }
+      }
+      enabledForFailure(true)
+    }
+    jacocoCodeCoverage {
+      execPattern('**/build/jacoco/*.exec')
+    }
   }
 }

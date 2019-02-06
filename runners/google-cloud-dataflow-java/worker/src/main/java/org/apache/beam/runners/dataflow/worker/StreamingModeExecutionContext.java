@@ -38,12 +38,12 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StepContext;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -188,8 +188,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
   }
 
-  /** Implementation of ExecutionStateRegistry that creates Streaming versions of ExecutionState. */
-  public static class StreamingModeExecutionStateRegistry extends ExecutionStateRegistry {
+  /**
+   * Implementation of DataflowExecutionStateRegistry that creates Streaming versions of
+   * ExecutionState.
+   */
+  public static class StreamingModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
     private final StreamingDataflowWorker worker;
 
     public StreamingModeExecutionStateRegistry(StreamingDataflowWorker worker) {

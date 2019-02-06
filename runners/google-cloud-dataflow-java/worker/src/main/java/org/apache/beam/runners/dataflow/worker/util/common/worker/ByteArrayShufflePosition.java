@@ -38,11 +38,11 @@ public class ByteArrayShufflePosition implements Comparable<ShufflePosition>, Sh
     this.position = position;
   }
 
-  public static ByteArrayShufflePosition fromBase64(@Nullable String position) {
+  public static ByteArrayShufflePosition fromBase64(String position) {
     return ByteArrayShufflePosition.of(decodeBase64(position));
   }
 
-  public static ByteArrayShufflePosition of(@Nullable byte[] position) {
+  public static ByteArrayShufflePosition of(byte[] position) {
     if (position == null) {
       return null;
     }

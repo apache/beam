@@ -184,8 +184,9 @@ class Environment(object):
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
       # till version 2.4.
-      if ('use_multiple_sdk_containers' not in self.proto.experiments and
-          'no_use_multiple_sdk_containers' not in self.proto.experiments):
+      debug_options_experiments = self.debug_options.experiments
+      if ('use_multiple_sdk_containers' not in debug_options_experiments and
+          'no_use_multiple_sdk_containers' not in debug_options_experiments):
         self.debug_options.experiments.append('use_multiple_sdk_containers')
     # Experiments
     if self.debug_options.experiments:
@@ -512,7 +513,8 @@ class DataflowApplicationClient(object):
     if job_location:
       gcs_or_local_path = os.path.dirname(job_location)
       file_name = os.path.basename(job_location)
-      self.stage_file(gcs_or_local_path, file_name, io.BytesIO(job.json()))
+      self.stage_file(gcs_or_local_path, file_name,
+                      io.BytesIO(job.json().encode('utf-8')))
 
     if not template_location:
       return self.submit_job_description(job)
@@ -872,7 +874,12 @@ def get_default_container_image_for_current_sdk(job_type):
   if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
     image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python-fnapi'
   else:
-    image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python'
+    if sys.version_info[0] == 2:
+      image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python'
+    elif sys.version_info[0] == 3:
+      image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python3'
+    else:
+      raise Exception('Dataflow only supports Python versions 2 and 3.')
   image_tag = _get_required_container_version(job_type)
   return image_name + ':' + image_tag
 

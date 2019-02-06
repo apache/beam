@@ -18,10 +18,9 @@
 package org.apache.beam.runners.direct.portable.job;
 
 import com.google.auto.value.AutoValue;
-import java.nio.file.Path;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.direct.portable.artifact.LocalFileSystemArtifactStagerService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 
 /** A Job with a {@code prepare} call but no corresponding {@code run} call. */
@@ -35,9 +34,9 @@ abstract class PreparingJob implements AutoCloseable {
 
   abstract Struct getOptions();
 
-  abstract Path getStagingLocation();
+  abstract String getStagingSessionToken();
 
-  abstract GrpcFnServer<LocalFileSystemArtifactStagerService> getArtifactStagingServer();
+  abstract GrpcFnServer<BeamFileSystemArtifactStagingService> getArtifactStagingServer();
 
   @Override
   public void close() throws Exception {
@@ -50,10 +49,10 @@ abstract class PreparingJob implements AutoCloseable {
 
     abstract Builder setOptions(Struct options);
 
-    abstract Builder setStagingLocation(Path stagingLocation);
+    abstract Builder setStagingSessionToken(String stagingSessionToken);
 
     abstract Builder setArtifactStagingServer(
-        GrpcFnServer<LocalFileSystemArtifactStagerService> server);
+        GrpcFnServer<BeamFileSystemArtifactStagingService> server);
 
     abstract PreparingJob build();
   }

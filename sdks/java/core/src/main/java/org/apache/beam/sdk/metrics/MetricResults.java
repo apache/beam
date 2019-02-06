@@ -54,7 +54,7 @@ public abstract class MetricResults {
    *     .addNameFilter("my-counter")
    *     .addStepFilter("myStepName1").addStepFilter("myStepName2")
    *     .build());
-   * Iterable<MetricResult<Long>> counters = metricResults.counters();
+   * Iterable<MetricResult<Long>> counters = metricResults.getCounters();
    * // counters should contain the value of my-counter reported from each of the ParDo
    * // applications.
    * }</pre>

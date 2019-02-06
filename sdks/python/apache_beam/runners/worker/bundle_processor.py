@@ -31,6 +31,7 @@ from builtins import next
 from builtins import object
 
 from future.utils import itervalues
+from google import protobuf
 
 import apache_beam as beam
 from apache_beam import coders
@@ -43,6 +44,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners import common
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.worker import operation_specs
@@ -149,6 +151,10 @@ class _StateBackedIterable(object):
 
   def __reduce__(self):
     return list, (list(self),)
+
+
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
+    _StateBackedIterable)
 
 
 class StateBackedSideInputMap(object):
@@ -267,6 +273,9 @@ class _ConcatIterable(object):
       yield elem
     for elem in self.second:
       yield elem
+
+
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 
 
 # TODO(BEAM-5428): Implement cross-bundle state caching.
@@ -467,10 +476,12 @@ class BundleProcessor(object):
         expected_inputs.append(op)
 
     try:
+      execution_context = ExecutionContext()
       self.state_sampler.start()
       # Start all operations.
       for op in reversed(self.ops.values()):
         logging.debug('start %s', op)
+        op.execution_context = execution_context
         op.start()
 
       # Inject inputs from data plane.
@@ -492,8 +503,31 @@ class BundleProcessor(object):
       for op in self.ops.values():
         logging.debug('finish %s', op)
         op.finish()
+
+      return [
+          self.delayed_bundle_application(op, residual)
+          for op, residual in execution_context.delayed_applications]
+
     finally:
       self.state_sampler.stop_if_still_running()
+
+  def delayed_bundle_application(self, op, deferred_remainder):
+    ptransform_id, main_input_tag, main_input_coder, outputs = op.input_info
+    # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
+    element_and_restriction, watermark = deferred_remainder
+    if watermark:
+      proto_watermark = protobuf.Timestamp()
+      proto_watermark.FromMicroseconds(watermark.micros)
+      output_watermarks = {output: proto_watermark for output in outputs}
+    else:
+      output_watermarks = None
+    return beam_fn_api_pb2.DelayedBundleApplication(
+        application=beam_fn_api_pb2.BundleApplication(
+            ptransform_id=ptransform_id,
+            input_id=main_input_tag,
+            output_watermarks=output_watermarks,
+            element=main_input_coder.get_impl().encode_nested(
+                element_and_restriction)))
 
   def metrics(self):
     # DEPRECATED
@@ -546,6 +580,11 @@ class BundleProcessor(object):
     return monitoring_info
 
 
+class ExecutionContext(object):
+  def __init__(self):
+    self.delayed_applications = []
+
+
 class BeamTransformFactory(object):
   """Factory for turning transform_protos into executable operations."""
   def __init__(self, descriptor, data_channel_factory, counter_factory,
@@ -592,7 +631,7 @@ class BeamTransformFactory(object):
     else:
       # No URN, assume cloud object encoding json bytes.
       return operation_specs.get_coder_from_spec(
-          json.loads(coder_proto.spec.spec.payload))
+          json.loads(coder_proto.spec.spec.payload.decode('utf-8')))
 
   def get_windowed_coder(self, pcoll_id):
     coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
@@ -759,6 +798,70 @@ def create(factory, transform_id, transform_proto, serialized_fn, consumers):
 
 
 @BeamTransformFactory.register_urn(
+    common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
+    beam_runner_api_pb2.ParDoPayload)
+def create(*args):
+
+  class CreateRestriction(beam.DoFn):
+    def __init__(self, fn, restriction_provider):
+      self.restriction_provider = restriction_provider
+
+    # An unused window is requested to force explosion of multi-window
+    # WindowedValues.
+    def process(
+        self, element, _unused_window=beam.DoFn.WindowParam, *args, **kwargs):
+      # TODO(SDF): Do we want to allow mutation of the element?
+      # (E.g. it could be nice to shift bulky description to the portion
+      # that can be distributed.)
+      yield element, self.restriction_provider.initial_restriction(element)
+
+  return _create_sdf_operation(CreateRestriction, *args)
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.sdf_components.SPLIT_RESTRICTION.urn,
+    beam_runner_api_pb2.ParDoPayload)
+def create(*args):
+
+  class SplitRestriction(beam.DoFn):
+    def __init__(self, fn, restriction_provider):
+      self.restriction_provider = restriction_provider
+
+    def process(self, element_restriction, *args, **kwargs):
+      element, restriction = element_restriction
+      for part in self.restriction_provider.split(element, restriction):
+        yield element, part
+
+  return _create_sdf_operation(SplitRestriction, *args)
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.sdf_components.PROCESS_ELEMENTS.urn,
+    beam_runner_api_pb2.ParDoPayload)
+def create(factory, transform_id, transform_proto, parameter, consumers):
+  assert parameter.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
+  serialized_fn = parameter.do_fn.spec.payload
+  return _create_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      serialized_fn, parameter,
+      operation_cls=operations.SdfProcessElements)
+
+
+def _create_sdf_operation(
+    proxy_dofn,
+    factory, transform_id, transform_proto, parameter, consumers):
+
+  dofn_data = pickler.loads(parameter.do_fn.spec.payload)
+  dofn = dofn_data[0]
+  restriction_provider = common.DoFnSignature(dofn).get_restriction_provider()
+  serialized_fn = pickler.dumps(
+      (proxy_dofn(dofn, restriction_provider),) + dofn_data[1:])
+  return _create_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      serialized_fn, parameter)
+
+
+@BeamTransformFactory.register_urn(
     common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   assert parameter.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
@@ -770,7 +873,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 
 def _create_pardo_operation(
     factory, transform_id, transform_proto, consumers,
-    serialized_fn, pardo_proto=None):
+    serialized_fn, pardo_proto=None, operation_cls=operations.DoOperation):
 
   if pardo_proto and pardo_proto.side_inputs:
     input_tags_to_coders = factory.get_input_coders(transform_proto)
@@ -817,7 +920,8 @@ def _create_pardo_operation(
         factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
     serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))
 
-  if pardo_proto and (pardo_proto.timer_specs or pardo_proto.state_specs):
+  if pardo_proto and (pardo_proto.timer_specs or pardo_proto.state_specs
+                      or pardo_proto.splittable):
     main_input_coder = None
     timer_inputs = {}
     for tag, pcoll_id in transform_proto.inputs.items():
@@ -828,15 +932,19 @@ def _create_pardo_operation(
       else:
         # Must be the main input
         assert main_input_coder is None
+        main_input_tag = tag
         main_input_coder = factory.get_windowed_coder(pcoll_id)
     assert main_input_coder is not None
 
-    user_state_context = FnApiUserStateContext(
-        factory.state_handler,
-        transform_id,
-        main_input_coder.key_coder(),
-        main_input_coder.window_coder,
-        timer_specs=pardo_proto.timer_specs)
+    if pardo_proto.timer_specs or pardo_proto.state_specs:
+      user_state_context = FnApiUserStateContext(
+          factory.state_handler,
+          transform_id,
+          main_input_coder.key_coder(),
+          main_input_coder.window_coder,
+          timer_specs=pardo_proto.timer_specs)
+    else:
+      user_state_context = None
   else:
     user_state_context = None
     timer_inputs = None
@@ -849,8 +957,8 @@ def _create_pardo_operation(
       side_inputs=None,  # Fn API uses proto definitions and the Fn State API
       output_coders=[output_coders[tag] for tag in output_tags])
 
-  return factory.augment_oldstyle_op(
-      operations.DoOperation(
+  result = factory.augment_oldstyle_op(
+      operation_cls(
           transform_proto.unique_name,
           spec,
           factory.counter_factory,
@@ -861,6 +969,11 @@ def _create_pardo_operation(
       transform_proto.unique_name,
       consumers,
       output_tags)
+  if pardo_proto and pardo_proto.splittable:
+    result.input_info = (
+        transform_id, main_input_tag, main_input_coder,
+        transform_proto.outputs.keys())
+  return result
 
 
 def _create_simple_pardo_operation(

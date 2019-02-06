@@ -24,6 +24,7 @@ from __future__ import absolute_import
 
 import collections
 import logging
+import sys
 from builtins import filter
 from builtins import object
 from builtins import zip
@@ -128,6 +129,7 @@ class Operation(object):
 
     self.spec = spec
     self.counter_factory = counter_factory
+    self.execution_context = None
     self.consumers = collections.defaultdict(list)
 
     # These are overwritten in the legacy harness.
@@ -495,7 +497,10 @@ class DoOperation(Operation):
 
   def process(self, o):
     with self.scoped_process_state:
-      self.dofn_receiver.receive(o)
+      delayed_application = self.dofn_receiver.receive(o)
+      if delayed_application:
+        self.execution_context.delayed_applications.append(
+            (self, delayed_application))
 
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value
@@ -537,6 +542,16 @@ class DoOperation(Operation):
         )
         infos[monitoring_infos.to_key(mi)] = mi
     return infos
+
+
+class SdfProcessElements(DoOperation):
+
+  def process(self, o):
+    with self.scoped_process_state:
+      delayed_application = self.dofn_runner.process_with_restriction(o)
+      if delayed_application:
+        self.execution_context.delayed_applications.append(
+            (self, delayed_application))
 
 
 class DoFnRunnerReceiver(Receiver):
@@ -611,7 +626,7 @@ class PGBKOperation(Operation):
 
   def flush(self, target):
     limit = self.size - target
-    for ix, (kw, vs) in enumerate(self.table.items()):
+    for ix, (kw, vs) in enumerate(list(self.table.items())):
       if ix >= limit:
         break
       del self.table[kw]
@@ -634,6 +649,13 @@ class PGBKCVOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
     self.combine_fn_add_input = self.combine_fn.add_input
+    base_compact = (
+        core.CombineFn.compact if sys.version_info >= (3,)
+        else core.CombineFn.compact.__func__)
+    if self.combine_fn.compact.__func__ is base_compact:
+      self.combine_fn_compact = None
+    else:
+      self.combine_fn_compact = self.combine_fn.compact
     # Optimization for the (known tiny accumulator, often wide keyspace)
     # combine functions.
     # TODO(b/36567833): Bound by in-memory size rather than key count.
@@ -682,8 +704,12 @@ class PGBKCVOperation(Operation):
     self.table = {}
     self.key_count = 0
 
-  def output_key(self, wkey, value):
+  def output_key(self, wkey, accumulator):
     windows, key = wkey
+    if self.combine_fn_compact is None:
+      value = accumulator
+    else:
+      value = self.combine_fn_compact(accumulator)
     if windows is 0:
       self.output(_globally_windowed_value.with_value((key, value)))
     else:

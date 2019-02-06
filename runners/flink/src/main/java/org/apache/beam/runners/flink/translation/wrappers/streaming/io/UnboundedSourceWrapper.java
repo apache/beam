@@ -26,6 +26,7 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -195,7 +196,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
     LOG.info(
         "Unbounded Flink Source {}/{} is reading from sources: {}",
-        subtaskIndex,
+        subtaskIndex + 1,
         numSubtasks,
         localSplitSources);
   }
@@ -333,11 +334,15 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   @Override
   public void close() throws Exception {
-    super.close();
-    if (localReaders != null) {
-      for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
-        reader.close();
+    try {
+      super.close();
+      if (localReaders != null) {
+        for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
+          reader.close();
+        }
       }
+    } finally {
+      FlinkClassloading.deleteStaticCaches();
     }
   }
 
@@ -416,9 +421,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
     if (context.isRestored()) {
       isRestored = true;
-      LOG.info("Having restore state in the UnbounedSourceWrapper.");
+      LOG.info("Restoring state in the UnboundedSourceWrapper.");
     } else {
-      LOG.info("No restore state for UnbounedSourceWrapper.");
+      LOG.info("No restore state for UnboundedSourceWrapper.");
     }
   }
 

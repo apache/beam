@@ -98,7 +98,7 @@ class DataflowMetrics extends MetricResults {
       jobMetrics = getJobMetrics();
     } catch (IOException e) {
       LOG.warn("Unable to query job metrics.\n");
-      return DataflowMetricQueryResults.create(counters, distributions, gauges);
+      return MetricQueryResults.create(counters, distributions, gauges);
     }
     metricUpdates = firstNonNull(jobMetrics.getMetrics(), Collections.<MetricUpdate>emptyList());
     return populateMetricQueryResults(metricUpdates, filter);
@@ -322,21 +322,10 @@ class DataflowMetrics extends MetricResults {
         extractor.addMetricResult(
             metricKey, committedByName.get(metricKey), tentativeByName.get(metricKey));
       }
-      return DataflowMetricQueryResults.create(
+      return MetricQueryResults.create(
           extractor.getCounterResults(),
           extractor.getDistributionResults(),
           extractor.getGaugeResults());
-    }
-  }
-
-  @AutoValue
-  abstract static class DataflowMetricQueryResults implements MetricQueryResults {
-    public static MetricQueryResults create(
-        Iterable<MetricResult<Long>> counters,
-        Iterable<MetricResult<DistributionResult>> distributions,
-        Iterable<MetricResult<GaugeResult>> gauges) {
-      return new AutoValue_DataflowMetrics_DataflowMetricQueryResults(
-          counters, distributions, gauges);
     }
   }
 

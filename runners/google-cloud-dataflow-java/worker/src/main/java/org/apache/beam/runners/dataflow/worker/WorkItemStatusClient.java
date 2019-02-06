@@ -29,20 +29,22 @@ import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingHandler;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
@@ -57,6 +59,8 @@ import org.slf4j.LoggerFactory;
  * Wrapper around {@link WorkUnitClient} with methods for creating and sending work item status
  * updates.
  */
+// Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6565
+@SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 public class WorkItemStatusClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(WorkItemStatusClient.class);
@@ -100,8 +104,9 @@ public class WorkItemStatusClient {
    */
   public synchronized void setWorker(
       DataflowWorkExecutor worker, BatchModeExecutionContext executionContext) {
+    checkArgument(worker != null, "worker must be non-null");
     checkState(this.worker == null, "Can only call setWorker once");
-    this.worker = checkNotNull(worker, "worker must be non-null");
+    this.worker = worker;
     this.executionContext = executionContext;
   }
 
@@ -261,32 +266,46 @@ public class WorkItemStatusClient {
       populateCounterUpdates(status);
     }
 
-    Double throttleTime = extractThrottleTime().doubleValue();
+    double throttleTime = extractThrottleTime();
     status.setTotalThrottlerWaitTimeSeconds(throttleTime);
     return status;
   }
 
-  // todo(migryz) this method should return List<CounterUpdate> instead of updating member variable
   @VisibleForTesting
   synchronized void populateCounterUpdates(WorkItemStatus status) {
     if (worker == null) {
       return;
     }
 
+    // Checking against boolean, because getCompleted can return null
     boolean isFinalUpdate = Boolean.TRUE.equals(status.getCompleted());
 
-    ImmutableList.Builder<CounterUpdate> counterUpdatesListBuilder = ImmutableList.builder();
-    // Output counters
-    counterUpdatesListBuilder.addAll(extractCounters(worker.getOutputCounters()));
-    // User metrics reported in Worker
-    counterUpdatesListBuilder.addAll(extractMetrics(isFinalUpdate));
-    // MSec counters reported in worker
-    counterUpdatesListBuilder.addAll(extractMsecCounters(isFinalUpdate));
-    // Metrics reported in SDK runner.
-    counterUpdatesListBuilder.addAll(worker.extractMetricUpdates());
+    Map<Object, CounterUpdate> counterUpdatesMap = new HashMap<>();
 
-    ImmutableList<CounterUpdate> counterUpdates = counterUpdatesListBuilder.build();
-    status.setCounterUpdates(counterUpdates);
+    final Consumer<CounterUpdate> appendCounterUpdate =
+        x ->
+            counterUpdatesMap.put(
+                x.getStructuredNameAndMetadata() == null
+                    ? x.getNameAndKind()
+                    : x.getStructuredNameAndMetadata(),
+                x);
+
+    // Output counters
+    extractCounters(worker.getOutputCounters()).forEach(appendCounterUpdate);
+
+    // User metrics reported in Worker
+    extractMetrics(isFinalUpdate).forEach(appendCounterUpdate);
+
+    // MSec counters reported in worker
+    extractMsecCounters(isFinalUpdate).forEach(appendCounterUpdate);
+
+    // Metrics reported in SDK runner.
+    // This includes all different kinds of metrics coming from SDK.
+    // Keep in mind that these metrics might contain different types of counter names:
+    // i.e. structuredNameAndMetadata and nameAndKind
+    worker.extractMetricUpdates().forEach(appendCounterUpdate);
+
+    status.setCounterUpdates(ImmutableList.copyOf(counterUpdatesMap.values()));
   }
 
   private synchronized Iterable<CounterUpdate> extractCounters(@Nullable CounterSet counters) {
@@ -321,7 +340,7 @@ public class WorkItemStatusClient {
         : executionContext.extractMsecCounters(isFinalUpdate);
   }
 
-  public Long extractThrottleTime() {
+  public long extractThrottleTime() {
     return executionContext == null ? 0L : executionContext.extractThrottleTime();
   }
 

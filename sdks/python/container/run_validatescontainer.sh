@@ -49,7 +49,7 @@ gcloud -v
 TAG=$(date +%Y%m%d-%H%M%S)
 CONTAINER=us.gcr.io/$PROJECT/$USER/python
 echo "Using container $CONTAINER"
-./gradlew :beam-sdks-python-container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
+./gradlew :beam-sdks-python-container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG --info
 
 # Verify it exists
 docker images | grep $TAG

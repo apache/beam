@@ -36,6 +36,7 @@ FlatMap processing functions.
 
 from __future__ import absolute_import
 
+import contextlib
 import copy
 import itertools
 import operator
@@ -228,6 +229,23 @@ def get_nested_pvalues(pvalueish):
   pvalues = []
   _GetPValues().visit(pvalueish, pvalues)
   return pvalues
+
+
+def get_nested_pvalues0(pvalueish):
+  if isinstance(pvalueish, (tuple, list)):
+    tagged_values = enumerate(pvalueish)
+  if isinstance(pvalueish, dict):
+    tagged_values = pvalueish.items()
+  else:
+    yield None, pvalueish
+    return
+
+  for tag, subvalue in tagged_values:
+    for subtag, subsubvalue in get_nested_pvalues(subvalue):
+      if subtag is None:
+        yield tag, subsubvalue
+      else:
+        yield '%s.%s' % (tag, subsubvalue), subsubvalue
 
 
 class _ZipPValues(object):
@@ -526,13 +544,37 @@ class PTransform(WithTypeHints, HasDisplayData):
         yield pvalueish
     return pvalueish, tuple(_dict_tuple_leaves(pvalueish))
 
+  def _pvaluish_from_dict(self, input_dict):
+    if len(input_dict) == 1:
+      return next(iter(input_dict.values()))
+    else:
+      return input_dict
+
   _known_urns = {}
 
   @classmethod
   def register_urn(cls, urn, parameter_type, constructor=None):
     def register(constructor):
-      cls._known_urns[urn] = parameter_type, constructor
-      return staticmethod(constructor)
+      if isinstance(constructor, type):
+        constructor.from_runner_api_parameter = register(
+            constructor.from_runner_api_parameter)
+        # pylint isn't smart enough to recognize when this is used
+        # on a class or a method, and will emit a no-self-warning
+        # in the latter case.  Rather than suppressing this at each
+        # use, we fool it here through some dynamic patching that
+        # pylint will also not understand.
+
+        @contextlib.contextmanager
+        def fake_static_method():
+          actual_static_method = staticmethod
+          globals()['staticmethod'] = lambda x: x
+          yield
+          globals()['staticmethod'] = actual_static_method
+        with fake_static_method():
+          return staticmethod(constructor)
+      else:
+        cls._known_urns[urn] = parameter_type, constructor
+        return staticmethod(constructor)
     if constructor:
       # Used as a statement.
       register(constructor)
@@ -624,7 +666,7 @@ class PTransformWithSideInputs(PTransform):
     if isinstance(fn, type) and issubclass(fn, WithTypeHints):
       # Don't treat Fn class objects as callables.
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
-    self.fn = self.make_fn(fn)
+    self.fn = self.make_fn(fn, bool(args or kwargs))
     # Now that we figure out the label, initialize the super-class.
     super(PTransformWithSideInputs, self).__init__()
 
@@ -720,7 +762,7 @@ class PTransformWithSideInputs(PTransform):
     """
     raise NotImplementedError
 
-  def make_fn(self, fn):
+  def make_fn(self, fn, has_side_inputs):
     # TODO(silviuc): Add comment describing that this is meant to be overriden
     # by methods detecting callables and wrapping them in DoFns.
     return fn

@@ -30,10 +30,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
+import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Timestamp;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 import org.junit.After;
@@ -162,14 +163,7 @@ public class DataflowWorkerLoggingHandlerTest {
 
   @Test
   public void testWithAllValuesInMDC() throws IOException {
-    ExecutionState state =
-        new ExecutionState(nameContextForTest(), "activity") {
-          @Override
-          public void takeSample(long millisSinceLastSample) {}
-
-          @Override
-          public void reportLull(Thread trackedThread, long millis) {}
-        };
+    DataflowExecutionState state = new TestDataflowExecutionState(nameContextForTest(), "activity");
     tracker.enterState(state);
 
     String testJobId = "testJobId";

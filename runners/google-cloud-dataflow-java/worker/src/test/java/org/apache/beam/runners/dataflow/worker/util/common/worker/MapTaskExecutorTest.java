@@ -42,13 +42,15 @@ import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowElementExecutionTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.TestOperationContext;
-import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestExecutionState;
+import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
@@ -221,7 +223,7 @@ public class MapTaskExecutorTest {
     DataflowExecutionStateTracker stateTracker =
         new DataflowExecutionStateTracker(
             stateSampler,
-            new TestExecutionState(
+            new TestDataflowExecutionState(
                 NameContext.forStage("test-stage"),
                 "other",
                 null /* requestingStepName */,
@@ -276,7 +278,7 @@ public class MapTaskExecutorTest {
     ExecutionStateTracker stateTracker =
         new DataflowExecutionStateTracker(
             ExecutionStateSampler.newForTest(),
-            new TestExecutionState(
+            new TestDataflowExecutionState(
                 NameContext.forStage("testStage"),
                 "other",
                 null /* requestingStepName */,

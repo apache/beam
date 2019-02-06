@@ -24,6 +24,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.DescribePipelineOptionsRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.DescribePipelineOptionsResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
@@ -40,6 +42,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.fn.function.ThrowingConsumer;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusException;
@@ -166,7 +169,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       try {
         PipelineValidator.validate(preparation.pipeline());
       } catch (Exception e) {
+        LOG.warn("Encountered Unexpected Exception during validation", e);
         responseObserver.onError(new StatusRuntimeException(Status.INVALID_ARGUMENT.withCause(e)));
+        return;
       }
 
       // create new invocation
@@ -255,11 +260,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     String invocationId = request.getJobId();
     try {
       JobInvocation invocation = getInvocation(invocationId);
-      Function<JobState.Enum, GetJobStateResponse> responseFunction =
-          state -> GetJobStateResponse.newBuilder().setState(state).build();
       Consumer<JobState.Enum> stateListener =
           state -> {
-            responseObserver.onNext(responseFunction.apply(state));
+            responseObserver.onNext(GetJobStateResponse.newBuilder().setState(state).build());
             if (JobInvocation.isTerminated(state)) {
               responseObserver.onCompleted();
             }
@@ -304,6 +307,25 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       String errMessage =
           String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
       LOG.error(errMessage, e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+  }
+
+  @Override
+  public void describePipelineOptions(
+      DescribePipelineOptionsRequest request,
+      StreamObserver<DescribePipelineOptionsResponse> responseObserver) {
+    LOG.trace("{} {}", DescribePipelineOptionsRequest.class.getSimpleName(), request);
+    try {
+      DescribePipelineOptionsResponse response =
+          DescribePipelineOptionsResponse.newBuilder()
+              .addAllOptions(
+                  PipelineOptionsFactory.describe(PipelineOptionsFactory.getRegisteredOptions()))
+              .build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      LOG.error("Error describing pipeline options", e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }

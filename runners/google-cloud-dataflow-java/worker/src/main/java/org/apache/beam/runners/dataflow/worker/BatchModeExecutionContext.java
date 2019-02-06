@@ -29,6 +29,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.CounterCell;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -36,7 +37,6 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -74,7 +74,7 @@ public class BatchModeExecutionContext
       ReaderFactory readerFactory,
       PipelineOptions options,
       DataflowExecutionStateTracker executionStateTracker,
-      ExecutionStateRegistry executionStateRegistry) {
+      DataflowExecutionStateRegistry executionStateRegistry) {
     super(
         counterFactory,
         createMetricsContainerRegistry(),
@@ -192,9 +192,11 @@ public class BatchModeExecutionContext
     }
   }
 
-  /** {@link ExecutionStateRegistry} that creates {@link BatchModeExecutionState} instances. */
+  /**
+   * {@link DataflowExecutionStateRegistry} that creates {@link BatchModeExecutionState} instances.
+   */
   @VisibleForTesting
-  public static class BatchModeExecutionStateRegistry extends ExecutionStateRegistry {
+  public static class BatchModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
 
     @Override
     protected DataflowOperationContext.DataflowExecutionState createState(

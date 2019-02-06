@@ -17,21 +17,24 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+// Do not relocate guava to avoid issues with Cassandra's version.
+applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+  dependencies {
+    exclude(dependency(project.library.java.guava))
+  }
+})
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Cassandra"
 ext.summary = "IO to read and write with Apache Cassandra database"
 
-def cassandra_version = "3.5.0"
-
 dependencies {
   shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
-  shadow "com.datastax.cassandra:cassandra-driver-core:$cassandra_version"
-  shadow "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_version"
+  shadow library.java.cassandra_driver_core
+  shadow library.java.cassandra_driver_mapping
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
   testCompile library.java.junit

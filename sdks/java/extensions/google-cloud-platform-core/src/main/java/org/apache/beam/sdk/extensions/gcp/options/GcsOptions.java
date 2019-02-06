@@ -52,14 +52,14 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   /**
    * The ExecutorService instance to use to create threads, can be overridden to specify an
-   * ExecutorService that is compatible with the users environment. If unset, the default is to
+   * ExecutorService that is compatible with the user's environment. If unset, the default is to
    * create an ExecutorService with an unbounded number of threads; this is compatible with Google
    * AppEngine.
    */
   @JsonIgnore
   @Description(
       "The ExecutorService instance to use to create multiple threads. Can be overridden "
-          + "to specify an ExecutorService that is compatible with the users environment. If unset, "
+          + "to specify an ExecutorService that is compatible with the user's environment. If unset, "
           + "the default is to create an ExecutorService with an unbounded number of threads; this "
           + "is compatible with Google AppEngine.")
   @Default.InstanceFactory(ExecutorServiceFactory.class)

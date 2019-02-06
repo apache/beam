@@ -70,7 +70,7 @@ public class MetricsPusher implements Serializable {
                   .setDaemon(true)
                   .setNameFormat("MetricsPusher-thread")
                   .build());
-      scheduledFuture = scheduler.scheduleAtFixedRate(() -> run(), 0, period, TimeUnit.SECONDS);
+      scheduledFuture = scheduler.scheduleAtFixedRate(this::run, 0, period, TimeUnit.SECONDS);
     }
   }
 

@@ -82,7 +82,7 @@ import org.apache.beam.sdk.values.PCollectionViews;
  *
  * <pre>{@code
  * PCollectionView<Map<K, Iterable<V>> output =
- *     somePCollection.apply(View.<K, Iterable<V>>asMap());
+ *     somePCollection.apply(View.<K, Iterable<V>>asMultimap());
  * }</pre>
  *
  * <p>To iterate over an entire window of a {@link PCollection} via side input, use {@link

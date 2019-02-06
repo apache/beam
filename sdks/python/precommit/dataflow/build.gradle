@@ -19,6 +19,8 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
+def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
+
 task precommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   doLast {
     // Basic integration tests to run in PreCommit
@@ -35,7 +37,7 @@ task precommitIT(dependsOn: ['sdist', 'installGcpTest']) {
 
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${project.ext.pythonRootDir}/scripts/run_integration_test.sh --test_opts \"${testOpts.join(' ')}\""
+      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh --test_opts \"${testOpts.join(' ')}\""
     }
   }
 }

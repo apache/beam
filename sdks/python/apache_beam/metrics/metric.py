@@ -150,17 +150,25 @@ class MetricResults(object):
     return False
 
   @staticmethod
-  def _matches_sub_path(actual_scope, filter_scope):
-    start_pos = actual_scope.find(filter_scope)
-    end_pos = start_pos + len(filter_scope)
+  def _is_sub_list(needle, haystack):
+    """True iff `needle` is a sub-list of `haystack` (i.e. a contiguous slice
+    of `haystack` exactly matches `needle`"""
+    needle_len = len(needle)
+    haystack_len = len(haystack)
+    for i in range(0, haystack_len - needle_len + 1):
+      if haystack[i:i+needle_len] == needle:
+        return True
 
-    if start_pos == -1:
-      return False  # No match at all
-    elif start_pos != 0 and actual_scope[start_pos - 1] != '/':
-      return False  # The first entry was not exactly matched
-    elif end_pos != len(actual_scope) and actual_scope[end_pos] != '/':
-      return False  # The last entry was not exactly matched
-    return True
+    return False
+
+  @staticmethod
+  def _matches_sub_path(actual_scope, filter_scope):
+    """True iff the '/'-delimited pieces of filter_scope exist as a sub-list
+    of the '/'-delimited pieces of actual_scope"""
+    return MetricResults._is_sub_list(
+        filter_scope.split('/'),
+        actual_scope.split('/')
+    )
 
   @staticmethod
   def _matches_scope(filter, metric_key):

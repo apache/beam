@@ -29,6 +29,7 @@ func TestTop_Sort(t *testing.T) {
 		Emitters:  []Emitter{{Name: "z"}, {Name: "a"}, {Name: "r"}},
 		Inputs:    []Input{{Name: "z"}, {Name: "a"}, {Name: "r"}},
 		Shims:     []Func{{Name: "z"}, {Name: "a"}, {Name: "r"}},
+		Wraps:     []Wrap{{Name: "z"}, {Name: "a", Methods: []Func{{Name: "z"}, {Name: "a"}, {Name: "r"}}}, {Name: "r"}},
 	}
 
 	top.sort()
@@ -49,6 +50,14 @@ func TestTop_Sort(t *testing.T) {
 	}
 	if !sort.SliceIsSorted(top.Shims, func(i, j int) bool { return top.Shims[i].Name < top.Shims[j].Name }) {
 		t.Errorf("top.Shims not sorted: got %v, want it sorted", top.Shims)
+	}
+	if !sort.SliceIsSorted(top.Wraps, func(i, j int) bool { return top.Wraps[i].Name < top.Wraps[j].Name }) {
+		t.Errorf("top.Wraps not sorted: got %v, want it sorted", top.Wraps)
+	}
+	for i, w := range top.Wraps {
+		if !sort.SliceIsSorted(w.Methods, func(i, j int) bool { return w.Methods[i].Name < w.Methods[j].Name }) {
+			t.Errorf("top.Wraps[%d] not sorted: got %v, want it sorted", i, w.Methods)
+		}
 	}
 }
 
@@ -89,9 +98,16 @@ func TestName(t *testing.T) {
 	}{
 		{"int", "Int"},
 		{"foo.MyInt", "Foo۰MyInt"},
-		{"[]beam.X", "Typex۰XSlice"},
-		{"map[int]beam.X", "Map_int_typex۰X"},
-		{"map[string]*beam.X", "Map_string_Ꮨtypex۰X"},
+		{"*foo.MyInt", "ᏘFoo۰MyInt"},
+		{"[]beam.X", "SliceOfTypex۰X"},
+		{"[4]beam.X", "ArrayOf4Typex۰X"},
+		{"[53][]beam.X", "ArrayOf53SliceOfTypex۰X"},
+		{"[][123]beam.X", "SliceOfArrayOf123Typex۰X"},
+		{"[][123]*beam.X", "SliceOfArrayOf123ᏘTypex۰X"},
+		{"*[][123]beam.X", "ᏘSliceOfArrayOf123Typex۰X"},
+		{"*[][123]*beam.X", "ᏘSliceOfArrayOf123ᏘTypex۰X"},
+		{"map[int]beam.X", "MapOfInt_Typex۰X"},
+		{"map[string]*beam.X", "MapOfString_ᏘTypex۰X"},
 	}
 	for _, test := range tests {
 		if got := Name(test.have); got != test.want {

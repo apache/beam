@@ -20,25 +20,7 @@ import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 
-def testsConfigurations = [
-        [
-                jobName           : 'beam_Java_LoadTests_GroupByKey_Direct_Small',
-                jobDescription    : 'Runs GroupByKey load tests on direct runner small records 10b',
-                itClass           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                prCommitStatusName: 'Java GroupByKey Small Java Load Test Direct',
-                prTriggerPhrase   : 'Run GroupByKey Small Java Load Test Direct',
-                runner            : CommonTestProperties.Runner.DIRECT,
-                jobProperties     : [
-                        publishToBigQuery: true,
-                        bigQueryDataset  : 'load_test_PRs',
-                        bigQueryTable    : 'direct_gbk_small',
-                        sourceOptions    : '{"numRecords":1000000000,"splitPointFrequencyRecords":1,"keySizeBytes":1,"valueSizeBytes":9,"numHotKeys":0,"hotKeyFraction":0,"seed":123456,"bundleSizeDistribution":{"type":"const","const":42},"forceNumInitialBundles":100,"progressShape":"LINEAR","initializeDelayDistribution":{"type":"const","const":42}}',
-                        stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true,"perBundleDelay":10000,"perBundleDelayType":"MIXED","cpuUtilizationInMixedDelay":0.5}',
-                        fanout           : 10,
-                        iterations       : 1,
-                ]
-
-        ],
+def loadTestConfigurations = [
         [
                 jobName           : 'beam_Java_LoadTests_GroupByKey_Dataflow_Small',
                 jobDescription    : 'Runs GroupByKey load tests on Dataflow runner small records 10b',
@@ -47,6 +29,8 @@ def testsConfigurations = [
                 prTriggerPhrase   : 'Run GroupByKey Small Java Load Test Dataflow',
                 runner            : CommonTestProperties.Runner.DATAFLOW,
                 jobProperties     : [
+                        project             : 'apache-beam-testing',
+                        tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publishToBigQuery   : true,
                         bigQueryDataset     : 'load_test_PRs',
                         bigQueryTable       : 'dataflow_gbk_small',
@@ -54,13 +38,13 @@ def testsConfigurations = [
                         stepOptions         : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true,"perBundleDelay":10000,"perBundleDelayType":"MIXED","cpuUtilizationInMixedDelay":0.5}',
                         fanout              : 10,
                         iterations          : 1,
-                        maxNumWorkers       : 10,
+                        maxNumWorkers       : 32,
                 ]
 
         ],
 ]
 
-for (testConfiguration in testsConfigurations) {
+for (testConfiguration in loadTestConfigurations) {
     PhraseTriggeringPostCommitBuilder.postCommitJob(
             testConfiguration.jobName,
             testConfiguration.prTriggerPhrase,
@@ -68,7 +52,83 @@ for (testConfiguration in testsConfigurations) {
             this
     ) {
         description(testConfiguration.jobDescription)
-        commonJobProperties.setTopLevelMainJobProperties(delegate)
-        loadTestsBuilder.buildTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
+        commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+        loadTestsBuilder.loadTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
+    }
+}
+
+def smokeTestConfigurations = [
+        [
+                title        : 'GroupByKey load test Direct',
+                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                runner       : CommonTestProperties.Runner.DIRECT,
+                jobProperties: [
+                        publishToBigQuery: true,
+                        bigQueryDataset  : 'load_test_SMOKE',
+                        bigQueryTable    : 'direct_gbk',
+                        sourceOptions    : '{"numRecords":100000,"splitPointFrequencyRecords":1}',
+                        stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true}',
+                        fanout           : 10,
+                        iterations       : 1,
+                ]
+        ],
+        [
+                title        : 'GroupByKey load test Dataflow',
+                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                runner       : CommonTestProperties.Runner.DATAFLOW,
+                jobProperties: [
+                        project          : 'apache-beam-testing',
+                        tempLocation     : 'gs://temp-storage-for-perf-tests/smoketests',
+                        publishToBigQuery: true,
+                        bigQueryDataset  : 'load_test_SMOKE',
+                        bigQueryTable    : 'dataflow_gbk',
+                        sourceOptions    : '{"numRecords":100000,"splitPointFrequencyRecords":1}',
+                        stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true}',
+                        fanout           : 10,
+                        iterations       : 1,
+                ]
+        ],
+        [
+                title        : 'GroupByKey load test Flink',
+                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                runner       : CommonTestProperties.Runner.FLINK,
+                jobProperties: [
+                        publishToBigQuery: true,
+                        bigQueryDataset  : 'load_test_SMOKE',
+                        bigQueryTable    : 'flink_gbk',
+                        sourceOptions    : '{"numRecords":100000,"splitPointFrequencyRecords":1}',
+                        stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true}',
+                        fanout           : 10,
+                        iterations       : 1,
+                ]
+        ],
+        [
+                title        : 'GroupByKey load test Spark',
+                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                runner       : CommonTestProperties.Runner.SPARK,
+                jobProperties: [
+                        sparkMaster      : 'local[4]',
+                        publishToBigQuery: true,
+                        bigQueryDataset  : 'load_test_SMOKE',
+                        bigQueryTable    : 'spark_gbk',
+                        sourceOptions    : '{"numRecords":100000,"splitPointFrequencyRecords":1}',
+                        stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true}',
+                        fanout           : 10,
+                        iterations       : 1,
+                ]
+        ]
+]
+
+PhraseTriggeringPostCommitBuilder.postCommitJob(
+        'beam_Java_LoadTests_Smoke',
+        'Run Java Load Tests Smoke',
+        'Java Load Tests Smoke',
+        this
+) {
+    description("Runs load tests in \"smoke\" mode to check if everything works well")
+    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+
+    for (testConfiguration in smokeTestConfigurations) {
+      loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
     }
 }

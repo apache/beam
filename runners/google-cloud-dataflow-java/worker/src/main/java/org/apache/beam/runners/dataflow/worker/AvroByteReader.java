@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.ApproximateSplitRequest;
@@ -58,17 +58,20 @@ public class AvroByteReader<T> extends NativeReader<T> {
   final Coder<T> coder;
   private final Schema schema = Schema.create(Schema.Type.BYTES);
 
-  public AvroByteReader(
+  AvroByteReader(
       String filename,
       long startPosition,
       long endPosition,
       Coder<T> coder,
       PipelineOptions options) {
-    this.filename = checkNotNull(filename, "filename");
+    checkArgument(filename != null, "filename must not be null");
+    checkArgument(coder != null, "coder must not be null");
+    checkArgument(options != null, "options must not be null");
+    this.filename = filename;
     this.startPosition = startPosition;
     this.endPosition = endPosition;
-    this.coder = checkNotNull(coder, "coder");
-    this.options = checkNotNull(options, "options");
+    this.coder = coder;
+    this.options = options;
     this.avroSource =
         (AvroSource<ByteBuffer>) ((AvroSource) AvroSource.from(filename).withSchema(schema));
   }

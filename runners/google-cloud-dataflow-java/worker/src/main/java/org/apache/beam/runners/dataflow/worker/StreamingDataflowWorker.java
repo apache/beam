@@ -30,6 +30,7 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -62,6 +63,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -103,8 +106,6 @@ import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -163,6 +164,8 @@ public class StreamingDataflowWorker {
    */
   private static final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToBaseNetwork =
       new MapTaskToNetworkFunction(idGenerator);
+
+  private static Random clientIdGenerator = new Random();
 
   // Maximum number of threads for processing.  Currently each thread processes one key at a time.
   static final int MAX_PROCESSING_THREADS = 300;
@@ -398,8 +401,6 @@ public class StreamingDataflowWorker {
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
 
-  private final boolean useStreamingRpcs;
-
   private final WorkerStatusPages statusPages;
   // Periodic sender of debug information to the debug capture service.
   private DebugCapture.Manager debugCaptureManager = null;
@@ -585,7 +586,7 @@ public class StreamingDataflowWorker {
               @Override
               public void run() {
                 LOG.info("Dispatch starting");
-                if (useStreamingRpcs) {
+                if (windmillServiceEnabled) {
                   streamingDispatchLoop();
                 } else {
                   dispatchLoop();
@@ -601,7 +602,7 @@ public class StreamingDataflowWorker {
             new Runnable() {
               @Override
               public void run() {
-                if (useStreamingRpcs) {
+                if (windmillServiceEnabled) {
                   streamingCommitLoop();
                 } else {
                   commitLoop();
@@ -611,13 +612,13 @@ public class StreamingDataflowWorker {
     commitThread.setPriority(Thread.MAX_PRIORITY);
     commitThread.setName("CommitThread");
 
-    this.useStreamingRpcs = options.getWindmillServiceUseStreamingRpcs();
     this.publishCounters = publishCounters;
     this.windmillServer = options.getWindmillServerStub();
     this.metricTrackingWindmillServer =
-        new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, useStreamingRpcs);
+        new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, windmillServiceEnabled);
+    this.metricTrackingWindmillServer.start();
     this.stateFetcher = new StateFetcher(metricTrackingWindmillServer);
-    this.clientId = new Random().nextLong();
+    this.clientId = clientIdGenerator.nextLong();
 
     for (MapTask mapTask : mapTasks) {
       addComputation(mapTask.getSystemName(), mapTask);
@@ -660,7 +661,6 @@ public class StreamingDataflowWorker {
     }
 
     LOG.debug("windmillServiceEnabled: {}", windmillServiceEnabled);
-    LOG.debug("useStreamingRpcs: {}", useStreamingRpcs);
     LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());
     LOG.debug("WindmillServicePort: {}", options.getWindmillServicePort());
     LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
@@ -812,6 +812,7 @@ public class StreamingDataflowWorker {
         debugCaptureManager.stop();
       }
       running.set(false);
+      dispatchThread.interrupt();
       dispatchThread.join();
       // We need to interrupt the commitThread in case it is blocking on pulling
       // from the commitQueue.
@@ -832,6 +833,13 @@ public class StreamingDataflowWorker {
     } catch (Exception e) {
       LOG.warn("Exception while shutting down: ", e);
     }
+    setIsDone();
+  }
+
+  // null is the only value of type Void, but findbugs thinks
+  // it violates the contract of CompletableFuture.complete
+  @SuppressFBWarnings("NP_NONNULL_PARAM_VIOLATION")
+  private void setIsDone() {
     isDoneFuture.complete(null);
   }
 
@@ -948,7 +956,7 @@ public class StreamingDataflowWorker {
 
   private void scheduleWorkItem(
       final ComputationState computationState,
-      @Nullable final Instant inputDataWatermark,
+      final Instant inputDataWatermark,
       final Instant synchronizedProcessingTime,
       final Windmill.WorkItem workItem) {
     Preconditions.checkNotNull(inputDataWatermark);
@@ -1391,7 +1399,7 @@ public class StreamingDataflowWorker {
       // Batch commits as long as there are more and we can fit them in the current request.
       CommitWorkStream commitStream = streamPool.getStream();
       int commits = 0;
-      while (true) {
+      while (running.get()) {
         // There may be a commit left over from the previous iteration but if not, pull one.
         if (commit == null) {
           try {

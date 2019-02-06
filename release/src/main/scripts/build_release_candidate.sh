@@ -27,6 +27,7 @@ set -e
 LOCAL_CLONE_DIR=build_release_candidate
 LOCAL_JAVA_STAGING_DIR=java_staging_dir
 LOCAL_PYTHON_STAGING_DIR=python_staging_dir
+LOCAL_PYTHON_VIRTUALENV=${LOCAL_PYTHON_STAGING_DIR}/venv
 LOCAL_WEBSITE_UPDATE_DIR=website_update_dir
 LOCAL_PYTHON_DOC=python_doc
 LOCAL_JAVA_DOC=java_doc
@@ -34,7 +35,7 @@ LOCAL_WEBSITE_REPO=beam_website_repo
 
 USER_REMOTE_URL=
 USER_GITHUB_ID=
-GIT_REPO_URL=https://github.com/apache/beam.git
+GIT_REPO_URL=git@github.com:apache/beam.git
 ROOT_SVN_URL=https://dist.apache.org/repos/dist/dev/beam
 GIT_BEAM_ARCHIVE=https://github.com/apache/beam/archive
 GIT_BEAM_WEBSITE=https://github.com/apache/beam-site.git
@@ -165,6 +166,8 @@ if [[ $confirmation = "y" ]]; then
 
   echo '-------------------Generating Python Artifacts-----------------'
   cd sdks/python
+  virtualenv ${LOCAL_PYTHON_VIRTUALENV}
+  source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
   python setup.py sdist --format=zip
   cd dist
 

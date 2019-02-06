@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 
 import java.io.IOException;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
@@ -73,6 +74,12 @@ public class CoGroupByKeyLoadTest extends LoadTest<CoGroupByKeyLoadTest.Options>
 
     void setCoSourceOptions(String sourceOptions);
 
+    @Description("Co-input window duration. If not set global windows will be used.")
+    @Nullable
+    Long getCoInputWindowDurationSec();
+
+    void setCoInputWindowDurationSec(Long coInputWindowDurationSec);
+
     @Description("Number of reiterations over per-key-grouped values to perform.")
     @Default.Integer(1)
     Integer getIterations();
@@ -94,12 +101,14 @@ public class CoGroupByKeyLoadTest extends LoadTest<CoGroupByKeyLoadTest.Options>
     PCollection<KV<byte[], byte[]>> input =
         pipeline.apply("Read input", readFromSource(sourceOptions));
     input = input.apply("Collect start time metrics (input)", ParDo.of(runtimeMonitor));
-    applyStepIfPresent(input, "Synthetic step for input", syntheticStep);
+    input = applyWindowing(input);
+    input = applyStepIfPresent(input, "Synthetic step for input", syntheticStep);
 
     PCollection<KV<byte[], byte[]>> coInput =
         pipeline.apply("Read co-input", readFromSource(coSourceOptions));
     coInput = coInput.apply("Collect start time metrics (co-input)", ParDo.of(runtimeMonitor));
-    applyStepIfPresent(coInput, "Synthetic step for co-input", syntheticStep);
+    coInput = applyWindowing(coInput, options.getCoInputWindowDurationSec());
+    coInput = applyStepIfPresent(coInput, "Synthetic step for co-input", syntheticStep);
 
     KeyedPCollectionTuple.of(INPUT_TAG, input)
         .and(CO_INPUT_TAG, coInput)

@@ -163,6 +163,20 @@ public class BeamDDLTest {
   }
 
   @Test
+  public void testParseCreateExternalTable_withDatabase() throws Exception {
+    TestTableProvider rootProvider = new TestTableProvider();
+    TestTableProvider testProvider = new TestTableProvider();
+
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(rootProvider);
+    env.addSchema("test", testProvider);
+
+    assertNull(testProvider.getTables().get("person"));
+    env.executeDdl("CREATE EXTERNAL TABLE test.person (id INT) TYPE text");
+
+    assertNotNull(testProvider.getTables().get("person"));
+  }
+
+  @Test
   public void testParseDropTable() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);

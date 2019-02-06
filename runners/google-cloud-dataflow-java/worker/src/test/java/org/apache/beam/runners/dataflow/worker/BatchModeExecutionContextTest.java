@@ -30,14 +30,13 @@ import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext.BatchModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -287,8 +286,7 @@ public class BatchModeExecutionContextTest {
     try {
       sampler.start();
 
-      ExecutionStateTracker tracker =
-          new ExecutionStateTracker(sampler, ElementExecutionTracker.newForTest());
+      ExecutionStateTracker tracker = new ExecutionStateTracker(sampler);
 
       Thread executionThread = new Thread();
       executionThread.setName("looping-thread-for-test");

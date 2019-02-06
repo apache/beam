@@ -94,9 +94,9 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       FieldType type,
       ValueT value,
       Type fieldType,
-      Type elemenentType,
-      Type keyType,
-      Type valueType,
+      FieldValueTypeInformation elementType,
+      FieldValueTypeInformation keyType,
+      FieldValueTypeInformation valueType,
       Factory<List<FieldValueTypeInformation>> typeFactory) {
     if (value == null) {
       return null;
@@ -105,7 +105,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       return (ValueT) fromRow((Row) value, (Class) fieldType, typeFactory);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
       return (ValueT)
-          fromListValue(type.getCollectionElementType(), (List) value, elemenentType, typeFactory);
+          fromListValue(type.getCollectionElementType(), (List) value, elementType, typeFactory);
     } else if (TypeName.MAP.equals(type.getTypeName())) {
       return (ValueT)
           fromMapValue(
@@ -124,11 +124,19 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   private <ElementT> List fromListValue(
       FieldType elementType,
       List<ElementT> rowList,
-      Type elementClass,
+      FieldValueTypeInformation elementTypeInformation,
       Factory<List<FieldValueTypeInformation>> typeFactory) {
     List list = Lists.newArrayList();
     for (ElementT element : rowList) {
-      list.add(fromValue(elementType, element, elementClass, null, null, null, typeFactory));
+      list.add(
+          fromValue(
+              elementType,
+              element,
+              elementTypeInformation.getType().getType(),
+              elementTypeInformation.getElementType(),
+              elementTypeInformation.getMapKeyType(),
+              elementTypeInformation.getMapValueType(),
+              typeFactory));
     }
     return list;
   }
@@ -138,14 +146,29 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       FieldType keyType,
       FieldType valueType,
       Map<?, ?> map,
-      Type keyClass,
-      Type valueClass,
+      FieldValueTypeInformation keyTypeInformation,
+      FieldValueTypeInformation valueTypeInformation,
       Factory<List<FieldValueTypeInformation>> typeFactory) {
     Map newMap = Maps.newHashMap();
     for (Map.Entry<?, ?> entry : map.entrySet()) {
-      Object key = fromValue(keyType, entry.getKey(), keyClass, null, null, null, typeFactory);
+      Object key =
+          fromValue(
+              keyType,
+              entry.getKey(),
+              keyTypeInformation.getType().getType(),
+              keyTypeInformation.getElementType(),
+              keyTypeInformation.getMapKeyType(),
+              keyTypeInformation.getMapValueType(),
+              typeFactory);
       Object value =
-          fromValue(valueType, entry.getValue(), valueClass, null, null, null, typeFactory);
+          fromValue(
+              valueType,
+              entry.getValue(),
+              valueTypeInformation.getType().getType(),
+              valueTypeInformation.getElementType(),
+              valueTypeInformation.getMapKeyType(),
+              valueTypeInformation.getMapValueType(),
+              typeFactory);
       newMap.put(key, value);
     }
     return newMap;

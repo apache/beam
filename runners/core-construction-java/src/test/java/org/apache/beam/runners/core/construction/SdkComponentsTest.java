@@ -68,26 +68,14 @@ public class SdkComponentsTest {
     String id = components.registerCoder(coder);
     assertThat(components.registerCoder(coder), equalTo(id));
     assertThat(id, not(isEmptyOrNullString()));
-    VarLongCoder otherCoder = VarLongCoder.of();
+    Coder<?> equalCoder =
+        KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
+    assertThat(components.registerCoder(equalCoder), equalTo(id));
+    Coder<?> otherCoder = VarLongCoder.of();
     assertThat(components.registerCoder(otherCoder), not(equalTo(id)));
 
     components.toComponents().getCodersOrThrow(id);
     components.toComponents().getCodersOrThrow(components.registerCoder(otherCoder));
-  }
-
-  @Test
-  public void registerCoderEqualsNotSame() throws IOException {
-    Coder<?> coder =
-        KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
-    Coder<?> otherCoder =
-        KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
-    assertThat(coder, equalTo(otherCoder));
-    String id = components.registerCoder(coder);
-    String otherId = components.registerCoder(otherCoder);
-    assertThat(otherId, not(equalTo(id)));
-
-    components.toComponents().getCodersOrThrow(id);
-    components.toComponents().getCodersOrThrow(otherId);
   }
 
   @Test

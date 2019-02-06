@@ -134,7 +134,8 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
         // which for Integer is a no-op and it is an issue:
         // http://hydronitrogen.com/poor-hash-partitioning-of-timestamps-integers-and-longs-in-
         // spark.html
-        // This hashing strategy is copied from com.google.common.collect.Hashing.smear().
+        // This hashing strategy is copied from
+        // org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Hashing.smear().
         int hashOfShard = 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
         r.output(KV.of(hashOfShard, element));
       }

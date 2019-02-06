@@ -71,7 +71,7 @@ class SdkHarness(object):
         self._control_channel, WorkerIdInterceptor(self._worker_id))
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
         credentials)
-    self._state_handler_factory = GrpcStateHandlerFactory()
+    self._state_handler_factory = GrpcStateHandlerFactory(credentials)
     self._profiler_factory = profiler_factory
     self.workers = queue.Queue()
     # one thread is enough for getting the progress report.
@@ -272,10 +272,11 @@ class SdkWorker(object):
         instruction_id,
         request.process_bundle_descriptor_reference) as bundle_processor:
       with self.maybe_profile(instruction_id):
-        bundle_processor.process_bundle(instruction_id)
+        delayed_applications = bundle_processor.process_bundle(instruction_id)
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
           process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+              residual_roots=delayed_applications,
               metrics=bundle_processor.metrics(),
               monitoring_infos=bundle_processor.monitoring_infos()))
 
@@ -345,10 +346,11 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
   Caches the created channels by ``state descriptor url``.
   """
 
-  def __init__(self):
+  def __init__(self, credentials=None):
     self._state_handler_cache = {}
     self._lock = threading.Lock()
     self._throwing_state_handler = ThrowingStateHandler()
+    self._credentials = credentials
 
   def create_state_handler(self, api_service_descriptor):
     if not api_service_descriptor:
@@ -357,14 +359,19 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     if url not in self._state_handler_cache:
       with self._lock:
         if url not in self._state_handler_cache:
-          logging.info('Creating insecure state channel for %s', url)
-          grpc_channel = GRPCChannelFactory.insecure_channel(
-              url,
-              # Options to have no limits (-1) on the size of the messages
-              # received or sent over the data plane. The actual buffer size is
-              # controlled in a layer above.
-              options=[("grpc.max_receive_message_length", -1),
-                       ("grpc.max_send_message_length", -1)])
+          # Options to have no limits (-1) on the size of the messages
+          # received or sent over the data plane. The actual buffer size is
+          # controlled in a layer above.
+          options = [('grpc.max_receive_message_length', -1),
+                     ('grpc.max_send_message_length', -1)]
+          if self._credentials is None:
+            logging.info('Creating insecure state channel for %s.', url)
+            grpc_channel = GRPCChannelFactory.insecure_channel(
+                url, options=options)
+          else:
+            logging.info('Creating secure state channel for %s.', url)
+            grpc_channel = GRPCChannelFactory.secure_channel(
+                url, self._credentials, options=options)
           logging.info('State channel established.')
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(grpc_channel,

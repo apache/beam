@@ -52,7 +52,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -125,7 +124,7 @@ public class PipelineTranslationTest {
     private boolean useDeprecatedViewTransforms;
     Set<Node> transforms;
     Set<PCollection<?>> pcollections;
-    Set<Equivalence.Wrapper<? extends Coder<?>>> coders;
+    Set<Coder<?>> coders;
     Set<WindowingStrategy<?, ?>> windowingStrategies;
     int missingViewTransforms = 0;
 
@@ -195,7 +194,7 @@ public class PipelineTranslationTest {
     }
 
     private void addCoders(Coder<?> coder) {
-      coders.add(Equivalence.identity().wrap(coder));
+      coders.add(coder);
       if (CoderTranslation.KNOWN_CODER_URNS.containsKey(coder.getClass())) {
         for (Coder<?> component : ((StructuredCoder<?>) coder).getComponents()) {
           addCoders(component);

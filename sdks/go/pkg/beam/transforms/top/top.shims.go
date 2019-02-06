@@ -30,11 +30,10 @@ import (
 func init() {
 	runtime.RegisterType(reflect.TypeOf((*accum)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*combineFn)(nil)).Elem())
-	runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*combineFn)(nil)).Elem(), wrapMakerCombineFn)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(accum,accum) (accum))(nil)).Elem(), funcMakerAccumAccumГAccum)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(accum,typex.T) (accum))(nil)).Elem(), funcMakerAccumTypex۰TГAccum)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(accum) ([]typex.T))(nil)).Elem(), funcMakerAccumГSliceofTypex۰T)
-	reflectx.RegisterFunc(reflect.TypeOf((*func([]accum) (accum))(nil)).Elem(), funcMakerSliceofAccumГAccum)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(accum) ([]typex.T))(nil)).Elem(), funcMakerAccumГSliceOfTypex۰T)
 	reflectx.RegisterFunc(reflect.TypeOf((*func() (accum))(nil)).Elem(), funcMakerГAccum)
 }
 
@@ -44,8 +43,34 @@ func wrapMakerCombineFn(fn interface{}) map[string]reflectx.Func {
 		"AddInput": reflectx.MakeFunc(func(a0 accum, a1 typex.T) (accum) { return dfn.AddInput(a0, a1) }),
 		"CreateAccumulator": reflectx.MakeFunc(func() (accum) { return dfn.CreateAccumulator() }),
 		"ExtractOutput": reflectx.MakeFunc(func(a0 accum) ([]typex.T) { return dfn.ExtractOutput(a0) }),
-		"MergeAccumulators": reflectx.MakeFunc(func(a0 []accum) (accum) { return dfn.MergeAccumulators(a0) }),
+		"MergeAccumulators": reflectx.MakeFunc(func(a0 accum, a1 accum) (accum) { return dfn.MergeAccumulators(a0, a1) }),
 	}
+}
+
+type callerAccumAccumГAccum struct {
+	fn func(accum,accum) (accum)
+}
+
+func funcMakerAccumAccumГAccum(fn interface{}) reflectx.Func {
+	f := fn.(func(accum,accum) (accum))
+	return &callerAccumAccumГAccum{fn: f}
+}
+
+func (c *callerAccumAccumГAccum) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerAccumAccumГAccum) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerAccumAccumГAccum) Call(args []interface{}) []interface{} {
+	out0 := c.fn(args[0].(accum), args[1].(accum))
+	return []interface{}{out0}
+}
+
+func (c *callerAccumAccumГAccum) Call2x1(arg0, arg1 interface{}) (interface{}) {
+	return c.fn(arg0.(accum), arg1.(accum))
 }
 
 type callerAccumTypex۰TГAccum struct {
@@ -74,56 +99,30 @@ func (c *callerAccumTypex۰TГAccum) Call2x1(arg0, arg1 interface{}) (interface{
 	return c.fn(arg0.(accum), arg1.(typex.T))
 }
 
-type callerAccumГSliceofTypex۰T struct {
+type callerAccumГSliceOfTypex۰T struct {
 	fn func(accum) ([]typex.T)
 }
 
-func funcMakerAccumГSliceofTypex۰T(fn interface{}) reflectx.Func {
+func funcMakerAccumГSliceOfTypex۰T(fn interface{}) reflectx.Func {
 	f := fn.(func(accum) ([]typex.T))
-	return &callerAccumГSliceofTypex۰T{fn: f}
+	return &callerAccumГSliceOfTypex۰T{fn: f}
 }
 
-func (c *callerAccumГSliceofTypex۰T) Name() string {
+func (c *callerAccumГSliceOfTypex۰T) Name() string {
 	return reflectx.FunctionName(c.fn)
 }
 
-func (c *callerAccumГSliceofTypex۰T) Type() reflect.Type {
+func (c *callerAccumГSliceOfTypex۰T) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerAccumГSliceofTypex۰T) Call(args []interface{}) []interface{} {
+func (c *callerAccumГSliceOfTypex۰T) Call(args []interface{}) []interface{} {
 	out0 := c.fn(args[0].(accum))
 	return []interface{}{out0}
 }
 
-func (c *callerAccumГSliceofTypex۰T) Call1x1(arg0 interface{}) (interface{}) {
+func (c *callerAccumГSliceOfTypex۰T) Call1x1(arg0 interface{}) (interface{}) {
 	return c.fn(arg0.(accum))
-}
-
-type callerSliceofAccumГAccum struct {
-	fn func([]accum) (accum)
-}
-
-func funcMakerSliceofAccumГAccum(fn interface{}) reflectx.Func {
-	f := fn.(func([]accum) (accum))
-	return &callerSliceofAccumГAccum{fn: f}
-}
-
-func (c *callerSliceofAccumГAccum) Name() string {
-	return reflectx.FunctionName(c.fn)
-}
-
-func (c *callerSliceofAccumГAccum) Type() reflect.Type {
-	return reflect.TypeOf(c.fn)
-}
-
-func (c *callerSliceofAccumГAccum) Call(args []interface{}) []interface{} {
-	out0 := c.fn(args[0].([]accum))
-	return []interface{}{out0}
-}
-
-func (c *callerSliceofAccumГAccum) Call1x1(arg0 interface{}) (interface{}) {
-	return c.fn(arg0.([]accum))
 }
 
 type callerГAccum struct {

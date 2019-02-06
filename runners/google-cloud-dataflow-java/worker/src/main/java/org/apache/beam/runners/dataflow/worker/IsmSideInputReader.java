@@ -44,7 +44,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
@@ -605,7 +604,7 @@ public class IsmSideInputReader implements SideInputReader {
     }
 
     @Override
-    public Iterable<V> get(@Nullable K k) {
+    public Iterable<V> get(K k) {
       try {
         return new ListOverReaderIterators<>(
             findAndStartReaders(readers, ImmutableList.of(k, window)), (V value) -> value);

@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.samza;
 
+import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 
 /** Runtime context for the Samza runner. */
 public class SamzaExecutionContext {
   private SamzaMetricsContainer metricsContainer;
+  private JobBundleFactory jobBundleFactory;
 
   public SamzaMetricsContainer getMetricsContainer() {
     return this.metricsContainer;
@@ -29,5 +31,13 @@ public class SamzaExecutionContext {
 
   void setMetricsContainer(SamzaMetricsContainer metricsContainer) {
     this.metricsContainer = metricsContainer;
+  }
+
+  public JobBundleFactory getJobBundleFactory() {
+    return this.jobBundleFactory;
+  }
+
+  void setJobBundleFactory(JobBundleFactory jobBundleFactory) {
+    this.jobBundleFactory = jobBundleFactory;
   }
 }

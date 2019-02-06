@@ -49,6 +49,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.CounterCell;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.DataflowReaderPosition;
@@ -56,8 +58,6 @@ import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedSource
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
@@ -313,7 +313,6 @@ public class WorkItemStatusClientTest {
     BatchModeExecutionContext executionContext = mock(BatchModeExecutionContext.class);
     ExecutionStateTracker executionStateTracker = mock(ExecutionStateTracker.class);
     ExecutionState executionState = mock(ExecutionState.class);
-    when(executionState.getStepName()).thenReturn(NameContextsForTests.nameContextForTest());
     when(executionState.getDescription()).thenReturn("stageName-systemName-some-state");
     when(executionContext.getExecutionStateTracker()).thenReturn(executionStateTracker);
     when(executionStateTracker.getMillisSinceLastTransition()).thenReturn(20L);

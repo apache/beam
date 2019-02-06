@@ -88,12 +88,6 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
 
   void setPeriodicStatusPageOutputDirectory(String directory);
 
-  @Description("If true, will use streaming RPCs with windmill service")
-  @Default.InstanceFactory(WindmillServiceUseStreamingRpcsFactory.class)
-  boolean getWindmillServiceUseStreamingRpcs();
-
-  void setWindmillServiceUseStreamingRpcs(boolean value);
-
   @Description("Streaming requests will be batched into messages up to this limit.")
   @Default.InstanceFactory(WindmillServiceStreamingRpcBatchLimitFactory.class)
   int getWindmillServiceStreamingRpcBatchLimit();
@@ -199,19 +193,6 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
     }
   }
 
-  /** Factory for setting value of WindmillServiceUseStreamingRpcs based on environment. */
-  public static class WindmillServiceUseStreamingRpcsFactory
-      implements DefaultValueFactory<Boolean> {
-    @Override
-    public Boolean create(PipelineOptions options) {
-      StreamingDataflowWorkerOptions streamingOptions =
-          options.as(StreamingDataflowWorkerOptions.class);
-      return streamingEngineEnabled(streamingOptions)
-          && hasExperiment(streamingOptions, "windmill_service_streaming_rpcs")
-          && !hasExperiment(streamingOptions, "windmill_service_disable_streaming_rpcs");
-    }
-  }
-
   /** Factory for setting value of WindmillServiceStreamingRpcBatchLimit based on environment. */
   public static class WindmillServiceStreamingRpcBatchLimitFactory
       implements DefaultValueFactory<Integer> {
@@ -219,11 +200,7 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
     public Integer create(PipelineOptions options) {
       StreamingDataflowWorkerOptions streamingOptions =
           options.as(StreamingDataflowWorkerOptions.class);
-      if (streamingEngineEnabled(streamingOptions)
-          && hasExperiment(streamingOptions, "windmill_service_streaming_rpc_batching")) {
-        return Integer.MAX_VALUE;
-      }
-      return 1;
+      return streamingEngineEnabled(streamingOptions) ? Integer.MAX_VALUE : 1;
     }
   }
 }

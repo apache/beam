@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getRootCause;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getStackTraceAsString;
 
 import java.io.IOException;
@@ -34,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -127,7 +129,12 @@ public class FlinkJobInvocation implements JobInvocation {
                 ImmutableSet.of(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)));
 
     // Fused pipeline proto.
-    RunnerApi.Pipeline fusedPipeline = GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
+    // TODO: Consider supporting partially-fused graphs.
+    RunnerApi.Pipeline fusedPipeline =
+        trimmedPipeline.getComponents().getTransformsMap().values().stream()
+                .anyMatch(proto -> ExecutableStage.URN.equals(proto.getSpec().getUrn()))
+            ? pipeline
+            : GreedyPipelineFuser.fuse(pipeline).toPipeline();
     JobInfo jobInfo =
         JobInfo.create(
             id,
@@ -207,7 +214,7 @@ public class FlinkJobInvocation implements JobInvocation {
                     .build());
             sendMessage(
                 JobMessage.newBuilder()
-                    .setMessageText(throwable.toString())
+                    .setMessageText(getRootCause(throwable).toString())
                     .setImportance(JobMessage.MessageImportance.JOB_MESSAGE_ERROR)
                     .build());
             setState(JobState.Enum.FAILED);

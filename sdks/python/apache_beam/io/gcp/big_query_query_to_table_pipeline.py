@@ -27,7 +27,7 @@ from __future__ import absolute_import
 import argparse
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigquery import parse_table_schema_from_json
+from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 

@@ -542,10 +542,10 @@ class TestGCSIO(unittest.TestCase):
     line_count = 10
     for _ in range(line_count):
       line_length = random.randint(100, 500)
-      line = os.urandom(line_length).replace('\n', ' ') + '\n'
+      line = os.urandom(line_length).replace(b'\n', b' ') + b'\n'
       lines.append(line)
 
-    contents = ''.join(lines)
+    contents = b''.join(lines)
     bucket, name = gcsio.parse_gcs_path(file_name)
     self.client.objects.add_file(FakeFile(bucket, name, contents, 1))
 
@@ -569,13 +569,13 @@ class TestGCSIO(unittest.TestCase):
     # First line is carefully crafted so the newline falls as the last character
     # of the buffer to exercise this code path.
     read_buffer_size = 1024
-    lines.append('x' * 1023 + '\n')
+    lines.append(b'x' * 1023 + b'\n')
 
     for _ in range(1, 1000):
       line_length = random.randint(100, 500)
-      line = os.urandom(line_length).replace('\n', ' ') + '\n'
+      line = os.urandom(line_length).replace(b'\n', b' ') + b'\n'
       lines.append(line)
-    contents = ''.join(lines)
+    contents = b''.join(lines)
 
     file_size = len(contents)
     bucket, name = gcsio.parse_gcs_path(file_name)
@@ -591,11 +591,11 @@ class TestGCSIO(unittest.TestCase):
 
     # Test read at line boundary.
     f.seek(file_size - len(lines[-1]) - 1)
-    self.assertEqual(f.readline(), '\n')
+    self.assertEqual(f.readline(), b'\n')
 
     # Test read at end of file.
     f.seek(file_size)
-    self.assertEqual(f.readline(), '')
+    self.assertEqual(f.readline(), b'')
 
     # Test reads at random positions.
     random.seed(0)

@@ -48,8 +48,8 @@ from apache_beam.runners.worker import statesampler
 class MetricKey(object):
   """Key used to identify instance of metric cell.
 
-  Metrics are internally keyed by the step name they associated with and
-  the name of the metric.
+  Metrics are internally keyed by the name of the step they're associated with
+  and the name of the metric.
   """
   def __init__(self, step, metric):
     """Initializes ``MetricKey``.
@@ -121,6 +121,13 @@ class MetricResult(object):
   def __repr__(self):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
         self.key, str(self.committed), str(self.attempted))
+
+  @property
+  def result(self):
+    """Short-hand for falling back to attempted metrics if it seems that
+    committed was not populated (e.g. due to not being supported on a given
+    runner"""
+    return self.committed if self.committed else self.attempted
 
 
 class _MetricsEnvironment(object):

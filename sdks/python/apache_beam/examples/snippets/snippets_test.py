@@ -373,10 +373,10 @@ class TypeHintsTest(unittest.TestCase):
 
       class PlayerCoder(beam.coders.Coder):
         def encode(self, player):
-          return '%s:%s' % (player.team, player.name)
+          return ('%s:%s' % (player.team, player.name)).encode('utf-8')
 
         def decode(self, s):
-          return Player(*s.split(':'))
+          return Player(*s.decode('utf-8').split(':'))
 
         def is_deterministic(self):
           return True
@@ -428,14 +428,14 @@ class SnippetsTest(unittest.TestCase):
         assert self.file_to_read
         for file_name in glob.glob(self.file_to_read):
           if self.compression_type is None:
-            with open(file_name) as file:
+            with open(file_name, 'rb') as file:
               for record in file:
-                value = self.coder.decode(record.rstrip('\n'))
+                value = self.coder.decode(record.rstrip(b'\n'))
                 yield WindowedValue(value, -1, [window.GlobalWindow()])
           else:
-            with gzip.open(file_name, 'r') as file:
+            with gzip.open(file_name, 'rb') as file:
               for record in file:
-                value = self.coder.decode(record.rstrip('\n'))
+                value = self.coder.decode(record.rstrip(b'\n'))
                 yield WindowedValue(value, -1, [window.GlobalWindow()])
 
     def expand(self, pcoll):
@@ -461,11 +461,11 @@ class SnippetsTest(unittest.TestCase):
       def start_bundle(self):
         assert self.file_to_write
         # Appending a UUID to create a unique file object per invocation.
-        self.file_obj = open(self.file_to_write + str(uuid.uuid4()), 'w')
+        self.file_obj = open(self.file_to_write + str(uuid.uuid4()), 'wb')
 
       def process(self, element):
         assert self.file_obj
-        self.file_obj.write(self.coder.encode(element) + '\n')
+        self.file_obj.write(self.coder.encode(element) + b'\n')
 
       def finish_bundle(self):
         assert self.file_obj
@@ -499,7 +499,7 @@ class SnippetsTest(unittest.TestCase):
 
   def create_temp_file(self, contents=''):
     with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
+      f.write(contents.encode('utf-8'))
       self.temp_files.append(f.name)
       return f.name
 
@@ -569,7 +569,8 @@ class SnippetsTest(unittest.TestCase):
         file_name = self._tmp_dir + os.sep + table_name
         assert os.path.exists(file_name)
         with open(file_name, 'ab') as f:
-          f.write(key + ':' + value + os.linesep)
+          content = (key + ':' + value + os.linesep).encode('utf-8')
+          f.write(content)
 
       def rename_table(self, access_token, old_name, new_name):
         assert access_token == self._dummy_token
@@ -623,7 +624,7 @@ class SnippetsTest(unittest.TestCase):
   def test_model_textio_compressed(self):
     temp_path = self.create_temp_file('aa\nbb\ncc')
     gzip_file_name = temp_path + '.gz'
-    with open(temp_path) as src, gzip.open(gzip_file_name, 'wb') as dst:
+    with open(temp_path, 'rb') as src, gzip.open(gzip_file_name, 'wb') as dst:
       dst.writelines(src)
       # Add the temporary gzip file to be cleaned up as well.
       self.temp_files.append(gzip_file_name)

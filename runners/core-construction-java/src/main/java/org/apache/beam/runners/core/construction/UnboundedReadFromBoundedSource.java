@@ -74,6 +74,9 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);
 
+  // Using 64MB in cases where we cannot compute a valid estimated size for a source.
+  private static final long DEFAULT_ESTIMATED_SIZE = 64 * 1024 * 1024;
+
   private final BoundedSource<T> source;
 
   /**
@@ -124,14 +127,24 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
     public List<BoundedToUnboundedSourceAdapter<T>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       try {
-        long desiredBundleSize = boundedSource.getEstimatedSizeBytes(options) / desiredNumSplits;
-        if (desiredBundleSize <= 0) {
+        long estimatedSize = boundedSource.getEstimatedSizeBytes(options);
+        if (estimatedSize <= 0) {
+          // Source is unable to provide a valid estimated size. So using default size.
           LOG.warn(
-              "BoundedSource {} cannot estimate its size, skips the initial splits.",
-              boundedSource);
-          return ImmutableList.of(this);
+              "Cannot determine a valid estimated size for BoundedSource {}. Using default "
+                  + "size of {} bytes",
+              boundedSource,
+              DEFAULT_ESTIMATED_SIZE);
+          estimatedSize = DEFAULT_ESTIMATED_SIZE;
         }
+
+        // Each split should at least be of size 1 byte.
+        long desiredBundleSize = Math.max(estimatedSize / desiredNumSplits, 1);
+
         List<? extends BoundedSource<T>> splits = boundedSource.split(desiredBundleSize, options);
+        if (splits.size() == 0) {
+          splits = ImmutableList.of(boundedSource);
+        }
         return splits.stream()
             .map(input -> new BoundedToUnboundedSourceAdapter<>(input))
             .collect(Collectors.toList());

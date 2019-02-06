@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -242,6 +243,26 @@ public class UnboundedReadFromBoundedSourceTest {
     PipelineOptions options = PipelineOptionsFactory.create();
 
     unboundedSource.createReader(options, null).getCurrent();
+  }
+
+  @Test
+  public void testInvokesSplitWithDefaultNumSplitsTooLarge() throws Exception {
+    UnboundedSource<Long, ?> unboundedCountingSource =
+        new BoundedToUnboundedSourceAdapter<Long>(CountingSource.upTo(1));
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<?> splits = unboundedCountingSource.split(100, options);
+    assertEquals(1, splits.size());
+    assertNotEquals(splits.get(0), unboundedCountingSource);
+  }
+
+  @Test
+  public void testInvokingSplitProducesAtLeastOneSplit() throws Exception {
+    UnboundedSource<Long, ?> unboundedCountingSource =
+        new BoundedToUnboundedSourceAdapter<Long>(CountingSource.upTo(0));
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<?> splits = unboundedCountingSource.split(100, options);
+    assertEquals(1, splits.size());
+    assertNotEquals(splits.get(0), unboundedCountingSource);
   }
 
   @Test

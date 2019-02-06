@@ -18,10 +18,13 @@
 package org.apache.beam.runners.core.metrics;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -35,6 +38,7 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * Metrics containers by step.
@@ -43,13 +47,23 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterab
  */
 public class MetricsContainerStepMap implements Serializable {
   private Map<String, MetricsContainerImpl> metricsContainers;
+  private MetricsContainerImpl unboundContainer = new MetricsContainerImpl(null);
 
   public MetricsContainerStepMap() {
     this.metricsContainers = new ConcurrentHashMap<>();
   }
 
+  /* Returns the container that is not bound to any step name. */
+  public MetricsContainerImpl getUnboundContainer() {
+    return this.unboundContainer;
+  }
+
   /** Returns the container for the given step name. */
   public MetricsContainerImpl getContainer(String stepName) {
+    if (stepName == null) {
+      // TODO(BEAM-6538): Disallow this in the future, some tests rely on an empty step name today.
+      return getUnboundContainer();
+    }
     if (!metricsContainers.containsKey(stepName)) {
       metricsContainers.put(stepName, new MetricsContainerImpl(stepName));
     }
@@ -64,6 +78,7 @@ public class MetricsContainerStepMap implements Serializable {
     for (Map.Entry<String, MetricsContainerImpl> container : other.metricsContainers.entrySet()) {
       getContainer(container.getKey()).update(container.getValue());
     }
+    getUnboundContainer().update(other.getUnboundContainer());
   }
 
   /**
@@ -85,7 +100,8 @@ public class MetricsContainerStepMap implements Serializable {
 
     MetricsContainerStepMap that = (MetricsContainerStepMap) o;
 
-    return metricsContainers.equals(that.metricsContainers);
+    // TODO(BEAM-6546): The underlying MetricContainerImpls do not implement equals().
+    return getMetricsContainers().equals(that.getMetricsContainers());
   }
 
   @Override
@@ -106,6 +122,18 @@ public class MetricsContainerStepMap implements Serializable {
         attemptedMetricsContainers, committedMetricsContainers);
   }
 
+  /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
+  public Iterable<MonitoringInfo> getMonitoringInfos() {
+    // Extract user metrics and store as MonitoringInfos.
+    ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
+    for (MetricsContainerImpl container : getMetricsContainers()) {
+      for (MonitoringInfo mi : container.getMonitoringInfos()) {
+        monitoringInfos.add(mi);
+      }
+    }
+    return monitoringInfos;
+  }
+
   /**
    * Returns {@link MetricResults} based on given {@link MetricsContainerStepMap} of attempted
    * metrics.
@@ -119,8 +147,8 @@ public class MetricsContainerStepMap implements Serializable {
     return new MetricsContainerStepMapMetricResults(attemptedMetricsContainers);
   }
 
-  private Map<String, MetricsContainerImpl> getMetricsContainers() {
-    return metricsContainers;
+  private Iterable<MetricsContainerImpl> getMetricsContainers() {
+    return Iterables.concat(metricsContainers.values(), Collections.singleton(unboundContainer));
   }
 
   private static class MetricsContainerStepMapMetricResults extends MetricResults {
@@ -145,16 +173,14 @@ public class MetricsContainerStepMap implements Serializable {
         MetricsContainerStepMap attemptedMetricsContainers,
         MetricsContainerStepMap committedMetricsContainers,
         boolean isCommittedSupported) {
-      for (MetricsContainerImpl container :
-          attemptedMetricsContainers.getMetricsContainers().values()) {
+      for (MetricsContainerImpl container : attemptedMetricsContainers.getMetricsContainers()) {
         MetricUpdates cumulative = container.getCumulative();
         mergeCounters(counters, cumulative.counterUpdates(), attemptedCounterUpdateFn());
         mergeDistributions(
             distributions, cumulative.distributionUpdates(), attemptedDistributionUpdateFn());
         mergeGauges(gauges, cumulative.gaugeUpdates(), attemptedGaugeUpdateFn());
       }
-      for (MetricsContainerImpl container :
-          committedMetricsContainers.getMetricsContainers().values()) {
+      for (MetricsContainerImpl container : committedMetricsContainers.getMetricsContainers()) {
         MetricUpdates cumulative = container.getCumulative();
         mergeCounters(counters, cumulative.counterUpdates(), committedCounterUpdateFn());
         mergeDistributions(
@@ -213,11 +239,16 @@ public class MetricsContainerStepMap implements Serializable {
     }
 
     @Override
+    public String toString() {
+      return queryMetrics(null).toString();
+    }
+
+    @Override
     public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
       return new QueryResults(filter);
     }
 
-    private class QueryResults implements MetricQueryResults {
+    private class QueryResults extends MetricQueryResults {
       private final MetricsFilter filter;
 
       private QueryResults(MetricsFilter filter) {

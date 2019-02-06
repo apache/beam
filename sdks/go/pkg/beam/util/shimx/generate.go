@@ -176,14 +176,27 @@ type Wrap struct {
 // See https://golang.org/ref/spec#Identifiers for details.
 func Name(t string) string {
 	if strings.HasPrefix(t, "[]") {
-		return Name(t[2:] + "Slice")
+		return "SliceOf" + Name(t[2:])
+	}
+	if strings.HasPrefix(t, "map[") {
+		if i := strings.Index(t, "]"); i >= 0 {
+			// It should read MapOfKeyTypeName_ValueTypeName.
+			return "MapOf" + Name(t[4:i]) + "_" + Name(t[i+1:])
+		}
+	}
+	// Handle arrays.
+	if strings.HasPrefix(t, "[") {
+		if i := strings.Index(t, "]"); i >= 0 {
+			// It should read ArrayOfNTypeName.
+			return "ArrayOf" + t[1:i] + Name(t[i+1:])
+		}
+	}
+	if strings.HasPrefix(t, "*") {
+		return "Ꮨ" + Name(t[1:])
 	}
 
 	t = strings.Replace(t, "beam.", "typex.", -1)
 	t = strings.Replace(t, ".", "۰", -1) // For packages
-	t = strings.Replace(t, "*", "Ꮨ", -1) // For pointers
-	t = strings.Replace(t, "[", "_", -1) // For maps
-	t = strings.Replace(t, "]", "_", -1)
 	return strings.Title(t)
 }
 
@@ -345,15 +358,6 @@ func (v *iterNative) Value() interface{} {
 	return v.fn
 }
 
-func convToString(v interface{}) string {
-	switch v.(type) {
-	case []byte:
-		return string(v.([]byte))
-	default:
-		return v.(string)
-	}
-}
-
 func (v *iterNative) Reset() error {
 	if err := v.cur.Close(); err != nil {
 		return err
@@ -382,16 +386,10 @@ func (v *iterNative) read{{$x.Name}}({{if $x.Time -}} et *typex.EventTime, {{end
 {{- if $x.Time}}
 	*et = elm.Timestamp
 {{- end}}
-{{- if eq $x.Key "string"}}
-	*key = convToString(elm.Elm)
-{{- else if $x.Key}}
+{{- if $x.Key}}
 	*key = elm.Elm.({{$x.Key}})
 {{- end}}
-{{- if eq $x.Val "string"}}
-	*value = convToString(elm.Elm{{- if $x.Key -}} 2 {{- end -}})
-{{- else}}
 	*value = elm.Elm{{- if $x.Key -}} 2 {{- end -}}.({{$x.Val}})
-{{- end}}
 	return true
 }
 

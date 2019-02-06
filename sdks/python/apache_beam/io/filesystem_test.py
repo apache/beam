@@ -29,6 +29,7 @@ import posixpath
 import sys
 import tempfile
 import unittest
+import zlib
 from builtins import range
 from io import BytesIO
 
@@ -294,15 +295,18 @@ atomized in instants hammered around the
   def _create_compressed_file(self, compression_type, content):
     file_name = self._create_temp_file()
 
-    if compression_type == CompressionTypes.BZIP2:
-      compress_factory = bz2.BZ2File
-    elif compression_type == CompressionTypes.GZIP:
-      compress_factory = gzip.open
+    if compression_type == CompressionTypes.DEFLATE:
+      with open(file_name, 'wb') as f:
+        f.write(zlib.compress(content))
+    elif compression_type == CompressionTypes.BZIP2 or \
+            compression_type == CompressionTypes.GZIP:
+      compress_open = bz2.BZ2File \
+          if compression_type == CompressionTypes.BZIP2 \
+          else gzip.open
+      with compress_open(file_name, 'wb') as f:
+        f.write(content)
     else:
       assert False, "Invalid compression type: %s" % compression_type
-
-    with compress_factory(file_name, 'wb') as f:
-      f.write(content)
 
     return file_name
 
@@ -322,7 +326,8 @@ atomized in instants hammered around the
       self.assertFalse(writeable.seekable)
 
   def test_seek_set(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,
@@ -352,7 +357,8 @@ atomized in instants hammered around the
           self.assertEqual(uncompressed_position, reference_position)
 
   def test_seek_cur(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,
@@ -382,7 +388,8 @@ atomized in instants hammered around the
           self.assertEqual(uncompressed_position, reference_position)
 
   def test_read_from_end_returns_no_data(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,
@@ -397,7 +404,8 @@ atomized in instants hammered around the
         self.assertEqual(uncompressed_data, expected_data)
 
   def test_seek_outside(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,
@@ -419,7 +427,8 @@ atomized in instants hammered around the
           self.assertEqual(uncompressed_position, expected_position)
 
   def test_read_and_seek_back_to_beginning(self):
-    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.GZIP]:
+    for compression_type in [CompressionTypes.BZIP2, CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP]:
       file_name = self._create_compressed_file(compression_type, self.content)
       with open(file_name, 'rb') as f:
         compressed_fd = CompressedFile(f, compression_type,

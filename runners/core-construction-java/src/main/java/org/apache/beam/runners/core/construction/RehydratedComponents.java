@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -172,5 +173,15 @@ public class RehydratedComponents {
 
   public Components getComponents() {
     return components;
+  }
+
+  public SdkComponents getSdkComponents() {
+    return SdkComponents.create(
+        components,
+        Collections.emptyMap(),
+        pCollections.asMap(),
+        windowingStrategies.asMap(),
+        coders.asMap(),
+        Collections.emptyMap());
   }
 }

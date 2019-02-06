@@ -90,6 +90,8 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
                 "Total bytes monitor",
                 ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
+    input = applyWindowing(input);
+
     for (int branch = 0; branch < options.getFanout(); branch++) {
       applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)
           .apply(format("Group by key (%s)", branch), GroupByKey.create())

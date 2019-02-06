@@ -26,11 +26,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -113,7 +113,7 @@ public class DataflowSideInputReadCounterTest {
     when(mockedCounterFactory.longSum(any())).thenReturn(mockedCounter);
 
     when(mockedExecutionContext.getExecutionStateRegistry())
-        .thenReturn(mock(ExecutionStateRegistry.class));
+        .thenReturn(mock(DataflowExecutionStateRegistry.class));
 
     DataflowSideInputReadCounter testObject =
         new DataflowSideInputReadCounter(mockedExecutionContext, mockedOperationContext, siIndexId);
@@ -154,7 +154,8 @@ public class DataflowSideInputReadCounterTest {
     Counter<Long, Long> mockedCounter = mock(Counter.class);
     when(mockedCounterFactory.longSum(any())).thenReturn(mockedCounter);
 
-    ExecutionStateRegistry mockedExecutionStateRegistry = mock(ExecutionStateRegistry.class);
+    DataflowExecutionStateRegistry mockedExecutionStateRegistry =
+        mock(DataflowExecutionStateRegistry.class);
     when(mockedExecutionContext.getExecutionStateRegistry())
         .thenReturn(mockedExecutionStateRegistry);
 
@@ -200,7 +201,8 @@ public class DataflowSideInputReadCounterTest {
     Counter<Long, Long> mockedCounter = mock(Counter.class);
     when(mockedCounterFactory.longSum(any())).thenReturn(mockedCounter);
 
-    ExecutionStateRegistry mockedExecutionStateRegistry = mock(ExecutionStateRegistry.class);
+    DataflowExecutionStateRegistry mockedExecutionStateRegistry =
+        mock(DataflowExecutionStateRegistry.class);
     when(mockedExecutionContext.getExecutionStateRegistry())
         .thenReturn(mockedExecutionStateRegistry);
 

@@ -26,7 +26,11 @@ import traceback
 import unittest
 from builtins import range
 
+from tenacity import retry
+from tenacity import stop_after_attempt
+
 import apache_beam as beam
+from apache_beam.io import restriction_trackers
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
@@ -185,15 +189,26 @@ class FnApiRunnerTest(unittest.TestCase):
               (9, list(range(7, 10)))]),
           label='windowed')
 
-  def test_flattened_side_input(self):
+  def test_flattened_side_input(self, with_transcoding=True):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
       side1 = p | 'side1' >> beam.Create([('a', 1)])
       side2 = p | 'side2' >> beam.Create([('b', 2)])
+      if with_transcoding:
+        # Also test non-matching coder types (transcoding required)
+        third_element = [('another_type')]
+      else:
+        third_element = [('b', 3)]
+      side3 = p | 'side3' >> beam.Create(third_element)
       side = (side1, side2) | beam.Flatten()
       assert_that(
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
-          equal_to([(None, {'a': 1, 'b': 2})]))
+          equal_to([(None, {'a': 1, 'b': 2})]),
+          label='CheckFlattenAsSideInput')
+      assert_that(
+          (side, side3) | 'FlattenAfter' >> beam.Flatten(),
+          equal_to([('a', 1), ('b', 2)] + third_element),
+          label='CheckFlattenOfSideInput')
 
   def test_gbk_side_input(self):
     with self.create_pipeline() as p:
@@ -240,7 +255,7 @@ class FnApiRunnerTest(unittest.TestCase):
                    'TODO: BEAM-5692')
   def test_pardo_state_only(self):
     index_state_spec = userstate.CombiningValueStateSpec(
-        'index', beam.coders.VarIntCoder(), sum)
+        'index', beam.coders.IterableCoder(beam.coders.VarIntCoder()), sum)
 
     # TODO(ccy): State isn't detected with Map/FlatMap.
     class AddIndex(beam.DoFn):
@@ -337,6 +352,43 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(actual, is_buffered_correctly)
 
+  def test_sdf(self):
+
+    class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
+      def initial_restriction(self, element):
+        return (0, len(element))
+
+      def create_tracker(self, restriction):
+        return restriction_trackers.OffsetRestrictionTracker(
+            restriction[0], restriction[1])
+
+      def split(self, element, restriction):
+        start, end = restriction
+        middle = (end - start) // 2
+        return [(start, middle), (middle, end)]
+
+    class ExpandStringsDoFn(beam.DoFn):
+      def process(self, element, restriction_tracker=ExpandStringsProvider()):
+        assert isinstance(
+            restriction_tracker,
+            restriction_trackers.OffsetRestrictionTracker), restriction_tracker
+        for k in range(*restriction_tracker.current_restriction()):
+          if not restriction_tracker.try_claim(k):
+            return
+          yield element[k]
+          if k % 2 == 1:
+            restriction_tracker.defer_remainder()
+            return
+
+    with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+      actual = (
+          p
+          | beam.Create(data)
+          | beam.ParDo(ExpandStringsDoFn()))
+
+      assert_that(actual, equal_to(list(''.join(data))))
+
   def test_group_by_key(self):
     with self.create_pipeline() as p:
       res = (p
@@ -351,12 +403,17 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(p | beam.Create([1, 2, 3]) | beam.Reshuffle(),
                   equal_to([1, 2, 3]))
 
-  def test_flatten(self):
+  def test_flatten(self, with_transcoding=True):
     with self.create_pipeline() as p:
+      if with_transcoding:
+        # Additional element which does not match with the first type
+        additional = [ord('d')]
+      else:
+        additional = ['d']
       res = (p | 'a' >> beam.Create(['a']),
              p | 'bc' >> beam.Create(['b', 'c']),
-             p | 'd' >> beam.Create(['d'])) | beam.Flatten()
-      assert_that(res, equal_to(['a', 'b', 'c', 'd']))
+             p | 'd' >> beam.Create(additional)) | beam.Flatten()
+      assert_that(res, equal_to(['a', 'b', 'c'] + additional))
 
   def test_combine_per_key(self):
     with self.create_pipeline() as p:
@@ -544,6 +601,11 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_counter_exists(
           all_metrics_via_montoring_infos, namespace, name, step='MyStep')
 
+  # Due to somewhat non-deterministic nature of state sampling and sleep,
+  # this test is flaky when state duration is low.
+  # Since increasing state duration significantly would also slow down
+  # the test suite, we are retrying twice on failure as a mitigation.
+  @retry(reraise=True, stop=stop_after_attempt(3))
   def test_progress_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
