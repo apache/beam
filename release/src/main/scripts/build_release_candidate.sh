@@ -51,10 +51,10 @@ read RELEASE
 RELEASE_BRANCH=release-${RELEASE}
 echo "Which release candidate number(e.g. 1) are you going to create: "
 read RC_NUM
-echo "Please enter your repo URL forked from apache/beam-site"
-read USER_REMOTE_URL
 echo "Please enter your github username(ID): "
 read USER_GITHUB_ID
+
+USER_REMOTE_URL=git@github.com:${USER_GITHUB_ID}/beam-site
 
 echo "================Checking Environment Variables=============="
 echo "beam repo will be cloned into: ${LOCAL_CLONE_DIR}"
