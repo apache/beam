@@ -707,7 +707,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
           // If the stream was stopped due to a resource exhausted error then we are throttled.
           if (t instanceof StatusRuntimeException) {
             StatusRuntimeException statusExc = (StatusRuntimeException) t;
-            if (statusExc.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
+            if (statusExc.getStatus() != null
+                && statusExc.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
               startThrottleTimer();
             }
           }
@@ -1469,10 +1470,10 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
     // This is -1 if not currently being throttled or the time in
     // milliseconds when throttling for this type started.
-    private Long startTime = Long.valueOf(-1);
+    private long startTime = -1;
     // This is the collected total throttle times since the last poll.  Throttle times are
     // reported as a delta so this is cleared whenever it gets reported.
-    private Long totalTime = Long.valueOf(0);
+    private long totalTime = 0;
 
     /**
      * Starts the timer if it has not been started and does nothing if it has already been started.
@@ -1486,8 +1487,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
     /** Stops the timer if it has been started and does nothing if it has not been started. */
     public synchronized void stop() {
       if (throttled()) { // This timer has been started already so stop it now.
-        totalTime = totalTime + getCurrentThrottleTime();
-        resetStartTime();
+        totalTime += Instant.now().getMillis() - startTime;
+        startTime = -1;
       }
     }
 
@@ -1503,17 +1504,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
         start();
       }
       Long toReturn = totalTime;
-      totalTime = Long.valueOf(0);
+      totalTime = 0;
       return toReturn;
-    }
-
-    private synchronized long getCurrentThrottleTime() {
-      if (!throttled()) return 0; // There is not currently a throttle in progress.
-      return Instant.now().getMillis() - startTime;
-    }
-
-    private synchronized void resetStartTime() {
-      startTime = Long.valueOf(-1);
     }
   }
 }
