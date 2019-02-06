@@ -136,7 +136,7 @@ if [[ $confirmation = "y" ]]; then
   sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
 
   # The svn commit is interactive already and can be aborted by deleted the commit msg
-  svn add .
+  svn add --force .
   svn commit --no-auth-cache
   rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
 fi
@@ -177,7 +177,7 @@ if [[ $confirmation = "y" ]]; then
   sha512sum apache-beam-${RELEASE}.zip > apache-beam-${RELEASE}.zip.sha512
 
   cd ..
-  svn add ${PYTHON_ARTIFACTS_DIR}
+  svn add --force ${PYTHON_ARTIFACTS_DIR}
   svn status
   echo "Please confirm these changes are ready to commit: [y|N] "
   read confirmation
