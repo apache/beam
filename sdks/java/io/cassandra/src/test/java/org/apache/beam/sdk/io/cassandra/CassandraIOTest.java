@@ -77,7 +77,7 @@ import org.slf4j.LoggerFactory;
 /** Tests of {@link CassandraIO}. */
 @RunWith(JUnit4.class)
 public class CassandraIOTest implements Serializable {
-  private static final long NUM_ROWS = 100L;
+  private static final long NUM_ROWS = 20L;
   private static final String CASSANDRA_KEYSPACE = "beam_ks";
   private static final String CASSANDRA_HOST = "127.0.0.1";
   private static final int CASSANDRA_PORT = 9142;
@@ -310,15 +310,11 @@ public class CassandraIOTest implements Serializable {
     List<Row> results = getRows();
     assertEquals(NUM_ROWS, results.size());
 
+    Scientist einstein = new Scientist();
+    einstein.id = 0;
+    einstein.name = "Einstein";
     pipeline
-        .apply(
-            CassandraIO.<Scientist>read()
-                .withHosts(Arrays.asList(CASSANDRA_HOST))
-                .withPort(CASSANDRA_PORT)
-                .withKeyspace(CASSANDRA_KEYSPACE)
-                .withTable(CASSANDRA_TABLE)
-                .withCoder(SerializableCoder.of(Scientist.class))
-                .withEntity(Scientist.class))
+        .apply(Create.of(einstein))
         .apply(
             CassandraIO.<Scientist>delete()
                 .withHosts(Arrays.asList(CASSANDRA_HOST))
@@ -328,7 +324,7 @@ public class CassandraIOTest implements Serializable {
 
     pipeline.run();
     results = getRows();
-    assertEquals(0, results.size());
+    assertEquals(NUM_ROWS - 1, results.size());
   }
 
   @Test
