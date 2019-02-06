@@ -17,7 +17,8 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import com.google.common.collect.Iterators;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import org.apache.beam.runners.spark.structuredstreaming.translation.EncoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
@@ -30,6 +31,8 @@ import org.apache.spark.api.java.function.MapGroupsFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.KeyValueGroupedDataset;
 
+import java.util.List;
+
 class GroupByKeyTranslatorBatch<K, V>
     implements TransformTranslator<
         PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>> {
@@ -41,24 +44,30 @@ class GroupByKeyTranslatorBatch<K, V>
 
     Dataset<WindowedValue<KV<K, V>>> input = context.getDataset(context.getInput());
 
+    // Extract key to group by key only.
     KeyValueGroupedDataset<K, KV<K, V>> grouped =
         input
-            // extact KV from WindowedValue
             .map(
                 (MapFunction<WindowedValue<KV<K, V>>, KV<K, V>>) WindowedValue::getValue,
                 EncoderHelpers.kvEncoder())
-            // apply the actual GBK providing a way to extract the K
-            .groupByKey((MapFunction<KV<K, V>, K>) KV::getKey, EncoderHelpers.<K>genericEncoder());
+            .groupByKey((MapFunction<KV<K, V>, K>) KV::getKey, EncoderHelpers.genericEncoder());
 
+    // Materialize grouped values, potential OOM because of creation of new iterable
     Dataset<KV<K, Iterable<V>>> materialized =
-        // create KV<K, Iterable<V>>
         grouped.mapGroups(
             (MapGroupsFunction<K, KV<K, V>, KV<K, Iterable<V>>>)
-                (key, iterator) -> KV.of(key, () -> Iterators.transform(iterator, KV::getValue)),
+                // TODO: We need to improve this part and avoid creating of new List (potential OOM)
+                // (key, iterator) -> KV.of(key, () -> Iterators.transform(iterator, KV::getValue)),
+                (key, iterator) -> {
+                  List<V> values = Lists.newArrayList();
+                  while (iterator.hasNext()) {
+                    values.add(iterator.next().getValue());
+                  }
+                  return KV.of(key, Iterables.unmodifiableIterable(values));
+                },
             EncoderHelpers.kvEncoder());
 
-    // wrap inside a WindowedValue
-    //TODO fix: serialization issue
+    // Window the result into global window.
     Dataset<WindowedValue<KV<K, Iterable<V>>>> output =
         materialized.map(
             (MapFunction<KV<K, Iterable<V>>, WindowedValue<KV<K, Iterable<V>>>>)
