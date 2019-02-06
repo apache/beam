@@ -108,7 +108,7 @@ def parse_table_schema_from_json(schema_string):
   return bigquery.TableSchema(fields=fields)
 
 
-def _parse_table_reference(table, dataset=None, project=None):
+def parse_table_reference(table, dataset=None, project=None):
   """Parses a table reference into a (project, dataset, table) tuple.
 
   Args:
@@ -202,7 +202,7 @@ class BigQueryWrapper(object):
     return '%s_%d' % (self._row_id_prefix, self._unique_row_id)
 
   def _get_temp_table(self, project_id):
-    return _parse_table_reference(
+    return parse_table_reference(
         table=BigQueryWrapper.TEMP_TABLE + self._temporary_table_suffix,
         dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
         project=project_id)
