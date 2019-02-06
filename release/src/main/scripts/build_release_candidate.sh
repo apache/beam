@@ -240,7 +240,7 @@ if [[ $confirmation = "y" ]]; then
 
   git add -A
   git commit -m "Update beam-site for release ${RELEASE}\n\nContent generated based on commit ${RELEASE_COMMIT}"
-  git push ${USER_REMOTE_URL}
+  git push -f ${USER_REMOTE_URL}
 
   if [[ -z `which hub` ]]; then
     echo "You don't have hub installed, do you want to install hub with sudo permission? [y|N]"
