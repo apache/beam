@@ -412,6 +412,7 @@ class GoogleCloudOptions(PipelineOptions):
                         'updating-a-pipeline')
     parser.add_argument('--enable_streaming_engine',
                         default=False,
+                        action='store_true',
                         help='Enable Windmill Service for this Dataflow job. ')
     parser.add_argument('--gcp_kms_key',
                         default=None,

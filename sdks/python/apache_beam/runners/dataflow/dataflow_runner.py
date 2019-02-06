@@ -366,18 +366,16 @@ class DataflowRunner(PipelineRunner):
     # existing experiment.
     google_cloud_options = options.view_as(GoogleCloudOptions)
     if google_cloud_options.enable_streaming_engine:
-      experiments = []
+      if debug_options.experiments is None:
+        debug_options.experiments = []
       if "enable_windmill_service" not in debug_options.experiments:
-        experiments.append("enable_windmill_service")
+        debug_options.experiments.append("enable_windmill_service")
       if "enable_streaming_engine" not in debug_options.experiments:
-        experiments.append("enable_streaming_engine")
-      if debug_options.experiments is not None:
-        experiments = list(set(experiments + debug_options.experiments))
-      debug_options.experiments = experiments
+        debug_options.experiments.append("enable_streaming_engine")
     else:
       if debug_options.experiments is not None:
         if ("enable_windmill_service" in debug_options.experiments
-            or "enable_windmill_service" in debug_options.experiments):
+            or "enable_streaming_engine" in debug_options.experiments):
           raise ValueError("""Streaming engine both disabled and enabled:
           enableStreamingEngine is set to false, but enable_windmill_service
           and/or enable_streaming_engine are present. It is recommended you
