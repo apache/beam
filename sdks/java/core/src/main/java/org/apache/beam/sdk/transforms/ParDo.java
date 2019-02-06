@@ -125,7 +125,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
  *     lines.apply(ParDo.of(new DoFn<String, String>() {
  *        {@literal @}ProcessElement
  *         public void processElement({@literal @}Element String line,
- *           {@literal @}OutputReceiver<String> r) {
+ *           OutputReceiver<String> r) {
  *           for (String word : line.split("[^a-zA-Z']+")) {
  *             r.output(word);
  *           }
@@ -134,7 +134,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
  *     words.apply(ParDo.of(new DoFn<String, Integer>() {
  *        {@literal @}ProcessElement
  *         public void processElement({@literal @}Element String word,
- *           {@literal @}OutputReceiver<Integer> r) {
+ *           OutputReceiver<Integer> r) {
  *           Integer length = word.length();
  *           r.output(length);
  *         }}));
