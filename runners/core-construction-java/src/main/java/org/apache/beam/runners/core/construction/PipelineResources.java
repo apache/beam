@@ -113,7 +113,7 @@ public class PipelineResources {
         !Strings.isNullOrEmpty(tmpJarLocation),
         "Please provide temporary location for storing the jar files.");
 
-    return String.format("%s%s.jar", tmpJarLocation, contentHash);
+    return String.format("%s%s%s.jar", tmpJarLocation, File.separator, contentHash);
   }
 
   private static void zipDirectory(File directoryToStage, String uniqueDirectoryPath) {
