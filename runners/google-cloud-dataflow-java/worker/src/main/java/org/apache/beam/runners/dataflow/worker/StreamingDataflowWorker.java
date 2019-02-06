@@ -381,6 +381,7 @@ public class StreamingDataflowWorker {
   private final Counter<Long, Long> windmillShuffleBytesRead;
   private final Counter<Long, Long> windmillStateBytesRead;
   private final Counter<Long, Long> windmillStateBytesWritten;
+  private final Counter<Long, Long> windmillQuotaThrottling;
   // Built-in cumulative counters.
   private final Counter<Long, Long> javaHarnessUsedMemory;
   private final Counter<Long, Long> javaHarnessMaxMemory;
@@ -544,10 +545,13 @@ public class StreamingDataflowWorker {
             StreamingSystemCounterNames.WINDMILL_SHUFFLE_BYTES_READ.counterName());
     this.windmillStateBytesRead =
         pendingDeltaCounters.longSum(
-            StreamingSystemCounterNames.WINDMILl_STATE_BYTES_READ.counterName());
+            StreamingSystemCounterNames.WINDMILL_STATE_BYTES_READ.counterName());
     this.windmillStateBytesWritten =
         pendingDeltaCounters.longSum(
-            StreamingSystemCounterNames.WINDMILl_STATE_BYTES_WRITTEN.counterName());
+            StreamingSystemCounterNames.WINDMILL_STATE_BYTES_WRITTEN.counterName());
+    this.windmillQuotaThrottling =
+        pendingDeltaCounters.longSum(
+            StreamingSystemCounterNames.WINDMILL_QUOTA_THROTTLING.counterName());
     this.javaHarnessUsedMemory =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.JAVA_HARNESS_USED_MEMORY.counterName());
@@ -1731,6 +1735,9 @@ public class StreamingDataflowWorker {
   /** Sends counter updates to Dataflow backend. */
   private void sendWorkerUpdatesToDataflowService(
       CounterSet deltaCounters, CounterSet cumulativeCounters) throws IOException {
+
+    // Throttle time is tracked by the windmillServer but is reported to DFE here.
+    windmillQuotaThrottling.addValue(windmillServer.getAndResetThrottleTime());
 
     List<CounterUpdate> counterUpdates = new ArrayList<>(128);
 
