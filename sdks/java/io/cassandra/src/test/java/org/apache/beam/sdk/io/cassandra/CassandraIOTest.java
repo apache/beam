@@ -31,6 +31,7 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.mapping.annotations.Column;
+import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
 import java.io.Serializable;
 import java.math.BigInteger;
@@ -394,9 +395,11 @@ public class CassandraIOTest implements Serializable {
   /** Simple Cassandra entity used in test. */
   @Table(name = CASSANDRA_TABLE, keyspace = CASSANDRA_KEYSPACE)
   static class Scientist implements Serializable {
+
     @Column(name = "person_name")
     String name;
 
+    @PartitionKey()
     @Column(name = "person_id")
     int id;
 
