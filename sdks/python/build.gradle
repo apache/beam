@@ -374,7 +374,7 @@ task postCommit() {
   dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
   dependsOn "postCommitIT"
-  dependsOn ":beam-sdks-python-precommit-dataflow-py3:postCommitIT"
+  dependsOn ":beam-sdks-python-precommit-dataflow-py3:preCommitIT"
 }
 
 

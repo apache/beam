@@ -24,12 +24,11 @@ project.ext.python3 = true
 
 def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 
-task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
+task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   doLast {
     def testOpts = [
-        "--attr=Py3IT",
+        "--tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
         "--nocapture",    // Print stdout instantly
-        "--logging-level=INFO",   // Reduce console logs due to BEAM-6603
     ]
     def cmdArgs = project.mapToArgString(["test_opts": testOpts])
     exec {
