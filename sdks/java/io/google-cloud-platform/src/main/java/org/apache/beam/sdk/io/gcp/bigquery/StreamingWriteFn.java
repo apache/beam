@@ -26,7 +26,9 @@ import java.util.Map;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ShardedKey;
@@ -34,17 +36,20 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.joda.time.Instant;
 
 /** Implementation of DoFn to perform streaming BigQuery write. */
 @SystemDoFnInternal
 @VisibleForTesting
-class StreamingWriteFn<ErrorT> extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
+class StreamingWriteFn<ErrorT, ElementT>
+    extends DoFn<KV<ShardedKey<String>, TableRowInfo<ElementT>>, Void> {
   private final BigQueryServices bqServices;
   private final InsertRetryPolicy retryPolicy;
   private final TupleTag<ErrorT> failedOutputTag;
   private final ErrorContainer<ErrorT> errorContainer;
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
+  private final SerializableFunction<ElementT, TableRow> toTableRow;
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
   private transient Map<String, List<ValueInSingleWindow<TableRow>>> tableRows;
@@ -61,13 +66,15 @@ class StreamingWriteFn<ErrorT> extends DoFn<KV<ShardedKey<String>, TableRowInfo>
       TupleTag<ErrorT> failedOutputTag,
       ErrorContainer<ErrorT> errorContainer,
       boolean skipInvalidRows,
-      boolean ignoreUnknownValues) {
+      boolean ignoreUnknownValues,
+      SerializableFunction<ElementT, TableRow> toTableRow) {
     this.bqServices = bqServices;
     this.retryPolicy = retryPolicy;
     this.failedOutputTag = failedOutputTag;
     this.errorContainer = errorContainer;
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.toTableRow = toTableRow;
   }
 
   /** Prepares a target BigQuery table. */
@@ -79,17 +86,20 @@ class StreamingWriteFn<ErrorT> extends DoFn<KV<ShardedKey<String>, TableRowInfo>
 
   /** Accumulates the input into JsonTableRows and uniqueIdsForTableRows. */
   @ProcessElement
-  public void processElement(ProcessContext context, BoundedWindow window) {
-    String tableSpec = context.element().getKey().getKey();
+  public void processElement(
+      @Element KV<ShardedKey<String>, TableRowInfo<ElementT>> element,
+      @Timestamp Instant timestamp,
+      BoundedWindow window,
+      PaneInfo pane) {
+    String tableSpec = element.getKey().getKey();
     List<ValueInSingleWindow<TableRow>> rows =
         BigQueryHelpers.getOrCreateMapListValue(tableRows, tableSpec);
     List<String> uniqueIds =
         BigQueryHelpers.getOrCreateMapListValue(uniqueIdsForTableRows, tableSpec);
 
-    rows.add(
-        ValueInSingleWindow.of(
-            context.element().getValue().tableRow, context.timestamp(), window, context.pane()));
-    uniqueIds.add(context.element().getValue().uniqueId);
+    TableRow tableRow = toTableRow.apply(element.getValue().tableRow);
+    rows.add(ValueInSingleWindow.of(tableRow, timestamp, window, pane));
+    uniqueIds.add(element.getValue().uniqueId);
   }
 
   /** Writes the accumulated rows into BigQuery with streaming API. */

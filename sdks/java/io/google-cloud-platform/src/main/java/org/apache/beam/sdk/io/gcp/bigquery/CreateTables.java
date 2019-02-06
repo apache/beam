@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.util.Collections;
 import java.util.List;
@@ -46,9 +45,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * Creates any tables needed before performing streaming writes to the tables. This is a side-effect
  * {@link DoFn}, and returns the original collection unchanged.
  */
-public class CreateTables<DestinationT>
+public class CreateTables<DestinationT, ElementT>
     extends PTransform<
-        PCollection<KV<DestinationT, TableRow>>, PCollection<KV<TableDestination, TableRow>>> {
+        PCollection<KV<DestinationT, ElementT>>, PCollection<KV<TableDestination, ElementT>>> {
   private final CreateDisposition createDisposition;
   private final BigQueryServices bqServices;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
@@ -79,17 +78,17 @@ public class CreateTables<DestinationT>
     this.kmsKey = kmsKey;
   }
 
-  CreateTables<DestinationT> withTestServices(BigQueryServices bqServices) {
+  CreateTables<DestinationT, ElementT> withKmsKey(String kmsKey) {
     return new CreateTables<>(createDisposition, bqServices, dynamicDestinations, kmsKey);
   }
 
-  CreateTables<DestinationT> withKmsKey(String kmsKey) {
+  CreateTables<DestinationT, ElementT> withTestServices(BigQueryServices bqServices) {
     return new CreateTables<>(createDisposition, bqServices, dynamicDestinations, kmsKey);
   }
 
   @Override
-  public PCollection<KV<TableDestination, TableRow>> expand(
-      PCollection<KV<DestinationT, TableRow>> input) {
+  public PCollection<KV<TableDestination, ElementT>> expand(
+      PCollection<KV<DestinationT, ElementT>> input) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList();
     sideInputs.addAll(dynamicDestinations.getSideInputs());
 
@@ -97,7 +96,7 @@ public class CreateTables<DestinationT>
   }
 
   private class CreateTablesFn
-      extends DoFn<KV<DestinationT, TableRow>, KV<TableDestination, TableRow>> {
+      extends DoFn<KV<DestinationT, ElementT>, KV<TableDestination, ElementT>> {
     private Map<DestinationT, TableDestination> destinations;
 
     @StartBundle

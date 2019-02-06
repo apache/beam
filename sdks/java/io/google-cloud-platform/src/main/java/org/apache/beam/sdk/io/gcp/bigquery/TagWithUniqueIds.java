@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.util.UUID;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -33,8 +32,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  * sequential number.
  */
 @VisibleForTesting
-class TagWithUniqueIds
-    extends DoFn<KV<ShardedKey<String>, TableRow>, KV<ShardedKey<String>, TableRowInfo>> {
+class TagWithUniqueIds<ElementT>
+    extends DoFn<KV<ShardedKey<String>, ElementT>, KV<ShardedKey<String>, TableRowInfo>> {
   private transient String randomUUID;
   private transient long sequenceNo = 0L;
 

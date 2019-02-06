@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -52,8 +53,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * the element will be spilled into the output, and the {@link WriteGroupedRecordsToFiles} transform
  * will take care of writing it to a file.
  */
-class WriteBundlesToFiles<DestinationT>
-    extends DoFn<KV<DestinationT, TableRow>, Result<DestinationT>> {
+class WriteBundlesToFiles<DestinationT, ElementT>
+    extends DoFn<KV<DestinationT, ElementT>, Result<DestinationT>> {
 
   // When we spill records, shard the output keys to prevent hotspots. Experiments running up to
   // 10TB of data have shown a sharding of 10 to be a good choice.
@@ -63,9 +64,10 @@ class WriteBundlesToFiles<DestinationT>
   private transient Map<DestinationT, TableRowWriter> writers;
   private transient Map<DestinationT, BoundedWindow> writerWindows;
   private final PCollectionView<String> tempFilePrefixView;
-  private final TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittenRecordsTag;
-  private int maxNumWritersPerBundle;
-  private long maxFileSize;
+  private final TupleTag<KV<ShardedKey<DestinationT>, ElementT>> unwrittenRecordsTag;
+  private final int maxNumWritersPerBundle;
+  private final long maxFileSize;
+  private final SerializableFunction<ElementT, TableRow> toRowFunction;
   private int spilledShardNumber;
 
   /**
@@ -159,13 +161,15 @@ class WriteBundlesToFiles<DestinationT>
 
   WriteBundlesToFiles(
       PCollectionView<String> tempFilePrefixView,
-      TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittenRecordsTag,
+      TupleTag<KV<ShardedKey<DestinationT>, ElementT>> unwrittenRecordsTag,
       int maxNumWritersPerBundle,
-      long maxFileSize) {
+      long maxFileSize,
+      SerializableFunction<ElementT, TableRow> toRowFunction) {
     this.tempFilePrefixView = tempFilePrefixView;
     this.unwrittenRecordsTag = unwrittenRecordsTag;
     this.maxNumWritersPerBundle = maxNumWritersPerBundle;
     this.maxFileSize = maxFileSize;
+    this.toRowFunction = toRowFunction;
   }
 
   @StartBundle
@@ -186,7 +190,9 @@ class WriteBundlesToFiles<DestinationT>
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+  public void processElement(
+      ProcessContext c, @Element KV<DestinationT, ElementT> element, BoundedWindow window)
+      throws Exception {
     String tempFilePrefix = c.sideInput(tempFilePrefixView);
     DestinationT destination = c.element().getKey();
 
@@ -205,7 +211,7 @@ class WriteBundlesToFiles<DestinationT>
             unwrittenRecordsTag,
             KV.of(
                 ShardedKey.of(destination, (++spilledShardNumber) % SPILLED_RECORD_SHARDING_FACTOR),
-                c.element().getValue()));
+                element.getValue()));
         return;
       }
     }
@@ -219,7 +225,7 @@ class WriteBundlesToFiles<DestinationT>
     }
 
     try {
-      writer.write(c.element().getValue());
+      writer.write(toRowFunction.apply(element.getValue()));
     } catch (Exception e) {
       // Discard write result and close the write.
       try {
