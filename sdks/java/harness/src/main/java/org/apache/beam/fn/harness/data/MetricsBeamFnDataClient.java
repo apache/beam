@@ -17,13 +17,16 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import java.io.Closeable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMapEnvironment;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -34,21 +37,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link BeamFnDataClient} that queues elements so that they can be consumed and processed in the
+ * A {@link MetricsBeamFnDataClient} introduces a so that they can be consumed and processed in the
  * thread which calls @{link #drainAndBlock}.
  */
-public class QueueingBeamFnDataClient implements BeamFnDataClient {
+public class MetricsBeamFnDataClient implements BeamFnDataClient {
 
-  private static final Logger LOG = LoggerFactory.getLogger(QueueingBeamFnDataClient.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsBeamFnDataClient.class);
 
   private final BeamFnDataClient mainClient;
-  private final SynchronousQueue<ConsumerAndData> queue;
   private final ConcurrentHashMap<InboundDataClient, Object> inboundDataClients;
+  private final ConcurrentLinkedQueue<MetricsContainerStepMap> metricsContainerStepMaps;
 
-  public QueueingBeamFnDataClient(BeamFnDataClient mainClient) {
+  public MetricsBeamFnDataClient(BeamFnDataClient mainClient) {
     this.mainClient = mainClient;
-    this.queue = new SynchronousQueue<>();
     this.inboundDataClients = new ConcurrentHashMap<>();
+    this.metricsContainerStepMaps = new ConcurrentLinkedQueue<>();
   }
 
   @Override
@@ -62,10 +65,9 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
         inputLocation.getInstructionId(),
         inputLocation.getTarget());
 
-    QueueingFnDataReceiver<T> queueingConsumer = new QueueingFnDataReceiver<T>(consumer);
+    MetricsFnDataReceiver<T> metricsConsumer = new MetricsFnDataReceiver<T>(consumer);
     InboundDataClient inboundDataClient =
-        this.mainClient.receive(apiServiceDescriptor, inputLocation, coder, queueingConsumer);
-    queueingConsumer.inboundDataClient = inboundDataClient;
+        this.mainClient.receive(apiServiceDescriptor, inputLocation, coder, metricsConsumer);
     this.inboundDataClients.computeIfAbsent(
         inboundDataClient, (InboundDataClient idcToStore) -> idcToStore);
     return inboundDataClient;
@@ -90,34 +92,25 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
    * <p>All {@link InboundDataClient}s will be failed if processing throws an exception.
    *
    * <p>This method is NOT thread safe. This should only be invoked by a single thread, and is
-   * intended for use with a newly constructed QueueingBeamFnDataClient in {@link
+   * intended for use with a newly constructed MetricsBeamFnDataClient in {@link
    * ProcessBundleHandler#processBundle(InstructionRequest)}.
    */
-  public void drainAndBlock() throws Exception {
+  public void waitTillDone() throws Exception {
     while (true) {
-      try {
-        ConsumerAndData tuple = queue.poll(200, TimeUnit.MILLISECONDS);
-        if (tuple != null) {
-          // Forward to the consumers who cares about this data.
-          tuple.consumer.accept(tuple.data);
-        } else {
-          // Note: We do not expect to ever hit this point without receiving all values
-          // as (1) The InboundObserver will not be set to Done until the
-          // QueuingFnDataReceiver.accept() call returns and will not be invoked again.
-          // (2) The QueueingFnDataReceiver will not return until the value is received in
-          // drainAndBlock, because of the use of the SynchronousQueue.
-          if (allDone()) {
-            break;
-          }
-        }
-      } catch (Exception e) {
-        LOG.error("Client failed to dequeue and process WindowedValue", e);
-        for (InboundDataClient inboundDataClient : inboundDataClients.keySet()) {
-          inboundDataClient.fail(e);
-        }
-        throw e;
+      if (allDone()) {
+        break;
       }
+      Thread.sleep(100);
     }
+  }
+
+  /** @return The MonitoringInfos from all the merged MetricContainerStepMaps */
+  public Iterable<MonitoringInfo> getMonitoringInfos() {
+    MetricsContainerStepMap merged = new MetricsContainerStepMap();
+    for (MetricsContainerStepMap metricMap : metricsContainerStepMaps) {
+      merged.updateAll(metricMap);
+    }
+    return merged.getMonitoringInfos();
   }
 
   @Override
@@ -133,50 +126,40 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   }
 
   /**
-   * The QueueingFnDataReceiver is a a FnDataReceiver used by the QueueingBeamFnDataClient.
+   * The MetricsFnDataReceiver is a a FnDataReceiver used by the MetricsBeamFnDataClient.
    *
    * <p>All {@link #accept accept()ed} values will be put onto a synchronous queue which will cause
-   * the calling thread to block until {@link QueueingBeamFnDataClient#drainAndBlock} is called.
-   * {@link QueueingBeamFnDataClient#drainAndBlock} is responsible for processing values from the
+   * the calling thread to block until {@link MetricsBeamFnDataClient#drainAndBlock} is called.
+   * {@link MetricsBeamFnDataClient#drainAndBlock} is responsible for processing values from the
    * queue.
    */
-  public class QueueingFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
+  public class MetricsFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
     private final FnDataReceiver<WindowedValue<T>> consumer;
-    public InboundDataClient inboundDataClient;
 
-    public QueueingFnDataReceiver(FnDataReceiver<WindowedValue<T>> consumer) {
+    public MetricsFnDataReceiver(FnDataReceiver<WindowedValue<T>> consumer) {
       this.consumer = consumer;
     }
 
     /**
      * This method is thread safe, we expect multiple threads to call this, passing in data when new
-     * data arrives via the QueueingBeamFnDataClient's mainClient.
+     * data arrives via the MetricsBeamFnDataClient's mainClient.
+     *
+     * <p>This code is invoked CONCURRENTLY, by separate threads.
      */
     @Override
     public void accept(WindowedValue<T> value) throws Exception {
       try {
-        ConsumerAndData offering = new ConsumerAndData(this.consumer, value);
-        while (!queue.offer(offering, 200, TimeUnit.MILLISECONDS)) {
-          if (inboundDataClient.isDone()) {
-            // If it was cancelled by the consuming side of the queue.
-            break;
-          }
+        try (Closeable close = MetricsContainerStepMapEnvironment.setupMetricEnvironment()) {
+          metricsContainerStepMaps.add(MetricsContainerStepMapEnvironment.getCurrent());
+          this.consumer.accept(value);
         }
       } catch (Exception e) {
-        LOG.error("Failed to insert WindowedValue into the queue", e);
-        inboundDataClient.fail(e);
+        LOG.error("Client failed to dequeue and process WindowedValue", e);
+        for (InboundDataClient inboundDataClient : inboundDataClients.keySet()) {
+          inboundDataClient.fail(e);
+        }
         throw e;
       }
-    }
-  }
-
-  static class ConsumerAndData<T> {
-    public FnDataReceiver<WindowedValue<T>> consumer;
-    public WindowedValue<T> data;
-
-    public ConsumerAndData(FnDataReceiver<WindowedValue<T>> receiver, WindowedValue<T> data) {
-      this.consumer = receiver;
-      this.data = data;
     }
   }
 }

@@ -246,6 +246,17 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     };
   }
 
+  /**
+   * Enters the new state, but assumes an execution state tracker has already been activated on the
+   * current thread, and uses that execution state tracker.
+   */
+  public static Closeable enterStateForCurrentTracker(ExecutionState newState) {
+    // TODO(ajamato): Optimize with a thead local variable.
+    ExecutionStateTracker tracker = CURRENT_TRACKERS.get(Thread.currentThread());
+    checkState(tracker != null, "Cannot enterStateForCurrentTracker if no tracker is active.");
+    return tracker.enterState(newState);
+  }
+
   /** Return the number of transitions that have been observed by this state tracker. */
   public long getNumTransitions() {
     return numTransitions;

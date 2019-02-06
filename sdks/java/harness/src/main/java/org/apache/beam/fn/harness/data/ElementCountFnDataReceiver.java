@@ -20,7 +20,7 @@ package org.apache.beam.fn.harness.data;
 import java.io.Closeable;
 import java.util.HashMap;
 import org.apache.beam.runners.core.metrics.LabeledMetrics;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMapEnvironment;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -39,27 +39,25 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
 
   private FnDataReceiver<WindowedValue<T>> original;
   private Counter counter;
-  private MetricsContainer unboundMetricContainer;
 
-  public ElementCountFnDataReceiver(
-      FnDataReceiver<WindowedValue<T>> original,
-      String pCollection,
-      MetricsContainerStepMap metricContainerRegistry) {
+  public ElementCountFnDataReceiver(FnDataReceiver<WindowedValue<T>> original, String pCollection) {
     this.original = original;
     HashMap<String, String> labels = new HashMap<String, String>();
     labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, pCollection);
     MonitoringInfoMetricName metricName =
         MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
     this.counter = LabeledMetrics.counter(metricName);
-    // Collect the metric in a metric container which is not bound to the step name.
-    // This is required to count elements from impulse steps, which will produce elements outside
-    // of a pTransform context.
-    this.unboundMetricContainer = metricContainerRegistry.getUnboundContainer();
   }
 
   @Override
   public void accept(WindowedValue<T> input) throws Exception {
-    try (Closeable close = MetricsEnvironment.scopedMetricsContainer(this.unboundMetricContainer)) {
+    // This code is invoked CONCURRENTLY!
+    // Collect the metric in a metric container which is not bound to the step name.
+    // This is required to count elements from impulse steps, which will produce elements outside
+    // of a pTransform context.
+    MetricsContainer unboundMetricContainer =
+        MetricsContainerStepMapEnvironment.getCurrent().getUnboundContainer();
+    try (Closeable close = MetricsEnvironment.scopedMetricsContainer(unboundMetricContainer)) {
       // Increment the counter for each window the element occurs in.
       this.counter.inc(input.getWindows().size());
       this.original.accept(input);

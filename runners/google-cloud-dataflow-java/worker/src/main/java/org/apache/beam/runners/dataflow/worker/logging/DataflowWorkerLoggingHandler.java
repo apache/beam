@@ -144,6 +144,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
       writeIfNotEmpty("job", DataflowWorkerLoggingMDC.getJobId());
       writeIfNotEmpty("stage", DataflowWorkerLoggingMDC.getStageName());
 
+      // TODO(BEAM-6519): Use a relevant step name for the Fn Java SDK/SimpleExecutionState.
       if (currentExecutionState != null) {
         NameContext nameContext = currentExecutionState.getStepName();
         if (nameContext != null) {

@@ -24,8 +24,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.withSettings;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
+import java.io.Closeable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMapEnvironment;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -50,28 +51,29 @@ public class ElementCountFnDataReceiverTest {
   public void testCountsElements() throws Exception {
     final String pCollectionA = "pCollectionA";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    try (Closeable closeMetricsMap = MetricsContainerStepMapEnvironment.setupMetricEnvironment()) {
+      FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
+      ElementCountFnDataReceiver<String> wrapperConsumer =
+          new ElementCountFnDataReceiver(consumer, pCollectionA);
+      WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
+      int numElements = 20;
+      for (int i = 0; i < numElements; i++) {
+        wrapperConsumer.accept(element);
+      }
+      verify(consumer, times(numElements)).accept(element);
 
-    FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
-    ElementCountFnDataReceiver<String> wrapperConsumer =
-        new ElementCountFnDataReceiver(consumer, pCollectionA, metricsContainerRegistry);
-    WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
-    int numElements = 20;
-    for (int i = 0; i < numElements; i++) {
-      wrapperConsumer.accept(element);
+      SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+      builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+      builder.setPCollectionLabel(pCollectionA);
+      builder.setInt64Value(numElements);
+      MonitoringInfo expected = builder.build();
+
+      // Clear the timestamp before comparison.
+      MonitoringInfo first =
+          MetricsContainerStepMapEnvironment.getCurrent().getMonitoringInfos().iterator().next();
+      MonitoringInfo result = SimpleMonitoringInfoBuilder.clearTimestamp(first);
+      assertEquals(expected, result);
     }
-    verify(consumer, times(numElements)).accept(element);
-
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
-    builder.setPCollectionLabel(pCollectionA);
-    builder.setInt64Value(numElements);
-    MonitoringInfo expected = builder.build();
-
-    // Clear the timestamp before comparison.
-    MonitoringInfo first = metricsContainerRegistry.getMonitoringInfos().iterator().next();
-    MonitoringInfo result = SimpleMonitoringInfoBuilder.clearTimestamp(first);
-    assertEquals(expected, result);
   }
 
   @Test
@@ -79,19 +81,21 @@ public class ElementCountFnDataReceiverTest {
     mockStatic(MetricsEnvironment.class, withSettings().verboseLogging());
     final String pCollectionA = "pCollectionA";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    try (Closeable closeMetricsMap = MetricsContainerStepMapEnvironment.setupMetricEnvironment()) {
 
-    FnDataReceiver<WindowedValue<String>> consumer =
-        mock(FnDataReceiver.class, withSettings().verboseLogging());
-    ElementCountFnDataReceiver<String> wrapperConsumer =
-        new ElementCountFnDataReceiver(consumer, pCollectionA, metricsContainerRegistry);
-    WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
-    wrapperConsumer.accept(element);
+      FnDataReceiver<WindowedValue<String>> consumer =
+          mock(FnDataReceiver.class, withSettings().verboseLogging());
+      ElementCountFnDataReceiver<String> wrapperConsumer =
+          new ElementCountFnDataReceiver(consumer, pCollectionA);
+      WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
+      wrapperConsumer.accept(element);
 
-    verify(consumer, times(1)).accept(element);
+      verify(consumer, times(1)).accept(element);
 
-    // Verify that static scopedMetricsContainer is called with unbound container.
-    PowerMockito.verifyStatic(times(1));
-    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getUnboundContainer());
+      // Verify that static scopedMetricsContainer is called with unbound container.
+      PowerMockito.verifyStatic(times(1));
+      MetricsEnvironment.scopedMetricsContainer(
+          MetricsContainerStepMapEnvironment.getCurrent().getUnboundContainer());
+    }
   }
 }

@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.testng.AssertJUnit.assertFalse;
 
 import java.util.Collection;
 import java.util.UUID;
@@ -62,11 +63,11 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Tests for {@link QueueingBeamFnDataClient}. */
+/** Tests for {@link MetricsBeamFnDataClient}. */
 @RunWith(JUnit4.class)
-public class QueueingBeamFnDataClientTest {
+public class MetricsBeamFnDataClientTest {
 
-  private static final Logger LOG = LoggerFactory.getLogger(QueueingBeamFnDataClientTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsBeamFnDataClientTest.class);
 
   @Rule public TestExecutorService executor = TestExecutors.from(Executors::newCachedThreadPool);
 
@@ -179,10 +180,10 @@ public class QueueingBeamFnDataClientTest {
               PipelineOptionsFactory.create(),
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
-      QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(clientFactory);
+      MetricsBeamFnDataClient metricsClient = new MetricsBeamFnDataClient(clientFactory);
 
       InboundDataClient readFutureA =
-          queueingClient.receive(
+          metricsClient.receive(
               apiServiceDescriptor,
               ENDPOINT_A,
               CODER,
@@ -204,7 +205,7 @@ public class QueueingBeamFnDataClientTest {
 
       // This can be compeleted before we get values?
       InboundDataClient readFutureB =
-          queueingClient.receive(
+          metricsClient.receive(
               apiServiceDescriptor,
               ENDPOINT_B,
               CODER,
@@ -213,11 +214,11 @@ public class QueueingBeamFnDataClientTest {
                 receiveAllValuesB.countDown();
               });
 
-      Future<?> drainElementsFuture =
+      Future<?> waitUntilDoneFuture =
           executor.submit(
               () -> {
                 try {
-                  queueingClient.drainAndBlock();
+                  metricsClient.waitTillDone();
                 } catch (Exception e) {
                   LOG.error("Failed ", e);
                   fail();
@@ -237,7 +238,7 @@ public class QueueingBeamFnDataClientTest {
 
       // Wait for these threads to terminate
       sendElementsFuture.get();
-      drainElementsFuture.get();
+      waitUntilDoneFuture.get();
     } finally {
       server.shutdownNow();
     }
@@ -281,10 +282,10 @@ public class QueueingBeamFnDataClientTest {
               PipelineOptionsFactory.create(),
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
-      QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(clientFactory);
+      MetricsBeamFnDataClient metricsClient = new MetricsBeamFnDataClient(clientFactory);
 
       InboundDataClient readFutureA =
-          queueingClient.receive(
+          metricsClient.receive(
               apiServiceDescriptor,
               ENDPOINT_A,
               CODER,
@@ -304,7 +305,7 @@ public class QueueingBeamFnDataClientTest {
               });
 
       InboundDataClient readFutureB =
-          queueingClient.receive(
+          metricsClient.receive(
               apiServiceDescriptor,
               ENDPOINT_B,
               CODER,
@@ -312,19 +313,17 @@ public class QueueingBeamFnDataClientTest {
                 inboundValuesB.add(wv);
               });
 
-      Future<?> drainElementsFuture =
+      Future<?> waitUntilDoneFuture =
           executor.submit(
               () -> {
-                boolean intentionallyFailed = false;
+                boolean failed = false;
                 try {
-                  queueingClient.drainAndBlock();
-                } catch (RuntimeException e) {
-                  intentionallyFailed = true;
+                  metricsClient.waitTillDone();
                 } catch (Exception e) {
+                  failed = true;
                   LOG.error("Unintentional failure", e);
-                  fail();
                 }
-                assertTrue(intentionallyFailed);
+                assertFalse(failed);
               });
 
       // Fail all InboundObservers if any of the downstream consumers fail.
@@ -353,7 +352,7 @@ public class QueueingBeamFnDataClientTest {
 
       // Wait for these threads to terminate
       sendElementsFuture.get();
-      drainElementsFuture.get();
+      waitUntilDoneFuture.get();
     } finally {
       server.shutdownNow();
     }

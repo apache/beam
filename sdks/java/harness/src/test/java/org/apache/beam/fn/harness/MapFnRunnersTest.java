@@ -63,9 +63,7 @@ public class MapFnRunnersTest {
   public void testValueOnlyMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -106,9 +104,7 @@ public class MapFnRunnersTest {
   public void testFullWindowedValueMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -147,9 +143,7 @@ public class MapFnRunnersTest {
   @Test
   public void testFullWindowedValueMappingWithCompressedWindow() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     consumers.register("outputPC", "pTransformId", outputConsumer::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
