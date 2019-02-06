@@ -53,7 +53,6 @@ import org.apache.beam.runners.spark.translation.SparkPCollectionView;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
-import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
@@ -103,7 +102,7 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<T>> dstream =
             ((UnboundedDataset<T>) context.borrowDataset(transform)).getDStream();
-        dstream.map(WindowingHelpers.unwindowFunction()).print(transform.getNum());
+        dstream.map(WindowedValue::getValue).print(transform.getNum());
       }
 
       @Override

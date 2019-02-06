@@ -94,6 +94,12 @@
   <!-- End of Suppression on JavadocMethod violations. -->
 
   <!-- Guava use exceptions -->
-  <!-- Cassandra driver exposes guava in its API so we need to suppress the error for this case. -->
+  <!-- Non-vendored guava imports are allowed for files that depend on libraries that expose guava in its public API -->
   <suppress id="ForbidNonVendoredGuava" files=".*cassandra.*CassandraServiceImpl\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*kinesis.*KinesisIO\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*kinesis.*KinesisProducerMock\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableServiceImpl\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableServiceImplTest\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamValuesRel\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamEnumerableConverterTest\.java" />
 </suppressions>

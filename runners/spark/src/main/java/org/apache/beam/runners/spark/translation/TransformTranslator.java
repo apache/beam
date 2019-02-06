@@ -260,7 +260,7 @@ public final class TransformTranslator {
             outRdd =
                 jsc.parallelize(Lists.newArrayList(CoderHelpers.toByteArray(defaultValue, oCoder)))
                     .map(CoderHelpers.fromByteFunction(oCoder))
-                    .map(WindowingHelpers.windowFunction());
+                    .map(WindowedValue::valueInGlobalWindow);
           } else {
             outRdd = jsc.emptyRDD();
           }

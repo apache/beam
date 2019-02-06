@@ -101,9 +101,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
     -->
     <module name="RegexpSinglelineJava">
       <property name="id" value="ForbidNonVendoredGuava"/>
-      <property name="format" value="\scom\.google\.common\.(?!testing)"/>
-      <property name="format" value="\scom\.google\.thirdparty\."/>
+      <property name="format" value="(\scom\.google\.common\.(?!testing))|(\scom\.google\.thirdparty)"/>
       <property name="severity" value="error"/>
+      <property name="message" value="You are using raw guava, please use vendored guava classes."/>
     </module>
 
     <module name="UnusedImports">
