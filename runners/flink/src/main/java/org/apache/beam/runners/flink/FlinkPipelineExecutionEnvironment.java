@@ -19,9 +19,9 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.runners.core.construction.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -86,6 +86,9 @@ class FlinkPipelineExecutionEnvironment {
     PipelineTranslationModeOptimizer optimizer = new PipelineTranslationModeOptimizer(options);
     optimizer.translate(pipeline);
 
+    // Needs to be done before creating the Flink ExecutionEnvironments
+    prepareFilesToStageForRemoteClusterExecution(options);
+
     FlinkPipelineTranslator translator;
     if (options.isStreaming()) {
       this.flinkStreamEnv =
@@ -103,8 +106,6 @@ class FlinkPipelineExecutionEnvironment {
               options, options.getFilesToStage());
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
-
-    prepareFilesToStageForRemoteClusterExecution(options);
 
     translator.translate(pipeline);
   }
@@ -143,5 +144,15 @@ class FlinkPipelineExecutionEnvironment {
   JobGraph getJobGraph(Pipeline p) {
     translate(p);
     return flinkStreamEnv.getStreamGraph().getJobGraph();
+  }
+
+  @VisibleForTesting
+  ExecutionEnvironment getBatchExecutionEnvironment() {
+    return flinkBatchEnv;
+  }
+
+  @VisibleForTesting
+  StreamExecutionEnvironment getStreamExecutionEnvironment() {
+    return flinkStreamEnv;
   }
 }
