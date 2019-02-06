@@ -318,7 +318,7 @@ public class CassandraIO {
               spec.consistencyLevel())) {
         if (isMurmur3Partitioner(cluster)) {
           LOG.info("Murmur3Partitioner detected, splitting");
-          return split(spec, desiredBundleSizeBytes, getEstimatedSizeBytes(spec), cluster);
+          return splitWithTokenRanges(spec, desiredBundleSizeBytes, getEstimatedSizeBytes(pipelineOptions), cluster);
         } else {
           LOG.warn(
               "Only Murmur3Partitioner is supported for splitting, using an unique source for "
@@ -334,7 +334,7 @@ public class CassandraIO {
      * Compute the number of splits based on the estimated size and the desired bundle size, and
      * create several sources.
      */
-    private List<BoundedSource<T>> split(
+    private List<BoundedSource<T>> splitWithTokenRanges(
         CassandraIO.Read<T> spec,
         long desiredBundleSizeBytes,
         long estimatedSizeBytes,
@@ -416,7 +416,11 @@ public class CassandraIO {
           try {
             List<TokenRange> tokenRanges = getTokenRanges(cluster, spec.keyspace(), spec
                 .table());
-            return getEstimatedSizeBytes(tokenRanges);
+            long size = 0L;
+            for (TokenRange tokenRange : tokenRanges) {
+              size = size + tokenRange.meanPartitionSize * tokenRange.partitionCount;
+            }
+            return Math.round(size / getRingFraction(tokenRanges));
           } catch (Exception e) {
             LOG.warn("Can't estimate the size", e);
             return 0L;
@@ -426,43 +430,6 @@ public class CassandraIO {
           return 0L;
         }
       }
-    }
-
-    private long getEstimatedSizeBytes(CassandraIO.Read<T> spec) {
-      try (Cluster cluster =
-          getCluster(
-              spec.hosts(),
-              spec.port(),
-              spec.username(),
-              spec.password(),
-              spec.localDc(),
-              spec.consistencyLevel())) {
-        if (isMurmur3Partitioner(cluster)) {
-          try {
-            List<TokenRange> tokenRanges = getTokenRanges(cluster, spec.keyspace(), spec.table());
-            return getEstimatedSizeBytes(tokenRanges);
-          } catch (Exception e) {
-            LOG.warn("Can't estimate the size", e);
-            return 0L;
-          }
-        } else {
-          LOG.warn("Only Murmur3 partitioner is supported, can't estimate the size");
-          return 0L;
-        }
-      }
-    }
-
-    /**
-     * Actually estimate the size of the data to read on the cluster, based on the given token ranges
-     * to address.
-     */
-    @VisibleForTesting
-    static long getEstimatedSizeBytes(List<TokenRange> tokenRanges) {
-      long size = 0L;
-      for (TokenRange tokenRange : tokenRanges) {
-        size = size + tokenRange.meanPartitionSize * tokenRange.partitionCount;
-      }
-      return Math.round(size / getRingFraction(tokenRanges));
     }
 
     @Override
