@@ -95,7 +95,7 @@ class WordCountIT(unittest.TestCase):
   # lines read from expected output.
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
-  @attr('IT')
+  @attr('IT', 'Py3IT')
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
