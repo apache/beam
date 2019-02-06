@@ -23,7 +23,9 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.core.Every.everyItem;
 import static org.junit.Assert.fail;
 
@@ -125,6 +127,22 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
     assertThat(options.getFilesToStage().size(), is(2));
     assertThat(options.getFilesToStage(), everyItem(not(matches(".*\\.jar"))));
+  }
+
+  @Test
+  public void shouldUseDefaultTempLocationIfNoneSet() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(TestFlinkRunner.class);
+    options.setFlinkMaster("clusterAddress");
+
+    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    flinkEnv.translate(pipeline);
+
+    String defaultTmpDir = System.getProperty("java.io.tmpdir");
+
+    assertThat(options.getFilesToStage(), hasItem(startsWith(defaultTmpDir)));
   }
 
   @Test
