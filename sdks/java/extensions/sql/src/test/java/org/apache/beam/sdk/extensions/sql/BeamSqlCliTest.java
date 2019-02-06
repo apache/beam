@@ -232,11 +232,7 @@ public class BeamSqlCliTest {
             + "COMMENT '' LOCATION '/home/admin/orders'");
 
     String plan = cli.explainQuery("select * from person");
-    assertThat(
-        plan,
-        equalTo(
-            "BeamCalcRel(expr#0..2=[{inputs}], proj#0..2=[{exprs}])\n"
-                + "  BeamIOSourceRel(table=[[beam, person]])\n"));
+    assertThat(plan, equalTo("BeamIOSourceRel(table=[[beam, person]])\n"));
   }
 
   @Test
