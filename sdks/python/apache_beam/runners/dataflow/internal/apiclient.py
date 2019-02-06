@@ -184,8 +184,9 @@ class Environment(object):
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
       # till version 2.4.
-      if ('use_multiple_sdk_containers' not in self.proto.experiments and
-          'no_use_multiple_sdk_containers' not in self.proto.experiments):
+      debug_options_experiments = self.debug_options.experiments
+      if ('use_multiple_sdk_containers' not in debug_options_experiments and
+          'no_use_multiple_sdk_containers' not in debug_options_experiments):
         self.debug_options.experiments.append('use_multiple_sdk_containers')
     # Experiments
     if self.debug_options.experiments:
