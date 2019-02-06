@@ -69,12 +69,6 @@ if [[ $confirmation != "y" ]]; then
   exit
 fi
 
-# Check whether we have already created RC1. If so, we need to delete ${RELEASE} dir first
-if [[ ${RC_NUM} != "1" ]]; then
-  echo "Needs to delete ${ROOT_SVN_URL}/${RELEASE} first."
-  svn delete ${ROOT_SVN_URL}/${RELEASE}
-fi
-
 echo "[Current Step]: Build and stage java artifacts"
 echo "Do you want to proceed? [y|N]"
 read confirmation
@@ -125,24 +119,24 @@ if [[ $confirmation = "y" ]]; then
   cd beam/${RELEASE}
 
   echo "----------------Downloading Source Release-------------------"
-  echo "Downloading: ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip"
-  wget ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip  -O apache-beam-${RELEASE}-source-release.zip
-
-  echo "----Signing Source Release apache-beam-${RELEASE}-source-release.zip-----"
-  gpg --armor --detach-sig apache-beam-${RELEASE}-source-release.zip
-
-  echo "----Creating Hash Value for  apache-beam-${RELEASE}-source-release.zip----"
-  sha512sum apache-beam-${RELEASE}-source-release.zip > apache-beam-${RELEASE}-source-release.zip.sha512
-
-  svn add .
-  svn status
-  echo "Please confirm these changes are ready to commit: [y|N] "
-  read confirmation
-  if [[ $confirmation != "y" ]]; then
-    echo "Exit without staging source release on dist.apache.org."
-    rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
-    exit
+  SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.zip"
+  # Check whether there is an existing dist dir
+  if (svn ls "${SOURCE_RELEASE_ZIP}"); then
+    echo "Removing existing ${SOURCE_RELEASE_ZIP}."
+    svn delete "${SOURCE_RELEASE_ZIP}"
   fi
+
+  echo "Downloading: ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip"
+  wget ${GIT_BEAM_ARCHIVE}/release-${RELEASE}.zip  -O "${SOURCE_RELEASE_ZIP}"
+
+  echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
+  gpg --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
+
+  echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
+  sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
+
+  # The svn commit is interactive already and can be aborted by deleted the commit msg
+  svn add .
   svn commit --no-auth-cache
   rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
 fi
