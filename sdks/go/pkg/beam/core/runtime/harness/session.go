@@ -28,14 +28,6 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-const (
-	unknown = iota
-	instructionRequest
-	instructionResponse
-	dataReceive
-	dataSend
-)
-
 // capture is set by the capture hook below.
 var capture io.WriteCloser
 
