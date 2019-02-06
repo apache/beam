@@ -1503,7 +1503,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
         stop();
         start();
       }
-      Long toReturn = totalTime;
+      long toReturn = totalTime;
       totalTime = 0;
       return toReturn;
     }
