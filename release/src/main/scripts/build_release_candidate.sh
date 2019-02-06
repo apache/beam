@@ -206,6 +206,8 @@ if [[ $confirmation = "y" ]]; then
   mkdir ${LOCAL_WEBSITE_REPO}
 
   echo "------------------Building Python Doc------------------------"
+  virtualenv ${LOCAL_PYTHON_VIRTUALENV}
+  source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
   cd ${LOCAL_PYTHON_DOC}
   pip install tox
   git clone ${GIT_REPO_URL}
