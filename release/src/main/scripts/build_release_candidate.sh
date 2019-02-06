@@ -79,7 +79,7 @@ if [[ $confirmation = "y" ]]; then
   if [[ -d ${LOCAL_CLONE_DIR} ]]; then
     rm -rf ${LOCAL_CLONE_DIR}
   fi
-  mkdir ${LOCAL_CLONE_DIR}
+  mkdir -p ${LOCAL_CLONE_DIR}
   cd ${LOCAL_CLONE_DIR}
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
@@ -112,10 +112,10 @@ if [[ $confirmation = "y" ]]; then
   if [[ -d ${LOCAL_JAVA_STAGING_DIR} ]]; then
     rm -rf ${LOCAL_JAVA_STAGING_DIR}
   fi
-  mkdir ${LOCAL_JAVA_STAGING_DIR}
+  mkdir -p ${LOCAL_JAVA_STAGING_DIR}
   cd ${LOCAL_JAVA_STAGING_DIR}
   svn co ${ROOT_SVN_URL}
-  mkdir beam/${RELEASE}
+  mkdir -p beam/${RELEASE}
   cd beam/${RELEASE}
 
   echo "----------------Downloading Source Release-------------------"
@@ -150,7 +150,7 @@ if [[ $confirmation = "y" ]]; then
   if [[ -d ${LOCAL_PYTHON_STAGING_DIR} ]]; then
     rm -rf ${LOCAL_PYTHON_STAGING_DIR}
   fi
-  mkdir ${LOCAL_PYTHON_STAGING_DIR}
+  mkdir -p ${LOCAL_PYTHON_STAGING_DIR}
   cd ${LOCAL_PYTHON_STAGING_DIR}
 
   echo '-------------------Cloning Beam Release Branch-----------------'
@@ -166,7 +166,7 @@ if [[ $confirmation = "y" ]]; then
   cd dist
 
   svn co https://dist.apache.org/repos/dist/dev/beam
-  mkdir beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
+  mkdir -p beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
   cp apache-beam-${RELEASE}.zip beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}/apache-beam-${RELEASE}.zip
   cd beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
 
@@ -199,11 +199,11 @@ if [[ $confirmation = "y" ]]; then
   if [[ -d ${LOCAL_WEBSITE_UPDATE_DIR} ]]; then
     rm -rf ${LOCAL_WEBSITE_UPDATE_DIR}
   fi
-  mkdir ${LOCAL_WEBSITE_UPDATE_DIR}
+  mkdir -p ${LOCAL_WEBSITE_UPDATE_DIR}
   cd ${LOCAL_WEBSITE_UPDATE_DIR}
-  mkdir ${LOCAL_PYTHON_DOC}
-  mkdir ${LOCAL_JAVA_DOC}
-  mkdir ${LOCAL_WEBSITE_REPO}
+  mkdir -p ${LOCAL_PYTHON_DOC}
+  mkdir -p ${LOCAL_JAVA_DOC}
+  mkdir -p ${LOCAL_WEBSITE_REPO}
 
   echo "------------------Building Python Doc------------------------"
   virtualenv ${LOCAL_PYTHON_VIRTUALENV}
