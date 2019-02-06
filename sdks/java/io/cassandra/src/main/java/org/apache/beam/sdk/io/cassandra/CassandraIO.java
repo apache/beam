@@ -107,24 +107,22 @@ import org.slf4j.LoggerFactory;
 public class CassandraIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(CassandraIO.class);
+
   private CassandraIO() {}
 
   /** Provide a {@link Read} {@link PTransform} to read data from a Cassandra database. */
   public static <T> Read<T> read() {
-    return new AutoValue_CassandraIO_Read.Builder<T>()
-        .build();
+    return new AutoValue_CassandraIO_Read.Builder<T>().build();
   }
 
   /** Provide a {@link Write} {@link PTransform} to write data to a Cassandra database. */
   public static <T> Write<T> write() {
-    return Write.<T>builder(MutationType.WRITE)
-        .build();
+    return Write.<T>builder(MutationType.WRITE).build();
   }
 
   /** Provide a {@link Write} {@link PTransform} to delete data to a Cassandra database. */
   public static <T> Write<T> delete() {
-    return Write.<T>builder(MutationType.DELETE)
-        .build();
+    return Write.<T>builder(MutationType.DELETE).build();
   }
 
   /**
@@ -245,9 +243,7 @@ public class CassandraIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      checkArgument(
-          (hosts() != null && port() != null),
-          "WithHosts() and withPort() are required");
+      checkArgument((hosts() != null && port() != null), "WithHosts() and withPort() are required");
       checkArgument(keyspace() != null, "withKeyspace() is required");
       checkArgument(table() != null, "withTable() is required");
       checkArgument(entity() != null, "withEntity() is required");
@@ -318,7 +314,8 @@ public class CassandraIO {
               spec.consistencyLevel())) {
         if (isMurmur3Partitioner(cluster)) {
           LOG.info("Murmur3Partitioner detected, splitting");
-          return splitWithTokenRanges(spec, desiredBundleSizeBytes, getEstimatedSizeBytes(pipelineOptions), cluster);
+          return splitWithTokenRanges(
+              spec, desiredBundleSizeBytes, getEstimatedSizeBytes(pipelineOptions), cluster);
         } else {
           LOG.warn(
               "Only Murmur3Partitioner is supported for splitting, using an unique source for "
@@ -352,8 +349,8 @@ public class CassandraIO {
       LOG.info("{} splits were actually generated", splits.size());
 
       final String partitionKey =
-          cluster.getMetadata().getKeyspace(spec.keyspace()).getTable(spec.table()).getPartitionKey()
-              .stream()
+          cluster.getMetadata().getKeyspace(spec.keyspace()).getTable(spec.table())
+              .getPartitionKey().stream()
               .map(ColumnMetadata::getName)
               .collect(Collectors.joining(","));
 
@@ -365,10 +362,12 @@ public class CassandraIO {
           if (range.isWrapping()) {
             // A wrapping range is one that overlaps from the end of the partitioner range and its
             // start (ie : when the start token of the split is greater than the end token)
-            // We need to generate two queries here : one that goes from the start token to the end of
+            // We need to generate two queries here : one that goes from the start token to the end
+            // of
             // the partitioner range, and the other from the start of the partitioner range to the
             // end token of the split.
-            builder = builder.and(QueryBuilder.gte("token(" + partitionKey + ")", range.getStart()));
+            builder =
+                builder.and(QueryBuilder.gte("token(" + partitionKey + ")", range.getStart()));
             String query = builder.toString();
             LOG.debug("Cassandra generated read query : {}", query);
             queries.add(query);
@@ -380,7 +379,8 @@ public class CassandraIO {
             LOG.debug("Cassandra generated read query : {}", query);
             queries.add(query);
           } else {
-            builder = builder.and(QueryBuilder.gte("token(" + partitionKey + ")", range.getStart()));
+            builder =
+                builder.and(QueryBuilder.gte("token(" + partitionKey + ")", range.getStart()));
             builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", range.getEnd()));
             String query = builder.toString();
             LOG.debug("Cassandra generated read query : {}", query);
@@ -394,7 +394,8 @@ public class CassandraIO {
 
     private static long getNumSplits(
         long desiredBundleSizeBytes, long estimatedSizeBytes, @Nullable Integer minNumberOfSplits) {
-      long numSplits = desiredBundleSizeBytes > 0 ? (estimatedSizeBytes / desiredBundleSizeBytes) : 1;
+      long numSplits =
+          desiredBundleSizeBytes > 0 ? (estimatedSizeBytes / desiredBundleSizeBytes) : 1;
       if (numSplits <= 0) {
         LOG.warn("Number of splits is less than 0 ({}), fallback to 1", numSplits);
         numSplits = 1;
@@ -414,8 +415,7 @@ public class CassandraIO {
               spec.consistencyLevel())) {
         if (isMurmur3Partitioner(cluster)) {
           try {
-            List<TokenRange> tokenRanges = getTokenRanges(cluster, spec.keyspace(), spec
-                .table());
+            List<TokenRange> tokenRanges = getTokenRanges(cluster, spec.keyspace(), spec.table());
             return getEstimatedSizeBytesFromTokenRanges(tokenRanges);
           } catch (Exception e) {
             LOG.warn("Can't estimate the size", e);
@@ -499,7 +499,7 @@ public class CassandraIO {
         ringFraction =
             ringFraction
                 + (distance(tokenRange.rangeStart, tokenRange.rangeEnd).doubleValue()
-                / SplitGenerator.getRangeSize(MURMUR3PARTITIONER).doubleValue());
+                    / SplitGenerator.getRangeSize(MURMUR3PARTITIONER).doubleValue());
       }
       return ringFraction;
     }
@@ -576,7 +576,8 @@ public class CassandraIO {
           if (iterator == null) {
             iterator = mapper.map(result.getUninterruptibly()).iterator();
           } else {
-            iterator = Iterators.concat(iterator, mapper.map(result.getUninterruptibly()).iterator());
+            iterator =
+                Iterators.concat(iterator, mapper.map(result.getUninterruptibly()).iterator());
           }
         }
 
@@ -617,7 +618,6 @@ public class CassandraIO {
         return source;
       }
     }
-
   }
 
   /** Specify the mutation type: either write or delete. */
@@ -903,7 +903,6 @@ public class CassandraIO {
 
     return builder.build();
   }
-
 
   /** Mutator allowing to do side effects into Apache Cassandra database. */
   private static class Mutator<T> {
