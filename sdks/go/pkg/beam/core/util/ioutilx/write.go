@@ -25,7 +25,6 @@ import (
 // to the stack. Use with caution, and only when you're certain
 // the writer doesn't retain the passed in byte buffer.
 func WriteUnsafe(w io.Writer, b []byte) (int, error) {
-	p := uintptr(unsafe.Pointer(&b))
-	ret := *(*[]byte)(unsafe.Pointer(p))
+	ret := *(*[]byte)(noescape(unsafe.Pointer(&b)))
 	return w.Write(ret)
 }
