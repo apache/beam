@@ -48,10 +48,6 @@ public class GroupByKeyTest implements Serializable {
     pipeline = Pipeline.create(options);
   }
 
-  @Ignore(
-      "fails with Unable to create serializer "
-          + "\"com.esotericsoftware.kryo.serializers.FieldSerializer\" for class: "
-          + "worker.org.gradle.internal.UncheckedException in last map step")
   @Test
   public void testGroupByKey() {
     Map<Integer, Integer> elems = new HashMap<>();
