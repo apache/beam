@@ -112,7 +112,7 @@ public class WindmillServerBase extends WindmillServerStub {
   @Override
   public long getAndResetThrottleTime() {
     // Windmill appliance does not have throttling.
-    return (long) 0;
+    return 0;
   }
 
   @Override
