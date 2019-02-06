@@ -274,10 +274,14 @@ task runBeamDependencyCheck() {
 }
 
 apply plugin: 'net.researchgate.release'
+
+// Configure the release plugin to do only local work; the release manager determines what, if
+// anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
-  revertOnFail = true
+  revertOnFail = false
   tagTemplate = 'v${version}'
   git {
     requireBranch = 'release-.*|master'
+    pushToRemote = ''
   }
 }
