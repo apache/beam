@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.options;
 
-import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
-
 import java.io.IOException;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.GrpcWindmillServer;
