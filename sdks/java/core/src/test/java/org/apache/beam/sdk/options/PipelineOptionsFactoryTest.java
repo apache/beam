@@ -49,7 +49,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.auto.service.AutoService;
-import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -74,6 +73,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Collections2
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;

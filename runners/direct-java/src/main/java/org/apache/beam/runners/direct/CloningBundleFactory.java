@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.base.MoreObjects;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -25,6 +24,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.joda.time.Instant;
 
 /**
