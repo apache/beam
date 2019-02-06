@@ -66,7 +66,6 @@ func wrapMethodsKeyed(t reflect.Type, fn interface{}) (map[string]Func, bool) {
 	}
 	key := t.String()
 	if f, exists := structFuncs[key]; exists {
-		log.Debugf(context.Background(), "EXTRACTING StructWrapper for %v", key)
 		return f(fn), true
 	}
 	return nil, false
