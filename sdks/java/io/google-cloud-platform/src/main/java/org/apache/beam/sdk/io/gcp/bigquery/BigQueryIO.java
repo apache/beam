@@ -1030,7 +1030,7 @@ public class BigQueryIO {
    * function must be provided to convert each input element into a {@link TableRow} using {@link
    * Write#withFormatFunction(SerializableFunction)}.
    *
-   * <p>In BigQuery, each table has an enlcosing dataset. The dataset being written must already
+   * <p>In BigQuery, each table has an enclosing dataset. The dataset being written must already
    * exist.
    *
    * <p>By default, tables will be created if they do not exist, which corresponds to a {@link
