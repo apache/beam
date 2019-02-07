@@ -537,8 +537,7 @@ class BatchLoads<DestinationT>
     // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
     // with one that makes this happen.
     @SuppressWarnings("unchecked")
-    DynamicDestinations<?, DestinationT> destinations =
-        (DynamicDestinations<?, DestinationT>) dynamicDestinations;
+    DynamicDestinations<?, DestinationT> destinations = dynamicDestinations;
     if (createDisposition.equals(CreateDisposition.CREATE_IF_NEEDED)
         || createDisposition.equals(CreateDisposition.CREATE_NEVER)) {
       destinations =
