@@ -500,6 +500,8 @@ public class Schema implements Serializable {
       return FieldType.forTypeName(TypeName.ARRAY).setCollectionElementType(elementType).build();
     }
 
+    /** @deprecated Set the nullability on the elementType instead */
+    @Deprecated
     public static final FieldType array(FieldType elementType, boolean nullable) {
       return FieldType.forTypeName(TypeName.ARRAY)
           .setCollectionElementType(elementType.withNullable(nullable))
@@ -514,6 +516,8 @@ public class Schema implements Serializable {
           .build();
     }
 
+    /** @deprecated Set the nullability on the valueType instead */
+    @Deprecated
     public static final FieldType map(
         FieldType keyType, FieldType valueType, boolean valueTypeNullable) {
       return FieldType.forTypeName(TypeName.MAP)
