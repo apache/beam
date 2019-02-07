@@ -63,7 +63,7 @@ public class GroupCombineFunctions {
     // can be transferred over the network for the shuffle.
     JavaPairRDD<ByteArray, byte[]> pairRDD =
         rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-            .map(WindowingHelpers.unwindowFunction())
+            .map(WindowedValue::getValue)
             .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
 
@@ -80,7 +80,7 @@ public class GroupCombineFunctions {
             true)
         .mapPartitions(TranslationUtils.fromPairFlatMapFunction(), true)
         .mapPartitions(
-            TranslationUtils.functionToFlatMapFunction(WindowingHelpers.windowFunction()), true);
+            TranslationUtils.functionToFlatMapFunction(WindowedValue::valueInGlobalWindow), true);
   }
 
   /** Apply a composite {@link org.apache.beam.sdk.transforms.Combine.Globally} transformation. */
@@ -170,7 +170,7 @@ public class GroupCombineFunctions {
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
     return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-        .map(WindowingHelpers.unwindowFunction())
+        .map(WindowedValue::getValue)
         .mapToPair(TranslationUtils.toPairFunction())
         .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
         .repartition(rdd.getNumPartitions())
