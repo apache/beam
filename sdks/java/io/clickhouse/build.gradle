@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins {
+  id 'org.apache.beam.module'
+  id 'ca.coglinc.javacc'
+}
 applyJavaNature(
     // javacc generated code produces lint warnings
     disableLintWarnings: ['dep-ann']
 )
-
-apply plugin: 'ca.coglinc.javacc'
 
 description = "Apache Beam :: SDKs :: Java :: IO :: ClickHouse"
 ext.summary = "IO to write to ClickHouse (https://clickhouse.yandex)."
