@@ -18,10 +18,13 @@
 
 package org.apache.beam.runners.samza;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.samza.metrics.MetricsReporter;
 
 /** Options which can be used to configure a Samza PipelineRunner. */
 public interface SamzaPipelineOptions extends PipelineOptions {
@@ -95,4 +98,10 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   int getTimerBufferSize();
 
   void setTimerBufferSize(int timerBufferSize);
+
+  @JsonIgnore
+  @Description("The metrics reporters that will be used to emit metrics.")
+  List<MetricsReporter> getMetricsReporters();
+
+  void setMetricsReporters(List<MetricsReporter> reporters);
 }

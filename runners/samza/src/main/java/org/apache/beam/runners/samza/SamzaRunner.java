@@ -19,9 +19,11 @@
 package org.apache.beam.runners.samza;
 
 import com.google.common.collect.Iterators;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
 import org.apache.beam.runners.samza.translation.PViewToIdMapper;
@@ -39,6 +41,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.ExternalContext;
+import org.apache.samza.metrics.MetricsReporterFactory;
 import org.apache.samza.runtime.ApplicationRunner;
 import org.apache.samza.runtime.ApplicationRunners;
 import org.slf4j.Logger;
@@ -95,15 +98,32 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
     final SamzaExecutionContext executionContext = new SamzaExecutionContext(options);
+    final Map<String, MetricsReporterFactory> reporterFactories = getMetricsReporters();
 
     final StreamApplication app =
         appDescriptor -> {
           appDescriptor.withApplicationContainerContextFactory(executionContext.new Factory());
+          appDescriptor.withMetricsReporterFactories(reporterFactories);
+
           SamzaPipelineTranslator.translate(
               pipeline, new TranslationContext(appDescriptor, idMap, options));
         };
 
     return runSamzaApp(app, configBuilder, executionContext);
+  }
+
+  private Map<String, MetricsReporterFactory> getMetricsReporters() {
+    if (options.getMetricsReporters() != null) {
+      return options
+          .getMetricsReporters()
+          .stream()
+          .collect(
+              Collectors.toMap(
+                  r -> r.getClass().getName(),
+                  r -> (MetricsReporterFactory) (name, processorId, config) -> r));
+    } else {
+      return Collections.emptyMap();
+    }
   }
 
   private SamzaPipelineResult runSamzaApp(
