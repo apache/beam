@@ -31,6 +31,7 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
+import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
@@ -50,6 +51,8 @@ import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -57,6 +60,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -141,6 +145,11 @@ public class GcsUtil {
   // Exposed for testing.
   final ExecutorService executorService;
 
+  /** Rewrite operation setting. For testing purposes only. */
+  @VisibleForTesting @Nullable Long maxBytesRewrittenPerCall;
+
+  @VisibleForTesting @Nullable AtomicInteger numRewriteTokensUsed;
+
   /** Returns the prefix portion of the glob that doesn't contain wildcards. */
   public static String getNonWildcardPrefix(String globExp) {
     Matcher m = GLOB_PREFIX.matcher(globExp);
@@ -210,6 +219,8 @@ public class GcsUtil {
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
     this.executorService = executorService;
+    this.maxBytesRewrittenPerCall = null;
+    this.numRewriteTokensUsed = null;
   }
 
   // Use this only for testing purposes.
@@ -279,6 +290,7 @@ public class GcsUtil {
   private static BackOff createBackOff() {
     return BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
   }
+
   /**
    * Returns the file size from GCS or throws {@link FileNotFoundException} if the resource does not
    * exist.
@@ -420,10 +432,11 @@ public class GcsUtil {
             new ClientRequestHelper<>(),
             path.getBucket(),
             path.getObject(),
+            type,
+            /* kmsKeyName= */ null,
             AsyncWriteChannelOptions.newBuilder().build(),
             new ObjectWriteConditions(),
-            Collections.emptyMap(),
-            type);
+            Collections.emptyMap());
     if (uploadBufferSizeBytes != null) {
       channel.setUploadBufferSize(uploadBufferSizeBytes);
     }
@@ -597,13 +610,84 @@ public class GcsUtil {
     return batches;
   }
 
-  public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
-      throws IOException {
-    executeBatches(makeCopyBatches(srcFilenames, destFilenames));
+  /**
+   * Wrapper for RewriteRequest that supports multiple calls.
+   *
+   * <p>Usage: create, enqueue(), and execute batch. Then, check getReadyToEnqueue() if another
+   * round of enqueue() and execute is required. Repeat until getReadyToEnqueue() returns false.
+   */
+  class RewriteOp extends JsonBatchCallback<RewriteResponse> {
+    private GcsPath from;
+    private GcsPath to;
+    private boolean readyToEnqueue;
+    @VisibleForTesting Storage.Objects.Rewrite rewriteRequest;
+
+    public boolean getReadyToEnqueue() {
+      return readyToEnqueue;
+    }
+
+    public void enqueue(BatchRequest batch) throws IOException {
+      if (!readyToEnqueue) {
+        throw new IOException(
+            String.format(
+                "Invalid state for Rewrite, from=%s, to=%s, readyToEnqueue=%s",
+                from, to, readyToEnqueue));
+      }
+      rewriteRequest.queue(batch, this);
+      readyToEnqueue = false;
+    }
+
+    public RewriteOp(GcsPath from, GcsPath to) throws IOException {
+      this.from = from;
+      this.to = to;
+      rewriteRequest =
+          storageClient
+              .objects()
+              .rewrite(from.getBucket(), from.getObject(), to.getBucket(), to.getObject(), null);
+      if (maxBytesRewrittenPerCall != null) {
+        rewriteRequest.setMaxBytesRewrittenPerCall(maxBytesRewrittenPerCall);
+      }
+      readyToEnqueue = true;
+    }
+
+    @Override
+    public void onSuccess(RewriteResponse rewriteResponse, HttpHeaders responseHeaders)
+        throws IOException {
+      if (rewriteResponse.getDone()) {
+        LOG.debug("Rewrite done: {} to {}", from, to);
+        readyToEnqueue = false;
+      } else {
+        LOG.debug(
+            "Rewrite progress: {} of {} bytes, {} to {}",
+            rewriteResponse.getTotalBytesRewritten(),
+            rewriteResponse.getObjectSize(),
+            from,
+            to);
+        rewriteRequest.setRewriteToken(rewriteResponse.getRewriteToken());
+        readyToEnqueue = true;
+        if (numRewriteTokensUsed != null) {
+          numRewriteTokensUsed.incrementAndGet();
+        }
+      }
+    }
+
+    @Override
+    public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
+      readyToEnqueue = false;
+      throw new IOException(String.format("Error trying to rewrite %s to %s: %s", from, to, e));
+    }
   }
 
-  List<BatchRequest> makeCopyBatches(Iterable<String> srcFilenames, Iterable<String> destFilenames)
+  public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
       throws IOException {
+    LinkedList<RewriteOp> rewrites = makeRewriteOps(srcFilenames, destFilenames);
+    while (rewrites.size() > 0) {
+      executeBatches(makeCopyBatches(rewrites));
+    }
+  }
+
+  LinkedList<RewriteOp> makeRewriteOps(
+      Iterable<String> srcFilenames, Iterable<String> destFilenames) throws IOException {
     List<String> srcList = Lists.newArrayList(srcFilenames);
     List<String> destList = Lists.newArrayList(destFilenames);
     checkArgument(
@@ -611,13 +695,27 @@ public class GcsUtil {
         "Number of source files %s must equal number of destination files %s",
         srcList.size(),
         destList.size());
-
-    List<BatchRequest> batches = new ArrayList<>();
-    BatchRequest batch = createBatchRequest();
+    LinkedList<RewriteOp> rewrites = Lists.newLinkedList();
     for (int i = 0; i < srcList.size(); i++) {
       final GcsPath sourcePath = GcsPath.fromUri(srcList.get(i));
       final GcsPath destPath = GcsPath.fromUri(destList.get(i));
-      enqueueCopy(sourcePath, destPath, batch);
+      rewrites.addLast(new RewriteOp(sourcePath, destPath));
+    }
+    return rewrites;
+  }
+
+  List<BatchRequest> makeCopyBatches(LinkedList<RewriteOp> rewrites) throws IOException {
+    List<BatchRequest> batches = new ArrayList<>();
+    BatchRequest batch = createBatchRequest();
+    Iterator<RewriteOp> it = rewrites.iterator();
+    while (it.hasNext()) {
+      RewriteOp rewrite = it.next();
+      if (!rewrite.getReadyToEnqueue()) {
+        it.remove();
+        continue;
+      }
+      rewrite.enqueue(batch);
+
       if (batch.size() >= MAX_REQUESTS_PER_BATCH) {
         batches.add(batch);
         batch = createBatchRequest();
@@ -698,27 +796,6 @@ public class GcsUtil {
       return new AutoValue_GcsUtil_StorageObjectOrIOException(
           null /* storageObject */, checkNotNull(ioException, "ioException"));
     }
-  }
-
-  private void enqueueCopy(final GcsPath from, final GcsPath to, BatchRequest batch)
-      throws IOException {
-    Storage.Objects.Copy copyRequest =
-        storageClient
-            .objects()
-            .copy(from.getBucket(), from.getObject(), to.getBucket(), to.getObject(), null);
-    copyRequest.queue(
-        batch,
-        new JsonBatchCallback<StorageObject>() {
-          @Override
-          public void onSuccess(StorageObject obj, HttpHeaders responseHeaders) {
-            LOG.debug("Successfully copied {} to {}", from, to);
-          }
-
-          @Override
-          public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-            throw new IOException(String.format("Error trying to copy %s to %s: %s", from, to, e));
-          }
-        });
   }
 
   private void enqueueDelete(final GcsPath file, BatchRequest batch) throws IOException {
