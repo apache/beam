@@ -312,11 +312,14 @@ class SdkWorker(object):
 
   def process_bundle_split(self, request, instruction_id):
     processor = self.active_bundle_processors.get(request.instruction_reference)
-    if not processor:
-      raise ValueError('Instruction not running: %s' % instruction_id)
-    return beam_fn_api_pb2.InstructionResponse(
-        instruction_id=instruction_id,
-        process_bundle_split=processor.try_split(request))
+    if processor:
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=instruction_id,
+          process_bundle_split=processor.try_split(request))
+    else:
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=instruction_id,
+          error='Instruction not running: %s' % instruction_id)
 
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
