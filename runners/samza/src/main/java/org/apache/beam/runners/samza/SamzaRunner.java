@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza;
 
 import com.google.common.collect.Iterators;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.ExternalContext;
+import org.apache.samza.metrics.MetricsReporter;
 import org.apache.samza.metrics.MetricsReporterFactory;
 import org.apache.samza.runtime.ApplicationRunner;
 import org.apache.samza.runtime.ApplicationRunners;
@@ -114,13 +116,16 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
   private Map<String, MetricsReporterFactory> getMetricsReporters() {
     if (options.getMetricsReporters() != null) {
-      return options
-          .getMetricsReporters()
-          .stream()
-          .collect(
-              Collectors.toMap(
-                  r -> r.getClass().getName(),
-                  r -> (MetricsReporterFactory) (name, processorId, config) -> r));
+      final Map<String, MetricsReporterFactory> reporters = new HashMap<>();
+      for (int i = 0; i < options.getMetricsReporters().size(); i++) {
+        final String name = "beam-metrics-reporter-" + i;
+        final MetricsReporter reporter = options.getMetricsReporters().get(i);
+
+        reporters.put(
+            name,
+            (MetricsReporterFactory) (nm, processorId, config) -> reporter);
+      }
+      return reporters;
     } else {
       return Collections.emptyMap();
     }
