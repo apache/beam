@@ -43,6 +43,7 @@ import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
@@ -211,11 +212,18 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   public void getState(
       GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
     LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
-    responseObserver.onNext(
-        GetJobStateResponse.newBuilder()
-            .setState(jobStates.getOrDefault(request.getJobId(), Enum.UNRECOGNIZED))
-            .build());
-    responseObserver.onCompleted();
+    try {
+      responseObserver.onNext(
+          GetJobStateResponse.newBuilder()
+              .setState(jobStates.getOrDefault(request.getJobId(), Enum.UNRECOGNIZED))
+              .build());
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      String errMessage =
+          String.format("Encountered Unexpected Exception for Invocation %s", request.getJobId());
+      LOG.error(errMessage, e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
   }
 
   @Override
@@ -239,6 +247,25 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
     responseObserver.onCompleted();
+  }
+
+  @Override
+  public void describePipelineOptions(
+      JobApi.DescribePipelineOptionsRequest request,
+      StreamObserver<JobApi.DescribePipelineOptionsResponse> responseObserver) {
+    LOG.trace("{} {}", JobApi.DescribePipelineOptionsRequest.class.getSimpleName(), request);
+    try {
+      JobApi.DescribePipelineOptionsResponse response =
+          JobApi.DescribePipelineOptionsResponse.newBuilder()
+              .addAllOptions(
+                  PipelineOptionsFactory.describe(PipelineOptionsFactory.getRegisteredOptions()))
+              .build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      LOG.error("Error describing pipeline options", e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
   }
 
   @Override
