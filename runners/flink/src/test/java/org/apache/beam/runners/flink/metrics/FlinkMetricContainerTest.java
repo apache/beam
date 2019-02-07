@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
-import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
 import static org.apache.beam.runners.flink.metrics.FlinkMetricContainer.getFlinkMetricNameString;
 import static org.hamcrest.CoreMatchers.is;
@@ -37,7 +37,6 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.DoubleDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.Metric;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo.MonitoringInfoLabels;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.DistributionCell;
 import org.apache.beam.runners.core.metrics.DistributionData;
@@ -67,13 +66,6 @@ public class FlinkMetricContainerTest {
 
   @Mock private RuntimeContext runtimeContext;
   @Mock private MetricGroup metricGroup;
-
-  static final String PTRANSFORM_LABEL =
-      MonitoringInfoLabels.forNumber(MonitoringInfoLabels.TRANSFORM_VALUE)
-          .getValueDescriptor()
-          .getOptions()
-          .getExtension(labelProps)
-          .getName();
 
   @Before
   public void beforeTest() {

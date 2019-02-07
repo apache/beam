@@ -77,7 +77,7 @@ public class SimpleMonitoringInfoBuilder {
       new HashMap<String, MonitoringInfoSpec>();
 
   public static final String PCOLLECTION_LABEL = getLabelString(MonitoringInfoLabels.PCOLLECTION);
-  public static final String PTRANSFORM_LABEL = getLabelString(MonitoringInfoLabels.TRANSFORM);
+  public static final String PTRANSFORM_LABEL = getLabelString(MonitoringInfoLabels.PTRANSFORM);
 
   private final boolean validateAndDropInvalid;
 
