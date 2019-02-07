@@ -323,6 +323,7 @@ class DynamicDestinationsHelpers {
     }
 
     /** Returns a {@link TableDestination} object for the destination. May not return null. */
+    @Override
     public TableDestination getTable(DestinationT destination) {
       TableDestination wrappedDestination = super.getTable(destination);
       Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
@@ -338,6 +339,7 @@ class DynamicDestinationsHelpers {
     }
 
     /** Returns the table schema for the destination. May not return null. */
+    @Override
     public TableSchema getSchema(DestinationT destination) {
       TableDestination wrappedDestination = super.getTable(destination);
       Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
