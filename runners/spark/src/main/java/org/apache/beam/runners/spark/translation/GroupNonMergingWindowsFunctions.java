@@ -96,8 +96,8 @@ public class GroupNonMergingWindowsFunctions {
     private final Coder<V> valueCoder;
     private final WindowingStrategy<?, W> windowingStrategy;
     private final FullWindowedValueCoder<byte[]> windowedValueCoder;
-    private boolean hasNext = true;
 
+    private boolean hasNext = true;
     private WindowedKey currentKey = null;
 
     GroupByKeyIterator(
@@ -140,7 +140,7 @@ public class GroupNonMergingWindowsFunctions {
 
       boolean usedAsIterable = false;
       private final PeekingIterator<Tuple2<WindowedKey, byte[]>> inner;
-      private WindowedKey currentKey;
+      private final WindowedKey currentKey;
 
       ValueIterator(PeekingIterator<Tuple2<WindowedKey, byte[]>> inner, WindowedKey currentKey) {
         this.inner = inner;
@@ -222,11 +222,11 @@ public class GroupNonMergingWindowsFunctions {
       return result;
     }
 
-    public byte[] getKey() {
+    byte[] getKey() {
       return key;
     }
 
-    public byte[] getWindow() {
+    byte[] getWindow() {
       return window;
     }
 

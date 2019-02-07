@@ -80,7 +80,7 @@ public class GroupNonMergingWindowsFunctionsTest {
     }
   }
 
-  GroupByKeyIterator<String, Integer, GlobalWindow> createGbkIterator() {
+  private GroupByKeyIterator<String, Integer, GlobalWindow> createGbkIterator() {
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
     BigEndianIntegerCoder valueCoder = BigEndianIntegerCoder.of();
     WindowingStrategy<Object, GlobalWindow> winStrategy = WindowingStrategy.of(new GlobalWindows());
@@ -108,7 +108,7 @@ public class GroupNonMergingWindowsFunctionsTest {
     private final WindowedValue.FullWindowedValueCoder<byte[]> winValCoder;
     private final byte[] globalWindow;
 
-    public ItemFactory(
+    ItemFactory(
         Coder<K> keyCoder,
         Coder<V> valueCoder,
         FullWindowedValueCoder<byte[]> winValCoder,
