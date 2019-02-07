@@ -537,10 +537,16 @@ class BatchLoads<DestinationT>
     // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
     // with one that makes this happen.
     @SuppressWarnings("unchecked")
-    DynamicDestinations<?, TableDestination> destinations =
-        (DynamicDestinations<?, TableDestination>) dynamicDestinations;
+    DynamicDestinations<?, DestinationT> destinations =
+        (DynamicDestinations<?, DestinationT>) dynamicDestinations;
     if (createDisposition.equals(CreateDisposition.CREATE_IF_NEEDED)
-        || createDisposition.equals(CreateDisposition.CREATE_NEVER)) {}
+        || createDisposition.equals(CreateDisposition.CREATE_NEVER)) {
+      destinations =
+          DynamicDestinationsHelpers.matchTableDynamicDestinations(
+              destinations,
+              bigQueryServices.getDatasetService(
+                  input.getPipeline().getOptions().as(BigQueryOptions.class)));
+    }
 
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
     // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then

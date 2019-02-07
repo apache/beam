@@ -279,12 +279,18 @@ class DynamicDestinationsHelpers {
     }
   }
 
-  static class MatchTableDynammicDestinations<T, DestinationT>
+  static <T, DestinationT> DynamicDestinations<T, DestinationT> matchTableDynamicDestinations(
+      DynamicDestinations<T, DestinationT> inner,
+      BigQueryServices.DatasetService bqDatasetService) {
+    return new MatchTableDynamicDestinations<>(inner, bqDatasetService);
+  }
+
+  static class MatchTableDynamicDestinations<T, DestinationT>
       extends DelegatingDynamicDestinations<T, DestinationT> {
     private final BigQueryServices.DatasetService bqDatasetService;
 
-    private MatchTableDynammicDestinations(
-        DelegatingDynamicDestinations<T, DestinationT> inner,
+    private MatchTableDynamicDestinations(
+        DynamicDestinations<T, DestinationT> inner,
         BigQueryServices.DatasetService bqDatasetService) {
       super(inner);
       this.bqDatasetService = bqDatasetService;
