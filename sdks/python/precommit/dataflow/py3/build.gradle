@@ -19,25 +19,21 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
+// Required to setup a Python 3 virtualenv.
+project.ext.python3 = true
+
 def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 
 task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   doLast {
-    // Basic integration tests to run in PreCommit
-    def precommitTests = [
-        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
-        "apache_beam.examples.streaming_wordcount_it_test:StreamingWordCountIT.test_streaming_wordcount_it",
-    ]
     def testOpts = [
-        "--tests=${precommitTests.join(',')}",
+        "--tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
         "--nocapture",    // Print stdout instantly
-        "--processes=2",    // Number of tests running in parallel
-        "--process-timeout=1800",   // Timeout of whole command execution
     ]
-
+    def cmdArgs = project.mapToArgString(["test_opts": testOpts])
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh --test_opts \"${testOpts.join(' ')}\""
+      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }
 }

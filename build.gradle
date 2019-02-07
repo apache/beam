@@ -240,8 +240,6 @@ task goIntegrationTests() {
 
 task pythonPreCommit() {
   dependsOn ":beam-sdks-python:preCommit"
-  dependsOn ":beam-sdks-python-precommit-dataflow:precommitIT"
-  dependsOn ":beam-sdks-python-precommit-direct-py3:precommitIT"
 }
 
 task pythonPostCommit() {
