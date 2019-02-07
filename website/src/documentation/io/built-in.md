@@ -72,7 +72,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
   </td>
 </tr>
 <tr>
-  <td>Python</td>
+  <td>Python/Batch</td>
   <td>
     <p>Beam Python supports Apache HDFS, Google Cloud Storage, and local filesystems.</p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py">avroio</a></p>
@@ -88,7 +88,17 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="{{site.baseurl}}/documentation/io/built-in/google-bigquery/">Google BigQuery</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/io/gcp/datastore">Google Cloud Datastore</a></p>
   </td>
-
+</tr>
+<tr>
+  <td>Python/Streaming</td>
+  <td>
+  </td>
+  <td>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/pubsub.py">Google Cloud Pub/Sub</a></p>
+  </td>
+  <td>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py">Google BigQuery (sink only)</a></p>
+  </td>
 </tr>
 </table>
 
