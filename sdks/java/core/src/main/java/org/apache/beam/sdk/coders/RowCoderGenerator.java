@@ -95,6 +95,7 @@ public abstract class RowCoderGenerator {
   private static final ForLoadedType LIST_CODER_TYPE = new ForLoadedType(ListCoder.class);
   private static final ForLoadedType MAP_CODER_TYPE = new ForLoadedType(MapCoder.class);
   private static final BitSetCoder NULL_LIST_CODER = BitSetCoder.of();
+  private static final ForLoadedType NULLABLE_CODER = new ForLoadedType(NullableCoder.class);
 
   private static final String CODERS_FIELD_NAME = "FIELD_CODERS";
 
@@ -305,7 +306,9 @@ public abstract class RowCoderGenerator {
     List<StackManipulation> componentCoders =
         Lists.newArrayListWithCapacity(schema.getFieldCount());
     for (int i = 0; i < schema.getFieldCount(); i++) {
-      componentCoders.add(getCoder(schema.getField(i).getType()));
+      // We use withNullable(false) as nulls are handled by the RowCoder and the individual
+      // component coders therefore do not need to handle nulls.
+      componentCoders.add(getCoder(schema.getField(i).getType().withNullable(false)));
     }
 
     return builder
@@ -346,7 +349,20 @@ public abstract class RowCoderGenerator {
       Coder<Row> nestedCoder = generate(fieldType.getRowSchema(), UUID.randomUUID());
       return rowCoder(nestedCoder.getClass());
     } else {
-      return coderForPrimitiveType(fieldType.getTypeName());
+      StackManipulation primitiveCoder = coderForPrimitiveType(fieldType.getTypeName());
+
+      if (fieldType.getNullable()) {
+        primitiveCoder =
+            new Compound(
+                primitiveCoder,
+                MethodInvocation.invoke(
+                    NULLABLE_CODER
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("of"))
+                        .getOnly()));
+      }
+
+      return primitiveCoder;
     }
   }
 
