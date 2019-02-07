@@ -74,13 +74,13 @@ has some examples.
 
 from __future__ import absolute_import
 
-import logging
 import os
 import sys
+import warnings
 
 
 if sys.version_info[0] == 3:
-  logging.warning(
+  warnings.warn(
       'Running the Apache Beam SDK on Python 3 is not yet fully supported. '
       'You may encounter buggy behavior or missing features.')
 elif sys.version_info[0] == 2 and sys.version_info[1] == 7:
