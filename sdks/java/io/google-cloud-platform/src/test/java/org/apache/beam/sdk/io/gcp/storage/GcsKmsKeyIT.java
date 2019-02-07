@@ -22,7 +22,6 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Date;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
