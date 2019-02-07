@@ -335,42 +335,6 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                  self.dataset_id, self.project)
 
   @attr('IT')
-  def test_records_traverse_transform_with_and_without_schema_it(self):
-
-    output_table_1 = '%s%s' % (self.output_table, 1)
-    output_table_2 = '%s%s' % (self.output_table, 2)
-    pipeline_verifiers = [
-        BigqueryFullResultMatcher(
-            project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
-            data=[(d['name'], d['language'])
-                  for d in _NAME_LANGUAGE_ELEMENTS]),
-        BigqueryFullResultMatcher(
-            project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
-            data=[(d['name'], d['language'])
-                  for d in _NAME_LANGUAGE_ELEMENTS])]
-
-    args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(*pipeline_verifiers))
-
-    with beam.Pipeline(argv=args) as p:
-      input = p | beam.Create(_NAME_LANGUAGE_ELEMENTS)
-      _ = (input
-           | "LoadWithSchema" >> bigquery.WriteToBigQuery(
-               table=output_table_1,
-               schema=bigquery_tools.parse_table_schema_from_json(
-                   self.BIG_QUERY_SCHEMA),
-               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
-
-      _ = (input
-           | "LoadWithoutSchema" >> bigquery.WriteToBigQuery(
-               table=output_table_2,
-               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
-
-  @attr('IT')
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)

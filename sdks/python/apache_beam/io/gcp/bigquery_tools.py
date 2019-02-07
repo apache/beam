@@ -520,6 +520,9 @@ class BigQueryWrapper(object):
         raise
     self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
 
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_job(self, project, job_id, location=None):
     request = bigquery.BigqueryJobsGetRequest()
     request.jobId = job_id

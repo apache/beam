@@ -658,6 +658,7 @@ class WriteToBigQuery(PTransform):
                schema=None,
                create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=BigQueryDisposition.WRITE_APPEND,
+               kms_key=None,
                batch_size=None,
                max_file_size=None,
                max_files_per_bundle=None,
@@ -709,14 +710,23 @@ bigquery_v2_messages.TableSchema`
           empty.
 
         For streaming pipelines WriteTruncate can not be used.
-
-      batch_size (int): Number of rows to be written to BQ per streaming API
-        insert.
       kms_key (str): Experimental. Optional Cloud KMS key name for use when
         creating new tables.
+      batch_size (int): Number of rows to be written to BQ per streaming API
+        insert. The default is 500.
+        insert.
       test_client: Override the default bigquery client used for testing.
+      max_file_size (int): The maximum size for a file to be written and then
+        loaded into BigQuery. The default value is 4TB, which is 80% of the
+        limit of 5TB for BigQuery to load any file.
+      max_files_per_bundle(int): The maximum number of files to be concurrently
+        written by a worker. The default here is 20. Larger values will allow
+        writing to multiple destinations without having to reshard - but they
+        increase the memory burden on the workers.
       gs_location (str): A GCS location to store files to be used for file
-        loads into BigQuery.
+        loads into BigQuery. By default, this will use the pipeline's
+        temp_location, but for pipelines whose temp_location is not appropriate
+        for BQ File Loads, users should pass a specific one.
     """
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
@@ -822,6 +832,7 @@ bigquery_v2_messages.TableSchema):
           GoogleCloudOptions).project
 
     if standard_options.streaming:
+      # TODO: Support load jobs for streaming pipelines.
       bigquery_write_fn = BigQueryWriteFn(
           table_id=self.table_reference.tableId,
           dataset_id=self.table_reference.datasetId,

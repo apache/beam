@@ -19,12 +19,17 @@
 Functionality to perform file loads into BigQuery for Batch and Streaming
 pipelines.
 
+This source is able to work around BigQuery load quotas and limitations. When
+destinations are dynamic, or when data for a single job is too large, the data
+will be split into multiple jobs.
+
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
 from __future__ import absolute_import
 
 import datetime
+import hashlib
 import logging
 import random
 import time
@@ -50,6 +55,9 @@ _DEFAULT_MAX_WRITERS_PER_BUNDLE = 20
 # The maximum size for a single load job is one terabyte
 _MAXIMUM_LOAD_SIZE = 15 * ONE_TERABYTE
 
+# Big query only supports up to 10 thousand URIs for a single load job.
+_MAXIMUM_SOURCE_URIS = 10*1000
+
 
 def _generate_load_job_name():
   datetime_component = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S")
@@ -62,7 +70,8 @@ def _generate_file_prefix(pipeline_gcs_location):
   # Otherwise, we shall use the temp_location from pipeline options.
   gcs_base = str(pipeline_gcs_location or
                  vp.RuntimeValueProvider.get_value('temp_location', str, ''))
-  return fs.FileSystems.join(gcs_base, 'bq_load')
+  prefix_uuid = _bq_uuid()
+  return fs.FileSystems.join(gcs_base, 'bq_load', prefix_uuid)
 
 
 def _make_new_file_writer(file_prefix, destination):
@@ -81,8 +90,11 @@ def _make_new_file_writer(file_prefix, destination):
   return file_path, fs.FileSystems.create(file_path, 'application/text')
 
 
-def _bq_uuid():
-  return str(uuid.uuid4()).replace("-", "")
+def _bq_uuid(seed=None):
+  if not seed:
+    return str(uuid.uuid4()).replace("-", "")
+  else:
+    return str(hashlib.md5(seed).hexdigest())
 
 
 class _AppendDestinationsFn(beam.DoFn):
@@ -128,6 +140,14 @@ class _ShardDestinations(beam.DoFn):
 
 class WriteRecordsToFile(beam.DoFn):
   """Write input records to files before triggering a load job.
+
+  This transform keeps up to ``max_files_per_bundle`` files open to write to. It
+  receives (destination, record) tuples, and it writes the records to different
+  files for each destination.
+
+  If there are more than ``max_files_per_bundle`` destinations that we need to
+  write to, then those records are grouped by their destination, and later
+  written to files by ``WriteGroupedRecordsToFile``.
 
   It outputs two PCollections.
   """
@@ -196,6 +216,11 @@ class WriteRecordsToFile(beam.DoFn):
 class WriteGroupedRecordsToFile(beam.DoFn):
   """Receives collection of dest-iterable(records), writes it to files.
 
+  This is different from ``WriteRecordsToFile`` because it receives records
+  grouped by destination. This means that it's not necessary to keep multiple
+  file descriptors open, because we know for sure when records for a single
+  destination have been written out.
+
   Experimental; no backwards compatibility guarantees.
   """
 
@@ -224,6 +249,15 @@ class WriteGroupedRecordsToFile(beam.DoFn):
 
 
 class TriggerCopyJobs(beam.DoFn):
+  """Launches jobs to copy from temporary tables into the main target table.
+
+  When a job needs to write to multiple destination tables, or when a single
+  destination table needs to have multiple load jobs to write to it, files are
+  loaded into temporary tables, and those tables are later copied to the
+  destination tables.
+
+  This transform emits (destination, job_reference) pairs.
+  """
   def __init__(self,
                create_disposition=None,
                write_disposition=None,
@@ -237,7 +271,7 @@ class TriggerCopyJobs(beam.DoFn):
   def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
 
-  def process(self, element, load_job_name_prefix=None):
+  def process(self, element, job_name_prefix=None):
     destination = element[0]
     job_reference = element[1]
 
@@ -245,8 +279,6 @@ class TriggerCopyJobs(beam.DoFn):
       # If we did not use temporary tables, then we do not need to trigger any
       # copy jobs.
       return
-
-    copy_job_name = '%s_copy_%s' % (load_job_name_prefix, _bq_uuid())
 
     copy_to_reference = bigquery_tools.parse_table_reference(destination)
     if copy_to_reference.projectId is None:
@@ -258,6 +290,15 @@ class TriggerCopyJobs(beam.DoFn):
     if copy_from_reference.projectId is None:
       copy_from_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
+
+    copy_job_name = '%s_copy_%s_to_%s' % (
+        job_name_prefix,
+        _bq_uuid('%s:%s.%s' % (copy_from_reference.projectId,
+                               copy_from_reference.datasetId,
+                               copy_from_reference.tableId)),
+        _bq_uuid('%s:%s.%s' % (copy_to_reference.projectId,
+                               copy_to_reference.datasetId,
+                               copy_to_reference.tableId)))
 
     logging.info("Triggering copy job from %s to %s",
                  copy_from_reference, copy_to_reference)
@@ -314,12 +355,20 @@ class TriggerLoadJobs(beam.DoFn):
   def process(self, element, load_job_name_prefix):
     destination = element[0]
     files = element[1]
-    job_name = '%s_%s' % (load_job_name_prefix, _bq_uuid())
 
     table_reference = bigquery_tools.parse_table_reference(destination)
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
+
+    # Load jobs for a single des5tination are always triggered from the same
+    # worker. This means that we can generate a deterministic numbered job id,
+    # and not need to worry.
+    job_name = '%s_%s' % (
+        load_job_name_prefix,
+        _bq_uuid('%s:%s.%s' % (table_reference.projectId,
+                               table_reference.datasetId,
+                               table_reference.tableId)))
 
     if self.temporary_tables:
       # For temporary tables, we create a new table with the name with JobId.
@@ -461,8 +510,14 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 WriteRecordsToFile.UNWRITTEN_RECORD_TAG,
                 WriteRecordsToFile.WRITTEN_FILE_TAG))
 
+    # A PCollection of (destination, file) tuples. It lists files with records,
+    # and the destination each file is meant to be imported into.
     destination_files_kv_pc = outputs[WriteRecordsToFile.WRITTEN_FILE_TAG]
 
+    # A PCollection of (destination, record) tuples. These are later sharded,
+    # grouped, and all records for each destination-shard is written to files.
+    # This PCollection is necessary because not all records can be written into
+    # files in ``WriteRecordsToFile``.
     unwritten_records_pc = outputs[WriteRecordsToFile.UNWRITTEN_RECORD_TAG]
 
     more_destination_files_kv_pc = (
