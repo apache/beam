@@ -124,7 +124,7 @@ On Beam we configure Jenkins jobs via groovy job dsl scripts. If you want to run
 those on your docker instance of Jenkins, you will need to do some setup on top
 of installing default plugins:
 
-1.  Make sure the following plugins are installed (Managee Jenkins -> Manage Plugins)
+1.  Make sure the following plugins are installed (Manage Jenkins -> Manage Plugins)
     1.  Environment Injector
     1.  GitHub pull request build (ghprb)
     1.  Groovy
