@@ -95,6 +95,17 @@ class CoderImpl(object):
     """Decodes an object to an unnested string."""
     raise NotImplementedError
 
+  def encode_all(self, values):
+    out = create_OutputStream()
+    for value in values:
+      self.encode_to_stream(value, out, True)
+    return out.get()
+
+  def decode_all(self, encoded):
+    input_stream = create_InputStream(encoded)
+    while input_stream.size() > 0:
+      yield self.decode_from_stream(input_stream, True)
+
   def encode_nested(self, value):
     out = create_OutputStream()
     self.encode_to_stream(value, out, True)
