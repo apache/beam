@@ -29,7 +29,6 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Cassandra"
 ext.summary = "IO to read and write with Apache Cassandra database"
 
-def cassandra_version = "3.5.0"
 def cassandra_embedded_version = "3.5.0.1"
 
 configurations.testRuntimeClasspath {
