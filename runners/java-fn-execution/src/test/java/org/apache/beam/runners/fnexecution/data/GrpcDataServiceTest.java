@@ -53,10 +53,13 @@ import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link GrpcDataService}. */
 @RunWith(JUnit4.class)
 public class GrpcDataServiceTest {
+  private static final Logger LOG = LoggerFactory.getLogger(GrpcDataServiceTest.class);
   private static final BeamFnApi.Target TARGET =
       BeamFnApi.Target.newBuilder().setPrimitiveTransformReference("888").setName("test").build();
   private static final Coder<WindowedValue<String>> CODER =
@@ -74,17 +77,28 @@ public class GrpcDataServiceTest {
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
       for (int i = 0; i < 3; ++i) {
+        LOG.info("Creating future {}", i);
+        final int iCopy = i;
         clientFutures.add(
             executorService.submit(
                 () -> {
                   ManagedChannel channel =
                       InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
                           .build();
+                  LOG.info("Creating outboundObserver {}", iCopy);
                   StreamObserver<Elements> outboundObserver =
                       BeamFnDataGrpc.newStub(channel)
-                          .data(TestStreams.withOnNext(clientInboundElements::add).build());
+                          .data(
+                              TestStreams.withOnNext(
+                                      (Elements e) -> {
+                                        LOG.info("Element handled by client {}", iCopy);
+                                        clientInboundElements.add(e);
+                                      })
+                                  .build());
                   waitForInboundElements.await();
+                  LOG.info("Calling onCompleted {}", iCopy);
                   outboundObserver.onCompleted();
+                  LOG.info("return null {}", iCopy);
                   return null;
                 }));
       }
@@ -98,10 +112,13 @@ public class GrpcDataServiceTest {
         consumer.accept(WindowedValue.valueInGlobalWindow("C" + i));
         consumer.close();
       }
+      LOG.info("counting down latch");
       waitForInboundElements.countDown();
+      LOG.info("getting all futures");
       for (Future<Void> clientFuture : clientFutures) {
         clientFuture.get();
       }
+      LOG.info("assertion");
       assertThat(
           clientInboundElements,
           containsInAnyOrder(elementsWithData("0"), elementsWithData("1"), elementsWithData("2")));
