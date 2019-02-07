@@ -57,7 +57,7 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   private String metricsNamespace;
 
-  protected TimeMonitor<byte[], byte[]> runtimeMonitor;
+  protected TimeMonitor<KV<byte[], byte[]>> runtimeMonitor;
 
   protected OptionsT options;
 
