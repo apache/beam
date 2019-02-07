@@ -533,6 +533,15 @@ class BatchLoads<DestinationT>
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             ListCoder.of(StringUtf8Coder.of()));
 
+    // If the final destination table exists already (and we're appending to it), then the temp
+    // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
+    // with one that makes this happen.
+    @SuppressWarnings("unchecked")
+    DynamicDestinations<?, TableDestination> destinations =
+        (DynamicDestinations<?, TableDestination>) dynamicDestinations;
+    if (createDisposition.equals(CreateDisposition.CREATE_IF_NEEDED)
+        || createDisposition.equals(CreateDisposition.CREATE_NEVER)) {}
+
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
     // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then
     // the import needs to be split into multiple partitions, and those partitions will be
