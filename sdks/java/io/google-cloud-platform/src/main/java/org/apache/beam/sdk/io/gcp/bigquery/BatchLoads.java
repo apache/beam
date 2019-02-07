@@ -566,7 +566,7 @@ class BatchLoads<DestinationT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                dynamicDestinations,
+                destinations,
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues));
