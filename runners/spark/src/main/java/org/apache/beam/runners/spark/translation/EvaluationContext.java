@@ -139,8 +139,8 @@ public class EvaluationContext {
   }
 
   /**
-   * Cache PCollection if {@link #isCacheDisabled()} flag is false or transform isn't GroupByKey
-   * transformation and PCollection is used more then once in Pipeline.
+   * Cache PCollection if SparkPipelineOptions.isCacheDisabled is false or transform isn't
+   * GroupByKey transformation and PCollection is used more then once in Pipeline.
    *
    * <p>PCollection is not cached in GroupByKey transformation, because Spark automatically persists
    * some intermediate data in shuffle operations, even without users calling persist.
@@ -149,21 +149,44 @@ public class EvaluationContext {
    * @param transform
    * @return if PCollection will be cached
    */
-  public boolean shouldCache(PValue pvalue, PTransform<?, ? extends PValue> transform) {
-    if (isCacheDisabled() || transform instanceof GroupByKey) {
+  public boolean shouldCache(PTransform<?, ? extends PValue> transform, PValue pvalue) {
+    if (serializableOptions.get().as(SparkPipelineOptions.class).isCacheDisabled()
+        || transform instanceof GroupByKey) {
       return false;
     }
     return pvalue instanceof PCollection && cacheCandidates.getOrDefault(pvalue, 0L) > 1;
   }
 
+  /**
+   * Add single output of transform to context map and possibly cache if it conforms {@link
+   * #shouldCache(PTransform, PValue)}.
+   *
+   * @param transform from which Dataset was created
+   * @param dataset created Dataset from transform
+   */
   public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
     putDataset(transform, getOutput(transform), dataset);
   }
 
+  /**
+   * Add output of transform to context map and possibly cache if it conforms {@link
+   * #shouldCache(PTransform, PValue)}. Used when PTransform has multiple outputs.
+   *
+   * @param pvalue one of multiple outputs of transform
+   * @param dataset created Dataset from transform
+   */
   public void putDataset(PValue pvalue, Dataset dataset) {
     putDataset(null, pvalue, dataset);
   }
 
+  /**
+   * Add output of transform to context map and possibly cache if it conforms {@link
+   * #shouldCache(PTransform, PValue)}.
+   *
+   * @param transform from which Dataset was created
+   * @param pvalue output of transform
+   * @param dataset created Dataset from transform
+   */
   private void putDataset(
       @Nullable PTransform<?, ? extends PValue> transform, PValue pvalue, Dataset dataset) {
     try {
@@ -171,7 +194,7 @@ public class EvaluationContext {
     } catch (IllegalStateException e) {
       // name not set, ignore
     }
-    if (shouldCache(pvalue, transform)) {
+    if (shouldCache(transform, pvalue)) {
       // we cache only PCollection
       Coder<?> coder = ((PCollection<?>) pvalue).getCoder();
       Coder<? extends BoundedWindow> wCoder =
@@ -265,9 +288,5 @@ public class EvaluationContext {
 
   public String storageLevel() {
     return serializableOptions.get().as(SparkPipelineOptions.class).getStorageLevel();
-  }
-
-  public boolean isCacheDisabled() {
-    return serializableOptions.get().as(SparkPipelineOptions.class).isCacheDisabled();
   }
 }
