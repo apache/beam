@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.options;
 
+import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
+
 import java.io.IOException;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.GrpcWindmillServer;
@@ -192,7 +194,7 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
     public Boolean create(PipelineOptions options) {
       StreamingDataflowWorkerOptions streamingOptions =
           options.as(StreamingDataflowWorkerOptions.class);
-      return streamingEngineEnabled(streamingOptions)
+      return streamingOptions.isEnableStreamingEngine()
           && hasExperiment(streamingOptions, "windmill_service_streaming_rpcs")
           && !hasExperiment(streamingOptions, "windmill_service_disable_streaming_rpcs");
     }
