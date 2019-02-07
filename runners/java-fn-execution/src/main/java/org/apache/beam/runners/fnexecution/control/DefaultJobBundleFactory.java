@@ -177,17 +177,6 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
   @Override
   public void close() throws Exception {
-    // Tear down common servers.
-    for (WrappedSdkHarnessClient client : environmentCache.asMap().values()) {
-      ServerInfo serverInfo = client.getServerInfo();
-      try (AutoCloseable stateServer = serverInfo.getStateServer();
-          AutoCloseable dateServer = serverInfo.getDataServer();
-          AutoCloseable controlServer = serverInfo.getControlServer();
-          AutoCloseable loggingServer = serverInfo.getLoggingServer();
-          AutoCloseable retrievalServer = serverInfo.getRetrievalServer();
-          AutoCloseable provisioningServer = serverInfo.getProvisioningServer()) {}
-    }
-
     // Clear the cache. This closes all active environments.
     // note this may cause open calls to be cancelled by the peer
     environmentCache.invalidateAll();
@@ -307,6 +296,12 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       try (AutoCloseable envCloser = environment) {
         // Wrap resources in try-with-resources to ensure all are cleaned up.
       }
+      try (AutoCloseable stateServer = serverInfo.getStateServer();
+          AutoCloseable dateServer = serverInfo.getDataServer();
+          AutoCloseable controlServer = serverInfo.getControlServer();
+          AutoCloseable loggingServer = serverInfo.getLoggingServer();
+          AutoCloseable retrievalServer = serverInfo.getRetrievalServer();
+          AutoCloseable provisioningServer = serverInfo.getProvisioningServer()) {}
       // TODO: Wait for executor shutdown?
     }
   }
