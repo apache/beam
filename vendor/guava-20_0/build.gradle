@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.VendorJavaPlugin
+plugins { id 'org.apache.beam.vendor-java' }
 
 description = "Apache Beam :: Vendored Dependencies :: Guava 20"
 

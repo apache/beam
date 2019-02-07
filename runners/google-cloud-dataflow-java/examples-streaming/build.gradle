@@ -18,7 +18,7 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyJavaNature(publish: false, exportJavadoc: false)
 // Evaluate the given project before this one, to allow referencing
 // its sourceSets.test.output directly.

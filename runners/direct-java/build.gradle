@@ -17,6 +17,7 @@
  */
 
 import groovy.json.JsonOutput
+plugins { id 'org.apache.beam.module' }
 
 // Shade away runner execution utilities till because this causes ServiceLoader conflicts with
 // TransformPayloadTranslatorRegistrar amongst other runners. This only happens in the DirectRunner
@@ -27,7 +28,6 @@ def dependOnProjects = [":beam-runners-core-construction-java",
                         ":beam-runners-java-fn-execution",
                         ":beam-sdks-java-fn-execution"]
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
     dependOnProjects.each {
