@@ -436,8 +436,7 @@ message MonitoringInfo {
   }
 
   enum MonitoringInfoLabels {
-    // TODO(ajamato): Rename all references to TRANSFORM to PTRANSFORM
-    TRANSFORM = 0 [(label_props) = { name: "PTRANSFORM" }];
+    PTRANSFORM = 0 [(label_props) = { name: "PTRANSFORM" }];
     PCOLLECTION = 1 [(label_props) = { name: "PCOLLECTION" }];
     WINDOWING_STRATEGY = 2 [(label_props) = { name: "WINDOWING_STRATEGY" }];
     CODER = 3 [(label_props) = { name: "CODER" }];
