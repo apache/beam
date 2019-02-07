@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import com.google.common.collect.Iterables;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.SystemReduceFn;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.serializers.KVSerde;
 

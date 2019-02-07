@@ -39,7 +39,6 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
-import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.coders.Coder;
@@ -555,8 +554,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             .transformToPair(
                 (rdd, time) ->
                     rdd.mapPartitions(
-                            TranslationUtils.functionToFlatMapFunction(
-                                WindowingHelpers.unwindowFunction()),
+                            TranslationUtils.functionToFlatMapFunction(WindowedValue::getValue),
                             true)
                         .mapPartitionsToPair(TranslationUtils.toPairFlatMapFunction(), true)
                         .mapValues(
