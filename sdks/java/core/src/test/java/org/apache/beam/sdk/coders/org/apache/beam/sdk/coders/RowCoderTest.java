@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.coders.org.apache.beam.sdk.coders;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -209,5 +210,30 @@ public class RowCoderTest {
     Assume.assumeTrue(coder.consistentWithEquals());
 
     CoderProperties.coderConsistentWithEquals(coder, row1, row2);
+  }
+
+  @Test
+  public void testConsistentWithEqualsArrayWithNull() throws Exception {
+    Schema schema =
+        Schema.builder()
+            .addField("a", Schema.FieldType.array(Schema.FieldType.INT32, true))
+            .build();
+
+    Row row = Row.withSchema(schema).addValue(Arrays.asList(1, null)).build();
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
+
+  @Test
+  public void testConsistentWithEqualsMapWithNull() throws Exception {
+    Schema schema =
+        Schema.builder()
+            .addField(
+                "a",
+                Schema.FieldType.map(
+                    Schema.FieldType.INT32, Schema.FieldType.INT32.withNullable(true)))
+            .build();
+
+    Row row = Row.withSchema(schema).addValue(Collections.singletonMap(1, null)).build();
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
 }
