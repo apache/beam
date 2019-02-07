@@ -126,8 +126,7 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
           .apply(format("Convert to Long: %d", i), MapElements.via(new ByteValueToLong()))
           .apply(format("Combine: %d", i), getPerKeyCombiner(options.getPerKeyCombinerType()))
           .apply(
-              "Collect end time metric",
-              ParDo.of(new TimeMonitor<byte[], Object>(METRICS_NAMESPACE, "runtime")));
+              "Collect end time metric", ParDo.of(new TimeMonitor<>(METRICS_NAMESPACE, "runtime")));
     }
   }
 

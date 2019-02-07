@@ -21,7 +21,6 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.KV;
 
 /**
  * Monitor that records processing time distribution in the pipeline.
@@ -30,7 +29,7 @@ import org.apache.beam.sdk.values.KV;
  * distribution of element processing timestamps, which can be collected and queried using {@link
  * MetricsReader}.
  */
-public class TimeMonitor<K, V> extends DoFn<KV<K, V>, KV<K, V>> {
+public class TimeMonitor<T> extends DoFn<T, T> {
 
   private Distribution timeDistribution;
 
