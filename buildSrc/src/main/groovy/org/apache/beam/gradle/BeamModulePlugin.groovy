@@ -291,6 +291,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.version += '-SNAPSHOT'
     }
 
+    project.apply plugin: BeamJenkinsPlugin
+
     // Register all Beam repositories and configuration tweaks
     Repositories.register(project)
 
@@ -776,8 +778,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.tasks.withType(FindBugs) {
           reports {
-            html.enabled = false
-            xml.enabled = true
+            html.enabled = !project.jenkins.isCIBuild
+            xml.enabled = project.jenkins.isCIBuild
           }
         }
       }
