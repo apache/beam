@@ -117,7 +117,6 @@ task integrationTestKms(type: Test) {
           "--project=${gcpProject}",
           "--tempRoot=${gcpTempRoot}",
           "--dataflowKmsKey=${dataflowKmsKey}",
-          "--kmsKey=${kmsKey}",
   ])
 
   // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
