@@ -66,7 +66,7 @@ public class GrpcDataServiceTest {
   public void testMessageReceivedBySingleClientWhenThereAreMultipleClients() throws Exception {
     final LinkedBlockingQueue<Elements> clientInboundElements = new LinkedBlockingQueue<>();
     ExecutorService executorService = Executors.newCachedThreadPool();
-    final CountDownLatch waitForInboundElements = new CountDownLatch(1);
+    final CountDownLatch waitForOutboundElements = new CountDownLatch(3);
     GrpcDataService service =
         GrpcDataService.create(
             Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
@@ -82,8 +82,14 @@ public class GrpcDataServiceTest {
                           .build();
                   StreamObserver<Elements> outboundObserver =
                       BeamFnDataGrpc.newStub(channel)
-                          .data(TestStreams.withOnNext(clientInboundElements::add).build());
-                  waitForInboundElements.await();
+                          .data(
+                              TestStreams.withOnNext(
+                                      (Elements element) -> {
+                                        clientInboundElements.add(element);
+                                        waitForOutboundElements.countDown();
+                                      })
+                                  .build());
+                  waitForOutboundElements.await();
                   outboundObserver.onCompleted();
                   return null;
                 }));
@@ -98,7 +104,6 @@ public class GrpcDataServiceTest {
         consumer.accept(WindowedValue.valueInGlobalWindow("C" + i));
         consumer.close();
       }
-      waitForInboundElements.countDown();
       for (Future<Void> clientFuture : clientFutures) {
         clientFuture.get();
       }
