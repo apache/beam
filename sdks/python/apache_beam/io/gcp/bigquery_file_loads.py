@@ -375,13 +375,13 @@ class TriggerLoadJobs(beam.DoFn):
       table_reference.tableId = job_name
       yield pvalue.TaggedOutput(TriggerLoadJobs.TEMP_TABLES, table_reference)
 
+    logging.info("Triggering job %s to load data to BigQuery table %s.",
+                 job_name, table_reference)
     job_reference = self.bq_wrapper.perform_load_job(
         table_reference, list(files), job_name,
         schema=self.schema,
         write_disposition=self.write_disposition,
         create_disposition=self.create_disposition)
-    logging.info("Triggered job %s to load data to BigQuery table %s.",
-                 job_reference, table_reference)
     yield (destination, job_reference)
 
 
@@ -500,6 +500,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     outputs = (
         pcoll
+        | "ApplyGlobalWindow" >> beam.WindowInto(beam.window.GlobalWindows())
         | "AppendDestination" >> beam.ParDo(_AppendDestinationsFn(
             self.destination))
         | beam.ParDo(
