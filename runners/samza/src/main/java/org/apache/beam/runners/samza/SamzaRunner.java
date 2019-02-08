@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
 import org.apache.beam.runners.samza.translation.PViewToIdMapper;
@@ -121,9 +120,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
         final String name = "beam-metrics-reporter-" + i;
         final MetricsReporter reporter = options.getMetricsReporters().get(i);
 
-        reporters.put(
-            name,
-            (MetricsReporterFactory) (nm, processorId, config) -> reporter);
+        reporters.put(name, (MetricsReporterFactory) (nm, processorId, config) -> reporter);
       }
       return reporters;
     } else {
