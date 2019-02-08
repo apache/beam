@@ -50,13 +50,7 @@ public abstract class MetricQueryResults {
           sb.append(", ");
         }
         MetricName name = metricResult.getName();
-        sb.append(metricResult.getStep())
-            .append(":")
-            .append(name.getNamespace())
-            .append(":")
-            .append(name.getName())
-            .append(": ")
-            .append(metricResult.getAttempted());
+        sb.append(metricResult.getKey()).append(": ").append(metricResult.getAttempted());
         try {
           T committed = metricResult.getCommitted();
           sb.append(", ").append(committed);

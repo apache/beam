@@ -30,7 +30,6 @@ import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
 import org.apache.beam.sdk.metrics.MetricKey;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -286,41 +285,32 @@ public class MetricsContainerStepMap implements Serializable {
     }
 
     private Function<AttemptedAndCommitted<Long>, MetricResult<Long>> counterUpdateToResult() {
-      return metricResult -> {
-        MetricKey key = metricResult.getKey();
-        return new AccumulatedMetricResult<>(
-            key.metricName(),
-            key.stepName(),
-            metricResult.getAttempted().getUpdate(),
-            isCommittedSupported ? metricResult.getCommitted().getUpdate() : null,
-            isCommittedSupported);
-      };
+      return metricResult ->
+          new AccumulatedMetricResult<>(
+              metricResult.getKey(),
+              metricResult.getAttempted().getUpdate(),
+              isCommittedSupported ? metricResult.getCommitted().getUpdate() : null,
+              isCommittedSupported);
     }
 
     private Function<AttemptedAndCommitted<DistributionData>, MetricResult<DistributionResult>>
         distributionUpdateToResult() {
-      return metricResult -> {
-        MetricKey key = metricResult.getKey();
-        return new AccumulatedMetricResult<>(
-            key.metricName(),
-            key.stepName(),
-            metricResult.getAttempted().getUpdate().extractResult(),
-            isCommittedSupported ? metricResult.getCommitted().getUpdate().extractResult() : null,
-            isCommittedSupported);
-      };
+      return metricResult ->
+          new AccumulatedMetricResult<>(
+              metricResult.getKey(),
+              metricResult.getAttempted().getUpdate().extractResult(),
+              isCommittedSupported ? metricResult.getCommitted().getUpdate().extractResult() : null,
+              isCommittedSupported);
     }
 
     private Function<AttemptedAndCommitted<GaugeData>, MetricResult<GaugeResult>>
         gaugeUpdateToResult() {
-      return metricResult -> {
-        MetricKey key = metricResult.getKey();
-        return new AccumulatedMetricResult<>(
-            key.metricName(),
-            key.stepName(),
-            metricResult.getAttempted().getUpdate().extractResult(),
-            isCommittedSupported ? metricResult.getCommitted().getUpdate().extractResult() : null,
-            isCommittedSupported);
-      };
+      return metricResult ->
+          new AccumulatedMetricResult<>(
+              metricResult.getKey(),
+              metricResult.getAttempted().getUpdate().extractResult(),
+              isCommittedSupported ? metricResult.getCommitted().getUpdate().extractResult() : null,
+              isCommittedSupported);
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -410,34 +400,23 @@ public class MetricsContainerStepMap implements Serializable {
     }
 
     /** Accumulated implementation of {@link MetricResult}. */
-    private static class AccumulatedMetricResult<T> implements MetricResult<T> {
-      private final MetricName name;
-      private final String step;
+    private static class AccumulatedMetricResult<T> extends MetricResult<T> {
+      private final MetricKey key;
       private final T attempted;
       private final @Nullable T committed;
       private final boolean isCommittedSupported;
 
       private AccumulatedMetricResult(
-          MetricName name,
-          String step,
-          T attempted,
-          @Nullable T committed,
-          boolean isCommittedSupported) {
-        this.name = name;
-        this.step = step;
+          MetricKey key, T attempted, @Nullable T committed, boolean isCommittedSupported) {
+        this.key = key;
         this.attempted = attempted;
         this.committed = committed;
         this.isCommittedSupported = isCommittedSupported;
       }
 
       @Override
-      public MetricName getName() {
-        return name;
-      }
-
-      @Override
-      public String getStep() {
-        return step;
+      public MetricKey getKey() {
+        return key;
       }
 
       @Override

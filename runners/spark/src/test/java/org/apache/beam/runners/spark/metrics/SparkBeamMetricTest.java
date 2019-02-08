@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.metrics;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.junit.Test;
@@ -31,13 +32,9 @@ public class SparkBeamMetricTest {
     MetricResult<Object> metricResult =
         new MetricResult<Object>() {
           @Override
-          public MetricName getName() {
-            return MetricName.named("myNameSpace//", "myName()");
-          }
-
-          @Override
-          public String getStep() {
-            return "myStep.one.two(three)";
+          public MetricKey getKey() {
+            return MetricKey.create(
+                "myStep.one.two(three)", MetricName.named("myNameSpace//", "myName()"));
           }
 
           @Override

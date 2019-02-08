@@ -143,8 +143,7 @@ class DataflowMetrics extends MetricResults {
         DistributionResult value = getDistributionValue(committed);
         distributionResults.add(
             DataflowMetricResult.create(
-                metricKey.metricName(),
-                metricKey.stepName(),
+                metricKey,
                 isStreamingJob ? null : value, // Committed
                 value)); // Attempted
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
@@ -157,8 +156,7 @@ class DataflowMetrics extends MetricResults {
         Long value = getCounterValue(committed);
         counterResults.add(
             DataflowMetricResult.create(
-                metricKey.metricName(),
-                metricKey.stepName(),
+                metricKey,
                 isStreamingJob ? null : value, // Committed
                 value)); // Attempted
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
@@ -330,14 +328,9 @@ class DataflowMetrics extends MetricResults {
   }
 
   @AutoValue
-  abstract static class DataflowMetricResult<T> implements MetricResult<T> {
-    // need to define these here so they appear in the correct order
-    // and the generated constructor is usable and consistent
+  abstract static class DataflowMetricResult<T> extends MetricResult<T> {
     @Override
-    public abstract MetricName getName();
-
-    @Override
-    public abstract String getStep();
+    public abstract MetricKey getKey();
 
     @Nullable
     protected abstract T committedInternal();
@@ -356,10 +349,8 @@ class DataflowMetrics extends MetricResults {
       return committed;
     }
 
-    public static <T> MetricResult<T> create(
-        MetricName name, String scope, T committed, T attempted) {
-      return new AutoValue_DataflowMetrics_DataflowMetricResult<>(
-          name, scope, committed, attempted);
+    public static <T> MetricResult<T> create(MetricKey key, T committed, T attempted) {
+      return new AutoValue_DataflowMetrics_DataflowMetricResult<T>(key, committed, attempted);
     }
   }
 }

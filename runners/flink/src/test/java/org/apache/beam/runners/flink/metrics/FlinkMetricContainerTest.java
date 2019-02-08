@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.metrics;
 import static org.apache.beam.model.fnexecution.v1.BeamFnApi.labelProps;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
+import static org.apache.beam.runners.flink.metrics.FlinkMetricContainer.getFlinkMetricNameString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -48,8 +49,8 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -59,7 +60,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link FlinkMetricContainer}. */
@@ -86,12 +86,8 @@ public class FlinkMetricContainerTest {
 
   @Test
   public void testMetricNameGeneration() {
-    MetricResult mock = Mockito.mock(MetricResult.class);
-    when(mock.getStep()).thenReturn("step");
-    MetricName metricName = MetricName.named("namespace", "name");
-    when(mock.getName()).thenReturn(metricName);
-
-    String name = FlinkMetricContainer.getFlinkMetricNameString(mock);
+    MetricKey key = MetricKey.create("step", MetricName.named("namespace", "name"));
+    String name = getFlinkMetricNameString(key);
     assertThat(name, is("namespace.name"));
   }
 

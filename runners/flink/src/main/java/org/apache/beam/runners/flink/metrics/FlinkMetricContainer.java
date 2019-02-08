@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -152,7 +153,7 @@ public class FlinkMetricContainer {
 
   private void updateCounters(Iterable<MetricResult<Long>> counters) {
     for (MetricResult<Long> metricResult : counters) {
-      String flinkMetricName = getFlinkMetricNameString(metricResult);
+      String flinkMetricName = getFlinkMetricNameString(metricResult.getKey());
 
       Long update = metricResult.getAttempted();
 
@@ -167,7 +168,7 @@ public class FlinkMetricContainer {
 
   private void updateDistributions(Iterable<MetricResult<DistributionResult>> distributions) {
     for (MetricResult<DistributionResult> metricResult : distributions) {
-      String flinkMetricName = getFlinkMetricNameString(metricResult);
+      String flinkMetricName = getFlinkMetricNameString(metricResult.getKey());
 
       DistributionResult update = metricResult.getAttempted();
 
@@ -187,7 +188,7 @@ public class FlinkMetricContainer {
 
   private void updateGauge(Iterable<MetricResult<GaugeResult>> gauges) {
     for (MetricResult<GaugeResult> metricResult : gauges) {
-      String flinkMetricName = getFlinkMetricNameString(metricResult);
+      String flinkMetricName = getFlinkMetricNameString(metricResult.getKey());
 
       GaugeResult update = metricResult.getAttempted();
 
@@ -203,8 +204,8 @@ public class FlinkMetricContainer {
   }
 
   @VisibleForTesting
-  static String getFlinkMetricNameString(MetricResult<?> metricResult) {
-    MetricName metricName = metricResult.getName();
+  static String getFlinkMetricNameString(MetricKey metricKey) {
+    MetricName metricName = metricKey.metricName();
     // We use only the MetricName here, the step name is already contained
     // in the operator name which is passed to Flink's MetricGroup to which
     // the metric with the following name will be added.

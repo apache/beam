@@ -26,12 +26,9 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @Experimental(Kind.METRICS)
 @JsonFilter("committedMetrics")
 @AutoValue
-public abstract class DefaultMetricResult<T> implements MetricResult<T> {
+public abstract class DefaultMetricResult<T> extends MetricResult<T> {
   @Override
-  public abstract MetricName getName();
-
-  @Override
-  public abstract String getStep();
+  public abstract MetricKey getKey();
 
   @Override
   public abstract T getCommitted();
@@ -39,8 +36,7 @@ public abstract class DefaultMetricResult<T> implements MetricResult<T> {
   @Override
   public abstract T getAttempted();
 
-  public static <T> DefaultMetricResult<T> create(
-      MetricName name, String step, T committed, T attempted) {
-    return new AutoValue_DefaultMetricResult<>(name, step, committed, attempted);
+  public static <T> DefaultMetricResult<T> create(MetricKey key, T committed, T attempted) {
+    return new AutoValue_DefaultMetricResult<>(key, committed, attempted);
   }
 }

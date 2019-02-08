@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -42,13 +43,8 @@ class CustomMetricQueryResults extends MetricQueryResults {
         new MetricResult<Long>() {
 
           @Override
-          public MetricName getName() {
-            return MetricName.named("ns1", "n1");
-          }
-
-          @Override
-          public String getStep() {
-            return "s1";
+          public MetricKey getKey() {
+            return MetricKey.create("s1", MetricName.named("ns1", "n1"));
           }
 
           @Override
@@ -76,13 +72,8 @@ class CustomMetricQueryResults extends MetricQueryResults {
         new MetricResult<DistributionResult>() {
 
           @Override
-          public MetricName getName() {
-            return MetricName.named("ns1", "n2");
-          }
-
-          @Override
-          public String getStep() {
-            return "s2";
+          public MetricKey getKey() {
+            return MetricKey.create("s2", MetricName.named("ns1", "n2"));
           }
 
           @Override
@@ -110,13 +101,8 @@ class CustomMetricQueryResults extends MetricQueryResults {
         new MetricResult<GaugeResult>() {
 
           @Override
-          public MetricName getName() {
-            return MetricName.named("ns1", "n3");
-          }
-
-          @Override
-          public String getStep() {
-            return "s3";
+          public MetricKey getKey() {
+            return MetricKey.create("s3", MetricName.named("ns1", "n3"));
           }
 
           @Override

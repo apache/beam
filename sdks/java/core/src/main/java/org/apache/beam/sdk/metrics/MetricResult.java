@@ -27,12 +27,13 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  */
 @Experimental(Kind.METRICS)
 @JsonFilter("committedMetrics")
-public interface MetricResult<T> {
+public abstract class MetricResult<T> {
   /** Return the name of the metric. */
-  MetricName getName();
+  public MetricName getName() {
+    return getKey().metricName();
+  };
 
-  /** Return the step context to which this metric result applies. */
-  String getStep();
+  public abstract MetricKey getKey();
 
   /**
    * Return the value of this metric across all successfully completed parts of the pipeline.
@@ -40,12 +41,12 @@ public interface MetricResult<T> {
    * <p>Not all runners will support committed metrics. If they are not supported, the runner will
    * throw an {@link UnsupportedOperationException}.
    */
-  T getCommitted();
+  public abstract T getCommitted();
 
   /** Return the value of this metric across all attempts of executing all parts of the pipeline. */
-  T getAttempted();
+  public abstract T getAttempted();
 
-  static <T> DefaultMetricResult<T> create(MetricName name, String step, T committed, T attempted) {
-    return new AutoValue_DefaultMetricResult<>(name, step, committed, attempted);
+  public static <T> MetricResult<T> create(MetricKey key, T committed, T attempted) {
+    return DefaultMetricResult.create(key, committed, attempted);
   }
 }
