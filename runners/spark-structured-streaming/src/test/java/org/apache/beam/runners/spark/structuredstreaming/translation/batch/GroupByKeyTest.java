@@ -18,8 +18,8 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
@@ -31,7 +31,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -50,13 +49,14 @@ public class GroupByKeyTest implements Serializable {
 
   @Test
   public void testGroupByKey() {
-    Map<Integer, Integer> elems = new HashMap<>();
-    elems.put(1, 1);
-    elems.put(1, 3);
-    elems.put(1, 5);
-    elems.put(2, 2);
-    elems.put(2, 4);
-    elems.put(2, 6);
+    List<KV<Integer, Integer>> elems = new ArrayList<>();
+    elems.add(KV.of(1, 1));
+    elems.add(KV.of(1, 3));
+    elems.add(KV.of(1, 5));
+    elems.add(KV.of(2, 2));
+    elems.add(KV.of(2, 4));
+    elems.add(KV.of(2, 6));
+
     PCollection<KV<Integer, Integer>> input = pipeline.apply(Create.of(elems));
     input.apply(GroupByKey.create());
     pipeline.run();
