@@ -544,6 +544,9 @@ message StandardCoders {
     // Components: None
     BYTES = 0 [(beam_urn) = "beam:coder:bytes:v1"];
 
+    // Components: None
+    STRING_UTF8 = 10 [(beam_urn) = "beam:coder:string_utf8:v1"];
+
     // Components: The key and value coder, in that order.
     KV = 1 [(beam_urn) = "beam:coder:kv:v1"];
 
