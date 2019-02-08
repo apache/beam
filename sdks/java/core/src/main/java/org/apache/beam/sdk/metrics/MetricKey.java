@@ -15,15 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction.metrics;
+package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricResult;
 
 /** Metrics are keyed by the step name they are associated with and the name of the metric. */
 @Experimental(Kind.METRICS)

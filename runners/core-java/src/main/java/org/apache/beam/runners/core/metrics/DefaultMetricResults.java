@@ -19,9 +19,9 @@ package org.apache.beam.runners.core.metrics;
 
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
-import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
