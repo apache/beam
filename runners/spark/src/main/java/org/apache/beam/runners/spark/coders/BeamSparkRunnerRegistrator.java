@@ -63,7 +63,9 @@ public class BeamSparkRunnerRegistrator implements KryoRegistrator {
     kryo.register(PaneInfo.class);
 
     try {
-      kryo.register(Class.forName("com.google.common.collect.HashBasedTable$Factory"));
+      kryo.register(
+          Class.forName(
+              "org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable$Factory"));
       kryo.register(
           Class.forName("org.apache.beam.sdk.util.WindowedValue$TimestampedValueInGlobalWindow"));
     } catch (ClassNotFoundException e) {
