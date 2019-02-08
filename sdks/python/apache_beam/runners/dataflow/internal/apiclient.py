@@ -154,7 +154,7 @@ class Environment(object):
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='name',
-            value=to_json_value(shared_names.BEAM_SDK_NAME)),
+            value=to_json_value(self._get_python_sdk_name())),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='version', value=to_json_value(beam_version.__version__))])
     # Version information.
@@ -279,6 +279,10 @@ class Environment(object):
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
+
+  def _get_python_sdk_name(self):
+    python_version = '%d.%d' % (sys.version_info[0], sys.version_info[1])
+    return 'Apache Beam Python %s SDK' % python_version
 
 
 class Job(object):
