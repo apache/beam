@@ -33,8 +33,13 @@ task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
     def testOpts = [
         "--tests=${tests.join(',')}",
         "--nocapture",    // Print stdout instantly
+        "--processes=1",    // Number of tests running in parallel
+        "--process-timeout=1800",   // Timeout of whole command execution
     ]
-    def cmdArgs = project.mapToArgString(["test_opts": testOpts])
+    def cmdArgs = project.mapToArgString([
+        "test_opts": testOpts,
+        "sdk_location": "${project.buildDir}/apache-beam.tar.gz"
+    ])
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
