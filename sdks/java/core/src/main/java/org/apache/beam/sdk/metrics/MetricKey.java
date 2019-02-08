@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction.metrics;
+package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.metrics.MetricName;
 
 /** Metrics are keyed by the step name they are associated with and the name of the metric. */
 @Experimental(Kind.METRICS)
@@ -41,7 +40,7 @@ public abstract class MetricKey implements Serializable {
     return String.format("%s:%s", stepName(), metricName());
   }
 
-  public static MetricKey create(String stepName, MetricName metricName) {
+  public static MetricKey create(@Nullable String stepName, MetricName metricName) {
     return new AutoValue_MetricKey(stepName, metricName);
   }
 }
