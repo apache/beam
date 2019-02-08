@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -41,7 +42,7 @@ public class MonitoringInfoMetricName extends MetricName {
   @Nullable private String namespace;
   private HashMap<String, String> labels = new HashMap<String, String>();
 
-  private MonitoringInfoMetricName(String urn, HashMap<String, String> labels) {
+  private MonitoringInfoMetricName(String urn, Map<String, String> labels) {
     checkArgument(!Strings.isNullOrEmpty(urn), "MonitoringInfoMetricName urn must be non-empty");
     checkArgument(labels != null, "MonitoringInfoMetricName labels must be non-null");
     // TODO(ajamato): Move SimpleMonitoringInfoBuilder to beam-runner-core-construction-java
@@ -89,7 +90,7 @@ public class MonitoringInfoMetricName extends MetricName {
     return this.labels;
   }
 
-  public static MonitoringInfoMetricName named(String urn, HashMap<String, String> labels) {
+  public static MonitoringInfoMetricName named(String urn, Map<String, String> labels) {
     return new MonitoringInfoMetricName(urn, labels);
   }
 
