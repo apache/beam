@@ -35,11 +35,11 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @AutoValue
 public abstract class MetricResult<T> {
   /** Return the name of the metric. */
-  public abstract MetricName getName();
+  public MetricName getName() {
+    return getKey().metricName();
+  };
 
-  /** Return the step context to which this metric result applies. */
-  @Nullable
-  public abstract String getStep();
+  public abstract MetricKey getKey();
 
   /**
    * Return the value of this metric across all successfully completed parts of the pipeline.
@@ -71,39 +71,31 @@ public abstract class MetricResult<T> {
   public <V> MetricResult<V> transform(Function<T, V> fn) {
     T committed = getCommittedOrNull();
     return create(
-        getName(),
-        getStep(),
-        committed == null ? null : fn.apply(committed),
-        fn.apply(getAttempted()));
+        getKey(), committed == null ? null : fn.apply(committed), fn.apply(getAttempted()));
   }
 
   public MetricResult<T> addAttempted(T update, BiFunction<T, T, T> combine) {
-    return create(getName(), getStep(), getCommitted(), combine.apply(getAttempted(), update));
+    return create(getKey(), getCommitted(), combine.apply(getAttempted(), update));
   }
 
   public MetricResult<T> addCommitted(T update, BiFunction<T, T, T> combine) {
     T committed = getCommittedOrNull();
     return create(
-        getName(),
-        getStep(),
-        committed == null ? update : combine.apply(committed, update),
-        getAttempted());
+        getKey(), committed == null ? update : combine.apply(committed, update), getAttempted());
   }
 
-  public static <T> MetricResult<T> attempted(MetricName name, @Nullable String step, T attempted) {
-    return new AutoValue_MetricResult<>(name, step, null, attempted);
+  public static <T> MetricResult<T> attempted(MetricKey key, T attempted) {
+    return new AutoValue_MetricResult<>(key, null, attempted);
   }
 
-  public static <T> MetricResult<T> create(
-      MetricName name, @Nullable String step, Boolean isCommittedSupported, T value) {
+  public static <T> MetricResult<T> create(MetricKey key, Boolean isCommittedSupported, T value) {
     if (isCommittedSupported) {
-      return create(name, step, value, value);
+      return create(key, value, value);
     }
-    return attempted(name, step, value);
+    return attempted(key, value);
   }
 
-  public static <T> MetricResult<T> create(
-      MetricName name, @Nullable String step, @Nullable T committed, T attempted) {
-    return new AutoValue_MetricResult<>(name, step, committed, attempted);
+  public static <T> MetricResult<T> create(MetricKey key, @Nullable T committed, T attempted) {
+    return new AutoValue_MetricResult<T>(key, committed, attempted);
   }
 }

@@ -21,7 +21,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
-import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -51,12 +50,9 @@ public class DefaultMetricResults extends MetricResults {
   @Override
   public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
     return MetricQueryResults.create(
+        Iterables.filter(counters, counter -> MetricFiltering.matches(filter, counter.getKey())),
         Iterables.filter(
-            counters, counter -> MetricFiltering.matches(filter, MetricKey.create(counter))),
-        Iterables.filter(
-            distributions,
-            distribution -> MetricFiltering.matches(filter, MetricKey.create(distribution))),
-        Iterables.filter(
-            gauges, gauge -> MetricFiltering.matches(filter, MetricKey.create(gauge))));
+            distributions, distribution -> MetricFiltering.matches(filter, distribution.getKey())),
+        Iterables.filter(gauges, gauge -> MetricFiltering.matches(filter, gauge.getKey())));
   }
 }
