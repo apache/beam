@@ -76,8 +76,10 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
 
 1. Create a [setup.py](https://pythonhosted.org/an_example_pypi_project/setuptools.html) file for your project. The following is a very basic `setup.py` file.
 
+        import setuptools
+
         setuptools.setup(
-           name='PACKAGE-NAME'
+           name='PACKAGE-NAME',
            version='PACKAGE-VERSION',
            install_requires=[],
            packages=setuptools.find_packages(),
