@@ -111,7 +111,7 @@ public class DoFnFunction<InputT, OutputT>
   }
 
   private class DoFnOutputManager
-      implements ProcessContext.SparkOutputManager<Tuple2<TupleTag<?>, WindowedValue<?>>> {
+      implements ProcessContext.ProcessOutputManager<Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
     private final Multimap<TupleTag<?>, WindowedValue<?>> outputs = LinkedListMultimap.create();
 

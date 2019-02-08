@@ -31,13 +31,13 @@ class ProcessContext<FnInputT, FnOutputT, OutputT> {
 
   private final DoFn<FnInputT, FnOutputT> doFn;
   private final DoFnRunner<FnInputT, FnOutputT> doFnRunner;
-  private final SparkOutputManager<OutputT> outputManager;
+  private final ProcessOutputManager<OutputT> outputManager;
   private Iterator<TimerInternals.TimerData> timerDataIterator;
 
   ProcessContext(
       DoFn<FnInputT, FnOutputT> doFn,
       DoFnRunner<FnInputT, FnOutputT> doFnRunner,
-      SparkOutputManager<OutputT> outputManager,
+      ProcessOutputManager<OutputT> outputManager,
       Iterator<TimerInternals.TimerData> timerDataIterator) {
 
     this.doFn = doFn;
@@ -71,7 +71,7 @@ class ProcessContext<FnInputT, FnOutputT, OutputT> {
     return () -> new ProcCtxtIterator(iter, doFnRunner);
   }
 
-  interface SparkOutputManager<T> extends OutputManager, Iterable<T> {
+  interface ProcessOutputManager<T> extends OutputManager, Iterable<T> {
     void clear();
   }
 
