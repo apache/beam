@@ -343,8 +343,10 @@ package then you can build the tarball with the following command:</p>
   <li>
     <p>Create a <a href="https://pythonhosted.org/an_example_pypi_project/setuptools.html">setup.py</a> file for your project. The following is a very basic <code class="highlighter-rouge">setup.py</code> file.</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> setuptools.setup(
-    name='PACKAGE-NAME'
+    <div class="highlighter-rouge"><pre class="highlight"><code> import setuptools
+
+ setuptools.setup(
+    name='PACKAGE-NAME',
     version='PACKAGE-VERSION',
     install_requires=[],
     packages=setuptools.find_packages(),
