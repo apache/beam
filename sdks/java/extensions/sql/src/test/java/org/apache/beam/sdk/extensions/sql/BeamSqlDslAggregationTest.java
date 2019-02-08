@@ -323,6 +323,52 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     runTumbleWindow(unboundedInput1);
   }
 
+  @Test
+  public void testTumbleWindowWith31DaysBounded() throws Exception {
+    runTumbleWindowFor31Days(boundedInputMonthly);
+  }
+
+  private void runTumbleWindowFor31Days(PCollection<Row> input) throws Exception {
+    String sql =
+        "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
+            + " TUMBLE_START(f_timestamp, INTERVAL '31' DAY) AS `window_start`, "
+            + " TUMBLE_END(f_timestamp, INTERVAL '31' DAY) AS `window_end` "
+            + " FROM TABLE_A"
+            + " GROUP BY f_int2, TUMBLE(f_timestamp, INTERVAL '31' DAY)";
+    PCollection<Row> result =
+        PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
+            .apply("testTumbleWindow", SqlTransform.query(sql));
+
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int2")
+            .addInt64Field("size")
+            .addDateTimeField("window_start")
+            .addDateTimeField("window_end")
+            .build();
+
+    List<Row> expectedRows =
+        TestUtils.RowsBuilder.of(resultType)
+            .addRows(
+                0,
+                1L,
+                parseTimestampWithoutTimeZone("2016-12-08 01:00:00"),
+                parseTimestampWithoutTimeZone("2017-01-08 01:00:00"),
+                0,
+                1L,
+                parseTimestampWithoutTimeZone("2017-01-08 01:00:00"),
+                parseTimestampWithoutTimeZone("2017-02-08 01:00:00"),
+                0,
+                1L,
+                parseTimestampWithoutTimeZone("2017-02-08 01:00:00"),
+                parseTimestampWithoutTimeZone("2017-03-11 01:00:00"))
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(expectedRows);
+
+    pipeline.run().waitUntilFinish();
+  }
+
   private void runTumbleWindow(PCollection<Row> input) throws Exception {
     String sql =
         "SELECT f_int2, COUNT(*) AS `getFieldCount`,"

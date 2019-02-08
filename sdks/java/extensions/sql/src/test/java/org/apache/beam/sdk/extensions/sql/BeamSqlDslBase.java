@@ -56,6 +56,7 @@ public class BeamSqlDslBase {
   static Schema schemaBytesPaddingTest;
 
   static List<Row> rowsInTableA;
+  static List<Row> monthlyRowsInTableA;
   static List<Row> rowsOfFloatDouble;
   static List<Row> rowsOfBytes;
   static List<Row> rowsOfBytesPaddingTest;
@@ -66,6 +67,7 @@ public class BeamSqlDslBase {
   protected PCollection<Row> boundedInputFloatDouble;
   protected PCollection<Row> boundedInputBytes;
   protected PCollection<Row> boundedInputBytesPaddingTest;
+  protected PCollection<Row> boundedInputMonthly;
 
   // unbounded PCollections
   protected PCollection<Row> unboundedInput1;
@@ -133,6 +135,43 @@ public class BeamSqlDslBase {
                 parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
                 0,
                 new BigDecimal(4))
+            .getRows();
+
+    monthlyRowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(
+                1,
+                1000L,
+                (short) 1,
+                (byte) 1,
+                1.0f,
+                1.0d,
+                "string_row1",
+                parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
+                0,
+                new BigDecimal(1))
+            .addRows(
+                2,
+                2000L,
+                (short) 2,
+                (byte) 2,
+                2.0f,
+                2.0d,
+                "string_row2",
+                parseTimestampWithoutTimeZone("2017-02-01 01:02:03"),
+                0,
+                new BigDecimal(2))
+            .addRows(
+                3,
+                3000L,
+                (short) 3,
+                (byte) 3,
+                3.0f,
+                3.0d,
+                "string_row3",
+                parseTimestampWithoutTimeZone("2017-03-01 01:06:03"),
+                0,
+                new BigDecimal(3))
             .getRows();
 
     schemaFloatDouble =
@@ -257,6 +296,14 @@ public class BeamSqlDslBase {
             Create.of(rowsOfBytesPaddingTest)
                 .withSchema(
                     schemaBytesPaddingTest,
+                    SerializableFunctions.identity(),
+                    SerializableFunctions.identity()));
+    boundedInputMonthly =
+        pipeline.apply(
+            "boundedInputMonthly",
+            Create.of(monthlyRowsInTableA)
+                .withSchema(
+                    schemaInTableA,
                     SerializableFunctions.identity(),
                     SerializableFunctions.identity()));
 
