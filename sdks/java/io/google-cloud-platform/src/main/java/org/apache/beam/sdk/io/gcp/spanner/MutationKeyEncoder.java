@@ -77,7 +77,7 @@ class MutationKeyEncoder {
     Map<String, Value> mutationMap = mutationAsMap(m);
     for (SpannerSchema.KeyPart part : schema.getKeyParts(m.getTable())) {
       Value val = mutationMap.get(part.getField());
-      if (val.isNull()) {
+      if (val == null || val.isNull()) {
         if (part.isDesc()) {
           orderedCode.writeInfinityDecreasing();
         } else {
