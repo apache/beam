@@ -181,12 +181,12 @@ public class BeamAggregationRule extends RelOptRule {
   }
 
   private static Duration durationParameter(List<RexNode> parameters, int parameterIndex) {
-    return Duration.millis(intValue(parameters.get(parameterIndex)));
+    return Duration.millis(longValue(parameters.get(parameterIndex)));
   }
 
-  private static long intValue(RexNode operand) {
+  private static long longValue(RexNode operand) {
     if (operand instanceof RexLiteral) {
-      return RexLiteral.intValue(operand);
+      return ((Number) RexLiteral.value(operand)).longValue();
     } else {
       throw new IllegalArgumentException(String.format("[%s] is not valid.", operand));
     }
