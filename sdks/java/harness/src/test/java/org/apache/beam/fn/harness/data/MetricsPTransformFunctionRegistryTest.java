@@ -19,27 +19,33 @@ package org.apache.beam.fn.harness.data;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import java.io.Closeable;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMapEnvironment;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-/** Tests for {@link PTransformFunctionRegistryTest}. */
+/** Tests for {@link MetricsPTransformFunctionRegistry}. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(MetricsEnvironment.class)
-public class PTransformFunctionRegistryTest {
+public class MetricsPTransformFunctionRegistryTest {
 
   @Test
-  public void functionsAreInvokedIndirectlyAfterRegisteringAndInvoking() throws Exception {
+  public void testScopedMetricContainerInvokedUponRunningFunctions() throws Exception {
     try (Closeable close = MetricsContainerStepMapEnvironment.setupMetricEnvironment()) {
-
-      PTransformFunctionRegistry testObject = new PTransformFunctionRegistry();
+      mockStatic(MetricsEnvironment.class);
+      MetricsContainerStepMap metricsContainerRegistry =
+          MetricsContainerStepMapEnvironment.getCurrent();
+      MetricsPTransformFunctionRegistry testObject =
+          new MetricsPTransformFunctionRegistry(SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
 
       ThrowingRunnable runnableA = mock(ThrowingRunnable.class);
       ThrowingRunnable runnableB = mock(ThrowingRunnable.class);
@@ -50,8 +56,15 @@ public class PTransformFunctionRegistryTest {
         func.run();
       }
 
-      verify(runnableA, times(1)).run();
-      verify(runnableB, times(1)).run();
+      // Verify that static scopedMetricsContainer is called with pTransformA's container.
+      PowerMockito.verifyStatic(times(1));
+      MetricsEnvironment.scopedMetricsContainer(
+          metricsContainerRegistry.getContainer("pTransformA"));
+
+      // Verify that static scopedMetricsContainer is called with pTransformB's container.
+      PowerMockito.verifyStatic(times(1));
+      MetricsEnvironment.scopedMetricsContainer(
+          metricsContainerRegistry.getContainer("pTransformB"));
     }
   }
 }
