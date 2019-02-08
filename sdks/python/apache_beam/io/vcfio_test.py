@@ -94,8 +94,8 @@ def _count_equals_to(expected_count):
 
 
 @unittest.skipIf(sys.version_info[0] == 3,
-               'VCF io will be ported to Python 3 after switch to Nucleus. '
-               'See BEAM-5628.')
+                 'VCF io will be ported to Python 3 after switch to Nucleus. '
+                 'See BEAM-5628')
 class VcfSourceTest(unittest.TestCase):
 
   # Distribution should skip tests that need VCF files due to large size
