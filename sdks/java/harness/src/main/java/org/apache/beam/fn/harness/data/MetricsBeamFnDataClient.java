@@ -129,8 +129,8 @@ public class MetricsBeamFnDataClient implements BeamFnDataClient {
    * The MetricsFnDataReceiver is a a FnDataReceiver used by the MetricsBeamFnDataClient.
    *
    * <p>All {@link #accept accept()ed} values will be put onto a synchronous queue which will cause
-   * the calling thread to block until {@link MetricsBeamFnDataClient#drainAndBlock} is called.
-   * {@link MetricsBeamFnDataClient#drainAndBlock} is responsible for processing values from the
+   * the calling thread to block until {@link MetricsBeamFnDataClient#waitTillDone} is called.
+   * {@link MetricsBeamFnDataClient#waitTillDone} is responsible for processing values from the
    * queue.
    */
   public class MetricsFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
