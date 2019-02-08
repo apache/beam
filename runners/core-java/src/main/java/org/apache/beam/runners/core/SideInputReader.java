@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
@@ -31,6 +32,7 @@ public interface SideInputReader {
    * <p>It is valid for a side input to be {@code null}. It is <i>not</i> valid for this to return
    * {@code null} for any other reason.
    */
+  @Nullable
   <T> T get(PCollectionView<T> view, BoundedWindow window);
 
   /** Returns true if the given {@link PCollectionView} is valid for this reader. */
