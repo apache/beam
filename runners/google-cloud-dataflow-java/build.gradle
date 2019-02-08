@@ -113,6 +113,7 @@ def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
 def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
 def dockerImageContainer = "${dockerImageRoot}/java"
@@ -300,10 +301,31 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/PubsubReadIT.class'
+  exclude '**/*KmsKeyIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
   useJUnit { }
+}
+
+task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
+    group = "Verification"
+    dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--runner=TestDataflowRunner",
+            "--project=${dataflowProject}",
+            "--tempRoot=${dataflowPostCommitTempRoot}",
+            "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+            "--workerHarnessContainerImage=",
+            "--dataflowKmsKey=${dataflowKmsKey}",
+    ])
+
+    include '**/*KmsKeyIT.class'
+    exclude '**/BigQueryKmsKeyIT.java'  // Only needs to run on direct runner.
+    maxParallelForks 4
+    classpath = configurations.googleCloudPlatformIntegrationTest
+    testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
+    useJUnit { }
 }
 
 task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
@@ -326,6 +348,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
     exclude '**/SpannerWriteIT.class'
     exclude '**/BigQueryNestedRecordsIT.class'
     exclude '**/SplitQueryFnIT.class'
+    exclude '**/*KmsKeyIT.class'
 
     maxParallelForks 4
     classpath = configurations.googleCloudPlatformIntegrationTest
@@ -429,6 +452,7 @@ task postCommit {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner."
   dependsOn googleCloudPlatformLegacyWorkerIntegrationTest
+  dependsOn googleCloudPlatformLegacyWorkerKmsIntegrationTest
   dependsOn examplesJavaLegacyWorkerIntegrationTest
   dependsOn coreSDKJavaLegacyWorkerIntegrationTest
 }

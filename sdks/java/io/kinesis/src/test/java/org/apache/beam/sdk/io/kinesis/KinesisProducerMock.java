@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.newArrayList;
-
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.Metric;
@@ -27,6 +25,7 @@ import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.joda.time.DateTime;
@@ -36,7 +35,7 @@ public class KinesisProducerMock implements IKinesisProducer {
 
   private boolean isFailedFlush = false;
 
-  private List<UserRecord> addedRecords = newArrayList();
+  private List<UserRecord> addedRecords = new ArrayList<>();
 
   private KinesisServiceMock kinesisService = KinesisServiceMock.getInstance();
 

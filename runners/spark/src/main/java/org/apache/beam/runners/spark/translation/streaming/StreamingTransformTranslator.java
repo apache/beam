@@ -53,7 +53,6 @@ import org.apache.beam.runners.spark.translation.SparkPCollectionView;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
-import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
@@ -83,6 +82,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.spark.Accumulator;
+import org.apache.spark.HashPartitioner;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -103,7 +103,7 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<T>> dstream =
             ((UnboundedDataset<T>) context.borrowDataset(transform)).getDStream();
-        dstream.map(WindowingHelpers.unwindowFunction()).print(transform.getNum());
+        dstream.map(WindowedValue::getValue).print(transform.getNum());
       }
 
       @Override
@@ -305,7 +305,11 @@ public final class StreamingTransformTranslator {
         JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyStream =
             dStream.transform(
                 rdd ->
-                    GroupCombineFunctions.groupByKeyOnly(rdd, coder.getKeyCoder(), wvCoder, null));
+                    GroupCombineFunctions.groupByKeyOnly(
+                        rdd,
+                        coder.getKeyCoder(),
+                        wvCoder,
+                        new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism())));
 
         // --- now group also by window.
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =

@@ -179,6 +179,11 @@ class FakeWindmillServer extends WindmillServerStub {
   }
 
   @Override
+  public long getAndResetThrottleTime() {
+    return (long) 0;
+  }
+
+  @Override
   public GetWorkStream getWorkStream(Windmill.GetWorkRequest request, WorkItemReceiver receiver) {
     LOG.debug("getWorkStream: {}", request.toString());
     Instant startTime = Instant.now();

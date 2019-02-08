@@ -59,7 +59,7 @@ import org.postgresql.ds.PGSimpleDataSource;
  * PipelineOptions:
  *
  * <pre>
- *  ./gradlew integrationTest -p sdks/java/io/hadoop/input-format/
+ *  ./gradlew integrationTest -p sdks/java/io/hadoop-input-format/
  *   -DintegrationTestPipelineOptions='[
  *     "--postgresServerName=1.2.3.4",
  *     "--postgresUsername=postgres",

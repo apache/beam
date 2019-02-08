@@ -55,7 +55,7 @@ buildscript {
     classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"                              // Enable Apache license enforcement
     classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                 // Enable Avro code generation
     classpath "com.diffplug.spotless:spotless-plugin-gradle:3.17.0"                                     // Enable a code formatting plugin
-    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.10"                                      // Enable Go code compilation
+    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.11.2"                                    // Enable Go code compilation
     classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.20.1"                           // Enable building Docker containers
     classpath "gradle.plugin.com.dorongold.plugins:task-tree:1.3.1"                                     // Adds a 'taskTree' task to print task dependency tree
     classpath "com.github.jengelman.gradle.plugins:shadow:4.0.3"                                        // Enable shading Java dependencies
@@ -198,6 +198,7 @@ task javaPreCommitPortabilityApi() {
 
 task javaPostCommit() {
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
+  dependsOn ":beam-sdks-java-extensions-google-cloud-platform-core:postCommit"
   dependsOn ":beam-sdks-java-io-google-cloud-platform:postCommit"
 }
 
@@ -211,7 +212,7 @@ task javaPostCommitPortabilityApi () {
 }
 
 task goPreCommit() {
-  dependsOn ":beam-sdks-go:test"
+  dependsOn ":beam-sdks-go:goTest"
 
   dependsOn ":beam-sdks-go-examples:build"
   dependsOn ":beam-sdks-go-test:build"
@@ -239,8 +240,6 @@ task goIntegrationTests() {
 
 task pythonPreCommit() {
   dependsOn ":beam-sdks-python:preCommit"
-  dependsOn ":beam-sdks-python-precommit-dataflow:precommitIT"
-  dependsOn ":beam-sdks-python-precommit-direct-py3:precommitIT"
 }
 
 task pythonPostCommit() {
@@ -274,10 +273,14 @@ task runBeamDependencyCheck() {
 }
 
 apply plugin: 'net.researchgate.release'
+
+// Configure the release plugin to do only local work; the release manager determines what, if
+// anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
-  revertOnFail = true
+  revertOnFail = false
   tagTemplate = 'v${version}'
   git {
     requireBranch = 'release-.*|master'
+    pushToRemote = ''
   }
 }

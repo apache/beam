@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.samza.util;
 
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Utilities for pipeline translation. */
 public final class SamzaPipelineTranslatorUtils {

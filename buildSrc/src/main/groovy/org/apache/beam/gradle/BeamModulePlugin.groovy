@@ -291,6 +291,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.version += '-SNAPSHOT'
     }
 
+    project.apply plugin: BeamJenkinsPlugin
+
     // Register all Beam repositories and configuration tweaks
     Repositories.register(project)
 
@@ -393,7 +395,7 @@ class BeamModulePlugin implements Plugin<Project> {
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         commons_codec                               : "commons-codec:commons-codec:1.10",
-        commons_compress                            : "org.apache.commons:commons-compress:1.16.1",
+        commons_compress                            : "org.apache.commons:commons-compress:1.18",
         commons_csv                                 : "org.apache.commons:commons-csv:1.4",
         commons_io_1x                               : "commons-io:commons-io:1.3.2",
         commons_io_2x                               : "commons-io:commons-io:2.5",
@@ -481,6 +483,7 @@ class BeamModulePlugin implements Plugin<Project> {
         vendored_grpc_1_13_1                        : "org.apache.beam:beam-vendor-grpc-1_13_1:0.2",
         vendored_guava_20_0                         : "org.apache.beam:beam-vendor-guava-20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
+        zstd_jni                                    : "com.github.luben:zstd-jni:1.3.8-3",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
       ],
       groovy: [
@@ -776,8 +779,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.tasks.withType(FindBugs) {
           reports {
-            html.enabled = false
-            xml.enabled = true
+            html.enabled = !project.jenkins.isCIBuild
+            xml.enabled = project.jenkins.isCIBuild
           }
         }
       }
@@ -1270,6 +1273,9 @@ class BeamModulePlugin implements Plugin<Project> {
     /** ***********************************************************************************************/
 
     project.ext.applyGoNature = {
+      // Define common lifecycle tasks and artifact types
+      project.apply plugin: 'base'
+
       project.apply plugin: "com.github.blindpirate.gogradle"
       project.golang { goVersion = '1.10' }
 
@@ -1283,6 +1289,9 @@ class BeamModulePlugin implements Plugin<Project> {
           root 'github.com/apache/thrift'
           emptyDir()
         }
+        project.clean.dependsOn project.goClean
+        project.check.dependsOn project.goCheck
+        project.assemble.dependsOn project.goBuild
       }
 
       project.idea {

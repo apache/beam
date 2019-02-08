@@ -384,6 +384,19 @@ class UtilTest(unittest.TestCase):
     self.assertNotIn(
         "use_multiple_sdk_containers", environment.proto.experiments)
 
+  @mock.patch('apache_beam.runners.dataflow.internal.apiclient.sys')
+  def test_get_python_sdk_name(self, mock_sys):
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp',
+         '--experiments', 'beam_fn_api',
+         '--experiments', 'use_multiple_sdk_containers'])
+    environment = apiclient.Environment(
+        [], pipeline_options, 1, FAKE_PIPELINE_URL)
+    mock_sys.version_info = [22, 333]
+    self.assertEqual('Apache Beam Python 22.333 SDK',
+                     environment._get_python_sdk_name())
+
 
 if __name__ == '__main__':
   unittest.main()

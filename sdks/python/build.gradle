@@ -111,6 +111,8 @@ task preCommit() {
   dependsOn "testPy2Gcp"
   dependsOn "testPy3Gcp"
   dependsOn "lint"
+  dependsOn ":beam-sdks-python-precommit-dataflow:preCommitIT"
+  dependsOn ":beam-sdks-python-precommit-direct-py3:preCommitIT"
 }
 
 task portablePreCommit() {
@@ -368,10 +370,25 @@ task flinkValidatesRunner() {
   dependsOn 'flinkCompatibilityMatrixLoopback'
 }
 
+// Run Python ValidatesRunner tests using the Java ReferenceRunner as a job server and Docker as
+// the SDK environment.
+task javaReferenceRunnerValidatesRunner() {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':beam-runners-reference-job-server:shadowJar'
+  dependsOn ':beam-sdks-python-container:docker'
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.java_reference_runner_test --job_server_jar=${project(":beam-runners-reference-job-server:").shadowJar.archivePath} --environment_type=DOCKER"
+    }
+  }
+}
+
 task postCommit() {
   dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
   dependsOn "postCommitIT"
+  dependsOn ":beam-sdks-python-precommit-dataflow-py3:preCommitIT"
 }
 
 

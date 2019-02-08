@@ -133,14 +133,8 @@ public final class TransformTranslator {
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
         // --- group by key only.
-        Long bundleSize =
-            context.getSerializableOptions().get().as(SparkPipelineOptions.class).getBundleSize();
-        Partitioner partitioner =
-            (bundleSize > 0)
-                ? new HashPartitioner(context.getSparkContext().defaultParallelism())
-                : null;
         JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey =
-            GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
+            GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, getPartitioner(context));
 
         // --- now group also by window.
         // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
@@ -260,7 +254,7 @@ public final class TransformTranslator {
             outRdd =
                 jsc.parallelize(Lists.newArrayList(CoderHelpers.toByteArray(defaultValue, oCoder)))
                     .map(CoderHelpers.fromByteFunction(oCoder))
-                    .map(WindowingHelpers.windowFunction());
+                    .map(WindowedValue::valueInGlobalWindow);
           } else {
             outRdd = jsc.emptyRDD();
           }
@@ -377,6 +371,7 @@ public final class TransformTranslator {
                   (KvCoder) context.getInput(transform).getCoder(),
                   windowingStrategy.getWindowFn().windowCoder(),
                   (JavaRDD) inRDD,
+                  getPartitioner(context),
                   (MultiDoFnFunction) multiDoFnFunction);
         } else {
           all = inRDD.mapPartitionsToPair(multiDoFnFunction);
@@ -420,6 +415,7 @@ public final class TransformTranslator {
       KvCoder<K, V> kvCoder,
       Coder<? extends BoundedWindow> windowCoder,
       JavaRDD<WindowedValue<KV<K, V>>> kvInRDD,
+      Partitioner partitioner,
       MultiDoFnFunction<KV<K, V>, OutputT> doFnFunction) {
     Coder<K> keyCoder = kvCoder.getKeyCoder();
 
@@ -427,7 +423,7 @@ public final class TransformTranslator {
         WindowedValue.FullWindowedValueCoder.of(kvCoder.getValueCoder(), windowCoder);
 
     JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupRDD =
-        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, null);
+        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, partitioner);
 
     return groupRDD
         .map(
@@ -548,6 +544,15 @@ public final class TransformTranslator {
         return "repartition(...)";
       }
     };
+  }
+
+  @Nullable
+  private static Partitioner getPartitioner(EvaluationContext context) {
+    Long bundleSize =
+        context.getSerializableOptions().get().as(SparkPipelineOptions.class).getBundleSize();
+    return (bundleSize > 0)
+        ? null
+        : new HashPartitioner(context.getSparkContext().defaultParallelism());
   }
 
   private static final Map<String, TransformEvaluator<?>> EVALUATORS = new HashMap<>();
