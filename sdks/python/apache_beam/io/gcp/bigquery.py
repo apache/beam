@@ -139,6 +139,7 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.utils.annotations import deprecated
 
 __all__ = [
     'TableRowJsonCoder',
@@ -149,52 +150,39 @@ __all__ = [
     ]
 
 
+@deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
 def _parse_table_reference(table, dataset=None, project=None):
-  import warnings
-  warnings.warn("This function is deprecated and will be permanently moved "
-                "to the bigquery_tools module in a future version of beam")
-  return bigquery_tools._parse_table_reference(table, dataset, project)
+  return bigquery_tools.parse_table_reference(table, dataset, project)
 
 
+@deprecated(since='2.11.0',
+            current="bigquery_tools.parse_table_schema_from_json")
 def parse_table_schema_from_json(schema_string):
-  import warnings
-  warnings.warn("This function is deprecated and will be permanently moved "
-                "to the bigquery_tools module in a future version of beam")
   return bigquery_tools.parse_table_schema_from_json(schema_string)
 
 
+@deprecated(since='2.11.0', current="bigquery_tools.default_encoder")
 def default_encoder(obj):
-  import warnings
-  warnings.warn("This function is deprecated and will be permanently moved "
-                "to the bigquery_tools module in a future version of beam")
   return bigquery_tools.default_encoder(obj)
 
 
+@deprecated(since='2.11.0', current="bigquery_tools.RowAsDictJsonCoder")
 def RowAsDictJsonCoder(*args, **kwargs):
-  import warnings
-  warnings.warn("This class is deprecated and will be permanently moved "
-                "to the bigquery_tools module in a future version of beam")
   return bigquery_tools.RowAsDictJsonCoder(*args, **kwargs)
 
 
+@deprecated(since='2.11.0', current="bigquery_tools.BigQueryReader")
 def BigQueryReader(*args, **kwargs):
-  import warnings
-  warnings.warn("This class is deprecated and will be permanently moved "
-                "to the bigquery_tools module in a future version of beam")
   return bigquery_tools.BigQueryReader(*args, **kwargs)
 
 
+@deprecated(since='2.11.0', current="bigquery_tools.BigQueryWriter")
 def BigQueryWriter(*args, **kwargs):
-  import warnings
-  warnings.warn("This class is deprecated and will be permanently moved "
-                "to the bigquery_tools module in a future version of beam")
   return bigquery_tools.BigQueryWriter(*args, **kwargs)
 
 
+@deprecated(since='2.11.0', current="bigquery_tools.BigQueryWrapper")
 def BigQueryWrapper(*args, **kwargs):
-  import warnings
-  warnings.warn("This class is deprecated and will be permanently moved "
-                "to the bigquery_tools module in a future version of beam")
   return bigquery_tools.BigQueryWrapper(*args, **kwargs)
 
 
@@ -337,7 +325,7 @@ class BigQuerySource(dataflow_io.NativeSource):
     elif table is None and query is None:
       raise ValueError('A BigQuery table or a query must be specified')
     elif table is not None:
-      self.table_reference = bigquery_tools._parse_table_reference(
+      self.table_reference = bigquery_tools.parse_table_reference(
           table, dataset, project)
       self.query = None
       self.use_legacy_sql = True
@@ -464,7 +452,7 @@ bigquery_v2_messages.TableSchema` object.
           'Google Cloud IO not available, '
           'please install apache_beam[gcp]')
 
-    self.table_reference = bigquery_tools._parse_table_reference(
+    self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
     # Transform the table schema into a bigquery.TableSchema instance.
     if isinstance(schema, (str, unicode)):
@@ -698,7 +686,7 @@ bigquery_v2_messages.TableSchema`
         insert.
       test_client: Override the default bigquery client used for testing.
     """
-    self.table_reference = bigquery_tools._parse_table_reference(
+    self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
     self.create_disposition = BigQueryDisposition.validate_create(
         create_disposition)
