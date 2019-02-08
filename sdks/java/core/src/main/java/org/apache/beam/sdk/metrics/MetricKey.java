@@ -40,10 +40,6 @@ public abstract class MetricKey implements Serializable {
     return String.format("%s:%s", stepName(), metricName());
   }
 
-  public static MetricKey create(MetricResult<?> result) {
-    return create(result.getStep(), result.getName());
-  }
-
   public static MetricKey create(@Nullable String stepName, MetricName metricName) {
     return new AutoValue_MetricKey(stepName, metricName);
   }

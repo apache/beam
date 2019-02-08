@@ -261,8 +261,7 @@ class DirectMetrics extends MetricResults {
     if (MetricFiltering.matches(filter, entry.getKey())) {
       resultsBuilder.add(
           MetricResult.create(
-              entry.getKey().metricName(),
-              entry.getKey().stepName(),
+              entry.getKey(),
               entry.getValue().extractCommitted(),
               entry.getValue().extractLatestAttempted()));
     }

@@ -102,7 +102,7 @@ class DirectMetrics extends MetricResults {
      */
     public void commitPhysical(final CommittedBundle<?> bundle, final UpdateT finalCumulative) {
       // To prevent a query from blocking the commit, we perform the commit in two steps.
-      // 1. We perform a non-blocking write to the uncommitted table to make the new vaule
+      // 1. We perform a non-blocking write to the uncommitted table to make the new value
       //    available immediately.
       // 2. We submit a runnable that will commit the update and remove the tentative value in
       //    a synchronized block.
@@ -257,8 +257,7 @@ class DirectMetrics extends MetricResults {
     if (MetricFiltering.matches(filter, entry.getKey())) {
       resultsBuilder.add(
           MetricResult.create(
-              entry.getKey().metricName(),
-              entry.getKey().stepName(),
+              entry.getKey(),
               entry.getValue().extractCommitted(),
               entry.getValue().extractLatestAttempted()));
     }

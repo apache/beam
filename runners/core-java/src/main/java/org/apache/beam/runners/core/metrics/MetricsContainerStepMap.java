@@ -184,9 +184,7 @@ public class MetricsContainerStepMap implements Serializable {
       MetricKey key = metricUpdate.getKey();
       MetricResult<T> current = metricResultMap.get(key);
       if (current == null) {
-        metricResultMap.put(
-            key,
-            MetricResult.attempted(key.metricName(), key.stepName(), metricUpdate.getUpdate()));
+        metricResultMap.put(key, MetricResult.attempted(key, metricUpdate.getUpdate()));
       } else {
         metricResultMap.put(key, current.addAttempted(metricUpdate.getUpdate(), combine));
       }
