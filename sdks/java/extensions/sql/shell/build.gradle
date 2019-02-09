@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-
-apply plugin: "application"
+plugins {
+  id 'org.apache.beam.module'
+  id 'application'
+}
 
 dependencies {
   compile project(path: ":beam-sdks-java-extensions-sql-jdbc", configuration: "shadow")

@@ -23,8 +23,8 @@
  * Generated files will be located under beam/sdks/java/javadoc/build/docs/javadoc and are
  * used as part of the beam-site source tree.
  */
+plugins { id 'java' }
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
-apply plugin: 'java'
 
 for (p in rootProject.subprojects) {
   if (!p.name.equals(project.name) && !p.name.equals('beam-sdks-java-bom')) {
