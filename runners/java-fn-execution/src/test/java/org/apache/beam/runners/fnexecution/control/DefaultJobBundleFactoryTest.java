@@ -53,7 +53,6 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -82,6 +81,15 @@ public class DefaultJobBundleFactoryTest {
   private final IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
   private final InstructionResponse instructionResponse =
       InstructionResponse.newBuilder().setInstructionId("instruction-id").build();
+  private final EnvironmentFactory.Provider envFactoryProvider =
+      (GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
+          GrpcFnServer<GrpcLoggingService> loggingServiceServer,
+          GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+          GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+          ControlClientPool clientPool,
+          IdGenerator idGenerator) -> envFactory;
+  private final Map<String, EnvironmentFactory.Provider> envFactoryProviderMap =
+      ImmutableMap.of(environment.getUrn(), envFactoryProvider);
 
   @Before
   public void setUpMocks() throws Exception {
@@ -100,7 +108,7 @@ public class DefaultJobBundleFactoryTest {
   public void createsCorrectEnvironment() throws Exception {
     try (DefaultJobBundleFactory bundleFactory =
         new DefaultJobBundleFactory(
-            envFactory,
+            envFactoryProviderMap,
             stageIdGenerator,
             controlServer,
             loggingServer,
@@ -164,7 +172,7 @@ public class DefaultJobBundleFactoryTest {
       verify(envFactoryA, Mockito.times(0)).createEnvironment(environmentAA);
 
       bundleFactory.forStage(getExecutableStage(environmentAA));
-      verify(environmentProviderFactoryA, Mockito.times(1))
+      verify(environmentProviderFactoryA, Mockito.times(2))
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
       verify(environmentProviderFactoryB, Mockito.times(0))
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
@@ -174,7 +182,7 @@ public class DefaultJobBundleFactoryTest {
   }
 
   @Test
-  public void failedCreatingMultipleEnvironmentFromMultipleTypes() throws Exception {
+  public void creatingMultipleEnvironmentFromMultipleTypes() throws Exception {
     ServerFactory serverFactory = ServerFactory.createDefault();
 
     Environment environmentA = Environment.newBuilder().setUrn("env:urn:a").build();
@@ -206,16 +214,17 @@ public class DefaultJobBundleFactoryTest {
             JobInfo.create("testJob", "testJob", "token", Struct.getDefaultInstance()),
             environmentFactoryProviderMap)) {
       bundleFactory.forStage(getExecutableStage(environmentB));
-      thrown.expectCause(Matchers.any(IllegalArgumentException.class));
       bundleFactory.forStage(getExecutableStage(environmentA));
     }
+    verify(envFactoryA).createEnvironment(environmentA);
+    verify(envFactoryB).createEnvironment(environmentB);
   }
 
   @Test
   public void closesEnvironmentOnCleanup() throws Exception {
     DefaultJobBundleFactory bundleFactory =
         new DefaultJobBundleFactory(
-            envFactory,
+            envFactoryProviderMap,
             stageIdGenerator,
             controlServer,
             loggingServer,
@@ -233,7 +242,7 @@ public class DefaultJobBundleFactoryTest {
   public void cachesEnvironment() throws Exception {
     try (DefaultJobBundleFactory bundleFactory =
         new DefaultJobBundleFactory(
-            envFactory,
+            envFactoryProviderMap,
             stageIdGenerator,
             controlServer,
             loggingServer,
@@ -258,6 +267,9 @@ public class DefaultJobBundleFactoryTest {
     Environment envFoo = Environment.newBuilder().setUrn("dummy:urn:another").build();
     RemoteEnvironment remoteEnvFoo = mock(RemoteEnvironment.class);
     InstructionRequestHandler fooInstructionHandler = mock(InstructionRequestHandler.class);
+    Map<String, EnvironmentFactory.Provider> envFactoryProviderMapFoo =
+        ImmutableMap.of(
+            environment.getUrn(), envFactoryProvider, envFoo.getUrn(), envFactoryProvider);
     when(envFactory.createEnvironment(envFoo)).thenReturn(remoteEnvFoo);
     when(remoteEnvFoo.getInstructionRequestHandler()).thenReturn(fooInstructionHandler);
     // Don't bother creating a distinct instruction response because we don't use it here.
@@ -266,7 +278,7 @@ public class DefaultJobBundleFactoryTest {
 
     try (DefaultJobBundleFactory bundleFactory =
         new DefaultJobBundleFactory(
-            envFactory,
+            envFactoryProviderMapFoo,
             stageIdGenerator,
             controlServer,
             loggingServer,
