@@ -186,6 +186,7 @@ public class BeamAggregationRule extends RelOptRule {
 
   private static long longValue(RexNode operand) {
     if (operand instanceof RexLiteral) {
+      // @TODO: this can be simplified after CALCITE-2837
       return ((Number) RexLiteral.value(operand)).longValue();
     } else {
       throw new IllegalArgumentException(String.format("[%s] is not valid.", operand));
