@@ -500,4 +500,34 @@ public class BigqueryClient {
             MAX_QUERY_RETRIES, tableName),
         lastException);
   }
+
+  public Table getTableResource(String projectId, String datasetId, String tableId)
+      throws IOException, InterruptedException {
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+    IOException lastException = null;
+    do {
+      if (lastException != null) {
+        LOG.warn("Retrying tables.get ({}) after exception", tableId, lastException);
+      }
+      try {
+        Table response = this.bqClient.tables().get(projectId, datasetId, tableId).execute();
+        if (response != null) {
+          return response;
+        } else {
+          lastException =
+              new IOException("Expected valid response from tables.get, but received null.");
+        }
+      } catch (IOException e) {
+        // ignore and retry
+        lastException = e;
+      }
+    } while (BackOffUtils.next(sleeper, backoff));
+
+    throw new RuntimeException(
+        String.format(
+            "Unable to get BigQuery response after retrying %d times for tables.get (%s)",
+            MAX_QUERY_RETRIES, tableId),
+        lastException);
+  }
 }

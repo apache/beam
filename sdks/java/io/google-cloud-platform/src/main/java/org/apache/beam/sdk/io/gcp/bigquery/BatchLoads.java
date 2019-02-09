@@ -129,6 +129,7 @@ class BatchLoads<DestinationT>
   private Duration triggeringFrequency;
   private ValueProvider<String> customGcsTempLocation;
   private ValueProvider<String> loadJobProjectId;
+  private String kmsKey;
 
   // The maximum number of times to retry failed load or copy jobs.
   private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
@@ -141,7 +142,8 @@ class BatchLoads<DestinationT>
       Coder<DestinationT> destinationCoder,
       ValueProvider<String> customGcsTempLocation,
       @Nullable ValueProvider<String> loadJobProjectId,
-      boolean ignoreUnknownValues) {
+      boolean ignoreUnknownValues,
+      @Nullable String kmsKey) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -157,6 +159,7 @@ class BatchLoads<DestinationT>
     this.customGcsTempLocation = customGcsTempLocation;
     this.loadJobProjectId = loadJobProjectId;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.kmsKey = kmsKey;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -319,7 +322,8 @@ class BatchLoads<DestinationT>
                         loadJobIdPrefixView,
                         writeDisposition,
                         createDisposition,
-                        maxRetryJobs))
+                        maxRetryJobs,
+                        kmsKey))
                 .withSideInputs(loadJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
@@ -381,7 +385,8 @@ class BatchLoads<DestinationT>
                         loadJobIdPrefixView,
                         writeDisposition,
                         createDisposition,
-                        maxRetryJobs))
+                        maxRetryJobs,
+                        kmsKey))
                 .withSideInputs(loadJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
@@ -554,7 +559,8 @@ class BatchLoads<DestinationT>
                 dynamicDestinations,
                 loadJobProjectId,
                 maxRetryJobs,
-                ignoreUnknownValues));
+                ignoreUnknownValues,
+                kmsKey));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -586,7 +592,8 @@ class BatchLoads<DestinationT>
                 dynamicDestinations,
                 loadJobProjectId,
                 maxRetryJobs,
-                ignoreUnknownValues));
+                ignoreUnknownValues,
+                kmsKey));
   }
 
   private WriteResult writeResult(Pipeline p) {
