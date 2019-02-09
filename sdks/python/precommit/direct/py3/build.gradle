@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
 // Required to setup a Python 3 virtualenv.

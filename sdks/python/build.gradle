@@ -18,7 +18,7 @@
 
 import org.apache.tools.ant.taskdefs.condition.Os
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
 

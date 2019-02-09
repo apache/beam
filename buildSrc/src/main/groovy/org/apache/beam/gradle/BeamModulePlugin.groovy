@@ -291,7 +291,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.version += '-SNAPSHOT'
     }
 
-    project.apply plugin: BeamJenkinsPlugin
+    project.apply plugin: 'org.apache.beam.jenkins'
 
     // Register all Beam repositories and configuration tweaks
     Repositories.register(project)

@@ -18,7 +18,10 @@ import groovy.json.JsonOutput
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins {
+  id 'org.apache.beam.module'
+  id 'ca.coglinc.javacc'
+}
 applyJavaNature(
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann'],
@@ -43,7 +46,6 @@ applyJavaNature(
   // module.
   relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
 })
-apply plugin: 'ca.coglinc.javacc'
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"

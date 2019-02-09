@@ -25,7 +25,7 @@
 
 import groovy.json.JsonOutput
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+apply plugin: 'org.apache.beam.module'
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
