@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
 
 import java.math.BigDecimal;
@@ -147,7 +148,7 @@ public class BeamSqlDslBase {
                 1.0f,
                 1.0d,
                 "string_row1",
-                parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
+                parseTimestampWithUTCTimeZone("2017-01-01 01:01:03"),
                 0,
                 new BigDecimal(1))
             .addRows(
@@ -158,7 +159,7 @@ public class BeamSqlDslBase {
                 2.0f,
                 2.0d,
                 "string_row2",
-                parseTimestampWithoutTimeZone("2017-02-01 01:02:03"),
+                parseTimestampWithUTCTimeZone("2017-02-01 01:02:03"),
                 0,
                 new BigDecimal(2))
             .addRows(
@@ -169,7 +170,7 @@ public class BeamSqlDslBase {
                 3.0f,
                 3.0d,
                 "string_row3",
-                parseTimestampWithoutTimeZone("2017-03-01 01:06:03"),
+                parseTimestampWithUTCTimeZone("2017-03-01 01:06:03"),
                 0,
                 new BigDecimal(3))
             .getRows();
