@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
@@ -352,16 +353,16 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addRows(
                 0,
                 1L,
-                parseTimestampWithoutTimeZone("2016-12-08 01:00:00"),
-                parseTimestampWithoutTimeZone("2017-01-08 01:00:00"),
+                parseTimestampWithUTCTimeZone("2016-12-08 00:00:00"),
+                parseTimestampWithUTCTimeZone("2017-01-08 00:00:00"),
                 0,
                 1L,
-                parseTimestampWithoutTimeZone("2017-01-08 01:00:00"),
-                parseTimestampWithoutTimeZone("2017-02-08 01:00:00"),
+                parseTimestampWithUTCTimeZone("2017-01-08 00:00:00"),
+                parseTimestampWithUTCTimeZone("2017-02-08 00:00:00"),
                 0,
                 1L,
-                parseTimestampWithoutTimeZone("2017-02-08 01:00:00"),
-                parseTimestampWithoutTimeZone("2017-03-11 01:00:00"))
+                parseTimestampWithUTCTimeZone("2017-02-08 00:00:00"),
+                parseTimestampWithUTCTimeZone("2017-03-11 00:00:00"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
