@@ -1235,7 +1235,8 @@ public class BigQueryIOWriteTest implements Serializable {
             new IdentityDynamicTables(),
             null,
             4,
-            false);
+            false,
+            null);
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =
         writeTablesInput.apply(writeTables);
@@ -1317,7 +1318,8 @@ public class BigQueryIOWriteTest implements Serializable {
             jobIdTokenView,
             BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
-            3);
+            3,
+            "kms_key");
 
     DoFnTester<Iterable<KV<TableDestination, String>>, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
@@ -1329,6 +1331,7 @@ public class BigQueryIOWriteTest implements Serializable {
       TableReference tableReference = tableDestination.getTableReference();
       Table table = checkNotNull(fakeDatasetService.getTable(tableReference));
       assertEquals(tableReference.getTableId() + "_desc", tableDestination.getTableDescription());
+      assertEquals("kms_key", table.getEncryptionConfiguration().getKmsKeyName());
 
       Collection<TableRow> expectedRows = expectedRowsPerTable.get(tableDestination);
       assertThat(

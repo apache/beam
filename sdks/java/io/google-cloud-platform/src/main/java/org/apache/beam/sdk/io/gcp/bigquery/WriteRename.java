@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
@@ -57,6 +58,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
   private final int maxRetryJobs;
+  private final String kmsKey;
 
   private static class PendingJobData {
     final BigQueryHelpers.PendingJob retryJob;
@@ -80,12 +82,14 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
       PCollectionView<String> jobIdToken,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      int maxRetryJobs) {
+      int maxRetryJobs,
+      String kmsKey) {
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
     this.firstPaneWriteDisposition = writeDisposition;
     this.firstPaneCreateDisposition = createDisposition;
     this.maxRetryJobs = maxRetryJobs;
+    this.kmsKey = kmsKey;
   }
 
   @StartBundle
@@ -161,7 +165,8 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
             finalTableDestination.getTableReference(),
             tempTables,
             writeDisposition,
-            createDisposition);
+            createDisposition,
+            kmsKey);
     return new PendingJobData(retryJob, finalTableDestination, tempTables);
   }
 
@@ -172,13 +177,18 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
       TableReference ref,
       List<TableReference> tempTables,
       WriteDisposition writeDisposition,
-      CreateDisposition createDisposition) {
+      CreateDisposition createDisposition,
+      String kmsKey) {
     JobConfigurationTableCopy copyConfig =
         new JobConfigurationTableCopy()
             .setSourceTables(tempTables)
             .setDestinationTable(ref)
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name());
+    if (kmsKey != null) {
+      copyConfig.setDestinationEncryptionConfiguration(
+          new EncryptionConfiguration().setKmsKeyName(kmsKey));
+    }
 
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
