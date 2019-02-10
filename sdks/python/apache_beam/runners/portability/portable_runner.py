@@ -28,7 +28,10 @@ from concurrent import futures
 
 import grpc
 
-from apache_beam import metrics
+from apache_beam.metrics.cells import DistributionResult
+from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.metric import MetricResults
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -320,14 +323,78 @@ class PortableRunner(runner.PipelineRunner):
                           state_stream, cleanup_callbacks)
 
 
-class PortableMetrics(metrics.metric.MetricResults):
-  def __init__(self):
-    pass
+class PortableMetrics(MetricResults):
+  def __init__(self, job_metrics_response):
+    self.counters = {}
+    self.distributions = {}
+    self.gauges = {}
+
+    # Process "attempted" metrics
+    for monitoring_info in job_metrics_response.metrics.attempted:
+      metric_key = MetricKey.from_monitoring_info(monitoring_info)
+      if not monitoring_info.HasField('metric'):
+        continue
+
+      metric = monitoring_info.metric
+      if metric.HasField('counter'):
+        counter = metric.counter
+        self.counters[metric_key] = MetricResult(metric_key, None, counter)
+      elif metric.HasField('distribution'):
+        distribution = DistributionResult(metric.distribution)
+        self.distributions[metric_key] = \
+          MetricResult(metric_key, None, distribution)
+      elif metric.HasField('gauge'):
+        gauge = metric.gauge
+        self.gauges[metric_key] = MetricResult(metric_key, None, gauge)
+      else:
+        raise Exception('Metric value not set for key: %s' % metric_key)
+
+    # Process "committed" metrics
+    for monitoring_info in job_metrics_response.metrics.committed:
+      if not monitoring_info.HasField('metric'):
+        continue
+
+      metric_key = MetricKey.from_monitoring_info(monitoring_info)
+      metric = monitoring_info.metric
+      if metric.HasField('counter'):
+        counter = metric.counter
+        if metric_key in self.counters:
+          result = self.counters[metric_key]
+          result.committed = counter
+        else:
+          self.counters[metric_key] = MetricResult(metric_key, counter, None)
+      elif metric.HasField('distribution'):
+        distribution = DistributionResult(metric.distribution)
+        if metric_key in self.distributions:
+          result = self.distributions[metric_key]
+          result.committed = distribution
+        else:
+          self.distributions[metric_key] = \
+            MetricResult(metric_key, distribution, None)
+      elif metric.HasField('gauge'):
+        gauge = metric.gauge
+        if metric_key in self.gauges:
+          result = self.gauges[metric_key]
+          result.committed = gauge
+        else:
+          self.gauges[metric_key] = MetricResult(metric_key, gauge, None)
+      else:
+        raise Exception('Metric value not set for key: %s' % metric_key)
+
+  @staticmethod
+  def _query_type(filter, metrics):
+    return [
+        data
+        for key, data in metrics.items()
+        if MetricResults.matches(filter, key)
+    ]
 
   def query(self, filter=None):
-    return {'counters': [],
-            'distributions': [],
-            'gauges': []}
+    return {
+        'counters': self._query_type(filter, self.counters),
+        'distributions': self._query_type(filter, self.distributions),
+        'gauges': self._query_type(filter, self.gauges)
+    }
 
 
 class PipelineResult(runner.PipelineResult):
@@ -341,6 +408,7 @@ class PipelineResult(runner.PipelineResult):
     self._message_stream = message_stream
     self._state_stream = state_stream
     self._cleanup_callbacks = cleanup_callbacks
+    self._metrics = None
 
   def cancel(self):
     try:
@@ -366,7 +434,11 @@ class PipelineResult(runner.PipelineResult):
     return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
 
   def metrics(self):
-    return PortableMetrics()
+    if not self._metrics:
+      job_metrics_response = self._job_service.GetJobMetrics(
+          beam_job_api_pb2.GetJobMetricsRequest(job_id=self._job_id))
+      self._metrics = PortableMetrics(job_metrics_response)
+    return self._metrics
 
   def _last_error_message(self):
     # Filter only messages with the "message_response" and error messages.
