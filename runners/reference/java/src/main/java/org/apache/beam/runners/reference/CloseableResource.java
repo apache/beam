@@ -65,7 +65,7 @@ public class CloseableResource<T> implements AutoCloseable {
   /** Gets the underlying resource. */
   public T get() {
     checkState(closer != null, "%s has transferred ownership", CloseableResource.class.getName());
-    checkState(!isClosed, "% is closed", CloseableResource.class.getName());
+    checkState(!isClosed, "%s is closed", CloseableResource.class.getName());
     return resource;
   }
 

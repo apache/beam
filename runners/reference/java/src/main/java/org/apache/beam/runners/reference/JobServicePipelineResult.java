@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.reference;
 
+import static org.apache.beam.runners.core.metrics.MetricResultsProtos.fromProto;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +47,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   private final CloseableResource<JobServiceBlockingStub> jobService;
   @Nullable private State terminationState;
   @Nullable private Runnable cleanup;
+  @Nullable private MetricResults metricResults;
 
   JobServicePipelineResult(
       ByteString jobId, CloseableResource<JobServiceBlockingStub> jobService, Runnable cleanup) {
@@ -121,12 +124,27 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
 
   @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException("Not yet implemented.");
+    if (metricResults == null) {
+      LOG.info("Fetching MetricResults");
+      JobApi.GetJobMetricsResponse response =
+          jobService
+              .get()
+              .getJobMetrics(JobApi.GetJobMetricsRequest.newBuilder().setJobIdBytes(jobId).build());
+
+      metricResults = fromProto(response.getMetrics());
+      LOG.info("Received MetricResults: {}", metricResults);
+      return metricResults;
+    }
+    LOG.info("Returning MetricResults: {}", metricResults);
+    return metricResults;
   }
 
   @Override
   public void close() {
+    LOG.info("Cleaning up job service…");
     try (CloseableResource<JobServiceBlockingStub> jobService = this.jobService) {
+      metrics();
+      LOG.info("Got metrics during cleanup");
       if (cleanup != null) {
         cleanup.run();
       }
