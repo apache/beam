@@ -122,7 +122,12 @@ public class MonitoringInfoMetricName extends MetricName {
 
   /** @return a MetricName for a specific urn and labels map. */
   public static MetricName create(MonitoringInfo monitoringInfo) {
-    return named(monitoringInfo.getUrn(), monitoringInfo.getLabelsMap());
+    String urn = monitoringInfo.getUrn();
+    MetricName metricName = MetricUrns.parseUrn(urn);
+    if (metricName == null) {
+      return new MonitoringInfoMetricName(urn, monitoringInfo.getLabelsMap());
+    }
+    return metricName;
   }
 
   @Override
