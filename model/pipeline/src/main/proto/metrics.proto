@@ -69,6 +69,8 @@ message MonitoringInfoSpecs {
     ELEMENT_COUNT = 1 [(monitoring_info_spec) = {
       urn: "beam:metric:element_count:v1",
       type_urn: "beam:metrics:sum_int_64",
+      // TODO(ryan): we currently also generate this metric with ["PTRANSFORM"] labels, but it fails validation in
+      // Java's SimpleMonitoringInfoBuilder (and emits a WARN); should ["PTRANSFORM"] and ["PCOLLEcTION"] both work?
       required_labels: [ "PCOLLECTION" ],
       annotations: [ {
         key: "description",
