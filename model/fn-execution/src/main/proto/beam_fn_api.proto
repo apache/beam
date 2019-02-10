@@ -410,6 +410,11 @@ extend google.protobuf.EnumValueOptions {
   MonitoringInfoSpec monitoring_info_spec = 207174266;
 }
 
+message MetricResults {
+  repeated MonitoringInfo attempted = 1;
+  repeated MonitoringInfo committed = 2;
+}
+
 message MonitoringInfo {
   // The name defining the metric or monitored state.
   string urn = 1;

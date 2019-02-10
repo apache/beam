@@ -30,4 +30,6 @@ dependencies {
   // export the shaded variant as the actual runtime dependency.
   compile project(path: ":beam-model-pipeline", configuration: "unshaded")
   runtime project(path: ":beam-model-pipeline", configuration: "shadow")
+  compile project(path: ":beam-model-fn-execution", configuration: "unshaded")
+  runtime project(path: ":beam-model-fn-execution", configuration: "shadow")
 }
