@@ -281,19 +281,23 @@ class DynamicDestinationsHelpers {
 
   static <T, DestinationT> DynamicDestinations<T, DestinationT> matchTableDynamicDestinations(
       DynamicDestinations<T, DestinationT> inner,
-      BigQueryServices.DatasetService bqDatasetService) {
-    return new MatchTableDynamicDestinations<>(inner, bqDatasetService);
+      BigQueryServices bqServices,
+      BigQueryOptions bqOptions) {
+    return new MatchTableDynamicDestinations<>(inner, bqServices, bqOptions);
   }
 
   static class MatchTableDynamicDestinations<T, DestinationT>
       extends DelegatingDynamicDestinations<T, DestinationT> {
-    private final BigQueryServices.DatasetService bqDatasetService;
+    private final BigQueryServices bqServices;
+    private final BigQueryOptions bqOptions;
 
     private MatchTableDynamicDestinations(
         DynamicDestinations<T, DestinationT> inner,
-        BigQueryServices.DatasetService bqDatasetService) {
+        BigQueryServices bqServices,
+        BigQueryOptions bqOptions) {
       super(inner);
-      this.bqDatasetService = bqDatasetService;
+      this.bqServices = bqServices;
+      this.bqOptions = bqOptions;
     }
 
     private Table getBigQueryTable(TableReference tableReference) {
@@ -307,7 +311,7 @@ class DynamicDestinationsHelpers {
       try {
         do {
           try {
-            return bqDatasetService.getTable(tableReference);
+            return bqServices.getDatasetService(bqOptions).getTable(tableReference);
           } catch (InterruptedException | IOException e) {
             LOG.info("Failed to get BigQuery table " + tableReference);
           }

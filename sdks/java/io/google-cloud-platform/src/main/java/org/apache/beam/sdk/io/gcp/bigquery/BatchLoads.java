@@ -543,8 +543,8 @@ class BatchLoads<DestinationT>
       destinations =
           DynamicDestinationsHelpers.matchTableDynamicDestinations(
               destinations,
-              bigQueryServices.getDatasetService(
-                  input.getPipeline().getOptions().as(BigQueryOptions.class)));
+              bigQueryServices,
+              input.getPipeline().getOptions().as(BigQueryOptions.class));
     }
 
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
