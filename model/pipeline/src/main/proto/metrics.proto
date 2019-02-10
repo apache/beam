@@ -137,6 +137,12 @@ extend google.protobuf.EnumValueOptions {
   MonitoringInfoSpec monitoring_info_spec = 207174266;
 }
 
+// All metrics for a given job. Each runner may or may not support "committed" metrics.
+message MetricResults {
+  repeated MonitoringInfo attempted = 1;
+  repeated MonitoringInfo committed = 2;
+}
+
 message MonitoringInfo {
   // The name defining the metric or monitored state.
   string urn = 1;

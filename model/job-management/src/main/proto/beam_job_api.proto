@@ -29,6 +29,7 @@ option go_package = "jobmanagement_v1";
 option java_package = "org.apache.beam.model.jobmanagement.v1";
 option java_outer_classname = "JobApi";
 
+import "metrics.proto";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/struct.proto";
@@ -56,6 +57,9 @@ service JobService {
 
   // Get the supported pipeline options of the runner
   rpc DescribePipelineOptions (DescribePipelineOptionsRequest) returns (DescribePipelineOptionsResponse);
+
+  // Fetch metrics for a given job
+  rpc GetJobMetrics (GetJobMetricsRequest) returns (GetJobMetricsResponse);
 }
 
 
@@ -152,6 +156,14 @@ message JobMessage {
     JOB_MESSAGE_WARNING = 4;
     JOB_MESSAGE_ERROR = 5;
   }
+}
+
+message GetJobMetricsRequest {
+  string job_id = 1; // (required)
+}
+
+message GetJobMetricsResponse {
+  org.apache.beam.model.pipeline.v1.MetricResults metrics = 1;
 }
 
 message JobMessagesResponse {
