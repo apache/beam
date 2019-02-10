@@ -37,6 +37,10 @@ public abstract class MetricName implements Serializable {
   /** The namespace associated with this metric. */
   public abstract String getNamespace();
 
+  public Boolean isUserMetric() {
+    return true;
+  }
+
   /**
    * The namespace associated with this metric.
    *

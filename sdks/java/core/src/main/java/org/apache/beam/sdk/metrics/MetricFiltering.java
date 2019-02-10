@@ -91,7 +91,10 @@ public class MetricFiltering {
       return true;
     }
     for (MetricNameFilter nameFilter : nameFilters) {
-      if ((nameFilter.getName() == null || nameFilter.getName().equals(metricName.getName()))
+      if (
+      // TODO(ryan): allow querying for system metrics by name or regex?
+      metricName.isUserMetric()
+          && (nameFilter.getName() == null || nameFilter.getName().equals(metricName.getName()))
           && Objects.equal(metricName.getNamespace(), nameFilter.getNamespace())) {
         return true;
       }
