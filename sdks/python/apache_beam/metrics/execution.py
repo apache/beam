@@ -40,6 +40,8 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.metricbase import MetricName
+from apache_beam.metrics.monitoring_infos import parse_namespace_and_name
 from apache_beam.metrics.monitoring_infos import user_metric_urn
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker import statesampler
@@ -78,6 +80,14 @@ class MetricKey(object):
 
   def __hash__(self):
     return hash((self.step, self.metric))
+
+  @classmethod
+  def from_monitoring_info(cls, monitoring_info_proto):
+    # TODO: use canonical string
+    ptransform = monitoring_info_proto.labels['PTRANSFORM']
+    namespace, name = parse_namespace_and_name(monitoring_info_proto)
+    metric_name = MetricName(namespace, name)
+    return MetricKey(ptransform, metric_name)
 
 
 class MetricResult(object):
