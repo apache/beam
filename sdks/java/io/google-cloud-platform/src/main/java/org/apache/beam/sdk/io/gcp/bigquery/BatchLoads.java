@@ -541,10 +541,7 @@ class BatchLoads<DestinationT>
     if (createDisposition.equals(CreateDisposition.CREATE_IF_NEEDED)
         || createDisposition.equals(CreateDisposition.CREATE_NEVER)) {
       destinations =
-          DynamicDestinationsHelpers.matchTableDynamicDestinations(
-              destinations,
-              bigQueryServices,
-              input.getPipeline().getOptions().as(BigQueryOptions.class));
+          DynamicDestinationsHelpers.matchTableDynamicDestinations(destinations, bigQueryServices);
     }
 
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
