@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
@@ -210,8 +211,13 @@ public class SimpleMonitoringInfoBuilder {
   @Nullable
   public MonitoringInfo build() {
     final MonitoringInfo result = this.builder.build();
-    if (validateAndDropInvalid && this.validator.validate(result).isPresent()) {
-      return null;
+    if (validateAndDropInvalid) {
+      Optional<String> error = this.validator.validate(result);
+      if (error.isPresent()) {
+        // TODO(ryan): throw in this case; remove nullability
+        LOG.warn("Dropping invalid partial MonitoringInfo: {}\n{}", error, result);
+        return null;
+      }
     }
     return result;
   }
