@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,7 +46,7 @@ public class ShuffleEntryTest {
   @SuppressWarnings("SelfEquals")
   public void equalsToItself() {
     ShuffleEntry entry = new ShuffleEntry(KEY, SKEY, VALUE);
-    assertTrue(entry.equals(entry));
+    assertEquals(entry, entry);
   }
 
   @Test
@@ -55,8 +54,8 @@ public class ShuffleEntryTest {
     ShuffleEntry entry0 = new ShuffleEntry(KEY, SKEY, VALUE);
     ShuffleEntry entry1 = new ShuffleEntry(KEY.clone(), SKEY.clone(), VALUE.clone());
 
-    assertTrue(entry0.equals(entry1));
-    assertTrue(entry1.equals(entry0));
+    assertEquals(entry0, entry1);
+    assertEquals(entry1, entry0);
     assertEquals(entry0.hashCode(), entry1.hashCode());
   }
 
@@ -65,8 +64,8 @@ public class ShuffleEntryTest {
     ShuffleEntry entry0 = new ShuffleEntry(null, null, null);
     ShuffleEntry entry1 = new ShuffleEntry(null, null, null);
 
-    assertTrue(entry0.equals(entry1));
-    assertTrue(entry1.equals(entry0));
+    assertEquals(entry0, entry1);
+    assertEquals(entry1, entry0);
     assertEquals(entry0.hashCode(), entry1.hashCode());
   }
 
