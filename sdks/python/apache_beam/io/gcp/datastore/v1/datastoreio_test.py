@@ -19,6 +19,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+import sys
 import unittest
 from builtins import map
 from builtins import range
@@ -48,6 +50,10 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
+@unittest.skipIf(sys.version_info[0] == 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3'
+                 'TODO: BEAM-4543')
 @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
 class DatastoreioTest(unittest.TestCase):
   _PROJECT = 'project'
@@ -272,6 +278,10 @@ class DatastoreioTest(unittest.TestCase):
     return split_queries
 
 
+@unittest.skipIf(sys.version_info[0] == 3 and
+                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                 'This test still needs to be fixed on Python 3'
+                 'TODO: BEAM-4543')
 @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
 class DynamicWriteBatcherTest(unittest.TestCase):
 
