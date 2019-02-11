@@ -25,10 +25,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchema;
 
 /**
  * Table provider that represents a schema stored in Hive Metastore.
@@ -43,14 +40,23 @@ public class HCatalogTableProvider implements TableProvider, Serializable {
 
   private HashMap<String, String> configuration;
   private transient DatabaseProvider defaultDBProvider;
-  private transient volatile IMetaStoreClient metastore;
+  private transient HCatalogBeamSchema metastoreSchema;
 
-  private HCatalogTableProvider(HashMap<String, String> configuration) {
+  private HCatalogTableProvider(
+      HashMap<String, String> configuration,
+      HCatalogBeamSchema metastoreSchema,
+      DatabaseProvider defaultDBProvider) {
     this.configuration = configuration;
+    this.defaultDBProvider = defaultDBProvider;
+    this.metastoreSchema = metastoreSchema;
   }
 
   public static HCatalogTableProvider create(Map<String, String> configuration) {
-    return new HCatalogTableProvider(new HashMap<>(configuration));
+    HCatalogBeamSchema metastoreSchema = HCatalogBeamSchema.create(configuration);
+    return new HCatalogTableProvider(
+        new HashMap<>(configuration),
+        metastoreSchema,
+        new DatabaseProvider("default", metastoreSchema, configuration));
   }
 
   @Override
@@ -97,32 +103,8 @@ public class HCatalogTableProvider implements TableProvider, Serializable {
 
   @Override
   public TableProvider getSubProvider(String name) {
-    try {
-      metastore().getDatabase(name);
-      return new DatabaseProvider(name, metastore(), configuration);
-    } catch (NoSuchObjectException e) {
-      return null;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private IMetaStoreClient metastore() {
-    return metastore == null ? createClient() : metastore;
-  }
-
-  private synchronized IMetaStoreClient createClient() {
-    if (metastore != null) {
-      return metastore;
-    }
-    try {
-      HiveConf hiveConf = new HiveConf();
-      configuration.forEach(hiveConf::set);
-      this.metastore = new HiveMetaStoreClient(hiveConf);
-      this.defaultDBProvider = new DatabaseProvider("default", metastore, configuration);
-      return metastore;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return metastoreSchema.hasDatabase(name)
+        ? new DatabaseProvider(name, metastoreSchema, configuration)
+        : null;
   }
 }

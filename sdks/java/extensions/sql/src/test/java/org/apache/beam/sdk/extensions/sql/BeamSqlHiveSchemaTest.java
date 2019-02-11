@@ -17,18 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.extensions.sql.utils.HCatalogIOTestUtils.TEST_DATABASE;
-import static org.apache.beam.sdk.extensions.sql.utils.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
-import static org.apache.beam.sdk.extensions.sql.utils.HCatalogIOTestUtils.TEST_TABLE;
-import static org.apache.beam.sdk.extensions.sql.utils.HCatalogIOTestUtils.getConfigPropertiesAsMap;
-import static org.apache.beam.sdk.extensions.sql.utils.HCatalogIOTestUtils.getExpectedRecords;
-import static org.apache.beam.sdk.extensions.sql.utils.HCatalogIOTestUtils.insertTestData;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_DATABASE;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_TABLE;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getExpectedRecordsAsKV;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.insertTestData;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog.HCatalogTableProvider;
+import org.apache.beam.sdk.io.hcatalog.test.EmbeddedMetastoreService;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -61,11 +61,11 @@ public class BeamSqlHiveSchemaTest implements Serializable {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
-  private static EmbeddedHiveMetastore service;
+  private static EmbeddedMetastoreService service;
 
   @BeforeClass
   public static void setupEmbeddedMetastoreService() throws IOException {
-    service = new EmbeddedHiveMetastore(TMP_FOLDER.getRoot().getAbsolutePath());
+    service = new EmbeddedMetastoreService(TMP_FOLDER.getRoot().getAbsolutePath());
   }
 
   @AfterClass
@@ -88,7 +88,7 @@ public class BeamSqlHiveSchemaTest implements Serializable {
                             "SELECT f_str, f_int FROM `hive`.`%s`.`%s`", TEST_DATABASE, TEST_TABLE))
                     .withTableProvider("hive", hiveTableProvider()))
             .apply(ParDo.of(new ToKV()));
-    PAssert.that(output).containsInAnyOrder(getExpectedRecords(TEST_RECORDS_COUNT));
+    PAssert.that(output).containsInAnyOrder(getExpectedRecordsAsKV(TEST_RECORDS_COUNT));
     readAfterWritePipeline.run();
   }
 
@@ -103,7 +103,37 @@ public class BeamSqlHiveSchemaTest implements Serializable {
                         String.format("SELECT f_str, f_int FROM `hive`.`%s`", TEST_TABLE))
                     .withTableProvider("hive", hiveTableProvider()))
             .apply(ParDo.of(new ToKV()));
-    PAssert.that(output).containsInAnyOrder(getExpectedRecords(TEST_RECORDS_COUNT));
+    PAssert.that(output).containsInAnyOrder(getExpectedRecordsAsKV(TEST_RECORDS_COUNT));
+    readAfterWritePipeline.run();
+  }
+
+  @Test
+  public void testSelectFromImplicitDefaultSchema() throws Exception {
+    initializeHCatalog();
+
+    PCollection<KV<String, Integer>> output =
+        readAfterWritePipeline
+            .apply(
+                SqlTransform.query(
+                        String.format(
+                            "SELECT f_str, f_int FROM `%s`.`%s`", TEST_DATABASE, TEST_TABLE))
+                    .withDefaultTableProvider("hive", hiveTableProvider()))
+            .apply(ParDo.of(new ToKV()));
+    PAssert.that(output).containsInAnyOrder(getExpectedRecordsAsKV(TEST_RECORDS_COUNT));
+    readAfterWritePipeline.run();
+  }
+
+  @Test
+  public void testSelectFromImplicitDefaultSchemaAndDB() throws Exception {
+    initializeHCatalog();
+
+    PCollection<KV<String, Integer>> output =
+        readAfterWritePipeline
+            .apply(
+                SqlTransform.query(String.format("SELECT f_str, f_int FROM `%s`", TEST_TABLE))
+                    .withDefaultTableProvider("hive", hiveTableProvider()))
+            .apply(ParDo.of(new ToKV()));
+    PAssert.that(output).containsInAnyOrder(getExpectedRecordsAsKV(TEST_RECORDS_COUNT));
     readAfterWritePipeline.run();
   }
 
@@ -136,11 +166,11 @@ public class BeamSqlHiveSchemaTest implements Serializable {
 
   private void initializeHCatalog() throws Exception {
     reCreateTestTable();
-    insertTestData(getConfigPropertiesAsMap(service.getHiveConf()));
+    insertTestData(service.getHiveConfAsMap());
   }
 
   private TableProvider hiveTableProvider() {
-    return HCatalogTableProvider.create(getConfigPropertiesAsMap(service.getHiveConf()));
+    return HCatalogTableProvider.create(service.getHiveConfAsMap());
   }
 
   private Row row(int fIntValue, String fStringValue) {
