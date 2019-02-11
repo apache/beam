@@ -287,6 +287,8 @@ message ProcessBundleResponse {
 
   // (Optional) Specifies that the bundle has not been completed and the
   // following applications need to be scheduled and executed in the future.
+  // A runner that does not yet support residual roots MUST still check that
+  // this is empty for correctness.
   repeated DelayedBundleApplication residual_roots = 2;
 
   // (Required) The list of metrics or other MonitoredState
