@@ -122,8 +122,16 @@ func isConcrete(t reflect.Type, visited map[uintptr]bool) bool {
 		return false // no unserializable types
 
 	case reflect.Map:
-		return isConcrete(t.Elem(), visited) && isConcrete(t.Key(), visited)
-
+		// TODO(BEAM-6652): 2019.02.11
+		// Maps have random default iteration order, and the "default coder"
+		// doesn't ensure a specific encoding order for key/value pairs in maps.
+		// To ensure correctness we're better off restricting map usage from
+		// casual users, until the default coder handles the random iteration
+		// order properly.
+		// Power users can continue to handle map coding themselves, though
+		// it remains their responsibility to encode them consistently.
+		// return isConcrete(t.Elem(), visited) && isConcrete(t.Key(), visited)
+		return false
 	case reflect.Array, reflect.Slice, reflect.Ptr:
 		return isConcrete(t.Elem(), visited)
 
