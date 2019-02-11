@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.io.hcatalog;
 
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_DATABASE;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_FILTER;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_TABLE;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.buildHCatRecords;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getConfigPropertiesAsMap;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getExpectedRecords;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getReaderContext;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.insertTestData;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_DATABASE;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_FILTER;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_TABLE;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.buildHCatRecords;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getConfigPropertiesAsMap;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getExpectedRecords;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getReaderContext;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.insertTestData;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.isA;
@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hcatalog.HCatalogIO.BoundedHCatalogSource;
+import org.apache.beam.sdk.io.hcatalog.test.EmbeddedMetastoreService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -119,8 +120,10 @@ public class HCatalogIOTest implements Serializable {
 
   @AfterClass
   public static void shutdownEmbeddedMetastoreService() throws Exception {
-    service.executeQuery("drop table " + TEST_TABLE);
-    service.close();
+    if (service != null) {
+      service.executeQuery("drop table " + TEST_TABLE);
+      service.close();
+    }
   }
 
   /** Perform end-to-end test of Write-then-Read operation. */

@@ -23,8 +23,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchema;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 
 /**
  * Metastore has a structure of 'db.table'.
@@ -34,12 +35,12 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 class DatabaseProvider implements TableProvider {
 
   private String db;
-  private IMetaStoreClient metastore;
+  private HCatalogBeamSchema metastoreSchema;
   private Map<String, String> config;
 
-  DatabaseProvider(String db, IMetaStoreClient metastore, Map<String, String> config) {
+  DatabaseProvider(String db, HCatalogBeamSchema metastoreSchema, Map<String, String> config) {
     this.db = db;
-    this.metastore = metastore;
+    this.metastoreSchema = metastoreSchema;
     this.config = config;
   }
 
@@ -63,19 +64,26 @@ class DatabaseProvider implements TableProvider {
     throw new UnsupportedOperationException("Listing tables is not supported in HCatalog");
   }
 
+  /** Table metadata to pass the schema to Calcite. */
   @Nullable
   @Override
   public Table getTable(String table) {
-    try {
-      org.apache.hadoop.hive.metastore.api.Table metastoreTable = metastore.getTable(db, table);
-      return toBeamTable(metastoreTable);
-    } catch (NoSuchObjectException e) {
+    Optional<Schema> tableSchema = metastoreSchema.getTableSchema(db, table);
+    if (!tableSchema.isPresent()) {
       return null;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
+
+    return Table.builder()
+        .schema(tableSchema.get())
+        .name(table)
+        .location("")
+        .properties(new JSONObject())
+        .comment("")
+        .type("hcatalog")
+        .build();
   }
 
+  /** Actual wrapper for the IO, reads/writes the data. */
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
     return HCatalogTable.builder()
@@ -83,17 +91,6 @@ class DatabaseProvider implements TableProvider {
         .setDatabase(db)
         .setTable(table.getName())
         .setSchema(table.getSchema())
-        .build();
-  }
-
-  private Table toBeamTable(org.apache.hadoop.hive.metastore.api.Table metastoreTable) {
-    return Table.builder()
-        .schema(SchemaUtils.toBeamSchema(metastoreTable.getSd().getCols()))
-        .name(metastoreTable.getTableName())
-        .location("")
-        .properties(new JSONObject())
-        .comment("")
-        .type("hcatalog")
         .build();
   }
 }

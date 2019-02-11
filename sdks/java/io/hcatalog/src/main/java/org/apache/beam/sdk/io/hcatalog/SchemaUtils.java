@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog;
+package org.apache.beam.sdk.io.hcatalog;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
@@ -23,38 +23,12 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
-import org.apache.hive.hcatalog.data.HCatRecord;
 
-/** Utils to convert between HCatalog types and Beam types. */
+/** Utils to convert between HCatalog schema types and Beam schema types. */
 class SchemaUtils {
-
-  private static final Map<PrimitiveCategory, FieldType> PRIMITIVE_TYPES_MAP =
-      ImmutableMap.<PrimitiveCategory, FieldType>builder()
-          .put(PrimitiveCategory.BINARY, FieldType.BYTES)
-          .put(PrimitiveCategory.BOOLEAN, FieldType.BOOLEAN)
-          .put(PrimitiveCategory.BYTE, FieldType.BYTE)
-          .put(PrimitiveCategory.CHAR, FieldType.STRING)
-          .put(PrimitiveCategory.DATE, FieldType.DATETIME)
-          .put(PrimitiveCategory.DECIMAL, FieldType.DECIMAL)
-          .put(PrimitiveCategory.DOUBLE, FieldType.DOUBLE)
-          .put(PrimitiveCategory.FLOAT, FieldType.FLOAT)
-          .put(PrimitiveCategory.INT, FieldType.INT32)
-          .put(PrimitiveCategory.LONG, FieldType.INT64)
-          .put(PrimitiveCategory.SHORT, FieldType.INT16)
-          .put(PrimitiveCategory.STRING, FieldType.STRING)
-          .put(PrimitiveCategory.TIMESTAMP, FieldType.DATETIME)
-          .put(PrimitiveCategory.VARCHAR, FieldType.STRING)
-          .build();
 
   private static final Map<String, FieldType> PRIMITIVE_SERDE_TYPES_MAP =
       ImmutableMap.<String, FieldType>builder()
@@ -76,7 +50,7 @@ class SchemaUtils {
           .build();
 
   static Schema toBeamSchema(List<FieldSchema> fields) {
-    return fields.stream().map(fieldSchema -> toBeamField(fieldSchema)).collect(toSchema());
+    return fields.stream().map(SchemaUtils::toBeamField).collect(toSchema());
   }
 
   private static Schema.Field toBeamField(FieldSchema field) {
@@ -88,29 +62,5 @@ class SchemaUtils {
 
     FieldType fieldType = PRIMITIVE_SERDE_TYPES_MAP.get(field.getType());
     return Schema.Field.of(name, fieldType);
-  }
-
-  /**
-   * Conversion from {@link HCatRecord} to {@link Row}.
-   *
-   * <p>At the moment doesn't perform any validation, just copies the values over. So errors will
-   * happen if Java representation of field values doesn't match.
-   */
-  static PTransform<PCollection<? extends HCatRecord>, PCollection<Row>> toRow(Schema schema) {
-    return ParDo.of(
-        new DoFn<HCatRecord, Row>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            HCatRecord hCatRecord = c.element();
-            c.output(Row.withSchema(schema).addValues(hCatRecord.getAll()).build());
-          }
-        });
-  }
-
-  public static SerializableFunction<Row, HCatRecord> fromRow() {
-    return row -> {
-      throw new UnsupportedOperationException(
-          "Converting from Beam Rows to HCatRecords is unsupported");
-    };
   }
 }

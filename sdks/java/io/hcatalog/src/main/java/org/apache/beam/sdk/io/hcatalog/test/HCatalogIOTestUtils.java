@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.hcatalog;
+package org.apache.beam.sdk.io.hcatalog.test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hive.hcatalog.common.HCatException;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
@@ -35,11 +36,11 @@ import org.apache.hive.hcatalog.data.transfer.WriteEntity;
 import org.apache.hive.hcatalog.data.transfer.WriterContext;
 
 /** Utility class for HCatalogIOTest and HCatalogIOIT. */
-class HCatalogIOTestUtils {
-  static final String TEST_DATABASE = "default";
-  static final String TEST_TABLE = "mytable";
-  static final String TEST_FILTER = "myfilter";
-  static final int TEST_RECORDS_COUNT = 1000;
+public class HCatalogIOTestUtils {
+  public static final String TEST_DATABASE = "default";
+  public static final String TEST_TABLE = "mytable";
+  public static final String TEST_FILTER = "myfilter";
+  public static final int TEST_RECORDS_COUNT = 1000;
 
   private static final ReadEntity READ_ENTITY =
       new ReadEntity.Builder().withTable(TEST_TABLE).build();
@@ -47,7 +48,7 @@ class HCatalogIOTestUtils {
       new WriteEntity.Builder().withTable(TEST_TABLE).build();
 
   /** Returns a ReaderContext instance for the passed datastore config params. */
-  static ReaderContext getReaderContext(Map<String, String> config) throws HCatException {
+  public static ReaderContext getReaderContext(Map<String, String> config) throws HCatException {
     return DataTransferFactory.getHCatReader(READ_ENTITY, config).prepareRead();
   }
 
@@ -69,7 +70,7 @@ class HCatalogIOTestUtils {
   }
 
   /** Returns a list of strings containing 'expected' test data for verification. */
-  static List<String> getExpectedRecords(int count) {
+  public static List<String> getExpectedRecords(int count) {
     List<String> expected = new ArrayList<>();
     for (int i = 0; i < count; i++) {
       expected.add("record " + i);
@@ -77,8 +78,19 @@ class HCatalogIOTestUtils {
     return expected;
   }
 
+  /**
+   * Returns a list of KV&lt;String, Integer&gt; containing 'expected' test data for verification.
+   */
+  public static List<KV<String, Integer>> getExpectedRecordsAsKV(int count) {
+    List<KV<String, Integer>> expected = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      expected.add(KV.of("record " + i, i));
+    }
+    return expected;
+  }
+
   /** Returns a list of HCatRecords of passed size. */
-  static List<HCatRecord> buildHCatRecords(int size) {
+  public static List<HCatRecord> buildHCatRecords(int size) {
     List<HCatRecord> expected = new ArrayList<>();
     for (int i = 0; i < size; i++) {
       expected.add(toHCatRecord(i));
@@ -87,14 +99,14 @@ class HCatalogIOTestUtils {
   }
 
   /** Inserts data into test datastore. */
-  static void insertTestData(Map<String, String> configMap) throws Exception {
+  public static void insertTestData(Map<String, String> configMap) throws Exception {
     WriterContext cntxt = getWriterContext(configMap);
     writeRecords(cntxt);
     commitRecords(configMap, cntxt);
   }
 
   /** Returns config params for the test datastore as a Map. */
-  static Map<String, String> getConfigPropertiesAsMap(HiveConf hiveConf) {
+  public static Map<String, String> getConfigPropertiesAsMap(HiveConf hiveConf) {
     Map<String, String> map = new HashMap<>();
     for (Entry<String, String> kv : hiveConf) {
       map.put(kv.getKey(), kv.getValue());

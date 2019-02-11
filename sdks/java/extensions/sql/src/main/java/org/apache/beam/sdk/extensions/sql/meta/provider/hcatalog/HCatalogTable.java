@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.io.hcatalog.HCatToRow;
 import org.apache.beam.sdk.io.hcatalog.HCatalogIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PBegin;
@@ -29,12 +30,9 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * <i>Experimental</i>
+ * Beam SQL table that wraps {@link HCatalogIO}.
  *
- * <p>Beam SQL table that wraps {@link HCatalogIO}.
- *
- * <p>Reads {@link org.apache.hive.hcatalog.data.HCatRecord HCatRecords} and converts them to {@link
- * Row Rows}.
+ * <p>Reads {@code HCatRecords} and converts them to {@link Row Rows}.
  */
 @AutoValue
 @Experimental
@@ -50,23 +48,13 @@ public abstract class HCatalogTable implements BeamSqlTable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
-    return begin
-        .apply(
-            "HCatalog-Read-" + database() + "-" + table(),
+    return begin.apply(
+        "HCatalog-Read-" + database() + "-" + table(),
+        HCatToRow.fromSpec(
             HCatalogIO.read()
                 .withConfigProperties(config())
                 .withDatabase(database())
-                .withTable(table()))
-
-        // Converting to Rows is done here instead of using the schema provider
-        // with SchemaRegistry. Reason is that schema lookup in SchemaRegistry
-        // Happens via TypeDescriptor of the element, so for all HCatRecords from all sources
-        // the schema is either expected to be the same.
-        //
-        // As a workaround we could do a run-time schema conversion per-record but that's
-        // not efficient.
-        .apply("HCatRecord-to-Row", SchemaUtils.toRow(schema()))
-        .setRowSchema(schema());
+                .withTable(table())));
   }
 
   @Override
@@ -84,15 +72,12 @@ public abstract class HCatalogTable implements BeamSqlTable {
     return schema();
   }
 
-  abstract Builder toBuilder();
-
   static Builder builder() {
     return new AutoValue_HCatalogTable.Builder();
   }
 
-  /** Javadoc comment. */
   @AutoValue.Builder
-  public abstract static class Builder {
+  abstract static class Builder {
 
     abstract Builder setSchema(Schema schema);
 
