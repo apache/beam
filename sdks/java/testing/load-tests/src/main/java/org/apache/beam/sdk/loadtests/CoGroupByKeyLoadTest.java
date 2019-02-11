@@ -24,7 +24,7 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;

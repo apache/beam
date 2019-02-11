@@ -32,11 +32,11 @@ import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.loadtests.metrics.TimeMonitor;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -80,7 +80,7 @@ public class TextIOIT {
   private static Integer numShards;
   private static String bigQueryDataset;
   private static String bigQueryTable;
-  private static final String FILEIOIT_NAMESPACE = "fileIOIT";
+  private static final String FILEIOIT_NAMESPACE = TextIOIT.class.getName();
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -111,19 +111,19 @@ public class TextIOIT {
                 "Produce text lines",
                 ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
             .apply(
-                "Log write start time",
+                "Collect write start time",
                 ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "startTime")))
             .apply("Write content to files", write)
             .getPerDestinationOutputFilenames()
             .apply(Values.create())
             .apply(
-                "Log write end time",
+                "Collect write end time",
                 ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "middleTime")));
 
     PCollection<String> consolidatedHashcode =
         testFilenames
             .apply("Read all files", TextIO.readAll().withCompression(AUTO))
-            .apply("Log read end time", ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "endTime")))
+            .apply("Collect read end time", ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "endTime")))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);

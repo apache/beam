@@ -22,7 +22,7 @@ import static java.lang.String.format;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.loadtests.metrics.ByteMonitor;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.transforms.DoFn;
