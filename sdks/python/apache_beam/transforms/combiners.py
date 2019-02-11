@@ -465,19 +465,21 @@ class TopCombineFn(core.CombineFn):
       buffer.append(element)
       if lt(element_key, threshold):  # element_key < threshold
         return element_key, buffer
-      return accumulator  # with mutated buffer
+      else:
+        return accumulator  # with mutated buffer
     elif lt(threshold, element_key):  # threshold < element_key
       buffer.append(element)
       if len(buffer) < self._buffer_size:
-        return accumulator
-      self._sort_buffer(buffer, lt)
-      min_element = buffer[-self._n]
-      threshold = self._key_fn(min_element) if self._key_fn else min_element
-      return threshold, buffer[-self._n:]
-    return accumulator
+        return accumulator  # with mutated buffer
+      else:
+        self._sort_buffer(buffer, lt)
+        min_element = buffer[-self._n]
+        threshold = self._key_fn(min_element) if self._key_fn else min_element
+        return threshold, buffer[-self._n:]
+    else:
+      return accumulator
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
-    accumulators = list(accumulators)
     if args or kwargs:
       add_input = lambda accumulator, element: self.add_input(
           accumulator, element, *args, **kwargs)
@@ -492,6 +494,21 @@ class TopCombineFn(core.CombineFn):
         for element in accumulator[1]:
           total_accumulator = add_input(total_accumulator, element)
     return total_accumulator
+
+  def compact(self, accumulator, *args, **kwargs):
+    if args or kwargs:
+      lt = lambda a, b: self._compare(a, b, *args, **kwargs)
+    else:
+      lt = self._compare
+
+    _, buffer = accumulator
+    if len(buffer) <= self._n:
+      return accumulator  # No compaction needed.
+    else:
+      self._sort_buffer(buffer, lt)
+      min_element = buffer[-self._n]
+      threshold = self._key_fn(min_element) if self._key_fn else min_element
+      return threshold, buffer[-self._n:]
 
   def extract_output(self, accumulator, *args, **kwargs):
     if args or kwargs:
