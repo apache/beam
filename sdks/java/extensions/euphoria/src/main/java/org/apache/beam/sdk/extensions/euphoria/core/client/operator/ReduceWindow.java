@@ -276,19 +276,19 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
     @Override
     public <T> ValueByReduceByBuilder<T, T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
-      final Builder<T, T, ?> casted = (Builder) this;
-      casted.input = requireNonNull(input);
-      return casted;
+      final Builder<T, T, ?> cast = (Builder) this;
+      cast.input = requireNonNull(input);
+      return cast;
     }
 
     @Override
     public <T> ReduceByBuilder<T> valueBy(
         UnaryFunction<InputT, T> valueExtractor, @Nullable TypeDescriptor<T> valueType) {
       @SuppressWarnings("unchecked")
-      final Builder<InputT, T, ?> casted = (Builder) this;
-      casted.valueExtractor = requireNonNull(valueExtractor);
-      casted.valueType = valueType;
-      return casted;
+      final Builder<InputT, T, ?> cast = (Builder) this;
+      cast.valueExtractor = requireNonNull(valueExtractor);
+      cast.valueType = valueType;
+      return cast;
     }
 
     @Override
@@ -300,10 +300,10 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
         valueExtractor = (UnaryFunction) UnaryFunction.identity();
       }
       @SuppressWarnings("unchecked")
-      final Builder<InputT, ValueT, T> casted = (Builder) this;
-      casted.reducer = requireNonNull(reducer);
-      casted.outputType = outputType;
-      return casted;
+      final Builder<InputT, ValueT, T> cast = (Builder) this;
+      cast.reducer = requireNonNull(reducer);
+      cast.outputType = outputType;
+      return cast;
     }
 
     @Override
@@ -439,9 +439,9 @@ public class ReduceWindow<InputT, ValueT, OutputT> extends ShuffleOperator<Input
             getWindow().isPresent(),
             builder -> {
               @SuppressWarnings("unchecked")
-              final ReduceByKey.WindowByInternalBuilder<InputT, Byte, OutputT> casted =
+              final ReduceByKey.WindowByInternalBuilder<InputT, Byte, OutputT> cast =
                   (ReduceByKey.WindowByInternalBuilder) builder;
-              return casted.windowBy(
+              return cast.windowBy(
                   getWindow()
                       .orElseThrow(
                           () ->

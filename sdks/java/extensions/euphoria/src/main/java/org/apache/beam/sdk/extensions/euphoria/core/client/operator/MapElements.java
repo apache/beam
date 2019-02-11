@@ -134,19 +134,19 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     @Override
     public <T> UsingBuilder<T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
-      final Builder<T, ?> casted = (Builder) this;
-      casted.input = input;
-      return casted;
+      final Builder<T, ?> cast = (Builder) this;
+      cast.input = input;
+      return cast;
     }
 
     @Override
     public <T> Builders.Output<T> using(
         UnaryFunctionEnv<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType) {
       @SuppressWarnings("unchecked")
-      final Builder<InputT, T> casted = (Builder) this;
-      casted.mapper = mapper;
-      casted.outputType = outputType;
-      return casted;
+      final Builder<InputT, T> cast = (Builder) this;
+      cast.mapper = mapper;
+      cast.outputType = outputType;
+      return cast;
     }
 
     @Override
