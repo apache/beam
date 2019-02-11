@@ -24,6 +24,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
@@ -258,12 +259,23 @@ func (n *Combine) String() string {
 // FinishBundle step.
 type LiftedCombine struct {
 	*Combine
+	KeyCoder *coder.Coder
 
-	cache map[interface{}]FullValue
+	keyHash elementHasher
+	cache   map[uint64]FullValue
 }
 
 func (n *LiftedCombine) String() string {
 	return fmt.Sprintf("LiftedCombine[%v] Keyed:%v Out:%v", path.Base(n.Fn.Name()), n.UsesKey, n.Out.ID())
+}
+
+// Up initializes the LiftedCombine.
+func (n *LiftedCombine) Up(ctx context.Context) error {
+	if err := n.Combine.Up(ctx); err != nil {
+		return err
+	}
+	n.keyHash = makeElementHasher(n.KeyCoder)
+	return nil
 }
 
 // StartBundle initializes the in memory cache of keys to accumulators.
@@ -271,7 +283,7 @@ func (n *LiftedCombine) StartBundle(ctx context.Context, id string, data DataCon
 	if err := n.Combine.StartBundle(ctx, id, data); err != nil {
 		return err
 	}
-	n.cache = make(map[interface{}]FullValue)
+	n.cache = make(map[uint64]FullValue)
 	return nil
 }
 
@@ -282,10 +294,14 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value FullValue, val
 		return fmt.Errorf("invalid status for precombine %v: %v", n.UID, n.status)
 	}
 
+	key, err := n.keyHash.Hash(value.Elm)
+	if err != nil {
+		return n.fail(err)
+	}
 	// Value is a KV so Elm & Elm2 are populated.
 	// Check the cache for an already present accumulator
 
-	afv, notfirst := n.cache[value.Elm]
+	afv, notfirst := n.cache[key]
 	var a interface{}
 	if notfirst {
 		a = afv.Elm2
@@ -297,13 +313,13 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value FullValue, val
 		a = b
 	}
 
-	a, err := n.addInput(ctx, a, value.Elm, value.Elm2, value.Timestamp, !notfirst)
+	a, err = n.addInput(ctx, a, value.Elm, value.Elm2, value.Timestamp, !notfirst)
 	if err != nil {
 		return n.fail(err)
 	}
 
 	// Cache the accumulator with the key
-	n.cache[value.Elm] = FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp}
+	n.cache[key] = FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp}
 
 	return nil
 }
