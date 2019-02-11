@@ -139,9 +139,9 @@ public class OuterFullJoinTest {
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
 
     PCollection<KV<String, KV<Long, String>>> output1 =
-            Join.fullOuterJoin("Join1", leftCollection, rightCollection,-1L, "");
+        Join.fullOuterJoin("Join1", leftCollection, rightCollection,-1L, "");
     PCollection<KV<String, KV<Long, String>>> output2 =
-            Join.fullOuterJoin("Join2", leftCollection, rightCollection, -1L, "");
+        Join.fullOuterJoin("Join2", leftCollection, rightCollection, -1L, "");
     PAssert.that(output1).containsInAnyOrder(expectedResult);
     PAssert.that(output2).containsInAnyOrder(expectedResult);
 
