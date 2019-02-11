@@ -54,4 +54,10 @@ public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {
   String getBigQueryTable();
 
   void setBigQueryTable(@Nullable String tableName);
+
+  @Description("Option to gather GCS performance metrics")
+  @Default.Boolean(false)
+  boolean getReportGcsPerformanceMetrics();
+
+  void setReportGcsPerformanceMetrics(boolean performanceMetrics);
 }

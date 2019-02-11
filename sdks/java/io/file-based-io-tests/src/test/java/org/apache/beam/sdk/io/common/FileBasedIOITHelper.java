@@ -19,21 +19,15 @@ package org.apache.beam.sdk.io.common;
 
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
-import com.google.cloud.Timestamp;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.MetricsReader;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
@@ -68,36 +62,6 @@ public class FileBasedIOITHelper {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(String.format("IO IT Test line of text. Line seed: %s", c.element()));
-    }
-  }
-
-  public static void publishTestMetrics(
-      PipelineResult result,
-      String bigQueryTable,
-      String bigQueryDataset,
-      String namespace,
-      String writeStartName,
-      String writeEndName,
-      String readStartName,
-      String readEndName) {
-    if (bigQueryTable != null && bigQueryDataset != null) {
-      MetricsReader reader = new MetricsReader(result, namespace);
-      long writeStart = reader.getStartTimeMetric(writeStartName);
-      long writeEnd = reader.getEndTimeMetric(writeEndName);
-      long readStart = reader.getStartTimeMetric(readStartName);
-      long readEnd = reader.getEndTimeMetric(readEndName);
-      double writeTime = (writeEnd - writeStart) / 1000.0;
-      double readTime = (readEnd - readStart) / 1000.0;
-
-      String uuid = UUID.randomUUID().toString();
-      Timestamp timestamp = Timestamp.now();
-      BigQueryResultsPublisher publisher =
-          BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema());
-      publisher.publish(
-          NamedTestResult.create(uuid, timestamp.toString(), "read_time", readTime), bigQueryTable);
-      publisher.publish(
-          NamedTestResult.create(uuid, timestamp.toString(), "write_time", writeTime),
-          bigQueryTable);
     }
   }
 

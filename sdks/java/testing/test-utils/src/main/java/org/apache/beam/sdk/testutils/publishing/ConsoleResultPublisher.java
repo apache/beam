@@ -25,7 +25,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 /** Writes load test metrics results to console. */
 public class ConsoleResultPublisher {
 
-  static void publish(List<NamedTestResult> results, String testId, String timestamp) {
+  public static void publish(List<NamedTestResult> results, String testId, String timestamp) {
     final String textTemplate = "%24s  %24s";
 
     System.out.println(

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.testutils.metrics;
 
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
@@ -27,7 +26,7 @@ import org.apache.beam.sdk.transforms.DoFn;
  *
  * <p>To use: apply a monitor directly after each source and sink transform. This will capture a
  * distribution of element processing timestamps, which can be collected and queried using {@link
- * MetricsReader}.
+ * org.apache.beam.sdk.testutils.metrics.MetricsReader}.
  */
 public class TimeMonitor<T> extends DoFn<T, T> {
 
