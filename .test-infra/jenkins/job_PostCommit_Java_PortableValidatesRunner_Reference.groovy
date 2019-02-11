@@ -19,10 +19,14 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
-// This job runs the suite of ValidatesRunner tests against the ULR.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_ULR',
-  'Run Java ULR PortableValidatesRunner', 'Java ULR PortableValidatesRunner Tests', this) {
-  description('Runs the Java PortableValidatesRunner suite on the Universal Local Runner.')
+// This job runs the suite of ValidatesRunner tests against the Java Reference
+// Runner.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Reference',
+    'Run Java Reference Runner PortableValidatesRunner',
+    'Java Reference Runner PortableValidatesRunner Tests',
+    this) {
+  description(
+      'Runs the Java PortableValidatesRunner suite on the Reference Runner.')
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
