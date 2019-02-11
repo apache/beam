@@ -78,7 +78,6 @@ if __name__ == '__main__':
     def create_options(self):
       options = super(JavaReferenceRunnerTest, self).create_options()
       options.view_as(DebugOptions).experiments = ['beam_fn_api']
-      options._all_options['parallelism'] = 1
       options.view_as(PortableOptions).environment_type = (
           environment_type.upper())
       if environment_config:
@@ -127,6 +126,10 @@ if __name__ == '__main__':
     def test_pardo_state_timers(self):
       # Skip until Reference Runner supports state.
       raise unittest.SkipTest("BEAM-2917")
+
+    def test_sdf(self):
+      # Skip until Reference Runner supports SDF.
+      raise unittest.SkipTest("BEAM-6651")
 
     # Can't read host files from within docker, read a "local" file there.
     def test_read(self):
