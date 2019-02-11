@@ -272,7 +272,7 @@ class TestGCSPathParser(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 @mock.patch.multiple('time',
-                     time=mock.MagicMock(side_effect=range(100)),
+                     time=mock.MagicMock(side_effect=list(range(100))),
                      sleep=mock.MagicMock())
 class TestGCSIO(unittest.TestCase):
 
