@@ -18,6 +18,8 @@
 package org.apache.beam.examples;
 
 import java.util.Arrays;
+
+import org.apache.beam.examples.java.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;

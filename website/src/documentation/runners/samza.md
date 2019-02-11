@@ -89,7 +89,7 @@ The Samza Runner is built on Samza version greater than 0.14.1.
 If you run your pipeline locally or deploy it to a standalone cluster with all the jars and resource files, no packaging is required. For example, the following command runs the WordCount example:
 
 ```
-$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.java.WordCount \
     -Psamza-runner \
     -Dexec.args="--runner=SamzaRunner \
       --inputFile=/path/to/input \

@@ -15,8 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples;
+package org.apache.beam.examples.java;
 
+import org.apache.beam.examples.DebuggingWordCount;
+import org.apache.beam.examples.MinimalWordCount;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;

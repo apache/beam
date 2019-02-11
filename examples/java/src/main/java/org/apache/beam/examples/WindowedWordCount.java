@@ -22,6 +22,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.WriteOneFilePerWindow;
+import org.apache.beam.examples.java.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.TextIO;

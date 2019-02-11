@@ -156,7 +156,7 @@ The Beam Quickstart Maven project is setup to use the Maven Shade plugin to crea
 
 For actually running the pipeline you would use this command
 ```
-$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.java.WordCount \
     -Pflink-runner \
     -Dexec.args="--runner=FlinkRunner \
       --inputFile=/path/to/pom.xml \

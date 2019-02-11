@@ -131,25 +131,25 @@ For Unix shells:
 
 {:.runner-direct}
 ```
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.java.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
 ```
 
 {:.runner-apex}
 ```
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.java.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
 ```
 
 {:.runner-flink-local}
 ```
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.java.WordCount \
      -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
 ```
 
 {:.runner-flink-cluster}
 ```
-$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.java.WordCount \
      -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
                   --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
 
@@ -158,7 +158,7 @@ You can monitor the running job by visiting the Flink dashboard at http://<flink
 
 {:.runner-spark}
 ```
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.java.WordCount \
      -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
 ```
 
@@ -166,7 +166,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 ```
 Make sure you complete the setup steps at {{ site.baseurl }}/documentation/runners/dataflow/#setup
 
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.java.WordCount \
      -Dexec.args="--runner=DataflowRunner --project=<your-gcp-project> \
                   --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
                   --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
@@ -175,13 +175,13 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 
 {:.runner-samza-local}
 ```
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.java.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
 ```
 
 {:.runner-nemo}
 ```
-$ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+$ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.java.WordCount \
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
 ```
 
@@ -189,25 +189,25 @@ For Windows PowerShell:
 
 {:.runner-direct}
 ```
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.java.WordCount `
  -D exec.args="--inputFile=pom.xml --output=counts" -P direct-runner
 ```
 
 {:.runner-apex}
 ```
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.java.WordCount `
  -D exec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -P apex-runner
 ```
 
 {:.runner-flink-local}
 ```
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.java.WordCount `
  -D exec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -P flink-runner
 ```
 
 {:.runner-flink-cluster}
 ```
-PS> mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+PS> mvn package exec:java -D exec.mainClass=org.apache.beam.examples.java.WordCount `
  -D exec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=.\target\word-count-beam-bundled-0.1.jar `
                --inputFile=C:\path\to\quickstart\pom.xml --output=C:\tmp\counts" -P flink-runner
 
@@ -216,7 +216,7 @@ You can monitor the running job by visiting the Flink dashboard at http://<flink
 
 {:.runner-spark}
 ```
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.java.WordCount `
  -D exec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -P spark-runner
 ```
 
@@ -224,7 +224,7 @@ PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 ```
 Make sure you complete the setup steps at {{ site.baseurl }}/documentation/runners/dataflow/#setup
 
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.java.WordCount `
  -D exec.args="--runner=DataflowRunner --project=<your-gcp-project> `
                --gcpTempLocation=gs://<your-gcs-bucket>/tmp `
                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" `
@@ -233,14 +233,14 @@ PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 
 {:.runner-samza-local}
 ```
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.java.WordCount `
      -D exec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
 ```
 
 {:.runner-nemo}
 ```
 PS> mvn package -P nemo-runner -DskipTests
-PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
+PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.java.WordCount `
       --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
 ```
 

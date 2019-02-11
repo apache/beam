@@ -45,13 +45,13 @@ You can add a dependency on the latest version of the JStorm runner by adding th
 
 To run against a Standalone cluster, you can package your program with all Beam dependencies into a fat jar, and then submit the topology with the following command.
 ```
-jstorm jar WordCount.jar org.apache.beam.examples.WordCount --runner=org.apache.beam.runners.jstorm.JStormRunner
+jstorm jar WordCount.jar org.apache.beam.examples.java.WordCount --runner=org.apache.beam.runners.jstorm.JStormRunner
 ```
 
 If you don't want to package a fat jar, you can upload the Beam dependencies onto all cluster nodes(`$JSTORM_HOME/lib/ext/beam`) first.
 When you submit a topology with argument `"--external-libs beam"`, JStorm will load the Beam dependencies automatically.
 ```
-jstorm jar WordCount.jar org.apache.beam.examples.WordCount --external-libs beam  --runner=org.apache.beam.runners.jstorm.JStormRunner
+jstorm jar WordCount.jar org.apache.beam.examples.java.WordCount --external-libs beam  --runner=org.apache.beam.runners.jstorm.JStormRunner
 ```
 
 To learn about deploying a JStorm cluster, please refer to [JStorm cluster deploy](http://jstorm.io/QuickStart/Deploy/index.html)

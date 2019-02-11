@@ -43,12 +43,12 @@ mvn package -Papex-runner
 
 Copy the resulting `target/word-count-beam-bundled-0.1.jar` to the cluster and submit the application using:
 ```
-java -cp word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount --inputFile=/etc/profile --output=/tmp/counts --embeddedExecution=false --configFile=beam-runners-apex.properties --runner=ApexRunner
+java -cp word-count-beam-bundled-0.1.jar org.apache.beam.examples.java.WordCount --inputFile=/etc/profile --output=/tmp/counts --embeddedExecution=false --configFile=beam-runners-apex.properties --runner=ApexRunner
 ```
 
 If the build environment is setup as cluster client, it is possible to run the example directly:
 ```
-mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/etc/profile --output=/tmp/counts --runner=ApexRunner --embeddedExecution=false --configFile=beam-runners-apex.properties" -Papex-runner
+mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.java.WordCount -Dexec.args="--inputFile=/etc/profile --output=/tmp/counts --runner=ApexRunner --embeddedExecution=false --configFile=beam-runners-apex.properties" -Papex-runner
 ```
 
 The application will run asynchronously. Check status with `yarn application -list -appStates ALL`

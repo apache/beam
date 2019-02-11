@@ -40,7 +40,7 @@ You can add a dependency on the latest version of the Apache Hadoop MapReduce ru
 ## Deploying Apache Hadoop MapReduce with your application
 To execute in a local Hadoop environment, use this command:
 ```
-$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.java.WordCount \
     -Pmapreduce-runner \
     -Dexec.args="--runner=MapReduceRunner \
       --inputFile=/path/to/pom.xml \
@@ -58,7 +58,7 @@ $ mvn package -Pflink-runner
 For actually running the pipeline you would use this command
 ```
 $ yarn jar word-count-beam-bundled-0.1.jar \
-    org.apache.beam.examples.WordCount \
+    org.apache.beam.examples.java.WordCount \
     --runner=MapReduceRunner \
     --inputFile=/path/to/pom.xml \
       --output=/path/to/counts \
