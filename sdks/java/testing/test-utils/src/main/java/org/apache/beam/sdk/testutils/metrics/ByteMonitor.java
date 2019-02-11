@@ -19,7 +19,6 @@ package org.apache.beam.sdk.testutils.metrics;
 
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
@@ -28,7 +27,7 @@ import org.apache.beam.sdk.values.KV;
  *
  * <p>To use: apply a monitor in a desired place in the pipeline. This will capture how many bytes
  * flew through this DoFn. Such information can be then collected and written out and queried using
- * {@link MetricsReader}.
+ * {@link org.apache.beam.sdk.testutils.metrics.MetricsReader}.
  */
 public class ByteMonitor extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
 
