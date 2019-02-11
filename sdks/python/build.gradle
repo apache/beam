@@ -91,12 +91,19 @@ test.dependsOn testPython2
 toxTask "testPython3", "py3"
 test.dependsOn testPython3
 
-toxTask "testCython", "py27-cython"
-test.dependsOn testCython
-// Ensure that testCython runs exclusively to other tests. This line is not
+toxTask "testPy2Cython", "py27-cython"
+test.dependsOn testPy2Cython
+// Ensure that testPy2Cython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
-testCython.mustRunAfter testPython2, testPy2Gcp
+testPy2Cython.mustRunAfter testPython2, testPy2Gcp
+
+toxTask "testPy3Cython", "py3-cython"
+test.dependsOn testPy3Cython
+// Ensure that testPy3Cython runs exclusively to other tests. This line is not
+// actually required, since gradle doesn't do parallel execution within a
+// project.
+testPy3Cython.mustRunAfter testPython3, testPy3Gcp
 
 toxTask "docs", "docs"
 assemble.dependsOn docs
@@ -105,7 +112,8 @@ toxTask "cover", "cover"
 
 task preCommit() {
   dependsOn "docs"
-  dependsOn "testCython"
+  dependsOn "testPy2Cython"
+  dependsOn "testPy3Cython"
   dependsOn "testPython2"
   dependsOn "testPython3"
   dependsOn "testPy2Gcp"
