@@ -133,12 +133,14 @@ public class OuterLeftJoinTest {
 
     rightListOfKv.add(KV.of("Key2", "bar"));
     PCollection<KV<String, String>> rightCollection =
-            p.apply("CreateRight", Create.of(rightListOfKv));
+        p.apply("CreateRight", Create.of(rightListOfKv));
 
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
 
-    PCollection<KV<String, KV<Long, String>>> output1 = Join.leftOuterJoin("Join1", leftCollection, rightCollection,"");
-    PCollection<KV<String, KV<Long, String>>> output2 = Join.leftOuterJoin("Join2", leftCollection, rightCollection,"");
+    PCollection<KV<String, KV<Long, String>>> output1 =
+        Join.leftOuterJoin("Join1", leftCollection, rightCollection, "");
+    PCollection<KV<String, KV<Long, String>>> output2 =
+        Join.leftOuterJoin("Join2", leftCollection, rightCollection, "");
     PAssert.that(output1).containsInAnyOrder(expectedResult);
     PAssert.that(output2).containsInAnyOrder(expectedResult);
 
