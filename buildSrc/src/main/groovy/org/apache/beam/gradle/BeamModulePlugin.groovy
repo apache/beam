@@ -671,8 +671,12 @@ class BeamModulePlugin implements Plugin<Project> {
         include "**/*TestCase.class"
       }
 
-      // Configure all test tasks to use JUnit
-      project.tasks.withType(Test) { useJUnit {} }
+      project.tasks.withType(Test) {
+        // Configure all test tasks to use JUnit
+        useJUnit {}
+        // default maxHeapSize on gradle 5 is 512m, lets increase to handle more demanding tests
+        maxHeapSize = '2g'
+      }
 
       // Ensure that tests are packaged and part of the artifact set.
       project.task('packageTests', type: Jar) {
