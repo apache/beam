@@ -75,6 +75,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
     for (testConfiguration in smokeTestConfigurations) {
-        loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner,testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass)
+        loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner,testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
     }
 }

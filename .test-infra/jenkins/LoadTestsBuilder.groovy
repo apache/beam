@@ -19,29 +19,57 @@
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
 import CommonTestProperties.SDK
+import CommonTestProperties.TriggeringContext
 
 class LoadTestsBuilder {
-    static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
-        String task
-        if (sdk == SDK.JAVA) task = ':beam-sdks-java-load-tests:run'
-        else if (sdk == SDK.PYTHON) task = ':beam-sdks-python-load-tests:run'
+  static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass, TriggeringContext triggeringContext) {
 
-        options.put('runner', runner.option)
+    options.put('runner', runner.option)
 
-        context.steps {
-            shell("echo *** ${title} ***")
-            gradle {
-                rootBuildScriptDir(commonJobProperties.checkoutDir)
-                tasks(task)
-                commonJobProperties.setGradleSwitches(delegate)
-                switches("-PloadTest.mainClass=\"${mainClass}\"")
-                switches("-Prunner=${runner.getDepenedencyBySDK(sdk)}")
-                switches("-PloadTest.args=\"${parseOptions(options)}\"")
-            }
-        }
+    String datasetKey = 'bigQueryDatasetName'
+    String datasetValue = options.get(datasetKey)
+
+    if (datasetValue) {
+      options.put(datasetKey, setContextualDatasetName(datasetValue, triggeringContext))
     }
 
-    private static String parseOptions(Map<String, ?> options) {
-        options.collect { "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'') }.join(' ')
+    context.steps {
+      shell("echo *** ${title} ***")
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        tasks(getGradleTaskName(sdk))
+        commonJobProperties.setGradleSwitches(delegate)
+        switches("-PloadTest.mainClass=\"${mainClass}\"")
+        switches("-Prunner=${runner.getDepenedencyBySDK(sdk)}")
+        switches("-PloadTest.args=\"${parseOptions(options)}\"")
+      }
     }
+  }
+
+  private static String getGradleTaskName(SDK sdk) {
+    if (sdk == SDK.JAVA) {
+      return ':beam-sdks-java-load-tests:run'
+    } else if (sdk == SDK.PYTHON) {
+      return ':beam-sdks-python-load-tests:run'
+    } else {
+      throw new RuntimeException("No task name defined for SDK: $SDK")
+    }
+  }
+
+  private static String parseOptions(Map<String, ?> options) {
+    options.collect {
+      "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'')
+    }.join(' ')
+  }
+
+  private String setContextualDatasetName(String baseName, TriggeringContext triggeringContext) {
+    if (triggeringContext == TriggeringContext.PR) {
+      return baseName + '_PRs'
+    } else {
+      return baseName
+    }
+  }
 }
+
+
+

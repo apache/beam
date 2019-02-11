@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 
@@ -28,34 +29,33 @@ def loadTestConfigurations = [
                 prCommitStatusName: 'Java GroupByKey Small Load Test Dataflow',
                 prTriggerPhrase   : 'Run GroupByKey Small Java Load Test Dataflow',
                 runner            : CommonTestProperties.Runner.DATAFLOW,
-                sdk               : CommonTestProperties.SDK.JAVA,
                 jobProperties     : [
-                        project             : 'apache-beam-testing',
-                        tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publishToBigQuery   : true,
-                        bigQueryDataset     : 'load_test_PRs',
-                        bigQueryTable       : 'dataflow_gbk_small',
-                        sourceOptions       : '{"numRecords":1000000000,"splitPointFrequencyRecords":1,"keySizeBytes":1,"valueSizeBytes":9,"numHotKeys":0,"hotKeyFraction":0,"seed":123456,"bundleSizeDistribution":{"type":"const","const":42},"forceNumInitialBundles":100,"progressShape":"LINEAR","initializeDelayDistribution":{"type":"const","const":42}}',
-                        stepOptions         : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true,"perBundleDelay":10000,"perBundleDelayType":"MIXED","cpuUtilizationInMixedDelay":0.5}',
-                        fanout              : 10,
-                        iterations          : 1,
-                        maxNumWorkers       : 32,
+                        project          : 'apache-beam-testing',
+                        tempLocation     : 'gs://temp-storage-for-perf-tests/loadtests',
+                        publishToBigQuery: true,
+                        bigQueryDataset  : 'load_test_PRs',
+                        bigQueryTable    : 'dataflow_gbk_small',
+                        sourceOptions    : '{"numRecords":1000000000,"splitPointFrequencyRecords":1,"keySizeBytes":1,"valueSizeBytes":9,"numHotKeys":0,"hotKeyFraction":0,"seed":123456,"bundleSizeDistribution":{"type":"const","const":42},"forceNumInitialBundles":100,"progressShape":"LINEAR","initializeDelayDistribution":{"type":"const","const":42}}',
+                        stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true,"perBundleDelay":10000,"perBundleDelayType":"MIXED","cpuUtilizationInMixedDelay":0.5}',
+                        fanout           : 10,
+                        iterations       : 1,
+                        maxNumWorkers    : 32,
                 ]
 
         ],
 ]
 
 for (testConfiguration in loadTestConfigurations) {
-    PhraseTriggeringPostCommitBuilder.postCommitJob(
-            testConfiguration.jobName,
-            testConfiguration.prTriggerPhrase,
-            testConfiguration.prCommitStatusName,
-            this
-    ) {
-        description(testConfiguration.jobDescription)
-        commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
-        loadTestsBuilder.loadTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass)
-    }
+  PhraseTriggeringPostCommitBuilder.postCommitJob(
+          testConfiguration.jobName,
+          testConfiguration.prTriggerPhrase,
+          testConfiguration.prCommitStatusName,
+          this
+  ) {
+    description(testConfiguration.jobDescription)
+    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+    loadTestsBuilder.loadTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass.CommonTestProperties.TriggeringContext.PR)
+  }
 }
 
 def smokeTestConfigurations = [
@@ -63,7 +63,6 @@ def smokeTestConfigurations = [
                 title        : 'GroupByKey load test Direct',
                 itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 runner       : CommonTestProperties.Runner.DIRECT,
-                sdk          : CommonTestProperties.SDK.JAVA,
                 jobProperties: [
                         publishToBigQuery: true,
                         bigQueryDataset  : 'load_test_SMOKE',
@@ -78,7 +77,6 @@ def smokeTestConfigurations = [
                 title        : 'GroupByKey load test Dataflow',
                 itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.JAVA,
                 jobProperties: [
                         project          : 'apache-beam-testing',
                         tempLocation     : 'gs://temp-storage-for-perf-tests/smoketests',
@@ -95,7 +93,6 @@ def smokeTestConfigurations = [
                 title        : 'GroupByKey load test Flink',
                 itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 runner       : CommonTestProperties.Runner.FLINK,
-                sdk          : CommonTestProperties.SDK.JAVA,
                 jobProperties: [
                         publishToBigQuery: true,
                         bigQueryDataset  : 'load_test_SMOKE',
@@ -110,7 +107,6 @@ def smokeTestConfigurations = [
                 title        : 'GroupByKey load test Spark',
                 itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 runner       : CommonTestProperties.Runner.SPARK,
-                sdk          : CommonTestProperties.SDK.JAVA,
                 jobProperties: [
                         sparkMaster      : 'local[4]',
                         publishToBigQuery: true,
@@ -130,10 +126,10 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Java Load Tests Smoke',
         this
 ) {
-    description("Runs load tests in \"smoke\" mode to check if everything works well")
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+  description("Runs load tests in \"smoke\" mode to check if everything works well")
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-    for (testConfiguration in smokeTestConfigurations) {
-      loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass)
-    }
+  for (testConfiguration in smokeTestConfigurations) {
+    loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
+  }
 }
