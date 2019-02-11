@@ -133,8 +133,8 @@ public class FlinkJobInvocation implements JobInvocation {
     RunnerApi.Pipeline fusedPipeline =
         trimmedPipeline.getComponents().getTransformsMap().values().stream()
                 .anyMatch(proto -> ExecutableStage.URN.equals(proto.getSpec().getUrn()))
-            ? pipeline
-            : GreedyPipelineFuser.fuse(pipeline).toPipeline();
+            ? trimmedPipeline
+            : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
     JobInfo jobInfo =
         JobInfo.create(
             id,
