@@ -76,7 +76,8 @@ public class InnerJoinTest {
 
     rightListOfKv.add(KV.of("Key2", "bar"));
     rightListOfKv.add(KV.of("Key2", "gazonk"));
-    PCollection<KV<String, String>> rightCollection = p.apply("CreateRight", Create.of(rightListOfKv));
+    PCollection<KV<String, String>> rightCollection =
+        p.apply("CreateRight", Create.of(rightListOfKv));
 
     PCollection<KV<String, KV<Long, String>>> output =
         Join.innerJoin(leftCollection, rightCollection);
@@ -95,7 +96,8 @@ public class InnerJoinTest {
     PCollection<KV<String, Long>> leftCollection = p.apply("CreateLeft", Create.of(leftListOfKv));
 
     rightListOfKv.add(KV.of("Key2", "bar"));
-    PCollection<KV<String, String>> rightCollection = p.apply("CreateRight", Create.of(rightListOfKv));
+    PCollection<KV<String, String>> rightCollection =
+        p.apply("CreateRight", Create.of(rightListOfKv));
 
     PCollection<KV<String, KV<Long, String>>> output =
         Join.innerJoin(leftCollection, rightCollection);
@@ -114,7 +116,7 @@ public class InnerJoinTest {
 
     rightListOfKv.add(KV.of("Key3", "bar"));
     PCollection<KV<String, String>> rightCollection =
-            p.apply("CreateRight", Create.of(rightListOfKv));
+        p.apply("CreateRight", Create.of(rightListOfKv));
 
     PCollection<KV<String, KV<Long, String>>> output =
         Join.innerJoin(leftCollection, rightCollection);
@@ -130,12 +132,14 @@ public class InnerJoinTest {
 
     rightListOfKv.add(KV.of("Key2", "bar"));
     PCollection<KV<String, String>> rightCollection =
-            p.apply("CreateRight", Create.of(rightListOfKv));
+        p.apply("CreateRight", Create.of(rightListOfKv));
 
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
 
-    PCollection<KV<String, KV<Long, String>>> output1 = Join.innerJoin("Join1", leftCollection, rightCollection);
-    PCollection<KV<String, KV<Long, String>>> output2 = Join.innerJoin("Join2", leftCollection, rightCollection);
+    PCollection<KV<String, KV<Long, String>>> output1 =
+        Join.innerJoin("Join1", leftCollection, rightCollection);
+    PCollection<KV<String, KV<Long, String>>> output2 =
+        Join.innerJoin("Join2", leftCollection, rightCollection);
     PAssert.that(output1).containsInAnyOrder(expectedResult);
     PAssert.that(output2).containsInAnyOrder(expectedResult);
 
