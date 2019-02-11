@@ -277,7 +277,13 @@ public class RegisterAndProcessBundleOperation extends Operation {
 
     try (Closeable scope = context.enterFinish()) {
       // Await completion or failure
-      MoreFutures.get(getProcessBundleResponse(processBundleResponse));
+      BeamFnApi.ProcessBundleResponse completedResponse =
+          MoreFutures.get(getProcessBundleResponse(processBundleResponse));
+      if (completedResponse.getResidualRootsCount() > 0) {
+        throw new IllegalStateException(
+            "TODO: [BEAM-2939] residual roots in process bundle response not yet supported.");
+      }
+
       deregisterStateHandler.deregister();
       userStateData.clear();
       processBundleId = null;
