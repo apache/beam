@@ -109,6 +109,7 @@ import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
@@ -174,7 +175,7 @@ public class StreamingDataflowWorker {
   // retrieving extra work from Windmill without working on it, leading to better
   // prioritization / utilization.
   static final int MAX_WORK_UNITS_QUEUED = 100;
-  static final long MAX_COMMIT_BYTES = 32 << 20;
+  static final long TARGET_COMMIT_BUNDLE_BYTES = 32 << 20;
   static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
   static final int NUM_COMMIT_STREAMS = 1;
   static final Duration COMMIT_STREAM_TIMEOUT = Duration.standardMinutes(1);
@@ -203,6 +204,35 @@ public class StreamingDataflowWorker {
       t = t.getCause();
     }
     return false;
+  }
+
+  private static class KeyCommitTooLargeException extends Exception {
+    public static KeyCommitTooLargeException causedBy(
+        String computationId, long byteLimit, WorkItemCommitRequest request) {
+      StringBuilder message = new StringBuilder();
+      message.append("Commit request for stage ");
+      message.append(computationId);
+      message.append(" and key ");
+      message.append(request.getKey().toStringUtf8());
+      if (request.getSerializedSize() > 0) {
+        message.append(
+            " has size "
+                + request.getSerializedSize()
+                + " which is more than the limit of "
+                + byteLimit);
+      } else {
+        message.append(" is larger than 2GB and cannot be processed");
+      }
+      message.append(
+          ". This may be caused by grouping a very "
+              + "large amount of data in a single window without using Combine,"
+              + " or by producing a large amount of data from a single input element.");
+      return new KeyCommitTooLargeException(message.toString());
+    }
+
+    private KeyCommitTooLargeException(String message) {
+      super(message);
+    }
   }
 
   private static MapTask parseMapTask(String input) throws IOException {
@@ -312,6 +342,7 @@ public class StreamingDataflowWorker {
     public Commit(
         Windmill.WorkItemCommitRequest request, ComputationState computationState, Work work) {
       this.request = request;
+      assert request.getSerializedSize() > 0;
       this.computationState = computationState;
       this.work = work;
     }
@@ -329,20 +360,7 @@ public class StreamingDataflowWorker {
     }
 
     public int getSize() {
-      int commitSize = request.getSerializedSize();
-      if (commitSize < 0) {
-        throw new IllegalStateException(
-            "Commit request for stage "
-                + computationState.getComputationId()
-                + " and key "
-                + request.getKey().toStringUtf8()
-                + " is larger than 2GB and cannot be processed."
-                + " This may be caused by grouping a very "
-                + "large amount of data in a single window without using Combine,"
-                + " or by producing a "
-                + "large amount of data from a single input element.");
-      }
-      return commitSize;
+      return request.getSerializedSize();
     }
   }
 
@@ -388,6 +406,7 @@ public class StreamingDataflowWorker {
   // Built-in cumulative counters.
   private final Counter<Long, Long> javaHarnessUsedMemory;
   private final Counter<Long, Long> javaHarnessMaxMemory;
+  private final Counter<Integer, Integer> windmillMaxObservedWorkItemCommitBytes;
   private Timer refreshActiveWorkTimer;
   private Timer statusPageTimer;
 
@@ -408,6 +427,8 @@ public class StreamingDataflowWorker {
 
   // Limit on bytes sinked (committed) in a work item.
   private final long maxSinkBytes; // = MAX_SINK_BYTES unless disabled in options.
+  // Possibly overridden by streaming engine config.
+  private int maxWorkItemCommitBytes = Integer.MAX_VALUE;
 
   private final EvictingQueue<String> pendingFailuresToReport =
       EvictingQueue.<String>create(MAX_FAILURES_TO_REPORT_IN_UPDATE);
@@ -559,6 +580,9 @@ public class StreamingDataflowWorker {
     this.javaHarnessMaxMemory =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.JAVA_HARNESS_MAX_MEMORY.counterName());
+    this.windmillMaxObservedWorkItemCommitBytes =
+        pendingCumulativeCounters.intMax(
+            StreamingSystemCounterNames.WINDMILL_MAX_WORK_ITEM_COMMIT_BYTES.counterName());
     this.isDoneFuture = new CompletableFuture<>();
 
     this.threadFactory =
@@ -695,6 +719,11 @@ public class StreamingDataflowWorker {
   @VisibleForTesting
   public void setRetryLocallyDelayMs(int retryLocallyDelayMs) {
     this.retryLocallyDelayMs = retryLocallyDelayMs;
+  }
+
+  @VisibleForTesting
+  public void setMaxWorkItemCommitBytes(int maxWorkItemCommitBytes) {
+    this.maxWorkItemCommitBytes = maxWorkItemCommitBytes;
   }
 
   @VisibleForTesting
@@ -1247,7 +1276,25 @@ public class StreamingDataflowWorker {
 
       // Add the output to the commit queue.
       work.setState(State.COMMIT_QUEUED);
-      commitQueue.put(new Commit(outputBuilder.build(), computationState, work));
+
+      WorkItemCommitRequest commitRequest = outputBuilder.build();
+      int byteLimit = maxWorkItemCommitBytes;
+      int commitSize = commitRequest.getSerializedSize();
+      // Detect overflow of integer serialized size or if the byte limit was exceeded.
+      windmillMaxObservedWorkItemCommitBytes.addValue(
+          commitSize < 0 ? Integer.MAX_VALUE : commitSize);
+      if (commitSize < 0) {
+        throw KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
+      } else if (commitSize > byteLimit) {
+        // Once supported, we should communicate the desired truncation for the commit to the
+        // streaming engine. For now we report the error but attempt the commit so that it will be
+        // truncated by the streaming engine backend.
+        KeyCommitTooLargeException e =
+            KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
+        reportFailure(computationId, workItem, e);
+        LOG.error(e.toString());
+      }
+      commitQueue.put(new Commit(commitRequest, computationState, work));
 
       // Compute shuffle and state byte statistics these will be flushed asynchronously.
       long stateBytesWritten = outputBuilder.clearOutputMessages().build().getSerializedSize();
@@ -1278,25 +1325,23 @@ public class StreamingDataflowWorker {
 
       t = t instanceof UserCodeException ? t.getCause() : t;
 
+      boolean retryLocally = false;
       if (KeyTokenInvalidException.isKeyTokenInvalidException(t)) {
         LOG.debug(
             "Execution of work for {} for key {} failed due to token expiration. "
                 + "Will not retry locally.",
             computationId,
             key.toStringUtf8());
-        computationState.completeWork(key, workItem.getWorkToken());
       } else {
         LOG.error("Uncaught exception: ", t);
         LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
-        boolean retryLocally;
         if (!reportFailure(computationId, workItem, t)) {
           LOG.error(
               "Execution of work for {} for key {} failed, and Windmill "
                   + "indicated not to retry locally.",
               computationId,
               key.toStringUtf8());
-          retryLocally = false;
         } else if (isOutOfMemoryError(t)) {
           File heapDump = memoryMonitor.tryToDumpHeap();
           LOG.error(
@@ -1305,7 +1350,6 @@ public class StreamingDataflowWorker {
               computationId,
               key.toStringUtf8(),
               heapDump == null ? "not written" : ("written to '" + heapDump + "'"));
-          retryLocally = false;
         } else {
           LOG.error(
               "Execution of work for {} for key {} failed. Will retry locally.",
@@ -1313,15 +1357,15 @@ public class StreamingDataflowWorker {
               key.toStringUtf8());
           retryLocally = true;
         }
-
-        if (retryLocally) {
-          // Try again after some delay and at the end of the queue to avoid a tight loop.
-          sleep(retryLocallyDelayMs);
-          workUnitExecutor.forceExecute(work);
-        } else {
-          // Consider the item invalid. It will eventually be retried by Windmill.
-          computationState.completeWork(key, workItem.getWorkToken());
-        }
+      }
+      if (retryLocally) {
+        // Try again after some delay and at the end of the queue to avoid a tight loop.
+        sleep(retryLocallyDelayMs);
+        workUnitExecutor.forceExecute(work);
+      } else {
+        // Consider the item invalid. It will eventually be retried by Windmill if it still needs
+        // to be processed.
+        computationState.completeWork(key, workItem.getWorkToken());
       }
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that
@@ -1374,7 +1418,7 @@ public class StreamingDataflowWorker {
         // Send the request if we've exceeded the bytes or there is no more
         // pending work.  commitBytes is a long, so this cannot overflow.
         commitBytes += commit.getSize();
-        if (commitBytes >= MAX_COMMIT_BYTES) {
+        if (commitBytes >= TARGET_COMMIT_BUNDLE_BYTES) {
           break;
         }
         commit = commitQueue.poll();
@@ -1473,6 +1517,9 @@ public class StreamingDataflowWorker {
         Windmill.GetConfigRequest.newBuilder().addComputations(computation).build();
 
     Windmill.GetConfigResponse response = windmillServer.getConfig(request);
+    // The max work item commit bytes should be modified to be dynamic once it is available in
+    // the request.
+    setMaxWorkItemCommitBytes(180 << 20);
     for (Windmill.GetConfigResponse.SystemNameToComputationIdMapEntry entry :
         response.getSystemNameToComputationIdMapList()) {
       systemNameToComputationIdMap.put(entry.getSystemName(), entry.getComputationId());
