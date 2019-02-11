@@ -633,6 +633,20 @@ class PerWindowInvoker(DoFnInvoker):
                 (windowed_value.value, deferred_restriction)),
             deferred_watermark)
 
+  def try_split(self, fraction):
+    restriction_tracker = self.restriction_tracker
+    current_windowed_value = self.current_windowed_value
+    if restriction_tracker and current_windowed_value:
+      split = restriction_tracker.try_split(fraction)
+      if split:
+        primary, residual = split
+        element = self.current_windowed_value.value
+        return (
+            (self.current_windowed_value.with_value((element, primary)),
+             None),
+            (self.current_windowed_value.with_value((element, residual)),
+             restriction_tracker.current_watermark()))
+
 
 class DoFnRunner(Receiver):
   """For internal use only; no backwards-compatibility guarantees.
@@ -720,6 +734,9 @@ class DoFnRunner(Receiver):
         windowed_value.with_value(element),
         restriction_tracker=self.do_fn_invoker.invoke_create_tracker(
             restriction))
+
+  def try_split(self, fraction):
+    return self.do_fn_invoker.try_split(fraction)
 
   def process_user_timer(self, timer_spec, key, window, timestamp):
     try:

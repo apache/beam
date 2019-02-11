@@ -38,6 +38,10 @@ cdef class ConsumerSet(Receiver):
   cpdef update_counters_finish(self)
 
 
+cdef class SingletonConsumerSet(ConsumerSet):
+  cdef Operation consumer
+
+
 cdef class Operation(object):
   cdef readonly name_context
   cdef readonly operation_name
