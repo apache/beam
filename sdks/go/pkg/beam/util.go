@@ -112,11 +112,3 @@ func Must(a PCollection, err error) PCollection {
 	}
 	return a
 }
-
-// Must2 returns the input, but panics if err != nil.
-func Must2(a, b PCollection, err error) (PCollection, PCollection) {
-	if err != nil {
-		panic(err)
-	}
-	return a, b
-}
