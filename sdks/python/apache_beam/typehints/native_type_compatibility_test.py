@@ -19,6 +19,8 @@
 
 from __future__ import absolute_import
 
+import os
+import sys
 import typing
 import unittest
 
@@ -37,6 +39,10 @@ class _TestClass(object):
 
 class NativeTypeCompatibilityTest(unittest.TestCase):
 
+  @unittest.skipIf(sys.hexversion < 0x030503F0 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'Tuple typehinting depends on typing changes in Python '
+                   '3.5.3')
   def test_convert_to_beam_type(self):
     test_cases = [
         ('raw bytes', bytes, bytes),
@@ -86,6 +92,10 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         typehints.List[typing.Dict[int, str]],
         typehints.List[typehints.Dict[int, str]])
 
+  @unittest.skipIf(sys.hexversion < 0x030503F0 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'Tuple typehinting depends on typing changes in Python '
+                   '3.5.3')
   def test_convert_to_beam_types(self):
     typing_types = [bytes, typing.List[bytes],
                     typing.List[typing.Tuple[bytes, int]],
