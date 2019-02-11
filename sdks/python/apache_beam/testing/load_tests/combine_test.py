@@ -45,6 +45,24 @@ python setup.py nosetests \
     }'" \
     --tests apache_beam.testing.load_tests.combine_test
 
+or:
+
+./gradlew -PloadTest.args='
+    --publish_to_big_query=true
+    --project=...
+    --metrics_dataset=python_load_test
+    --metrics_table=combine
+    --input_options=\'
+      {"num_records": 1,
+      "key_size": 1,
+      "value_size":1,
+      "bundle_size_distribution_type": "const",
+      "bundle_size_distribution_param": 1,
+      "force_initial_num_bundles": 1}\'
+    --runner=DirectRunner' \
+-PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
+-Prunner=DirectRunner :beam-sdks-python-load-tests:run
+
 To run test on other runner (ex. Dataflow):
 
 python setup.py nosetests \
@@ -67,6 +85,26 @@ python setup.py nosetests \
         }'" \
     --tests apache_beam.testing.load_tests.combine_test
 
+or:
+
+./gradlew -PloadTest.args='
+    --publish_to_big_query=true
+    --project=...
+    --metrics_dataset=python_load_tests
+    --metrics_table=combine
+    --temp_location=gs://...
+    --input_options=\'
+      {"num_records": 1,
+      "key_size": 1,
+      "value_size":1,
+      "bundle_size_distribution_type": "const",
+      "bundle_size_distribution_param": 1,
+      "force_initial_num_bundles": 1}\'
+    --runner=TestDataflowRunner' \
+-PloadTest.mainClass=
+apache_beam.testing.load_tests.combine_test \
+-Prunner=
+TestDataflowRunner :beam-sdks-python-load-tests:run
 """
 
 from __future__ import absolute_import
