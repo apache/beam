@@ -307,7 +307,7 @@ public class ProcessBundleHandler {
           startFunction.run();
         }
 
-        // Wait until all process() calls are done.
+        // process() calls.
         metricsClient.waitTillDone();
 
         // Need to reverse this since we want to call finish in topological order.
