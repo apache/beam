@@ -37,13 +37,19 @@ public class SimpleStateRegistryTest {
     labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, testPTransformId);
     SimpleExecutionState startState =
         new SimpleExecutionState(
-            SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN, labelsMetadata);
+            ExecutionStateTracker.START_STATE_NAME,
+            SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN,
+            labelsMetadata);
     SimpleExecutionState processState =
         new SimpleExecutionState(
-            SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN, labelsMetadata);
+            ExecutionStateTracker.PROCESS_STATE_NAME,
+            SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN,
+            labelsMetadata);
     SimpleExecutionState finishState =
         new SimpleExecutionState(
-            SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN, labelsMetadata);
+            ExecutionStateTracker.FINISH_STATE_NAME,
+            SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN,
+            labelsMetadata);
 
     SimpleStateRegistry testObject = new SimpleStateRegistry();
     testObject.register(startState);
