@@ -56,4 +56,31 @@ public class ParDoTest implements Serializable {
             }));
     pipeline.run();
   }
+
+  @Test
+  public void testTwoPardoInRow() {
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+    input
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, Integer>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context) {
+                    Integer val = context.element() + 1;
+                    context.output(val);
+                    System.out.println("ParDo1: val = " + val);
+                  }
+                }))
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, Integer>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context) {
+                    Integer val = context.element() + 1;
+                    context.output(val);
+                    System.out.println("ParDo2: val = " + val);
+                  }
+                }));
+    pipeline.run();
+  }
 }
