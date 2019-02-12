@@ -111,8 +111,7 @@ task preCommit() {
   dependsOn "testPy2Gcp"
   dependsOn "testPy3Gcp"
   dependsOn "lint"
-  dependsOn ":beam-sdks-python-precommit-dataflow:preCommitIT"
-  dependsOn ":beam-sdks-python-precommit-direct-py3:preCommitIT"
+  dependsOn ":beam-sdks-python-test-suites-dataflow:preCommitIT"
 }
 
 task portablePreCommit() {
@@ -388,7 +387,6 @@ task postCommit() {
   dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
   dependsOn "postCommitIT"
-  dependsOn ":beam-sdks-python-precommit-dataflow-py3:preCommitIT"
 }
 
 
