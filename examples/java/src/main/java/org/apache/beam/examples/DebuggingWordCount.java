@@ -20,7 +20,6 @@ package org.apache.beam.examples;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
-
 import org.apache.beam.examples.java.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
