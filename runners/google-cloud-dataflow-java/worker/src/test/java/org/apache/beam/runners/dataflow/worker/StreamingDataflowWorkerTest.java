@@ -930,16 +930,16 @@ public class StreamingDataflowWorkerTest {
     KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
     List<ParallelInstruction> instructions =
-        Arrays.asList(
-            makeSourceInstruction(kvCoder),
-            makeDoFnInstruction(new LargeCommitFn(), 0, kvCoder),
-            makeSinkInstruction(kvCoder, 1));
+            Arrays.asList(
+                    makeSourceInstruction(kvCoder),
+                    makeDoFnInstruction(new LargeCommitFn(), 0, kvCoder),
+                    makeSinkInstruction(kvCoder, 1));
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     server.setExpectedExceptionCount(1);
 
     StreamingDataflowWorker worker =
-        makeWorker(instructions, createTestingPipelineOptions(server), true /* publishCounters */);
+            makeWorker(instructions, createTestingPipelineOptions(server), true /* publishCounters */);
     worker.setMaxWorkItemCommitBytes(1000);
     worker.start();
 
@@ -964,7 +964,63 @@ public class StreamingDataflowWorkerTest {
 
     // We should see an exception reported for the large commit but not the small one.
     ArgumentCaptor<WorkItemStatus> workItemStatusCaptor =
-        ArgumentCaptor.forClass(WorkItemStatus.class);
+            ArgumentCaptor.forClass(WorkItemStatus.class);
+    verify(mockWorkUnitClient, atLeast(2)).reportWorkItemStatus(workItemStatusCaptor.capture());
+    List<WorkItemStatus> capturedStatuses = workItemStatusCaptor.getAllValues();
+    boolean foundErrors = false;
+    for (WorkItemStatus status : capturedStatuses) {
+      if (!status.getErrors().isEmpty()) {
+        assertFalse(foundErrors);
+        foundErrors = true;
+        String errorMessage = status.getErrors().get(0).getMessage();
+        assertThat(errorMessage, Matchers.containsString("KeyCommitTooLargeException"));
+      }
+    }
+    assertTrue(foundErrors);
+  }
+
+  @Test
+  public void testKeyCommitTooLargeException_StreamingEngine() throws Exception {
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    List<ParallelInstruction> instructions =
+            Arrays.asList(
+                    makeSourceInstruction(kvCoder),
+                    makeDoFnInstruction(new LargeCommitFn(), 0, kvCoder),
+                    makeSinkInstruction(kvCoder, 1));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    server.setExpectedExceptionCount(1);
+
+    StreamingDataflowWorkerOptions options =
+            createTestingPipelineOptions(server, "--experiments=enable_streaming_engine");
+    StreamingDataflowWorker worker =
+            makeWorker(instructions, options, true /* publishCounters */);
+    worker.setMaxWorkItemCommitBytes(1000);
+    worker.start();
+
+    server.addWorkToOffer(makeInput(1, 0, "large_key"));
+    server.addWorkToOffer(makeInput(2, 0, "key"));
+    server.waitForEmptyWorkQueue();
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+
+    assertEquals(2, result.size());
+    assertEquals(makeExpectedOutput(2, 0, "key", "key").build(), result.get(2L));
+    assertTrue(result.containsKey(1L));
+    assertEquals("large_key", result.get(1L).getKey().toStringUtf8());
+    assertTrue(result.get(1L).getSerializedSize() > 1000);
+
+    // Spam worker updates a few times.
+    int maxTries = 10;
+    while (--maxTries > 0) {
+      worker.reportPeriodicWorkerUpdates();
+      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+    }
+
+    // We should see an exception reported for the large commit but not the small one.
+    ArgumentCaptor<WorkItemStatus> workItemStatusCaptor =
+            ArgumentCaptor.forClass(WorkItemStatus.class);
     verify(mockWorkUnitClient, atLeast(2)).reportWorkItemStatus(workItemStatusCaptor.capture());
     List<WorkItemStatus> capturedStatuses = workItemStatusCaptor.getAllValues();
     boolean foundErrors = false;
