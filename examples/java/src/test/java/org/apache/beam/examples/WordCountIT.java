@@ -18,7 +18,6 @@
 package org.apache.beam.examples;
 
 import java.util.Date;
-
 import org.apache.beam.examples.java.WordCount;
 import org.apache.beam.examples.java.WordCount.WordCountOptions;
 import org.apache.beam.sdk.io.FileSystems;
