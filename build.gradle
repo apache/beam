@@ -199,6 +199,7 @@ task pythonPostCommit() {
 
 task python3PostCommit() {
   dependsOn ":beam-sdks-python-test-suites-dataflow-py3:postCommitIT"
+  dependsOn ":beam-sdks-python-test-suites-dataflow-py3:validatesRunnerBatchTests"
   dependsOn ":beam-sdks-python-test-suites-direct-py3:postCommitIT"
 }
 

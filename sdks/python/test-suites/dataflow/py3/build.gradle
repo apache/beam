@@ -24,17 +24,38 @@ project.ext.python3 = true
 
 def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 
+// Basic test options for ITs running on Jenkins.
+def basicTestOpts = [
+    "--nocapture",  // print stdout instantly
+    "--processes=4",  // run tests in parallel
+    "--process-timeout=4500", // timeout of whole command execution
+]
+
 task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   doLast {
     def tests = [
         "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
         "apache_beam.examples.cookbook.bigquery_tornadoes_it_test:BigqueryTornadoesIT.test_bigquery_tornadoes_it",
     ]
-    def testOpts = [
-        "--tests=${tests.join(',')}",
-        "--nocapture",    // Print stdout instantly
-    ]
-    def cmdArgs = project.mapToArgString(["test_opts": testOpts])
+    def testOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
+    def cmdArgs = project.mapToArgString([
+        "test_opts": testOpts,
+        "sdk_location": "${project.buildDir}/apache-beam.tar.gz"
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task validatesRunnerBatchTests(dependsOn: ['installGcpTest', 'sdist']) {
+  doLast {
+    def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
+    def cmdArgs = project.mapToArgString([
+        "test_opts": testOpts,
+        "sdk_location": "${project.buildDir}/apache-beam.tar.gz"
+    ])
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
