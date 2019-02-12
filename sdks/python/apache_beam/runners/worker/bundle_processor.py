@@ -148,8 +148,13 @@ class DataInputOperation(RunnerIOOperation):
         # We are "finished" with the (non-existent) previous element.
         current_element_progress = 1
       else:
-        # TODO(SDF): Get actual progress of current element.
-        current_element_progress = 0.5
+        current_element_progress_object = (
+            self.receivers[0].current_element_progress())
+        if current_element_progress_object is None:
+          current_element_progress = 0.5
+        else:
+          current_element_progress = (
+              current_element_progress_object.fraction_completed)
       # Now figure out where to split.
       # The units here (except for keep_of_element_remainder) are all in
       # terms of number of (possibly fractional) elements.
