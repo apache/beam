@@ -59,7 +59,7 @@ public class PTransformFunctionRegistry {
 
   private MetricsContainerStepMap metricsContainerRegistry;
   private ExecutionStateTracker stateTracker;
-  private String executionTimeUrn;
+  private String executionStateName;
   private List<ThrowingRunnable> runnables = new ArrayList<>();
   private SimpleStateRegistry executionStates = new SimpleStateRegistry();
 
@@ -69,14 +69,14 @@ public class PTransformFunctionRegistry {
    * @param metricsContainerRegistry - Used to enable a metric container to properly account for the
    *     pTransform in user metrics.
    * @param stateTracker - The tracker to enter states in order to calculate execution time metrics.
-   * @param executionTimeUrn - The URN to use for the execution time metrics.
+   * @param executionStateName - The state name for the state .
    */
   public PTransformFunctionRegistry(
       MetricsContainerStepMap metricsContainerRegistry,
       ExecutionStateTracker stateTracker,
-      String executionTimeUrn) {
+      String executionStateName) {
     this.metricsContainerRegistry = metricsContainerRegistry;
-    this.executionTimeUrn = executionTimeUrn;
+    this.executionStateName = executionStateName;
     this.stateTracker = stateTracker;
   }
 
@@ -89,7 +89,15 @@ public class PTransformFunctionRegistry {
   public void register(String pTransformId, ThrowingRunnable runnable) {
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
     labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, pTransformId);
-    SimpleExecutionState state = new SimpleExecutionState(this.executionTimeUrn, labelsMetadata);
+    String executionTimeUrn = "";
+    if (executionStateName.equals(ExecutionStateTracker.START_STATE_NAME)) {
+      executionTimeUrn = SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN;
+    } else if (executionStateName.equals(ExecutionStateTracker.FINISH_STATE_NAME)) {
+      executionTimeUrn = SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN;
+    }
+
+    SimpleExecutionState state =
+        new SimpleExecutionState(this.executionStateName, executionTimeUrn, labelsMetadata);
     executionStates.register(state);
 
     ThrowingRunnable wrapped =

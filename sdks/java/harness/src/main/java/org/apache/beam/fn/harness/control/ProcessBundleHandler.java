@@ -56,7 +56,6 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -235,14 +234,10 @@ public class ProcessBundleHandler {
 
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
-            metricsContainerRegistry,
-            stateTracker,
-            SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
+            metricsContainerRegistry, stateTracker, ExecutionStateTracker.START_STATE_NAME);
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
-            metricsContainerRegistry,
-            stateTracker,
-            SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN);
+            metricsContainerRegistry, stateTracker, ExecutionStateTracker.FINISH_STATE_NAME);
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
