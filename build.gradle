@@ -197,6 +197,11 @@ task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
 }
 
+task python3PostCommit() {
+  dependsOn ":beam-sdks-python-test-suites-dataflow-py3:postCommitIT"
+  dependsOn ":beam-sdks-python-test-suites-direct-py3:postCommitIT"
+}
+
 task portablePythonPreCommit() {
   dependsOn ":beam-sdks-python:portablePreCommit"
 }
