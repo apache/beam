@@ -1554,7 +1554,7 @@ public class StreamingDataflowWorker {
     } else {
       workItem = workUnitClient.getGlobalStreamingConfigWorkItem();
     }
-    if (!workItem.isPresent() || workItem.get() == null) {
+    if (workItem == null || !workItem.isPresent() || workItem.get() == null) {
       return;
     }
     setMaxWorkItemCommitBytes(180 << 20);
