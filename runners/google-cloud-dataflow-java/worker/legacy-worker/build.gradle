@@ -209,6 +209,7 @@ dependencies {
     shadowTest library.java.guava_testlib
     shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
     shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+    shadowTest project(path: ":beam-sdks-java-harness", configuration: "shadowTest")
     shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
     shadowTest library.java.hamcrest_core
     shadowTest library.java.hamcrest_library
