@@ -112,9 +112,6 @@ public class SimpleExecutionState extends ExecutionState {
 
   @Override
   public void reportLull(Thread trackedThread, long millis) {
-    if (!LOG.isWarnEnabled()) {
-      return;
-    }
     LOG.warn(getLullMessage(trackedThread, Duration.millis(millis)));
   }
 
