@@ -138,28 +138,39 @@ class DataInputOperation(RunnerIOOperation):
           input_stream, True)
       self.output(decoded_value)
 
-  def try_split(self, fraction_of_remainder, total_buffer_size=None):
+  def try_split(self, fraction_of_remainder, total_buffer_size):
     with self.splitting_lock:
-      # If total_buffer_size is not provided, pick something.
-      if not total_buffer_size:
-        total_buffer_size = self.index + 2
+      if total_buffer_size < self.index + 1:
+        total_buffer_size = self.index + 1
       elif self.stop and total_buffer_size > self.stop:
         total_buffer_size = self.stop
-      # Compute, as a fraction, how much further to go.
-      # TODO(SDF): Take into account progress of current element.
-      stop_offset = (total_buffer_size - self.index) * fraction_of_remainder
-      # If it's less than a whole element, try splitting the current element.
-      if int(stop_offset) == 0:
-        split = self.receivers[0].try_split(stop_offset)
-        if split:
-          element_primary, element_residual = split
-          self.stop = self.index + 1
-          return self.stop - 2, element_primary, element_residual, self.stop
-
+      if self.index == -1:
+        # We are "finished" with the (non-existent) previous element.
+        current_element_progress = 1
+      else:
+        # TODO(SDF): Get actual progress of current element.
+        current_element_progress = 0.5
+      # Now figure out where to split.
+      # The units here (except for keep_of_element_remainder) are all in
+      # terms of number of (possibly fractional) elements.
+      remainder = total_buffer_size - self.index - current_element_progress
+      keep = remainder * fraction_of_remainder
+      if current_element_progress < 1:
+        keep_of_element_remainder = keep / (1 - current_element_progress)
+        # If it's less than what's left of the current element,
+        # try splitting at the current element.
+        if keep_of_element_remainder < 1:
+          split = self.receivers[0].try_split(keep_of_element_remainder)
+          if split:
+            element_primary, element_residual = split
+            self.stop = self.index + 1
+            return self.index - 1, element_primary, element_residual, self.stop
       # Otherwise, split at the closest element boundary.
-      desired_stop = max(int(stop_offset), 1) + self.index
-      if desired_stop < self.stop:
-        self.stop = desired_stop
+      # pylint: disable=round-builtin
+      stop_index = (
+          self.index + max(1, int(round(current_element_progress + keep))))
+      if stop_index < self.stop:
+        self.stop = stop_index
         return self.stop - 1, None, None, self.stop
 
 
