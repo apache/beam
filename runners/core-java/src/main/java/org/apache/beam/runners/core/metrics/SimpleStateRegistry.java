@@ -37,7 +37,7 @@ public class SimpleStateRegistry {
     List<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
     for (SimpleExecutionState state : executionStates) {
       SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-      builder.setUrn(state.getStateName());
+      builder.setUrn(state.getUrn());
       for (Map.Entry<String, String> entry : state.getLabels().entrySet()) {
         builder.setLabel(entry.getKey(), entry.getValue());
       }
