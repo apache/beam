@@ -1519,7 +1519,6 @@ public class StreamingDataflowWorker {
     Windmill.GetConfigResponse response = windmillServer.getConfig(request);
     // The max work item commit bytes should be modified to be dynamic once it is available in
     // the request.
-    setMaxWorkItemCommitBytes(180 << 20);
     for (Windmill.GetConfigResponse.SystemNameToComputationIdMapEntry entry :
         response.getSystemNameToComputationIdMapList()) {
       systemNameToComputationIdMap.put(entry.getSystemName(), entry.getComputationId());
@@ -1558,6 +1557,7 @@ public class StreamingDataflowWorker {
     if (!workItem.isPresent() || workItem.get() == null) {
       return;
     }
+    setMaxWorkItemCommitBytes(180 << 20);
     StreamingConfigTask config = workItem.get().getStreamingConfigTask();
     Preconditions.checkState(config != null);
     if (config.getUserStepToStateFamilyNameMap() != null) {
