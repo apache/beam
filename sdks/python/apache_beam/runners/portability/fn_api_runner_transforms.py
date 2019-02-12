@@ -287,9 +287,9 @@ class TransformContext(object):
     self.components = components
     self.known_runner_urns = known_runner_urns
     self.use_state_iterables = use_state_iterables
-    self.safe_coders = {}
     self.bytes_coder_id = self.add_or_get_coder_id(
         coders.BytesCoder().to_runner_api(None), 'bytes_coder')
+    self.safe_coders = {self.bytes_coder_id: self.bytes_coder_id}
 
   def add_or_get_coder_id(self, coder_proto, coder_prefix='coder'):
     for coder_id, coder in self.components.coders.items():
