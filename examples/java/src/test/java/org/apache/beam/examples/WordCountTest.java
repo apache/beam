@@ -19,6 +19,7 @@ package org.apache.beam.examples;
 
 import java.util.Arrays;
 import java.util.List;
+
 import org.apache.beam.examples.java.WordCount.CountWords;
 import org.apache.beam.examples.java.WordCount.ExtractWordsFn;
 import org.apache.beam.examples.java.WordCount.FormatAsTextFn;
