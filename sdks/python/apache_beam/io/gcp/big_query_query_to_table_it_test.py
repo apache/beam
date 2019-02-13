@@ -152,6 +152,9 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
+  # TODO(BEAM-6660): Enable this test when ready.
+  @unittest.skip('This test requires BQ Dataflow native source support for ' +
+                 'KMS, which is not available yet.')
   @attr('IT')
   def test_big_query_standard_sql_kms_key(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
@@ -170,11 +173,9 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
-    _ = self.bigquery_client.get_table(
+    table = self.bigquery_client.get_table(
         self.project, self.dataset_id, 'output_table')
-    # TODO(udim): this check doesn't pass yet since BQ Dataflow native source
-    #  support for KMS isn't available yet.
-    #self.assertEqual(KMS_KEY, table.encryptionConfiguration.kmsKeyName)
+    self.assertEqual(KMS_KEY, table.encryptionConfiguration.kmsKeyName)
 
   @attr('IT')
   def test_big_query_new_types(self):
