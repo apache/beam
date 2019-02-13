@@ -60,11 +60,11 @@ public class StreamingWriteTables<ElementT>
     this(
         new BigQueryServicesImpl(),
         InsertRetryPolicy.alwaysRetry(),
-        false,
-        false,
-        false,
-        null,
-        null);
+        false, // extendedErrorInfo
+        false, // skipInvalidRows
+        false, // ignoreUnknownValues
+        null, // elementCoder
+        null); // toTableRow
   }
 
   private StreamingWriteTables(

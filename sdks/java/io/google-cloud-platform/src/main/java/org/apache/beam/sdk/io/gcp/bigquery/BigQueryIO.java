@@ -1562,7 +1562,7 @@ public class BigQueryIO {
 
     /**
      * If true, enables new codepaths that are expected to use less resources while writing to
-     * BigQuery.
+     * BigQuery. Not enabled by default in order to maintain backwards compatibility.
      */
     @Experimental
     public Write<T> withOptimizedWrites() {

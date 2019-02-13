@@ -515,11 +515,10 @@ class BatchLoads<DestinationT, ElementT>
                           @Element KV<DestinationT, ElementT> element,
                           OutputReceiver<KV<ShardedKey<DestinationT>, ElementT>> o) {
                         DestinationT destination = element.getKey();
-                        ElementT tableRow = element.getValue();
                         o.output(
                             KV.of(
                                 ShardedKey.of(destination, ++shardNumber % numFileShards),
-                                tableRow));
+                                element.getValue()));
                       }
                     }))
             .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), elementCoder));

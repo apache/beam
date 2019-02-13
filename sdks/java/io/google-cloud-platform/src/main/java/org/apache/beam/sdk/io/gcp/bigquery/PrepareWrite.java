@@ -73,13 +73,13 @@ public class PrepareWrite<InputT, DestinationT, OutputT>
                             + "but %s returned null on element %s",
                         dynamicDestinations,
                         element);
-                    OutputT tableRow = formatFunction.apply(element);
+                    OutputT outputValue = formatFunction.apply(element);
                     checkArgument(
-                        tableRow != null,
+                        outputValue != null,
                         "formatFunction may not return null, but %s returned null on element %s",
                         formatFunction,
                         element);
-                    context.output(KV.of(tableDestination, tableRow));
+                    context.output(KV.of(tableDestination, outputValue));
                   }
                 })
             .withSideInputs(dynamicDestinations.getSideInputs()));
