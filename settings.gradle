@@ -61,10 +61,6 @@ project(":beam-runners-flink-1.7-job-server").dir = file("runners/flink/1.7/job-
 include "beam-runners-flink-1.7-job-server-container"
 project(":beam-runners-flink-1.7-job-server-container").dir = file("runners/flink/1.7/job-server-container")
 /* End Flink Runner related settings */
-include "beam-runners-gcp-gcemd"
-project(":beam-runners-gcp-gcemd").dir = file("runners/gcp/gcemd")
-include "beam-runners-gcp-gcsproxy"
-project(":beam-runners-gcp-gcsproxy").dir = file("runners/gcp/gcsproxy")
 include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
