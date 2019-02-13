@@ -52,6 +52,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -132,22 +133,32 @@ public final class TransformTranslator {
         final WindowedValue.WindowedValueCoder<V> wvCoder =
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
-        // --- group by key only.
-        JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey =
-            GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, getPartitioner(context));
+        JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKey;
+        if (windowingStrategy.getWindowFn().isNonMerging()
+            && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW) {
+          // we can have a memory sensitive translation for non-merging windows
+          groupedByKey =
+              GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
+                  inRDD, keyCoder, coder.getValueCoder(), windowingStrategy);
+        } else {
 
-        // --- now group also by window.
-        // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
-        JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedAlsoByWindow =
-            groupedByKey.flatMap(
-                new SparkGroupAlsoByWindowViaOutputBufferFn<>(
-                    windowingStrategy,
-                    new TranslationUtils.InMemoryStateInternalsFactory<>(),
-                    SystemReduceFn.buffering(coder.getValueCoder()),
-                    context.getSerializableOptions(),
-                    accum));
+          // --- group by key only.
+          Partitioner partitioner = getPartitioner(context);
+          JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyOnly =
+              GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
 
-        context.putDataset(transform, new BoundedDataset<>(groupedAlsoByWindow));
+          // --- now group also by window.
+          // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
+          groupedByKey =
+              groupedByKeyOnly.flatMap(
+                  new SparkGroupAlsoByWindowViaOutputBufferFn<>(
+                      windowingStrategy,
+                      new TranslationUtils.InMemoryStateInternalsFactory<>(),
+                      SystemReduceFn.buffering(coder.getValueCoder()),
+                      context.getSerializableOptions(),
+                      accum));
+        }
+        context.putDataset(transform, new BoundedDataset<>(groupedByKey));
       }
 
       @Override
