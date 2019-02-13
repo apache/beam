@@ -615,9 +615,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     @Override
     public void finishBundle() {
-      if (remoteBundle == null) {
-        return;
-      }
       try {
         // TODO: it would be nice to emit results as they arrive, can thread wait non-blocking?
         // close blocks until all results are received

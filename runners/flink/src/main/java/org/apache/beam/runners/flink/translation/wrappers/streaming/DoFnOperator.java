@@ -30,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -163,8 +164,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private final TimerInternals.TimerDataCoder timerCoder;
 
+  /** Max number of elements to include in a bundle. */
   private final long maxBundleSize;
-
+  /** Max duration of a bundle. */
   private final long maxBundleTimeMills;
 
   protected transient InternalTimerService<TimerData> timerService;
@@ -177,11 +179,14 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
 
-  // bundle control
-  private transient boolean bundleStarted = false;
+  /** Use an AtomicBoolean because we start/stop bundles by a timer thread (see below). */
+  private transient AtomicBoolean bundleStarted;
+  /** Number of processed elements in the current bundle. */
   private transient long elementCount;
-  private transient long lastFinishBundleTime;
+  /** A timer that finishes the current bundle after a fixed amount of time. */
   private transient ScheduledFuture<?> checkFinishBundleTimer;
+  /** Time that the last bundle was finished (to set the timer). */
+  private transient long lastFinishBundleTime;
 
   public DoFnOperator(
       DoFn<InputT, OutputT> doFn,
@@ -367,6 +372,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
     }
 
+    bundleStarted = new AtomicBoolean(false);
     elementCount = 0L;
     lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
 
@@ -389,21 +395,20 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   @Override
   public void dispose() throws Exception {
     try {
-      super.dispose();
       checkFinishBundleTimer.cancel(true);
-    } finally {
       FlinkClassloading.deleteStaticCaches();
-      if (bundleStarted) {
-        invokeFinishBundle();
-      }
       doFnInvoker.invokeTeardown();
+    } finally {
+      // This releases all task's resources. We need to call this last
+      // to ensure that state, timers, or output buffers can still be
+      // accessed during finishing the bundle.
+      super.dispose();
     }
   }
 
   @Override
   public void close() throws Exception {
     try {
-
       // This is our last change to block shutdown of this operator while
       // there are still remaining processing-time timers. Flink will ignore pending
       // processing-time timers when upstream operators have shut down and will also
@@ -419,6 +424,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       // make sure we send a +Inf watermark downstream. It can happen that we receive +Inf
       // in processWatermark*() but have holds, so we have to re-evaluate here.
       processWatermark(new Watermark(Long.MAX_VALUE));
+      invokeFinishBundle();
       if (currentOutputWatermark < Long.MAX_VALUE) {
         if (keyedStateInternals == null) {
           throw new RuntimeException("Current watermark is still " + currentOutputWatermark + ".");
@@ -651,10 +657,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
    * processWatermark.
    */
   private void checkInvokeStartBundle() {
-    if (!bundleStarted) {
+    if (bundleStarted.compareAndSet(false, true)) {
       outputManager.flushBuffer();
       pushbackDoFnRunner.startBundle();
-      bundleStarted = true;
     }
   }
 
@@ -674,10 +679,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
   }
 
-  protected void invokeFinishBundle() {
-    if (bundleStarted) {
+  protected final void invokeFinishBundle() {
+    if (bundleStarted.compareAndSet(true, false)) {
       pushbackDoFnRunner.finishBundle();
-      bundleStarted = false;
       elementCount = 0L;
       lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
     }

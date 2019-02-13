@@ -330,7 +330,14 @@ public class ExecutableStageDoFnOperatorTest {
     verify(stageContext).close();
     // DoFnOperator generates a final watermark, which triggers a new bundle..
     verify(stageBundleFactory).getBundle(any(), any(), any());
+    verify(bundle).getInputReceivers();
+    verify(bundle).close();
     verifyNoMoreInteractions(stageBundleFactory);
+
+    // close() will also call dispose(), but call again to verify no new bundle
+    // is created afterwards
+    operator.dispose();
+    verifyNoMoreInteractions(bundle);
   }
 
   @Test
