@@ -248,10 +248,16 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
-        (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-         '/python-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
+    if sys.version_info[0] == 3:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python3-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
+    else:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
 
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
@@ -281,10 +287,16 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
-        (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-         '/python-fnapi:2.2.0'))
+    if sys.version_info[0] == 3:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python3-fnapi:2.2.0'))
+    else:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python-fnapi:2.2.0'))
 
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
@@ -391,10 +403,10 @@ class UtilTest(unittest.TestCase):
          '--temp_location', 'gs://test-location/temp',
          '--experiments', 'beam_fn_api',
          '--experiments', 'use_multiple_sdk_containers'])
+    mock_sys.version_info = [2, 333]
     environment = apiclient.Environment(
         [], pipeline_options, 1, FAKE_PIPELINE_URL)
-    mock_sys.version_info = [22, 333]
-    self.assertEqual('Apache Beam Python 22.333 SDK',
+    self.assertEqual('Apache Beam Python 2.333 SDK',
                      environment._get_python_sdk_name())
 
 
