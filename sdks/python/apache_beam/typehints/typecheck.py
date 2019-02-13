@@ -213,7 +213,7 @@ class TypeCheckCombineFn(core.CombineFn):
   def merge_accumulators(self, accumulators, *args, **kwargs):
     return self._combinefn.merge_accumulators(accumulators, *args, **kwargs)
 
-  def compact(self, accumulaor, *args, **kwargs):
+  def compact(self, accumulator, *args, **kwargs):
     return self._combinefn.compact(accumulator, *args, **kwargs)
 
   def extract_output(self, accumulator, *args, **kwargs):
