@@ -603,7 +603,8 @@ class DataflowRunner(PipelineRunner):
               transform.table_reference.projectId,
               transform.schema,
               transform.create_disposition,
-              transform.write_disposition))
+              transform.write_disposition,
+              kms_key=transform.kms_key))
 
   def apply_GroupByKey(self, transform, pcoll, options):
     # Infer coder of parent.
@@ -905,6 +906,9 @@ class DataflowRunner(PipelineRunner):
       else:
         raise ValueError('BigQuery source %r must specify either a table or'
                          ' a query' % transform.source)
+      if transform.source.kms_key is not None:
+        step.add_property(
+            PropertyNames.BIGQUERY_KMS_KEY, transform.source.kms_key)
     elif transform.source.format == 'pubsub':
       if not standard_options.streaming:
         raise ValueError('Cloud Pub/Sub is currently available for use '
@@ -1003,6 +1007,9 @@ class DataflowRunner(PipelineRunner):
       if transform.sink.table_schema is not None:
         step.add_property(
             PropertyNames.BIGQUERY_SCHEMA, transform.sink.schema_as_json())
+      if transform.sink.kms_key is not None:
+        step.add_property(
+            PropertyNames.BIGQUERY_KMS_KEY, transform.sink.kms_key)
     elif transform.sink.format == 'pubsub':
       standard_options = options.view_as(StandardOptions)
       if not standard_options.streaming:

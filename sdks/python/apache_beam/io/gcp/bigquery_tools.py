@@ -328,11 +328,21 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def _get_table(self, project_id, dataset_id, table_id):
+  def get_table(self, project_id, dataset_id, table_id):
+    """Lookup a table's metadata object.
+
+    Args:
+      client: bigquery.BigqueryV2 instance
+      project_id, dataset_id, table_id: table lookup parameters
+
+    Returns:
+      bigquery.Table instance
+    Raises:
+      HttpError if lookup failed.
+    """
     request = bigquery.BigqueryTablesGetRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)
     response = self.client.tables.Get(request)
-    # The response is a bigquery.Table instance.
     return response
 
   def _create_table(self, project_id, dataset_id, table_id, schema):
@@ -419,7 +429,7 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_table_location(self, project_id, dataset_id, table_id):
-    table = self._get_table(project_id, dataset_id, table_id)
+    table = self.get_table(project_id, dataset_id, table_id)
     return table.location
 
   @retry.with_exponential_backoff(
@@ -495,7 +505,7 @@ class BigQueryWrapper(object):
 
     found_table = None
     try:
-      found_table = self._get_table(project_id, dataset_id, table_id)
+      found_table = self.get_table(project_id, dataset_id, table_id)
     except HttpError as exn:
       if exn.status_code == 404:
         if create_disposition == BigQueryDisposition.CREATE_NEVER:
@@ -696,7 +706,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
   """A reader for a BigQuery source."""
 
   def __init__(self, source, test_bigquery_client=None, use_legacy_sql=True,
-               flatten_results=True):
+               flatten_results=True, kms_key=None):
     self.source = source
     self.test_bigquery_client = test_bigquery_client
     if auth.is_running_in_gce:
@@ -720,6 +730,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.schema = None
     self.use_legacy_sql = use_legacy_sql
     self.flatten_results = flatten_results
+    self.kms_key = kms_key
 
     if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
