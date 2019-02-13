@@ -169,7 +169,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
         Iterable<T> result = flinkStateBackend.getListState(descriptor).get();
         return result != null ? result : Collections.emptyList();
       } catch (Exception e) {
-        throw new RuntimeException("Error updating state.", e);
+        throw new RuntimeException("Error reading state.", e);
       }
     }
 
@@ -200,7 +200,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
       try {
         flinkStateBackend.getListState(descriptor).clear();
       } catch (Exception e) {
-        throw new RuntimeException("Error reading state.", e);
+        throw new RuntimeException("Error clearing state.", e);
       }
     }
 
