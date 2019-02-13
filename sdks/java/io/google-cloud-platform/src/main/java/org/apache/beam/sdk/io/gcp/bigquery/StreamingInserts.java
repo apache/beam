@@ -170,7 +170,7 @@ public class StreamingInserts<DestinationT, ElementT>
         elementCoder,
         toTableRow,
         kmsKey);
- }
+  }
 
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, ElementT>> input) {
