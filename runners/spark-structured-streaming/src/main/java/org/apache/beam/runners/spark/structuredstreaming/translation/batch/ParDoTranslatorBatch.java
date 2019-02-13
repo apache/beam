@@ -152,7 +152,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
       Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs,
       Map.Entry<TupleTag<?>, PValue> output) {
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> filteredDataset =
-        allOutputs.filter(new SparkDoFnFilterFunction(output.getKey()));
+        allOutputs.filter(new DoFnFilterFunction(output.getKey()));
     Dataset<WindowedValue<?>> outputDataset =
         filteredDataset.map(
             (MapFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, WindowedValue<?>>)
@@ -161,12 +161,12 @@ class ParDoTranslatorBatch<InputT, OutputT>
     context.putDatasetWildcard(output.getValue(), outputDataset);
   }
 
-  static class SparkDoFnFilterFunction
+  static class DoFnFilterFunction
       implements FilterFunction<Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
     private final TupleTag<?> key;
 
-    public SparkDoFnFilterFunction(TupleTag<?> key) {
+    public DoFnFilterFunction(TupleTag<?> key) {
       this.key = key;
     }
 
