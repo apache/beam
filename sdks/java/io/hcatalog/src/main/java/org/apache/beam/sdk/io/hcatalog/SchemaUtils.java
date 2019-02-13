@@ -61,6 +61,6 @@ class SchemaUtils {
     }
 
     FieldType fieldType = PRIMITIVE_SERDE_TYPES_MAP.get(field.getType());
-    return Schema.Field.of(name, fieldType);
+    return Schema.Field.of(name, fieldType).withNullable(true);
   }
 }
