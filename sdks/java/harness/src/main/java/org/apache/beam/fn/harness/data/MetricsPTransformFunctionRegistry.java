@@ -57,17 +57,17 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
  */
 public class MetricsPTransformFunctionRegistry extends PTransformFunctionRegistry {
 
-  private String executionTimeUrn;
+  private String executionStateName;
   private SimpleStateRegistry executionStates = new SimpleStateRegistry();
 
   /**
    * Construct the registry to run for either start or finish bundle functions.
    *
-   * @param executionTimeUrn - The URN to use for the execution time metrics.
+   * @param executionStateName - The state name for the state.
    */
-  public MetricsPTransformFunctionRegistry(String executionTimeUrn) {
+  public MetricsPTransformFunctionRegistry(String executionStateName) {
     super();
-    this.executionTimeUrn = executionTimeUrn;
+    this.executionStateName = executionStateName;
   }
 
   /**
@@ -80,7 +80,15 @@ public class MetricsPTransformFunctionRegistry extends PTransformFunctionRegistr
   public void register(String pTransformId, ThrowingRunnable runnable) {
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
     labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, pTransformId);
-    SimpleExecutionState state = new SimpleExecutionState(this.executionTimeUrn, labelsMetadata);
+    String executionTimeUrn = "";
+    if (executionStateName.equals(ExecutionStateTracker.START_STATE_NAME)) {
+      executionTimeUrn = SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN;
+    } else if (executionStateName.equals(ExecutionStateTracker.FINISH_STATE_NAME)) {
+      executionTimeUrn = SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN;
+    }
+
+    SimpleExecutionState state =
+        new SimpleExecutionState(this.executionStateName, executionTimeUrn, labelsMetadata);
     executionStates.register(state);
 
     ThrowingRunnable wrapped =
