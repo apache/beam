@@ -24,7 +24,7 @@ project.ext.python3 = true
 
 def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 
-task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
+task postCommitIT(dependsOn: 'installGcpTest') {
   // Run IT tests with TestDirectRunner in batch in Python 3.
   doLast {
     def batchTests = [
