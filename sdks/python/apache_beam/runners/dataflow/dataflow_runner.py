@@ -381,6 +381,11 @@ class DataflowRunner(PipelineRunner):
           and/or enable_streaming_engine are present. It is recommended you
           only set enableStreamingEngine.""")
 
+    # TODO(BEAM-6664): Remove once Dataflow supports --dataflow_kms_key.
+    if google_cloud_options.dataflow_kms_key is not None:
+      debug_options.add_experiment('service_default_cmek_config=' +
+                                   google_cloud_options.dataflow_kms_key)
+
     self.job = apiclient.Job(options, self.proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that

@@ -321,7 +321,7 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
     ])
 
     include '**/*KmsKeyIT.class'
-    exclude '**/BigQueryKmsKeyIT.java'  // Only needs to run on direct runner.
+    exclude '**/BigQueryKmsKeyIT.class'  // Only needs to run on direct runner.
     maxParallelForks 4
     classpath = configurations.googleCloudPlatformIntegrationTest
     testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
