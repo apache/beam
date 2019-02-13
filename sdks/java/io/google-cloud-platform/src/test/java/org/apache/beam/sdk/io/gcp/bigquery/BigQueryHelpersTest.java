@@ -134,14 +134,16 @@ public class BigQueryHelpersTest {
 
   @Test
   public void testTableRowInfoCoderSerializable() {
-    CoderProperties.coderSerializable(TableRowInfoCoder.of());
+    CoderProperties.coderSerializable(TableRowInfoCoder.of(TableRowJsonCoder.of()));
   }
 
   @Test
   public void testComplexCoderSerializable() {
     CoderProperties.coderSerializable(
         WindowedValue.getFullCoder(
-            KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()),
+            KvCoder.of(
+                ShardedKeyCoder.of(StringUtf8Coder.of()),
+                TableRowInfoCoder.of(TableRowJsonCoder.of())),
             IntervalWindow.getCoder()));
   }
 
