@@ -292,6 +292,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
+        kms_key=None,
         test_client=client)
 
     fn.start_bundle()
@@ -299,11 +300,12 @@ class WriteToBigQuery(unittest.TestCase):
 
   def test_dofn_client_start_bundle_create_called(self):
     client = mock.Mock()
-    client.tables.Get.return_value = None
+    client.tables.Get.side_effect = HttpError(
+        response={'status': 404}, content=None, url=None)
     client.tables.Insert.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
             projectId='project_id', datasetId='dataset_id', tableId='table_id'))
-    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
     schema = {'fields': [
         {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
@@ -316,6 +318,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
+        kms_key='kms_key',
         test_client=client)
 
     fn.start_bundle()
@@ -342,6 +345,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
+        kms_key=None,
         test_client=client)
 
     fn.start_bundle()
@@ -371,6 +375,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
+        kms_key=None,
         test_client=client)
 
     fn.start_bundle()
@@ -400,6 +405,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
+        kms_key=None,
         test_client=client)
 
     fn.start_bundle()
@@ -433,6 +439,7 @@ class WriteToBigQuery(unittest.TestCase):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
+        kms_key=None,
         test_client=client)
 
     fn.start_bundle()
