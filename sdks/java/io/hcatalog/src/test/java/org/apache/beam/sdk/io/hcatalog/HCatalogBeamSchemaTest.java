@@ -79,8 +79,8 @@ public class HCatalogBeamSchemaTest implements Serializable {
 
     Schema expectedSchema =
         Schema.builder()
-            .addField("mycol1", Schema.FieldType.STRING)
-            .addField("mycol2", Schema.FieldType.INT32)
+            .addNullableField("mycol1", Schema.FieldType.STRING)
+            .addNullableField("mycol2", Schema.FieldType.INT32)
             .build();
 
     assertEquals(expectedSchema, schema);
