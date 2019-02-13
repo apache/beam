@@ -71,9 +71,7 @@ NUM_WORKERS=1
 SLEEP_SECS=20
 STREAMING=false
 WORKER_JAR=""
-# Specify "/cryptoKeyVersions/1" suffix for testing simplicity. For this to work
-# in the long term, this key has rotation disabled.
-KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test/cryptoKeyVersions/1"
+KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 
 # Default test (nose) options.
 # Default test sets are full integration tests.
@@ -202,7 +200,10 @@ if [[ -z $PIPELINE_OPTS ]]; then
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then
-    opts+=("--kms_key_name=$KMS_KEY_NAME")
+    opts+=(
+      "--kms_key_name=$KMS_KEY_NAME"
+      "--dataflow_kms_key=$KMS_KEY_NAME"
+    )
   fi
 
   PIPELINE_OPTS=$(IFS=" " ; echo "${opts[*]}")

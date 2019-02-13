@@ -590,6 +590,12 @@ class DebugOptions(PipelineOptions):
          'enabled with this flag. Please sync with the owners of the runner '
          'before enabling any experiments.'))
 
+  def add_experiment(self, experiment):
+    if self.experiments is None:
+      self.experiments = []
+    if experiment not in self.experiments:
+      self.experiments.append(experiment)
+
   def lookup_experiment(self, key, default=None):
     if not self.experiments:
       return default
