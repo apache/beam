@@ -1194,7 +1194,7 @@ player_accuracies = ...
 #### 4.2.5. Flatten {#flatten}
 
 <span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
-<span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span> and
+<span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
 is a Beam transform for `PCollection` objects that store the same data type.
 `Flatten` merges multiple `PCollection` objects into a single logical
 `PCollection`.
@@ -1524,7 +1524,7 @@ together.
 #### 4.5.2. Emitting to multiple outputs in your DoFn {#multiple-outputs-dofn}
 
 ```java
-// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by providing a 
+// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by providing a
 // MultiOutputReceiver to your process method, and passing in the appropriate TupleTag to obtain an OutputReceiver.
 // After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.
 // Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
@@ -1616,7 +1616,7 @@ The `PipelineOptions` for the current pipeline can always be accessed in a proce
 `@OnTimer` methods can also access many of these parameters. Timestamp, window, `PipelineOptions`, `OutputReceiver`, and
 `MultiOutputReceiver` parameters can all be accessed in an `@OnTimer` method. In addition, an `@OnTimer` method can take
 a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time.
-Timers are explained in more detail in the 
+Timers are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html) blog post.
 
 ### 4.6. Composite transforms {#composite-transforms}
