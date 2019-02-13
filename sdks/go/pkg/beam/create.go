@@ -19,12 +19,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
-
-// TODO(herohde) 7/11/2017: add variants that use coder encoding.
 
 // Create inserts a fixed set of values into the pipeline. The values must
 // be of the same type 'A' and the returned PCollection is of type A.
@@ -58,15 +53,15 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 	}
 
 	t := reflect.ValueOf(values[0]).Type()
-	coder := NewCoder(typex.New(t))
-	fn := &createFn{Coder: EncodedCoder{Coder: coder}}
-	en := exec.MakeElementEncoder(UnwrapCoder(coder))
+	fn := &createFn{Type: EncodedType{T: t}}
+	enc := NewElementEncoder(t)
+
 	for i, value := range values {
 		if other := reflect.ValueOf(value).Type(); other != t {
 			return PCollection{}, fmt.Errorf("value %v at index %v has type %v, want %v", value, i, other, t)
 		}
 		var buf bytes.Buffer
-		if err := en.Encode(exec.FullValue{Elm: value}, &buf); err != nil {
+		if err := enc.Encode(value, &buf); err != nil {
 			return PCollection{}, fmt.Errorf("marshalling of %v failed: %v", value, err)
 		}
 		fn.Values = append(fn.Values, buf.Bytes())
@@ -84,18 +79,18 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 // TODO(herohde) 6/26/2017: make 'create' a SDF once supported. See BEAM-2421.
 
 type createFn struct {
-	Values [][]byte     `json:"values"`
-	Coder  EncodedCoder `json:"coder"`
+	Values [][]byte    `json:"values"`
+	Type   EncodedType `json:"type"`
 }
 
 func (c *createFn) ProcessElement(_ []byte, emit func(T)) error {
-	dec := exec.MakeElementDecoder(UnwrapCoder(c.Coder.Coder))
+	dec := NewElementDecoder(c.Type.T)
 	for _, val := range c.Values {
-		fv, err := dec.Decode(bytes.NewBuffer(val))
+		element, err := dec.Decode(bytes.NewBuffer(val))
 		if err != nil {
 			return err
 		}
-		emit(fv.Elm)
+		emit(element)
 	}
 	return nil
 }

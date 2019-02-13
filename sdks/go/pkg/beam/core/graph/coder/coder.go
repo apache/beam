@@ -19,6 +19,7 @@ package coder
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 
@@ -91,6 +92,16 @@ var (
 		Return:    []reflect.Type{typex.TType}, // T to be substituted
 		OptReturn: []reflect.Type{reflectx.Error}}
 )
+
+// ElementEncoder encapsulates being able to encode an element into a writer.
+type ElementEncoder interface {
+	Encode(element interface{}, w io.Writer) error
+}
+
+// ElementDecoder encapsulates being able to decode an element from a reader.
+type ElementDecoder interface {
+	Decode(r io.Reader) (interface{}, error)
+}
 
 func validateEncoder(t reflect.Type, encode interface{}) error {
 	// Check if it uses the real type in question.
