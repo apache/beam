@@ -26,53 +26,60 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.joda.time.Instant;
 
 /**
  * Prepare an input {@link PCollection} for writing to BigQuery. Use the table function to determine
  * which tables each element is written to, and format the element into a {@link TableRow} using the
  * user-supplied format function.
  */
-public class PrepareWrite<T, DestinationT>
-    extends PTransform<PCollection<T>, PCollection<KV<DestinationT, TableRow>>> {
-  private DynamicDestinations<T, DestinationT> dynamicDestinations;
-  private SerializableFunction<T, TableRow> formatFunction;
+public class PrepareWrite<InputT, DestinationT, OutputT>
+    extends PTransform<PCollection<InputT>, PCollection<KV<DestinationT, OutputT>>> {
+  private DynamicDestinations<InputT, DestinationT> dynamicDestinations;
+  private SerializableFunction<InputT, OutputT> formatFunction;
 
   public PrepareWrite(
-      DynamicDestinations<T, DestinationT> dynamicDestinations,
-      SerializableFunction<T, TableRow> formatFunction) {
+      DynamicDestinations<InputT, DestinationT> dynamicDestinations,
+      SerializableFunction<InputT, OutputT> formatFunction) {
     this.dynamicDestinations = dynamicDestinations;
     this.formatFunction = formatFunction;
   }
 
   @Override
-  public PCollection<KV<DestinationT, TableRow>> expand(PCollection<T> input) {
+  public PCollection<KV<DestinationT, OutputT>> expand(PCollection<InputT> input) {
     return input.apply(
         ParDo.of(
-                new DoFn<T, KV<DestinationT, TableRow>>() {
+                new DoFn<InputT, KV<DestinationT, OutputT>>() {
                   @ProcessElement
-                  public void processElement(ProcessContext context, BoundedWindow window)
+                  public void processElement(
+                      ProcessContext context,
+                      @Element InputT element,
+                      @Timestamp Instant timestamp,
+                      BoundedWindow window,
+                      PaneInfo pane)
                       throws IOException {
                     dynamicDestinations.setSideInputAccessorFromProcessContext(context);
-                    ValueInSingleWindow<T> element =
-                        ValueInSingleWindow.of(
-                            context.element(), context.timestamp(), window, context.pane());
-                    DestinationT tableDestination = dynamicDestinations.getDestination(element);
+                    ValueInSingleWindow<InputT> windowedElement =
+                        ValueInSingleWindow.of(element, timestamp, window, pane);
+                    DestinationT tableDestination =
+                        dynamicDestinations.getDestination(windowedElement);
                     checkArgument(
                         tableDestination != null,
                         "DynamicDestinations.getDestination() may not return null, "
                             + "but %s returned null on element %s",
                         dynamicDestinations,
                         element);
-                    TableRow tableRow = formatFunction.apply(context.element());
+                    OutputT outputValue = formatFunction.apply(element);
                     checkArgument(
-                        tableRow != null,
+                        outputValue != null,
                         "formatFunction may not return null, but %s returned null on element %s",
                         formatFunction,
-                        context.element());
-                    context.output(KV.of(tableDestination, tableRow));
+                        element);
+                    context.output(KV.of(tableDestination, outputValue));
                   }
                 })
             .withSideInputs(dynamicDestinations.getSideInputs()));
