@@ -44,6 +44,10 @@ class DatabaseProvider implements TableProvider {
     this.config = config;
   }
 
+  String getDb() {
+    return db;
+  }
+
   @Override
   public String getTableType() {
     return "hcatalog";
