@@ -69,7 +69,7 @@ public class HCatToRow {
    * the row builder.
    */
   static class HCatToRowFn extends DoFn<HCatRecord, Row> {
-    private Schema schema;
+    private final Schema schema;
 
     HCatToRowFn(Schema schema) {
       this.schema = schema;
