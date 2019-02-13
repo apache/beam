@@ -26,6 +26,8 @@ import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.insertTes
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog.HCatalogTableProvider;
 import org.apache.beam.sdk.io.hcatalog.test.EmbeddedMetastoreService;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -159,6 +162,74 @@ public class BeamSqlHiveSchemaTest implements Serializable {
     pipeline.run();
   }
 
+  @Test
+  public void testJoinMultipleExtraProvidersWithMain() throws Exception {
+    initializeHCatalog();
+
+    PCollection<Row> inputMain =
+        pipeline.apply("mainInput", create(row(1, "pcollection_1"), row(2, "pcollection_2")));
+
+    PCollection<Row> inputExtra =
+        pipeline.apply("extraInput", create(row(1, "_extra_table_1"), row(2, "_extra_table_2")));
+
+    PCollection<Row> result =
+        inputMain.apply(
+            SqlTransform.query(
+                    "SELECT \n"
+                        + "   x_tbl.f_int as f_int, \n"
+                        + "   (p_tbl.f_string || x_tbl.f_string || ' ' || h_tbl.f_str) AS f_string \n"
+                        + "FROM \n"
+                        + "     `extraSchema`.`extraTable` AS x_tbl \n"
+                        + "  INNER JOIN \n"
+                        + "     `hive`.`default`.`mytable` AS h_tbl \n"
+                        + "        ON h_tbl.f_int = x_tbl.f_int \n"
+                        + "  INNER JOIN \n"
+                        + "     PCOLLECTION AS p_tbl \n"
+                        + "        ON p_tbl.f_int = x_tbl.f_int")
+                .withTableProvider("extraSchema", extraTableProvider("extraTable", inputExtra))
+                .withTableProvider("hive", hiveTableProvider()));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            row(1, "pcollection_1_extra_table_1 record 1"),
+            row(2, "pcollection_2_extra_table_2 record 2"));
+    pipeline.run();
+  }
+
+  @Test
+  public void testJoinMultipleExtraProvidersWithImplicitHiveDB() throws Exception {
+    initializeHCatalog();
+
+    PCollection<Row> inputMain =
+        pipeline.apply("mainInput", create(row(1, "pcollection_1"), row(2, "pcollection_2")));
+
+    PCollection<Row> inputExtra =
+        pipeline.apply("extraInput", create(row(1, "_extra_table_1"), row(2, "_extra_table_2")));
+
+    PCollection<Row> result =
+        inputMain.apply(
+            SqlTransform.query(
+                    "SELECT \n"
+                        + "   x_tbl.f_int as f_int, \n"
+                        + "   (p_tbl.f_string || x_tbl.f_string || ' ' || h_tbl.f_str) AS f_string \n"
+                        + "FROM \n"
+                        + "     `extraSchema`.`extraTable` AS x_tbl \n"
+                        + "  INNER JOIN \n"
+                        + "     `hive`.`mytable` AS h_tbl \n"
+                        + "        ON h_tbl.f_int = x_tbl.f_int \n"
+                        + "  INNER JOIN \n"
+                        + "     PCOLLECTION AS p_tbl \n"
+                        + "        ON p_tbl.f_int = x_tbl.f_int")
+                .withTableProvider("extraSchema", extraTableProvider("extraTable", inputExtra))
+                .withTableProvider("hive", hiveTableProvider()));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            row(1, "pcollection_1_extra_table_1 record 1"),
+            row(2, "pcollection_2_extra_table_2 record 2"));
+    pipeline.run();
+  }
+
   private void reCreateTestTable() throws Exception {
     service.executeQuery("drop table " + TEST_TABLE);
     service.executeQuery("create table " + TEST_TABLE + "(f_str string, f_int int)");
@@ -175,6 +246,11 @@ public class BeamSqlHiveSchemaTest implements Serializable {
 
   private Row row(int fIntValue, String fStringValue) {
     return Row.withSchema(ROW_SCHEMA).addValues(fIntValue, fStringValue).build();
+  }
+
+  private TableProvider extraTableProvider(String tableName, PCollection<Row> rows) {
+    return new ReadOnlyTableProvider(
+        "testExtraTableProvider", ImmutableMap.of(tableName, new BeamPCollectionTable<>(rows)));
   }
 
   private PTransform<PBegin, PCollection<Row>> create(Row... rows) {
