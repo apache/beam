@@ -42,6 +42,14 @@ import scala.Tuple2;
 /** Functions for GroupByKey with Non-Merging windows translations to Spark. */
 public class GroupNonMergingWindowsFunctions {
 
+  /**
+   * Creates composite key of K and W and group all values for that composite key with Spark's
+   * repartitionAndSortWithinPartitions. Stream of sorted by composite key's is transformed to key
+   * with iterator of all values for that key (via {@link GroupByKeyIterator}).
+   *
+   * <p>repartitionAndSortWithinPartitions is used because all values are not collected into memory
+   * at once, but streamed with iterator unlike GroupByKey (it minimizes memory pressure).
+   */
   static <K, V, W extends BoundedWindow>
       JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyAndWindow(
           JavaRDD<WindowedValue<KV<K, V>>> rdd,
@@ -84,6 +92,8 @@ public class GroupNonMergingWindowsFunctions {
   /**
    * Transform stream of sorted key values into stream of value iterators for each key. This
    * iterator can be iterated only once!
+   *
+   * <p>From Iterator<K, V> transform to <K, Iterator<V>>.
    *
    * @param <K> type of key iterator emits
    * @param <V> type of value iterator emits
