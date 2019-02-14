@@ -246,7 +246,7 @@ public class BigQueryUtils {
 
     switch (fieldType.getTypeName()) {
       case ARRAY:
-        FieldType elementType  = fieldType.getCollectionElementType();
+        FieldType elementType = fieldType.getCollectionElementType();
         List items = (List) fieldValue;
         List convertedItems = Lists.newArrayListWithCapacity(items.size());
         for (Object item : items) {

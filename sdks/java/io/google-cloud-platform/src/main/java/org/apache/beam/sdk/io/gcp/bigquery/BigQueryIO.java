@@ -2005,7 +2005,8 @@ public class BigQueryIO {
         if (getJsonTimePartitioning() != null) {
           dynamicDestinations =
               new ConstantTimePartitioningDestinations<>(
-                  dynamicDestinations, getJsonTimePartitioning());
+                  (DynamicDestinations<T, TableDestination>) dynamicDestinations,
+                  getJsonTimePartitioning());
         }
       }
       return expandTyped(input, dynamicDestinations);
@@ -2025,16 +2026,17 @@ public class BigQueryIO {
         }
         // Infer the TableSchema from the input Beam schema.
         TableSchema tableSchema = BigQueryUtils.toTableSchema(input.getSchema());
-        dynamicDestinations = new ConstantSchemaDestinations<>(
-            dynamicDestinations, StaticValueProvider.of(BigQueryHelpers.toJsonString(tableSchema)));
-
+        dynamicDestinations =
+            new ConstantSchemaDestinations<>(
+                dynamicDestinations,
+                StaticValueProvider.of(BigQueryHelpers.toJsonString(tableSchema)));
       }
 
       checkArgument(
           formatFunction != null,
           "A function must be provided to convert type into a TableRow. "
-              + "use BigQueryIO.Write.withFormatFunction to provide a formatting function." +
-              "A format function is not required if Beam schemas are used.");
+              + "use BigQueryIO.Write.withFormatFunction to provide a formatting function."
+              + "A format function is not required if Beam schemas are used.");
 
       Coder<DestinationT> destinationCoder = null;
       try {
@@ -2063,7 +2065,7 @@ public class BigQueryIO {
       } else {
         PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
             input
-                .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, getFormatFunction()))
+                .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, formatFunction))
                 .setCoder(KvCoder.of(destinationCoder, TableRowJsonCoder.of()));
         return continueExpandTyped(
             rowsWithDestination,
@@ -2111,7 +2113,6 @@ public class BigQueryIO {
                 getJsonTableRef() != null,
                 dynamicDestinations,
                 destinationCoder,
-                getCustomGcsTempLocation(),
                 getCustomGcsTempLocation(),
                 getLoadJobProjectId(),
                 getIgnoreUnknownValues(),

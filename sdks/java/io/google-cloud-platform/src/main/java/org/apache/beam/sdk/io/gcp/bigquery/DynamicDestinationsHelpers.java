@@ -35,7 +35,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** Contains some useful helper instances of {@link DynamicDestinations}. */
 class DynamicDestinationsHelpers {
@@ -79,7 +78,7 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoder.of();
+      return TableDestinationCoderV2.of();
     }
   }
 
@@ -163,14 +162,13 @@ class DynamicDestinationsHelpers {
       return inner.getSideInputs();
     }
 
-
     @Override
     void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
       super.setSideInputAccessorFromProcessContext(context);
       inner.setSideInputAccessorFromProcessContext(context);
     }
 
-      @Override
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("inner", inner).toString();
     }

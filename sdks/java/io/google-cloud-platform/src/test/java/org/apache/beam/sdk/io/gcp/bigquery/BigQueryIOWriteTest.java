@@ -215,10 +215,8 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   public void writeDynamicDestinations(boolean streaming, boolean schemas) throws Exception {
-    final Schema schema = Schema.builder()
-        .addField("name", FieldType.STRING)
-        .addField("id", FieldType.INT32)
-        .build();
+    final Schema schema =
+        Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT32).build();
 
     final Pattern userPattern = Pattern.compile("([a-z]+)([0-9]+)");
 
@@ -263,7 +261,6 @@ public class BigQueryIOWriteTest implements Serializable {
               },
               r -> r.getString(0) + r.getInt32(1));
     }
-
 
     // Use a partition decorator to verify that partition decorators are supported.
     final String partitionDecorator = "20171127";
@@ -324,14 +321,13 @@ public class BigQueryIOWriteTest implements Serializable {
     if (schemas) {
       write = write.useBeamSchema();
     } else {
-      write = write.withFormatFunction(
-          user -> {
-            Matcher matcher = userPattern.matcher(user);
-            checkState(matcher.matches());
-            return new TableRow()
-                .set("name", matcher.group(1))
-                .set("id", matcher.group(2));
-          });
+      write =
+          write.withFormatFunction(
+              user -> {
+                Matcher matcher = userPattern.matcher(user);
+                checkState(matcher.matches());
+                return new TableRow().set("name", matcher.group(1)).set("id", matcher.group(2));
+              });
     }
     users.apply("WriteBigQuery", write);
     p.run();
