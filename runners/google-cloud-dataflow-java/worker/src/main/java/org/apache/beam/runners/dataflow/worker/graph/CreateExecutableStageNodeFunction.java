@@ -40,6 +40,7 @@ import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.UserStateId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
 import org.apache.beam.runners.core.construction.*;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -280,6 +281,7 @@ public class CreateExecutableStageNodeFunction
     componentsBuilder.putAllCoders(sdkComponents.toComponents().getCodersMap());
     Set<PTransformNode> executableStageTransforms = new HashSet<>();
     Set<TimerReference> executableStageTimers = new HashSet<>();
+    List<UserStateId> userStateIds = new ArrayList<>();
 
     for (ParallelInstructionNode node :
         Iterables.filter(input.nodes(), ParallelInstructionNode.class)) {
@@ -332,10 +334,17 @@ public class CreateExecutableStageNodeFunction
             }
 
             // Build the necessary components to inform the SDK Harness of the pipeline's
-            // timers.
+            // user timers and user state.
             for (Map.Entry<String, RunnerApi.TimerSpec> entry :
                 parDoPayload.getTimerSpecsMap().entrySet()) {
               timerIds.add(entry.getKey());
+            }
+            for (Map.Entry<String, RunnerApi.StateSpec> entry :
+                parDoPayload.getStateSpecsMap().entrySet()) {
+              UserStateId.Builder builder = UserStateId.newBuilder();
+              builder.setTransformId(parDoPTransformId);
+              builder.setLocalName(entry.getKey());
+              userStateIds.add(builder.build());
             }
 
             transformSpec
@@ -373,6 +382,8 @@ public class CreateExecutableStageNodeFunction
             String.format("Unknown type of ParallelInstruction %s", parallelInstruction));
       }
 
+      // Even though this is a for-loop, there is only going to be a single PCollection as the
+      // predecessor in a ParDo. This PCollection is called the "main input".
       for (Node predecessorOutput : input.predecessors(node)) {
         pTransform.putInputs(
             "generatedInput" + idGenerator.getId(), nodesToPCollections.get(predecessorOutput));
@@ -410,6 +421,12 @@ public class CreateExecutableStageNodeFunction
 
     Set<SideInputReference> executableStageSideInputs = new HashSet<>();
     Set<UserStateReference> executableStageUserStateReference = new HashSet<>();
+
+    for (UserStateId userStateId : userStateIds) {
+      executableStageUserStateReference.add(
+          UserStateReference.fromUserStateId(userStateId, executableStageComponents));
+    }
+
     ExecutableStage executableStage =
         ImmutableExecutableStage.ofFullComponents(
             executableStageComponents,
