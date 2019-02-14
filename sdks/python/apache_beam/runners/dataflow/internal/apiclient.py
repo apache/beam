@@ -31,6 +31,7 @@ import re
 import sys
 import tempfile
 import time
+import warnings
 from datetime import datetime
 
 from builtins import object
@@ -159,6 +160,7 @@ class Environment(object):
             key='version', value=to_json_value(beam_version.__version__))])
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
+    _verify_interpreter_version_is_supported(options)
     if self.standard_options.streaming:
       job_type = 'FNAPI_STREAMING'
     else:
@@ -936,6 +938,29 @@ def get_runner_harness_container_image():
 def get_response_encoding():
   """Encoding to use to decode HTTP response from Google APIs."""
   return None if sys.version_info[0] < 3 else 'utf8'
+
+
+def _verify_interpreter_version_is_supported(pipeline_options):
+  if sys.version_info[0] == 2:
+    return
+
+  if sys.version_info[0] == 3 and sys.version_info[1] == 5:
+    if sys.version_info[2] < 3:
+      warnings.warn('You are using an early release of Python 3.5. '
+          'It is recommended to use Python 3.5.3 or higher with Dataflow '
+          'runner.')
+    return
+
+  debug_options = pipeline_options.view_as(DebugOptions)
+  if (debug_options.experiments and 'ignore_py3_minor_version' in
+      debug_options.experiments):
+    return
+
+  raise Exception(
+      'Dataflow runner currently supports Python versions '
+      '2.7 and 3.5. To ignore this requirement and start a job using a '
+      'different version of Python 3 interpreter, pass '
+      '--experiment ignore_py3_minor_version pipeline option.')
 
 
 # To enable a counter on the service, add it to this dictionary.
