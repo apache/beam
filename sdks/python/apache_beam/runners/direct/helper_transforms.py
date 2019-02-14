@@ -69,6 +69,8 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
 
   def finish_bundle(self):
     for (k, w), va in self._cache.items():
+      # We compact the accumulator since a GBK (which necessitates encoding)
+      # will follow.
       yield WindowedValue((k, self._combine_fn.compact(va)), w.end, (w,))
 
   def default_type_hints(self):
