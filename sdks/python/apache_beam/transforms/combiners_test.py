@@ -21,6 +21,7 @@ from __future__ import division
 
 import itertools
 import random
+import sys
 import unittest
 
 import hamcrest as hc
@@ -66,6 +67,28 @@ class CombineTest(unittest.TestCase):
   def test_top(self):
     pipeline = TestPipeline()
 
+    # First for global combines.
+    pcoll = pipeline | 'start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
+    result_top = pcoll | 'top' >> combine.Top.Largest(5)
+    result_bot = pcoll | 'bot' >> combine.Top.Smallest(4)
+    assert_that(result_top, equal_to([[9, 6, 6, 5, 3]]), label='assert:top')
+    assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='assert:bot')
+
+    # Again for per-key combines.
+    pcoll = pipeline | 'start-perkye' >> Create(
+        [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
+    result_key_top = pcoll | 'top-perkey' >> combine.Top.LargestPerKey(5)
+    result_key_bot = pcoll | 'bot-perkey' >> combine.Top.SmallestPerKey(4)
+    assert_that(result_key_top, equal_to([('a', [9, 6, 6, 5, 3])]),
+                label='key:top')
+    assert_that(result_key_bot, equal_to([('a', [0, 1, 1, 1])]),
+                label='key:bot')
+    pipeline.run()
+
+  @unittest.skipIf(sys.version_info[0] > 2, 'deprecated comparator')
+  def test_top_py2(self):
+    pipeline = TestPipeline()
+
     # A parameter we'll be sharing with a custom comparator.
     names = {0: 'zo',
              1: 'one',
@@ -77,8 +100,7 @@ class CombineTest(unittest.TestCase):
 
     # First for global combines.
     pcoll = pipeline | 'start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
-    result_top = pcoll | 'top' >> combine.Top.Largest(5)
-    result_bot = pcoll | 'bot' >> combine.Top.Smallest(4)
+
     result_cmp = pcoll | 'cmp' >> combine.Top.Of(
         6,
         lambda a, b, names: len(names[a]) < len(names[b]),
@@ -88,24 +110,16 @@ class CombineTest(unittest.TestCase):
         lambda a, b, names: len(names[a]) < len(names[b]),
         names,  # Note parameter passed to comparator.
         reverse=True)
-    assert_that(result_top, equal_to([[9, 6, 6, 5, 3]]), label='assert:top')
-    assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='assert:bot')
     assert_that(result_cmp, equal_to([[9, 6, 6, 5, 3, 2]]), label='assert:cmp')
     assert_that(result_cmp_rev, equal_to([[0, 1, 1]]), label='assert:cmp_rev')
 
     # Again for per-key combines.
     pcoll = pipeline | 'start-perkye' >> Create(
         [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
-    result_key_top = pcoll | 'top-perkey' >> combine.Top.LargestPerKey(5)
-    result_key_bot = pcoll | 'bot-perkey' >> combine.Top.SmallestPerKey(4)
     result_key_cmp = pcoll | 'cmp-perkey' >> combine.Top.PerKey(
         6,
         lambda a, b, names: len(names[a]) < len(names[b]),
         names)  # Note parameter passed to comparator.
-    assert_that(result_key_top, equal_to([('a', [9, 6, 6, 5, 3])]),
-                label='key:top')
-    assert_that(result_key_bot, equal_to([('a', [0, 1, 1, 1])]),
-                label='key:bot')
     assert_that(result_key_cmp, equal_to([('a', [9, 6, 6, 5, 3, 2])]),
                 label='key:cmp')
     pipeline.run()
@@ -134,6 +148,8 @@ class CombineTest(unittest.TestCase):
         ['aa', 'bbb', 'c', 'dddd'] | combine.Top.Of(3, key=len, reverse=True),
         [['c', 'aa', 'bbb']])
 
+  @unittest.skipIf(sys.version_info[0] > 2, 'deprecated comparator')
+  def test_top_key_py2(self):
     # The largest elements compared by their length mod 5.
     self.assertEqual(
         ['aa', 'bbbb', 'c', 'ddddd', 'eee', 'ffffff'] | combine.Top.Of(
