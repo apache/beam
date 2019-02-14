@@ -1852,7 +1852,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_top_of_pipeline_checking_satisfied(self):
     d = (self.p
          | beam.Create(range(5, 11)).with_output_types(int)
-         | 'Top 3' >> combine.Top.Of(3, lambda x, y: x < y))
+         | 'Top 3' >> combine.Top.Of(3))
 
     self.assertCompatible(typehints.Iterable[int],
                           d.element_type)
@@ -1864,7 +1864,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     d = (self.p
          | beam.Create(list('testing')).with_output_types(str)
-         | 'AciiTop' >> combine.Top.Of(3, lambda x, y: x < y))
+         | 'AciiTop' >> combine.Top.Of(3))
 
     self.assertCompatible(typehints.Iterable[str], d.element_type)
     assert_that(d, equal_to([['t', 't', 's']]))
@@ -1875,7 +1875,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       (self.p
        | beam.Create(range(100)).with_output_types(int)
        | 'Num + 1' >> beam.Map(lambda x: x + 1).with_output_types(int)
-       | 'TopMod' >> combine.Top.PerKey(1, lambda a, b: a < b))
+       | 'TopMod' >> combine.Top.PerKey(1))
 
     self.assertEqual(
         "Type hint violation for 'CombinePerKey(TopCombineFn)': "
@@ -1888,7 +1888,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | beam.Create(range(100)).with_output_types(int)
          | ('GroupMod 3' >> beam.Map(lambda x: (x % 3, x))
             .with_output_types(typehints.KV[int, int]))
-         | 'TopMod' >> combine.Top.PerKey(1, lambda a, b: a < b))
+         | 'TopMod' >> combine.Top.PerKey(1))
 
     self.assertCompatible(typehints.Tuple[int, typehints.Iterable[int]],
                           d.element_type)
@@ -1902,7 +1902,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | beam.Create(range(21))
          | ('GroupMod 3' >> beam.Map(lambda x: (x % 3, x))
             .with_output_types(typehints.KV[int, int]))
-         | 'TopMod' >> combine.Top.PerKey(1, lambda a, b: a < b))
+         | 'TopMod' >> combine.Top.PerKey(1))
 
     self.assertCompatible(typehints.KV[int, typehints.Iterable[int]],
                           d.element_type)
