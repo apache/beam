@@ -595,6 +595,9 @@ class SampleCombineFn(core.CombineFn):
   def merge_accumulators(self, heaps):
     return self._top_combiner.merge_accumulators(heaps)
 
+  def compact(self, heap):
+    return self._top_combiner.compact(heap)
+
   def extract_output(self, heap):
     # Here we strip off the random number keys we added in add_input.
     return [e for _, e in self._top_combiner.extract_output(heap)]
@@ -617,6 +620,9 @@ class _TupleCombineFnBase(core.CombineFn):
   def merge_accumulators(self, accumulators):
     return [c.merge_accumulators(a)
             for c, a in zip(self._combiners, zip(*accumulators))]
+
+  def compact(self, accumulator):
+    return [c.compact(a) for c, a in zip(self._combiners, accumulator)]
 
   def extract_output(self, accumulator):
     return tuple([c.extract_output(a)
@@ -736,11 +742,11 @@ class _CurriedFn(core.CombineFn):
   def merge_accumulators(self, accumulators):
     return self.fn.merge_accumulators(accumulators, *self.args, **self.kwargs)
 
-  def extract_output(self, accumulator):
-    return self.fn.extract_output(accumulator, *self.args, **self.kwargs)
-
   def compact(self, accumulator):
     return self.fn.compact(accumulator, *self.args, **self.kwargs)
+
+  def extract_output(self, accumulator):
+    return self.fn.extract_output(accumulator, *self.args, **self.kwargs)
 
   def apply(self, elements):
     return self.fn.apply(elements, *self.args, **self.kwargs)
