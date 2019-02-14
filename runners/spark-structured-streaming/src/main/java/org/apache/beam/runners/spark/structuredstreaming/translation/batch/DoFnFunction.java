@@ -31,7 +31,6 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpStepContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -52,7 +51,7 @@ import scala.Tuple2;
 public class DoFnFunction<InputT, OutputT>
     implements MapPartitionsFunction<WindowedValue<InputT>, Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
-  private final SerializablePipelineOptions serializedOptions;
+  private final SerializablePipelineOptions serializableOptions;
 
   private final DoFn<InputT, OutputT> doFn;
   private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
@@ -70,7 +69,7 @@ public class DoFnFunction<InputT, OutputT>
       DoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
-      PipelineOptions options,
+      SerializablePipelineOptions serializableOptions,
       List<TupleTag<?>> additionalOutputTags,
       TupleTag<OutputT> mainOutputTag,
       Coder<InputT> inputCoder,
@@ -78,7 +77,7 @@ public class DoFnFunction<InputT, OutputT>
 
     this.doFn = doFn;
     this.sideInputs = sideInputs;
-    this.serializedOptions = new SerializablePipelineOptions(options);
+    this.serializableOptions = serializableOptions;
     this.windowingStrategy = windowingStrategy;
     this.additionalOutputTags = additionalOutputTags;
     this.mainOutputTag = mainOutputTag;
@@ -94,7 +93,7 @@ public class DoFnFunction<InputT, OutputT>
 
     DoFnRunner<InputT, OutputT> doFnRunner =
         DoFnRunners.simpleRunner(
-            serializedOptions.get(),
+            serializableOptions.get(),
             doFn,
             new NoOpSideInputReader(sideInputs),
             outputManager,

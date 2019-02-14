@@ -102,7 +102,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
             doFn,
             windowingStrategy,
             sideInputStrategies,
-            context.getOptions(),
+            context.getSerializableOptions(),
             outputTags,
             mainOutputTag,
             inputCoder,
