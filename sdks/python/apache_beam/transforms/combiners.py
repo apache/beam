@@ -25,7 +25,6 @@ import operator
 import random
 from builtins import object
 from builtins import zip
-from functools import cmp_to_key
 
 from past.builtins import long
 
@@ -197,7 +196,7 @@ class Top(object):
     def expand(self, pcoll):
       compare = self._compare
       if (not self._args and not self._kwargs and
-          not self._key and pcoll.windowing.is_default()):
+          pcoll.windowing.is_default()):
         if self._reverse:
           if compare is None or compare is operator.lt:
             compare = operator.gt
@@ -205,7 +204,8 @@ class Top(object):
             original_compare = compare
             compare = lambda a, b: original_compare(b, a)
         # This is a more efficient global algorithm.
-        top_per_bundle = pcoll | core.ParDo(_TopPerBundle(self._n, compare))
+        top_per_bundle = pcoll | core.ParDo(
+            _TopPerBundle(self._n, compare, self._key))
         # If pcoll is empty, we can't guerentee that top_per_bundle
         # won't be empty, so inject at least one empty accumulator
         # so that downstream is guerenteed to produce non-empty output.
@@ -213,7 +213,7 @@ class Top(object):
         return (
             (top_per_bundle, empty_bundle) | core.Flatten()
             | core.GroupByKey()
-            | core.ParDo(_MergeTopPerBundle(self._n, compare)))
+            | core.ParDo(_MergeTopPerBundle(self._n, compare, self._key)))
       else:
         return pcoll | core.CombineGlobally(
             TopCombineFn(self._n, compare, self._key, self._reverse),
@@ -295,34 +295,21 @@ class Top(object):
     return pcoll | Top.PerKey(n, reverse=True)
 
 
-class _ComparableValue(object):
-
-  __slots__ = ('value', 'less_than')
-
-  def __init__(self, value, less_than):
-    self.value = value
-    self.less_than = less_than
-
-  def __lt__(self, other):
-    return self.less_than(self.value, other.value)
-
-  def __repr__(self):
-    return "_ComparableValue[%s]" % self.value
-
-
 @with_input_types(T)
 @with_output_types(KV[None, List[T]])
 class _TopPerBundle(core.DoFn):
-  def __init__(self, n, less_than):
+  def __init__(self, n, less_than, key):
     self._n = n
     self._less_than = None if less_than is operator.le else less_than
+    self._key = key
 
   def start_bundle(self):
     self._heap = []
 
   def process(self, element):
-    if self._less_than is not None:
-      element = _ComparableValue(element, self._less_than)
+    if self._less_than or self._key:
+      element = cy_combiners.ComparableValue(
+          element, self._less_than, self._key)
     if len(self._heap) < self._n:
       heapq.heappush(self._heap, element)
     else:
@@ -336,7 +323,7 @@ class _TopPerBundle(core.DoFn):
     self._heap.sort()
 
     # Unwrap to avoid serialization via pickle.
-    if self._less_than:
+    if self._less_than or self._key:
       yield window.GlobalWindows.windowed_value(
           (None, [wrapper.value for wrapper in self._heap]))
     else:
@@ -347,27 +334,30 @@ class _TopPerBundle(core.DoFn):
 @with_input_types(KV[None, Iterable[List[T]]])
 @with_output_types(List[T])
 class _MergeTopPerBundle(core.DoFn):
-  def __init__(self, n, less_than):
+  def __init__(self, n, less_than, key):
     self._n = n
-    self._less_than = None if less_than is operator.le else less_than
+    self._less_than = None if less_than is operator.lt else less_than
+    self._key = key
 
   def process(self, key_and_bundles):
     _, bundles = key_and_bundles
     heap = []
     for bundle in bundles:
       if not heap:
-        if self._less_than:
+        if self._less_than or self._key:
           heap = [
-              _ComparableValue(element, self._less_than) for element in bundle]
+              cy_combiners.ComparableValue(element, self._less_than, self._key)
+              for element in bundle]
         else:
           heap = bundle
         continue
       for element in reversed(bundle):
-        if self._less_than is not None:
-          element = _ComparableValue(element, self._less_than)
+        if self._less_than or self._key:
+          element = cy_combiners.ComparableValue(
+              element, self._less_than, self._key)
         if len(heap) < self._n:
           heapq.heappush(heap, element)
-        elif element <= heap[0]:
+        elif element < heap[0]:
           # Because _TopPerBundle returns sorted lists, all other elements
           # will also be smaller.
           break
@@ -375,7 +365,7 @@ class _MergeTopPerBundle(core.DoFn):
           heapq.heappushpop(heap, element)
 
     heap.sort()
-    if self._less_than:
+    if self._less_than or self._key:
       yield [wrapper.value for wrapper in reversed(heap)]
     else:
       yield heap[::-1]
@@ -398,15 +388,9 @@ class TopCombineFn(core.CombineFn):
         than largest to smallest
   """
 
-  _MIN_BUFFER_OVERSIZE = 100
-  _MAX_BUFFER_OVERSIZE = 1000
-
-  # TODO(robertwb): Allow taking a key rather than a compare.
+  # TODO(robertwb): For Python 3, remove compare and only keep key.
   def __init__(self, n, compare=None, key=None, reverse=False):
     self._n = n
-    self._buffer_size = max(
-        min(2 * n, n + TopCombineFn._MAX_BUFFER_OVERSIZE),
-        n + TopCombineFn._MIN_BUFFER_OVERSIZE)
 
     if compare is operator.lt:
       compare = None
@@ -422,18 +406,8 @@ class TopCombineFn(core.CombineFn):
     else:
       self._compare = operator.gt if reverse else operator.lt
 
-    self._key_fn = key
-    self._reverse = reverse
-
-  def _sort_buffer(self, buffer, lt):
-    if lt in (operator.gt, operator.lt):
-      buffer.sort(key=self._key_fn, reverse=self._reverse)
-    elif self._key_fn:
-      buffer.sort(key=cmp_to_key(
-          (lambda a, b: (not lt(self._key_fn(a), self._key_fn(b)))
-           - (not lt(self._key_fn(b), self._key_fn(a))))))
-    else:
-      buffer.sort(key=cmp_to_key(lambda a, b: (not lt(a, b)) - (not lt(b, a))))
+    self._less_than = None
+    self._key = key
 
   def display_data(self):
     return {'n': self._n,
@@ -442,83 +416,110 @@ class TopCombineFn(core.CombineFn):
                                        else self._compare.__class__.__name__)
                        .drop_if_none()}
 
-  # The accumulator type is a tuple (threshold, buffer), where threshold
-  # is the smallest element [key] that could possibly be in the top n based
-  # on the elements observed so far, and buffer is a (periodically sorted)
-  # list of candidates of bounded size.
-
+  # The accumulator type is a tuple
+  # (bool, Union[List[T], List[ComparableValue[T]])
+  # where the boolean indicates whether the second slot contains a List of T
+  # (False) or List of ComparableValue[T] (True). In either case, the List
+  # maintains heap invariance.
+  # This accumulator representation allows us to minimize the data encoding
+  # overheads. Creation of ComparableValues is also elided when there is no need
+  # for complicated comparison functions.
   def create_accumulator(self, *args, **kwargs):
-    return None, []
+    return (False, [])
 
   def add_input(self, accumulator, element, *args, **kwargs):
-    if args or kwargs:
-      lt = lambda a, b: self._compare(a, b, *args, **kwargs)
-    else:
-      lt = self._compare
-
-    threshold, buffer = accumulator
-    element_key = self._key_fn(element) if self._key_fn else element
-
-    if len(buffer) < self._n:
-      if not buffer:
-        return element_key, [element]
-      buffer.append(element)
-      if lt(element_key, threshold):  # element_key < threshold
-        return element_key, buffer
+    # Caching to avoid paying the price of variadic expansion of args / kwargs
+    # when it's not needed (for the 'if' case below).
+    if self._less_than is None:
+      if args or kwargs:
+        self._less_than = lambda a, b: self._compare(a, b, *args, **kwargs)
       else:
-        return accumulator  # with mutated buffer
-    elif lt(threshold, element_key):  # threshold < element_key
-      buffer.append(element)
-      if len(buffer) < self._buffer_size:
-        return accumulator  # with mutated buffer
-      else:
-        self._sort_buffer(buffer, lt)
-        min_element = buffer[-self._n]
-        threshold = self._key_fn(min_element) if self._key_fn else min_element
-        return threshold, buffer[-self._n:]
+        self._less_than = self._compare
+
+    holds_comparables, heap = accumulator
+    if self._less_than is not operator.lt or self._key:
+      if not holds_comparables:
+        heap = [
+            cy_combiners.ComparableValue(value, self._less_than, self._key)
+            for value in heap]
+        holds_comparables = True
     else:
-      return accumulator
+      assert not holds_comparables
+
+    comparable = (
+        cy_combiners.ComparableValue(element, self._less_than, self._key)
+        if holds_comparables else element)
+
+    if len(heap) < self._n:
+      heapq.heappush(heap, comparable)
+    else:
+      heapq.heappushpop(heap, comparable)
+    return (holds_comparables, heap)
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
     if args or kwargs:
+      self._less_than = lambda a, b: self._compare(a, b, *args, **kwargs)
       add_input = lambda accumulator, element: self.add_input(
           accumulator, element, *args, **kwargs)
     else:
+      self._less_than = self._compare
       add_input = self.add_input
 
-    total_accumulator = None
+    result_heap = None
+    holds_comparables = None
     for accumulator in accumulators:
-      if total_accumulator is None:
-        total_accumulator = accumulator
+      holds_comparables, heap = accumulator
+      if self._less_than is not operator.lt or self._key:
+        if not holds_comparables:
+          heap = [
+              cy_combiners.ComparableValue(value, self._less_than, self._key)
+              for value in heap]
+          holds_comparables = True
       else:
-        for element in accumulator[1]:
-          total_accumulator = add_input(total_accumulator, element)
-    return total_accumulator
+        assert not holds_comparables
+
+      if result_heap is None:
+        result_heap = heap
+      else:
+        for comparable in heap:
+          _, result_heap = add_input(
+              (holds_comparables, result_heap),
+              comparable.value if holds_comparables else comparable)
+
+    assert result_heap is not None and holds_comparables is not None
+    return (holds_comparables, result_heap)
 
   def compact(self, accumulator, *args, **kwargs):
-    if args or kwargs:
-      lt = lambda a, b: self._compare(a, b, *args, **kwargs)
+    holds_comparables, heap = accumulator
+    # Unwrap to avoid serialization via pickle.
+    if holds_comparables:
+      return (False, [comparable.value for comparable in heap])
     else:
-      lt = self._compare
-
-    _, buffer = accumulator
-    if len(buffer) <= self._n:
-      return accumulator  # No compaction needed.
-    else:
-      self._sort_buffer(buffer, lt)
-      min_element = buffer[-self._n]
-      threshold = self._key_fn(min_element) if self._key_fn else min_element
-      return threshold, buffer[-self._n:]
+      return accumulator
 
   def extract_output(self, accumulator, *args, **kwargs):
     if args or kwargs:
-      lt = lambda a, b: self._compare(a, b, *args, **kwargs)
+      self._less_than = lambda a, b: self._compare(a, b, *args, **kwargs)
     else:
-      lt = self._compare
+      self._less_than = self._compare
 
-    _, buffer = accumulator
-    self._sort_buffer(buffer, lt)
-    return buffer[:-self._n-1:-1]  # tail, reversed
+    holds_comparables, heap = accumulator
+    if self._less_than is not operator.lt or self._key:
+      if not holds_comparables:
+        heap = [
+            cy_combiners.ComparableValue(value, self._less_than, self._key)
+            for value in heap
+        ]
+        holds_comparables = True
+    else:
+      assert not holds_comparables
+
+    assert len(heap) <= self._n
+    heap.sort(reverse=True)
+    return [
+        comparable.value if holds_comparables else comparable
+        for comparable in heap
+    ]
 
 
 class Largest(TopCombineFn):
@@ -777,15 +778,15 @@ class PhasedCombineFnExecutor(object):
     else:
       raise ValueError('Unexpected phase: %s' % phase)
 
-  def full_combine(self, elements):  # pylint: disable=invalid-name
+  def full_combine(self, elements):
     return self.combine_fn.apply(elements)
 
-  def add_only(self, elements):  # pylint: disable=invalid-name
+  def add_only(self, elements):
     return self.combine_fn.add_inputs(
         self.combine_fn.create_accumulator(), elements)
 
-  def merge_only(self, accumulators):  # pylint: disable=invalid-name
+  def merge_only(self, accumulators):
     return self.combine_fn.merge_accumulators(accumulators)
 
-  def extract_only(self, accumulator):  # pylint: disable=invalid-name
+  def extract_only(self, accumulator):
     return self.combine_fn.extract_output(accumulator)

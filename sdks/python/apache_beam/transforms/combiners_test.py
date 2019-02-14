@@ -41,10 +41,6 @@ from apache_beam.transforms.ptransform import PTransform
 
 class CombineTest(unittest.TestCase):
 
-  def setUp(self):
-    # Sort more often for more rigorous testing on small data sets.
-    combine.TopCombineFn._MIN_BUFFER_OVERSIZE = 1
-
   def test_builtin_combines(self):
     pipeline = TestPipeline()
 
