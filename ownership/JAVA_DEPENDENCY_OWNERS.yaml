@@ -92,7 +92,7 @@ deps:
   com.commercehub.gradle.plugin:gradle-avro-plugin:
     group: com.commercehub.gradle.plugin
     artifact: gradle-avro-plugin
-    owners: swegner,
+    owners:
 
   com.datastax.cassandra:cassandra-driver-core:
     group: com.datastax.cassandra
@@ -247,12 +247,12 @@ deps:
   com.google.auto.service:auto-service:
     group: com.google.auto.service
     artifact: auto-service
-    owners: swegner,
+    owners:
 
   com.google.auto.value:auto-value:
     group: com.google.auto.value
     artifact: auto-value
-    owners: swegner,
+    owners:
 
   com.google.cloud:google-cloud-core:
     group: com.google.cloud
@@ -297,7 +297,7 @@ deps:
   com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:
     group: com.google.cloud.dataflow
     artifact: google-cloud-dataflow-java-proto-library-all
-    owners: swegner,
+    owners:
 
   com.google.cloud.datastore:datastore-v1-proto-client:
     group: com.google.cloud.datastore
@@ -312,17 +312,17 @@ deps:
   com.google.code.findbugs:findbugs-annotations:
     group: com.google.code.findbugs
     artifact: findbugs-annotations
-    owners: swegner,
+    owners:
 
   com.google.code.findbugs:jsr305:
     group: com.google.code.findbugs
     artifact: jsr305
-    owners: swegner,
+    owners:
 
   com.google.errorprone:error_prone_annotations:
     group: com.google.errorprone
     artifact: error_prone_annotations
-    owners: swegner,
+    owners:
 
   com.google.guava:guava:
     group: com.google.guava
@@ -367,7 +367,7 @@ deps:
   com.google.protobuf:protobuf-gradle-plugin:
     group: com.google.protobuf
     artifact: protobuf-gradle-plugin
-    owners: swegner, pabloem
+    owners: pabloem
 
   com.google.protobuf:protobuf-java:
     group: com.google.protobuf
@@ -387,7 +387,7 @@ deps:
   com.gradle:build-scan-plugin:
     group: com.gradle
     artifact: build-scan-plugin
-    owners: swegner,
+    owners:
 
   com.pholser:junit-quickcheck-core:
     group: com.pholser
@@ -457,7 +457,7 @@ deps:
   io.dropwizard.metrics:metrics-core:
     group: io.dropwizard.metrics
     artifact: metrics-core
-    owners: swegner,
+    owners:
 
   io.grpc:grpc-all:
     group: io.grpc
@@ -552,7 +552,7 @@ deps:
   net.bytebuddy:byte-buddy:
     group: net.bytebuddy
     artifact: byte-buddy
-    owners: swegner
+    owners:
 
   net.java.dev.javacc:javacc:
     group: net.java.dev.javacc
@@ -572,7 +572,7 @@ deps:
   net.ltgt.gradle:gradle-errorprone-plugin:
     group: net.ltgt.gradle
     artifact: gradle-errorprone-plugin
-    owners: swegner,
+    owners:
 
   net.researchgate:gradle-release:
     group: net.researchgate
@@ -847,12 +847,12 @@ deps:
   org.apache.logging.log4j:log4j-api:
     group: org.apache.logging.log4j
     artifact: log4j-api
-    owners: swegner,
+    owners:
 
   org.apache.logging.log4j:log4j-core:
     group: org.apache.logging.log4j
     artifact: log4j-core
-    owners: swegner,
+    owners:
 
   org.apache.parquet:parquet-avro:
     group: org.apache.parquet
@@ -877,7 +877,7 @@ deps:
   org.apache.rat:apache-rat-tasks:
     group: org.apache.rat
     artifact: apache-rat-tasks
-    owners: swegner,
+    owners:
 
   org.apache.solr:solr-core:
     group: org.apache.solr
@@ -927,7 +927,7 @@ deps:
   org.assertj:assertj-core:
     group: org.assertj
     artifact: assertj-core
-    owners: swegner,
+    owners:
 
   org.codehaus.groovy:groovy-all:
     group: org.codehaus.groovy
@@ -1027,12 +1027,12 @@ deps:
   org.slf4j:slf4j-jdk14:
     group: org.slf4j
     artifact: slf4j-jdk14
-    owners: swegner,
+    owners:
 
   org.slf4j:slf4j-simple:
     group: org.slf4j
     artifact: slf4j-simple
-    owners: swegner,
+    owners:
 
   org.slf4j:slf4j-log4j12:
     group: org.slf4j
