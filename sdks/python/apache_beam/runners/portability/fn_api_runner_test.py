@@ -358,6 +358,8 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_sdf(self):
 
+    counter = beam.metrics.Metrics.counter('ns', 'my_counter')
+
     class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
       def initial_restriction(self, element):
         return (0, len(element))
@@ -379,6 +381,7 @@ class FnApiRunnerTest(unittest.TestCase):
         for k in range(*restriction_tracker.current_restriction()):
           if not restriction_tracker.try_claim(k):
             return
+          counter.inc()
           yield element[k]
           if k % 2 == 1:
             restriction_tracker.defer_remainder()
@@ -392,6 +395,12 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.ParDo(ExpandStringsDoFn()))
 
       assert_that(actual, equal_to(list(''.join(data))))
+
+    if isinstance(p.runner, fn_api_runner.FnApiRunner):
+      res = p.runner._latest_run_result
+      counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
+      self.assertEqual(1, len(counters))
+      self.assertEqual(counters[0].committed, len(''.join(data)))
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
