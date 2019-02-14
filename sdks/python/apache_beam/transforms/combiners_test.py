@@ -89,7 +89,7 @@ class CombineTest(unittest.TestCase):
                 label='key:bot')
     pipeline.run()
 
-  @unittest.skipIf(sys.version_info[0] > 1, 'deprecated comparator')
+  @unittest.skipIf(sys.version_info[0] > 2, 'deprecated comparator')
   def test_top_py2(self):
     pipeline = TestPipeline()
 
@@ -152,7 +152,7 @@ class CombineTest(unittest.TestCase):
         ['aa', 'bbb', 'c', 'dddd'] | combine.Top.Of(3, key=len, reverse=True),
         [['c', 'aa', 'bbb']])
 
-  @unittest.skipIf(sys.version_info[0] > 1, 'deprecated comparator')
+  @unittest.skipIf(sys.version_info[0] > 2, 'deprecated comparator')
   def test_top_key_py2(self):
     # The largest elements compared by their length mod 5.
     self.assertEqual(
