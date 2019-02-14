@@ -85,7 +85,13 @@ class GcsIOIntegrationTest(unittest.TestCase):
     src_checksum = self.gcsio.checksum(src)
     dst_checksum = self.gcsio.checksum(dst)
     self.assertEqual(src_checksum, dst_checksum)
-    self.assertEqual(self.gcsio.kms_key(dst), dst_kms_key_name)
+    actual_dst_kms_key = self.gcsio.kms_key(dst)
+    if actual_dst_kms_key is None:
+      self.assertEqual(actual_dst_kms_key, dst_kms_key_name)
+    else:
+      self.assertTrue(actual_dst_kms_key.startswith(dst_kms_key_name),
+                      "got: %s, wanted startswith: %s" % (actual_dst_kms_key,
+                                                          dst_kms_key_name))
 
   def _test_copy(self, name, kms_key_name=None,
                  max_bytes_rewritten_per_call=None, src=None):
