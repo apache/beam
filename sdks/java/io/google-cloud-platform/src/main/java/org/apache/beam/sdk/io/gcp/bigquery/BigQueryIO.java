@@ -201,7 +201,18 @@ import org.slf4j.LoggerFactory;
  * BigQueryIO.Write#withFormatFunction(SerializableFunction)}.
  *
  * <pre>{@code
- * class Quote { Instant timestamp; String exchange; String symbol; double price; }
+ * @DefaultSchema(JavaFieldSchema.class)
+ * class Quote {
+ *   final Instant timestamp;
+ *   final String exchange;
+ *   final String symbol;
+ *   final double price;
+ *
+ *   @SchemaCreate
+ *   Quote(Instant timestamp, String exchange, String symbol, double price) {
+ *     // initialize all member variables.
+ *   }
+ * }
  *
  * PCollection<Quote> quotes = ...
  *
@@ -222,6 +233,19 @@ import org.slf4j.LoggerFactory;
  * existing table, replace the table, or verify that the table is empty. Note that the dataset being
  * written to must already exist. Unbounded PCollections can only be written using {@link
  * Write.WriteDisposition#WRITE_EMPTY} or {@link Write.WriteDisposition#WRITE_APPEND}.
+ *
+ * <p>BigQueryIO supports automatically inferring the BigQuery table schema from the Beam schema on
+ * the input PCollection. Beam can also automatically format the input into a TableRow in this case,
+ * if no format function is provide. In the above example, the quotes PCollection has a schema that
+ * Beam infers from the Quote POJO. So the write could be done more simply as follows:
+ *
+ * <pre>{@code
+ * quotes.apply(BigQueryIO
+ *     .<Quote>write()
+ *     .to("my-project:my_dataset.my_table")
+ *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
+ *     .useBeamSchema());
+ * }</pre>
  *
  * <h3>Loading historical data into time-partitioned BigQuery tables</h3>
  *

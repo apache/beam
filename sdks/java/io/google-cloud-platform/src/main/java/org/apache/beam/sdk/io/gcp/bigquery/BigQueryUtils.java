@@ -49,20 +49,7 @@ import org.joda.time.chrono.ISOChronology;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
 
-/**
- * Utility methods for BigQuery related operations.
- *
- * <p><b>Example: Writing to BigQuery</b>
- *
- * <pre>{@code
- * PCollection<Row> rows = ...;
- *
- * rows.apply(BigQueryIO.<Row>write()
- *       .withSchema(BigQueryUtils.toTableSchema(rows))
- *       .withFormatFunction(BigQueryUtils.toTableRow())
- *       .to("my-project:my_dataset.my_table"));
- * }</pre>
- */
+/** Utility methods for BigQuery related operations. */
 public class BigQueryUtils {
   private static final Map<TypeName, StandardSQLTypeName> BEAM_TO_BIGQUERY_TYPE_MAPPING =
       ImmutableMap.<TypeName, StandardSQLTypeName>builder()
