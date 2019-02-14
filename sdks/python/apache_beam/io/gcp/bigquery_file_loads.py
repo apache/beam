@@ -30,6 +30,7 @@ from __future__ import absolute_import
 
 import datetime
 import hashlib
+import itertools
 import logging
 import random
 import time
@@ -354,35 +355,46 @@ class TriggerLoadJobs(beam.DoFn):
 
   def process(self, element, load_job_name_prefix):
     destination = element[0]
-    files = element[1]
+    files = iter(element[1])
 
-    table_reference = bigquery_tools.parse_table_reference(destination)
-    if table_reference.projectId is None:
-      table_reference.projectId = vp.RuntimeValueProvider.get_value(
-          'project', str, '')
+    job_count = 0
+    batch_of_files = list(itertools.islice(files, _MAXIMUM_SOURCE_URIS))
+    while batch_of_files:
 
-    # Load jobs for a single des5tination are always triggered from the same
-    # worker. This means that we can generate a deterministic numbered job id,
-    # and not need to worry.
-    job_name = '%s_%s' % (
-        load_job_name_prefix,
-        _bq_uuid('%s:%s.%s' % (table_reference.projectId,
-                               table_reference.datasetId,
-                               table_reference.tableId)))
+      table_reference = bigquery_tools.parse_table_reference(destination)
+      if table_reference.projectId is None:
+        table_reference.projectId = vp.RuntimeValueProvider.get_value(
+            'project', str, '')
 
-    if self.temporary_tables:
-      # For temporary tables, we create a new table with the name with JobId.
-      table_reference.tableId = job_name
-      yield pvalue.TaggedOutput(TriggerLoadJobs.TEMP_TABLES, table_reference)
+      # Load jobs for a single des5tination are always triggered from the same
+      # worker. This means that we can generate a deterministic numbered job id,
+      # and not need to worry.
+      job_name = '%s_%s_%s' % (
+          load_job_name_prefix,
+          _bq_uuid('%s:%s.%s' % (table_reference.projectId,
+                                 table_reference.datasetId,
+                                 table_reference.tableId)),
+          job_count)
+      logging.debug("Batch of files has %s files. Job name is %s",
+                    len(batch_of_files), job_name)
 
-    logging.info("Triggering job %s to load data to BigQuery table %s.",
-                 job_name, table_reference)
-    job_reference = self.bq_wrapper.perform_load_job(
-        table_reference, list(files), job_name,
-        schema=self.schema,
-        write_disposition=self.write_disposition,
-        create_disposition=self.create_disposition)
-    yield (destination, job_reference)
+      if self.temporary_tables:
+        # For temporary tables, we create a new table with the name with JobId.
+        table_reference.tableId = job_name
+        yield pvalue.TaggedOutput(TriggerLoadJobs.TEMP_TABLES, table_reference)
+
+      logging.info("Triggering job %s to load data to BigQuery table %s.",
+                   job_name, table_reference)
+      job_reference = self.bq_wrapper.perform_load_job(
+          table_reference, batch_of_files, job_name,
+          schema=self.schema,
+          write_disposition=self.write_disposition,
+          create_disposition=self.create_disposition)
+      yield (destination, job_reference)
+
+      # Prepare to trigger the next job
+      job_count += 1
+      batch_of_files = list(itertools.islice(files, _MAXIMUM_SOURCE_URIS))
 
 
 class WaitForBQJobs(beam.DoFn):
