@@ -60,6 +60,8 @@ configurations {
 
 def calcite_version = "1.18.0"
 def avatica_version = "1.12.0"
+def hive_version = "2.1.0"
+def netty_version = "4.1.30.Final"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
@@ -83,6 +85,7 @@ dependencies {
   shadow "com.alibaba:fastjson:1.2.49"
   shadow "com.jayway.jsonpath:json-path:2.4.0"
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
+  provided project(path: ":beam-sdks-java-io-hcatalog", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   provided library.java.kafka_clients
@@ -92,6 +95,18 @@ dependencies {
   shadowTest library.java.hamcrest_library
   shadowTest library.java.mockito_core
   shadowTest library.java.quickcheck_core
+
+  // Needed for HCatalogTableProvider tests,
+  // they use HCat* types
+  shadowTest "io.netty:netty-all:$netty_version"
+  shadowTest("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
+    // Hive brings full Calcite 1.6 + Avatica with JDBC driver which
+    // gets registered and gets started instead of ours,
+    // and a ton of other stuff.
+    exclude group: "org.apache.calcite", module:"calcite-avatica"
+    exclude group: "com.google.guava", module: "guava"
+    exclude group: "com.google.protobuf", module: "protobuf-java"
+  }
 
   // Dependencies that we don't directly reference
   permitUnusedDeclared "com.jayway.jsonpath:json-path:2.4.0"
@@ -185,7 +200,11 @@ task integrationTest(type: Test) {
 
   include '**/*IT.class'
   maxParallelForks 4
-  classpath = project(":beam-sdks-java-extensions-sql").sourceSets.test.runtimeClasspath
+  classpath = project(":beam-sdks-java-extensions-sql")
+          .sourceSets
+          .test
+          .runtimeClasspath
+          .filter { it.name != "hive-exec-${hive_version}.jar" }
   testClassesDirs = files(project(":beam-sdks-java-extensions-sql").sourceSets.test.output.classesDirs)
   useJUnit { }
 }

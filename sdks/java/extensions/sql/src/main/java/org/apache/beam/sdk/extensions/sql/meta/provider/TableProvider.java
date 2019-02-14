@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
@@ -49,6 +53,27 @@ public interface TableProvider {
   /** Get all tables from this provider. */
   Map<String, Table> getTables();
 
+  /** Get a specific table from this provider it is present, or null if it is not present. */
+  default @Nullable Table getTable(String tableName) {
+    return getTables().get(tableName);
+  }
+
   /** Build a {@link BeamSqlTable} using the given table meta info. */
   BeamSqlTable buildBeamSqlTable(Table table);
+
+  /**
+   * Returns all sub-providers, e.g. sub-schemas. Temporary, this logic needs to live in {@link
+   * BeamCalciteSchema}.
+   */
+  default Set<String> getSubProviders() {
+    return Collections.emptySet();
+  }
+
+  /**
+   * Returns a sub-provider, e.g. sub-schema. Temporary, this logic needs to live in {@link
+   * BeamCalciteSchema}.
+   */
+  default TableProvider getSubProvider(String name) {
+    return null;
+  }
 }
