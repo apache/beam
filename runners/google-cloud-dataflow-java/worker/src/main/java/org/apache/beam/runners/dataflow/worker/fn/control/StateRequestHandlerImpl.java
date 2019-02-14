@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +44,8 @@ public class StateRequestHandlerImpl implements StateRequestHandler {
   @Override
   public CompletionStage<BeamFnApi.StateResponse.Builder> handle(BeamFnApi.StateRequest request)
       throws Exception {
+
+    // TODO(BEAM-6672): Handle MultiMap state keys.
     switch (request.getStateKey().getTypeCase()) {
       case BAG_USER_STATE:
         return handleBagUserState(request);
@@ -55,13 +58,15 @@ public class StateRequestHandlerImpl implements StateRequestHandler {
   }
 
   public void finish() {
-    userStateData.clear();
+    for (Map.Entry<BeamFnApi.StateKey, BagState<ByteString>> entry : userStateData.entrySet()) {
+      entry.getValue().clear();
+    }
   }
 
   private CompletionStage<BeamFnApi.StateResponse.Builder> handleBagUserState(
       BeamFnApi.StateRequest request) {
     BeamFnApi.StateKey.BagUserState bagUserStateKey = request.getStateKey().getBagUserState();
-    // TODO: We should not be required to hold onto a pointer to the bag states for the
+    // TODO(BEAM-6672): We should not be required to hold onto a pointer to the bag states for the
     // user. InMemoryStateInternals assumes that the Java garbage collector does the clean-up work
     // but instead StateInternals should hold its own references and write out any data and
     // clear references when the MapTask within Dataflow completes like how WindmillStateInternals
@@ -72,32 +77,41 @@ public class StateRequestHandlerImpl implements StateRequestHandler {
             unusedKey ->
                 ctxt.stateInternals()
                     .state(
-                        // TODO: Once we have access to the ParDoPayload, use its windowing strategy
-                        // to decode the window for the well known window types. Longer term we need
-                        // to swap
-                        // to use the encoded version and not rely on needing to decode the entire
-                        // window.
+                        // TODO(BEAM-6672): Once we have access to the ParDoPayload, use its
+                        // windowing strategy to decode the window for the well known window types.
+                        // Longer term we need to swap to use the encoded version and not rely on
+                        // needing to decode the entire window.
                         StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE),
                         StateTags.bag(bagUserStateKey.getUserStateId(), ByteStringCoder.of())));
+
+    CompletionStage<BeamFnApi.StateResponse.Builder> response;
     switch (request.getRequestCase()) {
       case GET:
-        return CompletableFuture.completedFuture(
-            BeamFnApi.StateResponse.newBuilder()
-                .setGet(BeamFnApi.StateGetResponse.newBuilder().setData(concat(state.read()))));
+        response =
+            CompletableFuture.completedFuture(
+                BeamFnApi.StateResponse.newBuilder()
+                    .setGet(BeamFnApi.StateGetResponse.newBuilder().setData(concat(state.read()))));
+        break;
       case APPEND:
         state.add(request.getAppend().getData());
-        return CompletableFuture.completedFuture(
-            BeamFnApi.StateResponse.newBuilder()
-                .setAppend(BeamFnApi.StateAppendResponse.getDefaultInstance()));
+        response =
+            CompletableFuture.completedFuture(
+                BeamFnApi.StateResponse.newBuilder()
+                    .setAppend(BeamFnApi.StateAppendResponse.getDefaultInstance()));
+        break;
       case CLEAR:
         state.clear();
-        return CompletableFuture.completedFuture(
-            BeamFnApi.StateResponse.newBuilder()
-                .setClear(BeamFnApi.StateClearResponse.getDefaultInstance()));
+        response =
+            CompletableFuture.completedFuture(
+                BeamFnApi.StateResponse.newBuilder()
+                    .setClear(BeamFnApi.StateClearResponse.getDefaultInstance()));
+        break;
       default:
         throw new IllegalArgumentException(
             String.format("Unknown request type %s", request.getRequestCase()));
     }
+
+    return response;
   }
 
   private ByteString concat(Iterable<ByteString> values) {

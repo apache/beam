@@ -26,6 +26,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
@@ -35,7 +36,7 @@ import org.junit.Test;
 public class StateRequestHandlerImplTest {
 
   @Test
-  public void testBagUserStateAppend() throws Exception {
+  public void testBagUserStateAppendGetClear() throws Exception {
     StateRequestHandlerImpl handler = new StateRequestHandlerImpl(buildDataflowStepContext());
 
     String expectedData = "expectedData";
@@ -46,6 +47,7 @@ public class StateRequestHandlerImplTest {
     GlobalWindow.Coder.INSTANCE.encode(GlobalWindow.INSTANCE, windowOutput);
     ByteString window = windowOutput.toByteString();
 
+    // Test that we can append a value.
     {
       BeamFnApi.StateRequest appendRequest =
           BeamFnApi.StateRequest.newBuilder()
@@ -69,6 +71,7 @@ public class StateRequestHandlerImplTest {
       handler.handle(appendRequest).toCompletableFuture().join();
     }
 
+    // Test that we can receive the same value.
     {
       BeamFnApi.StateRequest getRequest =
           BeamFnApi.StateRequest.newBuilder()
@@ -91,6 +94,139 @@ public class StateRequestHandlerImplTest {
               handler.handle(getRequest).toCompletableFuture().get().build().getGet().getData());
     }
     org.junit.Assert.assertEquals(expectedData, actualData);
+
+    // Test that we can clear the value.
+    {
+      BeamFnApi.StateRequest clearRequest =
+          BeamFnApi.StateRequest.newBuilder()
+              .setId("requestId")
+              .setInstructionReference("instructionReference")
+              .setStateKey(
+                  BeamFnApi.StateKey.newBuilder()
+                      .setBagUserState(
+                          BeamFnApi.StateKey.BagUserState.newBuilder()
+                              .setPtransformId("ptransformId")
+                              .setUserStateId("userStateId")
+                              .setWindow(window)
+                              .setKey(encodeToByteString(key))
+                              .build()))
+              .setClear(BeamFnApi.StateClearRequest.newBuilder().build())
+              .build();
+
+      handler.handle(clearRequest).toCompletableFuture().join();
+    }
+
+    // Test that we receive a null ByteString when we try to retrieve a cleared value.
+    {
+      BeamFnApi.StateRequest getRequest =
+          BeamFnApi.StateRequest.newBuilder()
+              .setId("requestId")
+              .setInstructionReference("instructionReference")
+              .setStateKey(
+                  BeamFnApi.StateKey.newBuilder()
+                      .setBagUserState(
+                          BeamFnApi.StateKey.BagUserState.newBuilder()
+                              .setPtransformId("ptransformId")
+                              .setUserStateId("userStateId")
+                              .setWindow(window)
+                              .setKey(encodeToByteString(key))
+                              .build()))
+              .setGet(BeamFnApi.StateGetRequest.getDefaultInstance())
+              .build();
+
+      ByteString.Output output = ByteString.newOutput();
+      VoidCoder coder = VoidCoder.of();
+      coder.encode(null, output);
+      ByteString expected = output.toByteString();
+
+      ByteString received =
+          handler.handle(getRequest).toCompletableFuture().get().build().getGet().getData();
+      org.junit.Assert.assertEquals(expected, received);
+    }
+  }
+
+  @Test
+  public void testFinishClearsCache() throws Exception {
+    StateRequestHandlerImpl handler = new StateRequestHandlerImpl(buildDataflowStepContext());
+
+    String data = "expectedData";
+    String key = "key";
+
+    ByteString.Output windowOutput = ByteString.newOutput();
+    GlobalWindow.Coder.INSTANCE.encode(GlobalWindow.INSTANCE, windowOutput);
+    ByteString window = windowOutput.toByteString();
+
+    // Test that we can append a value.
+    {
+      BeamFnApi.StateRequest appendRequest =
+          BeamFnApi.StateRequest.newBuilder()
+              .setId("requestId")
+              .setInstructionReference("instructionReference")
+              .setStateKey(
+                  BeamFnApi.StateKey.newBuilder()
+                      .setBagUserState(
+                          BeamFnApi.StateKey.BagUserState.newBuilder()
+                              .setPtransformId("ptransformId")
+                              .setUserStateId("userStateId")
+                              .setWindow(window)
+                              .setKey(encodeToByteString(key))
+                              .build()))
+              .setAppend(
+                  BeamFnApi.StateAppendRequest.newBuilder()
+                      .setData(encodeToByteString(data))
+                      .build())
+              .build();
+
+      handler.handle(appendRequest).toCompletableFuture().join();
+    }
+
+    // Now that we have a value in the cache, clear it by calling finish.
+    handler.finish();
+
+    // Test that we receive a null ByteString when we try to retrieve a cleared value.
+    {
+      BeamFnApi.StateRequest getRequest =
+          BeamFnApi.StateRequest.newBuilder()
+              .setId("requestId")
+              .setInstructionReference("instructionReference")
+              .setStateKey(
+                  BeamFnApi.StateKey.newBuilder()
+                      .setBagUserState(
+                          BeamFnApi.StateKey.BagUserState.newBuilder()
+                              .setPtransformId("ptransformId")
+                              .setUserStateId("userStateId")
+                              .setWindow(window)
+                              .setKey(encodeToByteString(key))
+                              .build()))
+              .setGet(BeamFnApi.StateGetRequest.getDefaultInstance())
+              .build();
+
+      ByteString.Output output = ByteString.newOutput();
+      VoidCoder coder = VoidCoder.of();
+      coder.encode(null, output);
+      ByteString expected = output.toByteString();
+
+      ByteString received =
+          handler.handle(getRequest).toCompletableFuture().get().build().getGet().getData();
+      org.junit.Assert.assertEquals(expected, received);
+    }
+  }
+
+  @Test
+  public void testUnsupportedRequestsThrows() {
+    StateRequestHandlerImpl handler = new StateRequestHandlerImpl(buildDataflowStepContext());
+
+    BeamFnApi.StateRequest appendRequest =
+        BeamFnApi.StateRequest.newBuilder()
+            .setStateKey(
+                BeamFnApi.StateKey.newBuilder()
+                    .setMultimapSideInput(
+                        BeamFnApi.StateKey.MultimapSideInput.newBuilder().build()))
+            .build();
+
+    org.junit.Assert.assertThrows(
+        UnsupportedOperationException.class,
+        () -> handler.handle(appendRequest).toCompletableFuture().join());
   }
 
   private ByteString encodeToByteString(String data) throws Exception {
