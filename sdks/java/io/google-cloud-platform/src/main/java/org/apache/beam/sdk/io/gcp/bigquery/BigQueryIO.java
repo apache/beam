@@ -33,6 +33,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJson;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySourceBase.ExtractResult;
@@ -383,6 +385,7 @@ public class BigQueryIO {
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setParseFn(parseFn)
+        .setMethod(Method.DEFAULT)
         .build();
   }
 
@@ -529,6 +532,21 @@ public class BigQueryIO {
   /** Implementation of {@link BigQueryIO#read(SerializableFunction)}. */
   @AutoValue
   public abstract static class TypedRead<T> extends PTransform<PBegin, PCollection<T>> {
+    /** Determines the method used to read data from BigQuery. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public enum Method {
+      /** The default behavior if no method is explicitly set. Currently {@link #EXPORT}. */
+      DEFAULT,
+
+      /**
+       * Export data to Google Cloud Storage in Avro format and read data files from that location.
+       */
+      EXPORT,
+
+      /** Read the contents of a table directly using the BigQuery storage API. */
+      DIRECT_READ,
+    }
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -550,6 +568,12 @@ public class BigQueryIO {
       abstract Builder<T> setQueryPriority(QueryPriority priority);
 
       abstract Builder<T> setQueryLocation(String location);
+
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setMethod(Method method);
+
+      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setReadOptions(TableReadOptions readOptions);
 
       abstract TypedRead<T> build();
 
@@ -585,6 +609,13 @@ public class BigQueryIO {
 
     @Nullable
     abstract String getQueryLocation();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    abstract Method getMethod();
+
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Nullable
+    abstract TableReadOptions getReadOptions();
 
     @Nullable
     abstract Coder<T> getCoder();
@@ -665,19 +696,21 @@ public class BigQueryIO {
       // read is properly specified.
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
 
-      String tempLocation = bqOptions.getTempLocation();
-      checkArgument(
-          !Strings.isNullOrEmpty(tempLocation),
-          "BigQueryIO.Read needs a GCS temp location to store temp files.");
-      if (getBigQueryServices() == null) {
-        try {
-          GcsPath.fromUri(tempLocation);
-        } catch (IllegalArgumentException e) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
-                  tempLocation),
-              e);
+      if (getMethod() != Method.DIRECT_READ) {
+        String tempLocation = bqOptions.getTempLocation();
+        checkArgument(
+            !Strings.isNullOrEmpty(tempLocation),
+            "BigQueryIO.Read needs a GCS temp location to store temp files.");
+        if (getBigQueryServices() == null) {
+          try {
+            GcsPath.fromUri(tempLocation);
+          } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
+                    tempLocation),
+                e);
+          }
         }
       }
 
@@ -696,6 +729,8 @@ public class BigQueryIO {
           BigQueryHelpers.verifyDatasetPresence(datasetService, table.get());
           BigQueryHelpers.verifyTablePresence(datasetService, table.get());
         } else if (getQuery() != null) {
+          checkArgument(
+              getMethod() != Method.DIRECT_READ, "Cannot read query results with DIRECT_READ");
           checkArgument(
               getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
           JobService jobService = getBigQueryServices().getJobService(bqOptions);
@@ -739,6 +774,8 @@ public class BigQueryIO {
               BigQueryOptions.class.getSimpleName());
         }
       } else {
+        checkArgument(
+            getMethod() != Method.DIRECT_READ, "Method must not be DIRECT_READ if query is set");
         checkArgument(getQuery() != null, "Either from() or fromQuery() is required");
         checkArgument(
             getFlattenResults() != null, "flattenResults should not be null if query is set");
@@ -748,6 +785,18 @@ public class BigQueryIO {
 
       Pipeline p = input.getPipeline();
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
+
+      if (getMethod() == Method.DIRECT_READ) {
+        return p.apply(
+            org.apache.beam.sdk.io.Read.from(
+                BigQueryStorageTableSource.create(
+                    getTableProvider(),
+                    getReadOptions(),
+                    getParseFn(),
+                    coder,
+                    getBigQueryServices())));
+      }
+
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
       PCollection<T> rows;
@@ -978,6 +1027,18 @@ public class BigQueryIO {
      */
     public TypedRead<T> withQueryLocation(String location) {
       return toBuilder().setQueryLocation(location).build();
+    }
+
+    /** See {@link Method}. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withMethod(Method method) {
+      return toBuilder().setMethod(method).build();
+    }
+
+    /** Read options, including a list of selected columns and push-down SQL filter text. */
+    @Experimental(Experimental.Kind.SOURCE_SINK)
+    public TypedRead<T> withReadOptions(TableReadOptions readOptions) {
+      return toBuilder().setReadOptions(readOptions).build();
     }
 
     @Experimental(Experimental.Kind.SOURCE_SINK)

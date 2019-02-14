@@ -53,6 +53,8 @@ dependencies {
   shadow library.java.netty_handler
   shadow library.java.grpc_stub
   shadow library.java.joda_time
+  shadow library.java.google_cloud_bigquery_storage
+  shadow library.java.google_cloud_bigquery_storage_proto
   shadow library.java.google_cloud_core
   shadow library.java.google_cloud_spanner
   shadow library.java.bigtable_protos
@@ -98,6 +100,8 @@ task integrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageReadIT.class'
+  exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/BigQueryToTableIT.class'
   exclude '**/*KmsKeyIT.class'
   maxParallelForks 4

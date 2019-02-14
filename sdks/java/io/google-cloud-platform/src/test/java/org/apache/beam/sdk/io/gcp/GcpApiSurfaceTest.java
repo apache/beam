@@ -63,6 +63,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.auth"),
             classesInPackage("com.google.bigtable.admin.v2"),
             classesInPackage("com.google.bigtable.v2"),
+            classesInPackage("com.google.cloud.bigquery.storage.v1beta1"),
             classesInPackage("com.google.cloud.bigtable.config"),
             classesInPackage("com.google.cloud.bigtable.data"),
             classesInPackage("com.google.spanner.v1"),
