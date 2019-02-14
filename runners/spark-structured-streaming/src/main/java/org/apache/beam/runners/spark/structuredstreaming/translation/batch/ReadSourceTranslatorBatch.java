@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import org.apache.beam.runners.core.construction.PipelineOptionsSerializationUtils;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.translation.EncoderHelpers;
@@ -68,8 +67,7 @@ class ReadSourceTranslatorBatch<T>
                 DatasetSourceBatch.DEFAULT_PARALLELISM,
                 String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
             .option(
-                DatasetSourceBatch.PIPELINE_OPTIONS,
-                PipelineOptionsSerializationUtils.serializeToJson(context.getOptions()))
+                DatasetSourceBatch.PIPELINE_OPTIONS, context.getSerializableOptions().toString())
             .load();
 
     // extract windowedValue from Row

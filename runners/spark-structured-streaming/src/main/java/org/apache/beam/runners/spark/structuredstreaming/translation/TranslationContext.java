@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
@@ -52,7 +53,7 @@ public class TranslationContext {
   /** datasets that are not used as input to other datasets (leaves of the DAG). */
   private final Set<Dataset<?>> leaves;
 
-  private final SparkPipelineOptions options;
+  private final SerializablePipelineOptions serializablePipelineOptions;
 
   @SuppressFBWarnings("URF_UNREAD_FIELD") // make findbug happy
   private AppliedPTransform<?, ?, ?> currentTransform;
@@ -69,7 +70,7 @@ public class TranslationContext {
     }
 
     this.sparkSession = SparkSession.builder().config(sparkConf).getOrCreate();
-    this.options = options;
+    this.serializablePipelineOptions = new SerializablePipelineOptions(options);
     this.datasets = new HashMap<>();
     this.leaves = new HashSet<>();
   }
@@ -78,8 +79,8 @@ public class TranslationContext {
     return sparkSession;
   }
 
-  public SparkPipelineOptions getOptions() {
-    return options;
+  public SerializablePipelineOptions getSerializableOptions() {
+    return serializablePipelineOptions;
   }
 
   // --------------------------------------------------------------------------------------------
@@ -167,7 +168,7 @@ public class TranslationContext {
   public void startPipeline(boolean testMode) {
     try {
       for (Dataset<?> dataset : leaves) {
-        if (options.isStreaming()) {
+        if (serializablePipelineOptions.get().as(SparkPipelineOptions.class).isStreaming()) {
           dataset.writeStream().foreach(new NoOpForeachWriter<>()).start().awaitTermination();
         } else {
           if (testMode) {

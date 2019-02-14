@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.PipelineOptionsSerializationUtils;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.SparkPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkRunner;
@@ -82,7 +82,7 @@ public class SimpleSourceTest implements Serializable {
     dataSourceOptions.put(DatasetSourceBatch.DEFAULT_PARALLELISM, "4");
     dataSourceOptions.put(
         DatasetSourceBatch.PIPELINE_OPTIONS,
-        PipelineOptionsSerializationUtils.serializeToJson(pipeline.getOptions()));
+        new SerializablePipelineOptions(pipeline.getOptions()).toString());
     DataSourceReader objectToTest =
         new DatasetSourceBatch().createReader(new DataSourceOptions(dataSourceOptions));
     SerializationDebugger.testSerialization(objectToTest, TEMPORARY_FOLDER.newFile());
