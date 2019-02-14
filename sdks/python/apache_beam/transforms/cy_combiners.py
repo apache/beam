@@ -25,6 +25,7 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 from __future__ import division
 
+import operator
 from builtins import object
 
 from apache_beam.transforms import core
@@ -335,3 +336,33 @@ class DataflowDistributionCounterFn(AccumulatorCombineFn):
   version.
   """
   _accumulator_type = DataflowDistributionCounter
+
+
+class ComparableValue(object):
+  """A way to allow comparing elements in a rich fashion."""
+
+  __slots__ = ('value', '_less_than_fn', '_comparable_value')
+
+  def __init__(self, value, less_than_fn, key_fn, _from_pickle=False):
+    self.value = value
+    self._less_than_fn = less_than_fn if less_than_fn else operator.lt
+    self._comparable_value = key_fn(value) if key_fn else value
+
+    # TODO(b/123368592): Remove this limitation by making ComparableValue
+    # hydratable with less_than_fn and perhaps key_fn post construction, and
+    # updating TopCombineFn appropriately.
+    assert not _from_pickle  # See comments in __reduce__ below.
+
+  def __lt__(self, other):
+    return self._less_than_fn(self._comparable_value, other._comparable_value)
+
+  def __repr__(self):
+    return 'ComparableValue[%s]' % str(self.value)
+
+  def __reduce__(self):
+    # ComparableValues might need to be encoded for sizing estimation, but
+    # should otherwise never be instantiated from their encoded representation
+    # and compared with each other (since we are not always able to
+    # serialize self._less_than_fn and/or self._key_fn) and this is verified in
+    # __init__ by asserting on _from_pickle.
+    return ComparableValue, (self.value, None, None, True)
