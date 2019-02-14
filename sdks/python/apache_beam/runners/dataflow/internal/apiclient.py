@@ -946,8 +946,9 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 
   if sys.version_info[0] == 3 and sys.version_info[1] == 5:
     if sys.version_info[2] < 3:
-      warnings.warn('You are using an early release of Python 3.5. '
-          'It is recommended to use Python 3.5.3 or higher with Dataflow '
+      warnings.warn(
+          'You are using an early release of Python 3.5. It is recommended '
+          'to use Python 3.5.3 or higher with Dataflow '
           'runner.')
     return
 
