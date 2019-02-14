@@ -1331,6 +1331,7 @@ public class BigQueryIO {
         .setMaxFilesPerPartition(BatchLoads.DEFAULT_MAX_FILES_PER_PARTITION)
         .setMaxBytesPerPartition(BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION)
         .setOptimizeWrites(false)
+        .setUseBeamSchema(false)
         .build();
   }
 
@@ -1452,6 +1453,8 @@ public class BigQueryIO {
 
     abstract Boolean getOptimizeWrites();
 
+    abstract Boolean getUseBeamSchema();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1510,6 +1513,8 @@ public class BigQueryIO {
       abstract Builder<T> setKmsKey(String kmsKey);
 
       abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
+
+      abstract Builder<T> setUseBeamSchema(Boolean useBeamSchema);
 
       abstract Write<T> build();
     }
@@ -1618,7 +1623,6 @@ public class BigQueryIO {
 
     /** Formats the user's type into a {@link TableRow} to be written to BigQuery. */
     public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
-      checkArgument(formatFunction != null, "formatFunction can not be null");
       return toBuilder().setFormatFunction(formatFunction).build();
     }
 
@@ -1826,8 +1830,18 @@ public class BigQueryIO {
      * BigQuery. Not enabled by default in order to maintain backwards compatibility.
      */
     @Experimental
-    public Write<T> withOptimizedWrites() {
+    public Write<T> optimizedWrites() {
       return toBuilder().setOptimizeWrites(true).build();
+    }
+
+    /**
+     * If true, then the BigQuery schema will be inferred from the input schema. If no
+     * formatFunction is set, then BigQueryIO will automatically turn the input records into
+     * TableRows that match the schema.
+     */
+    @Experimental
+    public Write<T> useBeamSchema() {
+      return toBuilder().setUseBeamSchema(true).build();
     }
 
     @VisibleForTesting
@@ -1910,11 +1924,6 @@ public class BigQueryIO {
               || getDynamicDestinations() != null,
           "must set the table reference of a BigQueryIO.Write transform");
 
-      checkArgument(
-          getFormatFunction() != null,
-          "A function must be provided to convert type into a TableRow. "
-              + "use BigQueryIO.Write.withFormatFunction to provide a formatting function.");
-
       // Require a schema if creating one or more tables.
       checkArgument(
           getCreateDisposition() != CreateDisposition.CREATE_IF_NEEDED
@@ -1995,7 +2004,7 @@ public class BigQueryIO {
         // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
         if (getJsonTimePartitioning() != null) {
           dynamicDestinations =
-              new ConstantTimePartitioningDestinations(
+              new ConstantTimePartitioningDestinations<>(
                   dynamicDestinations, getJsonTimePartitioning());
         }
       }
@@ -2004,6 +2013,29 @@ public class BigQueryIO {
 
     private <DestinationT> WriteResult expandTyped(
         PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
+      boolean optimizeWrites = getOptimizeWrites();
+      SerializableFunction<T, TableRow> formatFunction = getFormatFunction();
+      if (getUseBeamSchema()) {
+        checkArgument(input.hasSchema());
+        optimizeWrites = true;
+        if (formatFunction == null) {
+          // If no format function set, then we will automatically convert the input type to a
+          // TableRow.
+          formatFunction = BigQueryUtils.toTableRow(input.getToRowFunction());
+        }
+        // Infer the TableSchema from the input Beam schema.
+        TableSchema tableSchema = BigQueryUtils.toTableSchema(input.getSchema());
+        dynamicDestinations = new ConstantSchemaDestinations<>(
+            dynamicDestinations, StaticValueProvider.of(BigQueryHelpers.toJsonString(tableSchema)));
+
+      }
+
+      checkArgument(
+          formatFunction != null,
+          "A function must be provided to convert type into a TableRow. "
+              + "use BigQueryIO.Write.withFormatFunction to provide a formatting function." +
+              "A format function is not required if Beam schemas are used.");
+
       Coder<DestinationT> destinationCoder = null;
       try {
         destinationCoder =
@@ -2014,7 +2046,7 @@ public class BigQueryIO {
       }
 
       Method method = resolveMethod(input);
-      if (getOptimizeWrites()) {
+      if (optimizeWrites) {
         PCollection<KV<DestinationT, T>> rowsWithDestination =
             input
                 .apply(
@@ -2026,7 +2058,7 @@ public class BigQueryIO {
             input.getCoder(),
             destinationCoder,
             dynamicDestinations,
-            getFormatFunction(),
+            formatFunction,
             method);
       } else {
         PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
@@ -2079,6 +2111,7 @@ public class BigQueryIO {
                 getJsonTableRef() != null,
                 dynamicDestinations,
                 destinationCoder,
+                getCustomGcsTempLocation(),
                 getCustomGcsTempLocation(),
                 getLoadJobProjectId(),
                 getIgnoreUnknownValues(),

@@ -25,22 +25,24 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.collect.Lists;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.chrono.ISOChronology;
@@ -76,6 +78,7 @@ public class BigQueryUtils {
           .put(TypeName.ROW, StandardSQLTypeName.STRUCT)
           .put(TypeName.DATETIME, StandardSQLTypeName.TIMESTAMP)
           .put(TypeName.STRING, StandardSQLTypeName.STRING)
+          .put(TypeName.BYTES, StandardSQLTypeName.BYTES)
           .build();
 
   private static final Map<TypeName, Function<String, Object>> JSON_VALUE_PARSERS =
@@ -137,11 +140,17 @@ public class BigQueryUtils {
       }
       if (TypeName.ARRAY == type.getTypeName()) {
         type = type.getCollectionElementType();
+        if (type.getTypeName().isCollectionType() || type.getTypeName().isMapType()) {
+          throw new IllegalArgumentException("Array of collection is not supported in BigQuery.");
+        }
         field.setMode(Mode.REPEATED.toString());
       }
       if (TypeName.ROW == type.getTypeName()) {
         Schema subType = type.getRowSchema();
         field.setFields(toTableFieldSchema(subType));
+      }
+      if (TypeName.MAP == type.getTypeName()) {
+        throw new IllegalArgumentException("Maps are not supported in BigQuery.");
       }
       field.setType(toStandardSQLTypeName(type).toString());
 
@@ -155,17 +164,18 @@ public class BigQueryUtils {
     return new TableSchema().setFields(toTableFieldSchema(schema));
   }
 
-  /** Convert a Beam {@link PCollection} to a BigQuery {@link TableSchema}. */
-  public static TableSchema toTableSchema(PCollection<Row> rows) {
-    RowCoder coder = (RowCoder) rows.getCoder();
-    return toTableSchema(coder.getSchema());
-  }
-
-  private static final SerializableFunction<Row, TableRow> TO_TABLE_ROW = new ToTableRow();
+  private static final SerializableFunction<Row, TableRow> ROW_TO_TABLE_ROW =
+      new ToTableRow(SerializableFunctions.identity());
 
   /** Convert a Beam {@link Row} to a BigQuery {@link TableRow}. */
   public static SerializableFunction<Row, TableRow> toTableRow() {
-    return TO_TABLE_ROW;
+    return ROW_TO_TABLE_ROW;
+  }
+
+  /** Convert a Beam schema type to a BigQuery {@link TableRow}. */
+  public static <T> SerializableFunction<T, TableRow> toTableRow(
+      SerializableFunction<T, Row> toRow) {
+    return new ToTableRow<>(toRow);
   }
 
   /** Convert {@link SchemaAndRecord} to a Beam {@link Row}. */
@@ -174,10 +184,16 @@ public class BigQueryUtils {
   }
 
   /** Convert a Beam {@link Row} to a BigQuery {@link TableRow}. */
-  private static class ToTableRow implements SerializableFunction<Row, TableRow> {
+  private static class ToTableRow<T> implements SerializableFunction<T, TableRow> {
+    private final SerializableFunction<T, Row> toRow;
+
+    ToTableRow(SerializableFunction<T, Row> toRow) {
+      this.toRow = toRow;
+    }
+
     @Override
-    public TableRow apply(Row input) {
-      return toTableRow(input);
+    public TableRow apply(T input) {
+      return toTableRow(toRow.apply(input));
     }
   }
 
@@ -214,40 +230,61 @@ public class BigQueryUtils {
     TableRow output = new TableRow();
     for (int i = 0; i < row.getFieldCount(); i++) {
       Object value = row.getValue(i);
-
       Field schemaField = row.getSchema().getField(i);
-      TypeName type = schemaField.getType().getTypeName();
-
-      switch (type) {
-        case ARRAY:
-          type = schemaField.getType().getCollectionElementType().getTypeName();
-          if (TypeName.ROW == type) {
-            List<Row> rows = (List<Row>) value;
-            List<TableRow> tableRows = new ArrayList<>(rows.size());
-            for (int j = 0; j < rows.size(); j++) {
-              tableRows.add(toTableRow(rows.get(j)));
-            }
-            value = tableRows;
-          }
-          break;
-        case ROW:
-          value = toTableRow((Row) value);
-          break;
-        case DATETIME:
-          DateTimeFormatter patternFormat =
-              new DateTimeFormatterBuilder()
-                  .appendPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
-                  .toFormatter();
-          value = value == null ? null : ((Instant) value).toDateTime().toString(patternFormat);
-          break;
-        default:
-          value = row.getValue(i);
-          break;
-      }
-
-      output = output.set(schemaField.getName(), value);
+      output = output.set(schemaField.getName(), fromBeamField(schemaField.getType(), value));
     }
     return output;
+  }
+
+  private static Object fromBeamField(FieldType fieldType, Object fieldValue) {
+    if (fieldValue == null) {
+      if (!fieldType.getNullable()) {
+        throw new IllegalArgumentException("Field is not nullable.");
+      }
+      return null;
+    }
+
+    switch (fieldType.getTypeName()) {
+      case ARRAY:
+        FieldType elementType  = fieldType.getCollectionElementType();
+        List items = (List) fieldValue;
+        List convertedItems = Lists.newArrayListWithCapacity(items.size());
+        for (Object item : items) {
+          convertedItems.add(fromBeamField(elementType, item));
+        }
+        return convertedItems;
+
+      case ROW:
+        return toTableRow((Row) fieldValue);
+
+      case DATETIME:
+        DateTimeFormatter patternFormat =
+            new DateTimeFormatterBuilder()
+                .appendPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
+                .toFormatter();
+        return ((Instant) fieldValue).toDateTime().toString(patternFormat);
+
+      case INT16:
+      case INT32:
+      case INT64:
+      case FLOAT:
+      case DOUBLE:
+      case STRING:
+      case BOOLEAN:
+        return fieldValue.toString();
+
+      case DECIMAL:
+        return fieldValue.toString();
+
+      case BYTES:
+        ByteBuffer byteBuffer = (ByteBuffer) fieldValue;
+        byte[] bytes = new byte[byteBuffer.limit()];
+        byteBuffer.get(bytes);
+        return BaseEncoding.base64().encode(bytes);
+
+      default:
+        return fieldValue;
+    }
   }
 
   /**
