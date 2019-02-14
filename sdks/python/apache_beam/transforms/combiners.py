@@ -25,7 +25,6 @@ import operator
 import random
 from builtins import object
 from builtins import zip
-from functools import cmp_to_key
 
 from past.builtins import long
 
@@ -34,10 +33,10 @@ from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.typehints import KV
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
 from apache_beam.typehints import Iterable
-from apache_beam.typehints import KV
 from apache_beam.typehints import List
 from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeVariable
@@ -196,7 +195,7 @@ class Top(object):
 
     def expand(self, pcoll):
       compare = self._compare
-      if (not self._args and not self._kwargs and 
+      if (not self._args and not self._kwargs and
           pcoll.windowing.is_default()):
         if self._reverse:
           if compare is None or compare is operator.lt:
@@ -302,6 +301,7 @@ class _TopPerBundle(core.DoFn):
   def __init__(self, n, less_than, key):
     self._n = n
     self._less_than = None if less_than is operator.le else less_than
+    self._key = key
 
   def start_bundle(self):
     self._heap = []
@@ -388,6 +388,7 @@ class TopCombineFn(core.CombineFn):
         than largest to smallest
   """
 
+  # TODO(robertwb): For Python 3, remove compare and only keep key.
   def __init__(self, n, compare=None, key=None, reverse=False):
     self._n = n
 
@@ -495,21 +496,6 @@ class TopCombineFn(core.CombineFn):
       return (False, [comparable.value for comparable in heap])
     else:
       return accumulator
-
-  def compact(self, accumulator, *args, **kwargs):
-    if args or kwargs:
-      lt = lambda a, b: self._compare(a, b, *args, **kwargs)
-    else:
-      lt = self._compare
-
-    _, buffer = accumulator
-    if len(buffer) <= self._n:
-      return accumulator  # No compaction needed.
-    else:
-      self._sort_buffer(buffer, lt)
-      min_element = buffer[-self._n]
-      threshold = self._key_fn(min_element) if self._key_fn else min_element
-      return threshold, buffer[-self._n:]
 
   def extract_output(self, accumulator, *args, **kwargs):
     if args or kwargs:

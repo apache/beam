@@ -25,8 +25,8 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 from __future__ import division
 
-from builtins import object
 import operator
+from builtins import object
 
 from apache_beam.transforms import core
 
@@ -357,7 +357,7 @@ class ComparableValue(object):
     return self._less_than_fn(self._comparable_value, other._comparable_value)
 
   def __repr__(self):
-    return 'ComparableValue[%s]' % self.value
+    return 'ComparableValue[%s]' % str(self.value)
 
   def __reduce__(self):
     # ComparableValues might need to be encoded for sizing estimation, but
