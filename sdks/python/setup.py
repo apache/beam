@@ -167,9 +167,7 @@ def generate_protos_first(original_cmd):
     return original_cmd
 
 
-# TODO(BEAM-6583): audit Python 3.x version compatibility and refine this
-# requirement range if necessary.
-python_requires = '>=2.7<=3.7'
+python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
 
 if sys.version_info[0] == 3:
   warnings.warn(
@@ -216,6 +214,7 @@ setuptools.setup(
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.5',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
