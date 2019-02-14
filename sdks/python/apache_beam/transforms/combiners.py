@@ -23,6 +23,8 @@ from __future__ import division
 import heapq
 import operator
 import random
+import sys
+import warnings
 from builtins import object
 from builtins import zip
 from functools import cmp_to_key
@@ -167,7 +169,7 @@ class Top(object):
     function supplied as the compare argument.
     """
 
-    def __init__(self, n, compare=None, *args, **kwargs):
+    def _py2__init__(self, n, compare=None, *args, **kwargs):
       """Initializer.
 
       compare should be an implementation of "a < b" taking at least two
@@ -184,12 +186,38 @@ class Top(object):
         *args: as described above.
         **kwargs: as described above.
       """
+      if compare:
+        warnings.warn('Compare not available in Python 3, use key instead.',
+                      DeprecationWarning)
       self._n = n
       self._compare = compare
       self._key = kwargs.pop('key', None)
       self._reverse = kwargs.pop('reverse', False)
       self._args = args
       self._kwargs = kwargs
+
+    def _py3__init__(self, n, **kwargs):
+      """Creates a global Top operation.
+
+      The arguments 'key' and 'reverse' may be passed as keyword arguments,
+      and have the same meaning as for Python's sort functions.
+
+      Args:
+        pcoll: PCollection to process.
+        n: number of elements to extract from pcoll.
+        **kwargs: may contain 'key' and/or 'reverse'
+      """
+      unknown_kwargs = set(kwargs.keys()) - set(['key', 'reverse'])
+      if unknown_kwargs:
+        raise ValueError(
+            'Unknown keyword arguments: ' + ', '.join(unknown_kwargs))
+      self._py2__init__(n, None, **kwargs)
+
+    # Python 3 sort does not accept a comparison operator, and nor do we.
+    if sys.version_info[0] < 3:
+      __init__ = _py2__init__
+    else:
+      __init__ = _py3__init__
 
     def default_label(self):
       return 'Top(%d)' % self._n
@@ -227,7 +255,7 @@ class Top(object):
     "greatest" is determined by the comparator function supplied as the compare
     argument in the initializer.
     """
-    def __init__(self, n, compare=None, *args, **kwargs):
+    def _py2__init__(self, n, compare=None, *args, **kwargs):
       """Initializer.
 
       compare should be an implementation of "a < b" taking at least two
@@ -244,12 +272,38 @@ class Top(object):
         *args: as described above.
         **kwargs: as described above.
       """
+      if compare:
+        warnings.warn('Compare not available in Python 3, use key instead.',
+                      DeprecationWarning)
       self._n = n
       self._compare = compare
       self._key = kwargs.pop('key', None)
       self._reverse = kwargs.pop('reverse', False)
       self._args = args
       self._kwargs = kwargs
+
+    def _py3__init__(self, n, **kwargs):
+      """Creates a per-key Top operation.
+
+      The arguments 'key' and 'reverse' may be passed as keyword arguments,
+      and have the same meaning as for Python's sort functions.
+
+      Args:
+        pcoll: PCollection to process.
+        n: number of elements to extract from pcoll.
+        **kwargs: may contain 'key' and/or 'reverse'
+      """
+      unknown_kwargs = set(kwargs.keys()) - set(['key', 'reverse'])
+      if unknown_kwargs:
+        raise ValueError(
+            'Unknown keyword arguments: ' + ', '.join(unknown_kwargs))
+      self._py2__init__(n, None, **kwargs)
+
+    # Python 3 sort does not accept a comparison operator, and nor do we.
+    if sys.version_info[0] < 3:
+      __init__ = _py2__init__
+    else:
+      __init__ = _py3__init__
 
     def default_label(self):
       return 'TopPerKey(%d)' % self._n
