@@ -307,6 +307,7 @@ type emitNative struct {
 	ctx context.Context
 	ws  []typex.Window
 	et  typex.EventTime
+	value exec.FullValue
 }
 
 func (e *emitNative) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
@@ -329,8 +330,8 @@ func emitMaker{{$x.Name}}(n exec.ElementProcessor) exec.ReusableEmitter {
 }
 
 func (e *emitNative) invoke{{$x.Name}}({{if $x.Time -}} t typex.EventTime, {{end}}{{if $x.Key}}key {{$x.Key}}, {{end}}val {{$x.Val}}) {
-	value := exec.FullValue{Windows: e.ws, Timestamp: {{- if $x.Time}} t{{else}} e.et{{end}}, {{- if $x.Key}} Elm: key, Elm2: val {{else}} Elm: val{{end -}} }
-	if err := e.n.ProcessElement(e.ctx, value); err != nil {
+	e.value = exec.FullValue{Windows: e.ws, Timestamp: {{- if $x.Time}} t{{else}} e.et{{end}}, {{- if $x.Key}} Elm: key, Elm2: val {{else}} Elm: val{{end -}} }
+	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
 }
