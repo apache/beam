@@ -67,8 +67,7 @@ public class DataflowSideInputHandlerFactory
       Coder<T> elementCoder,
       Coder<W> windowCoder) {
     checkArgument(
-        pTransformId != null && pTransformId.length() > 0,
-        "Expect a valid PTransform ID.");
+        pTransformId != null && pTransformId.length() > 0, "Expect a valid PTransform ID.");
 
     SideInputReader sideInputReader = ptransformIdToSideInputReader.get(pTransformId);
     checkState(sideInputReader != null, String.format("Unknown PTransform '%s'", pTransformId));
