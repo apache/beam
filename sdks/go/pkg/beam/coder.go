@@ -219,7 +219,12 @@ func inferCoders(list []FullType) ([]*coder.Coder, error) {
 
 // protoEnc marshals the supplied proto.Message.
 func protoEnc(in T) ([]byte, error) {
-	return proto.Marshal(in.(proto.Message))
+	buf := proto.NewBuffer(nil)
+	buf.SetDeterministic(true)
+	if err := buf.Marshal(in.(proto.Message)); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // protoDec unmarshals the supplied bytes into an instance of the supplied
