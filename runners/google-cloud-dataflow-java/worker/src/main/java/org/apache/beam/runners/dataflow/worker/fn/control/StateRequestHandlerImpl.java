@@ -58,10 +58,10 @@ public class StateRequestHandlerImpl implements StateRequestHandler {
   }
 
   public void finish() {
-    userStateData.clear();
     for (Map.Entry<BeamFnApi.StateKey, BagState<ByteString>> entry : userStateData.entrySet()) {
       entry.getValue().clear();
     }
+    userStateData.clear();
   }
 
   private CompletionStage<BeamFnApi.StateResponse.Builder> handleBagUserState(
