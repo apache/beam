@@ -44,7 +44,7 @@ func (n *Impulse) StartBundle(ctx context.Context, id string, data exec.DataCont
 }
 
 func (n *Impulse) Process(ctx context.Context) error {
-	value := exec.FullValue{
+	value := &exec.FullValue{
 		Windows:   window.SingleGlobalWindow,
 		Timestamp: mtime.Now(),
 		Elm:       n.Value,

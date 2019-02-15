@@ -102,7 +102,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	return nil
 }
 
-func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error {
+func (n *ParDo) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	if n.status != Active {
 		return fmt.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
@@ -110,14 +110,14 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReS
 	// is that either there is a single window or the function doesn't observes windows.
 
 	if !mustExplodeWindows(n.inv.fn, elm, len(n.Side) > 0) {
-		val, err := n.invokeProcessFn(n.ctx, elm.Windows, elm.Timestamp, &MainInput{Key: elm, Values: values})
+		val, err := n.invokeProcessFn(n.ctx, elm.Windows, elm.Timestamp, &MainInput{Key: *elm, Values: values})
 		if err != nil {
 			return n.fail(err)
 		}
 
 		// Forward direct output, if any. It is always a main output.
 		if val != nil {
-			return n.Out[0].ProcessElement(n.ctx, *val)
+			return n.Out[0].ProcessElement(n.ctx, val)
 		}
 	} else {
 		for _, w := range elm.Windows {
@@ -130,7 +130,7 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReS
 
 			// Forward direct output, if any. It is always a main output.
 			if val != nil {
-				return n.Out[0].ProcessElement(n.ctx, *val)
+				return n.Out[0].ProcessElement(n.ctx, val)
 			}
 		}
 	}
@@ -140,7 +140,7 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReS
 // mustExplodeWindows returns true iif we need to call the function
 // for each window. It is needed if the function either observes the
 // window, either directly or indirectly via (windowed) side inputs.
-func mustExplodeWindows(fn *funcx.Fn, elm FullValue, usesSideInput bool) bool {
+func mustExplodeWindows(fn *funcx.Fn, elm *FullValue, usesSideInput bool) bool {
 	if len(elm.Windows) < 2 {
 		return false
 	}

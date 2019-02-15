@@ -102,7 +102,7 @@ func (e *emitValue) Value() interface{} {
 }
 
 func (e *emitValue) invoke(args []reflect.Value) []reflect.Value {
-	value := FullValue{Windows: e.ws, Timestamp: e.et}
+	value := &FullValue{Windows: e.ws, Timestamp: e.et}
 	isKey := true
 	for i, t := range e.types {
 		switch {

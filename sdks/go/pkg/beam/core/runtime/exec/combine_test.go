@@ -345,7 +345,7 @@ func (n *simpleGBK) StartBundle(ctx context.Context, id string, data DataContext
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *simpleGBK) ProcessElement(ctx context.Context, elm FullValue, _ ...ReStream) error {
+func (n *simpleGBK) ProcessElement(ctx context.Context, elm *FullValue, _ ...ReStream) error {
 	key := elm.Elm
 	value := elm.Elm2
 	keyHash, err := n.hasher.Hash(key)
@@ -368,7 +368,7 @@ func (n *simpleGBK) ProcessElement(ctx context.Context, elm FullValue, _ ...ReSt
 func (n *simpleGBK) FinishBundle(ctx context.Context) error {
 	for _, g := range n.m {
 		values := &FixedReStream{Buf: g.values}
-		if err := n.Out.ProcessElement(ctx, g.key, values); err != nil {
+		if err := n.Out.ProcessElement(ctx, &g.key, values); err != nil {
 			return err
 		}
 	}
