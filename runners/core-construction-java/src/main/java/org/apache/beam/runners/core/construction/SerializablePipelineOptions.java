@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.util.Objects;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -80,5 +81,24 @@ public class SerializablePipelineOptions implements Serializable {
   @Override
   public String toString() {
     return serializedPipelineOptions;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SerializablePipelineOptions that = (SerializablePipelineOptions) o;
+    return serializedPipelineOptions.equals(that.serializedPipelineOptions);
+    // do not assert on this.options.equals(that.options) because PipelineOptions is a interface
+    // and its equal compares references.
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(serializedPipelineOptions, options);
   }
 }
