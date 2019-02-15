@@ -38,17 +38,15 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  *
  * <p>Example:
  *
- * <pre>{@code
- * class SomeDoFn extends DoFn<String, String> {
+ * <pre><code> class SomeDoFn extends{@literal DoFn<String, String>} {
  *   private Counter counter = Metrics.counter(SomeDoFn.class, "my-counter");
  *
- *   {@literal @}ProcessElement
+ *  {@literal @}ProcessElement
  *   public void processElement(ProcessContext c) {
  *     counter.inc();
  *     Metrics.counter(SomeDoFn.class, "my-counter2").inc();
  *   }
- * }
- * }</pre>
+ * }</code></pre>
  *
  * <p>See {@link MetricResults} (available from the {@code PipelineResults} interface) for an
  * example off how to query metrics.

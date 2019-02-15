@@ -66,8 +66,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *
  * <p>The generated class corresponds to the following Java class:
  *
- * <pre>{@code
- * class SchemaRowCoder extends Coder<Row> {
+ * <pre><code>
+ * class SchemaRowCoder extends{@literal Coder<Row>} {
  *   // Generated array containing a coder for each field in the Schema.
  *   private static final Coder[] FIELD_CODERS;
  *
@@ -77,17 +77,19 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *     return schema;
  *   }
  *
- *   {@literal @}Override public void encode(T value, OutputStream outStream) {
+ *  {@literal @}Override
+ *   public void encode(T value, OutputStream outStream) {
  *     // Delegate to a method that evaluates each coder in the static array.
  *     encodeDelegate(FIELD_CODERS, value, outStream);
  *   }
  *
- *   {@literal @}Overide public abstract T decode(InputStream inStream) {
+ *  {@literal @}Overide
+ *   public abstract T decode(InputStream inStream) {
  *     // Delegate to a method that evaluates each coder in the static array.
  *     return decodeDelegate(FIELD_CODERS, inStream);
  *   }
  * }
- * }</pre>
+ * </code></pre>
  */
 public abstract class RowCoderGenerator {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();

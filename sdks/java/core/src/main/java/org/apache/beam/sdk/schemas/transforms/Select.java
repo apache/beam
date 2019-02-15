@@ -49,21 +49,19 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *
  * <p>For example, consider the following POJO type:
  *
- * <pre>{@code
- * {@literal @}DefaultSchema(JavaFieldSchema.class)
+ * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
  * public class UserEvent {
  *   public String userId;
  *   public String eventId;
  *   public int eventType;
  *   public Location location;
- * }
+ * }}</pre>
  *
- * {@literal @}DefaultSchema(JavaFieldSchema.class)
+ * <pre>{@code @DefaultSchema(JavaFieldSchema.class)
  * public class Location {
  *   public double latitude;
  *   public double longtitude;
- * }
- * }</pre>
+ * }}</pre>
  *
  * Say you want to select just the set of userId, eventId pairs from each element, you would write
  * the following:
@@ -78,7 +76,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  *
  * <pre>{@code
  * PCollection<UserEvent> events = readUserEvents();
- * PCollection<Row> rows = event.apply(Select.fieldNames("location.*"))
+ * PCollection<Row> rows = event.apply(Select.fieldNames("location.*"));
  * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
