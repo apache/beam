@@ -36,6 +36,7 @@ public interface SamzaPipelineOptions extends PipelineOptions {
 
   void setConfigFilePath(String filePath);
 
+  @JsonIgnore
   @Description(
       "The config override to set programmatically. It will be applied on "
           + "top of config file if it exits, otherwise used directly as the config.")

@@ -41,7 +41,6 @@ import org.apache.beam.runners.samza.metrics.FnWithMetricsWrapper;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.Base64Serializer;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -437,16 +436,14 @@ public class BoundedSourceSystem {
       return source;
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T> Coder<WindowedValue<T>> getCoder(Config config) {
-      return Base64Serializer.deserializeUnchecked(config.get("coder"), Coder.class);
-    }
-
-    private static SamzaPipelineOptions getPipelineOptions(Config config) {
-      return Base64Serializer.deserializeUnchecked(
-              config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
-          .get()
-          .as(SamzaPipelineOptions.class);
+    static SamzaPipelineOptions getPipelineOptions(Config config) {
+      final SamzaPipelineOptions options =
+          Base64Serializer.deserializeUnchecked(
+                  config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
+              .get()
+              .as(SamzaPipelineOptions.class);
+      options.setConfigOverride(new HashMap<>(config));
+      return options;
     }
   }
 }

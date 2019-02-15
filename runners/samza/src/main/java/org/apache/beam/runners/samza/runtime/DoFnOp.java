@@ -35,12 +35,10 @@ import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -144,11 +142,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
 
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-    final SamzaPipelineOptions pipelineOptions =
-        Base64Serializer.deserializeUnchecked(
-                config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
-            .get()
-            .as(SamzaPipelineOptions.class);
+    final SamzaExecutionContext samzaExecutionContext =
+        (SamzaExecutionContext) context.getApplicationContainerContext();
+    final SamzaPipelineOptions pipelineOptions = samzaExecutionContext.getPipelineOptions();
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
@@ -167,9 +163,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
         new SideInputHandler(sideInputs, nonKeyedStateInternalsFactory.stateInternalsForKey(null));
 
     if (isPortable) {
-      SamzaExecutionContext samzaExecutionContext =
-          (SamzaExecutionContext) context.getApplicationContainerContext();
-      ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
+      final ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
       stageBundleFactory = samzaExecutionContext.getJobBundleFactory().forStage(executableStage);
       this.fnRunner =
           SamzaDoFnRunners.createPortable(

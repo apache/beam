@@ -63,6 +63,10 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
     this.options = options;
   }
 
+  public SamzaPipelineOptions getPipelineOptions() {
+    return options;
+  }
+
   public SamzaMetricsContainer getMetricsContainer() {
     return this.metricsContainer;
   }
