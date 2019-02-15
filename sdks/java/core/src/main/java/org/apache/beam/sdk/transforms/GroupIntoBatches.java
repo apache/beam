@@ -48,25 +48,24 @@ import org.slf4j.LoggerFactory;
  * are output to the output {@link PCollection}.
  *
  * <p>Windows are preserved (batches contain elements from the same window). Batches may contain
- * elements from more than one bundle
+ * elements from more than one bundle.
  *
- * <p>Example (batch call a webservice and get return codes)
+ * <p>Example (batch call a webservice and get return codes):
  *
  * <pre>{@code
- *  Pipeline pipeline = Pipeline.create(...);
- *  ... // KV collection
- *  long batchSize = 100L;
- *  pipeline.apply(GroupIntoBatches.<String, String>ofSize(batchSize))
- * .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())))
- * .apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, String>>() {
- * {@literal @}ProcessElement
- * public void processElement({@literal @}Element KV<String, Iterable<String>> element,
- *                            OutputReceiver<KV<String, String>> r) {
- * r.output(KV.of(element.getKey(), callWebService(element.getValue())));
- * }
- * }));
- *  pipeline.run();
- * }</pre>
+ * PCollection<KV<String, String>> input = ...;
+ * long batchSize = 100L;
+ * PCollection<KV<String, Iterable<String>>> batched = input
+ *     .apply(GroupIntoBatches.<String, String>ofSize(batchSize))
+ *     .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())))
+ *     .apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, String>>() }{
+ *        {@code @ProcessElement
+ *         public void processElement(@Element KV<String, Iterable<String>> element,
+ *             OutputReceiver<KV<String, String>> r) {
+ *             r.output(KV.of(element.getKey(), callWebService(element.getValue())));
+ *         }
+ *     }}));
+ * </pre>
  */
 public class GroupIntoBatches<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
