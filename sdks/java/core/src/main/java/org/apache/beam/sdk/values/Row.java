@@ -37,6 +37,7 @@ import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
@@ -373,7 +374,9 @@ public abstract class Row implements Serializable {
 
   static class Equals {
     static boolean deepEquals(Object a, Object b, Schema.FieldType fieldType) {
-      if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
+      if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
+        return deepEquals(a, b, fieldType.getLogicalType().getBaseType());
+      } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.equals((byte[]) a, (byte[]) b);
       } else if (fieldType.getTypeName() == Schema.TypeName.ARRAY) {
         return deepEqualsForList(
@@ -387,7 +390,9 @@ public abstract class Row implements Serializable {
     }
 
     static int deepHashCode(Object a, Schema.FieldType fieldType) {
-      if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
+      if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
+        return deepHashCode(a, fieldType.getLogicalType().getBaseType());
+      } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.hashCode((byte[]) a);
       } else if (fieldType.getTypeName() == Schema.TypeName.ARRAY) {
         return deepHashCodeForList((List<Object>) a, fieldType.getCollectionElementType());
@@ -519,6 +524,8 @@ public abstract class Row implements Serializable {
       return this;
     }
 
+    // Values are attached. No verification is done, and no conversions are done. LogicalType
+    // values must be specified as the base type.
     public Builder attachValues(List<Object> values) {
       this.attached = true;
       this.values = values;
@@ -564,9 +571,15 @@ public abstract class Row implements Serializable {
             value, type.getMapKeyType().getTypeName(), type.getMapValueType(), fieldName);
       } else if (TypeName.ROW.equals(type.getTypeName())) {
         return verifyRow(value, fieldName);
+      } else if (TypeName.LOGICAL_TYPE.equals(type.getTypeName())) {
+        return verifyLogicalType(value, type.getLogicalType(), fieldName);
       } else {
         return verifyPrimitiveType(value, type.getTypeName(), fieldName);
       }
+    }
+
+    private Object verifyLogicalType(Object value, LogicalType logicalType, String fieldName) {
+      return verify(logicalType.toBaseType(value), logicalType.getBaseType(), fieldName);
     }
 
     private List<Object> verifyArray(

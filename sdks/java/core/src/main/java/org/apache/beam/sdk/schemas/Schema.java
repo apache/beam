@@ -45,6 +45,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
 public class Schema implements Serializable {
+  // This is the metadata field used to store the logical type identifier.
+  private static final String LOGICAL_TYPE_IDENTIFIER = "SchemaLogicalType";
+
   // Helper class that adds proper equality checks to byte arrays.
   static class ByteArrayWrapper implements Serializable {
     final byte[] array;
@@ -346,7 +349,8 @@ public class Schema implements Serializable {
     BYTES, // Byte array.
     ARRAY,
     MAP,
-    ROW; // The field is itself a nested row.
+    ROW, // The field is itself a nested row.
+    LOGICAL_TYPE;
 
     public static final Set<TypeName> NUMERIC_TYPES =
         ImmutableSet.of(BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
@@ -382,6 +386,10 @@ public class Schema implements Serializable {
 
     public boolean isCompositeType() {
       return COMPOSITE_TYPES.contains(this);
+    }
+
+    public boolean isLogicalType() {
+      return this.equals(LOGICAL_TYPE);
     }
 
     public boolean isSubtypeOf(TypeName other) {
@@ -426,6 +434,16 @@ public class Schema implements Serializable {
     }
   }
 
+  public static interface LogicalType<InputT, BaseT> extends Serializable {
+    public String getIdentifier();
+
+    public FieldType getBaseType();
+
+    public BaseT toBaseType(InputT input);
+
+    public InputT toInputType(BaseT base);
+  }
+
   /**
    * A descriptor of a single field type. This is a recursive descriptor, as nested types are
    * allowed.
@@ -438,6 +456,10 @@ public class Schema implements Serializable {
 
     // Whether this type is nullable.
     public abstract Boolean getNullable();
+
+    // For logical types, return the implementing class.
+    @Nullable
+    public abstract LogicalType getLogicalType();
 
     // For container types (e.g. ARRAY), returns the type of the contained element.
     @Nullable
@@ -461,6 +483,11 @@ public class Schema implements Serializable {
 
     abstract FieldType.Builder toBuilder();
 
+    /** Helper function for retrieving the concrete logical type subclass. */
+    public <LogicalTypeT> LogicalTypeT getLogicalType(Class<LogicalTypeT> logicalTypeClass) {
+      return logicalTypeClass.cast(getLogicalType());
+    }
+
     public static FieldType.Builder forTypeName(TypeName typeName) {
       return new AutoValue_Schema_FieldType.Builder()
           .setTypeName(typeName)
@@ -471,6 +498,8 @@ public class Schema implements Serializable {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
+
+      abstract Builder setLogicalType(LogicalType logicalType);
 
       abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
 
@@ -561,6 +590,15 @@ public class Schema implements Serializable {
       return FieldType.forTypeName(TypeName.ROW).setRowSchema(schema).build();
     }
 
+    /** Creates a logical type based on a primitive field type. */
+    public static final <InputT, BaseT> FieldType logicalType(
+        LogicalType<InputT, BaseT> logicalType) {
+      return FieldType.forTypeName(TypeName.LOGICAL_TYPE)
+          .setLogicalType(logicalType)
+          .build()
+          .withMetadata(LOGICAL_TYPE_IDENTIFIER, logicalType.getIdentifier());
+    }
+
     /** Returns a copy of the descriptor with metadata set. */
     public FieldType withMetadata(String key, byte[] metadata) {
       Map<String, ByteArrayWrapper> newMetadata =
@@ -599,6 +637,9 @@ public class Schema implements Serializable {
       if (!(o instanceof FieldType)) {
         return false;
       }
+      // Logical type not included here, since the logical type identifier is included in the
+      // metadata. The LogicalType class is cached in this object just for convenience.
+      // TODO: this is wrong, since LogicalTypes have metadata associated.
       FieldType other = (FieldType) o;
       return Objects.equals(getTypeName(), other.getTypeName())
           && Objects.equals(getNullable(), other.getNullable())

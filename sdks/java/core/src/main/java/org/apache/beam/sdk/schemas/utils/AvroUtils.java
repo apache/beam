@@ -50,6 +50,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.AvroRecordSchema;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
+import org.apache.beam.sdk.schemas.LogicalTypes.FixedBytes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -113,9 +114,6 @@ public class AvroUtils {
 
   /** Wrapper for fixed byte fields. */
   public static class FixedBytesField {
-    public static String METADATA_FIELD = "AVROTYPE";
-    private static final String PREFIX = "FIXED:";
-
     private final int size;
 
     private FixedBytesField(int size) {
@@ -130,9 +128,10 @@ public class AvroUtils {
     /** Create a {@link FixedBytesField} from a Beam {@link FieldType}. */
     @Nullable
     public static FixedBytesField fromBeamFieldType(FieldType fieldType) {
-      String metadata = fieldType.getMetadataString(METADATA_FIELD);
-      if (fieldType.getTypeName().equals(TypeName.BYTES) && metadata.startsWith(PREFIX)) {
-        return new FixedBytesField(Integer.parseInt(metadata.substring(6)));
+      if (fieldType.getTypeName().isLogicalType()
+          && fieldType.getLogicalType().getIdentifier().equals(FixedBytes.IDENTIFIER)) {
+        int length = fieldType.getLogicalType(FixedBytes.class).getLength();
+        return new FixedBytesField(length);
       } else {
         return null;
       }
@@ -155,7 +154,7 @@ public class AvroUtils {
 
     /** Convert to a Beam type. */
     public FieldType toBeamType() {
-      return Schema.FieldType.BYTES.withMetadata(METADATA_FIELD, PREFIX + Integer.toString(size));
+      return Schema.FieldType.logicalType(FixedBytes.of(size));
     }
 
     /** Convert to an AVRO type. */
@@ -587,6 +586,9 @@ public class AvroUtils {
         return instant.getMillis();
 
       case BYTES:
+        return ByteBuffer.wrap((byte[]) value);
+
+      case LOGICAL_TYPE:
         FixedBytesField fixedBytesField = FixedBytesField.fromBeamFieldType(fieldType);
         if (fixedBytesField != null) {
           byte[] byteArray = (byte[]) value;
@@ -594,9 +596,9 @@ public class AvroUtils {
             throw new IllegalArgumentException("Incorrectly sized byte array.");
           }
           return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
-        } else {
-          return ByteBuffer.wrap((byte[]) value);
         }
+        throw new RuntimeException(
+            "Unknown logical type " + fieldType.getLogicalType().getIdentifier());
 
       case ARRAY:
         List array = (List) value;
@@ -730,7 +732,8 @@ public class AvroUtils {
   }
 
   private static Object convertFixedStrict(GenericFixed fixed, Schema.FieldType fieldType) {
-    checkTypeName(fieldType.getTypeName(), Schema.TypeName.BYTES, "fixed");
+    checkTypeName(fieldType.getTypeName(), TypeName.LOGICAL_TYPE, "fixed");
+    checkArgument(FixedBytes.IDENTIFIER.equals(fieldType.getLogicalType().getIdentifier()));
     return fixed.bytes().clone(); // clone because GenericFixed is mutable
   }
 
