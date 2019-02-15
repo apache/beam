@@ -31,6 +31,17 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 
+/**
+ * Class that handles serving UserState.
+ *
+ * <p>This class is responsible for multiplexing {@link
+ * org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest}s and serving {@link
+ * org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse}s. This class is thread safe.
+ * Internally, this class uses the {@link org.apache.beam.runners.core.InMemoryStateInternals} for
+ * persistence only during a bundle's lifetime. All state will automatically be cleared after the
+ * bundle is finished. This class is meant to be used with the
+ * {@link org.apache.beam.runners.fnexecution.control.StageBundleFactory}.
+ */
 public class StateRequestHandlerImpl implements StateRequestHandler {
 
   private DataflowExecutionContext.DataflowStepContext ctxt;
@@ -41,9 +52,15 @@ public class StateRequestHandlerImpl implements StateRequestHandler {
     this.userStateData = new ConcurrentHashMap<>();
   }
 
+  /**
+   * @param request A StateRequest containing instructions for the handler.
+   * @return Returns a future containing the response as a StateResponse builder.
+   * @throws UnsupportedOperationException This only handles BAG_USER_STATE {@link
+   *     BeamFnApi.StateKey}s.
+   */
   @Override
   public CompletionStage<BeamFnApi.StateResponse.Builder> handle(BeamFnApi.StateRequest request)
-      throws Exception {
+      throws UnsupportedOperationException {
 
     // TODO(BEAM-6672): Handle MultiMap state keys.
     switch (request.getStateKey().getTypeCase()) {
@@ -55,13 +72,6 @@ public class StateRequestHandlerImpl implements StateRequestHandler {
                 "Dataflow does not handle StateRequests of type %s",
                 request.getStateKey().getTypeCase()));
     }
-  }
-
-  public void finish() {
-    for (Map.Entry<BeamFnApi.StateKey, BagState<ByteString>> entry : userStateData.entrySet()) {
-      entry.getValue().clear();
-    }
-    userStateData.clear();
   }
 
   private CompletionStage<BeamFnApi.StateResponse.Builder> handleBagUserState(
