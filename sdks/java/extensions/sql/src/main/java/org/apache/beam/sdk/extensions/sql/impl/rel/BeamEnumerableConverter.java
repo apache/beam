@@ -272,15 +272,22 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   private static Object fieldToAvatica(Schema.FieldType type, Object beamValue) {
     switch (type.getTypeName()) {
       case DATETIME:
-        if (Arrays.equals(type.getMetadata(), CalciteUtils.TIMESTAMP.getMetadata())) {
+        if (Arrays.equals(
+            type.getMetadata(CalciteUtils.TYPE_METADATA_KEY),
+            CalciteUtils.TIMESTAMP.getMetadata(CalciteUtils.TYPE_METADATA_KEY))) {
           return ((ReadableInstant) beamValue).getMillis();
-        } else if (Arrays.equals(type.getMetadata(), CalciteUtils.TIME.getMetadata())) {
+        } else if (Arrays.equals(
+            type.getMetadata(CalciteUtils.TYPE_METADATA_KEY),
+            CalciteUtils.TIME.getMetadata(CalciteUtils.TYPE_METADATA_KEY))) {
           return (int) ((ReadableInstant) beamValue).getMillis();
-        } else if (Arrays.equals(type.getMetadata(), CalciteUtils.DATE.getMetadata())) {
+        } else if (Arrays.equals(
+            type.getMetadata(CalciteUtils.TYPE_METADATA_KEY),
+            CalciteUtils.DATE.getMetadata(CalciteUtils.TYPE_METADATA_KEY))) {
           return (int) (((ReadableInstant) beamValue).getMillis() / MILLIS_PER_DAY);
         } else {
           throw new IllegalArgumentException(
-              "Unknown DateTime type " + new String(type.getMetadata(), UTF_8));
+              "Unknown DateTime type "
+                  + new String(type.getMetadata(CalciteUtils.TYPE_METADATA_KEY), UTF_8));
         }
       case BYTE:
       case INT16:

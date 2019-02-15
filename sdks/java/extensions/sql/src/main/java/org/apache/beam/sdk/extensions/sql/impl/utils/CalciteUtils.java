@@ -35,6 +35,7 @@ import org.joda.time.base.AbstractInstant;
 
 /** Utility methods for Calcite related operations. */
 public class CalciteUtils {
+  public static final String TYPE_METADATA_KEY = "SqlType";
   private static final long UNLIMITED_ARRAY_SIZE = -1L;
   // Beam's Schema class has a single DATETIME type, so we need a way to distinguish the different
   // Calcite time classes. We do this by storing extra metadata in the FieldType so we
@@ -52,16 +53,16 @@ public class CalciteUtils {
           .put(FieldType.DECIMAL, SqlTypeName.DECIMAL)
           .put(FieldType.BOOLEAN, SqlTypeName.BOOLEAN)
           .put(FieldType.BYTES, SqlTypeName.VARBINARY)
-          .put(FieldType.DATETIME.withMetadata("DATE"), SqlTypeName.DATE)
-          .put(FieldType.DATETIME.withMetadata("TIME"), SqlTypeName.TIME)
+          .put(FieldType.DATETIME.withMetadata(TYPE_METADATA_KEY, "DATE"), SqlTypeName.DATE)
+          .put(FieldType.DATETIME.withMetadata(TYPE_METADATA_KEY, "TIME"), SqlTypeName.TIME)
           .put(
-              FieldType.DATETIME.withMetadata("TIME_WITH_LOCAL_TZ"),
+              FieldType.DATETIME.withMetadata(TYPE_METADATA_KEY, "TIME_WITH_LOCAL_TZ"),
               SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
           .put(FieldType.DATETIME, SqlTypeName.TIMESTAMP)
           .put(
-              FieldType.DATETIME.withMetadata("TS_WITH_LOCAL_TZ"),
+              FieldType.DATETIME.withMetadata(TYPE_METADATA_KEY, "TS_WITH_LOCAL_TZ"),
               SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-          .put(FieldType.STRING.withMetadata("CHAR"), SqlTypeName.CHAR)
+          .put(FieldType.STRING.withMetadata(TYPE_METADATA_KEY, "CHAR"), SqlTypeName.CHAR)
           .put(FieldType.STRING, SqlTypeName.VARCHAR)
           .build();
 

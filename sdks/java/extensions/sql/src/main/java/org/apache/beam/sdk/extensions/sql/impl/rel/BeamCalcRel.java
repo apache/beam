@@ -302,7 +302,8 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       valueDateTime = Expressions.multiply(valueDateTime, Expressions.constant(MILLIS_PER_DAY));
     } else {
       throw new IllegalArgumentException(
-          "Unknown DateTime type " + new String(toType.getMetadata(), UTF_8));
+          "Unknown DateTime type "
+              + new String(toType.getMetadata(CalciteUtils.TYPE_METADATA_KEY), UTF_8));
     }
 
     // Second, convert to joda DateTime
@@ -371,15 +372,20 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       Expression field = Expressions.call(expression, getter, Expressions.constant(index));
       if (fromType.getTypeName().isDateType()) {
         field = Expressions.call(field, "getMillis");
-        if (Arrays.equals(fromType.getMetadata(), CalciteUtils.TIME.getMetadata())) {
+        if (Arrays.equals(
+            fromType.getMetadata(CalciteUtils.TYPE_METADATA_KEY),
+            CalciteUtils.TIME.getMetadata(CalciteUtils.TYPE_METADATA_KEY))) {
           field = Expressions.convert_(field, int.class);
-        } else if (Arrays.equals(fromType.getMetadata(), CalciteUtils.DATE.getMetadata())) {
+        } else if (Arrays.equals(
+            fromType.getMetadata(CalciteUtils.TYPE_METADATA_KEY),
+            CalciteUtils.DATE.getMetadata(CalciteUtils.TYPE_METADATA_KEY))) {
           field =
               Expressions.convert_(
                   Expressions.modulo(field, Expressions.constant(MILLIS_PER_DAY)), int.class);
-        } else if (fromType.getMetadata() != null) {
+        } else if (fromType.getMetadata(CalciteUtils.TYPE_METADATA_KEY) != null) {
           throw new IllegalArgumentException(
-              "Unknown DateTime type " + new String(fromType.getMetadata(), UTF_8));
+              "Unknown DateTime type "
+                  + new String(fromType.getMetadata(CalciteUtils.TYPE_METADATA_KEY), UTF_8));
         }
       } else if (fromType.getTypeName().isCompositeType()
           || (fromType.getTypeName().isCollectionType()

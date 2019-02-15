@@ -18,12 +18,15 @@
 package org.apache.beam.sdk.schemas;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -42,6 +45,31 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
 public class Schema implements Serializable {
+  // Helper class that adds proper equality checks to byte arrays.
+  static class ByteArrayWrapper implements Serializable {
+    final byte[] array;
+
+    private ByteArrayWrapper(byte[] array) {
+      this.array = array;
+    }
+
+    static ByteArrayWrapper wrap(byte[] array) {
+      return new ByteArrayWrapper(array);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof ByteArrayWrapper)) {
+        return false;
+      }
+      return Arrays.equals(array, ((ByteArrayWrapper) other).array);
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(array);
+    }
+  }
   // A mapping between field names an indices.
   private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
   private final List<Field> fields;
@@ -429,13 +457,15 @@ public class Schema implements Serializable {
 
     /** Returns optional extra metadata. */
     @SuppressWarnings("mutable")
-    @Nullable
-    public abstract byte[] getMetadata();
+    protected abstract Map<String, ByteArrayWrapper> getMetadata();
 
     abstract FieldType.Builder toBuilder();
 
     public static FieldType.Builder forTypeName(TypeName typeName) {
-      return new AutoValue_Schema_FieldType.Builder().setTypeName(typeName).setNullable(false);
+      return new AutoValue_Schema_FieldType.Builder()
+          .setTypeName(typeName)
+          .setNullable(false)
+          .setMetadata(Collections.emptyMap());
     }
 
     @AutoValue.Builder
@@ -452,7 +482,7 @@ public class Schema implements Serializable {
 
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
 
-      abstract Builder setMetadata(@Nullable byte[] metadata);
+      abstract Builder setMetadata(Map<String, ByteArrayWrapper> metadata);
 
       abstract FieldType build();
     }
@@ -532,18 +562,29 @@ public class Schema implements Serializable {
     }
 
     /** Returns a copy of the descriptor with metadata set. */
-    public FieldType withMetadata(@Nullable byte[] metadata) {
-      return toBuilder().setMetadata(metadata).build();
+    public FieldType withMetadata(String key, byte[] metadata) {
+      Map<String, ByteArrayWrapper> newMetadata =
+          ImmutableMap.<String, ByteArrayWrapper>builder()
+              .putAll(getMetadata())
+              .put(key, ByteArrayWrapper.wrap(metadata))
+              .build();
+      return toBuilder().setMetadata(newMetadata).build();
     }
 
     /** Returns a copy of the descriptor with metadata set. */
-    public FieldType withMetadata(String metadata) {
-      return toBuilder().setMetadata(metadata.getBytes(StandardCharsets.UTF_8)).build();
+    public FieldType withMetadata(String key, String metadata) {
+      return withMetadata(key, metadata.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String getMetadataString() {
-      if (getMetadata() != null) {
-        return new String(getMetadata(), StandardCharsets.UTF_8);
+    public byte[] getMetadata(String key) {
+      ByteArrayWrapper metadata = getMetadata().get(key);
+      return (metadata != null) ? metadata.array : null;
+    }
+
+    public String getMetadataString(String key) {
+      ByteArrayWrapper metadata = getMetadata().get(key);
+      if (metadata != null) {
+        return new String(metadata.array, StandardCharsets.UTF_8);
       } else {
         return "";
       }
@@ -565,7 +606,7 @@ public class Schema implements Serializable {
           && Objects.equals(getMapKeyType(), other.getMapKeyType())
           && Objects.equals(getMapValueType(), other.getMapValueType())
           && Objects.equals(getRowSchema(), other.getRowSchema())
-          && Arrays.equals(getMetadata(), other.getMetadata());
+          && Objects.equals(getMetadata(), other.getMetadata());
     }
 
     /** Returns true if two FieldTypes are equal. */
@@ -573,7 +614,7 @@ public class Schema implements Serializable {
       if (!Objects.equals(getTypeName(), other.getTypeName())) {
         return false;
       }
-      if (!Arrays.equals(getMetadata(), other.getMetadata())) {
+      if (!Objects.equals(getMetadata(), other.getMetadata())) {
         return false;
       }
       if (getTypeName() == TypeName.ARRAY
@@ -605,7 +646,7 @@ public class Schema implements Serializable {
       if (!getTypeName().equals(other.getTypeName())) {
         return false;
       }
-      if (!Arrays.equals(getMetadata(), other.getMetadata())) {
+      if (!Objects.equals(getMetadata(), other.getMetadata())) {
         return false;
       }
 

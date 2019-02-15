@@ -113,6 +113,7 @@ public class AvroUtils {
 
   /** Wrapper for fixed byte fields. */
   public static class FixedBytesField {
+    public static String METADATA_FIELD = "AVROTYPE";
     private static final String PREFIX = "FIXED:";
 
     private final int size;
@@ -129,7 +130,7 @@ public class AvroUtils {
     /** Create a {@link FixedBytesField} from a Beam {@link FieldType}. */
     @Nullable
     public static FixedBytesField fromBeamFieldType(FieldType fieldType) {
-      String metadata = fieldType.getMetadataString();
+      String metadata = fieldType.getMetadataString(METADATA_FIELD);
       if (fieldType.getTypeName().equals(TypeName.BYTES) && metadata.startsWith(PREFIX)) {
         return new FixedBytesField(Integer.parseInt(metadata.substring(6)));
       } else {
@@ -154,7 +155,7 @@ public class AvroUtils {
 
     /** Convert to a Beam type. */
     public FieldType toBeamType() {
-      return Schema.FieldType.BYTES.withMetadata(PREFIX + Integer.toString(size));
+      return Schema.FieldType.BYTES.withMetadata(METADATA_FIELD, PREFIX + Integer.toString(size));
     }
 
     /** Convert to an AVRO type. */
