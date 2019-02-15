@@ -51,12 +51,12 @@ func (n *CaptureNode) StartBundle(ctx context.Context, id string, data DataConte
 	return nil
 }
 
-func (n *CaptureNode) ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error {
+func (n *CaptureNode) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	if n.status != Active {
 		return fmt.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
 
-	n.Elements = append(n.Elements, elm)
+	n.Elements = append(n.Elements, *elm)
 	return nil
 }
 
@@ -97,7 +97,7 @@ func (n *FixedRoot) StartBundle(ctx context.Context, id string, data DataContext
 
 func (n *FixedRoot) Process(ctx context.Context) error {
 	for _, elm := range n.Elements {
-		if err := n.Out.ProcessElement(ctx, elm.Key, elm.Values...); err != nil {
+		if err := n.Out.ProcessElement(ctx, &elm.Key, elm.Values...); err != nil {
 			return err
 		}
 	}
@@ -142,7 +142,7 @@ func (n *BenchRoot) StartBundle(ctx context.Context, id string, data DataContext
 
 func (n *BenchRoot) Process(ctx context.Context) error {
 	for elm := range n.Elements {
-		if err := n.Out.ProcessElement(ctx, elm.Key, elm.Values...); err != nil {
+		if err := n.Out.ProcessElement(ctx, &elm.Key, elm.Values...); err != nil {
 			return err
 		}
 	}

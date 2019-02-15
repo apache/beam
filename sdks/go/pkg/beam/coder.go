@@ -87,7 +87,7 @@ type execEncoder struct {
 }
 
 func (e *execEncoder) Encode(element interface{}, w io.Writer) error {
-	return e.enc.Encode(exec.FullValue{Elm: element}, w)
+	return e.enc.Encode(&exec.FullValue{Elm: element}, w)
 }
 
 func (e *execEncoder) String() string {
