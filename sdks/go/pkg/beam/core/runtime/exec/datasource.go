@@ -108,7 +108,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 					if err != nil {
 						return fmt.Errorf("stream value decode failed: %v", err)
 					}
-					buf = append(buf, value)
+					buf = append(buf, *value)
 				}
 			} else {
 				// Multi-chunked stream.
@@ -131,7 +131,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 						if err != nil {
 							return fmt.Errorf("stream value decode failed: %v", err)
 						}
-						buf = append(buf, value)
+						buf = append(buf, *value)
 					}
 				}
 			}

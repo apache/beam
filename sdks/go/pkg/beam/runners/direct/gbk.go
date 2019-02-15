@@ -56,15 +56,15 @@ func (n *CoGBK) StartBundle(ctx context.Context, id string, data exec.DataContex
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *CoGBK) ProcessElement(ctx context.Context, elm exec.FullValue, _ ...exec.ReStream) error {
+func (n *CoGBK) ProcessElement(ctx context.Context, elm *exec.FullValue, _ ...exec.ReStream) error {
 	index := elm.Elm.(int)
-	value := elm.Elm2.(exec.FullValue)
+	value := elm.Elm2.(*exec.FullValue)
 
 	for _, w := range elm.Windows {
 		ws := []typex.Window{w}
 
 		var buf bytes.Buffer
-		if err := n.enc.Encode(exec.FullValue{Elm: value.Elm}, &buf); err != nil {
+		if err := n.enc.Encode(&exec.FullValue{Elm: value.Elm}, &buf); err != nil {
 			return fmt.Errorf("failed to encode key %v for CoGBK: %v", elm, err)
 		}
 		if err := n.wEnc.Encode(ws, &buf); err != nil {
@@ -91,7 +91,7 @@ func (n *CoGBK) FinishBundle(ctx context.Context) error {
 		for i, list := range g.values {
 			values[i] = &exec.FixedReStream{Buf: list}
 		}
-		if err := n.Out.ProcessElement(ctx, g.key, values...); err != nil {
+		if err := n.Out.ProcessElement(ctx, &g.key, values...); err != nil {
 			return err
 		}
 		delete(n.m, key)
@@ -127,8 +127,8 @@ func (n *Inject) StartBundle(ctx context.Context, id string, data exec.DataConte
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *Inject) ProcessElement(ctx context.Context, elm exec.FullValue, values ...exec.ReStream) error {
-	return n.Out.ProcessElement(ctx, exec.FullValue{Elm: n.N, Elm2: elm, Timestamp: elm.Timestamp, Windows: elm.Windows}, values...)
+func (n *Inject) ProcessElement(ctx context.Context, elm *exec.FullValue, values ...exec.ReStream) error {
+	return n.Out.ProcessElement(ctx, &exec.FullValue{Elm: n.N, Elm2: elm, Timestamp: elm.Timestamp, Windows: elm.Windows}, values...)
 }
 
 func (n *Inject) FinishBundle(ctx context.Context) error {

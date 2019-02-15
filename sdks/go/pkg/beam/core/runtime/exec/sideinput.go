@@ -98,7 +98,7 @@ func (s *elementStream) Close() error {
 	return s.r.Close()
 }
 
-func (s *elementStream) Read() (FullValue, error) {
+func (s *elementStream) Read() (*FullValue, error) {
 	// We should see a stream of unwindowed values -- no sizes, no key.
 	return s.ec.Decode(s.r)
 }
@@ -125,10 +125,10 @@ func (n *FixedKey) StartBundle(ctx context.Context, id string, data DataContext)
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *FixedKey) ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error {
+func (n *FixedKey) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	// Transform: V to KV<K,V>
 
-	v := FullValue{
+	v := &FullValue{
 		Elm:       n.Key,
 		Elm2:      elm,
 		Timestamp: elm.Timestamp,
