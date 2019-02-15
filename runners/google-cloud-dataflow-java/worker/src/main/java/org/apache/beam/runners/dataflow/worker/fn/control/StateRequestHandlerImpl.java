@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,8 +38,8 @@ import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
  * org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse}s. This class is thread safe.
  * Internally, this class uses the {@link org.apache.beam.runners.core.InMemoryStateInternals} for
  * persistence only during a bundle's lifetime. All state will automatically be cleared after the
- * bundle is finished. This class is meant to be used with the
- * {@link org.apache.beam.runners.fnexecution.control.StageBundleFactory}.
+ * bundle is finished. This class is meant to be used with the {@link
+ * org.apache.beam.runners.fnexecution.control.StageBundleFactory}.
  */
 public class StateRequestHandlerImpl implements StateRequestHandler {
 
