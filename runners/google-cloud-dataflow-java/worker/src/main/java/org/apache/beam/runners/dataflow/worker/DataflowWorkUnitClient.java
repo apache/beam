@@ -109,7 +109,7 @@ class DataflowWorkUnitClient implements WorkUnitClient {
       return Optional.absent();
     }
     if (workItem.isPresent() && workItem.get().getId() == null) {
-      logger.warn("Discarding invalid work item {}", workItem.orNull());
+      logger.debug("Discarding invalid work item {}", workItem.orNull());
       return Optional.absent();
     }
 
