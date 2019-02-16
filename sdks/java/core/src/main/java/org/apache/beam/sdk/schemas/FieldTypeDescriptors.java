@@ -70,6 +70,7 @@ public class FieldTypeDescriptors {
   }
   /** Get a {@link FieldType} from a {@link TypeDescriptor}. */
   public static FieldType fieldTypeForJavaType(TypeDescriptor typeDescriptor) {
+    // TODO: Convert for registered logical types.
     if (typeDescriptor.isArray()
         || typeDescriptor.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
       return getArrayFieldType(typeDescriptor);

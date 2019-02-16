@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,10 +34,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimestampType;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -276,9 +272,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     switch (type.getTypeName()) {
       case LOGICAL_TYPE:
         String logicalId = type.getLogicalType().getIdentifier();
-        if (logicalId.equals(TimestampType.IDENTIFIER)) {
-          return ((ReadableInstant) beamValue).getMillis();
-        } else if (logicalId.equals(TimeType.IDENTIFIER)) {
+        if (logicalId.equals(TimeType.IDENTIFIER)) {
           return (int) ((ReadableInstant) beamValue).getMillis();
         } else if (logicalId.equals(DateType.IDENTIFIER)) {
           return (int) (((ReadableInstant) beamValue).getMillis() / MILLIS_PER_DAY);
@@ -286,7 +280,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
           throw new IllegalArgumentException("Unknown DateTime type " + logicalId);
         }
       case DATETIME:
-          throw new IllegalArgumentException("Unknown DateTime type " + type);
+        return ((ReadableInstant) beamValue).getMillis();
       case BYTE:
       case INT16:
       case INT32:

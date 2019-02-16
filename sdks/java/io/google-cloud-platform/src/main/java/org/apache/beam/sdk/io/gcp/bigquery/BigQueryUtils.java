@@ -26,7 +26,6 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -116,7 +115,7 @@ public class BigQueryUtils {
     StandardSQLTypeName sqlType = BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
 
     if (sqlType == StandardSQLTypeName.TIMESTAMP && fieldType.getTypeName().isLogicalType()) {
-      StandardSQLTypeName foundType  =
+      StandardSQLTypeName foundType =
           BEAM_TO_BIGQUERY_LOGICAL_MAPPING.get(fieldType.getLogicalType().getIdentifier());
       if (foundType != null) {
         return foundType;

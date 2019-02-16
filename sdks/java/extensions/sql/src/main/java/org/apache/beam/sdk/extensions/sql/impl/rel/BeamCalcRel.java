@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.schemas.Schema.FieldType;
 import static org.apache.beam.sdk.schemas.Schema.TypeName;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
@@ -28,7 +27,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.AbstractList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -36,6 +34,8 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimestampWithLocalTzType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -267,7 +267,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     if (value.getType() == Object.class || !(value.getType() instanceof Class)) {
       // fast copy path, just pass object through
       return value;
-    } else if (toType.getTypeName().isDateType()
+    } else if (CalciteUtils.isDateTimeType(toType)
         && !Types.isAssignableFrom(ReadableInstant.class, (Class) value.getType())) {
       return castOutputTime(value, toType);
 
@@ -344,6 +344,14 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
             .put(TypeName.ROW, "getRow")
             .build();
 
+    private static final Map<String, String> logicalTypeGetterMap =
+        ImmutableMap.<String, String>builder()
+            .put(DateType.IDENTIFIER, "getDateTime")
+            .put(TimeType.IDENTIFIER, "getDateTime")
+            .put(TimeWithLocalTzType.IDENTIFIER, "getDateTime")
+            .put(TimestampWithLocalTzType.IDENTIFIER, "getDateTime")
+            .build();
+
     private final Expression input;
     private final Schema inputSchema;
 
@@ -364,11 +372,15 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
             Expressions.call(expression, "getValue", Expressions.constant(index)), Object.class);
       }
       FieldType fromType = inputSchema.getField(index).getType();
-      String getter = typeGetterMap.get(fromType.getTypeName());
+      String getter;
+      if (fromType.getTypeName().isLogicalType()) {
+        getter = logicalTypeGetterMap.get(fromType.getLogicalType().getIdentifier());
+      } else {
+        getter = typeGetterMap.get(fromType.getTypeName());
+      }
       if (getter == null) {
         throw new IllegalArgumentException("Unable to get " + fromType.getTypeName());
       }
-
       Expression field = Expressions.call(expression, getter, Expressions.constant(index));
       if (fromType.getTypeName().isLogicalType()) {
         field = Expressions.call(field, "getMillis");
@@ -379,11 +391,11 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
           field =
               Expressions.convert_(
                   Expressions.modulo(field, Expressions.constant(MILLIS_PER_DAY)), int.class);
-        } else  {
+        } else {
           throw new IllegalArgumentException(
               "Unknown DateTime type " + fromType.getLogicalType().getIdentifier());
         }
-      } else if (fromType.getTypeName().isDateType()) {
+      } else if (CalciteUtils.isDateTimeType(fromType)) {
         field = Expressions.call(field, "getMillis");
       } else if (fromType.getTypeName().isCompositeType()
           || (fromType.getTypeName().isCollectionType()

@@ -521,9 +521,10 @@ public class AvroUtils {
         if (fixedBytesField != null) {
           baseType = fixedBytesField.toAvroType();
         } else {
-          throw new RuntimeException("Unhandled logical type "
-              + fieldType.getLogicalType().getIdentifier());
+          throw new RuntimeException(
+              "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
         }
+        break;
 
       case ARRAY:
         baseType =

@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -111,7 +112,7 @@ public final class BeamTableUtils {
       } else {
         return rawObj;
       }
-    } else if (type.isDateType()) {
+    } else if (CalciteUtils.isDateTimeType(field.getType())) {
       // Internal representation of DateType in Calcite is convertible to Joda's Datetime.
       return new DateTime(rawObj);
     } else if (type.isNumericType()

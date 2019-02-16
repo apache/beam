@@ -20,14 +20,12 @@ package org.apache.beam.sdk.schemas;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Arrays;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 
 public class LogicalTypes {
 
-  public static abstract class PassThroughLogicalType<T> implements LogicalType<T, T> {
+  public abstract static class PassThroughLogicalType<T> implements LogicalType<T, T> {
     private final String identifier;
     private final FieldType fieldType;
 

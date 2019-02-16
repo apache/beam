@@ -361,7 +361,7 @@ public class Schema implements Serializable {
     public static final Set<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
 
     public boolean isPrimitiveType() {
-      return !isCollectionType() && !isMapType() && !isCompositeType();
+      return !isCollectionType() && !isMapType() && !isCompositeType() && !isLogicalType();
     }
 
     public boolean isNumericType() {

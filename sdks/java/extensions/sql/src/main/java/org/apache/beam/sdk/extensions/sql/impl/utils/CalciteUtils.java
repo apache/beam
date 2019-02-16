@@ -24,7 +24,7 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
@@ -44,6 +44,7 @@ public class CalciteUtils {
   // Represent a DATE type.
   public static class DateType extends PassThroughLogicalType<Instant> {
     public static String IDENTIFIER = "SqlDateType";
+
     public DateType() {
       super(IDENTIFIER, FieldType.DATETIME);
     }
@@ -51,6 +52,7 @@ public class CalciteUtils {
 
   public static class TimeType extends PassThroughLogicalType<Instant> {
     public static String IDENTIFIER = "SqlTimeType";
+
     public TimeType() {
       super(IDENTIFIER, FieldType.DATETIME);
     }
@@ -58,6 +60,7 @@ public class CalciteUtils {
 
   public static class TimeWithLocalTzType extends PassThroughLogicalType<Instant> {
     public static String IDENTIFIER = "SqlTimeWithLocalTzType";
+
     public TimeWithLocalTzType() {
       super(IDENTIFIER, FieldType.DATETIME);
     }
@@ -65,16 +68,26 @@ public class CalciteUtils {
 
   public static class TimestampWithLocalTzType extends PassThroughLogicalType<Instant> {
     public static String IDENTIFIER = "SqlTimestampWithLocalTzType";
+
     public TimestampWithLocalTzType() {
       super(IDENTIFIER, FieldType.DATETIME);
     }
   }
 
-  public static class TimestampType extends PassThroughLogicalType<Instant> {
-    public static String IDENTIFIER = "SqlTimestamp";
-    public TimestampType() {
-      super(IDENTIFIER, FieldType.DATETIME);
+  /** Returns true if the type is any of the various date time types. */
+  public static boolean isDateTimeType(FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.DATETIME) {
+      return true;
     }
+
+    if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
+      String logicalId = fieldType.getLogicalType().getIdentifier();
+      return logicalId.equals(DateType.IDENTIFIER)
+          || logicalId.equals(TimeType.IDENTIFIER)
+          || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
+          || logicalId.equals(TimestampWithLocalTzType.IDENTIFIER);
+    }
+    return false;
   }
 
   // Beam's Schema class has a single DATETIME type, so we need a way to distinguish the different
@@ -95,9 +108,13 @@ public class CalciteUtils {
           .put(FieldType.BYTES, SqlTypeName.VARBINARY)
           .put(FieldType.logicalType(new DateType()), SqlTypeName.DATE)
           .put(FieldType.logicalType(new TimeType()), SqlTypeName.TIME)
-          .put(FieldType.logicalType(new TimeWithLocalTzType()), SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
-          .put(FieldType.logicalType(new TimestampType()), SqlTypeName.TIMESTAMP)
-          .put(FieldType.logicalType(new TimestampWithLocalTzType()), SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+          .put(
+              FieldType.logicalType(new TimeWithLocalTzType()),
+              SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
+          .put(FieldType.DATETIME, SqlTypeName.TIMESTAMP)
+          .put(
+              FieldType.logicalType(new TimestampWithLocalTzType()),
+              SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
           .put(FieldType.STRING.withMetadata(TYPE_METADATA_KEY, "CHAR"), SqlTypeName.CHAR)
           .put(FieldType.STRING, SqlTypeName.VARCHAR)
           .build();
