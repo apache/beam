@@ -381,7 +381,7 @@ public abstract class RowCoderGenerator {
   }
 
   static StackManipulation mapCoder(Schema.FieldType keyType, Schema.FieldType valueType) {
-    StackManipulation keyCoder = coderForPrimitiveType(keyType.getTypeName());
+    StackManipulation keyCoder = getCoder(keyType);
     StackManipulation valueCoder = getCoder(valueType);
     return new Compound(
         keyCoder,

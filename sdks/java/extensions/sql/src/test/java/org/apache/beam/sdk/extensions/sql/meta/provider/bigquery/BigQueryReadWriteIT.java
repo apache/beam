@@ -77,8 +77,7 @@ public class BigQueryReadWriteIT implements Serializable {
           .addNullableField("c_float", FLOAT)
           .addNullableField("c_double", DOUBLE)
           .addNullableField("c_boolean", BOOLEAN)
-          .addNullableField(
-              "c_timestamp", FieldType.DATETIME.withMetadata(CalciteUtils.TYPE_METADATA_KEY, "TS"))
+          .addNullableField("c_timestamp", CalciteUtils.TIMESTAMP)
           .addNullableField("c_varchar", STRING)
           .addNullableField("c_char", STRING)
           .addNullableField("c_arr", FieldType.array(STRING))

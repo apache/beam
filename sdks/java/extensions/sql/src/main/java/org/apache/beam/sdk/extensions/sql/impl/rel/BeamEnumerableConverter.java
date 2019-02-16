@@ -34,6 +34,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.metrics.Counter;
@@ -276,6 +277,8 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
           return (int) ((ReadableInstant) beamValue).getMillis();
         } else if (logicalId.equals(DateType.IDENTIFIER)) {
           return (int) (((ReadableInstant) beamValue).getMillis() / MILLIS_PER_DAY);
+        } else if (logicalId.equals(CharType.IDENTIFIER)) {
+          return beamValue;
         } else {
           throw new IllegalArgumentException("Unknown DateTime type " + logicalId);
         }

@@ -38,7 +38,6 @@ import org.joda.time.base.AbstractInstant;
 
 /** Utility methods for Calcite related operations. */
 public class CalciteUtils {
-  public static final String TYPE_METADATA_KEY = "SqlType";
   private static final long UNLIMITED_ARRAY_SIZE = -1L;
 
   // Represent a DATE type.
@@ -74,18 +73,38 @@ public class CalciteUtils {
     }
   }
 
+  public static class CharType extends PassThroughLogicalType<String> {
+    public static String IDENTIFIER = "SqlCharType";
+
+    public CharType() {
+      super(IDENTIFIER, FieldType.STRING);
+    }
+  }
+
   /** Returns true if the type is any of the various date time types. */
   public static boolean isDateTimeType(FieldType fieldType) {
     if (fieldType.getTypeName() == TypeName.DATETIME) {
       return true;
     }
 
-    if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
+    if (fieldType.getTypeName().isLogicalType()) {
       String logicalId = fieldType.getLogicalType().getIdentifier();
       return logicalId.equals(DateType.IDENTIFIER)
           || logicalId.equals(TimeType.IDENTIFIER)
           || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
           || logicalId.equals(TimestampWithLocalTzType.IDENTIFIER);
+    }
+    return false;
+  }
+
+  public static boolean isStringType(FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.STRING) {
+      return true;
+    }
+
+    if (fieldType.getTypeName().isLogicalType()) {
+      String logicalId = fieldType.getLogicalType().getIdentifier();
+      return logicalId.equals(CharType.IDENTIFIER);
     }
     return false;
   }
@@ -115,7 +134,7 @@ public class CalciteUtils {
           .put(
               FieldType.logicalType(new TimestampWithLocalTzType()),
               SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-          .put(FieldType.STRING.withMetadata(TYPE_METADATA_KEY, "CHAR"), SqlTypeName.CHAR)
+          .put(FieldType.logicalType(new CharType()), SqlTypeName.CHAR)
           .put(FieldType.STRING, SqlTypeName.VARCHAR)
           .build();
 

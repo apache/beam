@@ -32,6 +32,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
@@ -350,6 +351,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
             .put(TimeType.IDENTIFIER, "getDateTime")
             .put(TimeWithLocalTzType.IDENTIFIER, "getDateTime")
             .put(TimestampWithLocalTzType.IDENTIFIER, "getDateTime")
+            .put(CharType.IDENTIFIER, "getString")
             .build();
 
     private final Expression input;
@@ -391,9 +393,9 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
           field =
               Expressions.convert_(
                   Expressions.modulo(field, Expressions.constant(MILLIS_PER_DAY)), int.class);
-        } else {
+        } else if (!logicalId.equals(CharType.IDENTIFIER)) {
           throw new IllegalArgumentException(
-              "Unknown DateTime type " + fromType.getLogicalType().getIdentifier());
+              "Unknown LogicalType " + fromType.getLogicalType().getIdentifier());
         }
       } else if (CalciteUtils.isDateTimeType(fromType)) {
         field = Expressions.call(field, "getMillis");
