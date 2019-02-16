@@ -37,6 +37,9 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimestampType;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -271,24 +274,19 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static Object fieldToAvatica(Schema.FieldType type, Object beamValue) {
     switch (type.getTypeName()) {
-      case DATETIME:
-        if (Arrays.equals(
-            type.getMetadata(CalciteUtils.TYPE_METADATA_KEY),
-            CalciteUtils.TIMESTAMP.getMetadata(CalciteUtils.TYPE_METADATA_KEY))) {
+      case LOGICAL_TYPE:
+        String logicalId = type.getLogicalType().getIdentifier();
+        if (logicalId.equals(TimestampType.IDENTIFIER)) {
           return ((ReadableInstant) beamValue).getMillis();
-        } else if (Arrays.equals(
-            type.getMetadata(CalciteUtils.TYPE_METADATA_KEY),
-            CalciteUtils.TIME.getMetadata(CalciteUtils.TYPE_METADATA_KEY))) {
+        } else if (logicalId.equals(TimeType.IDENTIFIER)) {
           return (int) ((ReadableInstant) beamValue).getMillis();
-        } else if (Arrays.equals(
-            type.getMetadata(CalciteUtils.TYPE_METADATA_KEY),
-            CalciteUtils.DATE.getMetadata(CalciteUtils.TYPE_METADATA_KEY))) {
+        } else if (logicalId.equals(DateType.IDENTIFIER)) {
           return (int) (((ReadableInstant) beamValue).getMillis() / MILLIS_PER_DAY);
         } else {
-          throw new IllegalArgumentException(
-              "Unknown DateTime type "
-                  + new String(type.getMetadata(CalciteUtils.TYPE_METADATA_KEY), UTF_8));
+          throw new IllegalArgumentException("Unknown DateTime type " + logicalId);
         }
+      case DATETIME:
+          throw new IllegalArgumentException("Unknown DateTime type " + type);
       case BYTE:
       case INT16:
       case INT32:

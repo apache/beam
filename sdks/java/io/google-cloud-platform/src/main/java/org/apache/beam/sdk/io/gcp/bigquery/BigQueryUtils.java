@@ -97,13 +97,15 @@ public class BigQueryUtils {
                       (long) (Double.parseDouble(str) * 1000), ISOChronology.getInstanceUTC()))
           .build();
 
-  private static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
+  // TODO: BigQuery code should not be relying on Calcite metadata fields. If so, this belongs
+  // in the SQL package.
+  private static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_LOGICAL_MAPPING =
       ImmutableMap.<String, StandardSQLTypeName>builder()
-          .put("DATE", StandardSQLTypeName.DATE)
-          .put("TIME", StandardSQLTypeName.TIME)
-          .put("TIME_WITH_LOCAL_TZ", StandardSQLTypeName.TIME)
-          .put("TS", StandardSQLTypeName.TIMESTAMP)
-          .put("TS_WITH_LOCAL_TZ", StandardSQLTypeName.TIMESTAMP)
+          .put("SqlDateType", StandardSQLTypeName.DATE)
+          .put("SqlTimeType", StandardSQLTypeName.TIME)
+          .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
+          .put("SqlTimestamp", StandardSQLTypeName.TIMESTAMP)
+          .put("SqlTimestampWithLocalTzType", StandardSQLTypeName.TIMESTAMP)
           .build();
 
   /**
@@ -113,11 +115,12 @@ public class BigQueryUtils {
   private static StandardSQLTypeName toStandardSQLTypeName(FieldType fieldType) {
     StandardSQLTypeName sqlType = BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
 
-    // TODO: BigQuery code should not be relying on Calcite metadata fields.
-    if (sqlType == StandardSQLTypeName.TIMESTAMP && fieldType.getMetadata("SqlType") != null) {
-      sqlType =
-          BEAM_TO_BIGQUERY_METADATA_MAPPING.get(
-              new String(fieldType.getMetadata("SqlType"), StandardCharsets.UTF_8));
+    if (sqlType == StandardSQLTypeName.TIMESTAMP && fieldType.getTypeName().isLogicalType()) {
+      StandardSQLTypeName foundType  =
+          BEAM_TO_BIGQUERY_LOGICAL_MAPPING.get(fieldType.getLogicalType().getIdentifier());
+      if (foundType != null) {
+        return foundType;
+      }
     }
 
     return sqlType;

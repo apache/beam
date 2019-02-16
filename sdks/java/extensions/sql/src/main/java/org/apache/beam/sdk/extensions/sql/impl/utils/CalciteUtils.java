@@ -21,8 +21,10 @@ import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
@@ -31,12 +33,50 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
 
 /** Utility methods for Calcite related operations. */
 public class CalciteUtils {
   public static final String TYPE_METADATA_KEY = "SqlType";
   private static final long UNLIMITED_ARRAY_SIZE = -1L;
+
+  // Represent a DATE type.
+  public static class DateType extends PassThroughLogicalType<Instant> {
+    public static String IDENTIFIER = "SqlDateType";
+    public DateType() {
+      super(IDENTIFIER, FieldType.DATETIME);
+    }
+  }
+
+  public static class TimeType extends PassThroughLogicalType<Instant> {
+    public static String IDENTIFIER = "SqlTimeType";
+    public TimeType() {
+      super(IDENTIFIER, FieldType.DATETIME);
+    }
+  }
+
+  public static class TimeWithLocalTzType extends PassThroughLogicalType<Instant> {
+    public static String IDENTIFIER = "SqlTimeWithLocalTzType";
+    public TimeWithLocalTzType() {
+      super(IDENTIFIER, FieldType.DATETIME);
+    }
+  }
+
+  public static class TimestampWithLocalTzType extends PassThroughLogicalType<Instant> {
+    public static String IDENTIFIER = "SqlTimestampWithLocalTzType";
+    public TimestampWithLocalTzType() {
+      super(IDENTIFIER, FieldType.DATETIME);
+    }
+  }
+
+  public static class TimestampType extends PassThroughLogicalType<Instant> {
+    public static String IDENTIFIER = "SqlTimestamp";
+    public TimestampType() {
+      super(IDENTIFIER, FieldType.DATETIME);
+    }
+  }
+
   // Beam's Schema class has a single DATETIME type, so we need a way to distinguish the different
   // Calcite time classes. We do this by storing extra metadata in the FieldType so we
   // can tell which time class this is.
@@ -53,15 +93,11 @@ public class CalciteUtils {
           .put(FieldType.DECIMAL, SqlTypeName.DECIMAL)
           .put(FieldType.BOOLEAN, SqlTypeName.BOOLEAN)
           .put(FieldType.BYTES, SqlTypeName.VARBINARY)
-          .put(FieldType.DATETIME.withMetadata(TYPE_METADATA_KEY, "DATE"), SqlTypeName.DATE)
-          .put(FieldType.DATETIME.withMetadata(TYPE_METADATA_KEY, "TIME"), SqlTypeName.TIME)
-          .put(
-              FieldType.DATETIME.withMetadata(TYPE_METADATA_KEY, "TIME_WITH_LOCAL_TZ"),
-              SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
-          .put(FieldType.DATETIME, SqlTypeName.TIMESTAMP)
-          .put(
-              FieldType.DATETIME.withMetadata(TYPE_METADATA_KEY, "TS_WITH_LOCAL_TZ"),
-              SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+          .put(FieldType.logicalType(new DateType()), SqlTypeName.DATE)
+          .put(FieldType.logicalType(new TimeType()), SqlTypeName.TIME)
+          .put(FieldType.logicalType(new TimeWithLocalTzType()), SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
+          .put(FieldType.logicalType(new TimestampType()), SqlTypeName.TIMESTAMP)
+          .put(FieldType.logicalType(new TimestampWithLocalTzType()), SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
           .put(FieldType.STRING.withMetadata(TYPE_METADATA_KEY, "CHAR"), SqlTypeName.CHAR)
           .put(FieldType.STRING, SqlTypeName.VARCHAR)
           .build();

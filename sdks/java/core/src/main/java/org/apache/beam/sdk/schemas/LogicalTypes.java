@@ -26,17 +26,35 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 
 public class LogicalTypes {
-  private static final Map<String, LogicalType> logicalTypes = new ConcurrentHashMap<>();
 
-  public static <InputT, BaseT> void registerLogicalType(
-      String identifier, LogicalType<InputT, BaseT> logicalType) {
-    if (logicalTypes.putIfAbsent(identifier, logicalType) != null) {
-      throw new IllegalStateException("Multiple logical types registered with id " + identifier);
+  public static abstract class PassThroughLogicalType<T> implements LogicalType<T, T> {
+    private final String identifier;
+    private final FieldType fieldType;
+
+    protected PassThroughLogicalType(String identifier, FieldType fieldType) {
+      this.identifier = identifier;
+      this.fieldType = fieldType;
     }
-  }
 
-  public static <InputT, BaseT> LogicalType<InputT, BaseT> getLogicalType(String identifer) {
-    return (LogicalType<InputT, BaseT>) logicalTypes.get(identifer);
+    @Override
+    public String getIdentifier() {
+      return identifier;
+    }
+
+    @Override
+    public FieldType getBaseType() {
+      return fieldType;
+    }
+
+    @Override
+    public T toBaseType(T input) {
+      return input;
+    }
+
+    @Override
+    public T toInputType(T base) {
+      return base;
+    }
   }
 
   /** Represents a fixed-size byte array. */

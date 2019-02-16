@@ -513,13 +513,17 @@ public class AvroUtils {
         break;
 
       case BYTES:
+        baseType = org.apache.avro.Schema.create(Type.BYTES);
+        break;
+
+      case LOGICAL_TYPE:
         FixedBytesField fixedBytesField = FixedBytesField.fromBeamFieldType(fieldType);
         if (fixedBytesField != null) {
           baseType = fixedBytesField.toAvroType();
         } else {
-          baseType = org.apache.avro.Schema.create(Type.BYTES);
+          throw new RuntimeException("Unhandled logical type "
+              + fieldType.getLogicalType().getIdentifier());
         }
-        break;
 
       case ARRAY:
         baseType =

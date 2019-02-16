@@ -34,6 +34,8 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -301,9 +303,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       }
       valueDateTime = Expressions.multiply(valueDateTime, Expressions.constant(MILLIS_PER_DAY));
     } else {
-      throw new IllegalArgumentException(
-          "Unknown DateTime type "
-              + new String(toType.getMetadata(CalciteUtils.TYPE_METADATA_KEY), UTF_8));
+      throw new IllegalArgumentException("Unknown DateTime type " + toType);
     }
 
     // Second, convert to joda DateTime
@@ -370,23 +370,21 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       }
 
       Expression field = Expressions.call(expression, getter, Expressions.constant(index));
-      if (fromType.getTypeName().isDateType()) {
+      if (fromType.getTypeName().isLogicalType()) {
         field = Expressions.call(field, "getMillis");
-        if (Arrays.equals(
-            fromType.getMetadata(CalciteUtils.TYPE_METADATA_KEY),
-            CalciteUtils.TIME.getMetadata(CalciteUtils.TYPE_METADATA_KEY))) {
+        String logicalId = fromType.getLogicalType().getIdentifier();
+        if (logicalId.equals(TimeType.IDENTIFIER)) {
           field = Expressions.convert_(field, int.class);
-        } else if (Arrays.equals(
-            fromType.getMetadata(CalciteUtils.TYPE_METADATA_KEY),
-            CalciteUtils.DATE.getMetadata(CalciteUtils.TYPE_METADATA_KEY))) {
+        } else if (logicalId.equals(DateType.IDENTIFIER)) {
           field =
               Expressions.convert_(
                   Expressions.modulo(field, Expressions.constant(MILLIS_PER_DAY)), int.class);
-        } else if (fromType.getMetadata(CalciteUtils.TYPE_METADATA_KEY) != null) {
+        } else  {
           throw new IllegalArgumentException(
-              "Unknown DateTime type "
-                  + new String(fromType.getMetadata(CalciteUtils.TYPE_METADATA_KEY), UTF_8));
+              "Unknown DateTime type " + fromType.getLogicalType().getIdentifier());
         }
+      } else if (fromType.getTypeName().isDateType()) {
+        field = Expressions.call(field, "getMillis");
       } else if (fromType.getTypeName().isCompositeType()
           || (fromType.getTypeName().isCollectionType()
               && fromType.getCollectionElementType().getTypeName().isCompositeType())) {

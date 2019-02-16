@@ -341,7 +341,9 @@ public abstract class RowCoderGenerator {
   }
 
   private static StackManipulation getCoder(Schema.FieldType fieldType) {
-    if (TypeName.ARRAY.equals(fieldType.getTypeName())) {
+    if (TypeName.LOGICAL_TYPE.equals(fieldType.getTypeName())) {
+      return getCoder(fieldType.getLogicalType().getBaseType());
+    } else if (TypeName.ARRAY.equals(fieldType.getTypeName())) {
       return listCoder(fieldType.getCollectionElementType());
     } else if (TypeName.MAP.equals(fieldType.getTypeName())) {
       return mapCoder(fieldType.getMapKeyType(), fieldType.getMapValueType());

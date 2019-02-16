@@ -53,6 +53,9 @@ public class FieldTypeDescriptors {
   /** Get a {@link TypeDescriptor} from a {@link FieldType}. */
   public static TypeDescriptor javaTypeForFieldType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
+      case LOGICAL_TYPE:
+        // TODO: shouldn't we handle this differently?
+        return javaTypeForFieldType(fieldType.getLogicalType().getBaseType());
       case ARRAY:
         return TypeDescriptors.lists(javaTypeForFieldType(fieldType.getCollectionElementType()));
       case MAP:
