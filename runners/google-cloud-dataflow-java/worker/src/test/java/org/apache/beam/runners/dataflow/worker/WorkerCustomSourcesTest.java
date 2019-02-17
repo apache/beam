@@ -105,6 +105,7 @@ import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -456,7 +457,7 @@ public class WorkerCustomSourcesTest {
             counterSet,
             "computationId",
             new ReaderCache(),
-            /*stateNameMap=*/ null,
+            /*stateNameMap=*/ ImmutableMap.of(),
             /*stateCache=*/ null,
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
