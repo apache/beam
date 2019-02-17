@@ -18,4 +18,5 @@
 package org.apache.beam.sdk.function;
 
 /** A {@link ThrowingConsumer} that can be closed. */
-public interface CloseableThrowingConsumer<T> extends AutoCloseable, ThrowingConsumer<T> {}
+public interface CloseableThrowingConsumer<ExceptionT extends Exception, T>
+    extends AutoCloseable, ThrowingConsumer<ExceptionT, T> {}

@@ -26,6 +26,6 @@ import java.util.function.Consumer;
  * interfaces.
  */
 @FunctionalInterface
-public interface ThrowingConsumer<T> {
-  void accept(T t) throws Exception;
+public interface ThrowingConsumer<ExceptionT extends Exception, T> {
+  void accept(T t) throws ExceptionT;
 }
