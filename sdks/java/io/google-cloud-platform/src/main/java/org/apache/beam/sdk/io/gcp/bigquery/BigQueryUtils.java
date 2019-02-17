@@ -212,6 +212,7 @@ public class BigQueryUtils {
     return Row.withSchema(schema).addValues(values).build();
   }
 
+  /** Convert a BigQuery TableRow to a Beam Row. */
   public static TableRow toTableRow(Row row) {
     TableRow output = new TableRow();
     for (int i = 0; i < row.getFieldCount(); i++) {
