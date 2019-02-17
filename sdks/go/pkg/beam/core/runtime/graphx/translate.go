@@ -436,7 +436,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		UniqueName:    edge.Name,
 		Subtransforms: subtransforms,
 	}
-	return id
+	return cogbkID
 }
 
 func (m *marshaller) addNode(n *graph.Node) string {
