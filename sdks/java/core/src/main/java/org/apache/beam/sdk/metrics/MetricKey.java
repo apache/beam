@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.metrics.labels.MetricLabels;
 
 /** Metrics are keyed by the step name they are associated with and the name of the metric. */
@@ -66,6 +67,20 @@ public abstract class MetricKey implements Serializable {
   @Override
   public String toString() {
     return toString(":");
+  }
+
+  public <ExceptionT extends Exception> void forEach(
+      ThrowingConsumer<ExceptionT, String> ptransform,
+      ThrowingConsumer<ExceptionT, String> pcollection)
+      throws ExceptionT {
+    if (ptransform() != null) {
+      ptransform.accept(ptransform());
+    } else if (pcollection() != null) {
+      pcollection.accept(pcollection());
+    } else {
+      throw new IllegalStateException(
+          "MetricKey doesn't have PTRANSFORM or PCOLLECTION label: " + this);
+    }
   }
 
   public String toString(String delimiter) {

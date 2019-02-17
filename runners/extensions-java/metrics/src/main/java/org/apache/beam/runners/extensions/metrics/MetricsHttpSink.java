@@ -88,8 +88,12 @@ public class MetricsHttpSink implements MetricsSink {
     public void serialize(MetricName value, JsonGenerator gen, SerializerProvider provider)
         throws IOException {
       gen.writeStartObject();
-      gen.writeObjectField("name", value.getName());
-      gen.writeObjectField("namespace", value.getNamespace());
+      if (value.isUserMetric()) {
+        gen.writeObjectField("name", value.getName());
+        gen.writeObjectField("namespace", value.getNamespace());
+      } else {
+        gen.writeObjectField("urn", value.urn());
+      }
       gen.writeEndObject();
     }
   }
@@ -106,7 +110,9 @@ public class MetricsHttpSink implements MetricsSink {
     public void inline(MetricKey value, JsonGenerator gen, SerializerProvider provider)
         throws IOException {
       gen.writeObjectField("name", value.metricName());
-      gen.writeObjectField("step", value.stepName());
+      value.forEach(
+          ptransform -> gen.writeObjectField("step", ptransform),
+          pcollection -> gen.writeObjectField("pcollection", pcollection));
     }
 
     @Override
@@ -120,7 +126,8 @@ public class MetricsHttpSink implements MetricsSink {
 
   /**
    * JSON serializer for {@link MetricResult}; conform to an older format where the {@link MetricKey
-   * key's} {@link MetricName name} and "step" (ptransform) are inlined.
+   * key's} {@link MetricName name} and {@link org.apache.beam.sdk.metrics.labels.MetricLabels
+   * label} are inlined.
    */
   public static class MetricResultSerializer extends StdSerializer<MetricResult> {
     private final MetricKeySerializer keySerializer;
