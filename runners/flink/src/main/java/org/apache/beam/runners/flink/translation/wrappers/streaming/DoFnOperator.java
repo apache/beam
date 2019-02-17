@@ -59,7 +59,6 @@ import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkKeyGroupStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkSplitStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.sdk.coders.Coder;
@@ -315,14 +314,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       setPushedBackWatermark(Long.MAX_VALUE);
     }
 
-    final StateInternals outputManagerStateInternals;
-    if (keyCoder != null) {
-      outputManagerStateInternals =
-          new FlinkKeyGroupStateInternals<>(keyCoder, getKeyedStateBackend());
-    } else {
-      outputManagerStateInternals = new FlinkSplitStateInternals<>(getOperatorStateBackend());
-    }
-    outputManager = outputManagerFactory.create(output, outputManagerStateInternals);
+    outputManager =
+        outputManagerFactory.create(
+            output, new FlinkSplitStateInternals<>(getOperatorStateBackend()));
 
     // StatefulPardo or WindowDoFn
     if (keyCoder != null) {
@@ -684,18 +678,13 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public void snapshotState(StateSnapshotContext context) throws Exception {
+
     // Forced finish a bundle in checkpoint barrier otherwise may lose data.
     // Careful, it use OperatorState or KeyGroupState to store outputs, So it
     // must be called before their snapshot.
-    // If keyed state is used, must only be done if a key has already been set
-    // by a previous element. If there are no previous elements the active key
-    // is null and we can't buffer elements in finalizeBundle.
-    // TODO Move this to prepareSnapshotPreBarrier when we drop Flink 1.5 support
-    if (getKeyedStateBackend() == null || getKeyedStateBackend().getCurrentKey() != null) {
-      outputManager.openBuffer();
-      invokeFinishBundle();
-      outputManager.closeBuffer();
-    }
+    outputManager.openBuffer();
+    invokeFinishBundle();
+    outputManager.closeBuffer();
 
     super.snapshotState(context);
   }
@@ -744,8 +733,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   /**
-   * A {@link DoFnRunners.OutputManager} that can buffer its outputs. Use {@link
-   * FlinkSplitStateInternals} or {@link FlinkKeyGroupStateInternals} to keep buffer data.
+   * A {@link DoFnRunners.OutputManager} that can buffer its outputs. Uses {@link
+   * FlinkSplitStateInternals} to buffer the data.
    */
   public static class BufferedOutputManager<OutputT> implements DoFnRunners.OutputManager {
 
