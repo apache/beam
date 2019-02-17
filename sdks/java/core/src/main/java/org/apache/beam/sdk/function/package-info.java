@@ -15,15 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.fn.function;
 
-/**
- * A {@link Runnable} which can throw {@link Exception}s.
- *
- * <p>Used to expand the allowed set of method references to be used by Java 8 functional
- * interfaces.
- */
-@FunctionalInterface
-public interface ThrowingRunnable {
-  void run() throws Exception;
-}
+/** Java 8 functional interface extensions. */
+package org.apache.beam.sdk.function;
