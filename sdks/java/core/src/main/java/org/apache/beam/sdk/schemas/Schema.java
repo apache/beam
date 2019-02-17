@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.schemas;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
@@ -404,6 +404,7 @@ public class Schema implements Serializable {
       return other.isSupertypeOf(this);
     }
 
+    /** Whether this is a super type of the another type. */
     public boolean isSupertypeOf(TypeName other) {
       if (this == other) {
         return true;
@@ -657,6 +658,7 @@ public class Schema implements Serializable {
       return withMetadata(key, metadata.getBytes(StandardCharsets.UTF_8));
     }
 
+    @Nullable
     public byte[] getMetadata(String key) {
       ByteArrayWrapper metadata = getMetadata().get(key);
       return (metadata != null) ? metadata.array : null;

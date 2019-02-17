@@ -58,7 +58,7 @@ public class LogicalTypes {
 
   /** A LogicalType representing a fixed-size byte array. */
   public static class FixedBytes implements LogicalType<byte[], byte[]> {
-    public static String IDENTIFIER = "FixedBytes";
+    public static final String IDENTIFIER = "FixedBytes";
     private final int byteArraySize;
 
     private FixedBytes(int byteArraySize) {

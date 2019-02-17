@@ -45,7 +45,7 @@ public class CalciteUtils {
 
   /** A LogicalType corresponding to DATE. */
   public static class DateType extends PassThroughLogicalType<Instant> {
-    public static String IDENTIFIER = "SqlDateType";
+    public static final String IDENTIFIER = "SqlDateType";
 
     public DateType() {
       super(IDENTIFIER, FieldType.DATETIME);
@@ -54,7 +54,7 @@ public class CalciteUtils {
 
   /** A LogicalType corresponding to TIME. */
   public static class TimeType extends PassThroughLogicalType<Instant> {
-    public static String IDENTIFIER = "SqlTimeType";
+    public static final String IDENTIFIER = "SqlTimeType";
 
     public TimeType() {
       super(IDENTIFIER, FieldType.DATETIME);
@@ -63,7 +63,7 @@ public class CalciteUtils {
 
   /** A LogicalType corresponding to TIME_WITH_LOCAL_TIME_ZONE. */
   public static class TimeWithLocalTzType extends PassThroughLogicalType<Instant> {
-    public static String IDENTIFIER = "SqlTimeWithLocalTzType";
+    public static final String IDENTIFIER = "SqlTimeWithLocalTzType";
 
     public TimeWithLocalTzType() {
       super(IDENTIFIER, FieldType.DATETIME);
@@ -72,7 +72,7 @@ public class CalciteUtils {
 
   /** A LogicalType corresponding to TIMESTAMP_WITH_LOCAL_TIME_ZONE. */
   public static class TimestampWithLocalTzType extends PassThroughLogicalType<Instant> {
-    public static String IDENTIFIER = "SqlTimestampWithLocalTzType";
+    public static final String IDENTIFIER = "SqlTimestampWithLocalTzType";
 
     public TimestampWithLocalTzType() {
       super(IDENTIFIER, FieldType.DATETIME);
@@ -81,7 +81,7 @@ public class CalciteUtils {
 
   /** A LogicalType corresponding to CHAR. */
   public static class CharType extends PassThroughLogicalType<String> {
-    public static String IDENTIFIER = "SqlCharType";
+    public static final String IDENTIFIER = "SqlCharType";
 
     public CharType() {
       super(IDENTIFIER, FieldType.STRING);
@@ -133,7 +133,7 @@ public class CalciteUtils {
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
-  public static FieldType TIMESTAMP_WITH_LOCAL_TZ =
+  public static final FieldType TIMESTAMP_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimestampWithLocalTzType());
 
   private static final BiMap<FieldType, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
