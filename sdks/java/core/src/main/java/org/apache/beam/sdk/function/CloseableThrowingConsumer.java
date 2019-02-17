@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.fn.function;
+package org.apache.beam.sdk.function;
 
 /** A {@link ThrowingConsumer} that can be closed. */
 public interface CloseableThrowingConsumer<T> extends AutoCloseable, ThrowingConsumer<T> {}

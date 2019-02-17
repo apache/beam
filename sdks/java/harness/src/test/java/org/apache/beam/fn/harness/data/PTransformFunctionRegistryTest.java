@@ -24,7 +24,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.junit.Test;
 import org.junit.runner.RunWith;
