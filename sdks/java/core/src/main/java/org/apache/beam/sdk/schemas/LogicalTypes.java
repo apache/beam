@@ -23,8 +23,9 @@ import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 
+/** A collection of common {@link Schema.LogicalType} classes. */
 public class LogicalTypes {
-
+  /** A base class for LogicalTypes that use the same Java type as the underlying base type. */
   public abstract static class PassThroughLogicalType<T> implements LogicalType<T, T> {
     private final String identifier;
     private final FieldType fieldType;
@@ -55,7 +56,7 @@ public class LogicalTypes {
     }
   }
 
-  /** Represents a fixed-size byte array. */
+  /** A LogicalType representing a fixed-size byte array. */
   public static class FixedBytes implements LogicalType<byte[], byte[]> {
     public static String IDENTIFIER = "FixedBytes";
     private final int byteArraySize;
@@ -75,6 +76,11 @@ public class LogicalTypes {
     @Override
     public String getIdentifier() {
       return IDENTIFIER;
+    }
+
+    @Override
+    public String getArgument() {
+      return Integer.toString(byteArraySize);
     }
 
     @Override

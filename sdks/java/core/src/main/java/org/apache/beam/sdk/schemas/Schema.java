@@ -46,7 +46,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 @Experimental(Kind.SCHEMAS)
 public class Schema implements Serializable {
   // This is the metadata field used to store the logical type identifier.
-  private static final String LOGICAL_TYPE_IDENTIFIER = "SchemaLogicalType";
+  private static final String LOGICAL_TYPE_IDENTIFIER = "SchemaLogicalTypeId";
+
+  private static final String LOGICAL_TYPE_ARGUMENT = "SchemaLogicalTypeArg";
 
   // Helper class that adds proper equality checks to byte arrays.
   static class ByteArrayWrapper implements Serializable {
@@ -167,6 +169,12 @@ public class Schema implements Serializable {
 
     public Builder addBooleanField(String name) {
       fields.add(Field.of(name, FieldType.BOOLEAN));
+      return this;
+    }
+
+    public <InputT, BaseT> Builder addLogicalTypeField(
+        String name, LogicalType<InputT, BaseT> logicalType) {
+      fields.add(Field.of(name, FieldType.logicalType(logicalType)));
       return this;
     }
 
@@ -434,14 +442,48 @@ public class Schema implements Serializable {
     }
   }
 
-  public static interface LogicalType<InputT, BaseT> extends Serializable {
-    public String getIdentifier();
+  /**
+   * A LogicalType allows users to define a custom schema type.
+   *
+   * <p>A LogicalType is a way to define a new type that can be stored in a schema field using an
+   * underlying FieldType as storage. A LogicalType must specify a base FieldType used to store the
+   * data by overriding the {@link #getBaseType()} method. Usually the FieldType returned will be
+   * one of the standard ones implemented by Schema. It is legal to return another LogicalType, but
+   * the storage types must eventually resolve to one of the standard Schema types; it is not
+   * allowed to have LogicalTypes reference each other recursively via getBaseType. The {@link
+   * #toBaseType} and {@link #toInputType} should convert back and forth between the Java type for
+   * the LogicalType (InputT) and the Java type appropriate for the underlying base type (BaseT).
+   *
+   * <p>{@link #getIdentifier} must define a globally unique identifier for this LogicalType. A
+   * LogicalType can optionally provide an identifying argument as well using {@link #getArgument}.
+   * An example is a LogicalType that represents a fixed-size byte array. The identifier
+   * "FixedBytes" uniquely identifies this LogicalType (or specifically, this class of
+   * LogicalTypes), while the argument returned will be the length of the fixed-size byte array. The
+   * combination of {@link #getIdentifier} and {@link #getArgument} must completely identify a
+   * LogicalType.
+   *
+   * <p>A LogicalType can be added to a schema using {@link Schema.Builder#addLogicalTypeField}.
+   *
+   * @param <InputT> The Java type used to set the type when using {@link Row.Builder#addValue}.
+   * @param <BaseT> The Java type for the underlying storage.
+   */
+  public interface LogicalType<InputT, BaseT> extends Serializable {
+    /** The unique identifier for this type. */
+    String getIdentifier();
 
-    public FieldType getBaseType();
+    /** An optional argument to configure the type. */
+    default String getArgument() {
+      return "";
+    }
 
-    public BaseT toBaseType(InputT input);
+    /** The base {@link FieldType} used to store values of this type. */
+    FieldType getBaseType();
 
-    public InputT toInputType(BaseT base);
+    /** Convert the input Java type to one appropriate for the base {@link FieldType}. */
+    BaseT toBaseType(InputT input);
+
+    /** Convert the Java type used by the base {@link FieldType} to the input type. */
+    InputT toInputType(BaseT base);
   }
 
   /**
@@ -596,7 +638,8 @@ public class Schema implements Serializable {
       return FieldType.forTypeName(TypeName.LOGICAL_TYPE)
           .setLogicalType(logicalType)
           .build()
-          .withMetadata(LOGICAL_TYPE_IDENTIFIER, logicalType.getIdentifier());
+          .withMetadata(LOGICAL_TYPE_IDENTIFIER, logicalType.getIdentifier())
+          .withMetadata(LOGICAL_TYPE_ARGUMENT, logicalType.getArgument());
     }
 
     /** Returns a copy of the descriptor with metadata set. */
