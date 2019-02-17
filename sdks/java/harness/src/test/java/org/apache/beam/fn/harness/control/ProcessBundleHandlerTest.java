@@ -75,7 +75,7 @@ public class ProcessBundleHandlerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Mock private BeamFnDataClient beamFnDataClient;
-  @Captor private ArgumentCaptor<ThrowingConsumer<WindowedValue<String>>> consumerCaptor;
+  @Captor private ArgumentCaptor<ThrowingConsumer<Exception, WindowedValue<String>>> consumerCaptor;
 
   @Before
   public void setUp() {

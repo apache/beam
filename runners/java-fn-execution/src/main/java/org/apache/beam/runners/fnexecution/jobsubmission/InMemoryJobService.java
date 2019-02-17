@@ -74,7 +74,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   public static InMemoryJobService create(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
       Function<String, String> stagingServiceTokenProvider,
-      ThrowingConsumer<String> cleanupJobFn,
+      ThrowingConsumer<Exception, String> cleanupJobFn,
       JobInvoker invoker) {
     return new InMemoryJobService(
         stagingServiceDescriptor, stagingServiceTokenProvider, cleanupJobFn, invoker);
@@ -85,13 +85,13 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   private final ConcurrentMap<String, String> stagingSessionTokens;
   private final Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   private final Function<String, String> stagingServiceTokenProvider;
-  private final ThrowingConsumer<String> cleanupJobFn;
+  private final ThrowingConsumer<Exception, String> cleanupJobFn;
   private final JobInvoker invoker;
 
   private InMemoryJobService(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
       Function<String, String> stagingServiceTokenProvider,
-      ThrowingConsumer<String> cleanupJobFn,
+      ThrowingConsumer<Exception, String> cleanupJobFn,
       JobInvoker invoker) {
     this.stagingServiceDescriptor = stagingServiceDescriptor;
     this.stagingServiceTokenProvider = stagingServiceTokenProvider;
