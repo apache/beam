@@ -35,6 +35,13 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   doLast {
     def tests = [
         "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+        "apache_beam.examples.streaming_wordcount_it_test:StreamingWordCountIT.test_streaming_wordcount_it",
+        "apache_beam.examples.fastavro_it_test:FastavroIT.test_avro_it",
+        "apache_beam.examples.complete.autocomplete_test:AutocompleteTest.test_autocomplete_it",
+        "apache_beam.examples.complete.game.game_stats_it_test:GameStatsIT.test_game_stats_it",
+        "apache_beam.examples.complete.game.hourly_team_score_it_test:HourlyTeamScoreIT.test_hourly_team_score_it",
+        "apache_beam.examples.complete.game.leader_board_it_test.:LeaderBoardIT.test_leader_board_it",
+        "apache_beam.examples.complete.game.user_score_it_test:UserScoreIT.test_user_score_it",
         "apache_beam.examples.cookbook.bigquery_tornadoes_it_test:BigqueryTornadoesIT.test_bigquery_tornadoes_it",
     ]
     def testOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
