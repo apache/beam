@@ -192,7 +192,7 @@ public class FlinkMetricContainer {
     // We use only the MetricName here, the step name is already contained
     // in the operator name which is passed to Flink's MetricGroup to which
     // the metric with the following name will be added.
-    return metricName.getNamespace() + METRIC_KEY_SEPARATOR + metricName.getName();
+    return metricName.toString(METRIC_KEY_SEPARATOR);
   }
 
   /** Flink {@link Gauge} for {@link DistributionResult}. */
