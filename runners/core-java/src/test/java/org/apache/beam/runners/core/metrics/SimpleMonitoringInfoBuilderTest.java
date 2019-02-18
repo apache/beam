@@ -48,7 +48,7 @@ public class SimpleMonitoringInfoBuilderTest {
         monitoringInfo.getLabelsOrDefault(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, null));
     assertEquals(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, monitoringInfo.getUrn());
     assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
-    assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
+    assertEquals(1, monitoringInfo.getMetric().getCounter());
   }
 
   @Test
@@ -65,7 +65,7 @@ public class SimpleMonitoringInfoBuilderTest {
         SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "myNamespace:myName",
         monitoringInfo.getUrn());
     assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
-    assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
+    assertEquals(1, monitoringInfo.getMetric().getCounter());
   }
 
   @Test
@@ -80,6 +80,6 @@ public class SimpleMonitoringInfoBuilderTest {
         SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "myNamespace_withInvalidChar:myName",
         monitoringInfo.getUrn());
     assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
-    assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
+    assertEquals(1, monitoringInfo.getMetric().getCounter());
   }
 }

@@ -155,7 +155,7 @@ public class SimpleMonitoringInfoBuilder {
 
   /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropriate type URN. */
   public SimpleMonitoringInfoBuilder setInt64Value(long value) {
-    this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
+    this.builder.getMetricBuilder().setCounter(value);
     this.setInt64TypeUrn();
     return this;
   }

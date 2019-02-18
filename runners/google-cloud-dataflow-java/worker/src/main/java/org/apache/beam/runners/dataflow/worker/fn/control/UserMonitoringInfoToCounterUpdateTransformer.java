@@ -97,7 +97,7 @@ class UserMonitoringInfoToCounterUpdateTransformer
       return null;
     }
 
-    long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
+    long value = monitoringInfo.getMetric().getCounter();
     String urn = monitoringInfo.getUrn();
 
     final String ptransform = monitoringInfo.getLabelsMap().get("PTRANSFORM");

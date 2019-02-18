@@ -29,7 +29,6 @@ from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import GaugeResult
 from apache_beam.portability import common_urns
-from apache_beam.portability.api.beam_fn_api_pb2 import CounterData
 from apache_beam.portability.api.beam_fn_api_pb2 import Metric
 from apache_beam.portability.api.beam_fn_api_pb2 import MonitoringInfo
 
@@ -77,7 +76,7 @@ def to_timestamp_secs(timestamp_proto):
 def extract_counter_value(monitoring_info_proto):
   """Returns the int coutner value of the monitoring info."""
   if is_counter(monitoring_info_proto) or is_gauge(monitoring_info_proto):
-    return monitoring_info_proto.metric.counter_data.int64_value
+    return monitoring_info_proto.metric.counter
   return None
 
 
@@ -88,7 +87,7 @@ def extract_distribution(monitoring_info_proto):
     monitoring_info_proto: The monitoring infor for the distribution.
   """
   if is_distribution(monitoring_info_proto):
-    return monitoring_info_proto.metric.distribution_data.int_distribution_data
+    return monitoring_info_proto.metric.distribution
   return None
 
 
@@ -120,9 +119,7 @@ def int64_counter(urn, metric, ptransform='', tag=''):
   labels = create_labels(ptransform=ptransform, tag=tag)
   if isinstance(metric, int):
     metric = Metric(
-        counter_data=CounterData(
-            int64_value=metric
-        )
+        counter=metric
     )
   return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
 

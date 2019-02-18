@@ -689,10 +689,10 @@ class FnApiRunnerTest(unittest.TestCase):
         for m in monitoring_infos:
           if m.labels == labels and m.urn == urn:
             if (ge_value is not None and
-                m.metric.counter_data.int64_value >= ge_value):
+                m.metric.counter >= ge_value):
               found = found + 1
             elif (value is not None and
-                  m.metric.counter_data.int64_value == value):
+                  m.metric.counter == value):
               found = found + 1
         ge_value_str = {'ge_value' : ge_value} if ge_value else ''
         value_str = {'value' : value} if value else ''
