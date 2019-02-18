@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import threading
+import time
 from concurrent import futures
 
 import grpc
@@ -239,6 +240,7 @@ class PortableRunner(runner.PipelineRunner):
           num_retries += 1
           if num_retries > max_retries:
             raise e
+          time.sleep(1)
 
     options_response = send_options_request()
 

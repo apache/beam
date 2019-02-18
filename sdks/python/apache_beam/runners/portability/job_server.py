@@ -57,9 +57,10 @@ class DockerizedJobServer(object):
            # "sibling" containers for the SDK harness.
            "-v", ':'.join([docker_path, "/bin/docker"]),
            "-v", "/var/run/docker.sock:/var/run/docker.sock"]
-    self.job_port = DockerizedJobServer._pick_port(self.job_port)
-    # artifact_port 0 suggest to pick a dynamic port.
-    self.artifact_port = self.artifact_port if self.artifact_port else 0
+
+    self.job_port, self.artifact_port = \
+        DockerizedJobServer._pick_port(self.job_port, self.artifact_port)
+
     args = ['--job-host', self.job_host,
             '--job-port', str(self.job_port),
             '--artifact-port', str(self.artifact_port)]
@@ -74,7 +75,6 @@ class DockerizedJobServer(object):
       cmd += ["-p", "{}:{}".format(self.artifact_port, self.artifact_port)]
       cmd += ["-p", "{0}-{1}:{0}-{1}".format(
           self.harness_port_range[0], self.harness_port_range[1])]
-      args += ["--artifact-port", "{}".format(self.artifact_port)]
     else:
       # This shouldn't be set for MacOS because it detroys port forwardings,
       # even though host networking is not supported on MacOS.
@@ -109,12 +109,25 @@ class DockerizedJobServer(object):
         self.docker_process.kill()
 
   @staticmethod
-  def _pick_port(port):
-    if port:
-      return port
-    # Not perfect, but we have to provide a port to the subprocess.
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('localhost', 0))
-    _, port = s.getsockname()
-    s.close()
-    return port
+  def _pick_port(*ports):
+    """
+    Returns a list of ports, same length as input ports list, but replaces
+    all None or 0 ports with a random free port.
+    """
+    sockets = []
+
+    def find_free_port(port):
+      if port:
+        return port
+      else:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sockets.append(s)
+        s.bind(('localhost', 0))
+        _, free_port = s.getsockname()
+        return free_port
+
+    ports = list(map(find_free_port, ports))
+    # Close sockets only now to avoid the same port to be chosen twice
+    for s in sockets:
+      s.close()
+    return ports
