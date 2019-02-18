@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
-import static org.apache.beam.runners.core.metrics.MetricUrns.parseUrn;
+import static org.apache.beam.runners.core.metrics.MetricUrns.parseUserMetricUrn;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 import java.util.HashMap;
@@ -105,7 +105,11 @@ public class FlinkMetricContainer {
         monitoringInfo -> {
           if (monitoringInfo.hasMetric()) {
             String urn = monitoringInfo.getUrn();
-            MetricName metricName = parseUrn(urn);
+            MetricName metricName = parseUserMetricUrn(urn);
+            if (metricName == null) {
+              LOG.info("Skipping non-user metric: {}", urn);
+              return;
+            }
             Metric metric = monitoringInfo.getMetric();
             if (metric.hasCounterData()) {
               CounterData counterData = metric.getCounterData();

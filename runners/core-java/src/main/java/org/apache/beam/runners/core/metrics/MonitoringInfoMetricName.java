@@ -19,10 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -54,19 +51,21 @@ public class MonitoringInfoMetricName extends MetricName {
   }
 
   /** Parse the urn field into a name and namespace field. */
-  private void parseUrn() {
-    if (this.urn.startsWith(SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX)) {
-      List<String> split = new ArrayList<String>(Arrays.asList(this.getUrn().split(":")));
-      this.name = split.get(split.size() - 1);
-      this.namespace = split.get(split.size() - 2);
+  private void parseUserMetricUrn() {
+    MetricName metricName = MetricUrns.parseUserMetricUrn(getUrn());
+    if (metricName == null) {
+      throw new IllegalStateException(
+          "Attempting to access namespace/name of a non-user metric: " + getUrn());
     }
+    namespace = metricName.getNamespace();
+    name = metricName.getName();
   }
 
   /** @return the parsed namespace from the user metric URN, otherwise null. */
   @Override
   public String getNamespace() {
     if (this.namespace == null) {
-      parseUrn();
+      parseUserMetricUrn();
     }
     return this.namespace;
   }
@@ -75,7 +74,7 @@ public class MonitoringInfoMetricName extends MetricName {
   @Override
   public String getName() {
     if (this.name == null) {
-      parseUrn();
+      parseUserMetricUrn();
     }
     return this.name;
   }

@@ -158,7 +158,7 @@ public class FlinkMetricContainerTest {
     container.updateMetrics(
         "step", ImmutableList.of(userCountMonitoringInfo, elemCountMonitoringInfo));
     assertThat(userCounter.getCount(), is(111L));
-    assertThat(elemCounter.getCount(), is(222L));
+    assertThat(elemCounter.getCount(), is(0L)); // system metrics aren't propagated yet
   }
 
   @Test
