@@ -111,15 +111,7 @@ assemble.dependsOn docs
 toxTask "cover", "cover"
 
 task preCommit() {
-  dependsOn "docs"
-  dependsOn "testPy2Cython"
-  dependsOn "testPy3Cython"
-  dependsOn "testPython2"
   dependsOn "testPython3"
-  dependsOn "testPy2Gcp"
-  dependsOn "testPy3Gcp"
-  dependsOn "lint"
-  dependsOn ":beam-sdks-python-test-suites-dataflow:preCommitIT"
 }
 
 task portablePreCommit() {
