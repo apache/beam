@@ -17,8 +17,11 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL;
+
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
@@ -52,5 +55,10 @@ public class MonitoringInfos {
       case DATA_NOT_SET:
         throw new IllegalStateException("Metric value not set: " + metric);
     }
+  }
+
+  public static MetricKey keyFromMonitoringInfo(MonitoringInfo monitoringInfo) {
+    String ptransform = monitoringInfo.getLabelsMap().get(PTRANSFORM_LABEL);
+    return MetricKey.create(ptransform, MonitoringInfoMetricName.create(monitoringInfo));
   }
 }

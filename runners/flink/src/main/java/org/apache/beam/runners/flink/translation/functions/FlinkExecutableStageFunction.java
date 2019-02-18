@@ -100,8 +100,6 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private final Map<String, Integer> outputMap;
   private final FlinkExecutableStageContext.Factory contextFactory;
   private final Coder windowCoder;
-  // Unique name for namespacing metrics; currently just takes the input ID
-  private final String stageName;
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
   private transient RuntimeContext runtimeContext;
@@ -127,7 +125,6 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     this.outputMap = outputMap;
     this.contextFactory = contextFactory;
     this.windowCoder = windowCoder;
-    this.stageName = stagePayload.getInput();
   }
 
   @Override
@@ -151,12 +148,12 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
         new BundleProgressHandler() {
           @Override
           public void onProgress(ProcessBundleProgressResponse progress) {
-            container.updateMetrics(stageName, progress.getMonitoringInfosList());
+            container.updateMetrics(progress.getMonitoringInfosList());
           }
 
           @Override
           public void onCompleted(ProcessBundleResponse response) {
-            container.updateMetrics(stageName, response.getMonitoringInfosList());
+            container.updateMetrics(response.getMonitoringInfosList());
           }
         };
   }

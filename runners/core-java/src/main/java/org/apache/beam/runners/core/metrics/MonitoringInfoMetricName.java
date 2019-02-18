@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
@@ -108,6 +109,11 @@ public class MonitoringInfoMetricName extends MetricName {
       return new MonitoringInfoMetricName(urn, labels);
     }
     return metricName;
+  }
+
+  /** @return a MetricName for a specific urn and labels map. */
+  public static MetricName create(MonitoringInfo monitoringInfo) {
+    return named(monitoringInfo.getUrn(), monitoringInfo.getLabelsMap());
   }
 
   @Override
