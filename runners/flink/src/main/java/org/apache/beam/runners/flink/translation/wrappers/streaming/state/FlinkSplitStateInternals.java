@@ -61,7 +61,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
   @Override
   @Nullable
   public K getKey() {
-    return null;
+    throw new UnsupportedOperationException("This should not be called");
   }
 
   @Override

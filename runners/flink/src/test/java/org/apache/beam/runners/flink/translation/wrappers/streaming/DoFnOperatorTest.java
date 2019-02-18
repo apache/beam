@@ -1226,6 +1226,126 @@ public class DoFnOperatorTest {
             WindowedValue.valueInGlobalWindow("finishBundle")));
   }
 
+  @Test
+  public void testBundleKeyed() throws Exception {
+
+    StringUtf8Coder keyCoder = StringUtf8Coder.of();
+    KvToByteBufferKeySelector keySelector = new KvToByteBufferKeySelector<>(keyCoder);
+    KvCoder<String, String> kvCoder = KvCoder.of(keyCoder, StringUtf8Coder.of());
+    WindowedValue.ValueOnlyWindowedValueCoder<KV<String, String>> windowedValueCoder =
+        WindowedValue.getValueOnlyCoder(kvCoder);
+
+    TupleTag<String> outputTag = new TupleTag<>("main-output");
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setMaxBundleSize(2L);
+    options.setMaxBundleTimeMills(10L);
+
+    IdentityDoFn<KV<String, String>> doFn =
+        new IdentityDoFn<KV<String, String>>() {
+          @FinishBundle
+          public void finishBundle(FinishBundleContext context) {
+            context.output(
+                KV.of("key2", "finishBundle"),
+                BoundedWindow.TIMESTAMP_MIN_VALUE,
+                GlobalWindow.INSTANCE);
+          }
+        };
+
+    DoFnOperator.MultiOutputOutputManagerFactory<KV<String, String>> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            outputTag, WindowedValue.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE));
+
+    DoFnOperator<KV<String, String>, KV<String, String>> doFnOperator =
+        new DoFnOperator(
+            doFn,
+            "stepName",
+            windowedValueCoder,
+            null,
+            Collections.emptyMap(),
+            outputTag,
+            Collections.emptyList(),
+            outputManagerFactory,
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            options,
+            keyCoder,
+            keySelector);
+
+    OneInputStreamOperatorTestHarness<
+            WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness(
+                doFnOperator, keySelector, keySelector.getProducedType());
+
+    testHarness.open();
+
+    testHarness.processElement(
+        new StreamRecord(WindowedValue.valueInGlobalWindow(KV.of("key", "a"))));
+    testHarness.processElement(
+        new StreamRecord(WindowedValue.valueInGlobalWindow(KV.of("key", "b"))));
+    testHarness.processElement(
+        new StreamRecord(WindowedValue.valueInGlobalWindow(KV.of("key", "c"))));
+
+    // Take a snapshot
+    OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+
+    // There is a finishBundle in snapshot()
+    // Elements will be buffered as part of finishing a bundle in snapshot()
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValue.valueInGlobalWindow(KV.of("key", "a")),
+            WindowedValue.valueInGlobalWindow(KV.of("key", "b")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
+            WindowedValue.valueInGlobalWindow(KV.of("key", "c"))));
+
+    testHarness.close();
+
+    doFnOperator =
+        new DoFnOperator(
+            doFn,
+            "stepName",
+            windowedValueCoder,
+            null,
+            Collections.emptyMap(),
+            outputTag,
+            Collections.emptyList(),
+            outputManagerFactory,
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            options,
+            keyCoder,
+            keySelector);
+
+    testHarness =
+        new KeyedOneInputStreamOperatorTestHarness(
+            doFnOperator, keySelector, keySelector.getProducedType());
+
+    // Restore snapshot
+    testHarness.initializeState(snapshot);
+
+    testHarness.open();
+
+    // startBundle will output the buffered elements.
+    testHarness.processElement(
+        new StreamRecord<>(WindowedValue.valueInGlobalWindow(KV.of("key", "d"))));
+
+    // check finishBundle by timeout
+    testHarness.setProcessingTime(10);
+
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            // The first finishBundle is restored from the checkpoint
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle")),
+            WindowedValue.valueInGlobalWindow(KV.of("key", "d")),
+            WindowedValue.valueInGlobalWindow(KV.of("key2", "finishBundle"))));
+
+    testHarness.close();
+  }
+
   /**
    * Ensures Jackson cache is cleaned to get rid of any references to the Flink Classloader. See
    * https://jira.apache.org/jira/browse/BEAM-6460
