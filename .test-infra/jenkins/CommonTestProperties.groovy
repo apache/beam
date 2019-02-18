@@ -21,7 +21,8 @@ class CommonTestProperties {
         DATAFLOW("DataflowRunner", ":beam-runners-google-cloud-dataflow-java"),
         SPARK("SparkRunner", ":beam-runners-spark"),
         FLINK("TestFlinkRunner", ":beam-runners-flink_2.11"),
-        DIRECT("DirectRunner", ":beam-runners-direct-java")
+        DIRECT("DirectRunner", ":beam-runners-direct-java"),
+        GEARPUMP("TestGearpumpRunner", ":beam-runners-gearpump")
 
         private final String option
         private final String dependency

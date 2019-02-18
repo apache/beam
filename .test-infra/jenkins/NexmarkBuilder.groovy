@@ -62,6 +62,16 @@ class NexmarkBuilder {
     suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, options)
   }
 
+  static void streamingOnlyJob(context, Runner runner, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
+    Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
+    options.put('streaming', true)
+
+    suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, options)
+
+    options.put('queryLanguage', 'sql')
+    suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, options)
+  }
+
   private
   static Map<String, Object> getFullOptions(Map<String, Object> jobSpecificOptions, Runner runner, TriggeringContext triggeringContext) {
     Map<String, Object> options = defaultOptions + jobSpecificOptions
