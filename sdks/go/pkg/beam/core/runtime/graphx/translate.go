@@ -336,7 +336,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	for i, in := range edge.Edge.Input {
 		m.addNode(in.From)
 
-		out := fmt.Sprintf("%v_inject%v", nodeID(in.From), i)
+		out := fmt.Sprintf("%v_%v_inject%v", nodeID(in.From), id, i)
 		m.makeNode(out, kvCoderID, in.From)
 
 		// Inject(i)
