@@ -104,10 +104,6 @@ class MainInputTest(unittest.TestCase):
       [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
 
 
-@unittest.skipIf(sys.hexversion < 0x030503F0 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'Tuple typehinting depends on typing changes in Python '
-                 '3.5.3')
 class NativeTypesTest(unittest.TestCase):
 
   def test_good_main_input(self):
