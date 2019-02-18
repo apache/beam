@@ -1540,7 +1540,8 @@ public class StreamingDataflowWorker {
     for (Windmill.GetConfigResponse.ComputationConfigMapEntry computationConfig :
         response.getComputationConfigMapList()) {
       Map<String, String> transformUserNameToStateFamily =
-          transformUserNameToStateFamilyByComputationId.get(computationConfig.getComputationId());
+          transformUserNameToStateFamilyByComputationId.computeIfAbsent(
+              computationConfig.getComputationId(), k -> new HashMap<>());
       for (Windmill.ComputationConfig.TransformUserNameToStateFamilyEntry entry :
           computationConfig.getComputationConfig().getTransformUserNameToStateFamilyList()) {
         transformUserNameToStateFamily.put(entry.getTransformUserName(), entry.getStateFamily());
@@ -1949,7 +1950,10 @@ public class StreamingDataflowWorker {
       this.computationId = computationId;
       this.mapTask = mapTask;
       this.executor = executor;
-      this.transformUserNameToStateFamily = ImmutableMap.copyOf(transformUserNameToStateFamily);
+      this.transformUserNameToStateFamily =
+          transformUserNameToStateFamily != null
+              ? ImmutableMap.copyOf(transformUserNameToStateFamily)
+              : ImmutableMap.of();
       Preconditions.checkNotNull(mapTask.getStageName());
       Preconditions.checkNotNull(mapTask.getSystemName());
     }
