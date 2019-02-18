@@ -1,0 +1,52 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffers describing the external transforms available.
+ */
+
+syntax = "proto3";
+
+package org.apache.beam.model.pipeline.v1;
+
+option go_package = "pipeline_v1";
+option java_package = "org.apache.beam.model.pipeline.v1";
+option java_outer_classname = "ExternalTransforms";
+
+import "beam_runner_api.proto";
+import "google/protobuf/duration.proto";
+
+// Payload for Java's GenerateSequence transform
+message GenerateSequencePayload {
+  enum Enum {
+    PROPERTIES = 0 [(beam_urn) = "beam:external:transform:generate_sequence:v1"];
+  }
+  int64 start = 1;
+  oneof stop {
+    bool stop_provided = 2;
+    int64 stop_value = 3;
+  }
+  oneof elements_per_period {
+    bool elements_per_period_provided = 4;
+    int64 elements_per_period_value = 5;
+  }
+  google.protobuf.Duration period = 6;
+  google.protobuf.Duration max_read_time = 7;
+  // TODO How are foreign functions treated?
+  //SdkFunctionSpec timestamp_fn = 8;
+}

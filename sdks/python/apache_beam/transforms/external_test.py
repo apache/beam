@@ -28,6 +28,7 @@ import grpc
 from past.builtins import unicode
 
 import apache_beam as beam
+from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.portability import python_urns
 from apache_beam.runners.portability import expansion_service
 from apache_beam.testing.util import assert_that
@@ -192,6 +193,18 @@ class ExternalTransformTest(unittest.TestCase):
             | beam.Map(lambda kv: '%s: %s' % kv))
 
         assert_that(res, equal_to(['a: 3', 'b: 1', 'c: 2']))
+
+      # Test GenerateSequence Java transform
+      options._all_options['shutdown_sources_on_final_watermark'] = True
+      options._all_options['parallelism'] = 1
+      options._all_options['streaming'] = True
+      with beam.Pipeline(options=options) as p:
+        res = (
+            p
+            | GenerateSequence(start=1, stop=10,
+                               expansion_service=address)
+        )
+        assert_that(res, equal_to([i for i in range(1, 10)]))
 
     finally:
       server.kill()
