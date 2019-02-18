@@ -55,6 +55,23 @@ else:
   DEFAULT_SAMPLING_PERIOD_MS = 0
 
 
+def test_flaky_1000_times():
+  test_class = FnApiRunnerTest()
+  test_funcs = [
+    test_class.check_pardo_side_outputs,
+    test_class.check_pardo_state_only,
+    test_class.check_pardo_timers,
+    test_class.check_pardo_state_timers,
+    test_class.check_read,
+    test_class.check_windowing,
+    test_class.check_error_message_includes_stage
+  ]
+  for test_func in test_funcs:
+    for i in range(1000):
+      test_func.__func__.description = ':'.join([test_func.__name__, str(i)])
+      yield test_func, i
+
+
 class FnApiRunnerTest(unittest.TestCase):
 
   def create_pipeline(self):
@@ -121,11 +138,7 @@ class FnApiRunnerTest(unittest.TestCase):
           MetricKey('myotherdofn',
                     MetricName('ns2', 'elementsplusone'))])
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test is flaky on on Python 3. '
-                   'TODO: BEAM-5692')
-  def test_pardo_side_outputs(self):
+  def check_pardo_side_outputs(self, _):
     def tee(elem, *tags):
       for tag in tags:
         if tag in elem:
@@ -253,11 +266,7 @@ class FnApiRunnerTest(unittest.TestCase):
           pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(derived)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test is flaky on on Python 3. '
-                   'TODO: BEAM-5692')
-  def test_pardo_state_only(self):
+  def check_pardo_state_only(self, _):
     index_state_spec = userstate.CombiningValueStateSpec(
         'index', beam.coders.IterableCoder(beam.coders.VarIntCoder()), sum)
 
@@ -279,11 +288,7 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(p | beam.Create(inputs) | beam.ParDo(AddIndex()),
                   equal_to(expected))
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test is flaky on on Python 3. '
-                   'TODO: BEAM-5692')
-  def test_pardo_timers(self):
+  def check_pardo_timers(self, _):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
 
     class TimerDoFn(beam.DoFn):
@@ -306,11 +311,7 @@ class FnApiRunnerTest(unittest.TestCase):
       expected = [('fired', ts) for ts in (20, 200)]
       assert_that(actual, equal_to(expected))
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test is flaky on on Python 3. '
-                   'TODO: BEAM-5692')
-  def test_pardo_state_timers(self):
+  def check_pardo_state_timers(self, _):
     state_spec = userstate.BagStateSpec('state', beam.coders.StrUtf8Coder())
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
     elements = list('abcdefgh')
@@ -426,11 +427,7 @@ class FnApiRunnerTest(unittest.TestCase):
              | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
       assert_that(res, equal_to([('a', 1.5), ('b', 3.0)]))
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test is flaky on on Python 3. '
-                   'TODO: BEAM-5692')
-  def test_read(self):
+  def check_read(self, _):
     # Can't use NamedTemporaryFile as a context
     # due to https://bugs.python.org/issue14243
     temp_file = tempfile.NamedTemporaryFile(delete=False)
@@ -443,11 +440,7 @@ class FnApiRunnerTest(unittest.TestCase):
     finally:
       os.unlink(temp_file.name)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test is flaky on on Python 3. '
-                   'TODO: BEAM-5692')
-  def test_windowing(self):
+  def check_windowing(self, _):
     with self.create_pipeline() as p:
       res = (p
              | beam.Create([1, 2, 100, 101, 102])
@@ -476,11 +469,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda x: x[0]))
       assert_that(gbk_res, equal_to(['a', 'b']), label='gbk')
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test is flaky on on Python 3. '
-                   'TODO: BEAM-5692')
-  def test_error_message_includes_stage(self):
+  def check_error_message_includes_stage(self, _):
     with self.assertRaises(BaseException) as e_cm:
       with self.create_pipeline() as p:
         def raise_error(x):
