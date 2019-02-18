@@ -105,6 +105,10 @@ public class FlinkMetricContainer {
           if (monitoringInfo.hasMetric()) {
             String urn = monitoringInfo.getUrn();
             MetricName metricName = parseUrn(urn);
+            if (metricName == null) {
+              LOG.info("Skipping non-user metric: {}", urn);
+              return;
+            }
             Metric metric = monitoringInfo.getMetric();
             if (metric.hasCounterData()) {
               CounterData counterData = metric.getCounterData();
