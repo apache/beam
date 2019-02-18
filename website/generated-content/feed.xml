@@ -45,7 +45,7 @@ For more information on changes in 2.10.0, check out the
 &lt;h3 id=&quot;dependency-upgradeschanges&quot;&gt;Dependency Upgrades/Changes&lt;/h3&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;FlinkRunner: Flink 1.6.x&lt;/li&gt;
+  &lt;li&gt;FlinkRunner: Flink 1.5.x/1.6.x/1.7.x&lt;/li&gt;
   &lt;li&gt;Java: AutoValue 1.6.3&lt;/li&gt;
   &lt;li&gt;Java: Jackson 2.9.8&lt;/li&gt;
   &lt;li&gt;Java: google_cloud_bigdataoss 1.9.13&lt;/li&gt;
@@ -98,6 +98,8 @@ For more information on changes in 2.10.0, check out the
   &lt;li&gt;Watch PTransform fixed (affects FileIO)&lt;/li&gt;
   &lt;li&gt;FlinkRunner: no longer fails if GroupByKey contains null values (streaming mode only)&lt;/li&gt;
   &lt;li&gt;FlinkRunner: no longer prepares to-be-staged file too late&lt;/li&gt;
+  &lt;li&gt;FlinkRunner: sets number of shards for writes with runner determined sharding&lt;/li&gt;
+  &lt;li&gt;FlinkRunner: prevents CheckpointMarks from not getting acknowledged&lt;/li&gt;
   &lt;li&gt;Schemas: Generated row object for POJOs, Avros, and JavaBeans should work if the wrapped class is package private&lt;/li&gt;
   &lt;li&gt;Schemas: Nested collection types in schemas no longer cause NullPointerException when converting to a POJO&lt;/li&gt;
   &lt;li&gt;BigQueryIO: now handles quotaExceeded errors properly&lt;/li&gt;
