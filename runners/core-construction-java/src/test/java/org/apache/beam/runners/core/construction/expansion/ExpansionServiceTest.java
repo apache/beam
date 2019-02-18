@@ -77,7 +77,7 @@ public class ExpansionServiceTest {
             .build();
     ExpansionApi.ExpansionResponse response = expansionService.expand(request);
     RunnerApi.PTransform expandedTransform = response.getTransform();
-    assertEquals(TEST_NAME, expandedTransform.getUniqueName());
+    assertEquals(TEST_NAMESPACE + TEST_NAME, expandedTransform.getUniqueName());
     // Verify it has the right input.
     assertEquals(inputPcollId, Iterables.getOnlyElement(expandedTransform.getInputsMap().values()));
     // Loose check that it's composite, and its children are represented.
