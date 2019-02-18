@@ -107,6 +107,14 @@ public class FlinkKeyGroupStateInternalsTest {
 
     @Override
     @Ignore
+    public void testMergeCombiningWithContextValueIntoSource() {}
+
+    @Override
+    @Ignore
+    public void testMergeCombiningWithContextValueIntoNewNamespace() {}
+
+    @Override
+    @Ignore
     public void testWatermarkEarliestState() {}
 
     @Override

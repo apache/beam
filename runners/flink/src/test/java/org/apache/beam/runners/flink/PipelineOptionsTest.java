@@ -75,7 +75,6 @@ public class PipelineOptionsTest {
     assertThat(options.isShutdownSourcesOnFinalWatermark(), is(false));
     assertThat(options.getObjectReuse(), is(false));
     assertThat(options.getCheckpointingMode(), is(CheckpointingMode.EXACTLY_ONCE));
-    assertThat(options.getMinPauseBetweenCheckpoints(), is(-1L));
     assertThat(options.getCheckpointingInterval(), is(-1L));
     assertThat(options.getCheckpointTimeoutMillis(), is(-1L));
     assertThat(options.getNumberOfExecutionRetries(), is(-1));

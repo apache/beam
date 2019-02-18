@@ -19,6 +19,8 @@ package org.apache.beam.runners.flink;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.fail;
+
 import com.google.common.base.Charsets;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -66,7 +68,6 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
     // no exception should be thrown
   }
-  }
 
   @Test
   public void shouldLogWarningWhenCheckpointingIsDisabled() {
@@ -103,4 +104,5 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
         new String(byteArrayOutputStream.toByteArray(), Charsets.UTF_8),
         containsString(
             "UnboundedSources present which rely on checkpointing, but checkpointing is disabled."));
+  }
 }
