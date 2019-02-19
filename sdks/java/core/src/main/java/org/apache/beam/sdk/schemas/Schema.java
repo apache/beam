@@ -643,16 +643,7 @@ public class Schema implements Serializable {
           .withMetadata(LOGICAL_TYPE_ARGUMENT, logicalType.getArgument());
     }
 
-    /**
-     * Set the metadata map for the type, overriding any existing metadata. (/ public FieldType
-     * withMetadata(Map<String, byte[]> metadata) { Map<String, ByteArrayWrapper> wrapped =
-     * metadata.entrySet().stream() .collect(Collectors.toMap( Map.Entry::getKey, e ->
-     * ByteArrayWrapper.wrap(e.getValue())));
-     *
-     * <p>return toBuilder().setMetadata(wrapped).build(); }
-     *
-     * <p>/** Returns a copy of the descriptor with metadata set for the given key.
-     */
+    /** Set the metadata map for the type, overriding any existing metadata. */
     public FieldType withMetadata(String key, byte[] metadata) {
       Map<String, ByteArrayWrapper> newMetadata =
           ImmutableMap.<String, ByteArrayWrapper>builder()
