@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObje
 import com.google.api.client.util.ArrayMap;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
-import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -100,7 +99,7 @@ class DataflowMetrics extends MetricResults {
       LOG.warn("Unable to query job metrics.\n");
       return MetricQueryResults.create(counters, distributions, gauges);
     }
-    metricUpdates = firstNonNull(jobMetrics.getMetrics(), Collections.<MetricUpdate>emptyList());
+    metricUpdates = firstNonNull(jobMetrics.getMetrics(), Collections.emptyList());
     return populateMetricQueryResults(metricUpdates, filter);
   }
 
@@ -142,11 +141,8 @@ class DataflowMetrics extends MetricResults {
         // distribution metric
         DistributionResult value = getDistributionValue(committed);
         distributionResults.add(
-            DataflowMetricResult.create(
-                metricKey.metricName(),
-                metricKey.stepName(),
-                isStreamingJob ? null : value, // Committed
-                value)); // Attempted
+            MetricResult.create(
+                metricKey.metricName(), metricKey.stepName(), !isStreamingJob, value));
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
          * In Dataflow batch jobs, only COMMITTED metrics are available, but
          * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
@@ -156,11 +152,8 @@ class DataflowMetrics extends MetricResults {
         // counter metric
         Long value = getCounterValue(committed);
         counterResults.add(
-            DataflowMetricResult.create(
-                metricKey.metricName(),
-                metricKey.stepName(),
-                isStreamingJob ? null : value, // Committed
-                value)); // Attempted
+            MetricResult.create(
+                metricKey.metricName(), metricKey.stepName(), !isStreamingJob, value));
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
          * In Dataflow batch jobs, only COMMITTED metrics are available, but
          * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
@@ -191,10 +184,10 @@ class DataflowMetrics extends MetricResults {
         return DistributionResult.IDENTITY_ELEMENT;
       }
       ArrayMap distributionMap = (ArrayMap) metricUpdate.getDistribution();
-      Long count = ((Number) distributionMap.get("count")).longValue();
-      Long min = ((Number) distributionMap.get("min")).longValue();
-      Long max = ((Number) distributionMap.get("max")).longValue();
-      Long sum = ((Number) distributionMap.get("sum")).longValue();
+      long count = ((Number) distributionMap.get("count")).longValue();
+      long min = ((Number) distributionMap.get("min")).longValue();
+      long max = ((Number) distributionMap.get("max")).longValue();
+      long sum = ((Number) distributionMap.get("sum")).longValue();
       return DistributionResult.create(sum, count, min, max);
     }
 
@@ -326,40 +319,6 @@ class DataflowMetrics extends MetricResults {
           extractor.getCounterResults(),
           extractor.getDistributionResults(),
           extractor.getGaugeResults());
-    }
-  }
-
-  @AutoValue
-  abstract static class DataflowMetricResult<T> implements MetricResult<T> {
-    // need to define these here so they appear in the correct order
-    // and the generated constructor is usable and consistent
-    @Override
-    public abstract MetricName getName();
-
-    @Override
-    public abstract String getStep();
-
-    @Nullable
-    protected abstract T committedInternal();
-
-    @Override
-    public abstract T getAttempted();
-
-    @Override
-    public T getCommitted() {
-      T committed = committedInternal();
-      if (committed == null) {
-        throw new UnsupportedOperationException(
-            "This runner does not currently support committed"
-                + " metrics results. Please use 'attempted' instead.");
-      }
-      return committed;
-    }
-
-    public static <T> MetricResult<T> create(
-        MetricName name, String scope, T committed, T attempted) {
-      return new AutoValue_DataflowMetrics_DataflowMetricResult<>(
-          name, scope, committed, attempted);
     }
   }
 }

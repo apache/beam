@@ -17,20 +17,26 @@
  */
 package org.apache.beam.runners.extensions.metrics;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import javax.xml.ws.http.HTTPException;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
 
@@ -67,8 +73,33 @@ public class MetricsHttpSink implements MetricsSink {
     }
   }
 
+  /**
+   * JSON serializer for {@link MetricResult}; serialize "attempted", optional "committed", "step"
+   * and "name" fields.
+   */
+  public static class MetricResultSerializer extends StdSerializer<MetricResult> {
+    public MetricResultSerializer(Class<MetricResult> t) {
+      super(t);
+    }
+
+    @Override
+    public void serialize(MetricResult value, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
+      gen.writeStartObject();
+      gen.writeObjectField("attempted", value.getAttempted());
+      if (value.hasCommitted()) {
+        gen.writeObjectField("committed", value.getCommitted());
+      }
+      gen.writeObjectField("name", value.getName());
+      gen.writeObjectField("step", value.getStep());
+      gen.writeEndObject();
+    }
+  }
+
   private String serializeMetrics(MetricQueryResults metricQueryResults) throws Exception {
-    objectMapper.registerModule(new JodaModule());
+    SimpleModule module = new JodaModule();
+    module.addSerializer(new MetricResultSerializer(MetricResult.class));
+    objectMapper.registerModule(module);
     objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
     // need to register a filter as soon as @JsonFilter annotation is specified.
