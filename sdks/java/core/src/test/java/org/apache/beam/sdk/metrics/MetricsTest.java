@@ -169,21 +169,9 @@ public class MetricsTest implements Serializable {
     }
 
     @Test
-    public void testCounterWithEmptyNamespace() {
-      thrown.expect(IllegalArgumentException.class);
-      Metrics.counter("", NAME);
-    }
-
-    @Test
     public void testDistributionWithEmptyName() {
       thrown.expect(IllegalArgumentException.class);
       Metrics.distribution(NS, "");
-    }
-
-    @Test
-    public void testDistributionWithEmptyNamespace() {
-      thrown.expect(IllegalArgumentException.class);
-      Metrics.distribution("", NAME);
     }
 
     @Test

@@ -17,20 +17,19 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
 import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
+import static org.apache.beam.sdk.metrics.MetricUrns.PCOLLECTION_LABEL;
+import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
+import static org.apache.beam.sdk.metrics.MetricUrns.SUM_INT64_TYPE_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.USER_COUNTER_URN_PREFIX;
+import static org.apache.beam.sdk.metrics.MetricUrns.urn;
 
 import java.time.Instant;
 import java.util.HashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo.MonitoringInfoLabels;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoLabelProps;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoTypeUrns;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoUrns;
-import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,24 +59,9 @@ import org.slf4j.LoggerFactory;
  * builder.setInt64Value(1); MonitoringInfo mi = builder.build();
  */
 public class SimpleMonitoringInfoBuilder {
-  public static final String ELEMENT_COUNT_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.ELEMENT_COUNT);
-  public static final String START_BUNDLE_MSECS_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.START_BUNDLE_MSECS);
-  public static final String PROCESS_BUNDLE_MSECS_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.PROCESS_BUNDLE_MSECS);
-  public static final String FINISH_BUNDLE_MSECS_URN =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.FINISH_BUNDLE_MSECS);
-  public static final String USER_COUNTER_URN_PREFIX =
-      BeamUrns.getUrn(MonitoringInfoUrns.Enum.USER_COUNTER_URN_PREFIX);
-  public static final String SUM_INT64_TYPE_URN =
-      BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
 
   private static final HashMap<String, MonitoringInfoSpec> specs =
       new HashMap<String, MonitoringInfoSpec>();
-
-  public static final String PCOLLECTION_LABEL = getLabelString(MonitoringInfoLabels.PCOLLECTION);
-  public static final String PTRANSFORM_LABEL = getLabelString(MonitoringInfoLabels.TRANSFORM);
 
   private final boolean validateAndDropInvalid;
 
@@ -97,13 +81,6 @@ public class SimpleMonitoringInfoBuilder {
         SimpleMonitoringInfoBuilder.specs.put(spec.getUrn(), spec);
       }
     }
-  }
-
-  /** Returns the label string constant defined in the MonitoringInfoLabel enum proto. */
-  private static String getLabelString(MonitoringInfoLabels label) {
-    MonitoringInfoLabelProps props =
-        label.getValueDescriptor().getOptions().getExtension(labelProps);
-    return props.getName();
   }
 
   public SimpleMonitoringInfoBuilder() {
@@ -144,7 +121,7 @@ public class SimpleMonitoringInfoBuilder {
    * @param name
    */
   public SimpleMonitoringInfoBuilder setUrnForUserMetric(String namespace, String name) {
-    this.builder.setUrn(userMetricUrn(namespace, name));
+    this.builder.setUrn(urn(namespace, name));
     return this;
   }
 

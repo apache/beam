@@ -18,6 +18,10 @@
 package org.apache.beam.runners.core.metrics;
 
 import static junit.framework.TestCase.assertEquals;
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.PCOLLECTION_LABEL;
+import static org.apache.beam.sdk.metrics.MetricUrns.SUM_INT64_TYPE_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.USER_COUNTER_URN_PREFIX;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -33,7 +37,7 @@ public class SimpleMonitoringInfoBuilderTest {
   @Test
   public void testReturnsNullIfSpecRequirementsNotMet() {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+    builder.setUrn(ELEMENT_COUNT_URN);
     assertNull(builder.build());
 
     builder.setInt64Value(1);
@@ -43,11 +47,9 @@ public class SimpleMonitoringInfoBuilderTest {
     // Pass now that the spec is fully met.
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
-    assertEquals(
-        "myPcollection",
-        monitoringInfo.getLabelsOrDefault(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, null));
-    assertEquals(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, monitoringInfo.getUrn());
-    assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
+    assertEquals("myPcollection", monitoringInfo.getLabelsOrDefault(PCOLLECTION_LABEL, null));
+    assertEquals(ELEMENT_COUNT_URN, monitoringInfo.getUrn());
+    assertEquals(SUM_INT64_TYPE_URN, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
 
@@ -61,10 +63,8 @@ public class SimpleMonitoringInfoBuilderTest {
     // Pass now that the spec is fully met.
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
-    assertEquals(
-        SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "myNamespace:myName",
-        monitoringInfo.getUrn());
-    assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
+    assertEquals(USER_COUNTER_URN_PREFIX + "myNamespace:myName", monitoringInfo.getUrn());
+    assertEquals(SUM_INT64_TYPE_URN, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
 
@@ -77,9 +77,8 @@ public class SimpleMonitoringInfoBuilderTest {
     MonitoringInfo monitoringInfo = builder.build();
     assertTrue(monitoringInfo != null);
     assertEquals(
-        SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "myNamespace_withInvalidChar:myName",
-        monitoringInfo.getUrn());
-    assertEquals(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN, monitoringInfo.getType());
+        USER_COUNTER_URN_PREFIX + "myNamespace_withInvalidChar:myName", monitoringInfo.getUrn());
+    assertEquals(SUM_INT64_TYPE_URN, monitoringInfo.getType());
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
 }

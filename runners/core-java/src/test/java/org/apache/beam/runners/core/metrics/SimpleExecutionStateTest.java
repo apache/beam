@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
@@ -59,7 +60,7 @@ public class SimpleExecutionStateTest {
   @Test
   public void testGetLullReturnsARelevantMessageWithStepName() {
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, "myPTransform");
+    labelsMetadata.put(PTRANSFORM_LABEL, "myPTransform");
     SimpleExecutionState testObject = new SimpleExecutionState("myState", null, labelsMetadata);
     String message = testObject.getLullMessage(new Thread(), Duration.millis(100_000));
     assertThat(message, containsString("myState"));

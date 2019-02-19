@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
-import static org.apache.beam.runners.core.metrics.MetricUrns.parseUrn;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
+import static org.apache.beam.sdk.metrics.MetricUrns.parseUrn;
 
 import java.util.HashMap;
 import java.util.List;

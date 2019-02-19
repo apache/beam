@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.DelegatingCounter;
+import org.apache.beam.sdk.metrics.MetricName;
 
 /**
  * Define a metric on the current MetricContainer with a specific URN and a set of labels. This is a
@@ -29,7 +30,7 @@ public class LabeledMetrics {
   /**
    * Create a metric that can be incremented and decremented, and is aggregated by taking the sum.
    */
-  public static Counter counter(MonitoringInfoMetricName metricName) {
+  public static Counter counter(MetricName metricName) {
     return new DelegatingCounter(metricName);
   }
 }

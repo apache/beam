@@ -17,6 +17,10 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import static org.apache.beam.sdk.metrics.MetricUrns.FINISH_BUNDLE_MSECS_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
+import static org.apache.beam.sdk.metrics.MetricUrns.START_BUNDLE_MSECS_URN;
+
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,7 +30,6 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
-import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -88,12 +91,12 @@ public class PTransformFunctionRegistry {
    */
   public void register(String pTransformId, ThrowingRunnable runnable) {
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, pTransformId);
+    labelsMetadata.put(PTRANSFORM_LABEL, pTransformId);
     String executionTimeUrn = "";
     if (executionStateName.equals(ExecutionStateTracker.START_STATE_NAME)) {
-      executionTimeUrn = SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN;
+      executionTimeUrn = START_BUNDLE_MSECS_URN;
     } else if (executionStateName.equals(ExecutionStateTracker.FINISH_STATE_NAME)) {
-      executionTimeUrn = SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN;
+      executionTimeUrn = FINISH_BUNDLE_MSECS_URN;
     }
 
     SimpleExecutionState state =

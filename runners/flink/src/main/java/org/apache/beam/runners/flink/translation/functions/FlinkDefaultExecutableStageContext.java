@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
-import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -34,6 +33,7 @@ import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactor
 import org.apache.beam.runners.fnexecution.environment.ExternalEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.ProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.metrics.BeamUrns;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;

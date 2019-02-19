@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.SUM_INT64_TYPE_URN;
+import static org.apache.beam.sdk.metrics.MetricUrns.USER_COUNTER_URN_PREFIX;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -48,16 +51,16 @@ public class SpecMonitoringInfoValidatorTest {
   public void validateReturnsNoErrorOnValidMonitoringInfo() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
-            .setUrn(SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "someCounter")
-            .setType(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN)
+            .setUrn(USER_COUNTER_URN_PREFIX + "someCounter")
+            .setType(SUM_INT64_TYPE_URN)
             .putLabels("dummy", "value")
             .build();
     assertFalse(testObject.validate(testInput).isPresent());
 
     testInput =
         MonitoringInfo.newBuilder()
-            .setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN)
-            .setType(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN)
+            .setUrn(ELEMENT_COUNT_URN)
+            .setType(SUM_INT64_TYPE_URN)
             .putLabels("PTRANSFORM", "value")
             .putLabels("PCOLLECTION", "anotherValue")
             .build();
@@ -68,8 +71,8 @@ public class SpecMonitoringInfoValidatorTest {
   public void validateReturnsErrorOnInvalidMonitoringInfoLabels() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
-            .setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN)
-            .setType(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN)
+            .setUrn(ELEMENT_COUNT_URN)
+            .setType(SUM_INT64_TYPE_URN)
             .putLabels("PTRANSFORM", "unexpectedLabel")
             .build();
     assertTrue(testObject.validate(testInput).isPresent());
