@@ -15,7 +15,15 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
-
+#    This script installs and configures Docker on Google Cloud Dataproc Cluster.
+#    For information about which software components (and their version) are included
+#    in Cloud Dataproc clusters, see the Cloud Dataproc Image Version information:
+#    https://cloud.google.com/dataproc/concepts/dataproc-versions
+#
+#    This file originated from:
+#    https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/blob/master/docker/docker.sh
+#    (last commit: 6477e6067cc7a08de165117778a251ac2ed6a62f)
+#
 set -euxo pipefail
 
 readonly OS_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
