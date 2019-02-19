@@ -240,11 +240,11 @@ public class MetricsContainerStepMap implements Serializable {
 
     @Override
     public String toString() {
-      return queryMetrics(null).toString();
+      return allMetrics().toString();
     }
 
     @Override
-    public MetricQueryResults queryMetrics(@Nullable MetricsFilter filter) {
+    public MetricQueryResults queryMetrics(MetricsFilter filter) {
       return new QueryResults(filter);
     }
 

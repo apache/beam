@@ -39,7 +39,6 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -143,8 +142,7 @@ public class FlinkMetricContainer {
    */
   void updateMetrics(String stepName) {
     MetricResults metricResults = asAttemptedOnlyMetricResults(metricsAccumulator.getLocalValue());
-    MetricQueryResults metricQueryResults =
-        metricResults.queryMetrics(MetricsFilter.builder().addStep(stepName).build());
+    MetricQueryResults metricQueryResults = metricResults.allMetrics();
     updateCounters(metricQueryResults.getCounters());
     updateDistributions(metricQueryResults.getDistributions());
     updateGauge(metricQueryResults.getGauges());
