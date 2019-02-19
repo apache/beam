@@ -21,8 +21,6 @@ Classes, constants and functions in this file are experimental and have no
 backwards compatibility guarantees.
 
 These tools include wrappers and clients to interact with BigQuery APIs.
-
-NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
 from __future__ import absolute_import
@@ -129,7 +127,7 @@ def parse_table_reference(table, dataset=None, project=None):
       argument.
 
   Returns:
-    A TableReference for the table name that was provided.
+    A bigquery.TableReference object.
 
   Raises:
     ValueError: if the table reference as a string does not match the expected
@@ -137,8 +135,6 @@ def parse_table_reference(table, dataset=None, project=None):
   """
 
   if isinstance(table, bigquery.TableReference):
-    return table
-  elif callable(table):
     return table
 
   table_reference = bigquery.TableReference()
@@ -260,67 +256,24 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def _insert_copy_job(self,
-                       project_id,
-                       job_id,
-                       from_table_reference,
-                       to_table_reference,
-                       create_disposition=None,
-                       write_disposition=None):
-    reference = bigquery.JobReference()
-    reference.jobId = job_id
-    reference.projectId = project_id
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=project_id,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                copy=bigquery.JobConfigurationTableCopy(
-                    destinationTable=to_table_reference,
-                    sourceTable=from_table_reference,
-                    createDisposition=create_disposition,
-                    writeDisposition=write_disposition,
-                )
-            ),
-            jobReference=reference,
-        )
-    )
-
-    logging.info("Inserting job request: %s", request)
-    response = self.client.jobs.Insert(request)
-    logging.info("Response was %s", response)
-    return response.jobReference
-
-  @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def _insert_load_job(self,
-                       project_id,
-                       job_id,
-                       table_reference,
-                       source_uris,
-                       schema=None,
-                       write_disposition=None,
-                       create_disposition=None):
+  def _insert_load_job(self, project_id, job_id, table_reference, source_uris,
+                       schema=None):
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
     request = bigquery.BigqueryJobsInsertRequest(
-        projectId=project_id,
+        projectId=table_reference.project_id,
         job=bigquery.Job(
             configuration=bigquery.JobConfiguration(
                 load=bigquery.JobConfigurationLoad(
-                    sourceUris=source_uris,
-                    destinationTable=table_reference,
-                    schema=schema,
-                    writeDisposition=write_disposition,
-                    createDisposition=create_disposition,
-                    sourceFormat='NEWLINE_DELIMITED_JSON',
-                    autodetect=schema is None,
+                    source_uris=source_uris,
+                    destination_table=table_reference,
                 )
             ),
             jobReference=reference,
         )
     )
+
     response = self.client.jobs.Insert(request)
-    return response.jobReference
+    return response.jobReference.jobId
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -519,35 +472,6 @@ class BigQueryWrapper(object):
       else:
         raise
     self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
-
-  @retry.with_exponential_backoff(
-      num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def get_job(self, project, job_id, location=None):
-    request = bigquery.BigqueryJobsGetRequest()
-    request.jobId = job_id
-    request.projectId = project
-    request.location = location
-
-    return self.client.jobs.Get(request)
-
-  def perform_load_job(self,
-                       destination,
-                       files,
-                       job_id,
-                       schema=None,
-                       write_disposition=None,
-                       create_disposition=None):
-    """Starts a job to load data into BigQuery.
-
-    Returns:
-      bigquery.JobReference with the information about the job that was started.
-    """
-    return self._insert_load_job(
-        destination.projectId, job_id, destination, files,
-        schema=schema,
-        create_disposition=create_disposition,
-        write_disposition=write_disposition)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
