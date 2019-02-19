@@ -20,7 +20,7 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 // This job defines the Python postcommit tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python3_Verify', 'Run Python3 PostCommit',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python3_Verify', 'Run Python PostCommit',
     'Python SDK PostCommit Tests on Python 3', this) {
   description('Runs postcommit tests on the Python SDK on Python 3.')
 
