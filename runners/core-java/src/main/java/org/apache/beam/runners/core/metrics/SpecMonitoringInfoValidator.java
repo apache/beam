@@ -37,7 +37,7 @@ public class SpecMonitoringInfoValidator {
             .filter(x -> !x.name().equals("UNRECOGNIZED"))
             .map(
                 x -> x.getValueDescriptor().getOptions().getExtension(BeamFnApi.monitoringInfoSpec))
-            .toArray(size -> new MonitoringInfoSpec[size]);
+            .toArray(MonitoringInfoSpec[]::new);
   }
 
   /**
