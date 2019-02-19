@@ -95,7 +95,7 @@ def _bq_uuid(seed=None):
   if not seed:
     return str(uuid.uuid4()).replace("-", "")
   else:
-    return str(hashlib.md5(seed).hexdigest())
+    return str(hashlib.md5(seed.encode('utf8')).hexdigest())
 
 
 class _AppendDestinationsFn(beam.DoFn):
@@ -184,15 +184,24 @@ class WriteRecordsToFile(beam.DoFn):
   def start_bundle(self):
     self._destination_to_file_writer = {}
 
+  def _get_string_destination(self, destination):
+    if isinstance(destination, bigquery_api.TableReference):
+      return '%s:%s.%s' % (
+          destination.projectId, destination.datasetId, destination.tableId)
+    else:
+      return destination
+
   def process(self, element, file_prefix):
     destination = element[0]
     row = element[1]
 
-    if destination in self._destination_to_file_writer:
-      writer = self._destination_to_file_writer[destination]
+    key_destination = self._get_string_destination(destination)
+
+    if key_destination in self._destination_to_file_writer:
+      writer = self._destination_to_file_writer[key_destination]
     elif len(self._destination_to_file_writer) < self.max_files_per_bundle:
       (file_path, writer) = _make_new_file_writer(file_prefix, destination)
-      self._destination_to_file_writer[destination] = writer
+      self._destination_to_file_writer[key_destination] = writer
       yield pvalue.TaggedOutput(WriteRecordsToFile.WRITTEN_FILE_TAG,
                                 (destination, file_path))
     else:
@@ -206,7 +215,7 @@ class WriteRecordsToFile(beam.DoFn):
 
     if writer.tell() > self.max_file_size:
       writer.close()
-      self._destination_to_file_writer.pop(destination)
+      self._destination_to_file_writer.pop(key_destination)
 
   def finish_bundle(self):
     for _, writer in iteritems(self._destination_to_file_writer):
