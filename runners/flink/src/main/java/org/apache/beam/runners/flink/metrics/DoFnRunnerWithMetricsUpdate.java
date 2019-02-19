@@ -49,7 +49,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   @Override
   public void startBundle() {
     try (Closeable ignored =
-        MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
+        MetricsEnvironment.scopedMetricsContainer(container.ptransformContainer(stepName))) {
       delegate.startBundle();
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -59,7 +59,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   @Override
   public void processElement(final WindowedValue<InputT> elem) {
     try (Closeable ignored =
-        MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
+        MetricsEnvironment.scopedMetricsContainer(container.ptransformContainer(stepName))) {
       delegate.processElement(elem);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -73,7 +73,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
       final Instant timestamp,
       final TimeDomain timeDomain) {
     try (Closeable ignored =
-        MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
+        MetricsEnvironment.scopedMetricsContainer(container.ptransformContainer(stepName))) {
       delegate.onTimer(timerId, window, timestamp, timeDomain);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -83,14 +83,14 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   @Override
   public void finishBundle() {
     try (Closeable ignored =
-        MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
+        MetricsEnvironment.scopedMetricsContainer(container.ptransformContainer(stepName))) {
       delegate.finishBundle();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
 
     // update metrics
-    container.updateMetrics(stepName);
+    container.updateFlinkMetrics(stepName);
   }
 
   @Override

@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +56,7 @@ import org.slf4j.LoggerFactory;
  * <p>Example Usage (ElementCount counter):
  *
  * <p>SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
- * builder.setUrn(SimpleMonitoringInfoBuilder.setUrnForUserMetric("myNamespace", "myName"));
+ * builder.setUrn(SimpleMonitoringInfoBuilder.userMetric("myNamespace", "myName"));
  * builder.setInt64Value(1); MonitoringInfo mi = builder.build();
  */
 public class SimpleMonitoringInfoBuilder {
@@ -114,15 +115,15 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
-  /**
-   * Sets the urn of the MonitoringInfo to a proper user metric URN for the given params.
-   *
-   * @param namespace
-   * @param name
-   */
-  public SimpleMonitoringInfoBuilder setUrnForUserMetric(String namespace, String name) {
-    this.builder.setUrn(urn(namespace, name));
+  public SimpleMonitoringInfoBuilder handleMetricKey(MetricKey key) {
+    builder.setUrn(key.metricName().urn()).putAllLabels(key.labels().map());
     return this;
+  }
+
+  /** Sets the urn of the MonitoringInfo to a proper user metric URN for the given params. */
+  public SimpleMonitoringInfoBuilder userMetric(String ptransform, String namespace, String name) {
+    builder.setUrn(urn(namespace, name));
+    return setPTransformLabel(ptransform);
   }
 
   /** Sets the timestamp of the MonitoringInfo to the current time. */

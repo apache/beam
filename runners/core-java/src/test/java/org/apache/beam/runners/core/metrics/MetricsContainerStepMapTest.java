@@ -19,7 +19,10 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asMetricResults;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoTestUtil.testElementCountMonitoringInfo;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.clearTimestamp;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
@@ -34,12 +37,14 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -53,6 +58,7 @@ public class MetricsContainerStepMapTest {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerStepMapTest.class);
 
   private static final String NAMESPACE = MetricsContainerStepMapTest.class.getName();
+  private static final String UNUSED_STEP = "unusedStep";
   private static final String STEP1 = "myStep1";
   private static final String STEP2 = "myStep2";
   private static final String COUNTER_NAME = "myCounter";
@@ -70,7 +76,7 @@ public class MetricsContainerStepMapTest {
   private static final MetricsContainerImpl metricsContainer;
 
   static {
-    metricsContainer = new MetricsContainerImpl(null);
+    metricsContainer = MetricsContainerImpl.ptransform(UNUSED_STEP);
     try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
       counter.inc(VALUE);
       distribution.update(VALUE);
@@ -86,14 +92,13 @@ public class MetricsContainerStepMapTest {
   @Test
   public void testAttemptedAccumulatedMetricResults() {
     MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
-    attemptedMetrics.update(STEP1, metricsContainer);
-    attemptedMetrics.update(STEP2, metricsContainer);
-    attemptedMetrics.update(STEP2, metricsContainer);
+    attemptedMetrics.update(MetricLabels.ptransform(STEP1), metricsContainer);
+    attemptedMetrics.update(MetricLabels.ptransform(STEP2), metricsContainer);
+    attemptedMetrics.update(MetricLabels.ptransform(STEP2), metricsContainer);
 
     MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
 
-    MetricQueryResults step1res =
-        metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
+    MetricQueryResults step1res = metricResults.queryMetrics(MetricsFilter.ptransform(STEP1));
 
     assertIterableSize(step1res.getCounters(), 1);
     assertIterableSize(step1res.getDistributions(), 1);
@@ -108,8 +113,7 @@ public class MetricsContainerStepMapTest {
         false);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
 
-    MetricQueryResults step2res =
-        metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP2).build());
+    MetricQueryResults step2res = metricResults.queryMetrics(MetricsFilter.ptransform(STEP2));
 
     assertIterableSize(step2res.getCounters(), 1);
     assertIterableSize(step2res.getDistributions(), 1);
@@ -134,11 +138,10 @@ public class MetricsContainerStepMapTest {
   @Test
   public void testCounterCommittedUnsupportedInAttemptedAccumulatedMetricResults() {
     MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
-    attemptedMetrics.update(STEP1, metricsContainer);
+    attemptedMetrics.update(MetricLabels.ptransform(STEP1), metricsContainer);
     MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
 
-    MetricQueryResults step1res =
-        metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
+    MetricQueryResults step1res = metricResults.queryMetrics(MetricsFilter.ptransform(STEP1));
 
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("This runner does not currently support committed metrics results.");
@@ -149,11 +152,10 @@ public class MetricsContainerStepMapTest {
   @Test
   public void testDistributionCommittedUnsupportedInAttemptedAccumulatedMetricResults() {
     MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
-    attemptedMetrics.update(STEP1, metricsContainer);
+    attemptedMetrics.update(MetricLabels.ptransform(STEP1), metricsContainer);
     MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
 
-    MetricQueryResults step1res =
-        metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
+    MetricQueryResults step1res = metricResults.queryMetrics(MetricsFilter.ptransform(STEP1));
 
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("This runner does not currently support committed metrics results.");
@@ -165,11 +167,10 @@ public class MetricsContainerStepMapTest {
   @Test
   public void testGaugeCommittedUnsupportedInAttemptedAccumulatedMetricResults() {
     MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
-    attemptedMetrics.update(STEP1, metricsContainer);
+    attemptedMetrics.update(MetricLabels.ptransform(STEP1), metricsContainer);
     MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
 
-    MetricQueryResults step1res =
-        metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
+    MetricQueryResults step1res = metricResults.queryMetrics(MetricsFilter.ptransform(STEP1));
 
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("This runner does not currently support committed metrics results.");
@@ -178,25 +179,18 @@ public class MetricsContainerStepMapTest {
   }
 
   @Test
-  public void testUserMetricDroppedOnUnbounded() {
-    MetricsContainerStepMap testObject = new MetricsContainerStepMap();
-    CounterCell c1 = testObject.getUnboundContainer().getCounter(MetricName.named("ns", "name1"));
-    c1.inc(5);
-
-    List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
-    assertThat(testObject.getMonitoringInfos(), containsInAnyOrder(expected.toArray()));
-  }
-
-  @Test
   public void testUpdateAllUpdatesUnboundedAndBoundedContainers() {
     MetricsContainerStepMap baseMetricContainerRegistry = new MetricsContainerStepMap();
 
-    CounterCell c1 =
-        baseMetricContainerRegistry.getContainer(STEP1).getCounter(MetricName.named("ns", "name1"));
+    MetricName name = MetricName.named("ns", "name1");
+    MetricLabels labels = MetricLabels.ptransform(STEP1);
+    MetricKey key = MetricKey.of(name, labels);
+
+    CounterCell c1 = baseMetricContainerRegistry.getContainer(labels).getCounter(name);
     CounterCell c2 =
         baseMetricContainerRegistry
-            .getUnboundContainer()
-            .getCounter(MonitoringInfoTestUtil.testElementCountName());
+            .getContainer(MetricLabels.pcollection("testPCollection"))
+            .getCounter(MetricName.of(ELEMENT_COUNT_URN));
 
     c1.inc(7);
     c2.inc(14);
@@ -206,18 +200,18 @@ public class MetricsContainerStepMapTest {
 
     List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
 
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrnForUserMetric("ns", "name1");
-    builder.setPTransformLabel(STEP1);
-    builder.setInt64Value(7);
-    expected.add(builder.build());
+    expected.add(
+        new SimpleMonitoringInfoBuilder()
+            .userMetric(STEP1, "ns", "name1")
+            .setInt64Value(7)
+            .build());
 
-    expected.add(MonitoringInfoTestUtil.testElementCountMonitoringInfo(14));
+    expected.add(testElementCountMonitoringInfo(14));
 
     ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
 
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actual.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+      actual.add(clearTimestamp(mi));
     }
     assertThat(actual, containsInAnyOrder(expected.toArray()));
   }
@@ -225,21 +219,20 @@ public class MetricsContainerStepMapTest {
   @Test
   public void testAttemptedAndCommittedAccumulatedMetricResults() {
     MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
-    attemptedMetrics.update(STEP1, metricsContainer);
-    attemptedMetrics.update(STEP1, metricsContainer);
-    attemptedMetrics.update(STEP2, metricsContainer);
-    attemptedMetrics.update(STEP2, metricsContainer);
-    attemptedMetrics.update(STEP2, metricsContainer);
+    attemptedMetrics.update(MetricLabels.ptransform(STEP1), metricsContainer);
+    attemptedMetrics.update(MetricLabels.ptransform(STEP1), metricsContainer);
+    attemptedMetrics.update(MetricLabels.ptransform(STEP2), metricsContainer);
+    attemptedMetrics.update(MetricLabels.ptransform(STEP2), metricsContainer);
+    attemptedMetrics.update(MetricLabels.ptransform(STEP2), metricsContainer);
 
     MetricsContainerStepMap committedMetrics = new MetricsContainerStepMap();
-    committedMetrics.update(STEP1, metricsContainer);
-    committedMetrics.update(STEP2, metricsContainer);
-    committedMetrics.update(STEP2, metricsContainer);
+    committedMetrics.update(MetricLabels.ptransform(STEP1), metricsContainer);
+    committedMetrics.update(MetricLabels.ptransform(STEP2), metricsContainer);
+    committedMetrics.update(MetricLabels.ptransform(STEP2), metricsContainer);
 
     MetricResults metricResults = asMetricResults(attemptedMetrics, committedMetrics);
 
-    MetricQueryResults step1res =
-        metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
+    MetricQueryResults step1res = metricResults.queryMetrics(MetricsFilter.ptransform(STEP1));
 
     assertIterableSize(step1res.getCounters(), 1);
     assertIterableSize(step1res.getDistributions(), 1);
@@ -263,8 +256,7 @@ public class MetricsContainerStepMapTest {
         true);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), true);
 
-    MetricQueryResults step2res =
-        metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP2).build());
+    MetricQueryResults step2res = metricResults.queryMetrics(MetricsFilter.ptransform(STEP2));
 
     assertIterableSize(step2res.getCounters(), 1);
     assertIterableSize(step2res.getDistributions(), 1);
@@ -288,7 +280,7 @@ public class MetricsContainerStepMapTest {
         true);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), true);
 
-    MetricQueryResults allres = metricResults.queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults allres = metricResults.allMetrics();
 
     assertIterableSize(allres.getCounters(), 2);
     assertIterableSize(allres.getDistributions(), 2);

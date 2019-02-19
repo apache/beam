@@ -18,11 +18,13 @@
 package org.apache.beam.runners.flink.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
-import static org.apache.beam.sdk.metrics.MetricUrns.parseUrn;
+import static org.apache.beam.sdk.metrics.DistributionProtos.fromProto;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.CounterData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.DistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.ExtremaData;
@@ -41,13 +43,15 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsFilter;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.function.TriFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,10 +93,16 @@ public class FlinkMetricContainer {
     this.metricsAccumulator = (MetricsAccumulator) metricsAccumulator;
   }
 
-  public MetricsContainer getMetricsContainer(String stepName) {
+  @Nullable
+  public MetricsContainer getMetricsContainer(MetricLabels labels) {
     return metricsAccumulator != null
-        ? metricsAccumulator.getLocalValue().getContainer(stepName)
+        ? metricsAccumulator.getLocalValue().getContainer(labels)
         : null;
+  }
+
+  @Nullable
+  public MetricsContainer ptransformContainer(String ptransform) {
+    return getMetricsContainer(MetricLabels.ptransform(ptransform));
   }
 
   /**
@@ -100,116 +110,121 @@ public class FlinkMetricContainer {
    * along to Flink's internal metrics framework.
    */
   public void updateMetrics(String stepName, List<MonitoringInfo> monitoringInfos) {
-    MetricsContainer metricsContainer = getMetricsContainer(stepName);
     monitoringInfos.forEach(
         monitoringInfo -> {
-          if (monitoringInfo.hasMetric()) {
-            String urn = monitoringInfo.getUrn();
-            MetricName metricName = parseUrn(urn);
-            Metric metric = monitoringInfo.getMetric();
-            if (metric.hasCounterData()) {
-              CounterData counterData = metric.getCounterData();
-              if (counterData.getValueCase() == CounterData.ValueCase.INT64_VALUE) {
-                org.apache.beam.sdk.metrics.Counter counter =
-                    metricsContainer.getCounter(metricName);
-                counter.inc(counterData.getInt64Value());
-              } else {
-                LOG.warn("Unsupported CounterData type: {}", counterData);
-              }
-            } else if (metric.hasDistributionData()) {
-              DistributionData distributionData = metric.getDistributionData();
-              if (distributionData.hasIntDistributionData()) {
-                Distribution distribution = metricsContainer.getDistribution(metricName);
-                IntDistributionData intDistributionData = distributionData.getIntDistributionData();
-                distribution.update(
-                    intDistributionData.getSum(),
-                    intDistributionData.getCount(),
-                    intDistributionData.getMin(),
-                    intDistributionData.getMax());
-              } else {
-                LOG.warn("Unsupported DistributionData type: {}", distributionData);
-              }
-            } else if (metric.hasExtremaData()) {
-              ExtremaData extremaData = metric.getExtremaData();
-              LOG.warn("Extrema metric unsupported: {}", extremaData);
+          if (!monitoringInfo.hasMetric()) {
+            LOG.info("Skipping metric-less MonitoringInfo: {}", monitoringInfo);
+            return;
+          }
+          Metric metric = monitoringInfo.getMetric();
+
+          MetricKey key = MetricKey.create(monitoringInfo.getUrn(), monitoringInfo.getLabelsMap());
+          MetricName metricName = key.metricName();
+
+          MetricsContainer container = getMetricsContainer(key.labels());
+
+          if (metric.hasCounterData()) {
+            CounterData counterData = metric.getCounterData();
+            if (counterData.getValueCase() == CounterData.ValueCase.INT64_VALUE) {
+              org.apache.beam.sdk.metrics.Counter counter = container.getCounter(metricName);
+              counter.inc(counterData.getInt64Value());
+              updateCounter(key, counterData.getInt64Value());
+            } else {
+              LOG.warn("Unsupported CounterData type: {}", counterData);
             }
+          } else if (metric.hasDistributionData()) {
+            DistributionData distributionData = metric.getDistributionData();
+            if (distributionData.hasIntDistributionData()) {
+              Distribution distribution = container.getDistribution(metricName);
+              IntDistributionData intDistributionData = distributionData.getIntDistributionData();
+              DistributionResult distributionResult = fromProto(intDistributionData);
+              distribution.update(
+                  distributionResult.getSum(),
+                  distributionResult.getCount(),
+                  distributionResult.getMin(),
+                  distributionResult.getMax());
+              updateDistribution(key, distributionResult);
+            } else {
+              LOG.warn("Unsupported DistributionData type: {}", distributionData);
+            }
+          } else if (metric.hasExtremaData()) {
+            ExtremaData extremaData = metric.getExtremaData();
+            LOG.warn("Extrema metric unsupported: {}", extremaData);
           }
         });
-    updateMetrics(stepName);
   }
 
   /**
    * Update Flink's internal metrics ({@link this#flinkCounterCache}) with the latest metrics for a
    * given step.
    */
-  void updateMetrics(String stepName) {
+  void updateFlinkMetrics(String stepName) {
     MetricResults metricResults = asAttemptedOnlyMetricResults(metricsAccumulator.getLocalValue());
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(stepName).build());
-    updateCounters(metricQueryResults.getCounters());
-    updateDistributions(metricQueryResults.getDistributions());
-    updateGauge(metricQueryResults.getGauges());
+
+    updateMetrics(metricQueryResults.getCounters(), this::updateCounter);
+    updateMetrics(metricQueryResults.getDistributions(), this::updateDistribution);
+    updateMetrics(metricQueryResults.getGauges(), this::updateGauge);
   }
 
-  private void updateCounters(Iterable<MetricResult<Long>> counters) {
-    for (MetricResult<Long> metricResult : counters) {
-      String flinkMetricName = getFlinkMetricNameString(metricResult.getKey());
-
-      Long update = metricResult.getAttempted();
-
-      // update flink metric
-      Counter counter =
-          flinkCounterCache.computeIfAbsent(
-              flinkMetricName, n -> runtimeContext.getMetricGroup().counter(n));
-      counter.dec(counter.getCount());
-      counter.inc(update);
+  private <T> void updateMetrics(
+      Iterable<MetricResult<T>> metricResults, BiConsumer<MetricKey, T> fn) {
+    for (MetricResult<T> metricResult : metricResults) {
+      MetricKey key = metricResult.getKey();
+      fn.accept(key, metricResult.getAttempted());
     }
   }
 
-  private void updateDistributions(Iterable<MetricResult<DistributionResult>> distributions) {
-    for (MetricResult<DistributionResult> metricResult : distributions) {
-      String flinkMetricName = getFlinkMetricNameString(metricResult.getKey());
+  private <T, FlinkT> void updateMetric(
+      MetricKey key,
+      Map<String, FlinkT> flinkMetricMap,
+      TriFunction<String, MetricGroup, T, FlinkT> create,
+      BiConsumer<FlinkT, T> update,
+      T value) {
+    String flinkMetricName = getFlinkMetricNameString(key);
 
-      DistributionResult update = metricResult.getAttempted();
-
-      // update flink metric
-      FlinkDistributionGauge gauge = flinkDistributionGaugeCache.get(flinkMetricName);
-      if (gauge == null) {
-        gauge =
-            runtimeContext
-                .getMetricGroup()
-                .gauge(flinkMetricName, new FlinkDistributionGauge(update));
-        flinkDistributionGaugeCache.put(flinkMetricName, gauge);
-      } else {
-        gauge.update(update);
-      }
+    // update flink metric
+    FlinkT metric = flinkMetricMap.get(flinkMetricName);
+    if (metric == null) {
+      metric = create.apply(flinkMetricName, runtimeContext.getMetricGroup(), value);
+      flinkMetricMap.put(flinkMetricName, metric);
     }
+    update.accept(metric, value);
   }
 
-  private void updateGauge(Iterable<MetricResult<GaugeResult>> gauges) {
-    for (MetricResult<GaugeResult> metricResult : gauges) {
-      String flinkMetricName = getFlinkMetricNameString(metricResult.getKey());
-
-      GaugeResult update = metricResult.getAttempted();
-
-      // update flink metric
-      FlinkGauge gauge = flinkGaugeCache.get(flinkMetricName);
-      if (gauge == null) {
-        gauge = runtimeContext.getMetricGroup().gauge(flinkMetricName, new FlinkGauge(update));
-        flinkGaugeCache.put(flinkMetricName, gauge);
-      } else {
-        gauge.update(update);
-      }
-    }
+  private void updateCounter(MetricKey metricKey, long attempted) {
+    updateMetric(
+        metricKey,
+        flinkCounterCache,
+        (name, group, value) -> group.counter(name),
+        (counter, value) -> {
+          counter.dec(counter.getCount());
+          counter.inc(value);
+        },
+        attempted);
   }
 
-  @VisibleForTesting
+  private void updateDistribution(MetricKey metricKey, DistributionResult attempted) {
+    updateMetric(
+        metricKey,
+        flinkDistributionGaugeCache,
+        (name, group, value) -> group.gauge(name, new FlinkDistributionGauge(value)),
+        FlinkDistributionGauge::update,
+        attempted);
+  }
+
+  private void updateGauge(MetricKey metricKey, GaugeResult attempted) {
+    updateMetric(
+        metricKey,
+        flinkGaugeCache,
+        (name, group, value) -> group.gauge(name, new FlinkGauge(value)),
+        FlinkGauge::update,
+        attempted);
+  }
+
   static String getFlinkMetricNameString(MetricKey metricKey) {
-    MetricName metricName = metricKey.metricName();
-    // We use only the MetricName here, the step name is already contained
-    // in the operator name which is passed to Flink's MetricGroup to which
-    // the metric with the following name will be added.
-    return metricName.getNamespace() + METRIC_KEY_SEPARATOR + metricName.getName();
+    return metricKey.toString(METRIC_KEY_SEPARATOR);
   }
 
   /** Flink {@link Gauge} for {@link DistributionResult}. */

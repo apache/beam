@@ -19,28 +19,81 @@ package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 
 /** Metrics are keyed by the step name they are associated with and the name of the metric. */
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricKey implements Serializable {
 
-  /** The step name that is associated with this metric or Null if none is associated. */
-  @Nullable
-  public abstract String stepName();
-
-  /** The name of the metric. */
   public abstract MetricName metricName();
+
+  public abstract MetricLabels labels();
+
+  /**
+   * The ptransform name that is associated with this metric; throws if none is associated.
+   *
+   * <p>TODO(ryan): remove this?
+   */
+  public String stepName() {
+    String ptransform = ptransform();
+    if (ptransform == null) {
+      throw new IllegalArgumentException("Metric doesn't have PTRANSFORM name: " + this.toString());
+    }
+    return ptransform;
+  }
+
+  /** The ptransform name that is associated with this metric, or Null if none is associated. */
+  @Nullable
+  public String ptransform() {
+    return labels().ptransform();
+  }
+
+  /** The pcollection name that is associated with this metric, or Null if none is associated. */
+  @Nullable
+  public String pcollection() {
+    return labels().pcollection();
+  }
+
+  public boolean isUserMetric() {
+    return metricName().isUserMetric();
+  }
 
   @Override
   public String toString() {
-    return String.format("%s:%s", stepName(), metricName());
+    return toString(":");
   }
 
-  public static MetricKey create(@Nullable String stepName, MetricName metricName) {
-    return new AutoValue_MetricKey(stepName, metricName);
+  public String toString(String delimiter) {
+    if (isUserMetric()) {
+      return String.join(delimiter, stepName(), metricName().toString(delimiter));
+    }
+    return String.join(delimiter, labels().value(), metricName().urn().replaceAll(":", delimiter));
+  }
+
+  public static MetricKey of(MetricName metricName, MetricLabels labels) {
+    return new AutoValue_MetricKey(metricName, labels);
+  }
+
+  public static MetricKey ptransform(String ptransform, MetricName name) {
+    return new AutoValue_MetricKey(name, MetricLabels.ptransform(ptransform));
+  }
+
+  public static MetricKey ptransform(String ptransform, String namespace, String name) {
+    return new AutoValue_MetricKey(
+        MetricName.named(namespace, name), MetricLabels.ptransform(ptransform));
+  }
+
+  public static MetricKey ptransform(String ptransform, Class<?> namespace, String name) {
+    return new AutoValue_MetricKey(
+        MetricName.named(namespace, name), MetricLabels.ptransform(ptransform));
+  }
+
+  public static MetricKey create(String urn, Map<String, String> labels) {
+    return new AutoValue_MetricKey(MetricName.of(urn), MetricLabels.create(labels));
   }
 }

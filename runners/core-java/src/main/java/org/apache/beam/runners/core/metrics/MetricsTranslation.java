@@ -26,6 +26,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
@@ -45,7 +46,9 @@ public abstract class MetricsTranslation {
 
     for (BeamFnApi.Metrics.User userMetricUpdate : userMetricUpdates) {
       MetricKey metricKey =
-          MetricKey.create(ptransformName, metricNameFromProto(userMetricUpdate.getMetricName()));
+          MetricKey.of(
+              metricNameFromProto(userMetricUpdate.getMetricName()),
+              MetricLabels.ptransform(ptransformName));
       switch (userMetricUpdate.getDataCase()) {
         case COUNTER_DATA:
           counterUpdates.add(

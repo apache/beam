@@ -32,7 +32,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -499,10 +498,7 @@ public class TestPipeline extends Pipeline implements TestRule {
       Iterable<MetricResult<Long>> successCounterResults =
           pipelineResult
               .metrics()
-              .queryMetrics(
-                  MetricsFilter.builder()
-                      .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
-                      .build())
+              .queryMetrics(MetricsFilter.user(PAssert.class, PAssert.SUCCESS_COUNTER))
               .getCounters();
       for (MetricResult<Long> counter : successCounterResults) {
         if (counter.getAttempted() > 0) {

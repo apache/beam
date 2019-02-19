@@ -638,79 +638,104 @@ public class RemoteExecutionTest implements Serializable {
           public void onCompleted(ProcessBundleResponse response) {
             List<Matcher<MonitoringInfo>> matchers = new ArrayList<Matcher<MonitoringInfo>>();
 
-            SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrnForUserMetric(
-                RemoteExecutionTest.class.getName(), processUserCounterName);
-            builder.setPTransformLabel("create/ParMultiDo(Anonymous)");
-            builder.setInt64Value(1);
-            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+            MonitoringInfo monitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                    .userMetric(
+                        "create/ParMultiDo(Anonymous)",
+                        RemoteExecutionTest.class.getName(),
+                        processUserCounterName)
+                    .setInt64Value(1)
+                    .build();
+            matchers.add(MonitoringInfoMatchers.matchSetFields(monitoringInfo));
 
-            builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), startUserCounterName);
-            builder.setPTransformLabel("create/ParMultiDo(Anonymous)");
-            builder.setInt64Value(10);
-            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+            monitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                    .userMetric(
+                        "create/ParMultiDo(Anonymous)",
+                        RemoteExecutionTest.class.getName(),
+                        startUserCounterName)
+                    .setInt64Value(10)
+                    .build();
+            matchers.add(MonitoringInfoMatchers.matchSetFields(monitoringInfo));
 
-            builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), finishUserCounterName);
-            builder.setPTransformLabel("create/ParMultiDo(Anonymous)");
-            builder.setInt64Value(100);
-            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+            monitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                    .userMetric(
+                        "create/ParMultiDo(Anonymous)",
+                        RemoteExecutionTest.class.getName(),
+                        finishUserCounterName)
+                    .setInt64Value(100)
+                    .build();
+            matchers.add(MonitoringInfoMatchers.matchSetFields(monitoringInfo));
 
             // The element counter should be counted only once for the pcollection.
             // So there should be only two elements.
-            builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrn(ELEMENT_COUNT_URN);
-            builder.setPCollectionLabel("impulse.out");
-            builder.setInt64Value(2);
-            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+            monitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                    .setUrn(ELEMENT_COUNT_URN)
+                    .setPCollectionLabel("impulse.out")
+                    .setInt64Value(2)
+                    .build();
+            matchers.add(MonitoringInfoMatchers.matchSetFields(monitoringInfo));
 
-            builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrn(ELEMENT_COUNT_URN);
-            builder.setPCollectionLabel("create/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(3);
-            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+            monitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                    .setUrn(ELEMENT_COUNT_URN)
+                    .setPCollectionLabel("create/ParMultiDo(Anonymous).output")
+                    .setInt64Value(3)
+                    .build();
+            matchers.add(MonitoringInfoMatchers.matchSetFields(monitoringInfo));
 
             // Verify that the element count is not double counted if two PCollections consume it.
-            builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrn(ELEMENT_COUNT_URN);
-            builder.setPCollectionLabel("processA/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(6);
-            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+            monitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                    .setUrn(ELEMENT_COUNT_URN)
+                    .setPCollectionLabel("processA/ParMultiDo(Anonymous).output")
+                    .setInt64Value(6)
+                    .build();
+            matchers.add(MonitoringInfoMatchers.matchSetFields(monitoringInfo));
 
-            builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrn(ELEMENT_COUNT_URN);
-            builder.setPCollectionLabel("processB/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(6);
-            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+            monitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                    .setUrn(ELEMENT_COUNT_URN)
+                    .setPCollectionLabel("processB/ParMultiDo(Anonymous).output")
+                    .setInt64Value(6)
+                    .build();
+            matchers.add(MonitoringInfoMatchers.matchSetFields(monitoringInfo));
 
             // Check for execution time metrics for the testPTransformId
-            builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrn(START_BUNDLE_MSECS_URN);
-            builder.setInt64TypeUrn();
-            builder.setPTransformLabel(testPTransformId);
+            monitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                    .setUrn(START_BUNDLE_MSECS_URN)
+                    .setInt64TypeUrn()
+                    .setPTransformLabel(testPTransformId)
+                    .build();
             matchers.add(
                 allOf(
-                    MonitoringInfoMatchers.matchSetFields(builder.build()),
+                    MonitoringInfoMatchers.matchSetFields(monitoringInfo),
                     MonitoringInfoMatchers.valueGreaterThan(0)));
 
             // Check for execution time metrics for the testPTransformId
-            builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrn(PROCESS_BUNDLE_MSECS_URN);
-            builder.setInt64TypeUrn();
-            builder.setPTransformLabel(testPTransformId);
+            monitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                    .setUrn(PROCESS_BUNDLE_MSECS_URN)
+                    .setInt64TypeUrn()
+                    .setPTransformLabel(testPTransformId)
+                    .build();
             matchers.add(
                 allOf(
-                    MonitoringInfoMatchers.matchSetFields(builder.build()),
+                    MonitoringInfoMatchers.matchSetFields(monitoringInfo),
                     MonitoringInfoMatchers.valueGreaterThan(0)));
 
-            builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrn(FINISH_BUNDLE_MSECS_URN);
-            builder.setInt64TypeUrn();
-            builder.setPTransformLabel(testPTransformId);
+            monitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                    .setUrn(FINISH_BUNDLE_MSECS_URN)
+                    .setInt64TypeUrn()
+                    .setPTransformLabel(testPTransformId)
+                    .build();
             matchers.add(
                 allOf(
-                    MonitoringInfoMatchers.matchSetFields(builder.build()),
+                    MonitoringInfoMatchers.matchSetFields(monitoringInfo),
                     MonitoringInfoMatchers.valueGreaterThan(0)));
 
             for (Matcher<MonitoringInfo> matcher : matchers) {

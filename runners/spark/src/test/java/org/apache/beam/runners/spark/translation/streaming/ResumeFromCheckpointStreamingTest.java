@@ -212,12 +212,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     long successAssertions = 0;
     Iterable<MetricResult<Long>> counterResults =
         res.metrics()
-            .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(
-                        MetricNameFilter.named(
-                            PAssertWithoutFlatten.class, PAssert.SUCCESS_COUNTER))
-                    .build())
+            .queryMetrics(MetricsFilter.user(PAssertWithoutFlatten.class, PAssert.SUCCESS_COUNTER))
             .getCounters();
     for (MetricResult<Long> counter : counterResults) {
       if (counter.getAttempted() > 0) {
@@ -232,12 +227,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     long failedAssertions = 0;
     Iterable<MetricResult<Long>> failCounterResults =
         res.metrics()
-            .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(
-                        MetricNameFilter.named(
-                            PAssertWithoutFlatten.class, PAssert.FAILURE_COUNTER))
-                    .build())
+            .queryMetrics(MetricsFilter.user(PAssertWithoutFlatten.class, PAssert.FAILURE_COUNTER))
             .getCounters();
     for (MetricResult<Long> counter : failCounterResults) {
       if (counter.getAttempted() > 0) {

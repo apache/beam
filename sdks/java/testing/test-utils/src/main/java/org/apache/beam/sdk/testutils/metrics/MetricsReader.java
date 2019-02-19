@@ -22,7 +22,6 @@ import java.util.Optional;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -61,13 +60,7 @@ public class MetricsReader {
    * attempted metrics because some runners don't support committed metrics.
    */
   public long getCounterMetric(String name) {
-    MetricQueryResults metrics =
-        result
-            .metrics()
-            .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(MetricNameFilter.named(namespace, name))
-                    .build());
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.user(namespace, name));
     Iterable<MetricResult<Long>> counters = metrics.getCounters();
 
     checkIfMetricResultIsUnique(name, counters);
@@ -120,13 +113,7 @@ public class MetricsReader {
   }
 
   private Iterable<MetricResult<DistributionResult>> getDistributions(String name) {
-    MetricQueryResults metrics =
-        result
-            .metrics()
-            .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(MetricNameFilter.named(namespace, name))
-                    .build());
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.user(namespace, name));
     return metrics.getDistributions();
   }
 

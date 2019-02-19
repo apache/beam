@@ -328,7 +328,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
 
   @Test
   public void testSlidingWindowsAndLateData() throws Exception {
-    MetricsContainerImpl container = new MetricsContainerImpl("step");
+    MetricsContainerImpl container = MetricsContainerImpl.ptransform("step");
     MetricsEnvironment.setCurrentContainer(container);
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     ListOutputManager outputManager = new ListOutputManager();

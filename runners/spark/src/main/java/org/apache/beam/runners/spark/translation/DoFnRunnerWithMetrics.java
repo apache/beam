@@ -92,6 +92,6 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
   }
 
   private MetricsContainer metricsContainer() {
-    return metricsAccum.localValue().getContainer(stepName);
+    return metricsAccum.localValue().ptransformContainer(stepName);
   }
 }

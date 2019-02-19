@@ -20,8 +20,10 @@ package org.apache.beam.runners.core.metrics;
 import static junit.framework.TestCase.assertEquals;
 import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
 import static org.apache.beam.sdk.metrics.MetricUrns.PCOLLECTION_LABEL;
+import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
 import static org.apache.beam.sdk.metrics.MetricUrns.SUM_INT64_TYPE_URN;
 import static org.apache.beam.sdk.metrics.MetricUrns.USER_COUNTER_URN_PREFIX;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -55,30 +57,33 @@ public class SimpleMonitoringInfoBuilderTest {
 
   @Test
   public void testUserCounter() {
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrnForUserMetric("myNamespace", "myName");
+    SimpleMonitoringInfoBuilder builder =
+        new SimpleMonitoringInfoBuilder().userMetric("step", "myNamespace", "myName");
     assertNull(builder.build());
 
     builder.setInt64Value(1);
     // Pass now that the spec is fully met.
     MonitoringInfo monitoringInfo = builder.build();
-    assertTrue(monitoringInfo != null);
+    assertNotNull(monitoringInfo);
     assertEquals(USER_COUNTER_URN_PREFIX + "myNamespace:myName", monitoringInfo.getUrn());
     assertEquals(SUM_INT64_TYPE_URN, monitoringInfo.getType());
+    assertEquals("step", monitoringInfo.getLabelsOrThrow(PTRANSFORM_LABEL));
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
 
   @Test
   public void testUserMetricWithInvalidDelimiterCharacterIsReplaced() {
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrnForUserMetric("myNamespace:withInvalidChar", "myName");
-    builder.setInt64Value(1);
+    MonitoringInfo monitoringInfo =
+        new SimpleMonitoringInfoBuilder()
+            .userMetric("step", "myNamespace:withInvalidChar", "myName")
+            .setInt64Value(1)
+            .build();
     // Pass now that the spec is fully met.
-    MonitoringInfo monitoringInfo = builder.build();
-    assertTrue(monitoringInfo != null);
+    assertNotNull(monitoringInfo);
     assertEquals(
         USER_COUNTER_URN_PREFIX + "myNamespace_withInvalidChar:myName", monitoringInfo.getUrn());
     assertEquals(SUM_INT64_TYPE_URN, monitoringInfo.getType());
+    assertEquals("step", monitoringInfo.getLabelsOrThrow(PTRANSFORM_LABEL));
     assertEquals(1, monitoringInfo.getMetric().getCounterData().getInt64Value());
   }
 }

@@ -90,7 +90,7 @@ public class StatefulDoFnRunnerTest {
 
   @Test
   public void testLateDropping() throws Exception {
-    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsContainerImpl container = MetricsContainerImpl.ptransform("any");
     MetricsEnvironment.setCurrentContainer(container);
 
     timerInternals.advanceInputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));

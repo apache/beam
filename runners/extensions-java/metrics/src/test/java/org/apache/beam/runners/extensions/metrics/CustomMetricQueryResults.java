@@ -22,7 +22,6 @@ import java.util.List;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsSink;
@@ -41,8 +40,7 @@ class CustomMetricQueryResults extends MetricQueryResults {
 
   private <T> List<MetricResult<T>> makeResults(
       String step, String name, T committed, T attempted) {
-    MetricName metricName = MetricName.named(NAMESPACE, name);
-    MetricKey key = MetricKey.create(step, metricName);
+    MetricKey key = MetricKey.ptransform(step, NAMESPACE, name);
     return Collections.singletonList(
         isCommittedSupported
             ? MetricResult.create(key, committed, attempted)

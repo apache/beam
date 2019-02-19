@@ -107,7 +107,8 @@ class DirectTransformExecutor<T> implements TransformExecutor {
 
   @Override
   public void run() {
-    MetricsContainerImpl metricsContainer = new MetricsContainerImpl(transform.getFullName());
+    MetricsContainerImpl metricsContainer =
+        MetricsContainerImpl.ptransform(transform.getFullName());
     try (Closeable metricsScope = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
       Collection<ModelEnforcement<T>> enforcements = new ArrayList<>();
       for (ModelEnforcementFactory enforcementFactory : modelEnforcements) {

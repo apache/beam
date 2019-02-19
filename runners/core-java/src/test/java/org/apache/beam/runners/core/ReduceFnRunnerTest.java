@@ -201,7 +201,7 @@ public class ReduceFnRunnerTest {
   @Test
   public void testOnElementBufferingDiscarding() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
-    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsContainerImpl container = MetricsContainerImpl.ptransform("any");
     MetricsEnvironment.setCurrentContainer(container);
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(
@@ -727,7 +727,7 @@ public class ReduceFnRunnerTest {
 
   @Test
   public void testWatermarkHoldAndLateData() throws Exception {
-    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsContainerImpl container = MetricsContainerImpl.ptransform("any");
     MetricsEnvironment.setCurrentContainer(container);
     // Test handling of late data. Specifically, ensure the watermark hold is correct.
     Duration allowedLateness = Duration.millis(10);
@@ -965,7 +965,7 @@ public class ReduceFnRunnerTest {
 
   @Test
   public void testMergingLateWatermarkHolds() throws Exception {
-    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsContainerImpl container = MetricsContainerImpl.ptransform("any");
     MetricsEnvironment.setCurrentContainer(container);
     Duration gapDuration = Duration.millis(10);
     Duration allowedLateness = Duration.standardMinutes(100);
@@ -999,7 +999,7 @@ public class ReduceFnRunnerTest {
 
   @Test
   public void testMergingWatermarkHoldAndLateDataFuzz() throws Exception {
-    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsContainerImpl container = MetricsContainerImpl.ptransform("any");
     MetricsEnvironment.setCurrentContainer(container);
     // Test handling of late data. Specifically, ensure the watermark hold is correct.
     Duration allowedLateness = Duration.standardMinutes(100);
@@ -1723,7 +1723,7 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testDropDataMultipleWindowsFinishedTrigger() throws Exception {
-    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsContainerImpl container = MetricsContainerImpl.ptransform("any");
     MetricsEnvironment.setCurrentContainer(container);
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(
@@ -1774,7 +1774,7 @@ public class ReduceFnRunnerTest {
 
   @Test
   public void testIdempotentEmptyPanesDiscarding() throws Exception {
-    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsContainerImpl container = MetricsContainerImpl.ptransform("any");
     MetricsEnvironment.setCurrentContainer(container);
     // Test uninteresting (empty) panes don't increment the index or otherwise
     // modify PaneInfo.
@@ -1829,7 +1829,7 @@ public class ReduceFnRunnerTest {
 
   @Test
   public void testIdempotentEmptyPanesAccumulating() throws Exception {
-    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsContainerImpl container = MetricsContainerImpl.ptransform("any");
     MetricsEnvironment.setCurrentContainer(container);
     // Test uninteresting (empty) panes don't increment the index or otherwise
     // modify PaneInfo.

@@ -88,7 +88,7 @@ class DirectTransformExecutor<T> implements TransformExecutor {
 
   @Override
   public void run() {
-    MetricsContainerImpl metricsContainer = new MetricsContainerImpl(transform.getId());
+    MetricsContainerImpl metricsContainer = MetricsContainerImpl.ptransform(transform.getId());
     try (Closeable metricsScope = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
       TransformEvaluator<T> evaluator = evaluatorRegistry.forApplication(transform, inputBundle);
       if (evaluator == null) {

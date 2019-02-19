@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /**
@@ -50,7 +50,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 @Experimental(Kind.METRICS)
 public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
-  @Nullable private final String stepName;
+  private final MetricLabels labels;
 
   private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
 
@@ -59,9 +59,17 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
+  public static MetricsContainerImpl ptransform(String ptransform) {
+    return new MetricsContainerImpl(MetricLabels.ptransform(ptransform));
+  }
+
+  public static MetricsContainerImpl pcollection(String pcollection) {
+    return new MetricsContainerImpl(MetricLabels.pcollection(pcollection));
+  }
+
   /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
-  public MetricsContainerImpl(@Nullable String stepName) {
-    this.stepName = stepName;
+  public MetricsContainerImpl(MetricLabels labels) {
+    this.labels = labels;
   }
 
   /**
@@ -124,7 +132,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       if (cell.getValue().getDirty().beforeCommit()) {
         updates.add(
             MetricUpdate.create(
-                MetricKey.create(stepName, cell.getKey()), cell.getValue().getCumulative()));
+                MetricKey.of(cell.getKey(), labels), cell.getValue().getCumulative()));
       }
     }
     return updates.build();
@@ -145,30 +153,11 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    */
   @Nullable
   private MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
-    MetricName metricName = metricUpdate.getKey().metricName();
-    if (metricName instanceof MonitoringInfoMetricName) {
-      MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
-      // Represents a specific MonitoringInfo for a specific URN.
-      builder.setUrn(monitoringInfoName.getUrn());
-      for (Entry<String, String> e : monitoringInfoName.getLabels().entrySet()) {
-        builder.setLabel(e.getKey(), e.getValue());
-      }
-    } else { // Note: (metricName instanceof MetricName) is always True.
-      // Represents a user counter.
-      builder.setUrnForUserMetric(
-          metricUpdate.getKey().metricName().getNamespace(),
-          metricUpdate.getKey().metricName().getName());
-      // Drop if the stepname is not set. All user counters must be
-      // defined for a PTransform. They must be defined on a container bound to a step.
-      if (this.stepName == null) {
-        return null;
-      }
-      builder.setPTransformLabel(metricUpdate.getKey().stepName());
-    }
-    builder.setInt64Value(metricUpdate.getUpdate());
-    builder.setTimestampToNow();
-    return builder.build();
+    return new SimpleMonitoringInfoBuilder(true)
+        .handleMetricKey(metricUpdate.getKey())
+        .setInt64Value(metricUpdate.getUpdate())
+        .setTimestampToNow()
+        .build();
   }
 
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
@@ -207,7 +196,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
       UpdateT update = checkNotNull(cell.getValue().getCumulative());
-      updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update));
+      updates.add(MetricUpdate.create(MetricKey.of(cell.getKey(), labels), update));
     }
     return updates.build();
   }

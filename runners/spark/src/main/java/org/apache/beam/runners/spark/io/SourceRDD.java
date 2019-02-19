@@ -136,7 +136,8 @@ public class SourceRDD {
     @Override
     public scala.collection.Iterator<WindowedValue<T>> compute(
         final Partition split, final TaskContext context) {
-      final MetricsContainer metricsContainer = metricsAccum.localValue().getContainer(stepName);
+      final MetricsContainer metricsContainer =
+          metricsAccum.localValue().ptransformContainer(stepName);
 
       @SuppressWarnings("unchecked")
       final BoundedSource.BoundedReader<T> reader = createReader((SourcePartition<T>) split);

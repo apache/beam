@@ -113,7 +113,7 @@ public class StateSpecFunctions {
           State<Tuple2<byte[], Instant>> state) {
 
         MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
-        MetricsContainer metricsContainer = metricsContainers.getContainer(stepName);
+        MetricsContainer metricsContainer = metricsContainers.ptransformContainer(stepName);
 
         // Add metrics container to the scope of org.apache.beam.sdk.io.Source.Reader methods
         // since they may report metrics.

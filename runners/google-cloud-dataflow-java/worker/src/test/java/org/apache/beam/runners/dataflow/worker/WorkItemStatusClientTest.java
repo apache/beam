@@ -389,7 +389,7 @@ public class WorkItemStatusClientTest {
             .setCumulative(true)
             .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(42));
 
-    MetricsContainerImpl metricsContainer = new MetricsContainerImpl("step");
+    MetricsContainerImpl metricsContainer = MetricsContainerImpl.ptransform("step");
     BatchModeExecutionContext context = mock(BatchModeExecutionContext.class);
     when(context.extractMetricUpdates(anyBoolean())).thenReturn(ImmutableList.of(expectedMetric));
     when(context.extractMsecCounters(anyBoolean())).thenReturn(Collections.emptyList());

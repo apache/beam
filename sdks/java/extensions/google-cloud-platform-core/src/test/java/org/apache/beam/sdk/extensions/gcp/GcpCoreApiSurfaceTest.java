@@ -56,9 +56,7 @@ public class GcpCoreApiSurfaceTest {
             classesInPackage("com.fasterxml.jackson.annotation"),
             classesInPackage("java"),
             classesInPackage("javax"),
-            classesInPackage("org.apache.beam.model"),
             classesInPackage("org.apache.beam.sdk"),
-            classesInPackage("org.apache.beam.vendor.grpc"),
             classesInPackage("org.joda.time"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));

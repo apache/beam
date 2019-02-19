@@ -32,7 +32,6 @@ import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
 import org.apache.beam.sdk.metrics.MetricKey;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -253,11 +252,10 @@ class DataflowMetrics extends MetricResults {
       }
       fullStepName =
           dataflowPipelineJob.transformStepNames.inverse().get(fullStepName).getFullName();
-      return MetricKey.create(
+      return MetricKey.ptransform(
           fullStepName,
-          MetricName.named(
-              metricUpdate.getName().getContext().get("namespace"),
-              metricUpdate.getName().getName()));
+          metricUpdate.getName().getContext().get("namespace"),
+          metricUpdate.getName().getName());
     }
 
     private void buildMetricsIndex() {

@@ -19,14 +19,13 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.sdk.metrics.MetricUrns.FINISH_BUNDLE_MSECS_URN;
 import static org.apache.beam.sdk.metrics.MetricUrns.PROCESS_BUNDLE_MSECS_URN;
-import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
 import static org.apache.beam.sdk.metrics.MetricUrns.START_BUNDLE_MSECS_URN;
 import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -35,19 +34,19 @@ import org.junit.Test;
 public class SimpleStateRegistryTest {
 
   @Test
-  public void testExecutionTimeUrnsBuildMonitoringInfos() throws Exception {
+  public void testExecutionTimeUrnsBuildMonitoringInfos() {
     String testPTransformId = "pTransformId";
-    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(PTRANSFORM_LABEL, testPTransformId);
+
+    MetricLabels labels = MetricLabels.ptransform(testPTransformId);
     SimpleExecutionState startState =
         new SimpleExecutionState(
-            ExecutionStateTracker.START_STATE_NAME, START_BUNDLE_MSECS_URN, labelsMetadata);
+            ExecutionStateTracker.START_STATE_NAME, START_BUNDLE_MSECS_URN, labels.map());
     SimpleExecutionState processState =
         new SimpleExecutionState(
-            ExecutionStateTracker.PROCESS_STATE_NAME, PROCESS_BUNDLE_MSECS_URN, labelsMetadata);
+            ExecutionStateTracker.PROCESS_STATE_NAME, PROCESS_BUNDLE_MSECS_URN, labels.map());
     SimpleExecutionState finishState =
         new SimpleExecutionState(
-            ExecutionStateTracker.FINISH_STATE_NAME, FINISH_BUNDLE_MSECS_URN, labelsMetadata);
+            ExecutionStateTracker.FINISH_STATE_NAME, FINISH_BUNDLE_MSECS_URN, labels.map());
 
     SimpleStateRegistry testObject = new SimpleStateRegistry();
     testObject.register(startState);
