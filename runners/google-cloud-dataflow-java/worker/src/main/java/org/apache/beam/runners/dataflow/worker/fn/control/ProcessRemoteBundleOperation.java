@@ -61,12 +61,13 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       DataflowOperationContext operationContext,
       StageBundleFactory stageBundleFactory,
       Map<String, OutputReceiver> outputReceiverMap,
-      TimerReceiver timerReceiver) {
+      TimerReceiver timerReceiver,
+      StateRequestHandlerImpl stateRequestHandler) {
     super(EMPTY_RECEIVER_ARRAY, operationContext);
 
     this.timerReceiver = timerReceiver;
     this.stageBundleFactory = stageBundleFactory;
-    this.stateRequestHandler = StateRequestHandler.unsupported();
+    this.stateRequestHandler = stateRequestHandler;
     this.progressHandler = BundleProgressHandler.ignored();
     this.executableStage = executableStage;
     this.outputReceiverMap = outputReceiverMap;

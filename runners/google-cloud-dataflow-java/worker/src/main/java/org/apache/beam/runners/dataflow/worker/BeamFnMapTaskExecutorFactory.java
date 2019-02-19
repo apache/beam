@@ -51,6 +51,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.fn.control.ProcessRemoteBundleOperation;
 import org.apache.beam.runners.dataflow.worker.fn.control.RegisterAndProcessBundleOperation;
+import org.apache.beam.runners.dataflow.worker.fn.control.StateRequestHandlerImpl;
 import org.apache.beam.runners.dataflow.worker.fn.control.TimerReceiver;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortReadOperation;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
@@ -357,6 +358,10 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                 executionContext.getStepContext(operationContext).namespacedToUser(),
                 stageBundleFactory);
 
+        StateRequestHandlerImpl stateRequestHandler =
+            new StateRequestHandlerImpl(
+                executionContext.getStepContext(operationContext).namespacedToUser());
+
         return OperationNode.create(
             new ProcessRemoteBundleOperation(
                 input.getExecutableStage(),
@@ -364,7 +369,8 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                     NameContext.create(stageName, stageName, stageName, stageName)),
                 stageBundleFactory,
                 outputReceiverMap,
-                timerReceiver));
+                timerReceiver,
+                stateRequestHandler));
       }
     };
   }
