@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -171,7 +170,6 @@ public class MetricsContainerStepMap implements Serializable {
     return metricsContainers.values();
   }
 
-  @SuppressWarnings("ConstantConditions")
   private static <T> void mergeAttemptedResults(
       Map<MetricKey, MetricResult<T>> metricResultMap,
       Iterable<MetricUpdate<T>> updates,

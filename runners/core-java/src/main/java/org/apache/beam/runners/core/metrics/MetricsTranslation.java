@@ -40,9 +40,9 @@ public abstract class MetricsTranslation {
   /** Convert some proto user-metric updates to {@link MetricUpdates}. */
   public static MetricUpdates metricUpdatesFromProto(
       String ptransformName, Collection<BeamFnApi.Metrics.User> userMetricUpdates) {
-    List<MetricUpdates.MetricUpdate<Long>> counterUpdates = new ArrayList<>();
-    List<MetricUpdates.MetricUpdate<DistributionData>> distributionUpdates = new ArrayList<>();
-    List<MetricUpdates.MetricUpdate<GaugeData>> gaugeUpdates = new ArrayList<>();
+    List<MetricUpdate<Long>> counterUpdates = new ArrayList<>();
+    List<MetricUpdate<DistributionData>> distributionUpdates = new ArrayList<>();
+    List<MetricUpdate<GaugeData>> gaugeUpdates = new ArrayList<>();
 
     for (BeamFnApi.Metrics.User userMetricUpdate : userMetricUpdates) {
       MetricKey metricKey =
@@ -52,12 +52,11 @@ public abstract class MetricsTranslation {
       switch (userMetricUpdate.getDataCase()) {
         case COUNTER_DATA:
           counterUpdates.add(
-              MetricUpdates.MetricUpdate.create(
-                  metricKey, userMetricUpdate.getCounterData().getValue()));
+              MetricUpdate.create(metricKey, userMetricUpdate.getCounterData().getValue()));
           break;
         case DISTRIBUTION_DATA:
           distributionUpdates.add(
-              MetricUpdates.MetricUpdate.create(
+              MetricUpdate.create(
                   metricKey,
                   DistributionData.create(
                       userMetricUpdate.getDistributionData().getSum(),
@@ -67,7 +66,7 @@ public abstract class MetricsTranslation {
           break;
         case GAUGE_DATA:
           gaugeUpdates.add(
-              MetricUpdates.MetricUpdate.create(
+              MetricUpdate.create(
                   metricKey, GaugeData.create(userMetricUpdate.getGaugeData().getValue())));
           break;
         case DATA_NOT_SET:
@@ -90,7 +89,7 @@ public abstract class MetricsTranslation {
                   }
                 });
 
-    for (MetricUpdates.MetricUpdate<Long> counterUpdate : metricUpdates.counterUpdates()) {
+    for (MetricUpdate<Long> counterUpdate : metricUpdates.counterUpdates()) {
       fnMetrics
           .getUnchecked(counterUpdate.getKey().stepName())
           .add(
@@ -102,7 +101,7 @@ public abstract class MetricsTranslation {
                   .build());
     }
 
-    for (MetricUpdates.MetricUpdate<GaugeData> gaugeUpdate : metricUpdates.gaugeUpdates()) {
+    for (MetricUpdate<GaugeData> gaugeUpdate : metricUpdates.gaugeUpdates()) {
       fnMetrics
           .getUnchecked(gaugeUpdate.getKey().stepName())
           .add(
@@ -114,8 +113,7 @@ public abstract class MetricsTranslation {
                   .build());
     }
 
-    for (MetricUpdates.MetricUpdate<DistributionData> distributionUpdate :
-        metricUpdates.distributionUpdates()) {
+    for (MetricUpdate<DistributionData> distributionUpdate : metricUpdates.distributionUpdates()) {
       fnMetrics
           .getUnchecked(distributionUpdate.getKey().stepName())
           .add(

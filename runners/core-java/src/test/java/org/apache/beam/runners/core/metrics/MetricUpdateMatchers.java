@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core.metrics;
 
 import java.util.Objects;
-import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;

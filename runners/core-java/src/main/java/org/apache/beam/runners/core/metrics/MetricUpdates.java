@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static java.util.Collections.emptyList;
+
 import com.google.auto.value.AutoValue;
-import java.io.Serializable;
-import java.util.Collections;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Representation of multiple metric updates. */
@@ -31,26 +30,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 public abstract class MetricUpdates {
 
   public static final MetricUpdates EMPTY =
-      MetricUpdates.create(
-          Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
-
-  /**
-   * Representation of a single metric update.
-   *
-   * @param <T> The type of value representing the update.
-   */
-  @AutoValue
-  public abstract static class MetricUpdate<T> implements Serializable {
-
-    /** The key being updated. */
-    public abstract MetricKey getKey();
-    /** The value of the update. */
-    public abstract T getUpdate();
-
-    public static <T> MetricUpdate<T> create(MetricKey key, T update) {
-      return new AutoValue_MetricUpdates_MetricUpdate(key, update);
-    }
-  }
+      MetricUpdates.create(emptyList(), emptyList(), emptyList());
 
   /** Returns true if there are no updates in this MetricUpdates object. */
   public boolean isEmpty() {
